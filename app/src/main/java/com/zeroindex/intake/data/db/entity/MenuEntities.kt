@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 enum class MenuSourceKind { URL, PDF, TEXT }
 
@@ -15,6 +16,7 @@ enum class MenuRunStatus { NEVER_RUN, OK, FAILED, RUNNING }
  * [MenuSourceKind.PDF], and unused for [MenuSourceKind.TEXT], whose menu is
  * kept in [pastedText].
  */
+@Serializable
 @Entity(tableName = "menu_source", indices = [Index("deletedAt")])
 data class MenuSourceEntity(
     @PrimaryKey override val id: String = newId(),
@@ -40,6 +42,7 @@ enum class AllergenStatus { CLEAR, MAY_CONTAIN, CONTAINS, UNKNOWN }
  * published them ([macrosPublished]). [allergenStatus] is always the *local*
  * engine's verdict, never the model's: allergy safety is not delegated.
  */
+@Serializable
 @Entity(
     tableName = "menu_item",
     foreignKeys = [

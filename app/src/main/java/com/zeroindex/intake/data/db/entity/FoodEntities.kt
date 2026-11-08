@@ -8,6 +8,7 @@ import androidx.room.PrimaryKey
 import com.zeroindex.intake.domain.model.AiConfidence
 import com.zeroindex.intake.domain.model.FoodSource
 import com.zeroindex.intake.domain.model.MealSlot
+import kotlinx.serialization.Serializable
 
 /**
  * A food the app knows about, from any of the five add paths (SPEC §5).
@@ -16,6 +17,7 @@ import com.zeroindex.intake.domain.model.MealSlot
  * deliberate: serving maths happens at display time, and a column named plain
  * `kcal` is the kind of thing that quietly becomes per-serving somewhere.
  */
+@Serializable
 @Entity(
     tableName = "food",
     indices = [Index("barcode"), Index("name"), Index("deletedAt"), Index("timesLogged")],
@@ -54,6 +56,7 @@ data class FoodEntity(
  * log time (SPEC §4), so editing a food later never rewrites history. [foodId]
  * is nullable because quick add (SPEC §5.4) deliberately creates no food record.
  */
+@Serializable
 @Entity(
     tableName = "food_log",
     foreignKeys = [
@@ -94,6 +97,7 @@ data class FoodLogEntity(
 
 enum class RecipeOrigin { USER, PLAN, HUNTER }
 
+@Serializable
 @Entity(tableName = "recipe", indices = [Index("sourceWeekNumber"), Index("deletedAt")])
 data class RecipeEntity(
     @PrimaryKey override val id: String = newId(),
@@ -122,6 +126,7 @@ data class RecipeEntity(
     override val deletedAt: Long? = null,
 ) : Audited
 
+@Serializable
 @Entity(
     tableName = "recipe_ingredient",
     foreignKeys = [
@@ -142,6 +147,7 @@ data class RecipeIngredientEntity(
 ) : Audited
 
 /** A saved combination logged in one tap (SPEC §4). */
+@Serializable
 @Entity(tableName = "meal_template", indices = [Index("deletedAt")])
 data class MealTemplateEntity(
     @PrimaryKey override val id: String = newId(),
@@ -158,6 +164,7 @@ data class MealTemplateEntity(
     override val deletedAt: Long? = null,
 ) : Audited
 
+@Serializable
 @Entity(
     tableName = "meal_template_item",
     foreignKeys = [

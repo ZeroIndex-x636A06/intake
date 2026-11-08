@@ -5,11 +5,13 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.zeroindex.intake.domain.model.TdeeConfidence
+import kotlinx.serialization.Serializable
 
 /**
  * A weigh-in, optionally with tape measurements and a photo.
  * Lengths in centimetres, weight in kilograms (SPEC §3.5).
  */
+@Serializable
 @Entity(tableName = "body_metric", indices = [Index("measuredAt"), Index("deletedAt")])
 data class BodyMetricEntity(
     @PrimaryKey override val id: String = newId(),
@@ -44,6 +46,7 @@ data class BodyMetricEntity(
  * stays accurate when goals change. The row in effect for a given day is the
  * newest one whose [effectiveFrom] is not in the future.
  */
+@Serializable
 @Entity(tableName = "nutrition_target", indices = [Index("effectiveFrom"), Index("deletedAt")])
 data class NutritionTargetEntity(
     @PrimaryKey override val id: String = newId(),
@@ -62,6 +65,7 @@ data class NutritionTargetEntity(
  * Written nightly by WorkManager from the user's own intake and weight trend
  * (SPEC §8). Never a formula estimate once there is real data.
  */
+@Serializable
 @Entity(tableName = "tdee_estimate", indices = [Index("calculatedFor"), Index("deletedAt")])
 data class TdeeEstimateEntity(
     @PrimaryKey override val id: String = newId(),

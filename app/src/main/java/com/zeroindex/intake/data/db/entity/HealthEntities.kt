@@ -3,6 +3,7 @@ package com.zeroindex.intake.data.db.entity
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 /**
  * One local day of Health Connect data, cached so reports, the daily insight
@@ -14,6 +15,7 @@ import androidx.room.PrimaryKey
  * otherwise the resting burn would be counted twice, once in TDEE and again
  * in the workout.
  */
+@Serializable
 @Entity(
     tableName = "health_daily_summary",
     indices = [Index(value = ["dayStartMillis"], unique = true), Index("deletedAt")],
@@ -40,6 +42,7 @@ data class HealthDailySummaryEntity(
 enum class BackupStatus { RUNNING, OK, FAILED }
 
 /** One attempt at a nightly headless backup (amendment §2). */
+@Serializable
 @Entity(tableName = "backup_run", indices = [Index("startedAt"), Index("deletedAt")])
 data class BackupRunEntity(
     @PrimaryKey override val id: String = newId(),

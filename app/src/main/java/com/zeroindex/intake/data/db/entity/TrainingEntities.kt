@@ -5,7 +5,9 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.zeroindex.intake.domain.model.ProgressionType
+import kotlinx.serialization.Serializable
 
+@Serializable
 @Entity(
     tableName = "exercise",
     indices = [Index("name"), Index("primaryMuscle"), Index("deletedAt")],
@@ -27,6 +29,7 @@ data class ExerciseEntity(
 ) : Audited
 
 /** SPEC §10: a program is data with progression rules attached. */
+@Serializable
 @Entity(tableName = "program", indices = [Index("isActive"), Index("deletedAt")])
 data class ProgramEntity(
     @PrimaryKey override val id: String = newId(),
@@ -40,6 +43,7 @@ data class ProgramEntity(
     override val deletedAt: Long? = null,
 ) : Audited
 
+@Serializable
 @Entity(
     tableName = "program_day",
     foreignKeys = [
@@ -62,6 +66,7 @@ data class ProgramDayEntity(
  * new rule type needs no migration; it is parsed in `domain/`, and a malformed
  * blob surfaces as a validation error in the builder rather than a crash.
  */
+@Serializable
 @Entity(tableName = "progression_rule", indices = [Index("type"), Index("deletedAt")])
 data class ProgressionRuleEntity(
     @PrimaryKey override val id: String = newId(),
@@ -73,6 +78,7 @@ data class ProgressionRuleEntity(
     override val deletedAt: Long? = null,
 ) : Audited
 
+@Serializable
 @Entity(
     tableName = "program_exercise",
     foreignKeys = [
@@ -101,6 +107,7 @@ data class ProgramExerciseEntity(
 ) : Audited
 
 /** [programDayId] is nullable so a freestyle session works (SPEC §4). */
+@Serializable
 @Entity(
     tableName = "workout_session",
     foreignKeys = [
@@ -121,6 +128,7 @@ data class WorkoutSessionEntity(
     override val deletedAt: Long? = null,
 ) : Audited
 
+@Serializable
 @Entity(
     tableName = "set_log",
     foreignKeys = [

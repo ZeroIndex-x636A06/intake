@@ -3,12 +3,14 @@ package com.zeroindex.intake.data.db.entity
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 /**
  * Amendment §3: water is a first-class metric, not a food entry with zero
  * calories. One row per drink. Volumes are millilitres; the display unit is a
  * setting like every other quantity.
  */
+@Serializable
 @Entity(
     tableName = "hydration_log",
     indices = [Index("loggedAt"), Index("deletedAt")],
@@ -25,6 +27,7 @@ data class HydrationLogEntity(
 ) : Audited
 
 /** A one-tap button on the Today hydration card ("500 ml bottle"). */
+@Serializable
 @Entity(tableName = "hydration_preset", indices = [Index("deletedAt")])
 data class HydrationPresetEntity(
     @PrimaryKey override val id: String = newId(),

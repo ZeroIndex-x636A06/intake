@@ -3,6 +3,7 @@ package com.zeroindex.intake.data.db.entity
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 /**
  * Amendment §2: explosive athletic output tracked next to lifting volume.
@@ -14,6 +15,7 @@ import androidx.room.PrimaryKey
  * value, keeps a later correction to one field from silently rewriting the
  * others.
  */
+@Serializable
 @Entity(
     tableName = "performance_metric",
     indices = [Index("measuredAt"), Index("deletedAt")],

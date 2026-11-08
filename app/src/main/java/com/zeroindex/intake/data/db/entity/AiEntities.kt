@@ -3,12 +3,14 @@ package com.zeroindex.intake.data.db.entity
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 /**
  * Amendment §3: the single daily insight. [dayStartMillis] is the UTC instant
  * the local day began (SPEC §3.4: never a local date string). [rationale]
  * lists the data the model was given, so the "why" disclosure can show it.
  */
+@Serializable
 @Entity(
     tableName = "ai_insight",
     indices = [Index("dayStartMillis"), Index("deletedAt")],
@@ -29,6 +31,7 @@ data class AiInsightEntity(
  * One benchmark result: how a model did at one AI task against the fixture
  * set. Feeds the model picker's "Suggested" badge once real runs exist.
  */
+@Serializable
 @Entity(
     tableName = "model_benchmark",
     indices = [Index("task"), Index("modelId"), Index("deletedAt")],

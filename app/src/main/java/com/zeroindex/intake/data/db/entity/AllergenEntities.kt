@@ -4,8 +4,10 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.zeroindex.intake.domain.model.AllergenSeverity
+import kotlinx.serialization.Serializable
 
 /** A single row (SPEC §4). [SINGLETON_ID] keeps it that way. */
+@Serializable
 @Entity(tableName = "allergen_profile")
 data class AllergenProfileEntity(
     @PrimaryKey override val id: String = SINGLETON_ID,
@@ -27,6 +29,7 @@ data class AllergenProfileEntity(
  * first run with the hidden-dairy list from SPEC §4, which is the whole reason
  * the engine catches things a label scan misses.
  */
+@Serializable
 @Entity(
     tableName = "allergen_alias",
     indices = [
@@ -50,6 +53,7 @@ data class AllergenAliasEntity(
  * camera screen can say "AI estimates have run about 15% low for you" once
  * there are enough corrections to mean anything.
  */
+@Serializable
 @Entity(tableName = "ai_correction", indices = [Index("correctedAt"), Index("deletedAt")])
 data class AiCorrectionEntity(
     @PrimaryKey override val id: String = newId(),

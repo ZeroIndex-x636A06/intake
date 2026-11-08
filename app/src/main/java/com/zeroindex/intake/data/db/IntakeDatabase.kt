@@ -8,6 +8,7 @@ import com.zeroindex.intake.data.db.dao.AiInsightDao
 import com.zeroindex.intake.data.db.dao.AllergenDao
 import com.zeroindex.intake.data.db.dao.BodyMetricDao
 import com.zeroindex.intake.data.db.dao.ExerciseDao
+import com.zeroindex.intake.data.db.dao.ExportDao
 import com.zeroindex.intake.data.db.dao.FoodDao
 import com.zeroindex.intake.data.db.dao.FoodLogDao
 import com.zeroindex.intake.data.db.dao.HealthSummaryDao
@@ -121,6 +122,7 @@ abstract class IntakeDatabase : RoomDatabase() {
     abstract fun menuDao(): MenuDao
     abstract fun aiInsightDao(): AiInsightDao
     abstract fun healthSummaryDao(): HealthSummaryDao
+    abstract fun exportDao(): ExportDao
 
     companion object {
         const val VERSION = 2

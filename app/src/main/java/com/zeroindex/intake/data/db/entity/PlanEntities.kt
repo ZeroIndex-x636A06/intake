@@ -7,8 +7,10 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.zeroindex.intake.domain.model.PlanRecipeRole
 import com.zeroindex.intake.domain.model.StoreCategory
+import kotlinx.serialization.Serializable
 
 /** One of the twelve weeks in the plan (SPEC §9). */
+@Serializable
 @Entity(tableName = "plan_week", indices = [Index("weekNumber"), Index("deletedAt")])
 data class PlanWeekEntity(
     @PrimaryKey override val id: String = newId(),
@@ -21,6 +23,7 @@ data class PlanWeekEntity(
     override val deletedAt: Long? = null,
 ) : Audited
 
+@Serializable
 @Entity(
     tableName = "plan_week_recipe",
     foreignKeys = [
@@ -46,6 +49,7 @@ enum class EatOutOrigin { PLAN, PLAN_B }
  * applies to every week. Read in a parking lot with no signal, so it must work
  * entirely from local data.
  */
+@Serializable
 @Entity(
     tableName = "eat_out_option",
     foreignKeys = [
@@ -74,6 +78,7 @@ data class EatOutOptionEntity(
     override val deletedAt: Long? = null,
 ) : Audited
 
+@Serializable
 @Entity(
     tableName = "shopping_list_item",
     foreignKeys = [
