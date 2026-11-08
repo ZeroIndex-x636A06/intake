@@ -7,6 +7,7 @@ import androidx.work.WorkManager
 import com.zeroindex.intake.data.health.HealthSync
 import com.zeroindex.intake.work.BackupScheduler
 import com.zeroindex.intake.work.MenuIngestionWorker
+import com.zeroindex.intake.work.SyncScheduler
 import com.zeroindex.intake.work.TdeeWorker
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
@@ -18,6 +19,7 @@ class IntakeApplication : Application(), Configuration.Provider {
     @Inject lateinit var workerFactory: HiltWorkerFactory
     @Inject lateinit var healthSync: HealthSync
     @Inject lateinit var backupScheduler: BackupScheduler
+    @Inject lateinit var syncScheduler: SyncScheduler
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -34,5 +36,7 @@ class IntakeApplication : Application(), Configuration.Provider {
         healthSync.start()
         // Amendment §2: nightly backup, scheduled only once a server is set up.
         backupScheduler.start()
+        // Amendment §3: device sync, only while paired.
+        syncScheduler.start()
     }
 }
