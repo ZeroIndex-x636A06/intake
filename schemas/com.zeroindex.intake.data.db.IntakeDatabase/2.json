@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 2,
-    "identityHash": "7280fffa1bfd950a59e3f853225e147f",
+    "identityHash": "4ce957c88d527d058d5fac18435c3e61",
     "entities": [
       {
         "tableName": "food",
@@ -3184,7 +3184,7 @@
       },
       {
         "tableName": "health_daily_summary",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `dayStartMillis` INTEGER NOT NULL, `activeKcalRaw` REAL, `bmrKcalInWindows` REAL, `activeKcalNet` REAL, `steps` INTEGER, `sleepMinutes` INTEGER, `sleepStartMillis` INTEGER, `restingHeartRate` REAL, `avgHeartRate` REAL, `syncedAt` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `dayStartMillis` INTEGER NOT NULL, `activeKcalRaw` REAL, `bmrKcalInWindows` REAL, `activeKcalNet` REAL, `totalKcalBurned` REAL, `steps` INTEGER, `sleepMinutes` INTEGER, `sleepStartMillis` INTEGER, `restingHeartRate` REAL, `avgHeartRate` REAL, `syncedAt` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -3211,6 +3211,11 @@
           {
             "fieldPath": "activeKcalNet",
             "columnName": "activeKcalNet",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "totalKcalBurned",
+            "columnName": "totalKcalBurned",
             "affinity": "REAL"
           },
           {
@@ -3380,7 +3385,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '7280fffa1bfd950a59e3f853225e147f')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '4ce957c88d527d058d5fac18435c3e61')"
     ]
   }
 }

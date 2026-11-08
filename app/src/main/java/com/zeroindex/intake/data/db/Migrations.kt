@@ -79,7 +79,7 @@ internal val MIGRATION_1_2_STATEMENTS: List<String> = listOf(
     "CREATE INDEX IF NOT EXISTS `index_model_benchmark_modelId` ON `model_benchmark` (`modelId`)",
     "CREATE INDEX IF NOT EXISTS `index_model_benchmark_deletedAt` ON `model_benchmark` (`deletedAt`)",
 
-    "CREATE TABLE IF NOT EXISTS `health_daily_summary` (`id` TEXT NOT NULL, `dayStartMillis` INTEGER NOT NULL, `activeKcalRaw` REAL, `bmrKcalInWindows` REAL, `activeKcalNet` REAL, `steps` INTEGER, `sleepMinutes` INTEGER, `sleepStartMillis` INTEGER, `restingHeartRate` REAL, `avgHeartRate` REAL, `syncedAt` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+    "CREATE TABLE IF NOT EXISTS `health_daily_summary` (`id` TEXT NOT NULL, `dayStartMillis` INTEGER NOT NULL, `activeKcalRaw` REAL, `bmrKcalInWindows` REAL, `activeKcalNet` REAL, `totalKcalBurned` REAL, `steps` INTEGER, `sleepMinutes` INTEGER, `sleepStartMillis` INTEGER, `restingHeartRate` REAL, `avgHeartRate` REAL, `syncedAt` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
     "CREATE UNIQUE INDEX IF NOT EXISTS `index_health_daily_summary_dayStartMillis` ON `health_daily_summary` (`dayStartMillis`)",
     "CREATE INDEX IF NOT EXISTS `index_health_daily_summary_deletedAt` ON `health_daily_summary` (`deletedAt`)",
 

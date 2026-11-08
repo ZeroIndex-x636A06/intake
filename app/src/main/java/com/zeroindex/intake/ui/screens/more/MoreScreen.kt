@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Height
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MonitorHeart
@@ -75,6 +76,12 @@ fun MoreScreen(
             subtitle = "Vertical jump, standing and total reach",
             icon = Icons.Filled.Height,
             route = Route.Performance,
+        ),
+        MoreEntry(
+            title = "Weekly check-in",
+            subtitle = "A printable PDF of the week: intake, burn, weight, sleep, training",
+            icon = Icons.Filled.Description,
+            route = Route.WeeklyReport,
         ),
         MoreEntry(
             title = "Health Connect",

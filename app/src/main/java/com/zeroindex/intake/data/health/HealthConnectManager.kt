@@ -240,6 +240,15 @@ class HealthConnectManager @Inject constructor(
                 )
             }
 
+            val totalBurn = if (has(granted, TotalCaloriesBurnedRecord::class)) {
+                runCatching {
+                    hc.aggregate(
+                        AggregateRequest(setOf(TotalCaloriesBurnedRecord.ENERGY_TOTAL), TimeRangeFilter.between(from, to)),
+                    )[TotalCaloriesBurnedRecord.ENERGY_TOTAL]?.inKilocalories
+                }.getOrNull()
+            } else {
+                null
+            }
             val steps = if (has(granted, StepsRecord::class)) {
                 runCatching {
                     hc.aggregate(AggregateRequest(setOf(StepsRecord.COUNT_TOTAL), TimeRangeFilter.between(from, to)))[StepsRecord.COUNT_TOTAL]
@@ -275,6 +284,7 @@ class HealthConnectManager @Inject constructor(
                     activeKcalRaw = net?.rawKcal,
                     bmrKcalInWindows = net?.bmrKcal,
                     activeKcalNet = net?.netKcal,
+                    totalKcalBurned = totalBurn,
                     steps = steps,
                     sleepMinutes = sleep.sumOf { (it.endTime.toEpochMilli() - it.startTime.toEpochMilli()) / 60_000 }.takeIf { sleep.isNotEmpty() },
                     sleepStartMillis = sleep.minOfOrNull { it.startTime.toEpochMilli() },

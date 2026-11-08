@@ -24,6 +24,8 @@ data class HealthDailySummaryEntity(
     val activeKcalRaw: Double? = null,
     val bmrKcalInWindows: Double? = null,
     val activeKcalNet: Double? = null,
+    /** The device's whole-day burn estimate, BMR included - for reports, never added to a target. */
+    val totalKcalBurned: Double? = null,
     val steps: Long? = null,
     val sleepMinutes: Long? = null,
     val sleepStartMillis: Long? = null,
