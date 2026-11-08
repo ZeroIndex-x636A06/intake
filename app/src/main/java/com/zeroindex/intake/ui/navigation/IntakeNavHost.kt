@@ -19,6 +19,7 @@ import com.zeroindex.intake.ui.screens.plan.RecipeHunterScreen
 import com.zeroindex.intake.ui.screens.progress.ProgressScreen
 import com.zeroindex.intake.ui.screens.settings.PrivacyScreen
 import com.zeroindex.intake.ui.screens.settings.SettingsScreen
+import com.zeroindex.intake.ui.screens.templates.MealTemplatesScreen
 import com.zeroindex.intake.ui.screens.today.TodayScreen
 import com.zeroindex.intake.ui.screens.train.ExerciseLibraryScreen
 import com.zeroindex.intake.ui.screens.train.ProgramBuilderScreen
@@ -44,6 +45,7 @@ fun IntakeNavHost(
             )
         }
         composable<Route.MenuSources> { MenuSourcesScreen(contentPadding) }
+        composable<Route.MealTemplates> { MealTemplatesScreen(contentPadding) }
         composable<Route.PlanB> {
             PlanBScreen(contentPadding, onOpenAiSettings = { navController.navigate(Route.AiSettings) })
         }

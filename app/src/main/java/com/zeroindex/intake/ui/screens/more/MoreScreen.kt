@@ -11,6 +11,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Height
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MonitorWeight
+import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.RestaurantMenu
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
@@ -55,6 +56,12 @@ fun MoreScreen(
             subtitle = "Weight, body fat and tape measurements",
             icon = Icons.Filled.MonitorWeight,
             route = Route.BodyMetrics,
+        ),
+        MoreEntry(
+            title = "Meal prep tags",
+            subtitle = "Saved meals that log in one tap, or from an NFC tag",
+            icon = Icons.Filled.Nfc,
+            route = Route.MealTemplates,
         ),
         MoreEntry(
             title = "Menu import",

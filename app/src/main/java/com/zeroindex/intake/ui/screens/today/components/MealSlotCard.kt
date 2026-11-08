@@ -23,6 +23,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -51,6 +52,7 @@ fun MealSlotCard(
     onEntryLongPress: (FoodLogEntity) -> Unit,
     onEntrySwipedToCopy: (FoodLogEntity) -> Unit,
     modifier: Modifier = Modifier,
+    onSaveAsTemplate: (() -> Unit)? = null,
 ) {
     val slotName = slotUi.slot.displayName()
     Surface(
@@ -94,6 +96,11 @@ fun MealSlotCard(
                 isEmpty = slotUi.entries.isEmpty(),
                 onAdd = onAdd,
             )
+            if (onSaveAsTemplate != null && slotUi.entries.isNotEmpty()) {
+                TextButton(onClick = onSaveAsTemplate, modifier = Modifier.heightIn(min = 48.dp)) {
+                    Text("Save as meal prep", style = MaterialTheme.typography.labelSmall)
+                }
+            }
         }
     }
 }

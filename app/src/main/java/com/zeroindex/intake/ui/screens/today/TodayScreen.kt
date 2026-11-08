@@ -17,16 +17,19 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -70,6 +73,7 @@ fun TodayScreen(
 
     var addToSlot by remember { mutableStateOf<MealSlot?>(null) }
     var showWater by remember { mutableStateOf(false) }
+    var templateFor by remember { mutableStateOf<MealSlot?>(null) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var actionsFor by remember { mutableStateOf<FoodLogEntity?>(null) }
@@ -99,12 +103,26 @@ fun TodayScreen(
                 }
             },
             onOpenWater = { showWater = true },
+            onSaveTemplate = { templateFor = it },
         )
         SnackbarHost(
             hostState = snackbar,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = contentPadding.calculateBottomPadding() + 8.dp),
+        )
+    }
+
+    templateFor?.let { slot ->
+        NameTemplateDialog(
+            suggested = "${slot.displayName()} prep",
+            onDismiss = { templateFor = null },
+            onSave = { name ->
+                viewModel.saveSlotAsTemplate(slot, name) {
+                    scope.launch { snackbar.showSnackbar("Saved \"$name\" to More → Meal prep tags") }
+                }
+                templateFor = null
+            },
         )
     }
 
@@ -170,6 +188,7 @@ private fun TodayContent(
     onEntrySwipedToCopy: (FoodLogEntity) -> Unit,
     onWaterPreset: (HydrationPresetEntity) -> Unit,
     onOpenWater: () -> Unit,
+    onSaveTemplate: (MealSlot) -> Unit,
 ) {
     val swipeThreshold = with(LocalDensity.current) { 64.dp.toPx() }
     var dragged by remember { mutableStateOf(0f) }
@@ -224,6 +243,7 @@ private fun TodayContent(
                 onAdd = { onAddToSlot(slotUi.slot) },
                 onEntryLongPress = onEntryLongPress,
                 onEntrySwipedToCopy = onEntrySwipedToCopy,
+                onSaveAsTemplate = { onSaveTemplate(slotUi.slot) },
             )
         }
 
@@ -353,4 +373,18 @@ private fun defaultSlotForNow(): MealSlot {
         hour < 21 -> MealSlot.DINNER
         else -> MealSlot.SNACK
     }
+}
+
+@Composable
+private fun NameTemplateDialog(suggested: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var name by remember { mutableStateOf(suggested) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Save as meal prep") },
+        text = {
+            OutlinedTextField(value = name, onValueChange = { name = it }, singleLine = true, label = { Text("Name") })
+        },
+        confirmButton = { TextButton(onClick = { onSave(name.trim()) }, enabled = name.isNotBlank()) { Text("Save") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }

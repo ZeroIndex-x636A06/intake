@@ -8,6 +8,7 @@ import com.zeroindex.intake.data.db.entity.HydrationPresetEntity
 import com.zeroindex.intake.data.repository.FoodLogRepository
 import com.zeroindex.intake.data.repository.HydrationDay
 import com.zeroindex.intake.data.repository.HydrationRepository
+import com.zeroindex.intake.data.repository.MealTemplateRepository
 import com.zeroindex.intake.data.repository.TargetRepository
 import com.zeroindex.intake.data.settings.AppSettings
 import com.zeroindex.intake.data.settings.SettingsRepository
@@ -64,6 +65,7 @@ class TodayViewModel @Inject constructor(
     private val targetRepository: TargetRepository,
     private val hydrationRepository: HydrationRepository,
     private val settingsRepository: SettingsRepository,
+    private val templates: MealTemplateRepository,
     private val clock: Clock,
 ) : ViewModel() {
 
@@ -126,6 +128,12 @@ class TodayViewModel @Inject constructor(
 
     fun updateQuantity(log: FoodLogEntity, grams: Double) = viewModelScope.launch {
         foodLogRepository.updateQuantity(log, grams)
+    }
+
+    /** Amendment §2: a prepped meal, saved so a tag or one tap logs it again. */
+    fun saveSlotAsTemplate(slot: MealSlot, name: String, onSaved: () -> Unit) = viewModelScope.launch {
+        templates.saveSlotAsTemplate(selectedDate.value, slot, name)
+        onSaved()
     }
 
     // --- Water (amendment §3) ---------------------------------------------

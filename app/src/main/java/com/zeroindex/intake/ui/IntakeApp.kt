@@ -9,9 +9,15 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavDestination
@@ -23,7 +29,7 @@ import com.zeroindex.intake.ui.navigation.IntakeNavHost
 import com.zeroindex.intake.ui.navigation.TopLevelDestination
 
 @Composable
-fun IntakeApp() {
+fun IntakeApp(messages: AppMessages? = null) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
@@ -34,8 +40,24 @@ fun IntakeApp() {
         route.contains("CookMode") || route.contains("ActiveWorkout")
     } == true
 
+    val snackbar = remember { SnackbarHostState() }
+    if (messages != null) {
+        LaunchedEffect(messages) {
+            messages.events.collect { message ->
+                messages.consumed()
+                val result = snackbar.showSnackbar(
+                    message = message.text,
+                    actionLabel = message.actionLabel,
+                    duration = SnackbarDuration.Long,
+                )
+                if (result == SnackbarResult.ActionPerformed) message.onAction?.invoke()
+            }
+        }
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
             if (!hideBottomBar) {
                 Column {
