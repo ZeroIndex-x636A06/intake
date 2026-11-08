@@ -3,6 +3,8 @@ package com.zeroindex.intake
 import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import androidx.work.WorkManager
+import com.zeroindex.intake.work.TdeeWorker
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
@@ -16,4 +18,11 @@ class IntakeApplication : Application(), Configuration.Provider {
         get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
             .build()
+
+    override fun onCreate() {
+        super.onCreate()
+        // SPEC §8: nightly recalculation. KEEP, so an existing schedule is not
+        // reset on every launch.
+        TdeeWorker.schedule(WorkManager.getInstance(this))
+    }
 }

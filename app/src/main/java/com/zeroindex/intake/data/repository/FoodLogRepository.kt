@@ -11,6 +11,7 @@ import com.zeroindex.intake.domain.model.AiConfidence
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nutrition.Macros
 import com.zeroindex.intake.domain.time.Clock
+import com.zeroindex.intake.domain.time.localDateOf
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -58,6 +59,21 @@ class FoodLogRepository @Inject constructor(
             clock.rangeFor(to).endExclusive,
             zoneOffsetMillis(from),
         )
+
+    /**
+     * Protein totals per local day, bucketed in Kotlin rather than SQL: the
+     * windows this serves are weeks, not years, and doing it here keeps DST
+     * handling in DayRange instead of in an integer division.
+     */
+    suspend fun proteinByDay(from: LocalDate, to: LocalDate): Map<LocalDate, Double> {
+        val logs = foodLogDao.inRange(
+            clock.rangeFor(from).startInclusive,
+            clock.rangeFor(to).endExclusive,
+        )
+        return logs
+            .groupBy { localDateOf(it.loggedAt, clock.zone()) }
+            .mapValues { (_, dayLogs) -> dayLogs.sumOf { it.protein } }
+    }
 
     suspend fun countDaysLogged(from: LocalDate, to: LocalDate): Int =
         foodLogDao.countDaysLogged(

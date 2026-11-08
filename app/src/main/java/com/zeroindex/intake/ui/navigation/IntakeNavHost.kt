@@ -6,9 +6,13 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
+import com.zeroindex.intake.ui.screens.allergen.AllergenReferenceScreen
+import com.zeroindex.intake.ui.screens.body.BodyMetricsScreen
 import com.zeroindex.intake.ui.screens.more.MoreScreen
 import com.zeroindex.intake.ui.screens.plan.PlanScreen
 import com.zeroindex.intake.ui.screens.progress.ProgressScreen
+import com.zeroindex.intake.ui.screens.settings.PrivacyScreen
+import com.zeroindex.intake.ui.screens.settings.SettingsScreen
 import com.zeroindex.intake.ui.screens.today.TodayScreen
 import com.zeroindex.intake.ui.screens.train.TrainScreen
 
@@ -44,6 +48,16 @@ fun IntakeNavHost(
             MoreScreen(
                 contentPadding = contentPadding,
                 onNavigate = { route -> navController.navigate(route) },
+            )
+        }
+
+        composable<Route.AllergenReference> { AllergenReferenceScreen(contentPadding) }
+        composable<Route.Settings> { SettingsScreen(contentPadding) }
+        composable<Route.Privacy> { PrivacyScreen(contentPadding) }
+        composable<Route.BodyMetrics> {
+            BodyMetricsScreen(
+                contentPadding = contentPadding,
+                onSaved = { navController.popBackStack() },
             )
         }
     }

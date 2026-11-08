@@ -117,6 +117,8 @@ android {
 
     buildFeatures {
         compose = true
+        // Version name and code are shown on the More screen (SPEC §13).
+        buildConfig = true
     }
 
     packaging {
@@ -131,7 +133,6 @@ android {
 
     testOptions {
         unitTests.isReturnDefaultValues = true
-        unitTests.isIncludeAndroidResources = true
     }
 }
 
@@ -190,15 +191,13 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.truth)
     testImplementation(libs.kotlinx.coroutines.test)
-    // SPEC §14 asks for Room DAO tests against an in-memory database. Running
-    // them under Robolectric keeps them on the JVM, so `./gradlew test` needs
-    // no attached phone or emulator.
-    testImplementation(libs.robolectric)
-    testImplementation(libs.androidx.test.core)
     testImplementation(libs.androidx.arch.core.testing)
-    testImplementation(libs.androidx.room.testing)
 
     androidTestImplementation(libs.androidx.test.junit)
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.room.testing)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
+    androidTestImplementation(libs.truth)
     androidTestImplementation(libs.androidx.test.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

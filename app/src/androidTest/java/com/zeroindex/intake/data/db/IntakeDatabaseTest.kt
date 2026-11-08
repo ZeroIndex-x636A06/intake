@@ -16,16 +16,22 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
 
 /**
- * SPEC §14: Room DAO tests against an in-memory database. Run under Robolectric
- * so `./gradlew test` needs no device.
+ * SPEC §14: Room DAO tests against an in-memory database.
+ *
+ * Method names are camelCase rather than the backtick-with-spaces style used in
+ * the JVM tests: these get dexed, and D8 rejects space characters in the
+ * generated lambda class names below DEX version 040 (our minSdk 29).
+ *
+ * Instrumented rather than Robolectric: Robolectric's native SQLite artifact
+ * could not be fetched from Maven Central in this environment, and an
+ * unrunnable test suite is worse than one that needs a device. Run with
+ * `./gradlew connectedDebugAndroidTest` with a phone or emulator attached.
  */
-@RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@RunWith(AndroidJUnit4::class)
 class IntakeDatabaseTest {
 
     private lateinit var db: IntakeDatabase
@@ -47,7 +53,7 @@ class IntakeDatabaseTest {
     fun tearDown() = db.close()
 
     @Test
-    fun `allergen aliases are seeded at first run`() = runTest {
+    fun allergenAliasesAreSeededAtFirstRun() = runTest {
         val aliases = db.allergenDao().aliases()
         assertThat(aliases).hasSize(AllergenSeed.DAIRY_ALIASES.size)
         assertThat(aliases.map { it.aliasTerm })
@@ -56,14 +62,14 @@ class IntakeDatabaseTest {
     }
 
     @Test
-    fun `allergen profile singleton exists after seeding`() = runTest {
+    fun allergenProfileSingletonExistsAfterSeeding() = runTest {
         val profile = db.allergenDao().profile()
         assertThat(profile).isNotNull()
         assertThat(profile!!.avoidedAllergens).contains("dairy")
     }
 
     @Test
-    fun `soft deleted food disappears from reads but stays in the table`() = runTest {
+    fun softDeletedFoodDisappearsFromReadsButStaysInTheTable() = runTest {
         val food = sampleFood("Chicken thigh")
         db.foodDao().upsert(food)
         assertThat(db.foodDao().findById(food.id)).isNotNull()
@@ -82,7 +88,7 @@ class IntakeDatabaseTest {
     }
 
     @Test
-    fun `logs are read back by local day range`() = runTest {
+    fun logsAreReadBackByLocalDayRange() = runTest {
         val food = sampleFood()
         db.foodDao().upsert(food)
         val range = DayRange.of(LocalDate.of(2026, 2, 2), zone)
@@ -96,7 +102,7 @@ class IntakeDatabaseTest {
     }
 
     @Test
-    fun `day totals sum only that day's entries`() = runTest {
+    fun dayTotalsSumOnlyThatDaysEntries() = runTest {
         val food = sampleFood()
         db.foodDao().upsert(food)
         val range = DayRange.of(LocalDate.of(2026, 2, 2), zone)
@@ -112,7 +118,7 @@ class IntakeDatabaseTest {
     }
 
     @Test
-    fun `totals over an empty day are zero rather than a crash`() = runTest {
+    fun totalsOverAnEmptyDayAreZeroRatherThanACrash() = runTest {
         val range = DayRange.of(LocalDate.of(2026, 2, 3), zone)
         val totals = db.foodLogDao()
             .observeTotalsInRange(range.startInclusive, range.endExclusive).first()
@@ -121,7 +127,7 @@ class IntakeDatabaseTest {
     }
 
     @Test
-    fun `slot totals group by meal slot`() = runTest {
+    fun slotTotalsGroupByMealSlot() = runTest {
         val food = sampleFood()
         db.foodDao().upsert(food)
         val range = DayRange.of(LocalDate.of(2026, 2, 2), zone)
@@ -140,7 +146,7 @@ class IntakeDatabaseTest {
     }
 
     @Test
-    fun `a quick add log needs no food row`() = runTest {
+    fun aQuickAddLogNeedsNoFoodRow() = runTest {
         // SPEC §5.4: quick add deliberately creates no food record.
         val log = FoodLogEntity(
             foodId = null,
@@ -160,7 +166,7 @@ class IntakeDatabaseTest {
     }
 
     @Test
-    fun `editing a food does not rewrite logged history`() = runTest {
+    fun editingAFoodDoesNotRewriteLoggedHistory() = runTest {
         val food = sampleFood("Greek yogurt", kcal = 59.0)
         db.foodDao().upsert(food)
         val log = sampleLog(food, now, MealSlot.BREAKFAST, 147.5, 25.0)
@@ -173,7 +179,7 @@ class IntakeDatabaseTest {
     }
 
     @Test
-    fun `most logged foods come back in descending order`() = runTest {
+    fun mostLoggedFoodsComeBackInDescendingOrder() = runTest {
         val rare = sampleFood("Rare")
         val common = sampleFood("Common")
         val never = sampleFood("Never")
@@ -186,7 +192,7 @@ class IntakeDatabaseTest {
     }
 
     @Test
-    fun `the effective nutrition target is the newest one not in the future`() = runTest {
+    fun theEffectiveNutritionTargetIsTheNewestOneNotInTheFuture() = runTest {
         val dao = db.nutritionTargetDao()
         val january = DayRange.of(LocalDate.of(2026, 1, 1), zone).startInclusive
         val march = DayRange.of(LocalDate.of(2026, 3, 1), zone).startInclusive
