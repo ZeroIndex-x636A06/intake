@@ -14,7 +14,11 @@ import com.zeroindex.intake.ui.screens.progress.ProgressScreen
 import com.zeroindex.intake.ui.screens.settings.PrivacyScreen
 import com.zeroindex.intake.ui.screens.settings.SettingsScreen
 import com.zeroindex.intake.ui.screens.today.TodayScreen
+import com.zeroindex.intake.ui.screens.train.ExerciseLibraryScreen
+import com.zeroindex.intake.ui.screens.train.ProgramBuilderScreen
 import com.zeroindex.intake.ui.screens.train.TrainScreen
+import com.zeroindex.intake.ui.screens.train.WorkoutHistoryScreen
+import com.zeroindex.intake.ui.screens.workout.ActiveWorkoutScreen
 
 @Composable
 fun IntakeNavHost(
@@ -54,6 +58,15 @@ fun IntakeNavHost(
         composable<Route.AllergenReference> { AllergenReferenceScreen(contentPadding) }
         composable<Route.Settings> { SettingsScreen(contentPadding) }
         composable<Route.Privacy> { PrivacyScreen(contentPadding) }
+        composable<Route.ExerciseLibrary> { ExerciseLibraryScreen(contentPadding) }
+        composable<Route.WorkoutHistory> { WorkoutHistoryScreen(contentPadding) }
+        composable<Route.ProgramBuilder> { ProgramBuilderScreen(contentPadding) }
+        composable<Route.ActiveWorkout> {
+            ActiveWorkoutScreen(
+                contentPadding = contentPadding,
+                onFinished = { navController.popBackStack() },
+            )
+        }
         composable<Route.BodyMetrics> {
             BodyMetricsScreen(
                 contentPadding = contentPadding,
