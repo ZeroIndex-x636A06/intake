@@ -58,14 +58,13 @@ private const val DAY_MS = 86_400_000L
 
 /**
  * Mockup v2's "Backup & sync": the encrypted nightly backup to a server the
- * user runs, export/import to a file, and CSVs. Optional device sync sits
- * below once it is set up (amendment §3).
+ * user runs, optional device sync through a server the user runs
+ * (amendment §3), export/import to a file, and CSVs.
  */
 @Composable
 fun BackupScreen(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
-    syncSection: @Composable () -> Unit = {},
     viewModel: BackupViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -296,7 +295,7 @@ fun BackupScreen(
             }
         }
 
-        item(key = "sync") { syncSection() }
+        item(key = "sync") { SyncSection() }
 
         item(key = "file-head") {
             SectionLine("Export to a file") {
