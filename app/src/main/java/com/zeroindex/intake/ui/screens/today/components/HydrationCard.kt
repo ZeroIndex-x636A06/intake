@@ -24,7 +24,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.data.db.entity.HydrationPresetEntity
@@ -49,7 +53,6 @@ fun HydrationCard(
     modifier: Modifier = Modifier,
 ) {
     val left = (day.target.totalMl - day.consumedMl).coerceAtLeast(0.0)
-    val amount = "${unit.formatNumber(day.consumedMl)} / ${unit.format(day.target.totalMl)}"
 
     IntakeCard(modifier = modifier) {
         Row(
@@ -68,8 +71,14 @@ fun HydrationCard(
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.weight(1f),
             )
+            val sub = MaterialTheme.colorScheme.onSurfaceVariant
             Text(
-                amount,
+                buildAnnotatedString {
+                    append(unit.formatNumber(day.consumedMl))
+                    withStyle(SpanStyle(fontSize = 11.sp, fontWeight = FontWeight.Medium, color = sub)) {
+                        append(" / ${unit.format(day.target.totalMl)}")
+                    }
+                },
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.primary,
