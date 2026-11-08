@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Height
 import androidx.compose.material.icons.filled.Lock
@@ -59,6 +60,12 @@ fun MoreScreen(
             subtitle = "Weight, body fat and tape measurements",
             icon = Icons.Filled.MonitorWeight,
             route = Route.BodyMetrics,
+        ),
+        MoreEntry(
+            title = "Plan & program scripts",
+            subtitle = "Write a meal plan or workout by hand, with the full reference",
+            icon = Icons.Filled.Code,
+            route = Route.ScriptReference(),
         ),
         MoreEntry(
             title = "Meal prep tags",

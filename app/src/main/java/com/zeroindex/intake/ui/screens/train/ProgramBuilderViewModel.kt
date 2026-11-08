@@ -117,6 +117,11 @@ class ProgramBuilderViewModel @Inject constructor(
 
     fun startNewProgram() { startingNew.value = true }
 
+    /** Script text and suggested file name for a program, for "Export program as script". */
+    suspend fun exportScript(programId: String): Pair<String, String>? = repository.exportProgramScript(programId)
+
+    fun showMessage(text: String) { message.value = text }
+
     fun activate(programId: String) = viewModelScope.launch {
         repository.activate(programId)
         startingNew.value = false

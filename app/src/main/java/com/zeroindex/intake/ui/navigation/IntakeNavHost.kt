@@ -13,6 +13,7 @@ import com.zeroindex.intake.ui.screens.body.BodyMetricsScreen
 import com.zeroindex.intake.ui.screens.health.HealthConnectScreen
 import com.zeroindex.intake.ui.screens.menu.MenuSourcesScreen
 import com.zeroindex.intake.ui.screens.more.MoreScreen
+import com.zeroindex.intake.ui.screens.more.ScriptReferenceScreen
 import com.zeroindex.intake.ui.screens.performance.PerformanceScreen
 import com.zeroindex.intake.ui.screens.plan.CookModeScreen
 import com.zeroindex.intake.ui.screens.plan.PlanScreen
@@ -49,6 +50,7 @@ fun IntakeNavHost(
                 onOpenPlanB = { navController.navigate(Route.PlanB) },
                 onOpenRecipe = { id -> navController.navigate(Route.RecipeDetail(id)) },
                 onOpenCook = { id -> navController.navigate(Route.CookMode(id)) },
+                onOpenScriptReference = { page, anchor -> navController.navigate(Route.ScriptReference(page, anchor)) },
             )
         }
         composable<Route.MenuSources> { MenuSourcesScreen(contentPadding) }
@@ -83,6 +85,7 @@ fun IntakeNavHost(
                 onOpenBuilder = { navController.navigate(Route.ProgramBuilder) },
                 onOpenHistory = { navController.navigate(Route.WorkoutHistory) },
                 onOpenExercises = { navController.navigate(Route.ExerciseLibrary) },
+                onOpenScriptReference = { page, anchor -> navController.navigate(Route.ScriptReference(page, anchor)) },
             )
         }
         composable<Route.Progress> {
@@ -99,6 +102,10 @@ fun IntakeNavHost(
             )
         }
 
+        composable<Route.ScriptReference> { entry ->
+            val args = entry.toRoute<Route.ScriptReference>()
+            ScriptReferenceScreen(args.page, args.anchor, contentPadding)
+        }
         composable<Route.AllergenReference> { AllergenReferenceScreen(contentPadding) }
         composable<Route.Settings> {
             SettingsScreen(
@@ -111,7 +118,12 @@ fun IntakeNavHost(
         composable<Route.Privacy> { PrivacyScreen(contentPadding) }
         composable<Route.ExerciseLibrary> { ExerciseLibraryScreen(contentPadding) }
         composable<Route.WorkoutHistory> { WorkoutHistoryScreen(contentPadding) }
-        composable<Route.ProgramBuilder> { ProgramBuilderScreen(contentPadding) }
+        composable<Route.ProgramBuilder> {
+            ProgramBuilderScreen(
+                contentPadding,
+                onOpenScriptReference = { page, anchor -> navController.navigate(Route.ScriptReference(page, anchor)) },
+            )
+        }
         composable<Route.ActiveWorkout> {
             ActiveWorkoutScreen(
                 contentPadding = contentPadding,

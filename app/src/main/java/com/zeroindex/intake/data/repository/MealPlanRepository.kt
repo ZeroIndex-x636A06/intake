@@ -16,7 +16,16 @@ import com.zeroindex.intake.data.db.entity.RecipeOrigin
 import com.zeroindex.intake.data.db.entity.ShoppingListItemEntity
 import com.zeroindex.intake.data.db.entity.newId
 import com.zeroindex.intake.data.db.entity.seedId
+import com.zeroindex.intake.data.db.entity.EatOutOrigin
 import com.zeroindex.intake.data.plan.AllergenCheck
+import com.zeroindex.intake.data.plan.PlanExportRows
+import com.zeroindex.intake.data.plan.PlanExporter
+import com.zeroindex.intake.domain.plan.PlanFile
+import com.zeroindex.intake.domain.script.Diagnostic
+import com.zeroindex.intake.domain.script.IntakeScript
+import com.zeroindex.intake.domain.script.MealPlanScript
+import com.zeroindex.intake.domain.script.ScriptDocument
+import com.zeroindex.intake.domain.script.ScriptInput
 import com.zeroindex.intake.data.plan.PlanImportBatch
 import com.zeroindex.intake.data.plan.PlanImportBuilder
 import com.zeroindex.intake.data.settings.SettingsRepository
@@ -70,8 +79,17 @@ data class WeekContent(
 )
 
 sealed interface PlanImportPreview {
-    data class Ready(val batch: PlanImportBatch, val weeks: Int, val recipes: Int, val eatOut: Int) : PlanImportPreview
+    data class Ready(
+        val batch: PlanImportBatch,
+        val weeks: Int,
+        val recipes: Int,
+        val eatOut: Int,
+        /** Script warnings (empty for a JSON file). Shown with the allergen hits before the user confirms. */
+        val warnings: List<Diagnostic> = emptyList(),
+    ) : PlanImportPreview
     data class Invalid(val errors: List<String>) : PlanImportPreview
+    /** A script with errors: nothing is imported. [diagnostics] holds errors and warnings. */
+    data class ScriptErrors(val diagnostics: List<Diagnostic>) : PlanImportPreview
 }
 
 sealed interface MealLogResult {
@@ -302,6 +320,42 @@ class MealPlanRepository @Inject constructor(
 
     /** Parses and validates the file and runs the local allergen engine over it. Writes nothing. */
     suspend fun previewImport(text: String): PlanImportPreview =
+        if (ScriptInput.isJson(text)) previewJson(text) else previewScript(text)
+
+    private suspend fun previewScript(text: String): PlanImportPreview {
+        val result = IntakeScript.parse(text)
+        if (result.errors.isNotEmpty()) return PlanImportPreview.ScriptErrors(result.diagnostics)
+        return when (val doc = result.document) {
+            is ScriptDocument.MealPlan -> {
+                val file = doc.doc.file
+                val batch = PlanImportBuilder.build(file, clock.nowMillis(), scanner(file.hiddenDairyChecklist))
+                PlanImportPreview.Ready(batch, file.weeks.size, batch.recipes.size, batch.eatOutOptions.size, result.warnings)
+            }
+            is ScriptDocument.Program ->
+                PlanImportPreview.Invalid(listOf("This is a workout program. Import it from the Train tab instead."))
+            null -> PlanImportPreview.Invalid(listOf("This file could not be read."))
+        }
+    }
+
+    /** The current plan as a PlanFile, ready for [com.zeroindex.intake.domain.script.MealPlanScript.printFile]. */
+    suspend fun exportPlanFile(): PlanFile {
+        val weeks = planDao.allWeeks()
+        val recipes = recipeDao.all()
+        val rows = PlanExportRows(
+            weeks = weeks,
+            links = planDao.allWeekRecipes(),
+            recipes = recipes,
+            ingredients = recipeDao.allIngredients(),
+            foods = foodDao.all(),
+            shopping = shoppingDao.all(),
+            eatOut = planDao.allEatOutOptions().filter { it.origin == EatOutOrigin.PLAN },
+        )
+        return PlanExporter.toPlanFile(rows)
+    }
+
+    suspend fun exportPlanScript(): String = MealPlanScript.printFile(exportPlanFile())
+
+    private suspend fun previewJson(text: String): PlanImportPreview =
         when (val parsed = PlanFileParser.parse(text)) {
             is PlanFileParse.Invalid -> PlanImportPreview.Invalid(parsed.errors)
             is PlanFileParse.Ok -> {

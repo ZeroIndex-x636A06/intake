@@ -13,7 +13,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import com.zeroindex.intake.data.repository.ProgramImportPreview
+import com.zeroindex.intake.ui.components.SandNote
+import com.zeroindex.intake.ui.screens.plan.readPlanFile
+import com.zeroindex.intake.ui.screens.script.ScriptDiagnosticsSheet
+import com.zeroindex.intake.ui.screens.script.ScriptMimeTypes
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -46,10 +59,25 @@ fun TrainScreen(
     onOpenBuilder: () -> Unit,
     onOpenHistory: () -> Unit,
     onOpenExercises: () -> Unit,
+    onOpenScriptReference: (page: String, anchor: String?) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: TrainViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val importState by viewModel.importState.collectAsStateWithLifecycle()
+    val notice by viewModel.notice.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            viewModel.startReading()
+            scope.launch {
+                val text = withContext(Dispatchers.IO) { readPlanFile(context, uri) }
+                if (text == null) viewModel.importFailed("That file could not be read, or it is too large (the limit is 2 MB).")
+                else viewModel.previewImport(text)
+            }
+        }
+    }
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
@@ -63,6 +91,24 @@ fun TrainScreen(
     ) {
         item(key = "heading") {
             SubHead("Train", "Your plan, your pace. Built to progress steadily.")
+        }
+        item(key = "import-row") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(
+                    onClick = { picker.launch(ScriptMimeTypes) },
+                    modifier = Modifier.heightIn(min = 48.dp),
+                ) { Text("Import program") }
+                TextButton(
+                    onClick = { onOpenScriptReference("program", null) },
+                    modifier = Modifier.heightIn(min = 48.dp),
+                ) { Text("Script reference") }
+            }
+        }
+        notice?.let { n ->
+            item(key = "notice") {
+                SandNote(n)
+                TextButton(onClick = viewModel::clearNotice) { Text("Dismiss") }
+            }
         }
 
         val program = state.activeProgram
@@ -254,6 +300,21 @@ fun TrainScreen(
                 ) { Text("Program builder") }
             }
         }
+    }
+
+    (importState.preview as? ProgramImportPreview.ScriptErrors)?.let { errors ->
+        ScriptDiagnosticsSheet(
+            diagnostics = errors.diagnostics,
+            onHowToFix = { page, anchor -> viewModel.cancelImport(); onOpenScriptReference(page, anchor) },
+            onDismiss = viewModel::cancelImport,
+        )
+    }
+    importState.preview?.takeUnless { it is ProgramImportPreview.ScriptErrors }?.let { preview ->
+        ProgramImportPreviewDialog(
+            preview = preview,
+            onConfirm = { (preview as? ProgramImportPreview.Ready)?.let { viewModel.confirmImport(it.batch) } },
+            onDismiss = viewModel::cancelImport,
+        )
     }
 }
 

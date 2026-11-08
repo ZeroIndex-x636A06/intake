@@ -47,6 +47,7 @@ import com.zeroindex.intake.ui.components.PillTone
 import com.zeroindex.intake.ui.components.SandNote
 import com.zeroindex.intake.ui.components.StatusPill
 import com.zeroindex.intake.ui.components.EmptyState
+import com.zeroindex.intake.ui.screens.script.ScriptWarnings
 import com.zeroindex.intake.ui.theme.IntakeShape
 import kotlin.math.roundToInt
 
@@ -270,6 +271,7 @@ fun ImportPreviewDialog(
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 when (preview) {
                     is PlanImportPreview.Invalid -> preview.errors.take(12).forEach { Text("• $it", style = MaterialTheme.typography.bodySmall) }
+                    is PlanImportPreview.ScriptErrors -> Unit // Shown as the diagnostics sheet, not here.
                     is PlanImportPreview.Ready -> {
                         val b = preview.batch
                         Text(
@@ -277,6 +279,7 @@ fun ImportPreviewDialog(
                                 "${preview.eatOut} eat-out options. Re-importing the same file updates these rather than adding copies.",
                             style = MaterialTheme.typography.bodySmall,
                         )
+                        ScriptWarnings(preview.warnings)
                         if (b.ingredientsWithoutNutrition > 0) {
                             SandNote("${b.ingredientsWithoutNutrition} ingredients have no grams or nutrition, so those recipes' macros will show as incomplete.")
                         }
@@ -287,14 +290,22 @@ fun ImportPreviewDialog(
                             Text("Your allergen check found nothing to flag in this file.", style = MaterialTheme.typography.bodySmall)
                         } else {
                             Text(
-                                "Allergen check (this phone, your profile): ${b.blocked.size} blocked, ${b.mayContain.size} may contain.",
+                                "Allergen check (this phone, your profile): ${b.blocked.size} blocked, ${b.mayContain.size} may contain" +
+                                    (if (b.checkLabel.isNotEmpty()) ", ${b.checkLabel.size} to check the label." else "."),
                                 style = MaterialTheme.typography.titleSmall,
                             )
-                            (b.blocked + b.mayContain).take(40).forEach { f ->
+                            (b.blocked + b.mayContain + b.checkLabel).take(40).forEach { f ->
                                 Column {
                                     StatusPill(
-                                        if (f.status == AllergenStatus.CONTAINS) "Blocked" else "May contain",
-                                        tone = if (f.status == AllergenStatus.CONTAINS) PillTone.Bad else PillTone.Wait,
+                                        when (f.status) {
+                                            AllergenStatus.CONTAINS -> "Blocked"
+                                            AllergenStatus.CHECK_LABEL -> "Check the label"
+                                            else -> "May contain"
+                                        },
+                                        tone = when (f.status) {
+                                            AllergenStatus.CONTAINS -> PillTone.Bad
+                                            else -> PillTone.Wait
+                                        },
                                     )
                                     Text(f.subject, style = MaterialTheme.typography.bodySmall)
                                     Text(f.detail, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

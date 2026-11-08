@@ -79,6 +79,9 @@ import com.zeroindex.intake.ui.components.SectionLine
 import com.zeroindex.intake.ui.components.StatusPill
 import com.zeroindex.intake.ui.components.SubHead
 import com.zeroindex.intake.ui.components.Tag
+import com.zeroindex.intake.ui.screens.script.ScriptDiagnosticsSheet
+import com.zeroindex.intake.ui.screens.script.ScriptMimeTypes
+import com.zeroindex.intake.ui.screens.script.writeText
 import com.zeroindex.intake.ui.theme.IntakeShape
 import java.io.ByteArrayOutputStream
 import kotlin.math.roundToInt
@@ -97,6 +100,7 @@ fun PlanScreen(
     onOpenPlanB: () -> Unit,
     onOpenRecipe: (String) -> Unit,
     onOpenCook: (String) -> Unit,
+    onOpenScriptReference: (page: String, anchor: String?) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MealPlanViewModel = hiltViewModel(),
 ) {
@@ -126,12 +130,20 @@ fun PlanScreen(
             viewModel.startReading()
             scope.launch {
                 val text = withContext(Dispatchers.IO) { readPlanFile(context, uri) }
-                if (text == null) viewModel.importFailed("That file could not be read, or it is too large for a plan file.")
+                if (text == null) viewModel.importFailed("That file could not be read, or it is too large (the limit is 2 MB).")
                 else viewModel.previewImport(text)
             }
         }
     }
-    val launchImport = { picker.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) }
+    val launchImport = { picker.launch(ScriptMimeTypes) }
+    val exporter = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/markdown")) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val ok = writeText(context, uri, viewModel.exportScript())
+                viewModel.postNotice(if (ok) "Saved your plan as a script." else "That file could not be saved.")
+            }
+        }
+    }
 
     ProvideCheckLabelTerms(checkTerms) {
     Box(modifier.fillMaxSize()) {
@@ -150,7 +162,19 @@ fun PlanScreen(
                     Column(Modifier.weight(1f)) {
                         SubHead("Your meal plan", "12 weeks · built around what works for you")
                     }
-                    TextButton(onClick = launchImport, modifier = Modifier.heightIn(min = 48.dp)) { Text("Import plan file") }
+                    TextButton(onClick = launchImport, modifier = Modifier.heightIn(min = 48.dp)) { Text("Import plan") }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(
+                        onClick = { onOpenScriptReference("meal-plan", null) },
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    ) { Text("Script reference") }
+                    if (planned.isNotEmpty()) {
+                        TextButton(
+                            onClick = { exporter.launch("meal-plan.md") },
+                            modifier = Modifier.heightIn(min = 48.dp),
+                        ) { Text("Export plan as script") }
+                    }
                 }
             }
             notice?.let { n ->
@@ -342,7 +366,14 @@ fun PlanScreen(
             )
         }
     }
-    importState.preview?.let { preview ->
+    (importState.preview as? PlanImportPreview.ScriptErrors)?.let { errors ->
+        ScriptDiagnosticsSheet(
+            diagnostics = errors.diagnostics,
+            onHowToFix = { page, anchor -> viewModel.cancelImport(); onOpenScriptReference(page, anchor) },
+            onDismiss = viewModel::cancelImport,
+        )
+    }
+    importState.preview?.takeUnless { it is PlanImportPreview.ScriptErrors }?.let { preview ->
         ImportPreviewDialog(
             preview = preview,
             onConfirm = { (preview as? PlanImportPreview.Ready)?.let { viewModel.confirmImport(it.batch) } },
@@ -352,7 +383,8 @@ fun PlanScreen(
     }
 }
 
-private fun readPlanFile(context: Context, uri: Uri): String? = runCatching {
+/** The shared bounded reader (2 MB, API 29 safe); the Train tab's program import uses it too. */
+internal fun readPlanFile(context: Context, uri: Uri): String? = runCatching {
     context.contentResolver.openInputStream(uri)?.use { input ->
         // Bounded copy instead of InputStream.readNBytes, which needs API 33.
         val out = ByteArrayOutputStream()

@@ -6,7 +6,9 @@ import com.zeroindex.intake.data.db.entity.ProgramDayEntity
 import com.zeroindex.intake.data.db.entity.ProgramEntity
 import com.zeroindex.intake.data.db.entity.WorkoutSessionEntity
 import com.zeroindex.intake.data.db.projection.MuscleSetCount
+import com.zeroindex.intake.data.repository.ProgramImportPreview
 import com.zeroindex.intake.data.repository.TrainingRepository
+import com.zeroindex.intake.data.training.ProgramImportBatch
 import com.zeroindex.intake.data.seed.ProgramSeed
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -14,6 +16,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -39,6 +42,11 @@ data class TrainUiState(
     }
 }
 
+data class ProgramImportUi(
+    val reading: Boolean = false,
+    val preview: ProgramImportPreview? = null,
+)
+
 @HiltViewModel
 class TrainViewModel @Inject constructor(
     private val repository: TrainingRepository,
@@ -46,6 +54,32 @@ class TrainViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val working = MutableStateFlow(false)
+
+    private val _import = MutableStateFlow(ProgramImportUi())
+    val importState: StateFlow<ProgramImportUi> = _import.asStateFlow()
+
+    private val _notice = MutableStateFlow<String?>(null)
+    val notice: StateFlow<String?> = _notice.asStateFlow()
+    fun clearNotice() { _notice.value = null }
+
+    fun startReading() { _import.value = ProgramImportUi(reading = true) }
+
+    fun importFailed(message: String) {
+        _import.value = ProgramImportUi(preview = ProgramImportPreview.Invalid(message))
+    }
+
+    fun previewImport(text: String) = viewModelScope.launch {
+        _import.value = ProgramImportUi(preview = repository.previewProgramImport(text))
+    }
+
+    fun confirmImport(batch: ProgramImportBatch) = viewModelScope.launch {
+        repository.applyProgramImport(batch)
+        _import.value = ProgramImportUi()
+        _notice.value = (if (batch.summary.updatingExisting) "Updated " else "Imported ") +
+            "\"${batch.summary.programName}\" with ${batch.summary.exerciseCount} exercises."
+    }
+
+    fun cancelImport() { _import.value = ProgramImportUi() }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<TrainUiState> = repository.observeActiveProgram()

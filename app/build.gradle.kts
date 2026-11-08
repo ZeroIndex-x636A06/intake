@@ -1,4 +1,6 @@
 import java.io.FileInputStream
+import javax.inject.Inject
+import org.gradle.api.file.FileSystemOperations
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.Properties
@@ -137,6 +139,42 @@ android {
 
     testOptions {
         unitTests.isReturnDefaultValues = true
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The scripting wiki (docs/scripting) is bundled into the app as assets/scripting so the
+// in-app reference works offline. It is copied at build time into build/generated, so the
+// Markdown exists once in the repository, under docs/.
+// ---------------------------------------------------------------------------
+abstract class CopyScriptDocs : DefaultTask() {
+    @get:InputDirectory
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val docs: DirectoryProperty
+
+    @get:OutputDirectory
+    abstract val assetsDir: DirectoryProperty
+
+    @get:Inject
+    abstract val fileSystem: FileSystemOperations
+
+    @TaskAction
+    fun copy() {
+        fileSystem.sync {
+            from(docs) { include("**/*.md") }
+            into(assetsDir.dir("scripting"))
+        }
+    }
+}
+
+val copyScriptDocs = tasks.register<CopyScriptDocs>("copyScriptDocs") {
+    docs.set(rootProject.layout.projectDirectory.dir("docs/scripting"))
+    assetsDir.set(layout.buildDirectory.dir("generated/scriptDocs/assets"))
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.sources.assets?.addGeneratedSourceDirectory(copyScriptDocs, CopyScriptDocs::assetsDir)
     }
 }
 

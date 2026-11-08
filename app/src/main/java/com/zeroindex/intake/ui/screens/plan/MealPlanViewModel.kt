@@ -232,4 +232,9 @@ class MealPlanViewModel @Inject constructor(
     }
 
     fun cancelImport() { _import.value = ImportUiState() }
+
+    /** The current plan as script text, for the "Export plan as script" action. */
+    suspend fun exportScript(): String = repo.exportPlanScript()
+
+    fun postNotice(text: String) { _notice.value = text }
 }

@@ -88,6 +88,32 @@ them. See [meal-plan.md](meal-plan.md).
 The app's script import reads the first line to decide which kind of file it has been given, then shows a
 preview with any warnings before anything is saved.
 
+## Importing and exporting in the app
+
+Everything below works offline. No AI is involved in importing.
+
+**Import a meal plan.** Plan tab, then **Import plan**. Pick a `.md`, `.txt` or `.json` file. A file whose first
+character is `{` is read as the older JSON plan file; anything else is read as a script. If the script has any
+error, a list opens ("Line 14, column 3: ...") with a **How to fix** button on each problem that opens this
+reference at the right place, and nothing is imported. Otherwise a preview shows the weeks, recipes and shopping
+items, the script's warnings and the allergen check from your own profile on this phone. Confirm to import.
+Importing the same file again updates the same rows instead of adding copies.
+
+**Import a program.** Train tab, then **Import program**. It goes through the same steps: errors first, then a
+preview with the program name, days, exercise count, which exercises are new and which matched your exercise
+library (by name, ignoring case), the progression rules, and any warnings. Confirm to import. Importing the same
+file again updates the program in place. An exercise that was in the earlier version but is not in the new file is
+hidden, never erased, so logged sets keep their history. A `weight:` line becomes the starting weight, shown with
+the reason "Starting weight from your program" the first time you do that lift. Day notes and exercise notes
+are not stored by the app.
+
+**Export.** Plan tab, **Export plan as script** saves `meal-plan.md`. In the program builder,
+**Export program as script** saves `<program name>.md`. Both files can be edited and imported again. A program
+is exported in kilograms with its rest time and rule written on every exercise.
+
+**Script reference.** More, then **Plan & program scripts**, opens this wiki inside the app. There is also a
+**Script reference** link next to each import button. The pages ship with the app and make no network requests.
+
 ## File kinds
 
 The first line that is not blank must be one of:

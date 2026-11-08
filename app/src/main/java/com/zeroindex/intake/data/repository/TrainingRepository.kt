@@ -1,6 +1,17 @@
 package com.zeroindex.intake.data.repository
 
+import androidx.room.withTransaction
+import com.zeroindex.intake.data.db.IntakeDatabase
 import com.zeroindex.intake.data.db.dao.ExerciseDao
+import com.zeroindex.intake.data.training.ExistingProgramState
+import com.zeroindex.intake.data.training.ProgramExportRows
+import com.zeroindex.intake.data.training.ProgramExporter
+import com.zeroindex.intake.data.training.ProgramImportBatch
+import com.zeroindex.intake.data.training.ProgramImportBuilder
+import com.zeroindex.intake.domain.script.Diagnostic
+import com.zeroindex.intake.domain.script.IntakeScript
+import com.zeroindex.intake.domain.script.ProgramScript
+import com.zeroindex.intake.domain.script.ScriptDocument
 import com.zeroindex.intake.data.db.dao.ProgramDao
 import com.zeroindex.intake.data.db.dao.ProgressionRuleDao
 import com.zeroindex.intake.data.db.dao.WorkoutDao
@@ -24,6 +35,7 @@ import com.zeroindex.intake.domain.training.ProgressionEvaluator
 import com.zeroindex.intake.domain.training.ProgressionOutcome
 import com.zeroindex.intake.domain.training.RuleParams
 import com.zeroindex.intake.domain.training.SetResult
+import com.zeroindex.intake.domain.training.StartingWeight
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -42,8 +54,15 @@ data class ExercisePrescription(
     val lastSession: List<SetLogEntity>,
 )
 
+sealed interface ProgramImportPreview {
+    data class Ready(val batch: ProgramImportBatch, val warnings: List<Diagnostic>) : ProgramImportPreview
+    data class ScriptErrors(val diagnostics: List<Diagnostic>) : ProgramImportPreview
+    data class Invalid(val message: String) : ProgramImportPreview
+}
+
 @Singleton
 class TrainingRepository @Inject constructor(
+    private val db: IntakeDatabase,
     private val exerciseDao: ExerciseDao,
     private val programDao: ProgramDao,
     private val ruleDao: ProgressionRuleDao,
@@ -183,6 +202,63 @@ class TrainingRepository @Inject constructor(
     }
 
     suspend fun saveRules(rules: List<ProgressionRuleEntity>) = ruleDao.upsertAll(rules)
+
+    // ------------------------------------------------------ script import / export
+
+    /** Parses a program script and works out what importing it would do. Writes nothing. */
+    suspend fun previewProgramImport(text: String): ProgramImportPreview {
+        val result = IntakeScript.parse(text)
+        if (result.errors.isNotEmpty()) return ProgramImportPreview.ScriptErrors(result.diagnostics)
+        return when (val doc = result.document) {
+            is ScriptDocument.Program -> {
+                val pid = ProgramImportBuilder.programId(doc.doc.name)
+                val old = programDao.findById(pid)
+                val days = if (old != null) programDao.daysOf(pid) else emptyList()
+                val exercises = days.flatMap { programDao.exercisesOf(it.id) }
+                val active = programDao.active()
+                val batch = ProgramImportBuilder.build(
+                    doc.doc, exerciseDao.all(),
+                    ExistingProgramState(old, days, exercises, anotherProgramActive = active != null && active.id != pid),
+                    clock.nowMillis(),
+                )
+                ProgramImportPreview.Ready(batch, result.warnings)
+            }
+            is ScriptDocument.MealPlan ->
+                ProgramImportPreview.Invalid("This is a meal plan. Import it from the Plan tab instead.")
+            null -> ProgramImportPreview.Invalid("This file could not be read.")
+        }
+    }
+
+    /** One transaction. Ids are deterministic, so importing the same file again updates in place. */
+    suspend fun applyProgramImport(batch: ProgramImportBatch) {
+        db.withTransaction {
+            if (batch.program.isActive) programDao.clearActive(batch.program.updatedAt)
+            exerciseDao.upsertAll(batch.newExercises)
+            ruleDao.upsertAll(batch.rules)
+            programDao.upsertProgram(batch.program)
+            programDao.upsertDays(batch.days)
+            programDao.upsertDays(batch.removedDays)
+            programDao.upsertExercises(batch.programExercises)
+            programDao.upsertExercises(batch.removedExercises)
+        }
+    }
+
+    /** The program as script text, or null when it no longer exists. */
+    suspend fun exportProgramScript(programId: String): Pair<String, String>? {
+        val program = programDao.findById(programId) ?: return null
+        val days = programDao.daysOf(programId)
+        val byDay = days.associate { it.id to programDao.exercisesOf(it.id) }
+        val doc = ProgramExporter.toDoc(
+            ProgramExportRows(
+                program = program,
+                days = days,
+                exercisesByDay = byDay,
+                exercises = exerciseDao.all().associateBy { it.id },
+                rules = ruleDao.all().associateBy { it.id },
+            ),
+        )
+        return ProgramScript.print(doc) to ProgramExporter.fileName(program.name)
+    }
 
     // ------------------------------------------------------------ sessions
 
@@ -344,6 +420,19 @@ class TrainingRepository @Inject constructor(
             )
             val results = lastSets.map {
                 SetResult(it.weightKg, it.reps, it.rpe, it.isFailure)
+            }
+
+            // No history yet and the program names a starting weight: that is the first prescription.
+            if (lastSets.isEmpty()) {
+                StartingWeight.prescription(pe.startWeightKg, target)?.let { start ->
+                    return@mapNotNull ExercisePrescription(
+                        programExercise = pe,
+                        exercise = exercise,
+                        prescription = start,
+                        ruleError = null,
+                        lastSession = lastSets,
+                    )
+                }
             }
 
             if (rule == null) {

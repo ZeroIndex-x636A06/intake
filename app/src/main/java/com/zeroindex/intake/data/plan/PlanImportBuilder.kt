@@ -51,6 +51,8 @@ data class PlanImportBatch(
 ) {
     val blocked: List<ImportFinding> get() = findings.filter { it.status == AllergenStatus.CONTAINS }
     val mayContain: List<ImportFinding> get() = findings.filter { it.status == AllergenStatus.MAY_CONTAIN }
+    /** The soft tier: worth reading the label, never blocks anything. */
+    val checkLabel: List<ImportFinding> get() = findings.filter { it.status == AllergenStatus.CHECK_LABEL }
 }
 
 /** The local allergen engine, as the importer needs it: text in, verdict out. */
@@ -85,7 +87,7 @@ object PlanImportBuilder {
 
         fun record(subject: String, scan: AllergenScanResult): AllergenStatus {
             val status = statusOf(scan)
-            if (status == AllergenStatus.CONTAINS || status == AllergenStatus.MAY_CONTAIN) {
+            if (status == AllergenStatus.CONTAINS || status == AllergenStatus.MAY_CONTAIN || status == AllergenStatus.CHECK_LABEL) {
                 val detail = scan.matches.joinToString("; ") { "${it.matchedTerm} (${it.allergen}): ${it.note}" }
                 findings += ImportFinding(subject, status, detail)
             }

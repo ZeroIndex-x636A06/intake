@@ -13,7 +13,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
+import com.zeroindex.intake.data.training.ProgramExporter
+import com.zeroindex.intake.ui.screens.script.writeText
+import kotlinx.coroutines.launch
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
@@ -44,10 +54,22 @@ import com.zeroindex.intake.ui.theme.IntakeShape
 @Composable
 fun ProgramBuilderScreen(
     contentPadding: PaddingValues,
+    onOpenScriptReference: (page: String, anchor: String?) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ProgramBuilderViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val exporter = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/markdown")) { uri ->
+        val program = state.program
+        if (uri != null && program != null) {
+            scope.launch {
+                val ok = viewModel.exportScript(program.id)?.let { writeText(context, uri, it.first) } ?: false
+                viewModel.showMessage(if (ok) "Saved \"${program.name}\" as a script." else "That file could not be saved.")
+            }
+        }
+    }
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
@@ -59,7 +81,14 @@ fun ProgramBuilderScreen(
         ),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        item(key = "heading") { ScreenHeading("Program builder") }
+        item(key = "heading") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) { ScreenHeading("Program builder") }
+                TextButton(onClick = { onOpenScriptReference("program", null) }, modifier = Modifier.heightIn(min = 48.dp)) {
+                    Text("Script reference")
+                }
+            }
+        }
 
         state.message?.let { message ->
             item(key = "message") {
@@ -75,7 +104,9 @@ fun ProgramBuilderScreen(
             }
         }
 
-        item(key = "program") { ProgramSection(state, viewModel) }
+        item(key = "program") {
+            ProgramSection(state, viewModel, onExport = { name -> exporter.launch(name) })
+        }
 
         if (state.program != null) {
             item(key = "days") { DaysSection(state, viewModel) }
@@ -89,7 +120,7 @@ fun ProgramBuilderScreen(
 }
 
 @Composable
-private fun ProgramSection(state: ProgramBuilderUiState, viewModel: ProgramBuilderViewModel) {
+private fun ProgramSection(state: ProgramBuilderUiState, viewModel: ProgramBuilderViewModel, onExport: (String) -> Unit) {
     var name by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
 
@@ -139,6 +170,10 @@ private fun ProgramSection(state: ProgramBuilderUiState, viewModel: ProgramBuild
                 onClick = viewModel::startNewProgram,
                 modifier = Modifier.fillMaxWidth().height(48.dp).padding(top = 8.dp),
             ) { Text("Start another program") }
+            OutlinedButton(
+                onClick = { onExport(ProgramExporter.fileName(state.program.name)) },
+                modifier = Modifier.fillMaxWidth().height(48.dp).padding(top = 8.dp),
+            ) { Text("Export program as script") }
         }
     }
 }

@@ -101,6 +101,11 @@ data class ProgramExerciseEntity(
     val targetRpe: Double? = null,
     val progressionRuleId: String? = null,
     val restSec: Int = 120,
+    /**
+     * First prescription when there is no history for this lift (kg; for a bodyweight lift,
+     * the added load). Set by a program script's `weight:` line; null means "pick a weight".
+     */
+    val startWeightKg: Double? = null,
     override val createdAt: Long,
     override val updatedAt: Long,
     override val deletedAt: Long? = null,

@@ -41,6 +41,8 @@ sealed interface Route {
     @Serializable data object WorkoutHistory : Route
     @Serializable data class ActiveWorkout(val sessionId: String) : Route
     @Serializable data class CookMode(val recipeId: String) : Route
+    /** The bundled scripting wiki. [page] is a docs/scripting page such as "README"; [anchor] a heading slug. */
+    @Serializable data class ScriptReference(val page: String = "README", val anchor: String? = null) : Route
 }
 
 /**

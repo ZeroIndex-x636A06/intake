@@ -20,6 +20,9 @@ Core, from SPEC.md:
 - Training: progression rules, active workout, rest timer, plate calculator,
   program builder, history.
 - Starter food library, exercises and a training program are seeded locally.
+- Write a meal plan or workout program by hand and import or export it as a
+  plain-text script, with an offline in-app reference:
+  [docs/scripting/](docs/scripting/README.md).
 - Progress charts and a settings and privacy screen.
 
 Amendment features:
