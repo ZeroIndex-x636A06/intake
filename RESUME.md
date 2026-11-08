@@ -18,6 +18,7 @@ failures.
 | 4 | §8 adaptive TDEE, §11 Progress tab | **complete** |
 | 6 | §10 progression rules, active workout, builder, history | **complete** |
 | 8 | §13 settings and privacy screen (export/import still to do) | **partial** |
+| — | Design system from `design/intake-mockup.html` | **complete for built screens** |
 
 What that means concretely:
 
@@ -37,10 +38,51 @@ What that means concretely:
   and per-exercise 1RM history.
 - Settings covers units, theme, API keys with a test button, allergen profile,
   targets, rest timer, plates. Privacy screen written.
+- The visual design is the user's mockup, kept at `design/intake-mockup.html`
+  as the source of truth. Manrope and DM Sans ship as variable fonts driven on
+  the weight axis; the palette, shape scale and type scale are named after the
+  mockup's CSS custom properties so the two stay comparable. `dynamicColor`
+  defaults **off** so the designed palette is what ships.
+- Shared components live in `ui/components/Common.kt` (Eyebrow, IntakeCard,
+  SectionCard, StatTile, SummaryTile, AccentNote, ConfidenceLine) and
+  `ui/components/Controls.kt` (SubHead, SectionLine, Segmented, ChoiceChip,
+  SolidBanner, MenuItem, SettingRow, Tag, Flag, MathGrid, OfflinePill,
+  SandStrip). Build new screens from these rather than raw Material widgets,
+  or the mockup drifts.
+
+### Deliberate deviations from the mockup
+
+These are intentional. Do not "fix" them without deciding to.
+
+- **Minimum type sizes.** The mockup uses 9–11px for captions. Body text is
+  floored at 12sp and labels at 11sp, because Android applies the user's font
+  scale on top of whatever we pick and SPEC §3.7 asks for accessibility.
+- **Allergen sheet button order is inverted** from the old build: "Don't log
+  it" is the filled primary, "Log it anyway" the outline. The mockup is right
+  that the safe choice should also be the easy one.
+- **Food rows use the food's initial, not an emoji.** No glyph mapping to
+  maintain and it can never show the wrong picture.
+- **Every warning carries words, not just colour** — the under-volume flag
+  reads "low · under 10" and the row repeats it as a sentence.
+
+### Mockup features with no home in the spec
+
+- **"Optional web assistant"** appears on the mockup's More and Settings
+  screens (ingredient research, menu lookup, recipe swaps, plus an "Allow web
+  search" toggle). It is nowhere in SPEC.md, and it would add a fourth network
+  path beyond the three §3.2 allows. **Not built, and not stubbed.** It needs a
+  decision before anyone writes it: either amend §3.2 to permit it, or drop it
+  from the design.
 
 ---
 
 ## Not done
+
+> The mockup also draws Plan, Cook mode, the "can't eat what I cooked" sheet
+> and the AI estimate screen. Those screens do not exist yet (phases 5 and 7
+> below), so they are unstyled rather than mis-styled — build them from the
+> component library above and the mockup's `plan()`, `cook()`, `parking()` and
+> `ai()` functions.
 
 ### Phase 5 — meal plan, cook mode, shopping list (§9)
 
