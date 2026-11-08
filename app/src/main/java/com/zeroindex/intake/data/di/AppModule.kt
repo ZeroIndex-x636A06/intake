@@ -1,5 +1,7 @@
 package com.zeroindex.intake.data.di
 
+import com.zeroindex.intake.data.ai.benchmark.AssetFixtureReader
+import com.zeroindex.intake.data.ai.benchmark.FixtureReader
 import com.zeroindex.intake.domain.time.Clock
 import com.zeroindex.intake.domain.time.HybridClock
 import com.zeroindex.intake.domain.time.SystemClock
@@ -32,4 +34,8 @@ object AppModule {
         explicitNulls = false
         prettyPrint = true
     }
+
+    @Provides
+    @Singleton
+    fun provideFixtureReader(reader: AssetFixtureReader): FixtureReader = reader
 }

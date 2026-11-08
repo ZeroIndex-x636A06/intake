@@ -106,8 +106,8 @@ class RecipeHunter @Inject constructor(
             val outcome = gateway.structured(
                 task = AiTask.RECIPE_HUNTER,
                 serializer = FoundRecipes.serializer(),
-                schema = schema,
-                system = systemPrompt(avoided),
+                schema = RecipePrompts.schema,
+                system = RecipePrompts.system(avoided),
                 parts = listOf(AiPart.Text(userPrompt(query, avoided, TARGET - kept.size, kept, rejected))),
                 tools = listOf(ServerTool.WebSearch(maxResults = 6, maxUses = 3), ServerTool.WebFetch(maxUses = 6)),
             )
@@ -177,25 +177,6 @@ class RecipeHunter @Inject constructor(
         return entity
     }
 
-    private fun systemPrompt(avoided: Set<String>) = buildString {
-        appendLine("You find meal-prep recipes on the web for someone eating to macro targets.")
-        appendLine("Use web search to find candidates and web fetch to read each recipe page before extracting it.")
-        appendLine("Only return recipes you actually read, with the page's real URL. Never invent a recipe or a URL.")
-        appendLine("Copy ingredient lines with their quantities as written on the page.")
-        appendLine(
-            "Use the page's published nutrition per serving when it has it (macrosPublished true); otherwise compute " +
-                "it from the ingredients and set macrosPublished false.",
-        )
-        if (avoided.isNotEmpty()) {
-            appendLine(
-                "The user must avoid: ${avoided.joinToString()}. Skip any recipe containing them, including hidden " +
-                    "forms (for dairy: milk, butter, ghee, cream, cheese, yoghurt, whey, casein). If an ingredient " +
-                    "might contain one, list it in containsAllergens and explain.",
-            )
-        }
-        append("Reply with JSON only, matching the schema.")
-    }
-
     private fun userPrompt(
         q: RecipeQuery,
         avoided: Set<String>,
@@ -219,8 +200,30 @@ class RecipeHunter @Inject constructor(
             rejected.forEach { appendLine("- ${it.recipe.title} (${it.recipe.sourceUrl}): ${(it.verdict as RecipeVerdict.Rejected).reason}") }
         }
     }
+}
 
-    private val schema: JsonObject = S.obj(
+/** The recipe-extraction prompt and schema, shared with the in-app benchmark. */
+internal object RecipePrompts {
+    fun system(avoided: Set<String>) = buildString {
+        appendLine("You find meal-prep recipes on the web for someone eating to macro targets.")
+        appendLine("Use web search to find candidates and web fetch to read each recipe page before extracting it.")
+        appendLine("Only return recipes you actually read, with the page's real URL. Never invent a recipe or a URL.")
+        appendLine("Copy ingredient lines with their quantities as written on the page.")
+        appendLine(
+            "Use the page's published nutrition per serving when it has it (macrosPublished true); otherwise compute " +
+                "it from the ingredients and set macrosPublished false.",
+        )
+        if (avoided.isNotEmpty()) {
+            appendLine(
+                "The user must avoid: ${avoided.joinToString()}. Skip any recipe containing them, including hidden " +
+                    "forms (for dairy: milk, butter, ghee, cream, cheese, yoghurt, whey, casein). If an ingredient " +
+                    "might contain one, list it in containsAllergens and explain.",
+            )
+        }
+        append("Reply with JSON only, matching the schema.")
+    }
+
+    val schema: JsonObject = S.obj(
         "recipes" to S.array(
             S.obj(
                 "title" to S.string(),

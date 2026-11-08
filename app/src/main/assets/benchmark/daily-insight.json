@@ -1,0 +1,69 @@
+{
+  "task": "DAILY_INSIGHT",
+  "fixtures": [
+    {
+      "id": "insight-1",
+      "digest": [
+        "Days logged: 12 of 14",
+        "Calories: averaging 2310 against a 2400 target",
+        "Protein: averaging 118 g against a 160 g target",
+        "Protein under 90% of target for the last 5 logged days",
+        "Weight trend: -0.21 kg per week",
+        "Training sessions: 3 last 7 days, 4 the 7 before",
+        "Sleep: averaging 6.4 h a night",
+        "Steps: averaging 7,900 a day"
+      ]
+    },
+    {
+      "id": "insight-2",
+      "digest": [
+        "Days logged: 9 of 14",
+        "Calories: averaging 1850 against a 2200 target",
+        "Protein: averaging 150 g against a 150 g target",
+        "Weight trend: -0.65 kg per week",
+        "Measured maintenance: 2480 kcal (medium confidence)",
+        "Training sessions: 4 last 7 days, 4 the 7 before",
+        "Average set RPE by week: 7.5 → 8.4",
+        "Resting heart rate: 54 → 58 bpm"
+      ]
+    },
+    {
+      "id": "insight-3",
+      "digest": [
+        "Days logged: 14 of 14",
+        "Calories: averaging 2950 against a 2800 target",
+        "Protein: averaging 175 g against a 170 g target",
+        "Weight trend: +0.12 kg per week",
+        "Body fat: 17.8%",
+        "Lean mass: 68.2 kg",
+        "Training sessions: 5 last 7 days, 5 the 7 before",
+        "Water: averaging 1900 ml against 3000 ml"
+      ]
+    },
+    {
+      "id": "insight-4",
+      "digest": [
+        "Days logged: 4 of 14",
+        "Calories: averaging 1700 against a 2100 target",
+        "Protein: averaging 95 g against a 140 g target",
+        "Training sessions: 1 last 7 days, 3 the 7 before",
+        "Sleep: averaging 5.9 h a night",
+        "Steps: averaging 4,100 a day"
+      ]
+    },
+    {
+      "id": "insight-5",
+      "digest": [
+        "Days logged: 11 of 14",
+        "Calories: averaging 2480 against a 2500 target",
+        "Protein: averaging 162 g against a 165 g target",
+        "Weight trend: +0.04 kg per week",
+        "Measured maintenance: 2510 kcal (high confidence)",
+        "Training sessions: 3 last 7 days, 3 the 7 before",
+        "Average set RPE by week: 8.1 → 8.0",
+        "Sleep: averaging 7.6 h a night",
+        "Water: averaging 2700 ml against 2800 ml"
+      ]
+    }
+  ]
+}

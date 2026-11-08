@@ -75,7 +75,7 @@ class AiGateway @Inject constructor(
             privacy = prefs.aiPrivacy,
         )
         val first = client.complete(key, request)
-        decode(serializer, first.content)?.let { return AiOutcome(it, first) }
+        decodeReply(json, serializer, first.content)?.let { return AiOutcome(it, first) }
 
         val retry = client.complete(
             key,
@@ -86,27 +86,31 @@ class AiGateway @Inject constructor(
                 tools = emptyList(),
             ),
         )
-        val value = decode(serializer, retry.content)
+        val value = decodeReply(json, serializer, retry.content)
             ?: throw AiError.BadResponse("it did not match the expected format", raw = retry.content)
         return AiOutcome(value, retry.copy(costUsd = sum(first.costUsd, retry.costUsd)))
     }
 
     suspend fun testKey(key: String): KeyData = client.keyInfo(key)
 
-    private fun <T> decode(serializer: KSerializer<T>, content: String): T? {
-        val text = extractJson(content) ?: return null
-        return try {
-            json.decodeFromString(serializer, text)
-        } catch (_: SerializationException) {
-            null
-        } catch (_: IllegalArgumentException) {
-            null
-        }
-    }
-
     private fun sum(a: Double?, b: Double?): Double? = if (a == null && b == null) null else (a ?: 0.0) + (b ?: 0.0)
 
     companion object {
+        /**
+         * Decodes a reply into [T], or null if it does not match. Shared with
+         * the benchmark so "parsed" means the same thing in both.
+         */
+        fun <T> decodeReply(json: Json, serializer: KSerializer<T>, content: String): T? {
+            val text = extractJson(content) ?: return null
+            return try {
+                json.decodeFromString(serializer, text)
+            } catch (_: SerializationException) {
+                null
+            } catch (_: IllegalArgumentException) {
+                null
+            }
+        }
+
         /** Pulls the JSON object out of a reply that may be fenced or prefixed with prose. */
         fun extractJson(content: String): String? {
             val trimmed = content.trim()
