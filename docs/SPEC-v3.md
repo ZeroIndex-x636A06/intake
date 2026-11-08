@@ -133,6 +133,22 @@ cheese. They should be check-the-label, with a reason.
   - Rep ranges and the progression rule follow the goal.
   - A deload runs every 4–6 weeks.
   - The output is a normal editable Program.
+  - **Implemented** (`domain/training/generator/`, pure and deterministic):
+    - Split: 2-3 days full body; 4 upper/lower; 5 push/pull/legs + upper/lower
+      (new lifters: upper/lower + full body); 6 push/pull/legs twice.
+    - Weekly hard sets per muscle: new 8-10, some 10-14, experienced 12-20, placed
+      by goal; biceps/triceps/glutes/calves/core take a share; focus muscles +25%
+      (ceiling +30%); at most 10 (12 focus) per muscle per session.
+    - Session time = 5 min + sets x (work + rest); over budget it trims sets, then
+      small isolation work, focus muscles last, and says so.
+    - Compounds first, rotating variants; equipment, experience, hidden and
+      "avoid" body areas filter the exercise pool.
+    - Reps/effort by goal; progression: double progression for muscle, linear for
+      new lifters' compounds, effort-based for experienced strength.
+    - Deload every 6 weeks (new, some) or 5 (experienced), written into the program
+      notes. CUSTOM expressions can read `week` but have no modulo, so the app
+      does not auto-deload.
+    - Output is a normal Program via the same path as a template copy.
 - **Body type.**
   - A simple build picker: slim, average, muscular, heavier. It sets
     starting assumptions and copy only.

@@ -15,6 +15,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.rememberCoroutineScope
@@ -33,6 +35,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -56,7 +61,9 @@ import java.time.format.DateTimeFormatter
 fun TrainScreen(
     contentPadding: PaddingValues,
     onOpenSession: (String) -> Unit,
-    onOpenBuilder: () -> Unit,
+    onOpenBuilder: (programId: String?) -> Unit,
+    onOpenGenerator: () -> Unit,
+    onOpenTemplates: () -> Unit,
     onOpenScriptReference: (page: String, anchor: String?) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: TrainViewModel = hiltViewModel(),
@@ -66,6 +73,7 @@ fun TrainScreen(
     val notice by viewModel.notice.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    var confirmArchive by remember { mutableStateOf<com.zeroindex.intake.data.db.entity.ProgramEntity?>(null) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             viewModel.startReading()
@@ -88,7 +96,7 @@ fun TrainScreen(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item(key = "heading") {
-            SubHead("Programs", "Your plan, your pace. Built to progress steadily.")
+            SubHead("Programs", "Your plan, your pace. Edit anything, any time.")
         }
         item(key = "import-row") {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -133,36 +141,12 @@ fun TrainScreen(
             }
 
             program == null -> item(key = "empty") {
-                IntakeCard {
-                    Text(
-                        text = "No program yet",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Spacer(Modifier.height(5.dp))
-                    Text(
-                        text = "A program here is data with progression rules attached, so the " +
-                            "weights move on their own. Start from a four-day upper/lower " +
-                            "template and change whatever you like.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    Button(
-                        onClick = { viewModel.createStarterProgram() },
-                        enabled = !state.isWorking,
-                        shape = IntakeShape.Button,
-                        modifier = Modifier.fillMaxWidth().height(52.dp),
-                    ) {
-                        Text(if (state.isWorking) "Setting up…" else "Create a starter program")
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    OutlinedButton(
-                        onClick = onOpenBuilder,
-                        shape = IntakeShape.Button,
-                        modifier = Modifier.fillMaxWidth().height(52.dp),
-                    ) { Text("Build one from scratch") }
-                }
+                NoProgramChoices(
+                    onBuild = { onOpenBuilder(null) },
+                    onGenerate = onOpenGenerator,
+                    onTemplate = onOpenTemplates,
+                    onFreestyle = { viewModel.startFreestyle(onOpenSession) },
+                )
             }
 
             else -> {
@@ -276,18 +260,52 @@ fun TrainScreen(
             }
         }
 
+        if (state.allPrograms.isNotEmpty()) {
+            item(key = "programs-heading") { SectionLine("Your programs") }
+            items(items = state.allPrograms, key = { "program-${it.id}" }) { p ->
+                ProgramRow(
+                    program = p,
+                    onOpen = { onOpenBuilder(p.id) },
+                    onActivate = { viewModel.activate(p.id) },
+                    onDuplicate = { viewModel.duplicate(p.id) },
+                    onArchive = { confirmArchive = p },
+                )
+            }
+        }
+
         item(key = "links") {
             Column(
                 modifier = Modifier.padding(top = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                SectionLine("Add a program")
                 OutlinedButton(
-                    onClick = onOpenBuilder,
+                    onClick = { onOpenBuilder(null) },
                     shape = IntakeShape.Button,
                     modifier = Modifier.fillMaxWidth().height(52.dp),
-                ) { Text("Program builder") }
+                ) { Text("Build a program") }
+                OutlinedButton(
+                    onClick = onOpenGenerator,
+                    shape = IntakeShape.Button,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                ) { Text("Make one for me") }
+                OutlinedButton(
+                    onClick = onOpenTemplates,
+                    shape = IntakeShape.Button,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                ) { Text("Start from a template") }
             }
         }
+    }
+
+    confirmArchive?.let { p ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmArchive = null },
+            title = { Text("Archive ${p.name}?") },
+            text = { Text("It leaves your list. Workouts you logged with it are kept.") },
+            confirmButton = { TextButton(onClick = { viewModel.archive(p.id); confirmArchive = null }) { Text("Archive") } },
+            dismissButton = { TextButton(onClick = { confirmArchive = null }) { Text("Keep") } },
+        )
     }
 
     (importState.preview as? ProgramImportPreview.ScriptErrors)?.let { errors ->
@@ -327,7 +345,7 @@ private fun NextWorkoutCard(
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = if (dayName == null) {
-                        "Start a freestyle session instead"
+                        "Start an empty workout instead"
                     } else {
                         "Progression is applied when you open it"
                     },
@@ -354,7 +372,7 @@ private fun NextWorkoutCard(
             onClick = onFreestyle,
             shape = IntakeShape.Button,
             modifier = Modifier.fillMaxWidth().height(50.dp),
-        ) { Text("Freestyle session") }
+        ) { Text("Start an empty workout") }
     }
 }
 
@@ -415,3 +433,39 @@ private fun timeOf(millis: Long): String = DateTimeFormatter.ofPattern("HH:mm")
 
 private fun dateOf(millis: Long): String = DateTimeFormatter.ofPattern("EEE d MMM, HH:mm")
     .format(Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()))
+
+@Composable
+private fun ProgramRow(
+    program: com.zeroindex.intake.data.db.entity.ProgramEntity,
+    onOpen: () -> Unit,
+    onActivate: () -> Unit,
+    onDuplicate: () -> Unit,
+    onArchive: () -> Unit,
+) {
+    var menu by remember { mutableStateOf(false) }
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        shape = IntakeShape.Field,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.heightIn(min = 60.dp).padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(program.name, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+                if (program.isActive) Text("Active · week ${program.currentWeek}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+            }
+            OutlinedButton(onClick = onOpen, shape = IntakeShape.Chip) { Text("Edit") }
+            androidx.compose.material3.IconButton(onClick = { menu = true }) {
+                androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.MoreVert, contentDescription = "More for ${program.name}")
+                androidx.compose.material3.DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    if (!program.isActive) androidx.compose.material3.DropdownMenuItem(text = { Text("Make active") }, onClick = { menu = false; onActivate() })
+                    androidx.compose.material3.DropdownMenuItem(text = { Text("Duplicate") }, onClick = { menu = false; onDuplicate() })
+                    androidx.compose.material3.DropdownMenuItem(text = { Text("Archive") }, onClick = { menu = false; onArchive() })
+                }
+            }
+        }
+    }
+}

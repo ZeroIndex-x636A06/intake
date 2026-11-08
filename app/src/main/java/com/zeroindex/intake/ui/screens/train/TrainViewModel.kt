@@ -9,7 +9,7 @@ import com.zeroindex.intake.data.db.projection.MuscleSetCount
 import com.zeroindex.intake.data.repository.ProgramImportPreview
 import com.zeroindex.intake.data.repository.TrainingRepository
 import com.zeroindex.intake.data.training.ProgramImportBatch
-import com.zeroindex.intake.data.seed.ProgramSeed
+import com.zeroindex.intake.data.seed.ProgramTemplates
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -50,7 +50,6 @@ data class ProgramImportUi(
 @HiltViewModel
 class TrainViewModel @Inject constructor(
     private val repository: TrainingRepository,
-    private val programSeed: ProgramSeed,
 ) : ViewModel() {
 
     private val working = MutableStateFlow(false)
@@ -80,6 +79,11 @@ class TrainViewModel @Inject constructor(
     }
 
     fun cancelImport() { _import.value = ProgramImportUi() }
+
+    init {
+        // Make sure the exercise library exists before anyone opens a picker.
+        viewModelScope.launch { repository.ensureSeedExercises() }
+    }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<TrainUiState> = repository.observeActiveProgram()
@@ -128,17 +132,29 @@ class TrainViewModel @Inject constructor(
         repository.activate(programId)
     }
 
-    /**
-     * Creates a sane starter program so the Train tab is usable before anyone
-     * builds one by hand. Seeds the exercise library too if it is empty.
-     */
-    fun createStarterProgram(onCreated: () -> Unit = {}) = viewModelScope.launch {
+    /** Copies a template into a new, ordinary program. It becomes active only if nothing else is. */
+    fun createFromTemplate(templateId: String, onCreated: (String) -> Unit) = viewModelScope.launch {
+        val template = ProgramTemplates.byId(templateId) ?: return@launch
         working.value = true
         try {
-            programSeed.createUpperLowerProgram()
-            onCreated()
+            val activate = repository.activeProgram() == null
+            val program = repository.createProgramFromBlueprint(template.blueprint, activate = activate)
+            onCreated(program.id)
         } finally {
             working.value = false
         }
     }
+
+    /** Soft delete: the program disappears from the list, its history stays. */
+    fun archive(programId: String) = viewModelScope.launch {
+        repository.archiveProgram(programId)
+        _notice.value = "Program archived. Your logged workouts are kept."
+    }
+
+    fun duplicate(programId: String) = viewModelScope.launch {
+        repository.duplicateProgram(programId)?.let { _notice.value = "Made \"${it.name}\"." }
+    }
+
+    /** Starts an empty workout: no program day, exercises are picked as you go. */
+    fun startFreestyle(onStarted: (String) -> Unit) = startSession(null, onStarted)
 }

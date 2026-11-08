@@ -41,7 +41,10 @@ sealed interface Route {
 
     // Train tab.
     @Serializable data object Programs : Route
-    @Serializable data object ProgramBuilder : Route
+    /** [programId] null opens the builder at its program list / "new program" step. */
+    @Serializable data class ProgramBuilder(val programId: String? = null) : Route
+    @Serializable data object ProgramTemplates : Route
+    @Serializable data object ProgramGenerator : Route
     @Serializable data object ExerciseLibrary : Route
     @Serializable data object Performance : Route
     @Serializable data class ActiveWorkout(val sessionId: String) : Route

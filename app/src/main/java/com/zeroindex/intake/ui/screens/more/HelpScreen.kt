@@ -53,7 +53,7 @@ fun HelpScreen(
             ),
             HubItem(
                 title = "Progression rules",
-                description = "Linear, double, percent-of-max and RPE-based",
+                description = "Add weight each session, work up the rep range, % of max, or go by effort",
                 icon = Icons.Filled.Rule,
                 onClick = { onOpenScriptDocs("progress-rules") },
             ),
