@@ -1,5 +1,6 @@
 package com.zeroindex.intake.data.db.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -89,6 +90,8 @@ data class FoodLogEntity(
     override val deletedAt: Long? = null,
 ) : Audited
 
+enum class RecipeOrigin { USER, PLAN, HUNTER }
+
 @Entity(tableName = "recipe", indices = [Index("sourceWeekNumber"), Index("deletedAt")])
 data class RecipeEntity(
     @PrimaryKey override val id: String = newId(),
@@ -98,6 +101,20 @@ data class RecipeEntity(
     val totalTimeMinutes: Int,
     /** Links back to the 12-week plan (SPEC §9), null for a standalone recipe. */
     val sourceWeekNumber: Int? = null,
+    @ColumnInfo(defaultValue = "USER") val origin: RecipeOrigin = RecipeOrigin.USER,
+    /** Where a Recipe Hunter result came from, so the user can check it. */
+    val sourceUrl: String? = null,
+    /**
+     * Ingredient lines as found, for recipes whose ingredients are not (yet)
+     * matched to foods in the catalog - Recipe Hunter results start this way.
+     */
+    @ColumnInfo(defaultValue = "") val ingredientsText: String = "",
+    val kcalPerServing: Double? = null,
+    val proteinPerServing: Double? = null,
+    val carbsPerServing: Double? = null,
+    val fatPerServing: Double? = null,
+    /** The local allergen engine's verdict when the recipe was saved. */
+    val allergenStatus: AllergenStatus? = null,
     override val createdAt: Long,
     override val updatedAt: Long,
     override val deletedAt: Long? = null,
@@ -127,6 +144,13 @@ data class RecipeIngredientEntity(
 data class MealTemplateEntity(
     @PrimaryKey override val id: String = newId(),
     val name: String,
+    /**
+     * Amendment §2: the NFC tag this template was last written to, by its
+     * hardware UID, so the list can show which containers are tagged.
+     */
+    val nfcTagUid: String? = null,
+    val nfcWrittenAt: Long? = null,
+    val lastLoggedAt: Long? = null,
     override val createdAt: Long,
     override val updatedAt: Long,
     override val deletedAt: Long? = null,

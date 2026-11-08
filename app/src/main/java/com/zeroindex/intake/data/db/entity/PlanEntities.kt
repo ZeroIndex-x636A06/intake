@@ -1,5 +1,6 @@
 package com.zeroindex.intake.data.db.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -38,6 +39,8 @@ data class PlanWeekRecipeEntity(
     override val deletedAt: Long? = null,
 ) : Audited
 
+enum class EatOutOrigin { PLAN, PLAN_B }
+
 /**
  * "Can't eat what I cooked" (SPEC §9). [planWeekId] is null when the option
  * applies to every week. Read in a parking lot with no signal, so it must work
@@ -59,6 +62,13 @@ data class EatOutOptionEntity(
     val cautionNote: String = "",
     val estimatedKcal: Int,
     val estimatedProtein: Int,
+    @ColumnInfo(defaultValue = "0") val estimatedCarbs: Int = 0,
+    @ColumnInfo(defaultValue = "0") val estimatedFat: Int = 0,
+    /** PLAN for the curated list, PLAN_B for a saved finder result. */
+    @ColumnInfo(defaultValue = "PLAN") val origin: EatOutOrigin = EatOutOrigin.PLAN,
+    val address: String? = null,
+    /** The local allergen engine's verdict on [whatToOrder]. */
+    val allergenStatus: AllergenStatus? = null,
     override val createdAt: Long,
     override val updatedAt: Long,
     override val deletedAt: Long? = null,

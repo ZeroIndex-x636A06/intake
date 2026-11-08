@@ -4,13 +4,18 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.zeroindex.intake.data.db.dao.AiCorrectionDao
+import com.zeroindex.intake.data.db.dao.AiInsightDao
 import com.zeroindex.intake.data.db.dao.AllergenDao
 import com.zeroindex.intake.data.db.dao.BodyMetricDao
 import com.zeroindex.intake.data.db.dao.ExerciseDao
 import com.zeroindex.intake.data.db.dao.FoodDao
 import com.zeroindex.intake.data.db.dao.FoodLogDao
+import com.zeroindex.intake.data.db.dao.HealthSummaryDao
+import com.zeroindex.intake.data.db.dao.HydrationDao
 import com.zeroindex.intake.data.db.dao.MealTemplateDao
+import com.zeroindex.intake.data.db.dao.MenuDao
 import com.zeroindex.intake.data.db.dao.NutritionTargetDao
+import com.zeroindex.intake.data.db.dao.PerformanceDao
 import com.zeroindex.intake.data.db.dao.PlanDao
 import com.zeroindex.intake.data.db.dao.ProgramDao
 import com.zeroindex.intake.data.db.dao.ProgressionRuleDao
@@ -19,16 +24,25 @@ import com.zeroindex.intake.data.db.dao.ShoppingListDao
 import com.zeroindex.intake.data.db.dao.TdeeEstimateDao
 import com.zeroindex.intake.data.db.dao.WorkoutDao
 import com.zeroindex.intake.data.db.entity.AiCorrectionEntity
+import com.zeroindex.intake.data.db.entity.AiInsightEntity
 import com.zeroindex.intake.data.db.entity.AllergenAliasEntity
 import com.zeroindex.intake.data.db.entity.AllergenProfileEntity
+import com.zeroindex.intake.data.db.entity.BackupRunEntity
 import com.zeroindex.intake.data.db.entity.BodyMetricEntity
 import com.zeroindex.intake.data.db.entity.EatOutOptionEntity
 import com.zeroindex.intake.data.db.entity.ExerciseEntity
 import com.zeroindex.intake.data.db.entity.FoodEntity
 import com.zeroindex.intake.data.db.entity.FoodLogEntity
+import com.zeroindex.intake.data.db.entity.HealthDailySummaryEntity
+import com.zeroindex.intake.data.db.entity.HydrationLogEntity
+import com.zeroindex.intake.data.db.entity.HydrationPresetEntity
 import com.zeroindex.intake.data.db.entity.MealTemplateEntity
 import com.zeroindex.intake.data.db.entity.MealTemplateItemEntity
+import com.zeroindex.intake.data.db.entity.MenuItemEntity
+import com.zeroindex.intake.data.db.entity.MenuSourceEntity
+import com.zeroindex.intake.data.db.entity.ModelBenchmarkEntity
 import com.zeroindex.intake.data.db.entity.NutritionTargetEntity
+import com.zeroindex.intake.data.db.entity.PerformanceMetricEntity
 import com.zeroindex.intake.data.db.entity.PlanWeekEntity
 import com.zeroindex.intake.data.db.entity.PlanWeekRecipeEntity
 import com.zeroindex.intake.data.db.entity.ProgramDayEntity
@@ -73,6 +87,16 @@ import com.zeroindex.intake.data.db.entity.WorkoutSessionEntity
         AllergenProfileEntity::class,
         AllergenAliasEntity::class,
         AiCorrectionEntity::class,
+        // Version 2 (SPEC amendments).
+        HydrationLogEntity::class,
+        HydrationPresetEntity::class,
+        PerformanceMetricEntity::class,
+        MenuSourceEntity::class,
+        MenuItemEntity::class,
+        AiInsightEntity::class,
+        ModelBenchmarkEntity::class,
+        HealthDailySummaryEntity::class,
+        BackupRunEntity::class,
     ],
 )
 abstract class IntakeDatabase : RoomDatabase() {
@@ -92,9 +116,14 @@ abstract class IntakeDatabase : RoomDatabase() {
     abstract fun shoppingListDao(): ShoppingListDao
     abstract fun allergenDao(): AllergenDao
     abstract fun aiCorrectionDao(): AiCorrectionDao
+    abstract fun hydrationDao(): HydrationDao
+    abstract fun performanceDao(): PerformanceDao
+    abstract fun menuDao(): MenuDao
+    abstract fun aiInsightDao(): AiInsightDao
+    abstract fun healthSummaryDao(): HealthSummaryDao
 
     companion object {
-        const val VERSION = 1
+        const val VERSION = 2
         const val NAME = "intake.db"
 
         /** Seeds the allergen alias table the moment the database is created. */

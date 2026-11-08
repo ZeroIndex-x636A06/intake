@@ -1,5 +1,6 @@
 package com.zeroindex.intake.data.db.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -15,6 +16,10 @@ data class BodyMetricEntity(
     val measuredAt: Long,
     val weightKg: Double,
     val bodyFatPercent: Double? = null,
+    /** Amendment §3: read from Health Connect when a scale reports it. */
+    val skeletalMuscleKg: Double? = null,
+    /** MANUAL, or HEALTH_CONNECT for rows imported from a smart scale. */
+    @ColumnInfo(defaultValue = "MANUAL") val source: String = "MANUAL",
     val waistCm: Double? = null,
     val chestCm: Double? = null,
     val armCm: Double? = null,

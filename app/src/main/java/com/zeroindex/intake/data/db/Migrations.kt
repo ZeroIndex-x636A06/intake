@@ -1,6 +1,7 @@
 package com.zeroindex.intake.data.db
 
 import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
  * SPEC §4: an explicit migration for every schema change from version 1
@@ -10,10 +11,90 @@ import androidx.room.migration.Migration
  *
  * Adding a migration:
  *  1. bump [IntakeDatabase.VERSION];
- *  2. add a `Migration(n, n + 1)` below and append it to [ALL];
+ *  2. add a statement list and a `Migration(n, n + 1)` below, and append it to
+ *     [ALL];
  *  3. build once so Room writes the new `schemas/<version>.json`, and commit it;
- *  4. add a migration test against the committed schema JSON.
+ *  4. extend `MigrationSchemaTest`, which runs the statements against the
+ *     committed schema JSON and compares the result to what Room expects.
  *
- * Version 1 is the initial schema, so there is nothing to migrate from yet.
+ * Each migration's SQL is a plain list so that test executes exactly what a
+ * phone would, not a copy of it.
  */
-internal val ALL: Array<Migration> = emptyArray()
+
+/**
+ * 1 -> 2: the SPEC amendments. Purely additive - nine new tables and new
+ * nullable or defaulted columns on four existing ones - so no existing row is
+ * rewritten and nothing can be lost.
+ */
+internal val MIGRATION_1_2_STATEMENTS: List<String> = listOf(
+    // Recipe Hunter provenance and cached per-serving macros.
+    "ALTER TABLE `recipe` ADD COLUMN `origin` TEXT NOT NULL DEFAULT 'USER'",
+    "ALTER TABLE `recipe` ADD COLUMN `sourceUrl` TEXT",
+    "ALTER TABLE `recipe` ADD COLUMN `ingredientsText` TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE `recipe` ADD COLUMN `kcalPerServing` REAL",
+    "ALTER TABLE `recipe` ADD COLUMN `proteinPerServing` REAL",
+    "ALTER TABLE `recipe` ADD COLUMN `carbsPerServing` REAL",
+    "ALTER TABLE `recipe` ADD COLUMN `fatPerServing` REAL",
+    "ALTER TABLE `recipe` ADD COLUMN `allergenStatus` TEXT",
+    // NFC meal prep tags.
+    "ALTER TABLE `meal_template` ADD COLUMN `nfcTagUid` TEXT",
+    "ALTER TABLE `meal_template` ADD COLUMN `nfcWrittenAt` INTEGER",
+    "ALTER TABLE `meal_template` ADD COLUMN `lastLoggedAt` INTEGER",
+    // Body composition from Health Connect.
+    "ALTER TABLE `body_metric` ADD COLUMN `skeletalMuscleKg` REAL",
+    "ALTER TABLE `body_metric` ADD COLUMN `source` TEXT NOT NULL DEFAULT 'MANUAL'",
+    // Plan B results saved for offline use.
+    "ALTER TABLE `eat_out_option` ADD COLUMN `estimatedCarbs` INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE `eat_out_option` ADD COLUMN `estimatedFat` INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE `eat_out_option` ADD COLUMN `origin` TEXT NOT NULL DEFAULT 'PLAN'",
+    "ALTER TABLE `eat_out_option` ADD COLUMN `address` TEXT",
+    "ALTER TABLE `eat_out_option` ADD COLUMN `allergenStatus` TEXT",
+
+    "CREATE TABLE IF NOT EXISTS `hydration_log` (`id` TEXT NOT NULL, `loggedAt` INTEGER NOT NULL, `volumeMl` REAL NOT NULL, `presetId` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+    "CREATE INDEX IF NOT EXISTS `index_hydration_log_loggedAt` ON `hydration_log` (`loggedAt`)",
+    "CREATE INDEX IF NOT EXISTS `index_hydration_log_deletedAt` ON `hydration_log` (`deletedAt`)",
+
+    "CREATE TABLE IF NOT EXISTS `hydration_preset` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `volumeMl` REAL NOT NULL, `displayOrder` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+    "CREATE INDEX IF NOT EXISTS `index_hydration_preset_deletedAt` ON `hydration_preset` (`deletedAt`)",
+
+    "CREATE TABLE IF NOT EXISTS `performance_metric` (`id` TEXT NOT NULL, `measuredAt` INTEGER NOT NULL, `verticalJumpCm` REAL, `standingReachCm` REAL, `totalReachCm` REAL, `notes` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+    "CREATE INDEX IF NOT EXISTS `index_performance_metric_measuredAt` ON `performance_metric` (`measuredAt`)",
+    "CREATE INDEX IF NOT EXISTS `index_performance_metric_deletedAt` ON `performance_metric` (`deletedAt`)",
+
+    "CREATE TABLE IF NOT EXISTS `menu_source` (`id` TEXT NOT NULL, `restaurantName` TEXT NOT NULL, `kind` TEXT NOT NULL, `location` TEXT NOT NULL, `pastedText` TEXT, `enabled` INTEGER NOT NULL, `lastRunAt` INTEGER, `lastStatus` TEXT NOT NULL, `lastError` TEXT, `itemCount` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+    "CREATE INDEX IF NOT EXISTS `index_menu_source_deletedAt` ON `menu_source` (`deletedAt`)",
+
+    "CREATE TABLE IF NOT EXISTS `menu_item` (`id` TEXT NOT NULL, `sourceId` TEXT, `restaurantName` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `ingredientsText` TEXT NOT NULL, `kcal` REAL, `proteinG` REAL, `carbsG` REAL, `fatG` REAL, `macrosPublished` INTEGER NOT NULL, `allergenStatus` TEXT NOT NULL, `allergenMatches` TEXT NOT NULL, `priceCents` INTEGER, `importedAt` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`sourceId`) REFERENCES `menu_source`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+    "CREATE INDEX IF NOT EXISTS `index_menu_item_sourceId` ON `menu_item` (`sourceId`)",
+    "CREATE INDEX IF NOT EXISTS `index_menu_item_restaurantName` ON `menu_item` (`restaurantName`)",
+    "CREATE INDEX IF NOT EXISTS `index_menu_item_deletedAt` ON `menu_item` (`deletedAt`)",
+
+    "CREATE TABLE IF NOT EXISTS `ai_insight` (`id` TEXT NOT NULL, `dayStartMillis` INTEGER NOT NULL, `text` TEXT NOT NULL, `rationale` TEXT NOT NULL, `model` TEXT NOT NULL, `dismissedAt` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+    "CREATE INDEX IF NOT EXISTS `index_ai_insight_dayStartMillis` ON `ai_insight` (`dayStartMillis`)",
+    "CREATE INDEX IF NOT EXISTS `index_ai_insight_deletedAt` ON `ai_insight` (`deletedAt`)",
+
+    "CREATE TABLE IF NOT EXISTS `model_benchmark` (`id` TEXT NOT NULL, `task` TEXT NOT NULL, `modelId` TEXT NOT NULL, `runAt` INTEGER NOT NULL, `fixtures` INTEGER NOT NULL, `accuracy` REAL NOT NULL, `jsonValidity` REAL NOT NULL, `medianLatencyMs` INTEGER NOT NULL, `costUsdPerRequest` REAL NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+    "CREATE INDEX IF NOT EXISTS `index_model_benchmark_task` ON `model_benchmark` (`task`)",
+    "CREATE INDEX IF NOT EXISTS `index_model_benchmark_modelId` ON `model_benchmark` (`modelId`)",
+    "CREATE INDEX IF NOT EXISTS `index_model_benchmark_deletedAt` ON `model_benchmark` (`deletedAt`)",
+
+    "CREATE TABLE IF NOT EXISTS `health_daily_summary` (`id` TEXT NOT NULL, `dayStartMillis` INTEGER NOT NULL, `activeKcalRaw` REAL, `bmrKcalInWindows` REAL, `activeKcalNet` REAL, `steps` INTEGER, `sleepMinutes` INTEGER, `sleepStartMillis` INTEGER, `restingHeartRate` REAL, `avgHeartRate` REAL, `syncedAt` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+    "CREATE UNIQUE INDEX IF NOT EXISTS `index_health_daily_summary_dayStartMillis` ON `health_daily_summary` (`dayStartMillis`)",
+    "CREATE INDEX IF NOT EXISTS `index_health_daily_summary_deletedAt` ON `health_daily_summary` (`deletedAt`)",
+
+    "CREATE TABLE IF NOT EXISTS `backup_run` (`id` TEXT NOT NULL, `startedAt` INTEGER NOT NULL, `finishedAt` INTEGER, `destination` TEXT NOT NULL, `bytes` INTEGER, `status` TEXT NOT NULL, `error` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+    "CREATE INDEX IF NOT EXISTS `index_backup_run_startedAt` ON `backup_run` (`startedAt`)",
+    "CREATE INDEX IF NOT EXISTS `index_backup_run_deletedAt` ON `backup_run` (`deletedAt`)",
+)
+
+internal val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        MIGRATION_1_2_STATEMENTS.forEach(db::execSQL)
+    }
+}
+
+/** Every migration, in order. [IntakeDatabase] registers all of them. */
+internal val ALL: Array<Migration> = arrayOf(MIGRATION_1_2)
+
+/** Statement lists by starting version, for `MigrationSchemaTest`. */
+internal val MIGRATION_STATEMENTS: Map<Int, List<String>> = mapOf(1 to MIGRATION_1_2_STATEMENTS)
