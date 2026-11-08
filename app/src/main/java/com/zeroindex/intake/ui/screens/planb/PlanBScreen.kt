@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -26,6 +27,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.text.font.FontWeight
+import com.zeroindex.intake.ui.allergen.CheckLabelChip
 import com.zeroindex.intake.ui.components.EmptyState
 import com.zeroindex.intake.ui.components.ErrorState
 import com.zeroindex.intake.ui.components.LabeledField
@@ -243,6 +245,11 @@ private fun OptionRow(o: PlanBOption, selected: Boolean, target: Dp, onClick: ()
                 when {
                     o.rejected -> StatusPill("Removed: contains ${o.scan.contains.first().matchedTerm}", tone = PillTone.Bad)
                     o.scan.mayContain.isNotEmpty() -> StatusPill("Fit $fit · check allergens", tone = PillTone.Wait)
+                    o.scan.hasCheckLabel -> {
+                        StatusPill("Fit $fit", tone = if (fit >= 80) PillTone.Ok else PillTone.Wait)
+                        Spacer(Modifier.width(6.dp))
+                        CheckLabelChip(null)
+                    }
                     else -> StatusPill("Fit $fit", tone = if (fit >= 80) PillTone.Ok else PillTone.Wait)
                 }
             }
@@ -313,6 +320,7 @@ private fun Detail(
             )
         }
         o.scan.mayContain.firstOrNull()?.let { SandNote(title = "Check this one", body = it.note) }
+        if (!o.scan.hasAnything) o.scan.checkLabel.firstOrNull()?.let { CheckLabelChip(it.note) }
         MacroTiles(
             listOf(
                 Triple("${o.macros.protein.roundToInt()} g", "Protein", ProteinAccent),

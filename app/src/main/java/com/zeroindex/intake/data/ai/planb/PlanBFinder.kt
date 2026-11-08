@@ -201,6 +201,7 @@ class PlanBFinder @Inject constructor(
                 allergenStatus = when {
                     option.scan.blocks -> AllergenStatus.CONTAINS
                     option.scan.mayContain.isNotEmpty() -> AllergenStatus.MAY_CONTAIN
+                    option.scan.hasCheckLabel -> AllergenStatus.CHECK_LABEL
                     else -> AllergenStatus.CLEAR
                 },
                 createdAt = now,

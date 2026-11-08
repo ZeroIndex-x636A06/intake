@@ -290,7 +290,8 @@ private fun Review(
 private fun LineEditor(line: EstimateLine, flag: AllergenMatchKind?, onChange: (EstimateLine) -> Unit, onRemove: () -> Unit) {
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (flag != null) {
+            // The soft "check the label" tier is not a warning, so it gets no icon here.
+            if (flag != null && flag != AllergenMatchKind.CHECK_LABEL) {
                 Icon(
                     Icons.Filled.Warning,
                     contentDescription = if (flag == AllergenMatchKind.CONTAINS) {

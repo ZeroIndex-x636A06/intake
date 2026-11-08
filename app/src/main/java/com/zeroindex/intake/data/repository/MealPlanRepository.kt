@@ -22,6 +22,8 @@ import com.zeroindex.intake.data.plan.PlanImportBuilder
 import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.allergen.AllergenAlias
 import com.zeroindex.intake.domain.allergen.AllergenMatcher
+import com.zeroindex.intake.domain.allergen.HiddenCarriers
+import com.zeroindex.intake.domain.plan.PlanWatchTerms
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.model.PlanRecipeRole
 import com.zeroindex.intake.domain.model.StoreCategory
@@ -173,12 +175,21 @@ class MealPlanRepository @Inject constructor(
         )
     }
 
+    fun observeCheckLabelTerms() = allergens.observeCheckLabelTerms()
+
     /** A snapshot of the user's profile and alias table as an [AllergenCheck]. Local only. */
-    suspend fun scanner(): AllergenCheck {
+    suspend fun scanner(planChecklist: List<String>? = null): AllergenCheck {
         val avoided = allergens.avoidedAllergens()
         val aliases = allergens.aliases().map { AllergenAlias(it.allergen, it.aliasTerm) }
+        val soft = HiddenCarriers.DAIRY_TERMS + PlanWatchTerms.extract(
+            planChecklist ?: PlanMeta.decode(planDao.week(PlanMeta.WEEK_NUMBER)?.notes).hiddenDairyChecklist,
+        )
         return AllergenCheck { name, ingredients ->
-            AllergenMatcher.scan(aliases, avoided, name = name, ingredients = ingredients)
+            // Plan ingredient lines are free text with no label to read, so they get the soft scan too.
+            AllergenMatcher.scan(
+                aliases, avoided, name = name, ingredients = ingredients,
+                checkLabelTerms = soft, checkLabelInIngredients = true,
+            )
         }
     }
 
@@ -294,7 +305,7 @@ class MealPlanRepository @Inject constructor(
         when (val parsed = PlanFileParser.parse(text)) {
             is PlanFileParse.Invalid -> PlanImportPreview.Invalid(parsed.errors)
             is PlanFileParse.Ok -> {
-                val batch = PlanImportBuilder.build(parsed.file, clock.nowMillis(), scanner())
+                val batch = PlanImportBuilder.build(parsed.file, clock.nowMillis(), scanner(parsed.file.hiddenDairyChecklist))
                 PlanImportPreview.Ready(batch, parsed.file.weeks.size, batch.recipes.size, batch.eatOutOptions.size)
             }
         }

@@ -1,6 +1,7 @@
 package com.zeroindex.intake.data.plan
 
 import com.zeroindex.intake.data.db.entity.AllergenStatus
+import com.zeroindex.intake.data.db.entity.rank
 import com.zeroindex.intake.data.db.entity.EatOutOptionEntity
 import com.zeroindex.intake.data.db.entity.EatOutOrigin
 import com.zeroindex.intake.data.db.entity.FoodEntity
@@ -271,16 +272,12 @@ object PlanImportBuilder {
     fun statusOf(scan: AllergenScanResult): AllergenStatus = when {
         scan.matches.any { it.kind == AllergenMatchKind.CONTAINS } -> AllergenStatus.CONTAINS
         scan.matches.any { it.kind == AllergenMatchKind.MAY_CONTAIN } -> AllergenStatus.MAY_CONTAIN
+        scan.matches.any { it.kind == AllergenMatchKind.CHECK_LABEL } -> AllergenStatus.CHECK_LABEL
         else -> AllergenStatus.CLEAR
     }
 
-    /** CONTAINS > MAY_CONTAIN > CLEAR; UNKNOWN is below CLEAR so a real verdict always wins. */
-    fun rank(s: AllergenStatus?): Int = when (s) {
-        AllergenStatus.CONTAINS -> 3
-        AllergenStatus.MAY_CONTAIN -> 2
-        AllergenStatus.CLEAR -> 1
-        else -> 0
-    }
+    /** CONTAINS > MAY_CONTAIN > CHECK_LABEL > CLEAR; UNKNOWN is below CLEAR so a real verdict always wins. */
+    fun rank(s: AllergenStatus?): Int = s.rank
 
     private fun nutrition(i: PlanFileIngredient) = IngredientNutrition(
         name = i.name, grams = i.grams!!, kcalPer100g = i.kcalPer100g!!, proteinPer100g = i.proteinPer100g!!,

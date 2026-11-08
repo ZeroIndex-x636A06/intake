@@ -11,6 +11,7 @@ import com.zeroindex.intake.data.repository.FoodRepository
 import com.zeroindex.intake.data.repository.FoodSearchRepository
 import com.zeroindex.intake.data.repository.RemoteResult
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
+import com.zeroindex.intake.domain.allergen.CheckLabelTerm
 import com.zeroindex.intake.domain.model.FoodSource
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nutrition.Macros
@@ -76,6 +77,8 @@ data class AddFoodUiState(
     val barcodeState: BarcodeState = BarcodeState.Idle,
     val pendingLog: PendingLog? = null,
     val hasUsdaKey: Boolean = false,
+    /** Soft "Check the label" terms in force, for list rows and the portion step. */
+    val checkLabelTerms: List<CheckLabelTerm> = emptyList(),
 )
 
 @HiltViewModel
@@ -107,8 +110,9 @@ class AddFoodViewModel @Inject constructor(
         foodRepository.observeFavorites(),
         allergenRepository.observeSafeFoodIds(),
         localResults,
-    ) { recents, favorites, safeIds, results ->
-        Lists(recents, favorites, safeIds, results)
+        allergenRepository.observeCheckLabelTerms(),
+    ) { recents, favorites, safeIds, results, terms ->
+        Lists(recents, favorites, safeIds, results, terms)
     }
 
     val uiState: StateFlow<AddFoodUiState> = combine(
@@ -132,6 +136,7 @@ class AddFoodViewModel @Inject constructor(
             barcodeState = barcodeAndPending.first,
             pendingLog = barcodeAndPending.second,
             hasUsdaKey = apiKeyStore.usdaKey() != null,
+            checkLabelTerms = lists.checkLabelTerms,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -144,6 +149,7 @@ class AddFoodViewModel @Inject constructor(
         val favorites: List<FoodEntity>,
         val safeIds: Set<String>,
         val localResults: List<FoodEntity>,
+        val checkLabelTerms: List<CheckLabelTerm>,
     )
 
     fun selectTab(next: AddFoodTab) {

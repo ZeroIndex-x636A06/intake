@@ -26,9 +26,15 @@ data class AllergenScanResult(
     val contains: List<AllergenMatch> = matches.filter { it.kind == AllergenMatchKind.CONTAINS }
     val mayContain: List<AllergenMatch> = matches.filter { it.kind == AllergenMatchKind.MAY_CONTAIN }
 
+    /** The softest tier: "Check the label". Never blocks, never opens a sheet. */
+    val checkLabel: List<AllergenMatch> = matches.filter { it.kind == AllergenMatchKind.CHECK_LABEL }
+
     /** True when the save must be blocked behind the red sheet (SPEC §7.2). */
     val blocks: Boolean = contains.isNotEmpty()
-    val hasAnything: Boolean = matches.isNotEmpty()
+
+    /** True when something stronger than "check the label" was found (the sheets key off this). */
+    val hasAnything: Boolean = contains.isNotEmpty() || mayContain.isNotEmpty()
+    val hasCheckLabel: Boolean = checkLabel.isNotEmpty()
 
     companion object {
         val CLEAN = AllergenScanResult(emptyList())
@@ -68,6 +74,15 @@ object AllergenMatcher {
         /** Structured "contains" tags, e.g. from Open Food Facts (SPEC §7.3). */
         structuredContains: List<String> = emptyList(),
         structuredTraces: List<String> = emptyList(),
+        /** Foods that commonly hide an allergen; the softest tier (docs/ALLERGENS.md). */
+        checkLabelTerms: List<CheckLabelTerm> = HiddenCarriers.DAIRY_TERMS,
+        /**
+         * Whether the ingredients text is scanned for [checkLabelTerms] too. Off by
+         * default: a real ingredient panel already says what is in the food, and
+         * "natural flavor" would nag on nearly every label. On for free-text
+         * ingredient lines (plan recipes, Recipe Hunter), which have no label.
+         */
+        checkLabelInIngredients: Boolean = false,
     ): AllergenScanResult {
         if (avoidedAllergens.isEmpty()) return AllergenScanResult.CLEAN
 
@@ -140,6 +155,37 @@ object AllergenMatcher {
                     )
                 }
             }
+        }
+
+        // Softest tier, last, and only where nothing stronger exists for that
+        // allergen: this can add a nudge but can never replace or hide a stronger hit.
+        val strongerFor = found.values.map { it.allergen.lowercase() }.toSet()
+        val softFields = buildList {
+            add(MatchField.NAME to name)
+            if (checkLabelInIngredients) add(MatchField.INGREDIENTS to ingredients)
+        }
+        val seenPhrases = HashSet<String>()
+        checkLabelTerms.forEach { term ->
+            val allergen = term.allergen.trim().lowercase()
+            if (allergen !in avoided || allergen in strongerFor) return@forEach
+            var field: MatchField? = null
+            var hit: String? = null
+            for ((f, text) in softFields) {
+                if (text.isNullOrBlank()) continue
+                val m = term.findIn(text) ?: continue
+                field = f
+                hit = m.value.lowercase().replace(Regex("\\s+"), " ")
+                break
+            }
+            if (field == null || hit == null) return@forEach
+            if (!seenPhrases.add(allergen + "|" + term.phrase)) return@forEach
+            found[allergen to "check:${term.phrase}"] = AllergenMatch(
+                allergen = allergen,
+                matchedTerm = hit,
+                field = field,
+                kind = AllergenMatchKind.CHECK_LABEL,
+                note = term.reason,
+            )
         }
 
         return AllergenScanResult(found.values.toList())

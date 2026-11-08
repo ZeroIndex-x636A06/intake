@@ -127,7 +127,11 @@ class RecipeHunter @Inject constructor(
     }
 
     internal suspend fun judge(recipe: FoundRecipe, query: RecipeQuery, avoided: Set<String>): HuntedRecipe {
-        val local = allergens.scan(name = recipe.title, ingredients = recipe.ingredients.joinToString("\n"))
+        val local = allergens.scan(
+            name = recipe.title,
+            ingredients = recipe.ingredients.joinToString("\n"),
+            checkLabelInIngredients = true,
+        )
         val scan = ModelAllergenPolicy.merge(
             local = listOf(local),
             claims = listOf(ModelAllergenClaim(recipe.title, recipe.containsAllergens, recipe.allergenReasoning)),
@@ -168,7 +172,7 @@ class RecipeHunter @Inject constructor(
             fatPerServing = r.fatPerServing,
             allergenStatus = when (hunted.verdict) {
                 is RecipeVerdict.NeedsReview -> AllergenStatus.MAY_CONTAIN
-                else -> AllergenStatus.CLEAR
+                else -> if (hunted.scan.hasCheckLabel) AllergenStatus.CHECK_LABEL else AllergenStatus.CLEAR
             },
             createdAt = now,
             updatedAt = now,

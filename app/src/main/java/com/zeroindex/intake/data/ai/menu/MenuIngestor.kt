@@ -148,6 +148,7 @@ class MenuIngestor @Inject constructor(
                     allergenStatus = when {
                         verdict.blocks -> AllergenStatus.CONTAINS
                         verdict.mayContain.isNotEmpty() -> AllergenStatus.MAY_CONTAIN
+                        verdict.checkLabel.isNotEmpty() -> AllergenStatus.CHECK_LABEL
                         else -> AllergenStatus.CLEAR
                     },
                     allergenMatches = verdict.matches.map { it.matchedTerm }.distinct().joinToString(", "),

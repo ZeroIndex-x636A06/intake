@@ -34,8 +34,26 @@ data class MenuSourceEntity(
     override val deletedAt: Long? = null,
 ) : Audited
 
-/** Outcome of running the local allergen engine over a menu item or recipe. */
-enum class AllergenStatus { CLEAR, MAY_CONTAIN, CONTAINS, UNKNOWN }
+/**
+ * Outcome of running the local allergen engine over a menu item or recipe.
+ * Stored by name in a TEXT column, so adding [CHECK_LABEL] needs no migration.
+ * Order of severity: CONTAINS > MAY_CONTAIN > CHECK_LABEL > CLEAR (UNKNOWN is
+ * "not checked" and loses to any real verdict); see [rank] and [worseOf].
+ */
+enum class AllergenStatus { CLEAR, CHECK_LABEL, MAY_CONTAIN, CONTAINS, UNKNOWN }
+
+/** CONTAINS 4 > MAY_CONTAIN 3 > CHECK_LABEL 2 > CLEAR 1 > UNKNOWN 0. */
+val AllergenStatus?.rank: Int
+    get() = when (this) {
+        AllergenStatus.CONTAINS -> 4
+        AllergenStatus.MAY_CONTAIN -> 3
+        AllergenStatus.CHECK_LABEL -> 2
+        AllergenStatus.CLEAR -> 1
+        AllergenStatus.UNKNOWN, null -> 0
+    }
+
+/** The more serious of two verdicts; a soft verdict can never replace a harder one. */
+fun worseOf(a: AllergenStatus?, b: AllergenStatus?): AllergenStatus? = if (b.rank > a.rank) b else a
 
 /**
  * One parsed menu item. Macros are the model's estimate unless the source

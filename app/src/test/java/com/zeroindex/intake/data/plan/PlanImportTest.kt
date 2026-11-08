@@ -190,14 +190,14 @@ class PlanImportTest {
         assertThat(status("Oat milk")).isEqualTo(AllergenStatus.MAY_CONTAIN)
         assertThat(status("Cheese")).isEqualTo(AllergenStatus.CONTAINS)
         assertThat(status("Boxed dairy-free mac (Daiya)")).isEqualTo(AllergenStatus.MAY_CONTAIN)
-        // Strings with no alias at all are clear: the engine cannot know a seasoning packet or bun hides milk.
-        assertThat(status("Taco Bell mild seasoning")).isEqualTo(AllergenStatus.CLEAR)
-        assertThat(status("Flour tortillas")).isEqualTo(AllergenStatus.CLEAR)
-        assertThat(status("Hoagie rolls")).isEqualTo(AllergenStatus.CLEAR)
-        assertThat(status("Breadcrumbs")).isEqualTo(AllergenStatus.CLEAR)
-        assertThat(status("Saltines")).isEqualTo(AllergenStatus.CLEAR)
-        assertThat(status("Fritos")).isEqualTo(AllergenStatus.CLEAR)
-        assertThat(status("Burger buns")).isEqualTo(AllergenStatus.CLEAR)
+        // No alias names these, but they commonly hide milk: the soft "check the label" tier, never blocking.
+        assertThat(status("Taco Bell mild seasoning")).isEqualTo(AllergenStatus.CHECK_LABEL)
+        assertThat(status("Flour tortillas")).isEqualTo(AllergenStatus.CHECK_LABEL)
+        assertThat(status("Hoagie rolls")).isEqualTo(AllergenStatus.CHECK_LABEL)
+        assertThat(status("Breadcrumbs")).isEqualTo(AllergenStatus.CHECK_LABEL)
+        assertThat(status("Saltines")).isEqualTo(AllergenStatus.CHECK_LABEL)
+        assertThat(status("Fritos")).isEqualTo(AllergenStatus.CHECK_LABEL)
+        assertThat(status("Burger buns")).isEqualTo(AllergenStatus.CHECK_LABEL)
     }
 
     // ---- idempotent re-import ----------------------------------------------------------------

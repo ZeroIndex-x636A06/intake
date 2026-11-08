@@ -251,6 +251,8 @@ runs on every single food that enters the system, from any path.
 6. A reference screen, reachable in two taps from anywhere, holding the hidden dairy
    checklist and the per-venue eat-out notes. This gets used standing at a counter, so it
    must load instantly from local data with no network call.
+7. A third, softer tier, "Check the label", for foods that commonly hide dairy. It never blocks and
+   never downgrades a stronger hit; see docs/ALLERGENS.md.
 
 ---
 

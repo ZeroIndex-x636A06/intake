@@ -2,6 +2,7 @@ package com.zeroindex.intake.data.repository
 
 import com.zeroindex.intake.data.db.dao.AllergenDao
 import com.zeroindex.intake.data.db.dao.FoodDao
+import com.zeroindex.intake.data.db.dao.PlanDao
 import com.zeroindex.intake.data.db.entity.AllergenAliasEntity
 import com.zeroindex.intake.data.db.entity.AllergenProfileEntity
 import com.zeroindex.intake.data.db.entity.FoodEntity
@@ -9,6 +10,10 @@ import com.zeroindex.intake.data.db.entity.newId
 import com.zeroindex.intake.domain.allergen.AllergenAlias
 import com.zeroindex.intake.domain.allergen.AllergenMatcher
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
+import com.zeroindex.intake.domain.allergen.CheckLabelTerm
+import com.zeroindex.intake.domain.allergen.HiddenCarriers
+import com.zeroindex.intake.domain.plan.PlanMeta
+import com.zeroindex.intake.domain.plan.PlanWatchTerms
 import com.zeroindex.intake.domain.model.AllergenSeverity
 import com.zeroindex.intake.domain.time.Clock
 import javax.inject.Inject
@@ -22,6 +27,7 @@ import kotlinx.coroutines.flow.map
 class AllergenRepository @Inject constructor(
     private val allergenDao: AllergenDao,
     private val foodDao: FoodDao,
+    private val planDao: PlanDao,
     private val clock: Clock,
 ) {
     fun observeProfile(): Flow<AllergenProfileEntity?> = allergenDao.observeProfile()
@@ -36,6 +42,17 @@ class AllergenRepository @Inject constructor(
 
     fun observeAvoidedAllergens(): Flow<Set<String>> =
         allergenDao.observeProfile().map { it.avoidedSet() }
+
+    /**
+     * The soft "Check the label" terms in force for the user's avoided allergens:
+     * the built-in carriers plus quoted phrases from the plan's watch-for list.
+     */
+    fun observeCheckLabelTerms(): Flow<List<CheckLabelTerm>> =
+        combine(observeAvoidedAllergens(), planDao.observeWeek(PlanMeta.WEEK_NUMBER)) { avoided, week ->
+            val all = HiddenCarriers.DAIRY_TERMS +
+                PlanWatchTerms.extract(PlanMeta.decode(week?.notes).hiddenDairyChecklist)
+            all.filter { it.allergen in avoided }
+        }
 
     suspend fun profile(): AllergenProfileEntity? = allergenDao.profile()
 
@@ -83,6 +100,8 @@ class AllergenRepository @Inject constructor(
         ingredients: String? = null,
         structuredContains: List<String> = emptyList(),
         structuredTraces: List<String> = emptyList(),
+        /** True when [ingredients] is free-text recipe lines rather than a label panel. */
+        checkLabelInIngredients: Boolean = false,
     ): AllergenScanResult {
         val avoided = allergenDao.profile().avoidedSet()
         if (avoided.isEmpty()) return AllergenScanResult.CLEAN
@@ -97,6 +116,9 @@ class AllergenRepository @Inject constructor(
             ingredients = ingredients,
             structuredContains = structuredContains,
             structuredTraces = structuredTraces,
+            checkLabelTerms = HiddenCarriers.DAIRY_TERMS +
+                PlanWatchTerms.extract(PlanMeta.decode(planDao.week(PlanMeta.WEEK_NUMBER)?.notes).hiddenDairyChecklist),
+            checkLabelInIngredients = checkLabelInIngredients,
         )
     }
 

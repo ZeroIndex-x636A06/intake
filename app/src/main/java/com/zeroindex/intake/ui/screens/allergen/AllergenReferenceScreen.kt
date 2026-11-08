@@ -116,6 +116,38 @@ fun AllergenReferenceScreen(
             }
         }
 
+        if (state.checkLabelByReason.isNotEmpty()) {
+            item(key = "check-label") {
+                OutlinedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = IntakeShape.Card,
+                    colors = CardDefaults.outlinedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                ) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text("Check the label", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            text = "Foods that commonly hide dairy. Nothing is blocked; " +
+                                "the app only reminds you to read the package.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        state.checkLabelByReason.forEach { (reason, terms) ->
+                            Spacer(Modifier.height(10.dp))
+                            Text(reason, style = MaterialTheme.typography.labelLarge)
+                            Text(
+                                text = terms.joinToString(", "),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         if (state.eatOutOptions.isNotEmpty()) {
             item(key = "eatout-heading") {
                 ScreenHeading("Eating out")

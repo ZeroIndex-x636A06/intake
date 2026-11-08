@@ -16,6 +16,8 @@ data class AllergenReferenceUiState(
     val avoided: Set<String> = emptySet(),
     val aliasesByAllergen: Map<String, List<String>> = emptyMap(),
     val eatOutOptions: List<EatOutOptionEntity> = emptyList(),
+    /** "Check the label" terms, grouped by the reason shown with each. */
+    val checkLabelByReason: Map<String, List<String>> = emptyMap(),
 )
 
 @HiltViewModel
@@ -28,8 +30,12 @@ class AllergenReferenceViewModel @Inject constructor(
         allergenRepository.observeAvoidedAllergens(),
         allergenRepository.observeAliasesByAllergen(),
         planRepository.observeAllEatOutOptions(),
-    ) { avoided, aliases, options ->
-        AllergenReferenceUiState(avoided, aliases, options)
+        allergenRepository.observeCheckLabelTerms(),
+    ) { avoided, aliases, options, soft ->
+        AllergenReferenceUiState(
+            avoided, aliases, options,
+            soft.groupBy({ it.reason }, { it.phrase.replace(" ... ", " ") }),
+        )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
