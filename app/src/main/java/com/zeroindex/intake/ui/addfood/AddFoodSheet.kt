@@ -184,6 +184,19 @@ fun AddFoodSheet(
         AllergenWarningSheet(
             foodName = pending.name,
             scan = pending.scan,
+            // The stored panel text, so the sheet can show the matched term in
+            // context rather than just naming it.
+            ingredientText = pending.food?.allergenTags?.takeIf { it.isNotBlank() },
+            foodDetail = pending.grams?.let { grams ->
+                val food = pending.food
+                if (food != null) {
+                    "${grams.roundToInt()} g · " +
+                        "${(food.kcalPer100g * grams / 100.0).roundToInt()} kcal · " +
+                        "${(food.proteinPer100g * grams / 100.0).roundToInt()} g protein"
+                } else {
+                    null
+                }
+            },
             onDismiss = viewModel::dismissPendingLog,
             onLogAnyway = {
                 viewModel.confirmPendingLog(mealSlot, loggedAtMillis) {

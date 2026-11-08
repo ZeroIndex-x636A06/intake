@@ -26,7 +26,8 @@ data class AppSettings(
     val weightUnit: WeightUnit = WeightUnit.POUNDS,
     val lengthUnit: LengthUnit = LengthUnit.INCHES,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    val dynamicColor: Boolean = true,
+    /** Off by default: the designed palette is the intended look. */
+    val dynamicColor: Boolean = false,
     val defaultRestSec: Int = 120,
     val restTimerVibrate: Boolean = true,
     val barWeightKg: Double = 20.0,
@@ -85,7 +86,7 @@ class SettingsRepository @Inject constructor(
                 ?: LengthUnit.INCHES,
             themeMode = p[Keys.themeMode]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
                 ?: ThemeMode.SYSTEM,
-            dynamicColor = p[Keys.dynamicColor] ?: true,
+            dynamicColor = p[Keys.dynamicColor] ?: false,
             defaultRestSec = p[Keys.defaultRestSec] ?: 120,
             restTimerVibrate = p[Keys.restVibrate] ?: true,
             barWeightKg = p[Keys.barWeight] ?: 20.0,

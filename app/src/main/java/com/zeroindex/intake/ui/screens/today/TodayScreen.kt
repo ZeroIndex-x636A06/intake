@@ -39,11 +39,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.db.entity.FoodLogEntity
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.ui.addfood.AddFoodSheet
+import com.zeroindex.intake.ui.components.AccentNote
+import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.MacroRing
 import com.zeroindex.intake.ui.screens.today.components.MealSlotCard
-import com.zeroindex.intake.ui.theme.CarbAccent
-import com.zeroindex.intake.ui.theme.FatAccent
-import com.zeroindex.intake.ui.theme.ProteinAccent
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -142,15 +141,9 @@ private fun TodayContent(
             DayHeader(state.date, state.isToday, onPreviousDay, onNextDay, onShowToday)
         }
         item(key = "ring") {
-            Spacer(Modifier.height(4.dp))
-            MacroRing(
-                progress = state.progress,
-                proteinColor = ProteinAccent,
-                carbColor = CarbAccent,
-                fatColor = FatAccent,
-            )
+            IntakeCard { MacroRing(progress = state.progress) }
         }
-        item(key = "remaining") { RemainingLine(state) }
+        item(key = "remaining") { RemainingNote(state) }
 
         items(items = state.slots, key = { it.slot.name }) { slotUi ->
             MealSlotCard(
@@ -202,35 +195,51 @@ private fun DayHeader(
 
 /**
  * SPEC §5: remaining calories *and* remaining protein, because "120 g of
- * protein left with 400 calories" is the framing you can act on.
+ * protein left with 400 kcal" is the framing you can act on. Rendered as the
+ * mockup's accent block: the number as the lead, the encouragement beneath.
  */
 @Composable
-private fun RemainingLine(state: TodayUiState) {
+private fun RemainingNote(state: TodayUiState) {
     val kcalLeft = state.progress.kcalRemaining
     val proteinLeft = state.progress.proteinRemaining
 
-    val text = when {
-        kcalLeft == null || proteinLeft == null ->
-            "No calorie target set yet. Set one in More, or let the app work it out from two " +
-                "weeks of weigh-ins."
-        kcalLeft >= 0 && proteinLeft > 0 ->
-            "$proteinLeft g of protein left, with $kcalLeft kcal to spend."
-        kcalLeft >= 0 -> "Protein target met. $kcalLeft kcal left."
-        proteinLeft > 0 ->
-            "$proteinLeft g of protein still to go, and ${abs(kcalLeft)} kcal over."
-        else -> "Protein met, ${abs(kcalLeft)} kcal over target."
+    if (kcalLeft == null || proteinLeft == null) {
+        AccentNote(
+            lead = "No calorie target set yet",
+            body = "Set one in More, or let the app work it out from two weeks of weigh-ins.",
+            container = MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        return
     }
 
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodyMedium,
-        fontWeight = FontWeight.Medium,
-        color = if (state.progress.isOverKcal) {
-            MaterialTheme.colorScheme.tertiary
+    val over = kcalLeft < 0
+    val lead = when {
+        !over && proteinLeft > 0 -> "$proteinLeft g protein left · $kcalLeft kcal to spend"
+        !over -> "Protein target met · $kcalLeft kcal left"
+        proteinLeft > 0 -> "$proteinLeft g protein to go · ${abs(kcalLeft)} kcal over"
+        else -> "Protein met · ${abs(kcalLeft)} kcal over target"
+    }
+    val body = when {
+        !over && proteinLeft > 0 -> "One meal at a time. There is room to finish strong."
+        !over -> "Comfortably placed for the rest of the day."
+        proteinLeft > 0 -> "Worth a lean, high-protein choice from here."
+        else -> "Nothing to fix today; tomorrow is a fresh target."
+    }
+
+    AccentNote(
+        lead = lead,
+        body = body,
+        container = if (over) {
+            MaterialTheme.colorScheme.tertiaryContainer
         } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
+            MaterialTheme.colorScheme.primaryContainer
         },
-        modifier = Modifier.padding(horizontal = 4.dp),
+        contentColor = if (over) {
+            MaterialTheme.colorScheme.onTertiaryContainer
+        } else {
+            MaterialTheme.colorScheme.onPrimaryContainer
+        },
     )
 }
 

@@ -15,54 +15,72 @@ import com.zeroindex.intake.data.settings.ThemeMode
 private val LightColors = lightColorScheme(
     primary = Green40,
     onPrimary = Color.White,
-    primaryContainer = Green90,
-    onPrimaryContainer = Green10,
+    primaryContainer = PaleLight,
+    onPrimaryContainer = Green40,
     secondary = Sand40,
     onSecondary = Color.White,
-    secondaryContainer = Sand80,
-    onSecondaryContainer = Sand10,
+    secondaryContainer = SandLight,
+    onSecondaryContainer = Sand40,
     tertiary = Clay40,
     onTertiary = Color.White,
-    tertiaryContainer = Clay80,
-    onTertiaryContainer = Clay10,
-    background = NeutralLightBg,
-    onBackground = NeutralLightOn,
-    surface = NeutralLightBg,
-    onSurface = NeutralLightOn,
-    surfaceVariant = NeutralLightSurface,
-    onSurfaceVariant = Green30,
+    tertiaryContainer = ClayLight,
+    onTertiaryContainer = Clay40,
+    background = BgLight,
+    onBackground = OnLight,
+    surface = SurfaceLight,
+    onSurface = OnLight,
+    surfaceVariant = VariantLight,
+    onSurfaceVariant = SubLight,
+    surfaceContainerLowest = SurfaceLight,
+    surfaceContainerLow = BgLight,
+    surfaceContainer = VariantLight,
+    outline = SubLight,
+    outlineVariant = OutlineLight,
+    error = AllergenRed,
+    onError = Color.White,
 )
 
 private val DarkColors = darkColorScheme(
     primary = Green80,
     onPrimary = Green10,
-    primaryContainer = Green30,
-    onPrimaryContainer = Green90,
+    primaryContainer = PaleDark,
+    onPrimaryContainer = Green80,
     secondary = Sand80,
     onSecondary = Sand10,
-    secondaryContainer = Sand30,
+    secondaryContainer = SandDark,
     onSecondaryContainer = Sand80,
     tertiary = Clay80,
     onTertiary = Clay10,
-    tertiaryContainer = Clay30,
+    tertiaryContainer = ClayDark,
     onTertiaryContainer = Clay80,
-    background = NeutralDarkBg,
-    onBackground = NeutralDarkOn,
-    surface = NeutralDarkBg,
-    onSurface = NeutralDarkOn,
-    surfaceVariant = NeutralDarkSurface,
-    onSurfaceVariant = Green80,
+    background = BgDark,
+    onBackground = OnDark,
+    surface = SurfaceDark,
+    onSurface = OnDark,
+    surfaceVariant = VariantDark,
+    onSurfaceVariant = SubDark,
+    surfaceContainerLowest = BgDark,
+    surfaceContainerLow = SurfaceDark,
+    surfaceContainer = VariantDark,
+    outline = SubDark,
+    outlineVariant = OutlineDark,
+    error = AllergenRed,
+    onError = Color.White,
 )
 
 /**
  * SPEC §3.6: dark and light both fully supported, following the system setting
- * unless the user has picked one in Settings. Dynamic colour is used where the
- * platform offers it, with the hand-tuned palette above as the fallback.
+ * unless overridden in Settings.
+ *
+ * Dynamic colour now defaults **off**. The palette in design/intake-mockup.html
+ * is the intended look, and wallpaper-derived colour overrides exactly the
+ * greens and clays that carry meaning here. The setting is still there for
+ * anyone who prefers it.
  */
 @Composable
 fun IntakeTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val darkTheme = when (themeMode) {
@@ -83,6 +101,7 @@ fun IntakeTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = IntakeTypography,
+        shapes = IntakeShapes,
         content = content,
     )
 }
