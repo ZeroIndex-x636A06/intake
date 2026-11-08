@@ -1,4 +1,3 @@
-@file:OptIn(ExperimentalLayoutApi::class)
 
 package com.zeroindex.intake.ui.screens.planb
 
@@ -9,29 +8,35 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.text.font.FontWeight
+import com.zeroindex.intake.ui.components.EmptyState
+import com.zeroindex.intake.ui.components.ErrorState
+import com.zeroindex.intake.ui.components.LabeledField
+import com.zeroindex.intake.ui.components.LoadingState
+import com.zeroindex.intake.ui.components.MacroTiles
+import com.zeroindex.intake.ui.components.PillTone
+import com.zeroindex.intake.ui.components.SandNote
+import com.zeroindex.intake.ui.components.StatusPill
+import com.zeroindex.intake.ui.theme.CarbAccent
+import com.zeroindex.intake.ui.theme.FatAccent
+import com.zeroindex.intake.ui.theme.ProteinAccent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,14 +53,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.ai.planb.PlanBOption
 import com.zeroindex.intake.ui.adaptive.LocalWindowSizeClass
 import com.zeroindex.intake.ui.adaptive.isExpanded
-import com.zeroindex.intake.ui.components.AccentNote
 import com.zeroindex.intake.ui.components.Eyebrow
-import com.zeroindex.intake.ui.components.Flag
-import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.OfflinePill
 import com.zeroindex.intake.ui.components.SectionLine
 import com.zeroindex.intake.ui.components.SubHead
-import com.zeroindex.intake.ui.components.Tag
 import com.zeroindex.intake.ui.screens.ai.usd
 import com.zeroindex.intake.ui.screens.today.SlotPickerSheet
 import com.zeroindex.intake.ui.theme.IntakeShape
@@ -93,8 +94,8 @@ fun PlanBScreen(
         LazyColumn(m, contentPadding = pad, verticalArrangement = Arrangement.spacedBy(10.dp)) {
             item(key = "head") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    SubHead("Find something that works", "A quick, allergen-aware backup for right now.", Modifier.weight(1f))
-                    OfflinePill()
+                    SubHead("Plan B · nearby meals", "A quick, allergen-aware backup for right now.", Modifier.weight(1f))
+                    OfflinePill(if (state.hasKey) "Search ready" else "Offline list")
                 }
             }
             item(key = "search") {
@@ -115,7 +116,12 @@ fun PlanBScreen(
                 }
             }
             if (state.found.isNotEmpty()) {
-                item(key = "found-head") { SectionLine("Nearby", note = state.costUsd?.let { usd(it) }) }
+                item(key = "found-head") {
+                    SectionLine(
+                        "Nearby · ${state.found.count { !it.rejected }} option${if (state.found.count { !it.rejected } == 1) "" else "s"}",
+                        note = listOfNotNull("updated just now", state.costUsd?.let { usd(it) }).joinToString(" · "),
+                    )
+                }
                 items(state.found, key = { it.key }) { o ->
                     OptionRow(o, selected = o.key == state.selectedKey, target = target, onClick = { viewModel.select(o) })
                 }
@@ -138,7 +144,7 @@ fun PlanBScreen(
             ) {
                 state.selected?.let { o ->
                     Detail(o, state, target, onLog = { logging = o }, onSave = { viewModel.save(o) }, onNext = viewModel::next)
-                } ?: AccentNote(lead = "Pick an option", body = "Choose one on the left to see what to order and say.")
+                } ?: EmptyState(title = "Pick an option", body = "Choose one on the left to see what to order and what to say.")
             }
         }
     } else {
@@ -163,86 +169,95 @@ private fun SearchCard(
     onOpenAiSettings: () -> Unit,
 ) {
     var zip by remember { mutableStateOf("") }
-    IntakeCard {
-        if (!state.hasKey) {
-            Text(
-                "Saved options below work with no signal. Searching nearby uses the web and needs an OpenRouter key.",
-                style = MaterialTheme.typography.bodySmall,
-            )
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(onClick = onOpenAiSettings, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = target)) {
+    var useZip by remember { mutableStateOf(false) }
+    if (!state.hasKey) {
+        EmptyState(
+            title = "Saved options work with no signal",
+            body = "Searching nearby uses the web and needs an OpenRouter key.",
+        ) {
+            OutlinedButton(onClick = onOpenAiSettings, shape = IntakeShape.Button, modifier = Modifier.heightIn(min = target)) {
                 Text("Set up AI tools")
             }
-            return@IntakeCard
         }
-        Eyebrow("Search nearby")
-        Text(
-            if (state.hasLocation) "Uses your approximate location, rounded to about a kilometre."
-            else "Location is used only for this search, rounded to about a kilometre. A zip code works too.",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(8.dp))
-        Button(
-            onClick = onUseLocation,
-            enabled = !state.searching,
-            shape = IntakeShape.Button,
-            modifier = Modifier.fillMaxWidth().heightIn(min = target),
-        ) { Text("Use my location") }
-        Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(
-                value = zip,
-                onValueChange = { zip = it.take(10) },
-                label = { Text("Or a zip code") },
-                singleLine = true,
-                shape = IntakeShape.Field,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.weight(1f),
-            )
-            Spacer(Modifier.width(8.dp))
-            OutlinedButton(
-                onClick = { onPostalCode(zip) },
-                enabled = zip.trim().length >= 3 && !state.searching,
-                shape = IntakeShape.Chip,
-                modifier = Modifier.heightIn(min = target),
-            ) { Text("Search") }
+        return
+    }
+    Column {
+        if (!state.hasLocation && !useZip) {
+            EmptyState(body = "Location is optional. Share it only for this nearby search, rounded to about a kilometre.")
         }
-        state.status?.let {
-            Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                CircularProgressIndicator(Modifier.height(18.dp).width(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(it, style = MaterialTheme.typography.bodySmall)
+        if (!useZip) {
+            Button(
+                onClick = onUseLocation,
+                enabled = !state.searching,
+                shape = IntakeShape.Button,
+                modifier = Modifier.fillMaxWidth().heightIn(min = target),
+            ) { Text(if (state.hasLocation) "Search near me" else "Allow location once") }
+            TextButton(onClick = { useZip = true }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+                Text("Use zip code instead")
+            }
+        } else {
+            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                LabeledField(
+                    label = "Zip code",
+                    value = zip,
+                    onValueChange = { zip = it.take(10) },
+                    keyboardType = KeyboardType.Number,
+                    modifier = Modifier.weight(1f),
+                )
+                Button(
+                    onClick = { onPostalCode(zip) },
+                    enabled = zip.trim().length >= 3 && !state.searching,
+                    shape = IntakeShape.Button,
+                    modifier = Modifier.heightIn(min = maxOf(target, 56.dp)),
+                ) { Text("Search") }
+            }
+            TextButton(onClick = { useZip = false }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+                Text("Use my location instead")
             }
         }
-        state.error?.let {
-            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp))
-        }
+        state.status?.let { LoadingState(listOf(it, "Checking allergens on this phone")) }
+        state.error?.let { ErrorState(title = "Search did not finish", body = "$it Saved options still work.") }
     }
 }
 
 @Composable
 private fun OptionRow(o: PlanBOption, selected: Boolean, target: Dp, onClick: () -> Unit) {
+    val fit = (o.fit.score * 100).roundToInt().coerceIn(0, 100)
     Surface(
-        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+        color = when {
+            o.rejected -> MaterialTheme.colorScheme.surfaceVariant
+            selected -> MaterialTheme.colorScheme.primaryContainer
+            else -> MaterialTheme.colorScheme.surface
+        },
         shape = IntakeShape.InnerCard,
         border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = target + 12.dp)
-            .alpha(if (o.rejected) 0.55f else 1f)
-            .clickable(enabled = !o.rejected, onClick = onClick),
+            .alpha(if (o.rejected) 0.56f else 1f)
+            .clickable(enabled = !o.rejected, onClickLabel = "Show what to order at ${o.restaurant}", onClick = onClick),
     ) {
         Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(o.restaurant, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                when {
+                    o.rejected -> StatusPill("Removed: contains ${o.scan.contains.first().matchedTerm}", tone = PillTone.Bad)
+                    o.scan.mayContain.isNotEmpty() -> StatusPill("Fit $fit · check allergens", tone = PillTone.Wait)
+                    else -> StatusPill("Fit $fit", tone = if (fit >= 80) PillTone.Ok else PillTone.Wait)
+                }
+            }
+            Text(o.order, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 5.dp))
+            Row(Modifier.padding(top = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "${o.macros.kcal.roundToInt()} kcal · ${o.macros.protein.roundToInt()} g protein",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f),
+                )
                 o.distanceMiles?.let { Text("%.1f mi".format(it), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary) }
+                if (o.offline) Text("saved", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Text(o.order, style = MaterialTheme.typography.bodySmall)
             Text(o.fit.summary, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (o.rejected || o.scan.mayContain.isNotEmpty()) {
-                Spacer(Modifier.height(4.dp))
-                Flag(if (o.rejected) "Removed: contains ${o.scan.contains.first().matchedTerm}" else "Check allergens")
-            }
         }
     }
 }
@@ -297,19 +312,14 @@ private fun Detail(
                 modifier = Modifier.padding(11.dp),
             )
         }
-        o.scan.mayContain.firstOrNull()?.let {
-            AccentNote(
-                lead = "Check this one", body = it.note,
-                container = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            )
-        }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Tag("${o.macros.kcal.roundToInt()} kcal")
-            Tag("${o.macros.protein.roundToInt()} g protein")
-            Tag("${o.macros.carbs.roundToInt()} g carbs")
-            Tag("${o.macros.fat.roundToInt()} g fat")
-        }
+        o.scan.mayContain.firstOrNull()?.let { SandNote(title = "Check this one", body = it.note) }
+        MacroTiles(
+            listOf(
+                Triple("${o.macros.protein.roundToInt()} g", "Protein", ProteinAccent),
+                Triple("${o.macros.carbs.roundToInt()} g", "Carbs", CarbAccent),
+                Triple("${o.macros.kcal.roundToInt()}", "kcal", FatAccent),
+            ),
+        )
         Text(o.fit.summary, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
         Button(onClick = onLog, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = target)) {
             Text(if (state.logged) "Logged · log again" else "Log this meal")
