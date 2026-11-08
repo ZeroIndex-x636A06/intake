@@ -57,8 +57,6 @@ fun TrainScreen(
     contentPadding: PaddingValues,
     onOpenSession: (String) -> Unit,
     onOpenBuilder: () -> Unit,
-    onOpenHistory: () -> Unit,
-    onOpenExercises: () -> Unit,
     onOpenScriptReference: (page: String, anchor: String?) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: TrainViewModel = hiltViewModel(),
@@ -90,7 +88,7 @@ fun TrainScreen(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item(key = "heading") {
-            SubHead("Train", "Your plan, your pace. Built to progress steadily.")
+            SubHead("Programs", "Your plan, your pace. Built to progress steadily.")
         }
         item(key = "import-row") {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -101,7 +99,7 @@ fun TrainScreen(
                 TextButton(
                     onClick = { onOpenScriptReference("program", null) },
                     modifier = Modifier.heightIn(min = 48.dp),
-                ) { Text("Script reference") }
+                ) { Text("Script help") }
             }
         }
         notice?.let { n ->
@@ -283,16 +281,6 @@ fun TrainScreen(
                 modifier = Modifier.padding(top = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                OutlinedButton(
-                    onClick = onOpenHistory,
-                    shape = IntakeShape.Button,
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                ) { Text("History and analytics") }
-                OutlinedButton(
-                    onClick = onOpenExercises,
-                    shape = IntakeShape.Button,
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                ) { Text("Exercise library") }
                 OutlinedButton(
                     onClick = onOpenBuilder,
                     shape = IntakeShape.Button,

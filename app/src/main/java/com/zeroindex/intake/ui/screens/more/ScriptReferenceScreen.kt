@@ -20,6 +20,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -83,7 +84,14 @@ fun ScriptReferenceScreen(
     var history by rememberSaveable { mutableStateOf(arrayListOf(encode(page, anchor))) }
     val (currentPage, currentAnchor) = decode(history.last())
 
+    // A food or training entry point shows only its own pages; "All script docs" (or following a
+    // link to a page outside the topic) widens it to the full set.
+    val entryTopic = remember(page) { ScriptTopic.of(page) }
+    var showAll by rememberSaveable { mutableStateOf(false) }
+    val topic = if (showAll) ScriptTopic.ALL else entryTopic
+
     fun open(target: String, targetAnchor: String?) {
+        if (topic != ScriptTopic.ALL && target !in topic.pages) showAll = true
         history = ArrayList(history + encode(target, targetAnchor))
     }
     BackHandler(enabled = history.size > 1) { history = ArrayList(history.dropLast(1)) }
@@ -124,9 +132,16 @@ fun ScriptReferenceScreen(
     ) {
         item(key = "pages") {
             Column {
-                SubHead("Script reference", "Write a plan or program by hand. Works offline.")
+                SubHead(topic.title, "Write a plan or program by hand. Works offline.")
+                if (topic != ScriptTopic.ALL) {
+                    TextButton(
+                        onClick = { showAll = true; open("README", null) },
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    ) { Text("All script docs") }
+                }
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    WikiPages.forEach { (id, label) ->
+                    val visible = if (topic == ScriptTopic.ALL) WikiPages else WikiPages.filter { it.first in topic.pages }
+                    visible.forEach { (id, label) ->
                         FilterChip(
                             selected = id == currentPage,
                             onClick = { if (id != currentPage) open(id, null) },

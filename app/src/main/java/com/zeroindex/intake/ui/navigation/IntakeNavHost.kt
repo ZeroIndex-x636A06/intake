@@ -1,28 +1,43 @@
 package com.zeroindex.intake.ui.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavDestination
+import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.navigation
 import androidx.navigation.toRoute
+import com.zeroindex.intake.ui.motion.LocalReduceMotion
+import com.zeroindex.intake.ui.motion.Motion
 import com.zeroindex.intake.ui.screens.ai.AiSettingsScreen
 import com.zeroindex.intake.ui.screens.allergen.AllergenReferenceScreen
+import com.zeroindex.intake.ui.screens.backup.BackupScreen
 import com.zeroindex.intake.ui.screens.body.BodyMetricsScreen
 import com.zeroindex.intake.ui.screens.health.HealthConnectScreen
+import com.zeroindex.intake.ui.screens.hub.AllergensScreen
+import com.zeroindex.intake.ui.screens.hub.EatingOutScreen
+import com.zeroindex.intake.ui.screens.hub.FoodHubScreen
+import com.zeroindex.intake.ui.screens.hub.RecipesScreen
+import com.zeroindex.intake.ui.screens.hub.TrainHubScreen
 import com.zeroindex.intake.ui.screens.menu.MenuSourcesScreen
+import com.zeroindex.intake.ui.screens.more.HelpScreen
 import com.zeroindex.intake.ui.screens.more.MoreScreen
 import com.zeroindex.intake.ui.screens.more.ScriptReferenceScreen
 import com.zeroindex.intake.ui.screens.performance.PerformanceScreen
 import com.zeroindex.intake.ui.screens.plan.CookModeScreen
 import com.zeroindex.intake.ui.screens.plan.PlanScreen
-import com.zeroindex.intake.ui.screens.planb.PlanBScreen
 import com.zeroindex.intake.ui.screens.plan.RecipeDetailScreen
 import com.zeroindex.intake.ui.screens.plan.RecipeHunterScreen
+import com.zeroindex.intake.ui.screens.planb.PlanBScreen
 import com.zeroindex.intake.ui.screens.progress.ProgressScreen
 import com.zeroindex.intake.ui.screens.report.WeeklyReportScreen
-import com.zeroindex.intake.ui.screens.backup.BackupScreen
 import com.zeroindex.intake.ui.screens.settings.PrivacyScreen
 import com.zeroindex.intake.ui.screens.settings.SettingsScreen
 import com.zeroindex.intake.ui.screens.templates.MealTemplatesScreen
@@ -33,111 +48,220 @@ import com.zeroindex.intake.ui.screens.train.TrainScreen
 import com.zeroindex.intake.ui.screens.train.WorkoutHistoryScreen
 import com.zeroindex.intake.ui.screens.workout.ActiveWorkoutScreen
 
+/** The tab a destination belongs to, found through its nested graph; null before the graph is entered. */
+fun tabOf(destination: NavDestination?): TopLevelDestination? =
+    destination?.let { d ->
+        TopLevelDestination.entries.firstOrNull { tab -> d.hierarchy.any { it.hasRoute(tab.graph::class) } }
+    }
+
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.isTabSwitch(): Boolean =
+    TabPolicy.isTabSwitch(tabOf(initialState.destination), tabOf(targetState.destination))
+
+/**
+ * One nested graph per tab, so each tab keeps its own back stack. Screens that several tabs open
+ * (script reference, AI settings, settings) are registered in each graph that links to them; a
+ * `navigate` finds the copy inside the current tab, so the pill keeps showing that tab.
+ *
+ * Feature agents: add new routes inside the graph of the tab they belong to, above that graph's
+ * "add ... above this line" marker.
+ */
 @Composable
 fun IntakeNavHost(
     navController: NavHostController,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
-    NavHost(navController = navController, startDestination = Route.Today, modifier = modifier) {
-        composable<Route.Today> {
-            TodayScreen(contentPadding, onOpenAiSettings = { navController.navigate(Route.AiSettings) })
+    val reduce = LocalReduceMotion.current
+    NavHost(
+        navController = navController,
+        startDestination = TabGraph.Today,
+        modifier = modifier,
+        // Moving between tabs fades through; pushing inside a tab is shared-axis X, reversed on back.
+        enterTransition = {
+            if (isTabSwitch()) Motion.fadeThroughIn(reduce) else Motion.sharedAxisEnter(forward = true, reduce = reduce)
+        },
+        exitTransition = {
+            if (isTabSwitch()) Motion.fadeThroughOut(reduce) else Motion.sharedAxisExit(forward = true, reduce = reduce)
+        },
+        popEnterTransition = {
+            if (isTabSwitch()) Motion.fadeThroughIn(reduce) else Motion.sharedAxisEnter(forward = false, reduce = reduce)
+        },
+        popExitTransition = {
+            if (isTabSwitch()) Motion.fadeThroughOut(reduce) else Motion.sharedAxisExit(forward = false, reduce = reduce)
+        },
+    ) {
+        val openScriptReference = { page: String, anchor: String? ->
+            navController.navigate(Route.ScriptReference(page, anchor))
         }
-        composable<Route.Plan> {
-            PlanScreen(
-                contentPadding = contentPadding,
-                onOpenHunter = { navController.navigate(Route.RecipeHunter) },
-                onOpenPlanB = { navController.navigate(Route.PlanB) },
-                onOpenRecipe = { id -> navController.navigate(Route.RecipeDetail(id)) },
-                onOpenCook = { id -> navController.navigate(Route.CookMode(id)) },
-                onOpenScriptReference = { page, anchor -> navController.navigate(Route.ScriptReference(page, anchor)) },
-            )
-        }
-        composable<Route.MenuSources> { MenuSourcesScreen(contentPadding) }
-        composable<Route.MealTemplates> { MealTemplatesScreen(contentPadding) }
-        composable<Route.HealthConnect> { HealthConnectScreen(contentPadding) }
-        composable<Route.WeeklyReport> { WeeklyReportScreen(contentPadding) }
-        composable<Route.Backup> { BackupScreen(contentPadding) }
-        composable<Route.PlanB> {
-            PlanBScreen(contentPadding, onOpenAiSettings = { navController.navigate(Route.AiSettings) })
-        }
-        composable<Route.RecipeHunter> {
-            RecipeHunterScreen(contentPadding, onOpenAiSettings = { navController.navigate(Route.AiSettings) })
-        }
-        composable<Route.RecipeDetail> { entry ->
-            RecipeDetailScreen(
-                recipeId = entry.toRoute<Route.RecipeDetail>().recipeId,
-                contentPadding = contentPadding,
-                onDeleted = { navController.popBackStack() },
-            )
-        }
-        composable<Route.CookMode> { entry ->
-            CookModeScreen(
-                recipeId = entry.toRoute<Route.CookMode>().recipeId,
-                contentPadding = contentPadding,
-                onClose = { navController.popBackStack() },
-            )
-        }
-        composable<Route.Train> {
-            TrainScreen(
-                contentPadding = contentPadding,
-                onOpenSession = { id -> navController.navigate(Route.ActiveWorkout(id)) },
-                onOpenBuilder = { navController.navigate(Route.ProgramBuilder) },
-                onOpenHistory = { navController.navigate(Route.WorkoutHistory) },
-                onOpenExercises = { navController.navigate(Route.ExerciseLibrary) },
-                onOpenScriptReference = { page, anchor -> navController.navigate(Route.ScriptReference(page, anchor)) },
-            )
-        }
-        composable<Route.Progress> {
-            ProgressScreen(
-                contentPadding = contentPadding,
-                onAddMeasurement = { navController.navigate(Route.BodyMetrics) },
-                onAddJumpTest = { navController.navigate(Route.Performance) },
-            )
-        }
-        composable<Route.More> {
-            MoreScreen(
-                contentPadding = contentPadding,
-                onNavigate = { route -> navController.navigate(route) },
-            )
+        val openAiSettings = { navController.navigate(Route.AiSettings) }
+
+        // ---- Today ----
+        navigation<TabGraph.Today>(startDestination = Route.Today) {
+            composable<Route.Today> { TodayScreen(contentPadding, onOpenAiSettings = openAiSettings) }
+            aiSettings(contentPadding)
+            // Today is not restructured; add new Today routes above this line.
         }
 
-        composable<Route.ScriptReference> { entry ->
-            val args = entry.toRoute<Route.ScriptReference>()
-            ScriptReferenceScreen(args.page, args.anchor, contentPadding)
+        // ---- Food ----
+        navigation<TabGraph.Food>(startDestination = Route.Food) {
+            composable<Route.Food> {
+                FoodHubScreen(
+                    contentPadding = contentPadding,
+                    onOpenMealTemplates = { navController.navigate(Route.MealTemplates) },
+                    onOpenMealPlans = { navController.navigate(Route.MealPlans) },
+                    onOpenRecipes = { navController.navigate(Route.Recipes) },
+                    onOpenEatingOut = { navController.navigate(Route.EatingOut) },
+                    onOpenAllergens = { navController.navigate(Route.Allergens) },
+                    onOpenFoodScriptHelp = { openScriptReference("meal-plan", null) },
+                    onOpenAiSettings = openAiSettings,
+                )
+            }
+            composable<Route.MealPlans> {
+                PlanScreen(
+                    contentPadding = contentPadding,
+                    onOpenPlanB = { navController.navigate(Route.PlanB) },
+                    onOpenCook = { id -> navController.navigate(Route.CookMode(id)) },
+                    onOpenScriptReference = openScriptReference,
+                )
+            }
+            composable<Route.Recipes> {
+                RecipesScreen(
+                    contentPadding = contentPadding,
+                    onOpenRecipe = { id -> navController.navigate(Route.RecipeDetail(id)) },
+                    onOpenHunter = { navController.navigate(Route.RecipeHunter) },
+                )
+            }
+            composable<Route.RecipeHunter> { RecipeHunterScreen(contentPadding, onOpenAiSettings = openAiSettings) }
+            composable<Route.RecipeDetail> { entry ->
+                RecipeDetailScreen(
+                    recipeId = entry.toRoute<Route.RecipeDetail>().recipeId,
+                    contentPadding = contentPadding,
+                    onDeleted = { navController.popBackStack() },
+                )
+            }
+            composable<Route.CookMode> { entry ->
+                CookModeScreen(
+                    recipeId = entry.toRoute<Route.CookMode>().recipeId,
+                    contentPadding = contentPadding,
+                    onClose = { navController.popBackStack() },
+                )
+            }
+            composable<Route.EatingOut> {
+                EatingOutScreen(
+                    contentPadding = contentPadding,
+                    onOpenPlanB = { navController.navigate(Route.PlanB) },
+                    onOpenMenuImport = { navController.navigate(Route.MenuSources) },
+                )
+            }
+            composable<Route.PlanB> { PlanBScreen(contentPadding, onOpenAiSettings = openAiSettings) }
+            composable<Route.MenuSources> { MenuSourcesScreen(contentPadding) }
+            composable<Route.MealTemplates> { MealTemplatesScreen(contentPadding) }
+            composable<Route.Allergens> {
+                AllergensScreen(
+                    contentPadding = contentPadding,
+                    onOpenProfile = { navController.navigate(Route.Settings(section = "allergens")) },
+                    onOpenReference = { navController.navigate(Route.AllergenReference) },
+                )
+            }
+            composable<Route.AllergenReference> { AllergenReferenceScreen(contentPadding) }
+            scriptReference(contentPadding)
+            aiSettings(contentPadding)
+            settings(navController, contentPadding)
+            composable<Route.Backup> { BackupScreen(contentPadding) }
+            // Add new Food routes above this line.
         }
-        composable<Route.AllergenReference> { AllergenReferenceScreen(contentPadding) }
-        composable<Route.Settings> {
-            SettingsScreen(
-                contentPadding,
-                onOpenAi = { navController.navigate(Route.AiSettings) },
-                onOpenBackup = { navController.navigate(Route.Backup) },
-            )
+
+        // ---- Train ----
+        navigation<TabGraph.Train>(startDestination = Route.Train) {
+            composable<Route.Train> {
+                TrainHubScreen(
+                    contentPadding = contentPadding,
+                    onOpenSession = { id -> navController.navigate(Route.ActiveWorkout(id)) },
+                    onOpenPrograms = { navController.navigate(Route.Programs) },
+                    onOpenExercises = { navController.navigate(Route.ExerciseLibrary) },
+                    onOpenPerformance = { navController.navigate(Route.Performance) },
+                    onOpenProgramScriptHelp = { openScriptReference("program", null) },
+                )
+            }
+            composable<Route.Programs> {
+                TrainScreen(
+                    contentPadding = contentPadding,
+                    onOpenSession = { id -> navController.navigate(Route.ActiveWorkout(id)) },
+                    onOpenBuilder = { navController.navigate(Route.ProgramBuilder) },
+                    onOpenScriptReference = openScriptReference,
+                )
+            }
+            composable<Route.ProgramBuilder> { ProgramBuilderScreen(contentPadding, onOpenScriptReference = openScriptReference) }
+            composable<Route.ExerciseLibrary> { ExerciseLibraryScreen(contentPadding) }
+            composable<Route.Performance> { PerformanceScreen(contentPadding = contentPadding, onSaved = {}) }
+            composable<Route.ActiveWorkout> {
+                ActiveWorkoutScreen(contentPadding = contentPadding, onFinished = { navController.popBackStack() })
+            }
+            scriptReference(contentPadding)
+            // Add new Train routes above this line.
         }
-        composable<Route.AiSettings> { AiSettingsScreen(contentPadding) }
-        composable<Route.Privacy> { PrivacyScreen(contentPadding) }
-        composable<Route.ExerciseLibrary> { ExerciseLibraryScreen(contentPadding) }
-        composable<Route.WorkoutHistory> { WorkoutHistoryScreen(contentPadding) }
-        composable<Route.ProgramBuilder> {
-            ProgramBuilderScreen(
-                contentPadding,
-                onOpenScriptReference = { page, anchor -> navController.navigate(Route.ScriptReference(page, anchor)) },
-            )
+
+        // ---- Progress ----
+        navigation<TabGraph.Progress>(startDestination = Route.Progress) {
+            composable<Route.Progress> {
+                ProgressScreen(
+                    contentPadding = contentPadding,
+                    onAddMeasurement = { navController.navigate(Route.BodyMetrics) },
+                    onAddJumpTest = { navController.navigate(Route.Performance) },
+                    onOpenTrainingStats = { navController.navigate(Route.WorkoutHistory) },
+                    onOpenWeeklyReport = { navController.navigate(Route.WeeklyReport) },
+                    onOpenHealthConnect = { navController.navigate(Route.HealthConnect) },
+                )
+            }
+            composable<Route.BodyMetrics> {
+                BodyMetricsScreen(contentPadding = contentPadding, onSaved = { navController.popBackStack() })
+            }
+            composable<Route.Performance> { PerformanceScreen(contentPadding = contentPadding, onSaved = {}) }
+            composable<Route.WorkoutHistory> { WorkoutHistoryScreen(contentPadding) }
+            composable<Route.WeeklyReport> { WeeklyReportScreen(contentPadding) }
+            composable<Route.HealthConnect> { HealthConnectScreen(contentPadding) }
+            // Add new Progress routes above this line.
         }
-        composable<Route.ActiveWorkout> {
-            ActiveWorkoutScreen(
-                contentPadding = contentPadding,
-                onFinished = { navController.popBackStack() },
-            )
+
+        // ---- More ----
+        navigation<TabGraph.More>(startDestination = Route.More) {
+            composable<Route.More> {
+                MoreScreen(contentPadding = contentPadding, onNavigate = { route -> navController.navigate(route) })
+            }
+            settings(navController, contentPadding)
+            composable<Route.Backup> { BackupScreen(contentPadding) }
+            aiSettings(contentPadding)
+            composable<Route.Privacy> { PrivacyScreen(contentPadding) }
+            composable<Route.Help> {
+                HelpScreen(
+                    contentPadding = contentPadding,
+                    onOpenScriptDocs = { page -> openScriptReference(page, null) },
+                )
+            }
+            scriptReference(contentPadding)
+            // Add new More routes above this line.
         }
-        composable<Route.Performance> {
-            PerformanceScreen(contentPadding = contentPadding, onSaved = {})
-        }
-        composable<Route.BodyMetrics> {
-            BodyMetricsScreen(
-                contentPadding = contentPadding,
-                onSaved = { navController.popBackStack() },
-            )
-        }
+    }
+}
+
+private fun NavGraphBuilder.scriptReference(contentPadding: PaddingValues) {
+    composable<Route.ScriptReference> { entry ->
+        val args = entry.toRoute<Route.ScriptReference>()
+        ScriptReferenceScreen(args.page, args.anchor, contentPadding)
+    }
+}
+
+private fun NavGraphBuilder.aiSettings(contentPadding: PaddingValues) {
+    composable<Route.AiSettings> { AiSettingsScreen(contentPadding) }
+}
+
+private fun NavGraphBuilder.settings(navController: NavHostController, contentPadding: PaddingValues) {
+    composable<Route.Settings> { entry ->
+        SettingsScreen(
+            contentPadding,
+            onOpenAi = { navController.navigate(Route.AiSettings) },
+            onOpenBackup = { navController.navigate(Route.Backup) },
+            section = entry.toRoute<Route.Settings>().section,
+        )
     }
 }

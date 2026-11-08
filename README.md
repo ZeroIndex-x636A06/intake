@@ -25,6 +25,23 @@ Core, from SPEC.md:
   [docs/scripting/](docs/scripting/README.md).
 - Progress charts and a settings and privacy screen.
 
+Navigation (SPEC-v3): a floating pill with five tabs, **Today, Food, Train,
+Progress, More**. Slide a finger along the pill to switch tab (a light haptic
+tick marks each tab crossed, lifting commits); a tap works as normal and
+TalkBack gets ordinary tab semantics. On tablets the pill stands on end as a
+rail. Each tab keeps its own back stack, and tapping the current tab returns it
+to its root.
+
+- **Food**: Log food, Meal templates, Meal plans, Recipes (Recipe Hunter is an
+  optional AI), Eating out (Plan B, menu import), Allergens, Food script help.
+- **Train**: start or carry on today's workout, Programs (builder, import and
+  export), Exercises, Performance (jump tests), Program script help.
+- **Progress**: charts, plus Training stats, Weekly report and Health Connect.
+- **More**: Profile and goals, Settings, Backup and sync, AI (optional),
+  Privacy, Help (every script doc).
+- Script docs follow the topic: food screens open the meal-plan pages, training
+  screens the program and progression-rule pages, and More, Help the full set.
+
 Amendment features:
 
 - **Hydration.** Water card on Today with volume presets and a daily target.
@@ -53,8 +70,9 @@ Amendment features:
   clock, one Python file: [server/README.md](server/README.md).
 - **Wear OS companion.** Log sets, enter RPE and run the rest timer from the
   watch.
-- **Adaptive layout.** Navigation rail and two-column Today and Progress on
-  tablets and in landscape.
+- **Adaptive layout.** A vertical pill rail and two-column Today and Progress on
+  tablets and in landscape. Predictive back is on, and transitions are instant
+  when the system animation scale is 0.
 
 ## Layout
 
@@ -179,11 +197,11 @@ place.
 
 Nothing here is needed to use the app offline.
 
-1. **OpenRouter key.** Settings, AI: save your key, then run the benchmark so
+1. **OpenRouter key.** More, AI: save your key, then run the benchmark so
    the picker can suggest models. See [docs/BENCHMARK.md](docs/BENCHMARK.md).
-2. **USDA key (optional).** Settings: save a FoodData Central key to enable USDA
+2. **USDA key (optional).** More, Settings: save a FoodData Central key to enable USDA
    search. See [docs/PRIVACY.md](docs/PRIVACY.md).
-3. **Health Connect.** More, Health Connect: grant the read and write types you
+3. **Health Connect.** Progress, Health Connect: grant the read and write types you
    want. Nothing is read until you do.
 4. **Backups.** More, Backup & sync: choose WebDAV, SFTP or SMB and set a
    passphrase. Backups are never sent without one. Keep the passphrase
