@@ -17,6 +17,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.time.LocalDate
 import javax.inject.Inject
+import com.zeroindex.intake.domain.report.WeeklyReport
+import com.zeroindex.intake.domain.units.WeightUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,6 +36,8 @@ data class ReportUiState(
     val file: File? = null,
     val working: Boolean = true,
     val message: String? = null,
+    val report: WeeklyReport? = null,
+    val weightUnit: WeightUnit = WeightUnit.POUNDS,
 )
 
 @HiltViewModel
@@ -45,7 +49,7 @@ class WeeklyReportViewModel @Inject constructor(
     private val clock: Clock,
 ) : ViewModel() {
 
-    private val thisWeek = repository.mondayOf(clock.today())
+    val thisWeek: LocalDate = repository.mondayOf(clock.today())
     private val _state = MutableStateFlow(ReportUiState(weekStart = thisWeek))
     val state: StateFlow<ReportUiState> = _state.asStateFlow()
     private var job: Job? = null
@@ -54,15 +58,21 @@ class WeeklyReportViewModel @Inject constructor(
         load(thisWeek)
     }
 
+    fun jumpTo(weekStart: LocalDate) { if (!weekStart.isAfter(thisWeek)) load(weekStart) }
+
     fun previous() = load(_state.value.weekStart.minusWeeks(1))
     fun next() { if (!_state.value.isCurrentWeek) load(_state.value.weekStart.plusWeeks(1)) }
 
     private fun load(weekStart: LocalDate) {
         job?.cancel()
-        _state.update { it.copy(weekStart = weekStart, isCurrentWeek = weekStart == thisWeek, working = true, pages = emptyList()) }
+        _state.update {
+            it.copy(weekStart = weekStart, isCurrentWeek = weekStart == thisWeek, working = true, pages = emptyList(), report = null)
+        }
         job = viewModelScope.launch {
             val report = repository.build(weekStart)
-            val file = renderer.render(report, settings.settings.first().weightUnit)
+            val unit = settings.settings.first().weightUnit
+            _state.update { it.copy(report = report, weightUnit = unit) }
+            val file = renderer.render(report, unit)
             val pages = withContext(Dispatchers.IO) { preview(file) }
             _state.update { it.copy(pages = pages, file = file, working = false) }
         }

@@ -14,7 +14,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -23,27 +22,31 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.zeroindex.intake.ui.components.AccentNote
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import com.zeroindex.intake.domain.report.WeeklyReport
+import com.zeroindex.intake.domain.units.WeightUnit
+import com.zeroindex.intake.ui.components.ChoiceChip
+import com.zeroindex.intake.ui.components.ConfidenceLine
+import com.zeroindex.intake.ui.components.EmptyState
+import com.zeroindex.intake.ui.components.IntakeCard
+import com.zeroindex.intake.ui.components.LoadingState
+import com.zeroindex.intake.ui.components.SandNote
+import com.zeroindex.intake.ui.components.SummaryTile
+import kotlin.math.roundToInt
 import com.zeroindex.intake.ui.components.SubHead
 import com.zeroindex.intake.ui.theme.IntakeShape
 import java.io.File
@@ -73,37 +76,50 @@ fun WeeklyReportScreen(
         ),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        item(key = "head") { SubHead("Weekly check-in", "A printable summary of the week, made on this phone.") }
-        item(key = "week") {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = viewModel::previous) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous week") }
-                Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                IconButton(onClick = viewModel::next, enabled = !state.isCurrentWeek) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next week")
+        item(key = "head") {
+            SubHead("Weekly check-in", "A clear, printable snapshot · week of $label")
+        }
+        item(key = "weeks") {
+            val short = DateTimeFormatter.ofPattern("MMM d")
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                (5 downTo 0).map { viewModel.thisWeek.minusWeeks(it.toLong()) }.forEach { week ->
+                    ChoiceChip(
+                        label = week.format(short),
+                        selected = week == state.weekStart,
+                        onClick = { viewModel.jumpTo(week) },
+                    )
                 }
             }
         }
-        item(key = "actions") {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        item(key = "glance") {
+            IntakeCard {
+                Text("Week at a glance", style = MaterialTheme.typography.titleSmall)
+                val r = state.report
+                if (r == null) {
+                    LoadingState(listOf("Adding up the week"))
+                } else {
+                    Glance(r, state.weightUnit)
+                }
                 Button(
                     onClick = { save.launch("intake-week-${state.weekStart}.pdf") },
                     enabled = state.file != null,
                     shape = IntakeShape.Button,
-                    modifier = Modifier.weight(1f).height(52.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(52.dp),
                 ) { Text("Save PDF") }
                 OutlinedButton(
                     onClick = { state.file?.let { print(context, it) } },
                     enabled = state.file != null,
                     shape = IntakeShape.Button,
-                    modifier = Modifier.weight(1f).height(52.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp).height(52.dp),
                 ) { Text("Print") }
             }
         }
-        state.message?.let { item(key = "msg") { AccentNote(lead = it, body = "") } }
-        if (state.working) {
-            item(key = "working") {
-                Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-            }
+        state.message?.let { item(key = "msg") { SandNote(it) } }
+        if (state.working && state.report != null) {
+            item(key = "working") { LoadingState(listOf("Drawing the PDF preview")) }
         }
         itemsIndexed(state.pages) { i, page ->
             Surface(
@@ -118,6 +134,39 @@ fun WeeklyReportScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun Glance(r: WeeklyReport, unit: WeightUnit) {
+    fun n(v: Double?) = v?.let { "%,d".format(it.roundToInt()) }
+    val weight = r.average { it.weightKg }?.let { "%.1f %s".format(unit.fromKg(it), unit.label) }
+    val change = r.weightChangeKg?.let { "%+.1f %s".format(unit.fromKg(it), unit.label) }
+    val sleep = r.average { it.sleepMinutes }?.let { "${it.toInt() / 60}h ${it.toInt() % 60}m" }
+    val tiles = listOf(
+        (weight ?: "—") to ("Avg weight" + (change?.let { " · $it" } ?: "")),
+        (n(r.average { it.kcal })?.let { "$it kcal" } ?: "—") to "Avg intake",
+        (n(r.average { it.burned })?.let { "$it kcal" } ?: "—") to "Avg burn",
+        (sleep ?: "—") to "Avg sleep",
+        (n(r.average { it.restingHr })?.let { "$it bpm" } ?: "—") to "Resting HR",
+        (n(r.average { it.steps })) .let { it ?: "—" } to "Avg steps",
+    )
+    tiles.chunked(2).forEach { pair ->
+        Row(Modifier.padding(top = 7.dp), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            pair.forEach { (value, caption) -> SummaryTile(value, caption.uppercase(), Modifier.weight(1f)) }
+        }
+    }
+    val target = r.proteinTarget
+    val logged = r.days.filter { it.protein != null }
+    if (target != null && logged.isNotEmpty()) {
+        val hit = logged.count { (it.protein ?: 0.0) >= target }
+        ConfidenceLine(
+            "Protein target hit $hit of ${r.days.size} days · ${(hit * 100.0 / r.days.size).roundToInt()}%",
+            modifier = Modifier.padding(top = 8.dp),
+        )
+    }
+    if (r.daysLogged == 0) {
+        EmptyState(body = "Nothing logged this week. The PDF still prints whatever body and training data exists.")
     }
 }
 

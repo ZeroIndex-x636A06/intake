@@ -7,10 +7,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
@@ -18,13 +16,12 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -35,6 +32,10 @@ import com.zeroindex.intake.domain.performance.JumpMetrics
 import com.zeroindex.intake.domain.units.LengthUnit
 import com.zeroindex.intake.domain.units.UnitConverter
 import com.zeroindex.intake.ui.components.AccentNote
+import com.zeroindex.intake.ui.components.EmptyState
+import com.zeroindex.intake.ui.components.ErrorState
+import com.zeroindex.intake.ui.components.FormRow
+import com.zeroindex.intake.ui.components.LabeledField
 import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.SectionLine
 import com.zeroindex.intake.ui.components.SubHead
@@ -76,35 +77,41 @@ fun PerformanceScreen(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item(key = "head") {
-            SubHead("Jump test", "Enter any two; the third is worked out. Stored in centimetres.")
+            SubHead("Explosive performance", "Track a jump test in ${if (unit == LengthUnit.INCHES) "inches" else "centimetres"}. Enter any two; the third is worked out.")
         }
         item(key = "form") {
             IntakeCard {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Field(vertical, { vertical = it }, "Vertical jump (${unit.label})",
-                        derived = preview.derived == JumpMetrics.Field.VERTICAL, derivedValue = preview.verticalJumpCm)
-                    Field(standing, { standing = it }, "Standing reach (${unit.label})",
-                        derived = preview.derived == JumpMetrics.Field.STANDING, derivedValue = preview.standingReachCm)
-                    Field(total, { total = it }, "Total jumping reach (${unit.label})",
+                    FormRow(
+                        left = { m ->
+                            Field(vertical, { vertical = it }, "Vertical jump · ${unit.label}",
+                                derived = preview.derived == JumpMetrics.Field.VERTICAL, derivedValue = preview.verticalJumpCm, modifier = m)
+                        },
+                        right = { m ->
+                            Field(standing, { standing = it }, "Standing reach · ${unit.label}",
+                                derived = preview.derived == JumpMetrics.Field.STANDING, derivedValue = preview.standingReachCm, modifier = m)
+                        },
+                    )
+                    Field(total, { total = it }, "Total jumping reach · ${unit.label}",
                         derived = preview.derived == JumpMetrics.Field.TOTAL, derivedValue = preview.totalReachCm)
                     if (preview.inconsistent) {
-                        Text(
-                            text = "These do not add up: total reach should be standing reach plus " +
-                                "the jump. Check one of them before saving.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
+                        ErrorState(
+                            title = "These do not add up",
+                            body = "Total reach should be standing reach plus the jump. Check one of them before saving.",
                         )
                     }
-                    OutlinedTextField(
+                    LabeledField(
+                        label = "Note · optional",
                         value = notes,
                         onValueChange = { notes = it },
-                        label = { Text("Note (optional) — surface, shoes, warm-up") },
-                        shape = IntakeShape.Field,
-                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = "Shoes, surface, warm-up…",
                     )
-                    state.error?.let {
-                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-                    }
+                    Text(
+                        "Jump height = total jumping reach − standing reach.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    state.error?.let { ErrorState(body = it) }
                     Button(
                         onClick = {
                             viewModel.save(
@@ -132,8 +139,10 @@ fun PerformanceScreen(
                     "percent day to day, so the trend matters more than any single test.",
             )
         }
-        if (state.history.isNotEmpty()) {
-            item(key = "history-head") { SectionLine("History") }
+        if (state.history.isEmpty()) {
+            item(key = "empty") { EmptyState(body = "No jump tests yet. Log a baseline to start your trend.") }
+        } else {
+            item(key = "history-head") { SectionLine("History", note = "Trend is on Progress") }
             items(state.history, key = { it.id }) { m ->
                 Row(
                     modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
@@ -172,17 +181,16 @@ private fun Field(
     derived: Boolean,
     /** Already in the display unit: it is derived from what was typed. */
     derivedValue: Double?,
+    modifier: Modifier = Modifier,
 ) {
-    OutlinedTextField(
-        value = if (derived && value.isBlank()) derivedValue?.let { "%.1f".format(it) }.orEmpty() else value,
+    val computed = derived && value.isBlank()
+    LabeledField(
+        label = if (computed) "$label · computed" else label,
+        value = if (computed) derivedValue?.let { "%.1f".format(it) }.orEmpty() else value,
         onValueChange = { next -> onChange(next.filter { it.isDigit() || it == '.' }) },
-        label = { Text(label) },
-        supportingText = if (derived) ({ Text("Worked out from the other two") }) else null,
-        readOnly = derived && value.isBlank(),
-        singleLine = true,
-        shape = IntakeShape.Field,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-        modifier = Modifier.fillMaxWidth(),
+        readOnly = computed,
+        keyboardType = KeyboardType.Decimal,
+        modifier = modifier,
     )
 }
 
