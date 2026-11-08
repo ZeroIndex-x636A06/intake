@@ -23,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -332,5 +333,62 @@ fun TagIcon(glyph: String, modifier: Modifier = Modifier, tint: Color = Material
         modifier = modifier.size(28.dp),
     ) {
         Text(glyph, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 4.dp))
+    }
+}
+
+/**
+ * `.chip.lock-chip`: a filter the user cannot switch off here, e.g. an
+ * allergen from their profile. Not clickable, and says so in its own words.
+ */
+@Composable
+fun LockChip(text: String, modifier: Modifier = Modifier) {
+    Surface(
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.primary,
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+        modifier = modifier.heightIn(min = 40.dp),
+    ) {
+        Text(
+            text = "🔒 $text",
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+        )
+    }
+}
+
+/**
+ * `.recipe-card` / `.restaurant`: an outlined result card. [dimmed] is the
+ * `.rejected` variant, for results kept on screen only to say why they were removed.
+ */
+@Composable
+fun ResultCard(
+    modifier: Modifier = Modifier,
+    dimmed: Boolean = false,
+    content: @Composable () -> Unit,
+) {
+    Surface(
+        color = if (dimmed) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(17.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = modifier.fillMaxWidth().then(if (dimmed) Modifier.alpha(0.56f) else Modifier),
+    ) {
+        Column(Modifier.padding(12.dp)) { content() }
+    }
+}
+
+/** `.macro-row`: three tinted tiles, protein / carbs / kcal by default. */
+@Composable
+fun MacroTiles(tiles: List<Triple<String, String, Color>>, modifier: Modifier = Modifier) {
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        tiles.forEach { (value, caption, tint) ->
+            Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(14.dp), modifier = Modifier.weight(1f)) {
+                Column(Modifier.padding(vertical = 9.dp, horizontal = 3.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = tint)
+                    Text(caption.uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
     }
 }

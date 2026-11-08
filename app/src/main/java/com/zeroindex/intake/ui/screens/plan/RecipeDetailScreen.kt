@@ -27,8 +27,14 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.db.entity.AllergenStatus
-import com.zeroindex.intake.ui.components.AccentNote
-import com.zeroindex.intake.ui.components.MathGrid
+import com.zeroindex.intake.ui.components.IntakeCard
+import com.zeroindex.intake.ui.components.MacroTiles
+import com.zeroindex.intake.ui.components.PillTone
+import com.zeroindex.intake.ui.components.SandNote
+import com.zeroindex.intake.ui.components.StatusPill
+import com.zeroindex.intake.ui.theme.CarbAccent
+import com.zeroindex.intake.ui.theme.FatAccent
+import com.zeroindex.intake.ui.theme.ProteinAccent
 import com.zeroindex.intake.ui.components.SectionLine
 import com.zeroindex.intake.ui.components.SubHead
 import com.zeroindex.intake.ui.screens.today.SlotPickerSheet
@@ -53,33 +59,59 @@ fun RecipeDetailScreen(
         modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(contentPadding).padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        SubHead(recipe.name, "${recipe.servings} servings${if (recipe.totalTimeMinutes > 0) " · ${recipe.totalTimeMinutes} min" else ""}")
-        if (recipe.allergenStatus == AllergenStatus.MAY_CONTAIN) {
-            AccentNote(
-                lead = "Check allergens before cooking",
-                body = "When this was saved, an ingredient looked like it might contain something you avoid.",
-                container = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            )
-        }
+        val source = recipe.sourceUrl?.let { runCatching { Uri.parse(it).host?.removePrefix("www.") }.getOrNull() }
+        SubHead(
+            recipe.name,
+            listOfNotNull(
+                source,
+                "${recipe.servings} servings",
+                recipe.totalTimeMinutes.takeIf { it > 0 }?.let { "$it minutes" },
+            ).joinToString(" · "),
+        )
         if (recipe.kcalPerServing != null) {
-            MathGrid(
+            MacroTiles(
                 listOf(
-                    "${recipe.kcalPerServing.roundToInt()}" to "kcal",
-                    "${recipe.proteinPerServing?.roundToInt() ?: 0}" to "protein g",
-                    "${recipe.carbsPerServing?.roundToInt() ?: 0}" to "carbs g",
-                    "${recipe.fatPerServing?.roundToInt() ?: 0}" to "fat g",
+                    Triple("${recipe.proteinPerServing?.roundToInt() ?: 0} g", "Protein", ProteinAccent),
+                    Triple("${recipe.carbsPerServing?.roundToInt() ?: 0} g", "Carbs", CarbAccent),
+                    Triple("${recipe.kcalPerServing.roundToInt()}", "kcal", FatAccent),
                 ),
+            )
+            Text(
+                "Per serving · fat ${recipe.fatPerServing?.roundToInt() ?: 0} g",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         if (recipe.ingredientsText.isNotBlank()) {
-            SectionLine("Ingredients")
-            recipe.ingredientsText.lines().filter(String::isNotBlank).forEach {
-                Text("• $it", style = MaterialTheme.typography.bodySmall)
+            SectionLine("Ingredients") {
+                when (recipe.allergenStatus) {
+                    AllergenStatus.MAY_CONTAIN -> StatusPill("Check allergens", tone = PillTone.Wait)
+                    AllergenStatus.CONTAINS -> StatusPill("Contains an allergen", tone = PillTone.Bad)
+                    AllergenStatus.CLEAR -> StatusPill("Passed allergen check")
+                    else -> StatusPill("Allergens not checked", tone = PillTone.Wait)
+                }
+            }
+            if (recipe.allergenStatus == AllergenStatus.MAY_CONTAIN) {
+                SandNote("When this was saved, an ingredient looked like it might contain something you avoid. Check the labels before cooking.")
+            }
+            IntakeCard {
+                recipe.ingredientsText.lines().filter(String::isNotBlank).forEach {
+                    Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 2.dp))
+                }
             }
         }
-        SectionLine("Steps")
-        Text(recipe.instructions, style = MaterialTheme.typography.bodySmall)
+        if (recipe.instructions.isNotBlank()) {
+            SectionLine("Steps")
+            IntakeCard {
+                recipe.instructions.lines().filter(String::isNotBlank).forEachIndexed { i, step ->
+                    Text(
+                        if (step.trimStart().firstOrNull()?.isDigit() == true) step else "${i + 1}. $step",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(vertical = 3.dp),
+                    )
+                }
+            }
+        }
         Spacer(Modifier.height(6.dp))
         Button(
             onClick = { picking = true },
