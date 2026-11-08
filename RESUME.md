@@ -33,10 +33,11 @@ Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/BACKUP.md`,
 
 ## Not built
 
-- The 12-week meal plan (SPEC section 9): no plan seed, no cook mode screen, no
-  shopping list, no "can't eat what I cooked" sheet. `PlanScreen` only hosts Recipe Hunter, saved recipes and Plan B,
-  `Route.CookMode` is declared but has no screen, and `FoodSeed` is not yet
-  paired with a recipe seeder. `PlanRepository` has the reads this needs.
+- The user's actual 12-week plan content. The meal plan module (SPEC section 9: week
+  strip, shopping list, steps, cook mode, "can't eat what I cooked", plan-file
+  import) is built and data-driven, but ships empty. Fill it by assigning saved
+  recipes or importing a plan file (`docs/MEAL-PLAN.md`). `FoodSeed` is still not
+  paired with a recipe seeder.
 - Demo data loader in Settings (`SettingsRepository.demoDataLoaded` exists).
 
 ## NOT verified
@@ -90,8 +91,6 @@ Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/BACKUP.md`,
 - The mockup's "optional web assistant" is not built. It would add a network
   path beyond those in SPEC section 3.2. Amend the spec or drop it from the
   design before anyone writes it.
-- `docs/PRIVACY.md` still says the benchmark is not a network feature on this
-  branch. The in-app benchmark was merged afterwards, so that row is stale.
 - Whole-word allergen matching does not catch derived words such as "creamery".
   A test pins this.
 - `TrainingRepository.consecutiveFailures` looks only at the last session.
