@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -19,6 +20,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,12 +53,27 @@ fun SettingsScreen(
     onOpenAi: () -> Unit,
     onOpenBackup: () -> Unit,
     modifier: Modifier = Modifier,
+    section: String? = null,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val settings = state.settings
 
+    // Profile & goals and Allergens open this screen at their own section. The items above a
+    // section are the heading plus the two optional notes, so the position is worked out here.
+    val listState = rememberLazyListState()
+    val lastExportAt = settings.lastExportAtMillis
+    val showExportPrompt = lastExportAt == null || System.currentTimeMillis() - lastExportAt > 30L * 86_400_000L
+    val leadingItems = 1 + (if (state.message != null) 1 else 0) + (if (showExportPrompt) 1 else 0)
+    LaunchedEffect(section) {
+        when (section) {
+            "allergens" -> listState.scrollToItem(leadingItems + 2)
+            "targets" -> listState.scrollToItem(leadingItems + 3)
+        }
+    }
+
     LazyColumn(
+        state = listState,
         modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(
             top = contentPadding.calculateTopPadding() + 12.dp,
@@ -91,11 +108,10 @@ fun SettingsScreen(
         }
 
         // SPEC §13: a prompt when nothing has been exported or backed up in 30 days.
-        val lastExport = settings.lastExportAtMillis
-        if (lastExport == null || System.currentTimeMillis() - lastExport > 30L * 86_400_000L) {
+        if (showExportPrompt) {
             item(key = "export-prompt") {
                 SandNote(
-                    title = if (lastExport == null) "No backup yet" else "Last backup was over 30 days ago",
+                    title = if (lastExportAt == null) "No backup yet" else "Last backup was over 30 days ago",
                     body = "Everything lives only on this phone. Export a file or set up a nightly backup to your own server.",
                 )
                 OutlinedButton(

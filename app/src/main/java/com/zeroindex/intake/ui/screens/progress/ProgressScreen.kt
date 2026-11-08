@@ -18,6 +18,10 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -52,6 +56,8 @@ import com.zeroindex.intake.ui.theme.HeatFull
 import com.zeroindex.intake.ui.theme.HeatPartial
 import com.zeroindex.intake.ui.theme.IntakeShape
 import kotlin.math.abs
+import com.zeroindex.intake.ui.screens.hub.HubItem
+import com.zeroindex.intake.ui.screens.hub.HubList
 import kotlin.math.roundToInt
 
 @Composable
@@ -59,6 +65,9 @@ fun ProgressScreen(
     contentPadding: PaddingValues,
     onAddMeasurement: () -> Unit,
     onAddJumpTest: () -> Unit,
+    onOpenTrainingStats: () -> Unit,
+    onOpenWeeklyReport: () -> Unit,
+    onOpenHealthConnect: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ProgressViewModel = hiltViewModel(),
 ) {
@@ -107,6 +116,9 @@ fun ProgressScreen(
                     item(key = "performance") {
                         PerformanceCard(state = state, onAddJump = onAddJumpTest)
                     }
+                    item(key = "reports") {
+                        ProgressLinks(onOpenTrainingStats, onOpenWeeklyReport, onOpenHealthConnect)
+                    }
                 }
             }
         }
@@ -133,8 +145,42 @@ fun ProgressScreen(
                 PerformanceCard(state = state, onAddJump = onAddJumpTest)
             }
             detailItems(state)
+            item(key = "reports") {
+                ProgressLinks(onOpenTrainingStats, onOpenWeeklyReport, onOpenHealthConnect)
+            }
         }
     }
+}
+
+/** The rest of the Progress hub: the reports and data sources that have their own screens. */
+@Composable
+private fun ProgressLinks(
+    onOpenTrainingStats: () -> Unit,
+    onOpenWeeklyReport: () -> Unit,
+    onOpenHealthConnect: () -> Unit,
+) {
+    HubList(
+        listOf(
+            HubItem(
+                title = "Training stats",
+                description = "Workout history, volume per muscle and personal records",
+                icon = Icons.Filled.BarChart,
+                onClick = onOpenTrainingStats,
+            ),
+            HubItem(
+                title = "Weekly report",
+                description = "A printable PDF of the week: intake, weight, sleep, training",
+                icon = Icons.Filled.Description,
+                onClick = onOpenWeeklyReport,
+            ),
+            HubItem(
+                title = "Health Connect",
+                description = "Watch and scale data, and how workout calories count",
+                icon = Icons.Filled.MonitorHeart,
+                onClick = onOpenHealthConnect,
+            ),
+        ),
+    )
 }
 
 /**

@@ -1,174 +1,110 @@
 package com.zeroindex.intake.ui.screens.more
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Height
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.MonitorHeart
-import androidx.compose.material.icons.filled.MonitorWeight
-import androidx.compose.material.icons.filled.Nfc
-import androidx.compose.material.icons.filled.RestaurantMenu
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.BuildConfig
 import com.zeroindex.intake.ui.components.AccentNote
-import com.zeroindex.intake.ui.components.IntakeCard
-import com.zeroindex.intake.ui.components.MenuItem
-import com.zeroindex.intake.ui.components.SectionLine
-import com.zeroindex.intake.ui.components.SubHead
 import com.zeroindex.intake.ui.navigation.Route
+import com.zeroindex.intake.ui.screens.hub.HubItem
+import com.zeroindex.intake.ui.screens.hub.HubScreen
 
-private data class MoreEntry(
-    val title: String,
-    val subtitle: String,
-    val icon: ImageVector,
-    val route: Route,
-)
-
+/**
+ * The More tab: a handful of things, no more (SPEC-v3 IA). Everything that belongs to food,
+ * training or progress lives in that tab's hub instead.
+ */
 @Composable
 fun MoreScreen(
     contentPadding: PaddingValues,
     onNavigate: (Route) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val entries = listOf(
-        // SPEC §7.6: the reference screen is two taps from anywhere, so it sits
-        // first in this list.
-        MoreEntry(
-            title = "Allergen reference",
-            subtitle = "The hidden-dairy checklist and eat-out notes, offline",
-            icon = Icons.Filled.Warning,
-            route = Route.AllergenReference,
+    HubScreen(
+        title = "More",
+        subtitle = "Your profile and preferences, all on this phone.",
+        contentPadding = contentPadding,
+        modifier = modifier,
+        items = listOf(
+            HubItem(
+                title = "Profile & goals",
+                description = "Goal weight, calorie and protein targets",
+                icon = Icons.Filled.Person,
+                onClick = { onNavigate(Route.Settings(section = "targets")) },
+            ),
+            // The baseline week, body type and phase arrive later; the row holds their place.
+            HubItem(
+                title = "Body type, phase and baseline",
+                description = "Coming soon",
+                icon = Icons.Filled.Spa,
+                enabled = false,
+            ),
+            HubItem(
+                title = "Settings",
+                description = "Units, theme, training and API keys",
+                icon = Icons.Filled.Settings,
+                onClick = { onNavigate(Route.Settings()) },
+            ),
+            HubItem(
+                title = "Backup & sync",
+                description = "Encrypted nightly backup to your server, export and import",
+                icon = Icons.Filled.CloudUpload,
+                onClick = { onNavigate(Route.Backup) },
+            ),
+            HubItem(
+                title = "AI",
+                description = "Photo estimates and Recipe Hunter. Off until you add a key",
+                icon = Icons.Filled.AutoAwesome,
+                onClick = { onNavigate(Route.AiSettings) },
+                tag = "Optional",
+            ),
+            HubItem(
+                title = "Privacy",
+                description = "Exactly what leaves this phone, and when",
+                icon = Icons.Filled.Lock,
+                onClick = { onNavigate(Route.Privacy) },
+            ),
+            HubItem(
+                title = "Help",
+                description = "Script docs and a replay of the tour",
+                icon = Icons.AutoMirrored.Filled.HelpOutline,
+                onClick = { onNavigate(Route.Help) },
+            ),
         ),
-        MoreEntry(
-            title = "Add a weigh-in",
-            subtitle = "Weight, body fat and tape measurements",
-            icon = Icons.Filled.MonitorWeight,
-            route = Route.BodyMetrics,
-        ),
-        MoreEntry(
-            title = "Plan & program scripts",
-            subtitle = "Write a meal plan or workout by hand, with the full reference",
-            icon = Icons.Filled.Code,
-            route = Route.ScriptReference(),
-        ),
-        MoreEntry(
-            title = "Meal prep tags",
-            subtitle = "Saved meals that log in one tap, or from an NFC tag",
-            icon = Icons.Filled.Nfc,
-            route = Route.MealTemplates,
-        ),
-        MoreEntry(
-            title = "Menu import",
-            subtitle = "Restaurant menus for Plan B, checked for allergens",
-            icon = Icons.Filled.RestaurantMenu,
-            route = Route.MenuSources,
-        ),
-        MoreEntry(
-            title = "Jump test",
-            subtitle = "Vertical jump, standing and total reach",
-            icon = Icons.Filled.Height,
-            route = Route.Performance,
-        ),
-        MoreEntry(
-            title = "Weekly check-in",
-            subtitle = "A printable PDF of the week: intake, burn, weight, sleep, training",
-            icon = Icons.Filled.Description,
-            route = Route.WeeklyReport,
-        ),
-        MoreEntry(
-            title = "Health Connect",
-            subtitle = "Watch and scale data, and how workout calories count",
-            icon = Icons.Filled.MonitorHeart,
-            route = Route.HealthConnect,
-        ),
-        MoreEntry(
-            title = "Backup & sync",
-            subtitle = "Encrypted nightly backup to your server, export and import",
-            icon = Icons.Filled.CloudUpload,
-            route = Route.Backup,
-        ),
-        MoreEntry(
-            title = "Settings",
-            subtitle = "Units, targets, API keys, allergens",
-            icon = Icons.Filled.Settings,
-            route = Route.Settings,
-        ),
-        MoreEntry(
-            title = "Privacy",
-            subtitle = "Exactly what leaves this phone, and when",
-            icon = Icons.Filled.Lock,
-            route = Route.Privacy,
-        ),
-    )
+        after = {
+            // SPEC §13: the privacy position is a feature, so it is stated on the
+            // screen rather than buried one tap away.
+            item(key = "privacy") {
+                AccentNote(
+                    lead = "Private by design",
+                    body = "Your meals, training and weight stay on this device. No accounts, " +
+                        "analytics or subscriptions. Only a barcode, a search term or a photo " +
+                        "you choose to send ever leaves the phone.",
+                )
+            }
 
-    LazyColumn(
-        modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(
-            top = contentPadding.calculateTopPadding(),
-            bottom = contentPadding.calculateBottomPadding() + 24.dp,
-            start = 16.dp,
-            end = 16.dp,
-        ),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        item(key = "heading") {
-            SubHead("More", "Your tools and preferences, all on this phone.")
-        }
-
-        item(key = "list") {
-            SectionLine("Your Intake")
-            IntakeCard {
-                entries.forEachIndexed { index, entry ->
-                    MenuItem(
-                        icon = entry.icon,
-                        title = entry.title,
-                        subtitle = entry.subtitle,
-                        trailing = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        showDivider = index != entries.lastIndex,
-                        onClick = { onNavigate(entry.route) },
+            item(key = "version") {
+                Column(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 10.dp)) {
+                    Text(
+                        text = "Intake ${BuildConfig.VERSION_NAME} · build ${BuildConfig.VERSION_CODE}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
-        }
-
-        // SPEC §13: the privacy position is a feature, so it is stated on the
-        // screen rather than buried one tap away.
-        item(key = "privacy") {
-            AccentNote(
-                lead = "Private by design",
-                body = "Your meals, training and weight stay on this device. No accounts, " +
-                    "analytics or subscriptions. Only a barcode, a search term or a photo " +
-                    "you choose to send ever leaves the phone.",
-            )
-        }
-
-        item(key = "version") {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                Text(
-                    text = "Intake ${BuildConfig.VERSION_NAME} · build ${BuildConfig.VERSION_CODE}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
+        },
+    )
 }

@@ -90,15 +90,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * The Plan tab (SPEC §9): the 12-week meal plan, then Recipe Hunter, saved
- * recipes and Plan B. Layout follows the mockup's `plan()` and `parking()`.
+ * Food > Meal plans (SPEC §9): the meal plan week by week, with import and export. Layout
+ * follows the mockup's `plan()` and `parking()`. Recipes, Recipe Hunter and Plan B have their
+ * own places in the Food hub.
  */
 @Composable
 fun PlanScreen(
     contentPadding: PaddingValues,
-    onOpenHunter: () -> Unit,
     onOpenPlanB: () -> Unit,
-    onOpenRecipe: (String) -> Unit,
     onOpenCook: (String) -> Unit,
     onOpenScriptReference: (page: String, anchor: String?) -> Unit,
     modifier: Modifier = Modifier,
@@ -151,7 +150,8 @@ fun PlanScreen(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
                 top = contentPadding.calculateTopPadding(),
-                bottom = 150.dp,
+                // The sticky buttons below, then the floating navigation pill under them.
+                bottom = 150.dp + contentPadding.calculateBottomPadding(),
                 start = 16.dp,
                 end = 16.dp,
             ),
@@ -236,40 +236,8 @@ fun PlanScreen(
 
             if (!meta.isEmpty) item(key = "every") { EveryWeekAccordion(meta) }
 
-            item(key = "hunter") {
-                IntakeCard(modifier = Modifier.clickable(role = Role.Button, onClick = onOpenHunter)) {
-                    Text("Recipe Hunter", style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(3.dp))
-                    Text(
-                        "Searches the web for meal-prep recipes that hit your macros, then checks every " +
-                            "ingredient against your allergens on this phone.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            item(key = "planb") {
-                IntakeCard(modifier = Modifier.clickable(role = Role.Button, onClick = onOpenPlanB)) {
-                    Text("Plan B", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "Find a safer place to eat nearby. Saved options work offline.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            item(key = "mine-head") { SectionLine("My recipes", note = "${recipes.size} saved") }
-            if (recipes.isEmpty()) {
-                item(key = "no-recipes") {
-                    AccentNote(
-                        lead = "No recipes yet",
-                        body = "Recipes you save from Recipe Hunter land here, ready to log a serving.",
-                        container = MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            items(recipes, key = { it.id }) { recipe -> RecipeRow(recipe, onClick = { onOpenRecipe(recipe.id) }) }
+            // Recipes, Recipe Hunter and Plan B live in the Food hub now; "Can't eat what I
+            // cooked?" below still reaches Plan B from here.
         }
 
         // The mockup's sticky "Log this meal" and the parking-lot button, always in reach.
@@ -278,6 +246,7 @@ fun PlanScreen(
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.background)
+                .padding(bottom = contentPadding.calculateBottomPadding())
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {

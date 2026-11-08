@@ -30,7 +30,27 @@ All of SPEC.md's built phases and every amendment feature are implemented:
   the `copyScriptDocs` task in `app/build.gradle.kts` and shown by
   `ScriptReferenceScreen` (`domain/docs/Markdown.kt` parses it).
 
-Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/BACKUP.md`,
+- Navigation and IA rebuild (SPEC-v3 "Information architecture"):
+  - `ui/navigation/FloatingPillBar.kt` is the floating pill (vertical on Medium+
+    widths). Touch is one `awaitEachGesture` on the whole pill; the logic is pure in
+    `PillGeometry.kt` (`PillHitTest`, `PillSlideTracker`). The pill is the Scaffold
+    `bottomBar`, so its height reaches every screen through `contentPadding`.
+  - `IntakeNavHost` has one nested graph per tab (`TabGraph`), so each tab has its own
+    back stack. Screens several tabs open (script reference, AI settings, settings,
+    backup, performance) are registered in each graph that links to them. Add new
+    routes inside the owning tab's graph, above its marker comment.
+  - `TabPolicy` decides switch / pop to root / nothing. Fade-through between tabs,
+    shared-axis X inside a tab, via `ui/motion/Motion.kt` (tokens, `LocalReduceMotion`,
+    which follows `ANIMATOR_DURATION_SCALE == 0`). Predictive back is enabled in the manifest.
+  - Hubs live in `ui/screens/hub/` (`HubScreen` + `HubItem`): Food, Recipes, Eating out,
+    Allergens, Train. More and Help are in `ui/screens/more/`. `PlanScreen` is now the
+    "Meal plans" route; `TrainScreen` is the "Programs" route.
+  - Script docs are split by `ScriptTopic`: a food or training entry shows only its pages,
+    with an "All script docs" link.
+  - Placeholders awaiting other work: Food > Recipes "Import from a link", Food >
+    Allergens "My allergens", More "Body type, phase and baseline", Help "Replay the tour".
+
+Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/SPEC-v3.md`, `docs/BACKUP.md`,
 `docs/BENCHMARK.md`, `docs/PRIVACY.md`, `server/README.md`.
 
 ## Verified
@@ -54,6 +74,9 @@ Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/BACKUP.md`,
 ## NOT verified
 
 - No emulator or on-screen visual check of any screen (this includes the script import sheets and the reference screen).
+- The floating pill: slide gesture, spring highlight, haptics, colours in both themes, the edge
+  back-gesture rule, TalkBack, and the nested-graph tab back stacks (save/restore, pop to
+  root, duplicated shared destinations) are compiled and unit-tested for their pure logic only.
 - No real OpenRouter calls. The client, prompts and parsing are tested only
   against fakes and fixtures.
 - No real watch and phone pairing. The Data Layer path has not run on devices.
