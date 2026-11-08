@@ -6,11 +6,13 @@ import com.zeroindex.intake.data.db.entity.BodyMetricEntity
 import com.zeroindex.intake.data.db.entity.TdeeEstimateEntity
 import com.zeroindex.intake.data.repository.BodyRepository
 import com.zeroindex.intake.data.repository.FoodLogRepository
+import com.zeroindex.intake.data.repository.PerformanceRepository
 import com.zeroindex.intake.data.repository.TargetRepository
 import com.zeroindex.intake.data.repository.TdeeRepository
 import com.zeroindex.intake.data.settings.AppSettings
 import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.nutrition.MacroTarget
+import com.zeroindex.intake.domain.performance.OverlayWeek
 import com.zeroindex.intake.domain.tdee.TrendPoint
 import com.zeroindex.intake.domain.time.Clock
 import com.zeroindex.intake.domain.time.localDateOf
@@ -53,6 +55,8 @@ data class ProgressUiState(
     val proteinHitRate: Double? = null,
     val photos: List<BodyMetricEntity> = emptyList(),
     val isRecalculating: Boolean = false,
+    /** Amendment §2: weekly tonnage against best jump, for the overlay card. */
+    val performance: List<OverlayWeek> = emptyList(),
 ) {
     val latestWeightKg: Double? get() = metrics.maxByOrNull { it.measuredAt }?.weightKg
     val trendWeightKg: Double? get() = trend.lastOrNull()?.trendKg
@@ -79,6 +83,7 @@ class ProgressViewModel @Inject constructor(
     private val targetRepository: TargetRepository,
     private val tdeeRepository: TdeeRepository,
     private val settingsRepository: SettingsRepository,
+    private val performanceRepository: PerformanceRepository,
     private val clock: Clock,
 ) : ViewModel() {
 
@@ -109,9 +114,11 @@ class ProgressViewModel @Inject constructor(
                     settingsRepository.settings,
                     bodyRepository.observeWithPhotos(),
                     adherence,
-                    recalculating,
-                ) { tdee, settings, photos, snapshot, busy ->
-                    Extras(tdee, settings, photos, snapshot, busy)
+                    combine(recalculating, performanceRepository.observeOverlay(from, today)) { busy, weeks ->
+                        busy to weeks
+                    },
+                ) { tdee, settings, photos, snapshot, busyAndWeeks ->
+                    Extras(tdee, settings, photos, snapshot, busyAndWeeks.first, busyAndWeeks.second)
                 },
             ) { metrics, trend, intake, target, extras ->
                 val byDay = intake.associate {
@@ -143,6 +150,7 @@ class ProgressViewModel @Inject constructor(
                     proteinHitRate = extras.snapshot.proteinHitRate,
                     photos = extras.photos,
                     isRecalculating = extras.busy,
+                    performance = extras.performance,
                 )
             }
         }
@@ -158,6 +166,7 @@ class ProgressViewModel @Inject constructor(
         val photos: List<BodyMetricEntity>,
         val snapshot: AdherenceSnapshot,
         val busy: Boolean,
+        val performance: List<OverlayWeek>,
     )
 
     init {

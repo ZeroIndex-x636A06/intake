@@ -9,6 +9,7 @@ import androidx.navigation.toRoute
 import com.zeroindex.intake.ui.screens.allergen.AllergenReferenceScreen
 import com.zeroindex.intake.ui.screens.body.BodyMetricsScreen
 import com.zeroindex.intake.ui.screens.more.MoreScreen
+import com.zeroindex.intake.ui.screens.performance.PerformanceScreen
 import com.zeroindex.intake.ui.screens.plan.PlanScreen
 import com.zeroindex.intake.ui.screens.progress.ProgressScreen
 import com.zeroindex.intake.ui.screens.settings.PrivacyScreen
@@ -46,6 +47,7 @@ fun IntakeNavHost(
             ProgressScreen(
                 contentPadding = contentPadding,
                 onAddMeasurement = { navController.navigate(Route.BodyMetrics) },
+                onAddJumpTest = { navController.navigate(Route.Performance) },
             )
         }
         composable<Route.More> {
@@ -66,6 +68,9 @@ fun IntakeNavHost(
                 contentPadding = contentPadding,
                 onFinished = { navController.popBackStack() },
             )
+        }
+        composable<Route.Performance> {
+            PerformanceScreen(contentPadding = contentPadding, onSaved = {})
         }
         composable<Route.BodyMetrics> {
             BodyMetricsScreen(

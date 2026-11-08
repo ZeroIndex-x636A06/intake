@@ -273,6 +273,67 @@ fun AdherenceHeatmap(
 }
 
 /**
+ * Two series that do not share a unit on one plot (amendment §2): bars for
+ * weekly training volume, a line with dots for jump height. Each is scaled to
+ * its own range, so the chart shows whether they move together - which is the
+ * question - without pretending pounds and inches share an axis. The legend
+ * carries each series' real range, and [description] says it in words.
+ */
+@Composable
+fun OverlayChart(
+    bars: List<Double>,
+    line: List<Double?>,
+    description: String,
+    modifier: Modifier = Modifier,
+    barColor: Color = HeatPartial,
+    lineColor: Color = MaterialTheme.colorScheme.tertiary,
+) {
+    if (bars.isEmpty()) {
+        ChartPlaceholder("Log a jump test and a few sessions to compare them", modifier)
+        return
+    }
+    val gridColor = MaterialTheme.colorScheme.outlineVariant
+    val ringColor = MaterialTheme.colorScheme.surface
+    val maxBar = bars.maxOrNull()?.takeIf { it > 0 } ?: 1.0
+    val points = line.filterNotNull()
+    val minLine = points.minOrNull() ?: 0.0
+    val maxLine = points.maxOrNull() ?: 1.0
+    val pad = max((maxLine - minLine) * 0.2, 1.0)
+
+    Canvas(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(140.dp)
+            .clearAndSetSemantics { contentDescription = description },
+    ) {
+        drawLine(gridColor, Offset(0f, size.height), Offset(size.width, size.height), 1.dp.toPx())
+        val slot = size.width / bars.size
+        val barWidth = min(slot * 0.6f, 18.dp.toPx())
+        bars.forEachIndexed { i, v ->
+            if (v <= 0) return@forEachIndexed
+            val h = (v / maxBar * size.height * 0.85).toFloat()
+            drawRoundRect(
+                color = barColor,
+                topLeft = Offset(slot * i + (slot - barWidth) / 2f, size.height - h),
+                size = Size(barWidth, h),
+                cornerRadius = CornerRadius(4.dp.toPx()),
+            )
+        }
+        fun y(v: Double) = (size.height - (v - (minLine - pad)) / ((maxLine + pad) - (minLine - pad)) * size.height).toFloat()
+        val centres = line.mapIndexedNotNull { i, v -> v?.let { Offset(slot * i + slot / 2f, y(it)) } }
+        if (centres.size >= 2) {
+            val path = Path()
+            centres.forEachIndexed { i, o -> if (i == 0) path.moveTo(o.x, o.y) else path.lineTo(o.x, o.y) }
+            drawPath(path, lineColor, style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round))
+        }
+        centres.forEach { o ->
+            drawCircle(ringColor, radius = 5.5.dp.toPx(), center = o)
+            drawCircle(lineColor, radius = 3.5.dp.toPx(), center = o)
+        }
+    }
+}
+
+/**
  * The mockup's `.chart-legend`: what each mark means, since the charts carry no
  * axis labels.
  */

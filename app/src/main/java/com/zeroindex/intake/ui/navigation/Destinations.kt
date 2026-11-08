@@ -26,6 +26,7 @@ sealed interface Route {
     @Serializable data object Settings : Route
     @Serializable data object Privacy : Route
     @Serializable data object BodyMetrics : Route
+    @Serializable data object Performance : Route
     @Serializable data object ExerciseLibrary : Route
     @Serializable data object ProgramBuilder : Route
     @Serializable data object WorkoutHistory : Route

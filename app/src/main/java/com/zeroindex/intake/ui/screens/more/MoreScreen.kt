@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Height
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Settings
@@ -53,6 +54,12 @@ fun MoreScreen(
             subtitle = "Weight, body fat and tape measurements",
             icon = Icons.Filled.MonitorWeight,
             route = Route.BodyMetrics,
+        ),
+        MoreEntry(
+            title = "Jump test",
+            subtitle = "Vertical jump, standing and total reach",
+            icon = Icons.Filled.Height,
+            route = Route.Performance,
         ),
         MoreEntry(
             title = "Settings",

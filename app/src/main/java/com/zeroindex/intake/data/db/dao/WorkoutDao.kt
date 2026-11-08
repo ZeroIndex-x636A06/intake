@@ -97,6 +97,18 @@ interface WorkoutDao {
         endExclusive: Long,
     ): Flow<List<MuscleSetCount>>
 
+    /** Every working set in a window, for weekly tonnage (amendment §2 overlay). */
+    @Query(
+        """
+        SELECT completedAt AS completedAt, weightKg AS weightKg, reps AS reps
+        FROM set_log
+        WHERE deletedAt IS NULL AND isWarmup = 0
+          AND completedAt >= :startInclusive AND completedAt < :endExclusive
+        ORDER BY completedAt
+        """,
+    )
+    fun observeWorkingSetsInRange(startInclusive: Long, endExclusive: Long): Flow<List<SetPoint>>
+
     @Query("UPDATE workout_session SET finishedAt = :now, updatedAt = :now WHERE id = :id")
     suspend fun finishSession(id: String, now: Long)
 

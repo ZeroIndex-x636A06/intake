@@ -8,8 +8,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
@@ -37,12 +37,14 @@ import com.zeroindex.intake.ui.components.ChoiceChip
 import com.zeroindex.intake.ui.components.ConfidenceLine
 import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.ui.components.LegendEntry
+import com.zeroindex.intake.ui.components.OverlayChart
 import com.zeroindex.intake.ui.components.SectionCard
 import com.zeroindex.intake.ui.components.SubHead
 import com.zeroindex.intake.ui.components.SummaryTile
 import com.zeroindex.intake.ui.components.TargetBarChart
 import com.zeroindex.intake.ui.components.TrendLineChart
 import com.zeroindex.intake.ui.theme.HeatFull
+import com.zeroindex.intake.ui.theme.HeatPartial
 import com.zeroindex.intake.ui.theme.IntakeShape
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -51,6 +53,7 @@ import kotlin.math.roundToInt
 fun ProgressScreen(
     contentPadding: PaddingValues,
     onAddMeasurement: () -> Unit,
+    onAddJumpTest: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ProgressViewModel = hiltViewModel(),
 ) {
@@ -193,6 +196,10 @@ fun ProgressScreen(
                     ),
                 )
             }
+        }
+
+        item(key = "performance") {
+            PerformanceCard(state = state, onAddJump = onAddJumpTest)
         }
 
         if (state.metrics.any { it.hasMeasurements() }) {
@@ -373,3 +380,66 @@ private fun intakeDescription(state: ProgressUiState): String {
 }
 
 private fun format(value: Double): String = UnitConverter.round(value, 1).toString()
+
+/**
+ * Amendment §2: does more training volume come with a better jump, or a
+ * worse one? Weekly tonnage as bars, best vertical that week as the line.
+ */
+@Composable
+private fun PerformanceCard(state: ProgressUiState, onAddJump: () -> Unit) {
+    val weeks = state.performance
+    val length = state.settings.lengthUnit
+    val weight = state.settings.weightUnit
+    val jumps = weeks.mapNotNull { it.bestVerticalCm }
+    val latest = jumps.lastOrNull()
+
+    SectionCard(title = "Explosive output", caption = "weekly") {
+        if (latest != null) {
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    text = format(length.fromCm(latest)),
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(Modifier.width(5.dp))
+                Text(
+                    text = "${length.label} · latest vertical",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 3.dp),
+                )
+            }
+        }
+        OverlayChart(
+            bars = weeks.map { weight.fromKg(it.tonnageKg) },
+            line = weeks.map { w -> w.bestVerticalCm?.let(length::fromCm) },
+            description = buildString {
+                append("Weekly training volume and best vertical jump over ${weeks.size} weeks. ")
+                if (jumps.size >= 2) {
+                    append(
+                        "Jump went from ${format(length.fromCm(jumps.first()))} to " +
+                            "${format(length.fromCm(jumps.last()))} ${length.label}.",
+                    )
+                } else {
+                    append("Not enough jump tests to show a trend yet.")
+                }
+            },
+        )
+        val maxTonnage = weeks.maxOfOrNull { it.tonnageKg } ?: 0.0
+        ChartLegend(
+            entries = listOf(
+                LegendEntry(
+                    "Weekly volume (to ${"%,d".format(weight.fromKg(maxTonnage).roundToInt())} ${weight.label})",
+                    HeatPartial,
+                ),
+                LegendEntry("Best vertical (${length.label})", MaterialTheme.colorScheme.tertiary, isLine = true),
+            ),
+        )
+        Spacer(Modifier.height(10.dp))
+        OutlinedButton(
+            onClick = onAddJump,
+            shape = IntakeShape.Button,
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+        ) { Text("Add a jump test") }
+    }
+}
