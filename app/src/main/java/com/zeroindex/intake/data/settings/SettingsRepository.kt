@@ -12,6 +12,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.zeroindex.intake.domain.units.LengthUnit
+import com.zeroindex.intake.domain.units.VolumeUnit
 import com.zeroindex.intake.domain.units.WeightUnit
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -44,6 +45,11 @@ data class AppSettings(
     val currentPlanWeek: Int = 1,
     val lastExportAtMillis: Long? = null,
     val demoDataLoaded: Boolean = false,
+    /** Imperial by default, to match the pounds/inches defaults (SPEC §3.5). */
+    val volumeUnit: VolumeUnit = VolumeUnit.US_FLUID_OUNCES,
+    /** Null means "work it out from bodyweight". */
+    val hydrationBaseMl: Double? = null,
+    val hydrationDynamic: Boolean = true,
 ) {
     val platesKgList: List<Double>
         get() = availablePlatesKg.split(',')
@@ -76,6 +82,9 @@ class SettingsRepository @Inject constructor(
         val planWeek = intPreferencesKey("current_plan_week")
         val lastExport = longPreferencesKey("last_export_at")
         val demoLoaded = booleanPreferencesKey("demo_data_loaded")
+        val volumeUnit = stringPreferencesKey("volume_unit")
+        val hydrationBase = doublePreferencesKey("hydration_base_ml")
+        val hydrationDynamic = booleanPreferencesKey("hydration_dynamic")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -100,6 +109,10 @@ class SettingsRepository @Inject constructor(
             currentPlanWeek = p[Keys.planWeek] ?: 1,
             lastExportAtMillis = p[Keys.lastExport],
             demoDataLoaded = p[Keys.demoLoaded] ?: false,
+            volumeUnit = p[Keys.volumeUnit]?.let { runCatching { VolumeUnit.valueOf(it) }.getOrNull() }
+                ?: VolumeUnit.US_FLUID_OUNCES,
+            hydrationBaseMl = p[Keys.hydrationBase],
+            hydrationDynamic = p[Keys.hydrationDynamic] ?: true,
         )
     }
 
@@ -122,6 +135,11 @@ class SettingsRepository @Inject constructor(
     suspend fun setCurrentPlanWeek(week: Int) = put { it[Keys.planWeek] = week }
     suspend fun setLastExportAt(millis: Long) = put { it[Keys.lastExport] = millis }
     suspend fun setDemoDataLoaded(loaded: Boolean) = put { it[Keys.demoLoaded] = loaded }
+    suspend fun setVolumeUnit(unit: VolumeUnit) = put { it[Keys.volumeUnit] = unit.name }
+    suspend fun setHydrationBaseMl(ml: Double?) = put {
+        if (ml == null) it.remove(Keys.hydrationBase) else it[Keys.hydrationBase] = ml
+    }
+    suspend fun setHydrationDynamic(enabled: Boolean) = put { it[Keys.hydrationDynamic] = enabled }
 
     private suspend fun put(block: (MutablePreferences) -> Unit) {
         context.dataStore.edit(block)

@@ -5,13 +5,18 @@ import androidx.room.Room
 import com.zeroindex.intake.data.db.ALL
 import com.zeroindex.intake.data.db.IntakeDatabase
 import com.zeroindex.intake.data.db.dao.AiCorrectionDao
+import com.zeroindex.intake.data.db.dao.AiInsightDao
 import com.zeroindex.intake.data.db.dao.AllergenDao
 import com.zeroindex.intake.data.db.dao.BodyMetricDao
 import com.zeroindex.intake.data.db.dao.ExerciseDao
 import com.zeroindex.intake.data.db.dao.FoodDao
 import com.zeroindex.intake.data.db.dao.FoodLogDao
+import com.zeroindex.intake.data.db.dao.HealthSummaryDao
+import com.zeroindex.intake.data.db.dao.HydrationDao
 import com.zeroindex.intake.data.db.dao.MealTemplateDao
+import com.zeroindex.intake.data.db.dao.MenuDao
 import com.zeroindex.intake.data.db.dao.NutritionTargetDao
+import com.zeroindex.intake.data.db.dao.PerformanceDao
 import com.zeroindex.intake.data.db.dao.PlanDao
 import com.zeroindex.intake.data.db.dao.ProgramDao
 import com.zeroindex.intake.data.db.dao.ProgressionRuleDao
@@ -56,4 +61,9 @@ object DatabaseModule {
     @Provides fun provideShoppingListDao(db: IntakeDatabase): ShoppingListDao = db.shoppingListDao()
     @Provides fun provideAllergenDao(db: IntakeDatabase): AllergenDao = db.allergenDao()
     @Provides fun provideAiCorrectionDao(db: IntakeDatabase): AiCorrectionDao = db.aiCorrectionDao()
+    @Provides fun provideHydrationDao(db: IntakeDatabase): HydrationDao = db.hydrationDao()
+    @Provides fun providePerformanceDao(db: IntakeDatabase): PerformanceDao = db.performanceDao()
+    @Provides fun provideMenuDao(db: IntakeDatabase): MenuDao = db.menuDao()
+    @Provides fun provideAiInsightDao(db: IntakeDatabase): AiInsightDao = db.aiInsightDao()
+    @Provides fun provideHealthSummaryDao(db: IntakeDatabase): HealthSummaryDao = db.healthSummaryDao()
 }

@@ -3,12 +3,19 @@ package com.zeroindex.intake.ui.screens.today
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroindex.intake.data.db.entity.FoodLogEntity
+import com.zeroindex.intake.data.db.entity.HydrationLogEntity
+import com.zeroindex.intake.data.db.entity.HydrationPresetEntity
 import com.zeroindex.intake.data.repository.FoodLogRepository
+import com.zeroindex.intake.data.repository.HydrationDay
+import com.zeroindex.intake.data.repository.HydrationRepository
 import com.zeroindex.intake.data.repository.TargetRepository
+import com.zeroindex.intake.data.settings.AppSettings
+import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nutrition.DayProgress
 import com.zeroindex.intake.domain.nutrition.Macros
 import com.zeroindex.intake.domain.time.Clock
+import com.zeroindex.intake.domain.units.VolumeUnit
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDate
 import javax.inject.Inject
@@ -29,6 +36,9 @@ data class TodayUiState(
     val progress: DayProgress = DayProgress(Macros.ZERO, null),
     val slots: List<MealSlotUi> = emptyList(),
     val hasTarget: Boolean = false,
+    val hydration: HydrationDay? = null,
+    val hydrationPresets: List<HydrationPresetEntity> = emptyList(),
+    val settings: AppSettings = AppSettings(),
 ) {
     val totalEntries: Int get() = slots.sumOf { it.entries.size }
 }
@@ -52,10 +62,16 @@ internal fun MealSlot.displayName(): String = when (this) {
 class TodayViewModel @Inject constructor(
     private val foodLogRepository: FoodLogRepository,
     private val targetRepository: TargetRepository,
+    private val hydrationRepository: HydrationRepository,
+    private val settingsRepository: SettingsRepository,
     private val clock: Clock,
 ) : ViewModel() {
 
     private val selectedDate = MutableStateFlow(clock.today())
+
+    init {
+        viewModelScope.launch { hydrationRepository.ensureDefaultPresets() }
+    }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<TodayUiState> = selectedDate
@@ -64,7 +80,12 @@ class TodayViewModel @Inject constructor(
                 foodLogRepository.observeDay(date),
                 foodLogRepository.observeDayTotals(date),
                 targetRepository.observeTargetFor(date),
-            ) { logs, totals, target ->
+                hydrationRepository.observeDay(date),
+                combine(
+                    hydrationRepository.observePresets(),
+                    settingsRepository.settings,
+                ) { presets, settings -> presets to settings },
+            ) { logs, totals, target, hydration, presetsAndSettings ->
                 val today = clock.today()
                 TodayUiState(
                     date = date,
@@ -75,6 +96,9 @@ class TodayViewModel @Inject constructor(
                         MealSlotUi(slot = slot, entries = logs.filter { it.mealSlot == slot })
                     },
                     hasTarget = target != null,
+                    hydration = hydration,
+                    hydrationPresets = presetsAndSettings.first,
+                    settings = presetsAndSettings.second,
                 )
             }
         }
@@ -103,6 +127,26 @@ class TodayViewModel @Inject constructor(
     fun updateQuantity(log: FoodLogEntity, grams: Double) = viewModelScope.launch {
         foodLogRepository.updateQuantity(log, grams)
     }
+
+    // --- Water (amendment §3) ---------------------------------------------
+
+    fun logWater(volumeMl: Double, presetId: String? = null, onLogged: (HydrationLogEntity) -> Unit = {}) =
+        viewModelScope.launch {
+            onLogged(hydrationRepository.log(volumeMl, timestampForSelectedDay(), presetId))
+        }
+
+    fun deleteWater(log: HydrationLogEntity) = viewModelScope.launch { hydrationRepository.delete(log.id) }
+    fun restoreWater(log: HydrationLogEntity) = viewModelScope.launch { hydrationRepository.restore(log) }
+
+    fun saveWaterPreset(name: String, volumeMl: Double, existing: HydrationPresetEntity?) =
+        viewModelScope.launch { hydrationRepository.savePreset(name, volumeMl, existing) }
+
+    fun deleteWaterPreset(preset: HydrationPresetEntity) =
+        viewModelScope.launch { hydrationRepository.deletePreset(preset.id) }
+
+    fun setVolumeUnit(unit: VolumeUnit) = viewModelScope.launch { settingsRepository.setVolumeUnit(unit) }
+    fun setHydrationBase(ml: Double?) = viewModelScope.launch { settingsRepository.setHydrationBaseMl(ml) }
+    fun setHydrationDynamic(on: Boolean) = viewModelScope.launch { settingsRepository.setHydrationDynamic(on) }
 
     /**
      * Timestamp to attach when logging onto the viewed day. Logging onto a past

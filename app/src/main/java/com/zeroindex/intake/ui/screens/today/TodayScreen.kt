@@ -2,10 +2,12 @@ package com.zeroindex.intake.ui.screens.today
 
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -20,11 +22,16 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,17 +44,20 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.db.entity.FoodLogEntity
+import com.zeroindex.intake.data.db.entity.HydrationPresetEntity
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.ui.addfood.AddFoodSheet
 import com.zeroindex.intake.ui.components.AccentNote
 import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.MacroRing
 import com.zeroindex.intake.ui.components.SectionLine
+import com.zeroindex.intake.ui.screens.today.components.HydrationCard
 import com.zeroindex.intake.ui.screens.today.components.MealSlotCard
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.abs
+import kotlinx.coroutines.launch
 
 @Composable
 fun TodayScreen(
@@ -58,20 +68,65 @@ fun TodayScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     var addToSlot by remember { mutableStateOf<MealSlot?>(null) }
+    var showWater by remember { mutableStateOf(false) }
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     var actionsFor by remember { mutableStateOf<FoodLogEntity?>(null) }
     var copyTarget by remember { mutableStateOf<FoodLogEntity?>(null) }
 
-    TodayContent(
-        state = state,
-        contentPadding = contentPadding,
-        modifier = modifier,
-        onPreviousDay = viewModel::showPreviousDay,
-        onNextDay = viewModel::showNextDay,
-        onShowToday = viewModel::showToday,
-        onAddToSlot = { addToSlot = it },
-        onEntryLongPress = { actionsFor = it },
-        onEntrySwipedToCopy = { copyTarget = it },
-    )
+    Box(modifier.fillMaxSize()) {
+        TodayContent(
+            state = state,
+            contentPadding = contentPadding,
+            onPreviousDay = viewModel::showPreviousDay,
+            onNextDay = viewModel::showNextDay,
+            onShowToday = viewModel::showToday,
+            onAddToSlot = { addToSlot = it },
+            onEntryLongPress = { actionsFor = it },
+            onEntrySwipedToCopy = { copyTarget = it },
+            onWaterPreset = { preset ->
+                viewModel.logWater(preset.volumeMl, preset.id) { logged ->
+                    scope.launch {
+                        val unit = state.settings.volumeUnit
+                        val result = snackbar.showSnackbar(
+                            message = "Added ${unit.format(logged.volumeMl)} of water",
+                            actionLabel = "Undo",
+                            duration = SnackbarDuration.Short,
+                        )
+                        if (result == SnackbarResult.ActionPerformed) viewModel.deleteWater(logged)
+                    }
+                }
+            },
+            onOpenWater = { showWater = true },
+        )
+        SnackbarHost(
+            hostState = snackbar,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = contentPadding.calculateBottomPadding() + 8.dp),
+        )
+    }
+
+    if (showWater) {
+        state.hydration?.let { day ->
+            HydrationSheet(
+                day = day,
+                presets = state.hydrationPresets,
+                unit = state.settings.volumeUnit,
+                manualBaseMl = state.settings.hydrationBaseMl,
+                dynamic = state.settings.hydrationDynamic,
+                onDismiss = { showWater = false },
+                onLog = { ml -> viewModel.logWater(ml) },
+                onDelete = viewModel::deleteWater,
+                onRestore = viewModel::restoreWater,
+                onSavePreset = viewModel::saveWaterPreset,
+                onDeletePreset = viewModel::deleteWaterPreset,
+                onSetUnit = viewModel::setVolumeUnit,
+                onSetBase = viewModel::setHydrationBase,
+                onSetDynamic = viewModel::setHydrationDynamic,
+            )
+        }
+    }
 
     addToSlot?.let { slot ->
         AddFoodSheet(
@@ -105,19 +160,20 @@ fun TodayScreen(
 private fun TodayContent(
     state: TodayUiState,
     contentPadding: PaddingValues,
-    modifier: Modifier = Modifier,
     onPreviousDay: () -> Unit,
     onNextDay: () -> Unit,
     onShowToday: () -> Unit,
     onAddToSlot: (MealSlot) -> Unit,
     onEntryLongPress: (FoodLogEntity) -> Unit,
     onEntrySwipedToCopy: (FoodLogEntity) -> Unit,
+    onWaterPreset: (HydrationPresetEntity) -> Unit,
+    onOpenWater: () -> Unit,
 ) {
     val swipeThreshold = with(LocalDensity.current) { 64.dp.toPx() }
     var dragged by remember { mutableStateOf(0f) }
 
     LazyColumn(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
             // SPEC §5: swipe left and right to change days.
             .pointerInput(Unit) {
@@ -145,6 +201,17 @@ private fun TodayContent(
             IntakeCard { MacroRing(progress = state.progress) }
         }
         item(key = "remaining") { RemainingNote(state) }
+        state.hydration?.let { day ->
+            item(key = "water") {
+                HydrationCard(
+                    day = day,
+                    presets = state.hydrationPresets,
+                    unit = state.settings.volumeUnit,
+                    onPreset = onWaterPreset,
+                    onOpen = onOpenWater,
+                )
+            }
+        }
         item(key = "meals-heading") {
             SectionLine(title = "Meals", note = "Long-press an entry to edit")
         }
