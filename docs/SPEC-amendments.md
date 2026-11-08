@@ -1,0 +1,32 @@
+# **SPEC.md Amendments & Additions**
+
+This document outlines architectural additions and new feature scopes to be appended to the primary `SPEC.md`. Implementation details (such as specific Room schema changes, prompt structures, and routing logic) are left to the agent's discretion, provided the core functionality described below is fulfilled.
+
+## **1. OpenRouter AI Agent Workflows**
+Integrate a routing layer via OpenRouter for cost-effective AI operations. Add the following workflows:
+  - **Vision Tracker (Image to Macros):** Evaluate food photos to estimate portions, identify hidden calories (oils, sauces), and return a conservative range for calories, protein, carbs, and fats. Must strictly return structured JSON.
+  - **Recipe Hunter (Web Search & Extraction):** An agentic loop that searches the web for meal prep recipes meeting specific macro goals while strictly filtering out all dairy (milk, cheese, butter, whey, casein). Must scrape results and return structured recipe data safely.
+  - **"Plan B" Fast Food Finder:** A location-aware tool that takes current coordinates/zip code, searches nearby restaurants, and cross-references their menus against the daily macro targets and dairy restrictions to provide immediate eat-out alternatives.
+  - **Automated Menu Ingestion (ETL Pipeline):** A scheduled cron job that scrapes menus from DoorDash, Square, or PDFs, passes the raw text to a large-context model for parsing, and populates the local database with menu items, macros, and allergen flags.
+  - **Dynamic Model Picker & Cost Optimization:** Implement a UI model picker in the settings or task screens that dynamically reads from the user's configured provider keys. The app must proactively suggest the optimal model for the specific task at hand. 
+  - *Claude Instructions for Implementation:* Thoroughly test and benchmark different models across these distinct tasks to find the most efficient and accurate defaults. You must prioritize models that are as cheap as possible (free if available on OpenRouter) while still executing the task flawlessly.
+      - **Suggested Models to Benchmark (via OpenRouter):**
+          - **Vision Tracker:** Google Gemini Flash (Latest), OpenAI GPT-5.6 Luna or GPT-6 Luna (for strict JSON adherence), and DeepSeek V4.1 Flash.
+          - **Recipe Hunter & ETL Pipelines:** Meta Llama 3.3 70B Instruct (excellent native function calling at ultra-low cost), Google Gemini Flash (massive context window for raw scrapes), and Anthropic Claude 3.5 Haiku (reliable fallback for complex allergy logic).
+
+## **2. Feature Additions & Enhancements**
+  - **NFC Meal Prep Logging:** Extend the `MealTemplate` data model to support NDEF payloads. Allow writing templates to blank NFC tags so that tapping a meal prep container instantly logs the meal to the current slot via an app deep link.
+  - **Wear OS Active Workout Client:** Build a minimal Wear OS companion app that syncs via the Wearable Data Layer API. It must allow logging completed reps, inputting RPE, and triggering rest timers mid-workout directly from a smartwatch to reduce phone handling.
+  - **Explosive Performance Tracking:** Add a `PerformanceMetric` table to track dynamic athletic data alongside traditional lifting volume. Must support tracking vertical jump height, standing reach, and total jumping reach, overlaying these metrics on the Progress tab graphs to correlate gym volume with raw athletic output.
+  - **Automated Headless Backups:** Augment the manual JSON export by adding a WorkManager task to silently push database exports over a secure mesh network or VPN to a self-hosted home server via WebDAV/SMB/SFTP on a nightly basis.
+  - **Strict Health Connect De-Duplication:** Refine the Health Connect read logic. When pulling active calorie burns from tracked cardiovascular sessions, the app must subtract the user's Base Metabolic Rate (BMR) for that specific time window before adding the calories to the daily NutritionTarget. This prevents double-counting and protects the TDEE calculation.
+
+## **3. Core UI & Infrastructure Refinements**
+  - **Adaptive Landscape UI (Plan B):** Ensure the "Plan B" Fast Food feature and overall app UI are fully responsive, utilizing window size classes to provide an optimized, large-touch-target experience on landscape tablet displays (e.g., Android head units) as well as standard mobile screens.
+  - **CRDT Multi-Device Sync Server:** Implement a self-hosted synchronization server utilizing Conflict-free Replicated Data Types (CRDTs) or equivalent logical clock architectures. The app must remain offline-first but gracefully handle combining, merging, and deduplicating data logged across multiple devices upon network reconnection (e.g., syncing via a Cloudflare tunnel).
+  - **Holistic AI Daily Suggestions:** Expand Health Connect reads to include advanced body composition data (e.g., body fat, skeletal muscle). Feed this data—alongside food logs, workout RPE, and TDEE trend history—into an AI layer to generate a single, highly contextual daily actionable insight for the user.
+  - **First-Class Hydration Tracking:** Implement a dedicated hydration tracking module integrated into the Today screen. Support custom volume presets and dynamic daily targets, treating water intake as a primary metric rather than a generic food entry.
+  - **Weekly Check-In Reporting & Graphing (PDF Export):** Build a rich reporting engine capable of generating and printing clean, formatted PDF reports directly from the app. The reports must aggregate the week's data into visual graphs and tables, including: Week-at-a-Glance averages (weight, intake, burn, sleep, resting HR, steps), Nutrition Daily Macros (bar charts for Protein, Carbs, Fat, plus tabular data for calories, fiber, sugar), Calories In vs. Burned comparisons, Body Weight trendlines, Sleep duration/consistency, Heart Rate (resting vs. all-day), and a comprehensive Training Summary detailing volume, exercises, sets, reps, and workout notes.
+
+## **4. Future Roadmap**
+  - **Model Context Protocol (MCP) Support:** Once the syncing server is established, wrap the backend database with an MCP server implementation. This will allow desktop LLM clients to securely query, analyze, and interact with the synced health and training data directly from the desktop environment.
