@@ -5,6 +5,7 @@ import com.zeroindex.intake.data.db.entity.Audited
 import com.zeroindex.intake.data.db.entity.AiCorrectionEntity
 import com.zeroindex.intake.data.db.entity.AiInsightEntity
 import com.zeroindex.intake.data.db.entity.AllergenAliasEntity
+import com.zeroindex.intake.data.db.entity.AllergenDefinitionEntity
 import com.zeroindex.intake.data.db.entity.AllergenProfileEntity
 import com.zeroindex.intake.data.db.entity.BackupRunEntity
 import com.zeroindex.intake.data.db.entity.BodyMetricEntity
@@ -59,6 +60,7 @@ fun backupTables(dao: ExportDao): List<BackupTable<out Audited>> = listOf(
     BackupTable("ai_correction", AiCorrectionEntity.serializer(), dao::aiCorrection, dao::upsertAiCorrection),
     BackupTable("ai_insight", AiInsightEntity.serializer(), dao::aiInsight, dao::upsertAiInsight),
     BackupTable("allergen_alias", AllergenAliasEntity.serializer(), dao::allergenAlias, dao::upsertAllergenAlias),
+    BackupTable("allergen_definition", AllergenDefinitionEntity.serializer(), dao::allergenDefinition, dao::upsertAllergenDefinition),
     BackupTable("allergen_profile", AllergenProfileEntity.serializer(), dao::allergenProfile, dao::upsertAllergenProfile),
     BackupTable("backup_run", BackupRunEntity.serializer(), dao::backupRun, dao::upsertBackupRun),
     BackupTable("body_metric", BodyMetricEntity.serializer(), dao::bodyMetric, dao::upsertBodyMetric),

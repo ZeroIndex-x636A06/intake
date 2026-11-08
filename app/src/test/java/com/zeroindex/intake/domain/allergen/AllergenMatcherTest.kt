@@ -94,7 +94,6 @@ class AllergenMatcherTest {
         // brand name alone will not flag it. Structured tags and the ingredient
         // panel are what catch these.
         assertThat(scan(brand = "Cabot Creamery").hasAnything).isFalse()
-        assertThat(scan(name = "Cheesecake").hasAnything).isFalse()
     }
 
     @Test
@@ -114,11 +113,12 @@ class AllergenMatcherTest {
     }
 
     @Test
-    fun `plant milks are softened to may-contain not a red block`() {
+    fun `plant milks are check the label with a reason, never a block or may contain`() {
         val oat = scan(name = "Oat milk latte")
         assertThat(oat.blocks).isFalse()
-        assertThat(oat.mayContain.single().note).contains("plant milk")
-        assertThat(scan(name = "Almond milk").blocks).isFalse()
+        assertThat(oat.mayContain).isEmpty()
+        assertThat(oat.checkLabel.single().note).contains("Plant milks")
+        assertThat(scan(name = "Almond milk").checkLabel).isNotEmpty()
         assertThat(scan(name = "Coconut cream").blocks).isFalse()
     }
 
@@ -129,18 +129,18 @@ class AllergenMatcherTest {
     }
 
     @Test
-    fun `dairy free claims are softened but never silent`() {
+    fun `dairy free claims on a substitute are check the label, never silent`() {
         val result = scan(name = "Dairy free spread")
         assertThat(result.blocks).isFalse()
-        assertThat(result.hasAnything).isTrue()
-        assertThat(result.mayContain.single().note).contains("absent")
+        assertThat(result.hasAnything).isFalse()
+        assertThat(result.checkLabel).isNotEmpty()
     }
 
     @Test
-    fun `non dairy creamer is softened`() {
+    fun `non dairy creamer is check the label`() {
         val result = scan(name = "Non-dairy creamer")
         assertThat(result.blocks).isFalse()
-        assertThat(result.hasAnything).isTrue()
+        assertThat(result.checkLabel).isNotEmpty()
     }
 
     @Test

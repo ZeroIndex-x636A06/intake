@@ -40,14 +40,18 @@ data class MenuSourceEntity(
  * Order of severity: CONTAINS > MAY_CONTAIN > CHECK_LABEL > CLEAR (UNKNOWN is
  * "not checked" and loses to any real verdict); see [rank] and [worseOf].
  */
-enum class AllergenStatus { CLEAR, CHECK_LABEL, MAY_CONTAIN, CONTAINS, UNKNOWN }
+enum class AllergenStatus { CLEAR, MENTIONED_AVOIDED, CHECK_LABEL, MAY_CONTAIN, CONTAINS, UNKNOWN }
 
-/** CONTAINS 4 > MAY_CONTAIN 3 > CHECK_LABEL 2 > CLEAR 1 > UNKNOWN 0. */
+/**
+ * CONTAINS 5 > MAY_CONTAIN 4 > CHECK_LABEL 3 > MENTIONED_AVOIDED 2 > CLEAR 1 > UNKNOWN 0.
+ * MENTIONED_AVOIDED is informational: it is not a problem, but it outranks CLEAR so details can show it.
+ */
 val AllergenStatus?.rank: Int
     get() = when (this) {
-        AllergenStatus.CONTAINS -> 4
-        AllergenStatus.MAY_CONTAIN -> 3
-        AllergenStatus.CHECK_LABEL -> 2
+        AllergenStatus.CONTAINS -> 5
+        AllergenStatus.MAY_CONTAIN -> 4
+        AllergenStatus.CHECK_LABEL -> 3
+        AllergenStatus.MENTIONED_AVOIDED -> 2
         AllergenStatus.CLEAR -> 1
         AllergenStatus.UNKNOWN, null -> 0
     }

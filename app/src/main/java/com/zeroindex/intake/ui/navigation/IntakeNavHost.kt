@@ -17,7 +17,9 @@ import androidx.navigation.toRoute
 import com.zeroindex.intake.ui.motion.LocalReduceMotion
 import com.zeroindex.intake.ui.motion.Motion
 import com.zeroindex.intake.ui.screens.ai.AiSettingsScreen
+import com.zeroindex.intake.ui.screens.allergen.AllergenKeywordsScreen
 import com.zeroindex.intake.ui.screens.allergen.AllergenReferenceScreen
+import com.zeroindex.intake.ui.screens.allergen.MyAllergensScreen
 import com.zeroindex.intake.ui.screens.backup.BackupScreen
 import com.zeroindex.intake.ui.screens.body.BodyMetricsScreen
 import com.zeroindex.intake.ui.screens.health.HealthConnectScreen
@@ -159,7 +161,7 @@ fun IntakeNavHost(
             composable<Route.Allergens> {
                 AllergensScreen(
                     contentPadding = contentPadding,
-                    onOpenProfile = { navController.navigate(Route.Settings(section = "allergens")) },
+                    onOpenMine = { navController.navigate(Route.MyAllergens) },
                     onOpenReference = { navController.navigate(Route.AllergenReference) },
                 )
             }
@@ -168,6 +170,15 @@ fun IntakeNavHost(
             aiSettings(contentPadding)
             settings(navController, contentPadding)
             composable<Route.Backup> { BackupScreen(contentPadding) }
+            composable<Route.MyAllergens> {
+                MyAllergensScreen(
+                    contentPadding,
+                    onOpenAllergen = { navController.navigate(Route.AllergenKeywords(it)) },
+                )
+            }
+            composable<Route.AllergenKeywords> { entry ->
+                AllergenKeywordsScreen(entry.toRoute<Route.AllergenKeywords>().allergenKey, contentPadding)
+            }
             // Add new Food routes above this line.
         }
 

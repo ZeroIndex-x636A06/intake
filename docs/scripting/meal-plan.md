@@ -21,7 +21,9 @@ How this works, in your own words. As many paragraphs as you like.
 
 - `# Meal plan: <name>` is required and must not be empty.
 - `avoid: dairy, soy` lists the allergens you avoid. **It is information only.** It is not read by the allergen
-  engine and never clears a warning. See [Allergens](README.md#allergens).
+  engine and never clears a warning; your allergens are set in the app (Food, Allergens, My allergens). Wording in
+  the plan such as "no cheese" or "dairy-free provolone" is read by the engine, but it can only soften a hit to
+  *mentioned as avoided* or *check the label*. See [Allergens](README.md#allergens).
 - `About:` is free text for the "How this works" content. It runs until the next label or heading. You can also
   put it under its own `## About` heading.
 
@@ -207,7 +209,7 @@ Optional labeled lines directly under an ingredient bullet (indent them or not; 
 |---|---|---|
 | `weight:` | Gram weight, as `<number> <g, kg, oz or lb>`. Overrides the weight worked out from the quantity. | `weight: 370 g` |
 | `per 100g:` | Nutrition per 100 g. See [Nutrition](#nutrition). | `per 100g: 176 kcal, 20 g protein, 0 g carbs, 10 g fat` |
-| `allergens:` | Free text such as `milk, soy`. **It can only add warnings.** | `allergens: milk` |
+| `allergens:` | Free text such as `milk, soy`. **It can only add warnings, and it is never read for "no" or "free" wording.** | `allergens: milk` |
 
 A weight at the end of the bullet in brackets, `- 2 cups rice (370g)`, is also understood and turned into the
 weight.

@@ -43,8 +43,10 @@ object ModelAllergenPolicy {
             if (current == null || kind.rank > current.rank) perItem[index] = kind
         }
 
+        local.forEach { if (it.matches.all { m -> m.kind == AllergenMatchKind.MENTIONED_AVOIDED }) matches += it.matches }
         local.forEachIndexed { index, result ->
-            if (result.matches.isNotEmpty()) {
+            // "Mentioned as avoided" is informational: kept in the matches, never a per-item flag.
+            if (result.matches.any { it.kind != AllergenMatchKind.MENTIONED_AVOIDED }) {
                 matches += result.matches
                 flag(
                     index,
@@ -59,7 +61,7 @@ object ModelAllergenPolicy {
         claims.forEachIndexed { index, claim ->
             val alreadyLocal = local.getOrNull(index)?.matches.orEmpty()
                 // A "check the label" hint is not an answer: the model's claim still raises a review.
-                .filter { it.kind != AllergenMatchKind.CHECK_LABEL }.map { it.allergen.lowercase() }.toSet()
+                .filter { it.kind != AllergenMatchKind.CHECK_LABEL && it.kind != AllergenMatchKind.MENTIONED_AVOIDED }.map { it.allergen.lowercase() }.toSet()
             claim.allergens
                 .map { it.trim().lowercase() }
                 .mapNotNull { claimed -> avoided.firstOrNull { a -> claimed.contains(a) || a.contains(claimed) } }

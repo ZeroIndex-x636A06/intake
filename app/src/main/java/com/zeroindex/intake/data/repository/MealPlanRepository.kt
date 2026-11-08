@@ -179,7 +179,7 @@ class MealPlanRepository @Inject constructor(
         val lines = foods.map { (f, g) -> "${f.name} · ${g.toLong()} g" } + textLines
         val text = (foods.map { it.first.name } + textLines).joinToString("\n")
         val tags = foods.joinToString(", ") { it.first.allergenTags }.takeIf { it.isNotBlank() }
-        val scan = check.scan(recipe.name, listOfNotNull(text, tags).joinToString("\n"))
+        val scan = check.scan(recipe.name, text, tags)
         val live = PlanImportBuilder.statusOf(scan)
         val status = if (PlanImportBuilder.rank(live) >= PlanImportBuilder.rank(recipe.allergenStatus)) live
         else recipe.allergenStatus ?: live
@@ -198,16 +198,21 @@ class MealPlanRepository @Inject constructor(
     /** A snapshot of the user's profile and alias table as an [AllergenCheck]. Local only. */
     suspend fun scanner(planChecklist: List<String>? = null): AllergenCheck {
         val avoided = allergens.avoidedAllergens()
-        val aliases = allergens.aliases().map { AllergenAlias(it.allergen, it.aliasTerm) }
-        val soft = HiddenCarriers.DAIRY_TERMS + PlanWatchTerms.extract(
+        val aliases = allergens.aliases().map { AllergenAlias(it.allergen, it.aliasTerm, it.level) }
+        val soft = HiddenCarriers.forAllergens(avoided) + PlanWatchTerms.extract(
             planChecklist ?: PlanMeta.decode(planDao.week(PlanMeta.WEEK_NUMBER)?.notes).hiddenDairyChecklist,
         )
-        return AllergenCheck { name, ingredients ->
-            // Plan ingredient lines are free text with no label to read, so they get the soft scan too.
-            AllergenMatcher.scan(
-                aliases, avoided, name = name, ingredients = ingredients,
-                checkLabelTerms = soft, checkLabelInIngredients = true,
-            )
+        return object : AllergenCheck {
+            // Plan text is written by a person with no label to read, so it gets the soft scan and may
+            // be read for negation ("no cheese"). A file's allergen tags go in as panel text, never negated.
+            override fun scan(name: String, ingredientsText: String?) = scan(name, ingredientsText, null)
+
+            override fun scan(name: String, ingredientsText: String?, panelText: String?) =
+                AllergenMatcher.scan(
+                    aliases, avoided, name = name, ingredients = ingredientsText,
+                    checkLabelTerms = soft, checkLabelInIngredients = true,
+                    freeText = true, panelText = panelText,
+                )
         }
     }
 

@@ -89,7 +89,7 @@ fun RecipeDetailScreen(
                     AllergenStatus.MAY_CONTAIN -> StatusPill("Check allergens", tone = PillTone.Wait)
                     AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
                     AllergenStatus.CONTAINS -> StatusPill("Contains an allergen", tone = PillTone.Bad)
-                    AllergenStatus.CLEAR -> StatusPill("Passed allergen check")
+                    AllergenStatus.CLEAR, AllergenStatus.MENTIONED_AVOIDED -> StatusPill("Passed allergen check")
                     else -> StatusPill("Allergens not checked", tone = PillTone.Wait)
                 }
             }

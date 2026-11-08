@@ -280,7 +280,7 @@ private fun ReviewSheet(review: Review, onToggle: (Int) -> Unit, onSave: () -> U
                                 AllergenStatus.CONTAINS -> StatusPill("Allergen match · review", tone = PillTone.Bad)
                                 AllergenStatus.MAY_CONTAIN -> StatusPill("Possible match · review", tone = PillTone.Wait)
                                 AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
-                                AllergenStatus.CLEAR -> StatusPill("Ingredient check passed")
+                                AllergenStatus.CLEAR, AllergenStatus.MENTIONED_AVOIDED -> StatusPill("Ingredient check passed")
                                 AllergenStatus.UNKNOWN -> StatusPill("No ingredients listed", tone = PillTone.Wait)
                             }
                         }
@@ -289,7 +289,7 @@ private fun ReviewSheet(review: Review, onToggle: (Int) -> Unit, onSave: () -> U
                             when (item.allergenStatus) {
                                 AllergenStatus.CONTAINS, AllergenStatus.MAY_CONTAIN -> "Matched: ${item.allergenMatches}"
                                 AllergenStatus.CHECK_LABEL -> "Often hides dairy: ${item.allergenMatches}"
-                                AllergenStatus.CLEAR -> "No terms you avoid were found"
+                                AllergenStatus.CLEAR, AllergenStatus.MENTIONED_AVOIDED -> "No terms you avoid were found"
                                 AllergenStatus.UNKNOWN -> "Check with staff before ordering"
                             },
                             style = MaterialTheme.typography.labelSmall,

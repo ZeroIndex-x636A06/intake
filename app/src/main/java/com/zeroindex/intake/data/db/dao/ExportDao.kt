@@ -6,6 +6,7 @@ import androidx.room.Upsert
 import com.zeroindex.intake.data.db.entity.AiCorrectionEntity
 import com.zeroindex.intake.data.db.entity.AiInsightEntity
 import com.zeroindex.intake.data.db.entity.AllergenAliasEntity
+import com.zeroindex.intake.data.db.entity.AllergenDefinitionEntity
 import com.zeroindex.intake.data.db.entity.AllergenProfileEntity
 import com.zeroindex.intake.data.db.entity.BackupRunEntity
 import com.zeroindex.intake.data.db.entity.BodyMetricEntity
@@ -49,6 +50,8 @@ interface ExportDao {
     @Upsert suspend fun upsertAiInsight(rows: List<AiInsightEntity>)
     @Query("SELECT * FROM allergen_alias") suspend fun allergenAlias(): List<AllergenAliasEntity>
     @Upsert suspend fun upsertAllergenAlias(rows: List<AllergenAliasEntity>)
+    @Query("SELECT * FROM allergen_definition") suspend fun allergenDefinition(): List<AllergenDefinitionEntity>
+    @Upsert suspend fun upsertAllergenDefinition(rows: List<AllergenDefinitionEntity>)
     @Query("SELECT * FROM allergen_profile") suspend fun allergenProfile(): List<AllergenProfileEntity>
     @Upsert suspend fun upsertAllergenProfile(rows: List<AllergenProfileEntity>)
     @Query("SELECT * FROM backup_run") suspend fun backupRun(): List<BackupRunEntity>

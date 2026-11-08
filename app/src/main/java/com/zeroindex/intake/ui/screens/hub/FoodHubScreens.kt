@@ -202,7 +202,7 @@ fun EatingOutScreen(
 @Composable
 fun AllergensScreen(
     contentPadding: PaddingValues,
-    onOpenProfile: () -> Unit,
+    onOpenMine: () -> Unit,
     onOpenReference: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -212,19 +212,11 @@ fun AllergensScreen(
         contentPadding = contentPadding,
         modifier = modifier,
         items = listOf(
-            // The allergen rebuild adds a "My allergens" screen (built-in list, custom allergens and
-            // keywords). When it exists, point this row at its route and drop `enabled = false`.
             HubItem(
                 title = "My allergens",
-                description = "Coming soon",
+                description = "Pick what you avoid, add your own, and manage keywords and how strict to be",
                 icon = Icons.Filled.Person,
-                enabled = false,
-            ),
-            HubItem(
-                title = "Allergen profile",
-                description = "The allergens you avoid and how strictly",
-                icon = Icons.Filled.Tune,
-                onClick = onOpenProfile,
+                onClick = onOpenMine,
             ),
             HubItem(
                 title = "Allergen reference",

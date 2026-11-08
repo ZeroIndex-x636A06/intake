@@ -28,6 +28,7 @@ import com.zeroindex.intake.data.db.dao.WorkoutDao
 import com.zeroindex.intake.data.db.entity.AiCorrectionEntity
 import com.zeroindex.intake.data.db.entity.AiInsightEntity
 import com.zeroindex.intake.data.db.entity.AllergenAliasEntity
+import com.zeroindex.intake.data.db.entity.AllergenDefinitionEntity
 import com.zeroindex.intake.data.db.entity.AllergenProfileEntity
 import com.zeroindex.intake.data.db.entity.BackupRunEntity
 import com.zeroindex.intake.data.db.entity.SEED_TIMESTAMP
@@ -90,6 +91,7 @@ import com.zeroindex.intake.data.db.entity.WorkoutSessionEntity
         ShoppingListItemEntity::class,
         AllergenProfileEntity::class,
         AllergenAliasEntity::class,
+        AllergenDefinitionEntity::class,
         AiCorrectionEntity::class,
         // Version 2 (SPEC amendments).
         HydrationLogEntity::class,
@@ -138,6 +140,11 @@ abstract class IntakeDatabase : RoomDatabase() {
             object : Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     AllergenSeed.seed(db, SEED_TIMESTAMP)
+                }
+
+                /** Idempotent: new built-in allergens and keywords reach existing installs here. */
+                override fun onOpen(db: SupportSQLiteDatabase) {
+                    AllergenSeed.topUp(db, SEED_TIMESTAMP)
                 }
             }
     }

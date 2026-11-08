@@ -55,10 +55,11 @@ class IntakeDatabaseTest {
     @Test
     fun allergenAliasesAreSeededAtFirstRun() = runTest {
         val aliases = db.allergenDao().aliases()
-        assertThat(aliases).hasSize(AllergenSeed.DAIRY_ALIASES.size)
+        assertThat(aliases.filter { it.allergen == "dairy" }.map { it.aliasTerm }).containsAtLeastElementsIn(AllergenSeed.DAIRY_ALIASES)
         assertThat(aliases.map { it.aliasTerm })
             .containsAtLeast("sodium caseinate", "buttermilk", "ghee", "lactalbumin", "whey")
-        assertThat(aliases.map { it.allergen }.distinct()).containsExactly("dairy")
+        assertThat(aliases.map { it.allergen }.distinct()).contains("dairy")
+        assertThat(db.allergenDao().definitions()).hasSize(15)
     }
 
     @Test

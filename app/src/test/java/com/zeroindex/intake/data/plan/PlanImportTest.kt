@@ -19,7 +19,7 @@ import com.zeroindex.intake.domain.plan.PlanWeekExtras
 import org.junit.Test
 
 class PlanImportTest {
-    private val aliases = AllergenSeed.DAIRY_ALIASES.map { AllergenAlias("dairy", it) }
+    private val aliases = com.zeroindex.intake.domain.allergen.AllergenCatalog.aliases().filter { it.allergen == "dairy" }
     private val dairyCheck = AllergenCheck { name, text ->
         AllergenMatcher.scan(aliases, setOf("dairy"), name = name, ingredients = text)
     }
@@ -183,13 +183,14 @@ class PlanImportTest {
      */
     @Test fun `hidden dairy strings from a dairy free plan`() {
         fun status(text: String) = PlanImportBuilder.statusOf(dairyCheck.scan(text, null))
-        // The word "dairy" next to "free" is softened to may-contain, never cleared and never hard-blocked.
-        assertThat(status("Dairy-free provolone")).isEqualTo(AllergenStatus.MAY_CONTAIN)
-        assertThat(status("Dairy-free cheese")).isEqualTo(AllergenStatus.MAY_CONTAIN)
-        assertThat(status("Dairy-free cheese slice")).isEqualTo(AllergenStatus.MAY_CONTAIN)
-        assertThat(status("Oat milk")).isEqualTo(AllergenStatus.MAY_CONTAIN)
+        // "Dairy-free" substitutes and plant milks are check the label with a reason: never blocked, never silent.
+        assertThat(status("Dairy-free provolone")).isEqualTo(AllergenStatus.CHECK_LABEL)
+        assertThat(status("Dairy-free cheese")).isEqualTo(AllergenStatus.CHECK_LABEL)
+        assertThat(status("Dairy-free cheese slice")).isEqualTo(AllergenStatus.CHECK_LABEL)
+        assertThat(status("Oat milk")).isEqualTo(AllergenStatus.CHECK_LABEL)
         assertThat(status("Cheese")).isEqualTo(AllergenStatus.CONTAINS)
-        assertThat(status("Boxed dairy-free mac (Daiya)")).isEqualTo(AllergenStatus.MAY_CONTAIN)
+        // The allergen's own name inside its free claim is not a hit.
+        assertThat(status("Boxed dairy-free mac (Daiya)")).isEqualTo(AllergenStatus.CLEAR)
         // No alias names these, but they commonly hide milk: the soft "check the label" tier, never blocking.
         assertThat(status("Taco Bell mild seasoning")).isEqualTo(AllergenStatus.CHECK_LABEL)
         assertThat(status("Flour tortillas")).isEqualTo(AllergenStatus.CHECK_LABEL)

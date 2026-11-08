@@ -156,17 +156,20 @@ class CheckLabelTest {
         assertThat(r.checkLabel).isEmpty()
     }
 
-    @Test fun `may contain is never downgraded by a carrier`() {
-        val r = scan(name = "Oat milk tortillas")
+    @Test fun `a traces tag is never downgraded by a carrier`() {
+        val r = AllergenMatcher.scan(
+            aliases = dairyAliases, avoidedAllergens = setOf("dairy"), name = "Flour tortillas",
+            structuredTraces = listOf("en:milk"), checkLabelTerms = HiddenCarriers.DAIRY_TERMS,
+        )
         assertThat(r.blocks).isFalse()
         assertThat(r.mayContain).isNotEmpty()
         assertThat(r.checkLabel).isEmpty()
     }
 
-    @Test fun `non-dairy creamer stays at least may contain`() {
+    @Test fun `non-dairy creamer is check the label`() {
         val r = scan(name = "Non-dairy creamer")
-        assertThat(r.mayContain).isNotEmpty()
-        assertThat(r.checkLabel).isEmpty()
+        assertThat(r.mayContain).isEmpty()
+        assertThat(r.checkLabel).isNotEmpty()
     }
 
     @Test fun `open food facts milk tag still blocks a carrier`() {
@@ -231,7 +234,7 @@ class CheckLabelTest {
     @Test fun `statuses are ordered`() {
         val order = listOf(
             AllergenStatus.CONTAINS, AllergenStatus.MAY_CONTAIN, AllergenStatus.CHECK_LABEL,
-            AllergenStatus.CLEAR, AllergenStatus.UNKNOWN,
+            AllergenStatus.MENTIONED_AVOIDED, AllergenStatus.CLEAR, AllergenStatus.UNKNOWN,
         )
         assertThat(order.map { it.rank }).isInOrder(Comparator.reverseOrder<Int>())
         assertThat(null.rank).isEqualTo(AllergenStatus.UNKNOWN.rank)

@@ -27,11 +27,25 @@ enum class AllergenSeverity { AVOID, STRICT }
 
 /**
  * How firmly a scan hit flags a food (SPEC §7.3, docs/ALLERGENS.md): a hard
- * "contains", a softer "may contain", or the softest "check the label" for foods
- * that commonly hide the allergen. Never persisted, so adding a value is free.
+ * "contains", a softer "may contain", the softer still "check the label" for foods
+ * that commonly hide the allergen, and the purely informational
+ * "mentioned as avoided" for free text that names the allergen only to say it is
+ * left out ("no cheese"). Never persisted, so adding a value is free.
  */
 enum class AllergenMatchKind(val rank: Int) {
     CONTAINS(3),
     MAY_CONTAIN(2),
     CHECK_LABEL(1),
+    MENTIONED_AVOIDED(0),
+}
+
+/**
+ * How firmly one keyword speaks (docs/ALLERGENS.md). Stored by name on the keyword row.
+ * A keyword's level is the strongest verdict a hit on it can give; negation and
+ * "-free" wording can only soften a hit in free text, never raise it.
+ */
+enum class KeywordLevel(val kind: AllergenMatchKind) {
+    CONTAINS(AllergenMatchKind.CONTAINS),
+    MAY_CONTAIN(AllergenMatchKind.MAY_CONTAIN),
+    CHECK_LABEL(AllergenMatchKind.CHECK_LABEL),
 }

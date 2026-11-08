@@ -34,11 +34,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.data.db.entity.AllergenStatus
 import com.zeroindex.intake.ui.allergen.CheckLabelChip
 import com.zeroindex.intake.data.db.entity.RecipeEntity
+import com.zeroindex.intake.data.plan.ImportFinding
+import com.zeroindex.intake.data.plan.PlanImportBatch
 import com.zeroindex.intake.data.repository.PlanImportPreview
 import com.zeroindex.intake.domain.nutrition.Macros
 import com.zeroindex.intake.ui.components.Eyebrow
@@ -171,7 +178,7 @@ private fun EatOutCard(row: EatOutRow, onLog: () -> Unit) {
                     AllergenStatus.CONTAINS -> StatusPill("Contains an allergen", tone = PillTone.Bad)
                     AllergenStatus.MAY_CONTAIN -> StatusPill("Check: may contain", tone = PillTone.Wait)
                     AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
-                    AllergenStatus.CLEAR -> StatusPill("No flagged terms")
+                    AllergenStatus.CLEAR, AllergenStatus.MENTIONED_AVOIDED -> StatusPill("No flagged terms")
                     AllergenStatus.UNKNOWN -> StatusPill("Not checked", tone = PillTone.Wait)
                 }
             }
@@ -286,32 +293,7 @@ fun ImportPreviewDialog(
                         if (b.eatOutWithoutEstimate > 0) {
                             SandNote("${b.eatOutWithoutEstimate} eat-out options have no macro estimate. You will enter macros when logging them.")
                         }
-                        if (b.findings.isEmpty()) {
-                            Text("Your allergen check found nothing to flag in this file.", style = MaterialTheme.typography.bodySmall)
-                        } else {
-                            Text(
-                                "Allergen check (this phone, your profile): ${b.blocked.size} blocked, ${b.mayContain.size} may contain" +
-                                    (if (b.checkLabel.isNotEmpty()) ", ${b.checkLabel.size} to check the label." else "."),
-                                style = MaterialTheme.typography.titleSmall,
-                            )
-                            (b.blocked + b.mayContain + b.checkLabel).take(40).forEach { f ->
-                                Column {
-                                    StatusPill(
-                                        when (f.status) {
-                                            AllergenStatus.CONTAINS -> "Blocked"
-                                            AllergenStatus.CHECK_LABEL -> "Check the label"
-                                            else -> "May contain"
-                                        },
-                                        tone = when (f.status) {
-                                            AllergenStatus.CONTAINS -> PillTone.Bad
-                                            else -> PillTone.Wait
-                                        },
-                                    )
-                                    Text(f.subject, style = MaterialTheme.typography.bodySmall)
-                                    Text(f.detail, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            }
-                        }
+                        ImportAllergenSection(b)
                         Text(
                             "The file's own allergen notes can add warnings but never remove one.",
                             style = MaterialTheme.typography.labelSmall,
@@ -332,4 +314,82 @@ fun ImportPreviewDialog(
             }
         },
     )
+}
+
+/**
+ * The allergen part of both import previews (plan file and script). One row per distinct item, full text,
+ * grouped by tier: Blocked opens expanded, the softer tiers are collapsed behind counts.
+ */
+@Composable
+fun ImportAllergenSection(b: PlanImportBatch) {
+    if (b.findings.isEmpty()) {
+        Text("Your allergen check found nothing to flag in this file.", style = MaterialTheme.typography.bodySmall)
+        return
+    }
+    Text(b.summaryLine, style = MaterialTheme.typography.titleSmall)
+    Text(
+        "Checked on this phone against your allergens.",
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    FindingTier("Blocked", PillTone.Bad, b.blocked, startOpen = true)
+    FindingTier("May contain", PillTone.Wait, b.mayContain, startOpen = false)
+    FindingTier("Check the label", PillTone.Wait, b.checkLabel, startOpen = false)
+    FindingTier("Mentioned as avoided", PillTone.Ok, b.mentionedAvoided, startOpen = false)
+}
+
+@Composable
+private fun FindingTier(title: String, tone: PillTone, rows: List<ImportFinding>, startOpen: Boolean) {
+    if (rows.isEmpty()) return
+    var open by remember { mutableStateOf(startOpen) }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clickable(onClickLabel = if (open) "Hide $title" else "Show $title") { open = !open },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        StatusPill("$title (${rows.size})", tone = tone)
+        Text(
+            if (open) "Hide" else "Show",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    if (open) {
+        rows.forEach { f ->
+            Column(Modifier.padding(start = 4.dp, bottom = 6.dp)) {
+                Text(boldTerms(f.item, f.terms), style = MaterialTheme.typography.bodyMedium)
+                if (f.where.isNotBlank()) {
+                    Text(f.where, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                f.reasons.forEach { reason ->
+                    Text(
+                        boldTerms(reason, f.terms),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** [text] with only the first occurrence of each of [terms] in bold: the key word, nothing else. */
+internal fun boldTerms(text: String, terms: List<String>): AnnotatedString = buildAnnotatedString {
+    val lower = text.lowercase()
+    val ranges = terms.mapNotNull { t ->
+        val needle = t.lowercase().trim()
+        val i = if (needle.isEmpty()) -1 else lower.indexOf(needle)
+        if (i < 0) null else i until (i + needle.length)
+    }.sortedBy { it.first }
+    var cursor = 0
+    for (r in ranges) {
+        if (r.first < cursor) continue
+        append(text.substring(cursor, r.first))
+        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(text.substring(r.first, r.last + 1)) }
+        cursor = r.last + 1
+    }
+    append(text.substring(cursor))
 }

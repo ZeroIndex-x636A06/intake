@@ -179,8 +179,14 @@ text and decides.
 
 - `avoid: dairy` in a meal plan is **information only**. It does not change what the allergen engine looks for,
   and it never clears or hides a warning.
-- Writing "dairy-free" in a dish, ingredient or order **can never clear a warning**. "Dairy-free cheese" still
-  comes back as *may contain*.
+- Writing "dairy-free" in a dish, ingredient or order **can never clear a warning**. "Dairy-free cheese" comes
+  back as *check the label* ("Some dairy-free cheeses still contain casein"), and so do oat milk and vegan butter.
+- Your own wording can lower a warning to an informational note, and only that. "Frito pie without the cheese",
+  "made with oil, not butter" and "skip the cheese and sour cream" show as *mentioned as avoided*: not a block, not
+  counted as a problem, listed in the import preview under "Mentioned as avoided". "Lactose-free milk" and
+  "butter chicken" still block. The rules are in the app's allergen notes (docs/ALLERGENS.md).
+- An `allergens:` tag, a product's ingredient panel and Open Food Facts tags are never read for this: "contains
+  milk" there stays a full warning.
 - Nutrition values (`per 100g:`) say nothing about allergens.
 - An `allergens:` line on an ingredient can only **add** a warning.
 

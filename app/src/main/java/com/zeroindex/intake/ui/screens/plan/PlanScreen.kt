@@ -445,7 +445,7 @@ private fun DishCard(content: WeekContent, onEditProtein: () -> Unit, onChange: 
                     AllergenStatus.CONTAINS -> StatusPill("Contains an allergen", tone = PillTone.Bad)
                     AllergenStatus.MAY_CONTAIN -> StatusPill("Check allergens", tone = PillTone.Wait)
                     AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
-                    AllergenStatus.CLEAR -> StatusPill("Passed allergen check")
+                    AllergenStatus.CLEAR, AllergenStatus.MENTIONED_AVOIDED -> StatusPill("Passed allergen check")
                     AllergenStatus.UNKNOWN -> StatusPill("Allergens not checked", tone = PillTone.Wait)
                 }
                 if (main.macros.isEmpty) Tag("Macros: no data")

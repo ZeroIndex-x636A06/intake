@@ -92,6 +92,16 @@ internal val MIGRATION_1_2_STATEMENTS: List<String> = listOf(
     "CREATE TABLE IF NOT EXISTS `sync_conflict` (`id` TEXT NOT NULL, `tableName` TEXT NOT NULL, `rowId` TEXT NOT NULL, `keptJson` TEXT NOT NULL, `otherJson` TEXT NOT NULL, `otherSource` TEXT NOT NULL, `detectedAt` INTEGER NOT NULL, `resolvedAt` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
     "CREATE INDEX IF NOT EXISTS `index_sync_conflict_resolvedAt` ON `sync_conflict` (`resolvedAt`)",
     "CREATE INDEX IF NOT EXISTS `index_sync_conflict_tableName_rowId` ON `sync_conflict` (`tableName`, `rowId`)",
+    // Allergens rebuild: a level and an off switch on every keyword, a custom flag, and the allergen list.
+    // Built-in rows and keywords are seeded on open (AllergenSeed.topUp); existing rows keep CONTAINS.
+    "ALTER TABLE `allergen_alias` ADD COLUMN `level` TEXT NOT NULL DEFAULT 'CONTAINS'",
+    "ALTER TABLE `allergen_alias` ADD COLUMN `isCustom` INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE `allergen_alias` ADD COLUMN `isEnabled` INTEGER NOT NULL DEFAULT 1",
+    // Anything that is not a seeded id was typed by the user.
+    "UPDATE `allergen_alias` SET `isCustom` = 1 WHERE `id` NOT LIKE 'seed-%'",
+    "CREATE TABLE IF NOT EXISTS `allergen_definition` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `displayName` TEXT NOT NULL, `description` TEXT NOT NULL DEFAULT '', `isCustom` INTEGER NOT NULL DEFAULT 0, `sortOrder` INTEGER NOT NULL DEFAULT 0, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+    "CREATE UNIQUE INDEX IF NOT EXISTS `index_allergen_definition_name` ON `allergen_definition` (`name`)",
+    "CREATE INDEX IF NOT EXISTS `index_allergen_definition_deletedAt` ON `allergen_definition` (`deletedAt`)",
 )
 
 internal val MIGRATION_1_2 = object : Migration(1, 2) {

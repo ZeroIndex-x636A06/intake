@@ -34,7 +34,28 @@ data class ImportFinding(
     val status: AllergenStatus,
     /** Matched terms and the engine's own note. */
     val detail: String,
+    /** Where the item sits: "Week 3 · Smash burger bowls". */
+    val where: String = "",
+    /** The item's full text, never shortened. */
+    val item: String = subject,
+    /** Plain reasons for the tier this row sits in: "Says butter", "Mentions butter as something to avoid". */
+    val reasons: List<String> = emptyList(),
+    /** The words that caused the verdict, for bolding in the item and the reasons. */
+    val terms: List<String> = emptyList(),
 )
+
+/** The preview's wording, in one place so both import screens and the tests agree. */
+object ImportSummary {
+    /** "2 need a decision · 5 worth a look · 3 mentioned as avoided"; zero parts are left out. */
+    fun line(blocked: Int, mayContain: Int, checkLabel: Int, mentioned: Int): String {
+        val parts = buildList {
+            if (blocked > 0) add("$blocked need a decision")
+            if (mayContain + checkLabel > 0) add("${mayContain + checkLabel} worth a look")
+            if (mentioned > 0) add("$mentioned mentioned as avoided")
+        }
+        return if (parts.isEmpty()) "Nothing flagged" else parts.joinToString(" · ")
+    }
+}
 
 data class PlanImportBatch(
     val foods: List<FoodEntity>,
@@ -53,11 +74,22 @@ data class PlanImportBatch(
     val mayContain: List<ImportFinding> get() = findings.filter { it.status == AllergenStatus.MAY_CONTAIN }
     /** The soft tier: worth reading the label, never blocks anything. */
     val checkLabel: List<ImportFinding> get() = findings.filter { it.status == AllergenStatus.CHECK_LABEL }
+    /** Informational only: free text that names an allergen to say it is left out. Not a problem. */
+    val mentionedAvoided: List<ImportFinding> get() = findings.filter { it.status == AllergenStatus.MENTIONED_AVOIDED }
+
+    val summaryLine: String get() = ImportSummary.line(blocked.size, mayContain.size, checkLabel.size, mentionedAvoided.size)
 }
 
 /** The local allergen engine, as the importer needs it: text in, verdict out. */
 fun interface AllergenCheck {
     fun scan(name: String, ingredientsText: String?): AllergenScanResult
+
+    /**
+     * [panelText] is label-like text, such as a file's allergen tags: it can add a warning but is never
+     * read for negation. The default folds it into [ingredientsText] for simple checks.
+     */
+    fun scan(name: String, ingredientsText: String?, panelText: String?): AllergenScanResult =
+        scan(name, listOfNotNull(ingredientsText, panelText).joinToString("\n").ifBlank { null })
 }
 
 /**
@@ -85,11 +117,24 @@ object PlanImportBuilder {
         val findings = ArrayList<ImportFinding>()
         var withoutNutrition = 0
 
-        fun record(subject: String, scan: AllergenScanResult): AllergenStatus {
+        val seenFindings = HashSet<String>()
+        fun record(where: String, item: String, scan: AllergenScanResult): AllergenStatus {
             val status = statusOf(scan)
-            if (status == AllergenStatus.CONTAINS || status == AllergenStatus.MAY_CONTAIN || status == AllergenStatus.CHECK_LABEL) {
-                val detail = scan.matches.joinToString("; ") { "${it.matchedTerm} (${it.allergen}): ${it.note}" }
-                findings += ImportFinding(subject, status, detail)
+            if (status != AllergenStatus.CLEAR) {
+                val subject = if (where.isBlank()) item else "$where · $item"
+                // One row per distinct item and verdict: a dish named in the week and again as its recipe is one row.
+                if (seenFindings.add("$status|$subject")) {
+                    val top = scan.matches.filter { kindOf(it.kind) == status }
+                    findings += ImportFinding(
+                        subject = subject,
+                        status = status,
+                        detail = scan.matches.joinToString("; ") { "${it.matchedTerm} (${it.allergen}): ${it.note}" },
+                        where = where,
+                        item = item,
+                        reasons = top.map { it.reason }.distinct(),
+                        terms = top.map { it.matchedTerm }.distinct(),
+                    )
+                }
             }
             return status
         }
@@ -110,7 +155,7 @@ object PlanImportBuilder {
         file.weeks.sortedBy { it.weekNumber }.forEach { w ->
             val wid = weekId(w.weekNumber)
             val at = "Week ${w.weekNumber}"
-            record("$at · ${w.mainDishName}", check.scan(w.mainDishName, null))
+            record(at, w.mainDishName, check.scan(w.mainDishName, null))
             weeks += PlanWeekEntity(
                 id = wid,
                 weekNumber = w.weekNumber,
@@ -126,7 +171,7 @@ object PlanImportBuilder {
                 updatedAt = now,
             )
             // Week-level variation ideas are one-line text: scan them too.
-            w.variations.forEach { v -> record("$at · idea \"${v.take(40)}\"", check.scan(v, null)) }
+            w.variations.forEach { v -> record("$at · idea", v, check.scan(v, null)) }
 
             w.recipes.forEach { r ->
                 val rid = recipeId(w.weekNumber, r.name)
@@ -136,10 +181,10 @@ object PlanImportBuilder {
                 var worst = AllergenStatus.CLEAR
                 fun raise(s: AllergenStatus) { if (rank(s) > rank(worst)) worst = s }
 
-                raise(record("$at · ${r.name}", check.scan(r.name, null)))
+                raise(record(at, r.name, check.scan(r.name, null)))
 
                 r.ingredients.forEachIndexed { index, i ->
-                    raise(record("$at · ${r.name} · ${i.name}", check.scan(i.name, i.allergenTags.takeIf { it.isNotBlank() })))
+                    raise(record("$at · ${r.name}", i.name, check.scan(i.name, null, i.allergenTags.takeIf { it.isNotBlank() })))
                     if (i.hasNutrition) {
                         val food = foodFor(i, now)
                         foods.putIfAbsent(food.id, food)
@@ -236,7 +281,7 @@ object PlanImportBuilder {
 
         var noEstimate = 0
         val eatOut = file.eatOutOptions.map { o ->
-            val status = record("Eat out · ${o.venueName} · ${o.whatToOrder.take(40)}", check.scan(o.whatToOrder, null))
+            val status = record("Eat out · ${o.venueName}", o.whatToOrder, check.scan(o.whatToOrder, null))
             val hasEstimate = (o.estimatedKcal ?: 0) > 0
             if (!hasEstimate) noEstimate++
             EatOutOptionEntity(
@@ -275,7 +320,15 @@ object PlanImportBuilder {
         scan.matches.any { it.kind == AllergenMatchKind.CONTAINS } -> AllergenStatus.CONTAINS
         scan.matches.any { it.kind == AllergenMatchKind.MAY_CONTAIN } -> AllergenStatus.MAY_CONTAIN
         scan.matches.any { it.kind == AllergenMatchKind.CHECK_LABEL } -> AllergenStatus.CHECK_LABEL
+        scan.matches.any { it.kind == AllergenMatchKind.MENTIONED_AVOIDED } -> AllergenStatus.MENTIONED_AVOIDED
         else -> AllergenStatus.CLEAR
+    }
+
+    private fun kindOf(kind: AllergenMatchKind): AllergenStatus = when (kind) {
+        AllergenMatchKind.CONTAINS -> AllergenStatus.CONTAINS
+        AllergenMatchKind.MAY_CONTAIN -> AllergenStatus.MAY_CONTAIN
+        AllergenMatchKind.CHECK_LABEL -> AllergenStatus.CHECK_LABEL
+        AllergenMatchKind.MENTIONED_AVOIDED -> AllergenStatus.MENTIONED_AVOIDED
     }
 
     /** CONTAINS > MAY_CONTAIN > CHECK_LABEL > CLEAR; UNKNOWN is below CLEAR so a real verdict always wins. */
