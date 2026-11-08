@@ -130,7 +130,7 @@ abstract class IntakeDatabase : RoomDatabase() {
     abstract fun syncConflictDao(): SyncConflictDao
 
     companion object {
-        const val VERSION = 2
+        const val VERSION = 3
         const val NAME = "intake.db"
 
         /** Seeds the allergen alias table the moment the database is created. */

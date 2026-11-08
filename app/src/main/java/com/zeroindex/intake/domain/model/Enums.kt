@@ -5,7 +5,13 @@ package com.zeroindex.intake.domain.model
  * this package, and Room stores these by name in TEXT columns.
  */
 
-enum class FoodSource { MANUAL, BARCODE, SEARCH, AI_PHOTO, RECIPE }
+/**
+ * [DATABASE] is a copy of a row from the bundled offline USDA database;
+ * [OPEN_FOOD_FACTS] a product fetched from Open Food Facts and not yet edited by
+ * the user. Editing one in the app turns it into [BARCODE], which is what makes a
+ * food eligible to contribute back (docs/FOOD-DATA.md).
+ */
+enum class FoodSource { MANUAL, BARCODE, SEARCH, AI_PHOTO, RECIPE, DATABASE, OPEN_FOOD_FACTS }
 
 enum class MealSlot { BREAKFAST, LUNCH, DINNER, SNACK }
 

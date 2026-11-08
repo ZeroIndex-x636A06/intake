@@ -8,6 +8,7 @@ import com.zeroindex.intake.domain.time.Clock
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 /** SPEC §2: the only thing that touches [FoodDao]. */
 @Singleton
@@ -18,6 +19,10 @@ class FoodRepository @Inject constructor(
     fun observeRecents(limit: Int = 30): Flow<List<FoodEntity>> = foodDao.observeMostLogged(limit)
     fun observeFavorites(): Flow<List<FoodEntity>> = foodDao.observeFavorites()
     fun search(query: String): Flow<List<FoodEntity>> = foodDao.searchByName(query)
+
+    fun observeAll(): Flow<List<FoodEntity>> = foodDao.observeAll()
+    fun observe(id: String): Flow<FoodEntity?> = foodDao.observeAll().map { all -> all.firstOrNull { it.id == id } }
+    suspend fun markContributed(id: String) = foodDao.markContributed(id, clock.nowMillis())
 
     suspend fun findById(id: String): FoodEntity? = foodDao.findById(id)
     suspend fun findByBarcode(barcode: String): FoodEntity? = foodDao.findByBarcode(barcode)

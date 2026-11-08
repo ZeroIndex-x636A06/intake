@@ -44,6 +44,8 @@ data class FoodEntity(
     val isVerified: Boolean = false,
     val isFavorite: Boolean = false,
     val timesLogged: Int = 0,
+    /** UTC millis of the last time the user sent this product to Open Food Facts, or null. */
+    val offContributedAt: Long? = null,
     override val createdAt: Long,
     override val updatedAt: Long,
     override val deletedAt: Long? = null,

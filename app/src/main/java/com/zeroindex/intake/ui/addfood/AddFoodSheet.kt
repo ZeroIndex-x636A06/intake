@@ -81,11 +81,25 @@ fun AddFoodSheet(
     loggedAtMillis: Long,
     onDismiss: () -> Unit,
     onOpenAiSettings: () -> Unit = {},
+    /** Which tab the sheet opens on. Food > Log can open straight to Search or Barcode. */
+    initialTab: AddFoodTab = AddFoodTab.RECENTS,
+    /** Opens the food's detail and edit screen. Null hides the "Edit this food" action. */
+    onOpenFood: ((String) -> Unit)? = null,
     viewModel: AddFoodViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var portionFor by remember { mutableStateOf<FoodEntity?>(null) }
+    // Other portions USDA lists for a food chosen from the offline database.
+    var portionOptions by remember { mutableStateOf<List<RefPortion>>(emptyList()) }
+    val choose: (FoodEntity) -> Unit = { food ->
+        portionOptions = emptyList()
+        portionFor = food
+    }
+
+    LaunchedEffect(initialTab) {
+        if (initialTab != AddFoodTab.RECENTS) viewModel.selectTab(initialTab)
+    }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         ProvideCheckLabelTerms(state.checkLabelTerms) {
@@ -94,6 +108,8 @@ fun AddFoodSheet(
             if (portioning != null) {
                 PortionStep(
                     food = portioning,
+                    extraPortions = portionOptions,
+                    onEditFood = onOpenFood?.let { open -> { open(portioning.id) } },
                     onCancel = { portionFor = null },
                     onLog = { grams ->
                         viewModel.requestLogFood(portioning, grams, mealSlot, loggedAtMillis) {
@@ -162,7 +178,7 @@ fun AddFoodSheet(
                         safeIds = state.safeFoodIds,
                         emptyMessage = "Nothing logged yet. Once you log a few things, your " +
                             "most-used foods land here.",
-                        onPick = { portionFor = it },
+                        onPick = choose,
                         onToggleFavorite = viewModel::toggleFavorite,
                     )
 
@@ -170,15 +186,35 @@ fun AddFoodSheet(
                         state = state,
                         onQueryChange = viewModel::setQuery,
                         onSearchRemote = viewModel::searchRemote,
-                        onPick = { portionFor = it },
+                        onPick = choose,
+                        onChooseRef = { ref ->
+                            viewModel.chooseRef(ref) { food, portions ->
+                                portionOptions = portions
+                                portionFor = food
+                            }
+                        },
+                        onChooseOff = { food -> viewModel.chooseOff(food, choose) },
                         onToggleFavorite = viewModel::toggleFavorite,
+                        onCreate = { name, brand, grams, label, k, p, c, f ->
+                            viewModel.createFood(
+                                name = name,
+                                brand = brand,
+                                servingGrams = grams,
+                                servingLabel = label,
+                                kcal = k,
+                                protein = p,
+                                carbs = c,
+                                fat = f,
+                            ) { created -> choose(created) }
+                        },
                     )
 
                     AddFoodTab.BARCODE -> BarcodeTab(
                         state = state,
                         onBarcode = viewModel::onBarcodeScanned,
                         onRescan = viewModel::rescanBarcode,
-                        onPick = { portionFor = it },
+                        onRetry = viewModel::retryBarcode,
+                        onPick = choose,
                         onCreateForBarcode = { barcode, name, brand, grams, label, k, p, c, f ->
                             viewModel.createFood(
                                 name = name,
@@ -190,7 +226,7 @@ fun AddFoodSheet(
                                 carbs = c,
                                 fat = f,
                                 barcode = barcode,
-                            ) { created -> portionFor = created }
+                            ) { created -> choose(created) }
                         },
                     )
 
@@ -227,7 +263,7 @@ fun AddFoodSheet(
                         myFoods = state.myFoods,
                         favorites = state.favorites,
                         safeIds = state.safeFoodIds,
-                        onPick = { portionFor = it },
+                        onPick = choose,
                         onToggleFavorite = viewModel::toggleFavorite,
                         onCreate = { name, brand, grams, label, k, p, c, f ->
                             viewModel.createFood(
@@ -239,7 +275,7 @@ fun AddFoodSheet(
                                 protein = p,
                                 carbs = c,
                                 fat = f,
-                            ) { created -> portionFor = created }
+                            ) { created -> choose(created) }
                         },
                     )
                 }
