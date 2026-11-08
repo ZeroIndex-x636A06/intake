@@ -10,6 +10,7 @@ import com.zeroindex.intake.data.db.dao.AllergenDao
 import com.zeroindex.intake.data.db.dao.BodyMetricDao
 import com.zeroindex.intake.data.db.dao.ExerciseDao
 import com.zeroindex.intake.data.db.dao.ExportDao
+import com.zeroindex.intake.data.db.dao.SyncConflictDao
 import com.zeroindex.intake.data.db.dao.FoodDao
 import com.zeroindex.intake.data.db.dao.FoodLogDao
 import com.zeroindex.intake.data.db.dao.HealthSummaryDao
@@ -68,4 +69,5 @@ object DatabaseModule {
     @Provides fun provideAiInsightDao(db: IntakeDatabase): AiInsightDao = db.aiInsightDao()
     @Provides fun provideHealthSummaryDao(db: IntakeDatabase): HealthSummaryDao = db.healthSummaryDao()
     @Provides fun provideExportDao(db: IntakeDatabase): ExportDao = db.exportDao()
+    @Provides fun provideSyncConflictDao(db: IntakeDatabase): SyncConflictDao = db.syncConflictDao()
 }

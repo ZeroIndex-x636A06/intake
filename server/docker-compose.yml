@@ -1,0 +1,24 @@
+# docker compose up -d        then: docker compose logs intake-sync  (first pairing code)
+services:
+  intake-sync:
+    build: .
+    restart: unless-stopped
+    volumes:
+      - ./data:/data
+    # Only reachable from this machine. The tunnel below is the way in from outside.
+    ports:
+      - "127.0.0.1:8787:8787"
+
+  # Optional: a Cloudflare tunnel gives the server an https:// address without
+  # opening a port on your router. Create a tunnel in the Cloudflare dashboard
+  # (Zero Trust -> Networks -> Tunnels), point its public hostname at
+  # http://intake-sync:8787, and put its token in a .env file as TUNNEL_TOKEN=...
+  cloudflared:
+    image: cloudflare/cloudflared:2026.9.1
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN:-}
+    depends_on:
+      - intake-sync
+    profiles: ["tunnel"]

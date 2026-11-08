@@ -86,6 +86,10 @@ internal val MIGRATION_1_2_STATEMENTS: List<String> = listOf(
     "CREATE TABLE IF NOT EXISTS `backup_run` (`id` TEXT NOT NULL, `startedAt` INTEGER NOT NULL, `finishedAt` INTEGER, `destination` TEXT NOT NULL, `bytes` INTEGER, `status` TEXT NOT NULL, `error` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
     "CREATE INDEX IF NOT EXISTS `index_backup_run_startedAt` ON `backup_run` (`startedAt`)",
     "CREATE INDEX IF NOT EXISTS `index_backup_run_deletedAt` ON `backup_run` (`deletedAt`)",
+    // Sync conflicts kept for review (amendment §3).
+    "CREATE TABLE IF NOT EXISTS `sync_conflict` (`id` TEXT NOT NULL, `tableName` TEXT NOT NULL, `rowId` TEXT NOT NULL, `keptJson` TEXT NOT NULL, `otherJson` TEXT NOT NULL, `otherSource` TEXT NOT NULL, `detectedAt` INTEGER NOT NULL, `resolvedAt` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+    "CREATE INDEX IF NOT EXISTS `index_sync_conflict_resolvedAt` ON `sync_conflict` (`resolvedAt`)",
+    "CREATE INDEX IF NOT EXISTS `index_sync_conflict_tableName_rowId` ON `sync_conflict` (`tableName`, `rowId`)",
 )
 
 internal val MIGRATION_1_2 = object : Migration(1, 2) {

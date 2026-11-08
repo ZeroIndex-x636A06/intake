@@ -1,6 +1,7 @@
 package com.zeroindex.intake.data.di
 
 import com.zeroindex.intake.domain.time.Clock
+import com.zeroindex.intake.domain.time.HybridClock
 import com.zeroindex.intake.domain.time.SystemClock
 import dagger.Module
 import dagger.Provides
@@ -13,9 +14,14 @@ import kotlinx.serialization.json.Json
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
+    /** One hybrid clock for the whole app, so sync can advance it (amendment §3). */
     @Provides
     @Singleton
-    fun provideClock(): Clock = SystemClock()
+    fun provideHybridClock(): HybridClock = HybridClock(SystemClock())
+
+    @Provides
+    @Singleton
+    fun provideClock(hybrid: HybridClock): Clock = hybrid
 
     @Provides
     @Singleton

@@ -181,6 +181,9 @@ class HealthConnectManager @Inject constructor(
      * Amendment §3: weight, body fat and lean mass from a smart scale become
      * weigh-ins, tagged with their source and skipped if a weigh-in already
      * exists within ten minutes (the user may have typed the same reading).
+     * The id comes from Health Connect's own record id, so two devices that
+     * read the same scale reading produce the same row and sync merges them
+     * instead of keeping both (amendment §3's de-duplication).
      */
     private suspend fun importBody(hc: HealthConnectClient, granted: Set<String>) {
         if (!has(granted, WeightRecord::class)) return
@@ -195,6 +198,7 @@ class HealthConnectManager @Inject constructor(
             val now = clock.nowMillis()
             bodyDao.upsert(
                 BodyMetricEntity(
+                    id = "hc-weight-${w.metadata.id}",
                     measuredAt = at,
                     weightKg = w.weight.inKilograms,
                     bodyFatPercent = fats.minByOrNull { kotlin.math.abs(it.time.toEpochMilli() - at) }

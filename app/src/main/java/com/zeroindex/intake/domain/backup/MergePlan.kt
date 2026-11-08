@@ -1,7 +1,11 @@
 package com.zeroindex.intake.domain.backup
 
-/** A row reduced to what merging needs. */
-data class RowVersion(val id: String, val updatedAt: Long, val naturalKey: String? = null)
+/**
+ * A row reduced to what merging needs. [hash] is a digest of the row's
+ * content; when two versions carry the same [updatedAt] it decides the
+ * winner, so every device picks the same one.
+ */
+data class RowVersion(val id: String, val updatedAt: Long, val naturalKey: String? = null, val hash: String? = null)
 
 data class TablePlan(
     val table: String,
@@ -29,7 +33,10 @@ data class TablePlan(
  * rule and a restore never resurrects something deleted later.
  *
  * Sync (amendment §3) applies the same rule, so a backup and a sync can
- * never disagree about which version of a row wins.
+ * never disagree about which version of a row wins. Equal timestamps with
+ * different content are broken by the larger content [RowVersion.hash] -
+ * arbitrary, but the same on every device and on the server, which is what
+ * convergence needs.
  */
 object MergePlan {
 
@@ -46,11 +53,18 @@ object MergePlan {
             val existing = byId[row.id] ?: row.naturalKey?.let(byKey::get)
             when {
                 existing == null -> { writes[row.id] = row.id; added++ }
-                row.updatedAt > existing.updatedAt -> { writes[row.id] = existing.id; updated++ }
-                row.updatedAt < existing.updatedAt -> kept++
+                incomingWins(row, existing) -> { writes[row.id] = existing.id; updated++ }
+                row.updatedAt < existing.updatedAt || row.hash != existing.hash -> kept++
                 else -> same++
             }
         }
         return TablePlan(table, writes, added, updated, kept, same)
+    }
+
+    /** The one ordering every device and the server agree on. */
+    fun incomingWins(incoming: RowVersion, existing: RowVersion): Boolean = when {
+        incoming.updatedAt != existing.updatedAt -> incoming.updatedAt > existing.updatedAt
+        incoming.hash == null || existing.hash == null -> false
+        else -> incoming.hash > existing.hash
     }
 }

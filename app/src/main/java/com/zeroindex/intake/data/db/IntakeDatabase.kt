@@ -9,6 +9,7 @@ import com.zeroindex.intake.data.db.dao.AllergenDao
 import com.zeroindex.intake.data.db.dao.BodyMetricDao
 import com.zeroindex.intake.data.db.dao.ExerciseDao
 import com.zeroindex.intake.data.db.dao.ExportDao
+import com.zeroindex.intake.data.db.dao.SyncConflictDao
 import com.zeroindex.intake.data.db.dao.FoodDao
 import com.zeroindex.intake.data.db.dao.FoodLogDao
 import com.zeroindex.intake.data.db.dao.HealthSummaryDao
@@ -29,6 +30,7 @@ import com.zeroindex.intake.data.db.entity.AiInsightEntity
 import com.zeroindex.intake.data.db.entity.AllergenAliasEntity
 import com.zeroindex.intake.data.db.entity.AllergenProfileEntity
 import com.zeroindex.intake.data.db.entity.BackupRunEntity
+import com.zeroindex.intake.data.db.entity.SyncConflictEntity
 import com.zeroindex.intake.data.db.entity.BodyMetricEntity
 import com.zeroindex.intake.data.db.entity.EatOutOptionEntity
 import com.zeroindex.intake.data.db.entity.ExerciseEntity
@@ -98,6 +100,7 @@ import com.zeroindex.intake.data.db.entity.WorkoutSessionEntity
         ModelBenchmarkEntity::class,
         HealthDailySummaryEntity::class,
         BackupRunEntity::class,
+        SyncConflictEntity::class,
     ],
 )
 abstract class IntakeDatabase : RoomDatabase() {
@@ -123,6 +126,7 @@ abstract class IntakeDatabase : RoomDatabase() {
     abstract fun aiInsightDao(): AiInsightDao
     abstract fun healthSummaryDao(): HealthSummaryDao
     abstract fun exportDao(): ExportDao
+    abstract fun syncConflictDao(): SyncConflictDao
 
     companion object {
         const val VERSION = 2

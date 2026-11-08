@@ -40,4 +40,15 @@ class MergePlanTest {
         assertThat(plan.updated).isEqualTo(1)
         assertThat(plan.writes).containsExactly("other-device-id", "local-id")
     }
+
+    @Test
+    fun `equal timestamps are broken by content hash, the same way on both sides`() {
+        val a = RowVersion("x", 500, hash = "aaaa")
+        val b = RowVersion("x", 500, hash = "bbbb")
+        // Device holding a receives b: b wins. Device holding b receives a: b stays.
+        assertThat(MergePlan.plan("t", listOf(a), listOf(b)).updated).isEqualTo(1)
+        assertThat(MergePlan.plan("t", listOf(b), listOf(a)).keptLocal).isEqualTo(1)
+        // Same content is a no-op, not a conflict.
+        assertThat(MergePlan.plan("t", listOf(a), listOf(a.copy())).unchanged).isEqualTo(1)
+    }
 }
