@@ -86,3 +86,20 @@
 -dontwarn org.ietf.jgss.**
 -dontwarn javax.el.**
 -dontwarn org.slf4j.**
+
+# --- ML Kit bundled barcode scanning (barcode fix) ----------------------------
+# The decoder is native code (libbarhopper_v3.so) that reads Java option fields and
+# creates response objects by name, and the scanner is reached through generated
+# dispatch classes. ML Kit's own consumer rules keep only part of that. Keeping the
+# whole barcode path costs a little size and removes R8 as a way for release builds to
+# differ from debug.
+-keep class com.google.android.libraries.barhopper.** { *; }
+-keep class com.google.photos.vision.barhopper.** { *; }
+-keep class com.google.barhopper.** { *; }
+-keep class com.google.mlkit.vision.barcode.** { *; }
+-keep class com.google.android.gms.internal.mlkit_vision_barcode.** { *; }
+-keep class com.google.android.gms.internal.mlkit_vision_barcode_bundled.** { *; }
+-dontwarn com.google.mlkit.vision.barcode.**
+
+# --- Reference food database (Room, pre-packaged asset) ----------------------
+-keep class com.zeroindex.intake.data.foodref.RefFoodEntity { *; }

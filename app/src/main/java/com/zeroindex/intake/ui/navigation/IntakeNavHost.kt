@@ -23,6 +23,9 @@ import com.zeroindex.intake.ui.screens.body.BodyMetricsScreen
 import com.zeroindex.intake.ui.screens.health.HealthConnectScreen
 import com.zeroindex.intake.ui.screens.hub.AllergensScreen
 import com.zeroindex.intake.ui.screens.hub.EatingOutScreen
+import com.zeroindex.intake.ui.screens.fooddata.FoodDataScreen
+import com.zeroindex.intake.ui.screens.fooddata.FoodDetailScreen
+import com.zeroindex.intake.ui.screens.fooddata.MyFoodsScreen
 import com.zeroindex.intake.ui.screens.hub.FoodHubScreen
 import com.zeroindex.intake.ui.screens.hub.RecipesScreen
 import com.zeroindex.intake.ui.screens.hub.TrainHubScreen
@@ -114,6 +117,9 @@ fun IntakeNavHost(
                     onOpenAllergens = { navController.navigate(Route.Allergens) },
                     onOpenFoodScriptHelp = { openScriptReference("meal-plan", null) },
                     onOpenAiSettings = openAiSettings,
+                    onOpenMyFoods = { navController.navigate(Route.MyFoods) },
+                    onOpenFood = { id -> navController.navigate(Route.FoodDetail(id)) },
+                    onOpenFoodData = { navController.navigate(Route.FoodData) },
                 )
             }
             composable<Route.MealPlans> {
@@ -168,6 +174,18 @@ fun IntakeNavHost(
             aiSettings(contentPadding)
             settings(navController, contentPadding)
             composable<Route.Backup> { BackupScreen(contentPadding) }
+            composable<Route.MyFoods> {
+                MyFoodsScreen(contentPadding, onOpenFood = { id -> navController.navigate(Route.FoodDetail(id)) })
+            }
+            composable<Route.FoodDetail> { entry ->
+                FoodDetailScreen(
+                    foodId = entry.toRoute<Route.FoodDetail>().foodId,
+                    contentPadding = contentPadding,
+                    onBack = { navController.popBackStack() },
+                    onOpenFoodData = { navController.navigate(Route.FoodData) },
+                )
+            }
+            composable<Route.FoodData> { FoodDataScreen(contentPadding) }
             // Add new Food routes above this line.
         }
 
@@ -261,6 +279,7 @@ private fun NavGraphBuilder.settings(navController: NavHostController, contentPa
             contentPadding,
             onOpenAi = { navController.navigate(Route.AiSettings) },
             onOpenBackup = { navController.navigate(Route.Backup) },
+            onOpenFoodData = { navController.navigate(Route.FoodData) },
             section = entry.toRoute<Route.Settings>().section,
         )
     }

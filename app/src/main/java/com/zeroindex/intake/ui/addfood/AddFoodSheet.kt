@@ -3,6 +3,8 @@
 package com.zeroindex.intake.ui.addfood
 
 import androidx.compose.foundation.clickable
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -61,6 +63,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.db.entity.FoodEntity
+import com.zeroindex.intake.data.foodref.RefFood
+import com.zeroindex.intake.data.foodref.RefPortion
+import androidx.compose.runtime.LaunchedEffect
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nutrition.Macros
 import com.zeroindex.intake.ui.allergen.AllergenWarningSheet
@@ -347,7 +352,7 @@ private fun FoodRow(
     food: FoodEntity,
     isSafe: Boolean,
     onPick: (FoodEntity) -> Unit,
-    onToggleFavorite: (FoodEntity) -> Unit,
+    onToggleFavorite: ((FoodEntity) -> Unit)?,
 ) {
     val perServing = food.servingSizeGrams / 100.0
     Column {
@@ -423,7 +428,7 @@ private fun FoodRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            IconButton(onClick = { onToggleFavorite(food) }, modifier = Modifier.size(48.dp)) {
+            if (onToggleFavorite != null) IconButton(onClick = { onToggleFavorite(food) }, modifier = Modifier.size(48.dp)) {
                 Icon(
                     imageVector = if (food.isFavorite) {
                         Icons.Filled.Star
@@ -449,8 +454,27 @@ private fun SearchTab(
     onQueryChange: (String) -> Unit,
     onSearchRemote: () -> Unit,
     onPick: (FoodEntity) -> Unit,
+    onChooseRef: (RefFood) -> Unit,
+    onChooseOff: (FoodEntity) -> Unit,
     onToggleFavorite: (FoodEntity) -> Unit,
+    onCreate: (String, String?, Double, String, Double, Double, Double, Double) -> Unit,
 ) {
+    var creating by remember { mutableStateOf(false) }
+    if (creating) {
+        CreateFoodForm(
+            heading = "Create a food",
+            note = "Enter the numbers for one serving as they appear on the label. They are " +
+                "stored per 100 g so any portion works later.",
+            initialName = state.query.trim(),
+            onCancel = { creating = false },
+            onCreate = { name, brand, grams, label, k, p, c, f ->
+                onCreate(name, brand, grams, label, k, p, c, f)
+                creating = false
+            },
+        )
+        return
+    }
+
     Column {
         TextField(
             value = state.query,
@@ -477,72 +501,168 @@ private fun SearchTab(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
         )
 
-        // SPEC §5.1: local results first, above anything remote.
-        if (state.localResults.isNotEmpty()) {
-            Eyebrow(
-                text = "On this phone",
-                modifier = Modifier.padding(start = 16.dp, bottom = 4.dp),
+        if (state.query.isBlank()) {
+            Text(
+                text = "Search your foods and the offline USDA database. Both work with no " +
+                    "internet and no key.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(20.dp),
             )
-            LazyColumn(modifier = Modifier.heightIn(max = 220.dp)) {
-                items(items = state.localResults, key = { it.id }) { food ->
+            return@Column
+        }
+
+        val offLoading = state.offState == OffUiState.Loading
+        val offResults = (state.offState as? OffUiState.Results)?.foods.orEmpty()
+        val usdaApiResults = (state.searchState as? SearchState.Remote)?.results.orEmpty()
+        val nothingYet = state.localResults.isEmpty() && state.refResults.isEmpty() &&
+            offResults.isEmpty() && usdaApiResults.isEmpty()
+
+        // Sources in order: this phone, the offline USDA database, Open Food Facts, the USDA API.
+        LazyColumn(modifier = Modifier.heightIn(max = 420.dp)) {
+            if (state.localResults.isNotEmpty()) {
+                item(key = "h-local") { SourceHeader("My foods and recents") }
+                items(items = state.localResults, key = { "l-${it.id}" }) { food ->
                     FoodRow(food, food.id in state.safeFoodIds, onPick, onToggleFavorite)
                 }
             }
-            HorizontalDivider()
-        }
 
-        when (val search = state.searchState) {
-            SearchState.Idle ->
-                if (state.query.isNotBlank()) {
-                    OutlinedButton(
-                        onClick = onSearchRemote,
-                        modifier = Modifier.fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                            .height(52.dp),
-                    ) { Text("Search the USDA database") }
-                } else {
-                    Text(
-                        text = "Type to search foods already on this phone, then search USDA " +
-                            "if nothing matches.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(20.dp),
-                    )
+            if (state.refResults.isNotEmpty()) {
+                item(key = "h-ref") { SourceHeader("Food database (USDA, works offline)") }
+                items(items = state.refResults, key = { "r-${it.id}" }) { ref ->
+                    RefFoodRow(ref, onChooseRef)
                 }
-
-            SearchState.Loading -> Row(
-                modifier = Modifier.fillMaxWidth().padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                Spacer(Modifier.size(12.dp))
-                Text("Searching USDA...", style = MaterialTheme.typography.bodyMedium)
             }
 
-            is SearchState.Remote -> {
-                Text(
-                    text = "From USDA, saved to this phone",
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 4.dp),
-                )
-                LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
-                    items(items = search.results, key = { "r-${it.id}" }) { food ->
+            when (state.offState) {
+                OffUiState.Hidden -> Unit
+                OffUiState.Loading -> item(key = "off-loading") {
+                    Column {
+                        SourceHeader("Packaged foods (Open Food Facts)")
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.size(10.dp))
+                            Text("Searching Open Food Facts...", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+                is OffUiState.Results -> if (offResults.isNotEmpty()) {
+                    item(key = "h-off") { SourceHeader("Packaged foods (Open Food Facts)") }
+                    items(items = offResults, key = { "o-${it.barcode}-${it.name}" }) { food ->
+                        FoodRow(food, false, onChooseOff, null)
+                    }
+                }
+                OffUiState.Failed -> item(key = "off-failed") {
+                    Column {
+                        SourceHeader("Packaged foods (Open Food Facts)")
+                        DegradedMessage("Open Food Facts could not be reached. The sources above still work.")
+                    }
+                }
+            }
+
+            // The USDA API is an extra for people who have set a key; it is never required.
+            if (state.hasUsdaKey) {
+                item(key = "usda-api") {
+                    when (val search = state.searchState) {
+                        SearchState.Idle -> OutlinedButton(
+                            onClick = onSearchRemote,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).height(52.dp),
+                        ) { Text("Also search USDA online (your key)") }
+                        SearchState.Loading -> Row(
+                            modifier = Modifier.fillMaxWidth().padding(20.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.size(12.dp))
+                            Text("Searching USDA...", style = MaterialTheme.typography.bodyMedium)
+                        }
+                        is SearchState.Remote -> Unit
+                        SearchState.NeedsKey -> Unit
+                        SearchState.NoResults -> DegradedMessage("USDA online had nothing for that.")
+                        is SearchState.Failed -> DegradedMessage(search.message)
+                    }
+                }
+                if (usdaApiResults.isNotEmpty()) {
+                    item(key = "h-usda") { SourceHeader("USDA online (your key), saved to this phone") }
+                    items(items = usdaApiResults, key = { "u-${it.id}" }) { food ->
                         FoodRow(food, false, onPick, onToggleFavorite)
                     }
                 }
             }
 
-            // SPEC §3.1: degrade to manual entry with a clear message.
-            SearchState.NeedsKey -> DegradedMessage(
-                "USDA search needs a free API key. Add one in More, Settings - everything " +
-                    "else works without it.",
-            )
-            SearchState.NoResults -> DegradedMessage(
-                "Nothing came back for that. Add it by hand from My foods and it will be " +
-                    "here next time.",
-            )
-            is SearchState.Failed -> DegradedMessage(search.message)
+            if (nothingYet && !offLoading) {
+                item(key = "create") {
+                    Column(Modifier.padding(16.dp)) {
+                        Text(
+                            "Nothing matches \"${state.query.trim()}\".",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Button(
+                            onClick = { creating = true },
+                            modifier = Modifier.fillMaxWidth().padding(top = 10.dp).height(52.dp),
+                        ) { Text("Create a food") }
+                    }
+                }
+            } else if (!nothingYet) {
+                item(key = "create-small") {
+                    OutlinedButton(
+                        onClick = { creating = true },
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).height(48.dp),
+                    ) { Text("Not here? Create \"${state.query.trim()}\"") }
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun SourceHeader(text: String) {
+    Eyebrow(text = text, modifier = Modifier.padding(start = 16.dp, top = 10.dp, bottom = 4.dp))
+}
+
+/** A bundled USDA food: name, category, and the numbers for its first listed portion. */
+@Composable
+private fun RefFoodRow(ref: RefFood, onChoose: (RefFood) -> Unit) {
+    val portion = ref.defaultPortion
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 65.dp)
+                .clickable(onClickLabel = "Choose a portion of ${ref.name}") { onChoose(ref) }
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(ref.name, style = MaterialTheme.typography.titleSmall, maxLines = 2)
+                Spacer(Modifier.size(2.dp))
+                Text(
+                    text = "${portion.label} (${portion.grams.roundToInt()} g)" +
+                        if (ref.category.isNotBlank()) " · ${ref.category}" else "",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+                checkLabelReasonFor(ref.name)?.let { reason ->
+                    Spacer(Modifier.size(4.dp))
+                    CheckLabelChip(reason)
+                }
+            }
+            Spacer(Modifier.size(8.dp))
+            Column(horizontalAlignment = Alignment.End) {
+                Text("${ref.kcalFor(portion.grams).roundToInt()}", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    text = "kcal · ${ref.proteinFor(portion.grams).roundToInt()}g P",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
 
@@ -551,6 +671,7 @@ private fun BarcodeTab(
     state: AddFoodUiState,
     onBarcode: (String) -> Unit,
     onRescan: () -> Unit,
+    onRetry: (String) -> Unit,
     onPick: (FoodEntity) -> Unit,
     onCreateForBarcode: (
         String?, String, String?, Double, String, Double, Double, Double, Double,
@@ -561,8 +682,9 @@ private fun BarcodeTab(
 
     if (pendingManual != null) {
         CreateFoodForm(
-            heading = "New product",
-            note = "The barcode is kept with it, so the next scan of this item resolves instantly.",
+            heading = "Add this product",
+            note = (if (pendingManual.isNotBlank()) "Barcode $pendingManual. " else "") +
+                "The barcode is kept with it, so the next scan of this item resolves instantly.",
             onCancel = { manualFor = null },
             onCreate = { name, brand, grams, label, k, p, c, f ->
                 onCreateForBarcode(
@@ -632,7 +754,7 @@ private fun BarcodeTab(
         }
 
         is BarcodeState.Unknown -> Column(Modifier.padding(20.dp)) {
-            Text("Not in the database", style = MaterialTheme.typography.titleMedium)
+            Text("Not found in Open Food Facts", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(6.dp))
             Text(
                 text = barcode.reason
@@ -645,7 +767,30 @@ private fun BarcodeTab(
             Button(
                 onClick = { manualFor = barcode.barcode },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
-            ) { Text("Add it by hand") }
+            ) { Text("Add this product") }
+            OutlinedButton(
+                onClick = onRescan,
+                modifier = Modifier.fillMaxWidth().height(52.dp).padding(top = 8.dp),
+            ) { Text("Scan again") }
+        }
+
+        is BarcodeState.LookupFailed -> Column(Modifier.padding(20.dp)) {
+            Text("Could not look that up", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = barcode.message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(16.dp))
+            Button(
+                onClick = { onRetry(barcode.barcode) },
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+            ) { Text("Try again") }
+            OutlinedButton(
+                onClick = { manualFor = barcode.barcode },
+                modifier = Modifier.fillMaxWidth().height(52.dp).padding(top = 8.dp),
+            ) { Text("Add this product") }
             OutlinedButton(
                 onClick = onRescan,
                 modifier = Modifier.fillMaxWidth().height(52.dp).padding(top = 8.dp),
@@ -793,8 +938,9 @@ private fun CreateFoodForm(
     note: String,
     onCancel: () -> Unit,
     onCreate: (String, String?, Double, String, Double, Double, Double, Double) -> Unit,
+    initialName: String = "",
 ) {
-    var name by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf(initialName) }
     var brand by remember { mutableStateOf("") }
     var servingGrams by remember { mutableStateOf("100") }
     var servingLabel by remember { mutableStateOf("") }
@@ -878,6 +1024,8 @@ private fun CreateFoodForm(
 @Composable
 private fun PortionStep(
     food: FoodEntity,
+    extraPortions: List<RefPortion>,
+    onEditFood: (() -> Unit)?,
     onCancel: () -> Unit,
     onLog: (Double) -> Unit,
 ) {
@@ -909,6 +1057,19 @@ private fun PortionStep(
                 OutlinedButton(onClick = { grams = value.toString() }) { Text(label) }
             }
         }
+        // Other portions the USDA database lists for this food.
+        if (extraPortions.isNotEmpty()) {
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                extraPortions.forEach { portion ->
+                    OutlinedButton(onClick = { grams = portion.grams.roundToInt().toString() }) {
+                        Text("${portion.label} (${portion.grams.roundToInt()} g)")
+                    }
+                }
+            }
+        }
 
         checkLabelReasonFor(food.name)?.let { CheckLabelChip(it) }
 
@@ -923,6 +1084,9 @@ private fun PortionStep(
             color = MaterialTheme.colorScheme.onSurface,
         )
 
+        if (onEditFood != null) {
+            TextButton(onClick = onEditFood) { Text("Edit this food") }
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("Back") }
             Button(
