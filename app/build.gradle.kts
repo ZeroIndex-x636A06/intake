@@ -188,6 +188,9 @@ dependencies {
     implementation(libs.retrofit)
     implementation(libs.retrofit.kotlinx.serialization)
     implementation(libs.okhttp)
+    // Backup transports (amendment §2). WebDAV is plain HTTP over OkHttp.
+    implementation(libs.jsch)
+    implementation(libs.smbj)
 
     testImplementation(libs.junit)
     testImplementation(libs.truth)
