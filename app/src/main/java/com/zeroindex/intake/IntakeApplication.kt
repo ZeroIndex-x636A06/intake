@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import androidx.work.WorkManager
+import com.zeroindex.intake.work.MenuIngestionWorker
 import com.zeroindex.intake.work.TdeeWorker
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
@@ -24,5 +25,6 @@ class IntakeApplication : Application(), Configuration.Provider {
         // SPEC §8: nightly recalculation. KEEP, so an existing schedule is not
         // reset on every launch.
         TdeeWorker.schedule(WorkManager.getInstance(this))
+        MenuIngestionWorker.schedule(WorkManager.getInstance(this))
     }
 }

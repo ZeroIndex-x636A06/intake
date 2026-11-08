@@ -11,6 +11,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Height
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MonitorWeight
+import androidx.compose.material.icons.filled.RestaurantMenu
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.MaterialTheme
@@ -54,6 +55,12 @@ fun MoreScreen(
             subtitle = "Weight, body fat and tape measurements",
             icon = Icons.Filled.MonitorWeight,
             route = Route.BodyMetrics,
+        ),
+        MoreEntry(
+            title = "Menu import",
+            subtitle = "Restaurant menus for Plan B, checked for allergens",
+            icon = Icons.Filled.RestaurantMenu,
+            route = Route.MenuSources,
         ),
         MoreEntry(
             title = "Jump test",

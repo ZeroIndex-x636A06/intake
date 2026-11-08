@@ -9,6 +9,7 @@ import androidx.navigation.toRoute
 import com.zeroindex.intake.ui.screens.ai.AiSettingsScreen
 import com.zeroindex.intake.ui.screens.allergen.AllergenReferenceScreen
 import com.zeroindex.intake.ui.screens.body.BodyMetricsScreen
+import com.zeroindex.intake.ui.screens.menu.MenuSourcesScreen
 import com.zeroindex.intake.ui.screens.more.MoreScreen
 import com.zeroindex.intake.ui.screens.performance.PerformanceScreen
 import com.zeroindex.intake.ui.screens.plan.PlanScreen
@@ -42,6 +43,7 @@ fun IntakeNavHost(
                 onOpenRecipe = { id -> navController.navigate(Route.RecipeDetail(id)) },
             )
         }
+        composable<Route.MenuSources> { MenuSourcesScreen(contentPadding) }
         composable<Route.PlanB> {
             PlanBScreen(contentPadding, onOpenAiSettings = { navController.navigate(Route.AiSettings) })
         }
