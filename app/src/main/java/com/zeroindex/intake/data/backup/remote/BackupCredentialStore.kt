@@ -14,8 +14,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * The secret half of backups: the server password (or SFTP private key) per
- * protocol, and the passphrase backups are encrypted with.
+ * The secret half of backups and sync: the server password (or SFTP private
+ * key) per protocol, the passphrase backups are encrypted with, and this
+ * device's sync token.
  *
  * The passphrase has to live on the phone for a backup to run at 2 AM with no
  * one there to type it. What it protects is the copy on the server: someone
@@ -33,6 +34,7 @@ class BackupCredentialStore @Inject constructor(
         const val TAG = "BackupCredentials"
         const val FILE = "intake_backup_secrets"
         const val PASSPHRASE = "backup_passphrase"
+        const val SYNC_TOKEN = "sync_device_token"
         fun secretKey(protocol: BackupProtocol) = "secret_${protocol.name.lowercase()}"
         fun privateKeyKey() = "sftp_private_key"
     }
@@ -55,6 +57,9 @@ class BackupCredentialStore @Inject constructor(
     fun password(protocol: BackupProtocol): String? = prefs?.getString(secretKey(protocol), null)?.takeIf { it.isNotEmpty() }
     fun sftpPrivateKey(): String? = prefs?.getString(privateKeyKey(), null)?.takeIf { it.isNotBlank() }
     fun passphrase(): CharArray? = prefs?.getString(PASSPHRASE, null)?.takeIf { it.isNotEmpty() }?.toCharArray()
+
+    fun syncToken(): String? = prefs?.getString(SYNC_TOKEN, null)?.takeIf { it.isNotEmpty() }
+    fun setSyncToken(value: String?) = put(SYNC_TOKEN, value)
 
     fun setPassword(protocol: BackupProtocol, value: String?) = put(secretKey(protocol), value)
     fun setSftpPrivateKey(value: String?) = put(privateKeyKey(), value?.trim())

@@ -20,9 +20,10 @@ and nothing else.
   never runs backwards and never falls behind a time already seen from another
   device (capped at five minutes ahead, so one badly set clock cannot drag the
   others into the future).
-- When both devices edited the same row between syncs, the newer edit wins and
-  the other version is kept on the device under **Backup & sync → Conflicts**,
-  where you can restore it. Nothing is silently thrown away.
+- When both devices edited the same row between syncs, the newer edit wins on
+  every device, and the device that syncs second - the one that sees both
+  versions - keeps the losing one under **Backup & sync → Conflicts**, where you
+  can restore it. Nothing is silently thrown away.
 - Health Connect weigh-ins get ids from Health Connect's own record ids, and
   daily health summaries are keyed by day, so two devices reading the same
   scale or watch do not create duplicates.

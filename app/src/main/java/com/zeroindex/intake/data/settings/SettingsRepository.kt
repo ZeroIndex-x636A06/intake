@@ -66,6 +66,8 @@ data class AppSettings(
     /** Amendment §2: the server a nightly backup goes to. Null until set up. */
     val backupDestination: BackupDestination? = null,
     val backupSchedule: BackupSchedule = BackupSchedule.NIGHTLY,
+    /** Amendment §3 device sync. Null server = sync off. */
+    val sync: SyncSettings = SyncSettings(),
     /**
      * Amendment §3. Off by default: it sends a summary of food, training and
      * body data off the phone, so it has to be asked for.
@@ -85,6 +87,26 @@ data class AppSettings(
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 @Singleton
+/**
+ * Where this device is in the sync stream. [pulledSeq] is the server sequence
+ * already applied; [pushedUpTo] the local updatedAt everything at or before
+ * which has been sent. [schemaVersion] is the database version the cursor was
+ * built with: after an app update the next sync pulls everything again, so
+ * rows for tables this version did not know about are picked up.
+ */
+data class SyncSettings(
+    val serverUrl: String? = null,
+    val deviceId: String? = null,
+    val deviceName: String? = null,
+    val pulledSeq: Long = 0,
+    val pushedUpTo: Long = 0,
+    val schemaVersion: Int = 0,
+    val lastSyncAt: Long? = null,
+    val lastError: String? = null,
+) {
+    val paired: Boolean get() = serverUrl != null && deviceId != null
+}
+
 /** Lenient so a field added in a later version never wipes a saved destination. */
 private val settingsJson = Json { ignoreUnknownKeys = true }
 
@@ -109,6 +131,14 @@ class SettingsRepository @Inject constructor(
         val planWeek = intPreferencesKey("current_plan_week")
         val backupDestination = stringPreferencesKey("backup_destination_json")
         val backupSchedule = stringPreferencesKey("backup_schedule")
+        val syncServer = stringPreferencesKey("sync_server_url")
+        val syncDeviceId = stringPreferencesKey("sync_device_id")
+        val syncDeviceName = stringPreferencesKey("sync_device_name")
+        val syncPulledSeq = longPreferencesKey("sync_pulled_seq")
+        val syncPushedUpTo = longPreferencesKey("sync_pushed_up_to")
+        val syncSchema = intPreferencesKey("sync_schema_version")
+        val syncLastAt = longPreferencesKey("sync_last_at")
+        val syncLastError = stringPreferencesKey("sync_last_error")
         val lastExport = longPreferencesKey("last_export_at")
         val demoLoaded = booleanPreferencesKey("demo_data_loaded")
         val volumeUnit = stringPreferencesKey("volume_unit")
@@ -156,6 +186,16 @@ class SettingsRepository @Inject constructor(
             aiModelOverrides = AiTask.entries.mapNotNull { task -> p[Keys.aiModel(task)]?.let { task to it } }.toMap(),
             backupDestination = p[Keys.backupDestination]?.let { runCatching { settingsJson.decodeFromString<BackupDestination>(it) }.getOrNull() },
             backupSchedule = p[Keys.backupSchedule]?.let { runCatching { BackupSchedule.valueOf(it) }.getOrNull() } ?: BackupSchedule.NIGHTLY,
+            sync = SyncSettings(
+                serverUrl = p[Keys.syncServer],
+                deviceId = p[Keys.syncDeviceId],
+                deviceName = p[Keys.syncDeviceName],
+                pulledSeq = p[Keys.syncPulledSeq] ?: 0,
+                pushedUpTo = p[Keys.syncPushedUpTo] ?: 0,
+                schemaVersion = p[Keys.syncSchema] ?: 0,
+                lastSyncAt = p[Keys.syncLastAt],
+                lastError = p[Keys.syncLastError],
+            ),
             dailyInsightEnabled = p[Keys.dailyInsight] ?: false,
             healthLastWriteAt = p[Keys.healthLastWrite] ?: 0,
             healthLastSyncAt = p[Keys.healthLastSync],
@@ -204,6 +244,32 @@ class SettingsRepository @Inject constructor(
         if (destination == null) it.remove(Keys.backupDestination) else it[Keys.backupDestination] = settingsJson.encodeToString(destination)
     }
     suspend fun setBackupSchedule(schedule: BackupSchedule) = put { it[Keys.backupSchedule] = schedule.name }
+
+    suspend fun setSyncPaired(serverUrl: String, deviceId: String, deviceName: String) = put {
+        it[Keys.syncServer] = serverUrl
+        it[Keys.syncDeviceId] = deviceId
+        it[Keys.syncDeviceName] = deviceName
+        it[Keys.syncPulledSeq] = 0
+        it[Keys.syncPushedUpTo] = 0
+        it.remove(Keys.syncLastError)
+    }
+
+    suspend fun setSyncCursor(pulledSeq: Long? = null, pushedUpTo: Long? = null, schemaVersion: Int? = null) = put {
+        pulledSeq?.let { v -> it[Keys.syncPulledSeq] = v }
+        pushedUpTo?.let { v -> it[Keys.syncPushedUpTo] = v }
+        schemaVersion?.let { v -> it[Keys.syncSchema] = v }
+    }
+
+    suspend fun setSyncResult(at: Long, error: String?) = put {
+        it[Keys.syncLastAt] = at
+        if (error == null) it.remove(Keys.syncLastError) else it[Keys.syncLastError] = error
+    }
+
+    suspend fun clearSync() = put { p ->
+        listOf(Keys.syncServer, Keys.syncDeviceId, Keys.syncDeviceName, Keys.syncLastError).forEach { p.remove(it) }
+        listOf(Keys.syncPulledSeq, Keys.syncPushedUpTo, Keys.syncLastAt).forEach { p.remove(it) }
+        p.remove(Keys.syncSchema)
+    }
 
     private suspend fun put(block: (MutablePreferences) -> Unit) {
         context.dataStore.edit(block)
