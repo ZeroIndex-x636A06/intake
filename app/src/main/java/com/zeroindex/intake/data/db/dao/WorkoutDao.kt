@@ -125,4 +125,14 @@ interface WorkoutDao {
     /** Emits whenever the table changes; the sync debounces on it. */
     @Query("SELECT MAX(updatedAt) FROM workout_session")
     fun observeLastChange(): Flow<Long?>
+
+    @Query(
+        """
+        SELECT * FROM set_log
+        WHERE deletedAt IS NULL AND isWarmup = 0
+          AND completedAt >= :startInclusive AND completedAt < :endExclusive
+        ORDER BY completedAt
+        """,
+    )
+    suspend fun workingSetsInRange(startInclusive: Long, endExclusive: Long): List<SetLogEntity>
 }

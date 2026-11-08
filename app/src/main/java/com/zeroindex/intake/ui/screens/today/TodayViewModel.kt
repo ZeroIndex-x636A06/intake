@@ -2,6 +2,8 @@ package com.zeroindex.intake.ui.screens.today
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zeroindex.intake.data.ai.insight.DailyInsights
+import com.zeroindex.intake.data.db.entity.AiInsightEntity
 import com.zeroindex.intake.data.db.entity.FoodLogEntity
 import com.zeroindex.intake.data.db.entity.HydrationLogEntity
 import com.zeroindex.intake.data.db.entity.HydrationPresetEntity
@@ -42,6 +44,8 @@ data class TodayUiState(
     val settings: AppSettings = AppSettings(),
     /** Net workout kcal included in the target (SPEC §12: clearly labelled). */
     val activityBonusKcal: Int = 0,
+    /** Amendment §3: today's insight, if enabled, generated and not dismissed. */
+    val insight: AiInsightEntity? = null,
 ) {
     val totalEntries: Int get() = slots.sumOf { it.entries.size }
 }
@@ -68,6 +72,7 @@ class TodayViewModel @Inject constructor(
     private val hydrationRepository: HydrationRepository,
     private val settingsRepository: SettingsRepository,
     private val templates: MealTemplateRepository,
+    private val insights: DailyInsights,
     private val clock: Clock,
 ) : ViewModel() {
 
@@ -75,6 +80,7 @@ class TodayViewModel @Inject constructor(
 
     init {
         viewModelScope.launch { hydrationRepository.ensureDefaultPresets() }
+        viewModelScope.launch { insights.ensureToday() }
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -89,7 +95,8 @@ class TodayViewModel @Inject constructor(
                     hydrationRepository.observePresets(),
                     settingsRepository.settings,
                     targetRepository.observeActivityBonus(date),
-                ) { presets, settings, bonus -> Triple(presets, settings, bonus) },
+                    insights.observeToday(),
+                ) { presets, settings, bonus, insight -> Extras(presets, settings, bonus, insight) },
             ) { logs, totals, target, hydration, presetsAndSettings ->
                 val today = clock.today()
                 TodayUiState(
@@ -102,9 +109,10 @@ class TodayViewModel @Inject constructor(
                     },
                     hasTarget = target != null,
                     hydration = hydration,
-                    hydrationPresets = presetsAndSettings.first,
-                    settings = presetsAndSettings.second,
-                    activityBonusKcal = presetsAndSettings.third,
+                    hydrationPresets = presetsAndSettings.presets,
+                    settings = presetsAndSettings.settings,
+                    activityBonusKcal = presetsAndSettings.bonus,
+                    insight = presetsAndSettings.insight?.takeIf { date == today && it.dismissedAt == null },
                 )
             }
         }
@@ -113,6 +121,15 @@ class TodayViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = TodayUiState(date = clock.today()),
         )
+
+    private data class Extras(
+        val presets: List<HydrationPresetEntity>,
+        val settings: AppSettings,
+        val bonus: Int,
+        val insight: AiInsightEntity?,
+    )
+
+    fun dismissInsight(insight: AiInsightEntity) = viewModelScope.launch { insights.dismiss(insight.id) }
 
     fun showPreviousDay() { selectedDate.value = selectedDate.value.minusDays(1) }
     fun showNextDay() { selectedDate.value = selectedDate.value.plusDays(1) }

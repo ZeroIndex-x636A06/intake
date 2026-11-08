@@ -46,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.zeroindex.intake.data.db.entity.AiInsightEntity
 import com.zeroindex.intake.data.db.entity.FoodLogEntity
 import com.zeroindex.intake.data.db.entity.HydrationPresetEntity
 import com.zeroindex.intake.domain.model.MealSlot
@@ -55,6 +56,7 @@ import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.MacroRing
 import com.zeroindex.intake.ui.components.SectionLine
 import com.zeroindex.intake.ui.screens.today.components.HydrationCard
+import com.zeroindex.intake.ui.screens.today.components.InsightCard
 import com.zeroindex.intake.ui.screens.today.components.MealSlotCard
 import java.time.LocalDate
 import java.time.LocalTime
@@ -104,6 +106,7 @@ fun TodayScreen(
             },
             onOpenWater = { showWater = true },
             onSaveTemplate = { templateFor = it },
+            onDismissInsight = viewModel::dismissInsight,
         )
         SnackbarHost(
             hostState = snackbar,
@@ -189,6 +192,7 @@ private fun TodayContent(
     onWaterPreset: (HydrationPresetEntity) -> Unit,
     onOpenWater: () -> Unit,
     onSaveTemplate: (MealSlot) -> Unit,
+    onDismissInsight: (AiInsightEntity) -> Unit,
 ) {
     val swipeThreshold = with(LocalDensity.current) { 64.dp.toPx() }
     var dragged by remember { mutableStateOf(0f) }
@@ -220,6 +224,9 @@ private fun TodayContent(
         }
         item(key = "ring") {
             IntakeCard { MacroRing(progress = state.progress) }
+        }
+        state.insight?.let { insight ->
+            item(key = "insight") { InsightCard(insight, onDismiss = { onDismissInsight(insight) }) }
         }
         if (state.activityBonusKcal > 0) {
             item(key = "activity") {
