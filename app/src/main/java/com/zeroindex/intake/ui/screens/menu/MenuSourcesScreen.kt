@@ -20,7 +20,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -30,6 +29,16 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
+import androidx.compose.ui.text.input.KeyboardType
+import com.zeroindex.intake.ui.components.EmptyState
+import com.zeroindex.intake.ui.components.ErrorState
+import com.zeroindex.intake.ui.components.LabeledField
+import com.zeroindex.intake.ui.components.LoadingState
+import com.zeroindex.intake.ui.components.PillTone
+import com.zeroindex.intake.ui.components.ResultCard
+import com.zeroindex.intake.ui.components.StatusPill
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,12 +54,10 @@ import com.zeroindex.intake.data.db.entity.MenuItemEntity
 import com.zeroindex.intake.data.db.entity.MenuRunStatus
 import com.zeroindex.intake.data.db.entity.MenuSourceEntity
 import com.zeroindex.intake.data.db.entity.MenuSourceKind
-import com.zeroindex.intake.ui.components.AccentNote
-import com.zeroindex.intake.ui.components.Flag
 import com.zeroindex.intake.ui.components.IntakeCard
+import com.zeroindex.intake.ui.components.SectionLine
 import com.zeroindex.intake.ui.components.Segmented
 import com.zeroindex.intake.ui.components.SubHead
-import com.zeroindex.intake.ui.components.Tag
 import com.zeroindex.intake.ui.theme.IntakeShape
 import java.time.Instant
 import java.time.ZoneId
@@ -80,67 +87,83 @@ fun MenuSourcesScreen(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item(key = "head") {
-            SubHead("Menu import", "Restaurant menus parsed into items with macros, checked for allergens on this phone. Re-imported weekly.")
+            SubHead("Menu import", "Keep a local copy of menus you trust. Refreshed weekly, or when you choose.")
         }
         if (!state.hasKey) {
             item(key = "nokey") {
-                AccentNote(
-                    lead = "Needs an OpenRouter key",
-                    body = "Menus are read by an AI model. Add a key in Settings → AI.",
-                    container = MaterialTheme.colorScheme.surfaceVariant,
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                EmptyState(
+                    title = "Needs an OpenRouter key",
+                    body = "Menus are read by an AI model. Add a key in More → AI model picker. Saved menus keep working without one.",
                 )
             }
         }
-        state.running?.let { item(key = "running") { AccentNote(lead = "Working", body = it) } }
+        state.running?.let { item(key = "running") { LoadingState(listOf(it, "Allergens are checked on this phone")) } }
         state.error?.let { err ->
             item(key = "error") {
-                AccentNote(
-                    lead = "Import failed",
-                    body = err,
-                    container = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                    modifier = Modifier.clickable(onClick = viewModel::clearError),
+                ErrorState(title = "Import failed", body = err) {
+                    TextButton(onClick = viewModel::clearError) { Text("Dismiss") }
+                }
+            }
+        }
+        item(key = "sources-head") {
+            SectionLine("Saved sources") {
+                TextButton(onClick = { adding = true }) { Text("＋ Add source") }
+            }
+        }
+        if (sources.isEmpty()) {
+            item(key = "empty") {
+                EmptyState(
+                    title = "No menus yet",
+                    body = "Add a restaurant's nutrition page, PDF or pasted menu text. Plan B can then suggest from it offline.",
                 )
             }
-        }
-        item(key = "add") {
-            Button(onClick = { adding = true }, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(52.dp)) {
-                Text("Add a menu")
+        } else {
+            item(key = "sources") {
+                IntakeCard {
+                    sources.forEachIndexed { i, source ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 56.dp)
+                                .clickable(onClickLabel = "Show items and actions") { viewModel.open(source) }
+                                .padding(vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(source.restaurantName, style = MaterialTheme.typography.titleSmall)
+                                Text(
+                                    when (source.kind) {
+                                        MenuSourceKind.URL -> "URL · ${source.location.removePrefix("https://").removePrefix("http://").removePrefix("www.").take(40)}"
+                                        MenuSourceKind.PDF -> "PDF · local file"
+                                        MenuSourceKind.TEXT -> "Pasted text"
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Text(
+                                    (source.lastRunAt?.let { dates.format(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault())) } ?: "Never imported") +
+                                        " · ${source.itemCount} items",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            when (source.lastStatus) {
+                                MenuRunStatus.OK -> StatusPill("OK")
+                                MenuRunStatus.FAILED -> StatusPill("Failed", tone = PillTone.Bad)
+                                MenuRunStatus.RUNNING -> StatusPill("Running", tone = PillTone.Wait)
+                                MenuRunStatus.NEVER_RUN -> StatusPill("Never run", tone = PillTone.Wait)
+                            }
+                        }
+                        if (i != sources.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    }
+                }
             }
-        }
-        items(sources, key = { it.id }) { source ->
-            IntakeCard(modifier = Modifier.clickable { viewModel.open(source) }) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(source.restaurantName, style = MaterialTheme.typography.titleSmall)
-                        Text(
-                            buildString {
-                                append(source.kind.name.lowercase().replaceFirstChar(Char::uppercase))
-                                append(" · ${source.itemCount} items")
-                                source.lastRunAt?.let {
-                                    append(" · ${dates.format(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()))}")
-                                }
-                            },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    when (source.lastStatus) {
-                        MenuRunStatus.OK -> Tag("OK")
-                        MenuRunStatus.FAILED -> Flag("Failed")
-                        MenuRunStatus.RUNNING -> Tag("Running")
-                        MenuRunStatus.NEVER_RUN -> Tag("Never run")
-                    }
-                }
-                source.lastError?.takeIf { source.lastStatus == MenuRunStatus.FAILED }?.let {
-                    Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 4.dp))
-                }
-                Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { viewModel.run(source) }, enabled = state.running == null, shape = IntakeShape.Chip) {
-                        Text("Import now")
-                    }
-                    TextButton(onClick = { viewModel.delete(source) }) { Text("Remove") }
+            sources.firstOrNull { it.lastStatus == MenuRunStatus.FAILED && it.lastError != null }?.let { failed ->
+                item(key = "failed") {
+                    ErrorState(
+                        title = "Import failed · ${failed.restaurantName}",
+                        body = "${failed.lastError} You can paste menu text or choose a PDF instead.",
+                    )
                 }
             }
         }
@@ -149,7 +172,16 @@ fun MenuSourcesScreen(
     if (adding) AddSourceSheet(onDismiss = { adding = false }, onAdd = { n, k, l, p -> viewModel.add(n, k, l, p); adding = false })
     state.review?.let { ReviewSheet(it, onToggle = viewModel::toggle, onSave = viewModel::commit, onDiscard = viewModel::discardReview) }
     state.openSourceId?.let { id ->
-        sources.firstOrNull { it.id == id }?.let { src -> ItemsSheet(src, items, onDismiss = { viewModel.open(null) }) }
+        sources.firstOrNull { it.id == id }?.let { src ->
+            ItemsSheet(
+                src,
+                items,
+                canRun = state.running == null && state.hasKey,
+                onRun = { viewModel.run(src); viewModel.open(null) },
+                onRemove = { viewModel.delete(src); viewModel.open(null) },
+                onDismiss = { viewModel.open(null) },
+            )
+        }
     }
 }
 
@@ -166,16 +198,16 @@ private fun AddSourceSheet(onDismiss: () -> Unit, onAdd: (String, MenuSourceKind
             Modifier.padding(horizontal = 16.dp).navigationBarsPadding().verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text("Add a menu", style = MaterialTheme.typography.headlineSmall)
-            OutlinedTextField(name, { name = it }, label = { Text("Restaurant") }, singleLine = true, shape = IntakeShape.Field, modifier = Modifier.fillMaxWidth())
+            Text("Add source", style = MaterialTheme.typography.headlineSmall)
+            LabeledField(label = "Restaurant", value = name, onValueChange = { name = it }, placeholder = "e.g. CAVA")
             Segmented(
-                options = listOf("Web page", "PDF", "Paste text"),
+                options = listOf("Paste URL", "Pick PDF", "Paste text"),
                 selectedIndex = MenuSourceKind.entries.indexOf(kind),
                 onSelect = { kind = MenuSourceKind.entries[it] },
             )
             when (kind) {
                 MenuSourceKind.URL -> {
-                    OutlinedTextField(url, { url = it }, label = { Text("Menu page address") }, singleLine = true, shape = IntakeShape.Field, modifier = Modifier.fillMaxWidth())
+                    LabeledField(label = "Menu URL", value = url, onValueChange = { url = it.trim() }, placeholder = "https://…", keyboardType = KeyboardType.Uri)
                     Text(
                         "Delivery apps such as DoorDash forbid automated access in their terms and usually block it. " +
                             "For those, save the menu as a PDF or paste its text.",
@@ -209,7 +241,7 @@ private fun AddSourceSheet(onDismiss: () -> Unit, onAdd: (String, MenuSourceKind
                 enabled = ready,
                 shape = IntakeShape.Button,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
-            ) { Text("Add and import") }
+            ) { Text("Import menu") }
             Spacer(Modifier.height(12.dp))
         }
     }
@@ -218,43 +250,93 @@ private fun AddSourceSheet(onDismiss: () -> Unit, onAdd: (String, MenuSourceKind
 /** Nothing from a manual import is saved until the user has seen it. */
 @Composable
 private fun ReviewSheet(review: Review, onToggle: (Int) -> Unit, onSave: () -> Unit, onDiscard: () -> Unit) {
+    val flagged = review.items.count { it.entity.allergenStatus == AllergenStatus.CONTAINS || it.entity.allergenStatus == AllergenStatus.MAY_CONTAIN }
+    val accepted = review.items.count { it.accepted }
     ModalBottomSheet(onDismissRequest = onDiscard, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.padding(horizontal = 16.dp).navigationBarsPadding()) {
-            Text("Review ${review.source.restaurantName}", style = MaterialTheme.typography.headlineSmall)
-            Text(
-                "${review.items.size} items found. Untick any to leave out. Items that contain an allergen you avoid are unticked " +
-                    "and are never offered by Plan B.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            SubHead("Review imported menu", "Nothing is stored until you accept items.")
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                shape = RoundedCornerShape(17.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    "Parsed ${review.items.size} items from ${review.source.restaurantName}" +
+                        if (flagged > 0) " · $flagged need review" else "",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(15.dp),
+                )
+            }
             LazyColumn(Modifier.fillMaxWidth().heightIn(max = 480.dp)) {
                 items(review.items.size) { i ->
                     val staged = review.items[i]
-                    Row(
-                        Modifier.fillMaxWidth().clickable { onToggle(i) }.heightIn(min = 56.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Checkbox(checked = staged.accepted, onCheckedChange = { onToggle(i) })
-                        ItemText(staged.entity, Modifier.weight(1f))
+                    val item = staged.entity
+                    ResultCard(dimmed = !staged.accepted, modifier = Modifier.padding(vertical = 4.dp)) {
+                        Row(verticalAlignment = Alignment.Top) {
+                            Text(item.name, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f).padding(end = 6.dp))
+                            when (item.allergenStatus) {
+                                AllergenStatus.CONTAINS -> StatusPill("Allergen match · review", tone = PillTone.Bad)
+                                AllergenStatus.MAY_CONTAIN -> StatusPill("Possible match · review", tone = PillTone.Wait)
+                                AllergenStatus.CLEAR -> StatusPill("Ingredient check passed")
+                                AllergenStatus.UNKNOWN -> StatusPill("No ingredients listed", tone = PillTone.Wait)
+                            }
+                        }
+                        Text(macroLine(item), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+                        Text(
+                            when (item.allergenStatus) {
+                                AllergenStatus.CONTAINS, AllergenStatus.MAY_CONTAIN -> "Matched: ${item.allergenMatches}"
+                                AllergenStatus.CLEAR -> "No terms you avoid were found"
+                                AllergenStatus.UNKNOWN -> "Check with staff before ordering"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            TextButton(onClick = { if (staged.accepted) onToggle(i) }, enabled = staged.accepted) { Text("Reject") }
+                            TextButton(onClick = { if (!staged.accepted) onToggle(i) }, enabled = !staged.accepted) {
+                                Text(if (staged.accepted) "Accepted" else "Accept item")
+                            }
+                        }
                     }
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
             }
-            Row(Modifier.padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = onDiscard, shape = IntakeShape.Button, modifier = Modifier.weight(1f).height(52.dp)) { Text("Discard") }
-                Button(onClick = onSave, shape = IntakeShape.Button, modifier = Modifier.weight(1f).height(52.dp)) {
-                    Text("Save ${review.items.count { it.accepted }}")
-                }
+            Button(
+                onClick = onSave,
+                enabled = accepted > 0,
+                shape = IntakeShape.Button,
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(52.dp),
+            ) { Text("Save $accepted accepted item${if (accepted == 1) "" else "s"}") }
+            TextButton(onClick = onDiscard, modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 8.dp)) {
+                Text("Discard this import")
             }
         }
     }
 }
 
+private fun macroLine(item: MenuItemEntity): String = listOfNotNull(
+    item.kcal?.let { "${it.roundToInt()} kcal" },
+    item.proteinG?.let { "${it.roundToInt()} g protein" },
+    "estimated".takeIf { !item.macrosPublished && item.kcal != null },
+).joinToString(" · ").ifBlank { "No nutrition listed" }
+
 @Composable
-private fun ItemsSheet(source: MenuSourceEntity, items: List<MenuItemEntity>, onDismiss: () -> Unit) {
+private fun ItemsSheet(
+    source: MenuSourceEntity,
+    items: List<MenuItemEntity>,
+    canRun: Boolean,
+    onRun: () -> Unit,
+    onRemove: () -> Unit,
+    onDismiss: () -> Unit,
+) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.padding(horizontal = 16.dp).navigationBarsPadding()) {
             Text(source.restaurantName, style = MaterialTheme.typography.headlineSmall)
+            Row(Modifier.padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onRun, enabled = canRun, shape = IntakeShape.Chip) { Text("Refresh now") }
+                TextButton(onClick = onRemove) { Text("Remove source") }
+            }
+            if (items.isEmpty()) EmptyState(body = "No items saved from this source yet.")
             LazyColumn(Modifier.fillMaxWidth().heightIn(max = 560.dp)) {
                 items(items, key = { it.id }) { item ->
                     ItemText(item, Modifier.fillMaxWidth().padding(vertical = 8.dp))
@@ -270,18 +352,10 @@ private fun ItemsSheet(source: MenuSourceEntity, items: List<MenuItemEntity>, on
 private fun ItemText(item: MenuItemEntity, modifier: Modifier) {
     Column(modifier) {
         Text(item.name, style = MaterialTheme.typography.titleSmall)
-        Text(
-            listOfNotNull(
-                item.kcal?.let { "${it.roundToInt()} kcal" },
-                item.proteinG?.let { "${it.roundToInt()} g protein" },
-                "estimated".takeIf { !item.macrosPublished && item.kcal != null },
-            ).joinToString(" · ").ifBlank { "No nutrition" },
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Text(macroLine(item), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         when (item.allergenStatus) {
-            AllergenStatus.CONTAINS -> Flag("Contains ${item.allergenMatches}")
-            AllergenStatus.MAY_CONTAIN -> Flag("Check: ${item.allergenMatches}")
+            AllergenStatus.CONTAINS -> StatusPill("Contains ${item.allergenMatches}", tone = PillTone.Bad)
+            AllergenStatus.MAY_CONTAIN -> StatusPill("Check: ${item.allergenMatches}", tone = PillTone.Wait)
             else -> Unit
         }
     }
