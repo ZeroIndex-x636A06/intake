@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.train
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -7,23 +8,33 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.zeroindex.intake.ui.components.ScreenHeading
+import com.zeroindex.intake.data.db.projection.MuscleSetCount
+import com.zeroindex.intake.ui.components.AccentNote
+import com.zeroindex.intake.ui.components.Eyebrow
+import com.zeroindex.intake.ui.components.Flag
+import com.zeroindex.intake.ui.components.IntakeCard
+import com.zeroindex.intake.ui.components.SectionLine
+import com.zeroindex.intake.ui.components.SolidBanner
+import com.zeroindex.intake.ui.components.SubHead
+import com.zeroindex.intake.ui.theme.IntakeShape
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -43,171 +54,177 @@ fun TrainScreen(
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(
-            top = contentPadding.calculateTopPadding() + 12.dp,
+            top = contentPadding.calculateTopPadding(),
             bottom = contentPadding.calculateBottomPadding() + 24.dp,
             start = 16.dp,
             end = 16.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        item(key = "heading") { ScreenHeading("Train") }
-
-        item(key = "today") {
-            Section {
-                val program = state.activeProgram
-                val inProgress = state.inProgress
-                when {
-                    inProgress != null -> {
-                        Text("Session in progress", style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            text = "Started ${timeOf(inProgress.startedAt)}.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        Button(
-                            onClick = { onOpenSession(inProgress.id) },
-                            modifier = Modifier.fillMaxWidth().height(52.dp),
-                        ) { Text("Carry on") }
-                    }
-
-                    program == null -> {
-                        Text("No program yet", style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            text = "A program here is data with progression rules attached, so " +
-                                "the weights move on their own. Start from a four-day " +
-                                "upper/lower template and change whatever you like.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        Button(
-                            onClick = { viewModel.createStarterProgram() },
-                            enabled = !state.isWorking,
-                            modifier = Modifier.fillMaxWidth().height(52.dp),
-                        ) { Text(if (state.isWorking) "Setting up..." else "Create a starter program") }
-                        OutlinedButton(
-                            onClick = onOpenBuilder,
-                            modifier = Modifier.fillMaxWidth().height(50.dp).padding(top = 8.dp),
-                        ) { Text("Build one from scratch") }
-                    }
-
-                    else -> {
-                        Text(program.name, style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            text = "Week ${program.currentWeek} · next up: " +
-                                (state.nextDay?.name ?: "nothing scheduled"),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        Button(
-                            onClick = {
-                                viewModel.startSession(state.nextDay?.id, onOpenSession)
-                            },
-                            enabled = !state.isWorking,
-                            modifier = Modifier.fillMaxWidth().height(52.dp),
-                        ) { Text("Start ${state.nextDay?.name ?: "a session"}") }
-                        OutlinedButton(
-                            onClick = { viewModel.startSession(null, onOpenSession) },
-                            modifier = Modifier.fillMaxWidth().height(50.dp).padding(top = 8.dp),
-                        ) { Text("Freestyle session") }
-                    }
-                }
-            }
+        item(key = "heading") {
+            SubHead("Train", "Your plan, your pace. Built to progress steadily.")
         }
 
-        if (state.days.isNotEmpty()) {
-            item(key = "days") {
-                Section {
-                    Text("Program days", style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(6.dp))
-                    state.days.forEach { day ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(day.name, style = MaterialTheme.typography.bodyLarge)
-                            OutlinedButton(
-                                onClick = { viewModel.startSession(day.id, onOpenSession) },
-                            ) { Text("Start") }
-                        }
-                    }
-                }
-            }
-        }
+        val program = state.activeProgram
+        val inProgress = state.inProgress
 
-        item(key = "volume") {
-            Section {
-                Text("This week's sets", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(6.dp))
-                if (state.weeklySets.isEmpty()) {
+        when {
+            // A half-finished session outranks everything else on this screen.
+            inProgress != null -> item(key = "resume") {
+                IntakeCard {
+                    Eyebrow("Session in progress")
+                    Spacer(Modifier.height(4.dp))
                     Text(
-                        text = "Nothing logged in the last seven days.",
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = "Started ${timeOf(inProgress.startedAt)}",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Button(
+                        onClick = { onOpenSession(inProgress.id) },
+                        shape = IntakeShape.Button,
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                    ) { Text("Carry on") }
+                }
+            }
+
+            program == null -> item(key = "empty") {
+                IntakeCard {
+                    Text(
+                        text = "No program yet",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Spacer(Modifier.height(5.dp))
+                    Text(
+                        text = "A program here is data with progression rules attached, so the " +
+                            "weights move on their own. Start from a four-day upper/lower " +
+                            "template and change whatever you like.",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                } else {
-                    state.weeklySets.forEach { row ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(
-                                text = row.primaryMuscle.replaceFirstChar { it.uppercase() },
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                            Text(
-                                text = "${row.setCount} sets",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                color = if (row.setCount < TrainUiState.WEEKLY_SET_FLOOR) {
-                                    MaterialTheme.colorScheme.tertiary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface
-                                },
-                            )
-                        }
+                    Spacer(Modifier.height(12.dp))
+                    Button(
+                        onClick = { viewModel.createStarterProgram() },
+                        enabled = !state.isWorking,
+                        shape = IntakeShape.Button,
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                    ) {
+                        Text(if (state.isWorking) "Setting up…" else "Create a starter program")
                     }
-                    // SPEC §10: flag anything under ten working sets a week, in
-                    // words as well as colour.
-                    if (state.underworked.isNotEmpty()) {
-                        Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = onOpenBuilder,
+                        shape = IntakeShape.Button,
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                    ) { Text("Build one from scratch") }
+                }
+            }
+
+            else -> {
+                item(key = "banner") {
+                    SolidBanner(
+                        eyebrow = "Active program · week ${program.currentWeek}",
+                        title = program.name,
+                        body = if (state.days.isEmpty()) {
+                            "No days set up yet"
+                        } else {
+                            "${state.days.size} days/week · next up: " +
+                                (state.nextDay?.name ?: "nothing scheduled")
+                        },
+                    )
+                }
+                item(key = "nextday") {
+                    NextWorkoutCard(
+                        dayName = state.nextDay?.name,
+                        busy = state.isWorking,
+                        onStart = { viewModel.startSession(state.nextDay?.id, onOpenSession) },
+                        onFreestyle = { viewModel.startSession(null, onOpenSession) },
+                    )
+                }
+            }
+        }
+
+        if (state.days.size > 1) {
+            item(key = "days-heading") { SectionLine("Program days") }
+            items(items = state.days, key = { "day-${it.id}" }) { day ->
+                Surface(
+                    color = MaterialTheme.colorScheme.surface,
+                    shape = IntakeShape.Field,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .heightIn(min = 56.dp)
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         Text(
-                            text = "Under ten sets this week: " +
-                                state.underworked.joinToString(", ") { it.primaryMuscle },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.tertiary,
+                            text = day.name,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f),
                         )
+                        OutlinedButton(
+                            onClick = { viewModel.startSession(day.id, onOpenSession) },
+                            shape = IntakeShape.Chip,
+                        ) { Text("Start") }
                     }
                 }
+            }
+        }
+
+        item(key = "volume-heading") {
+            SectionLine(
+                title = "This week's working sets",
+                note = "Target ≥${TrainUiState.WEEKLY_SET_FLOOR} / muscle",
+            )
+        }
+
+        if (state.weeklySets.isEmpty()) {
+            item(key = "volume-empty") {
+                AccentNote(
+                    lead = "Nothing logged in the last seven days",
+                    body = "Working sets per muscle group appear here once you finish a session.",
+                    container = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else {
+            items(items = state.weeklySets, key = { "muscle-${it.primaryMuscle}" }) { row ->
+                MuscleRow(row)
             }
         }
 
         if (state.recentSessions.isNotEmpty()) {
-            item(key = "recent-heading") {
-                Text("Recent sessions", style = MaterialTheme.typography.titleMedium)
-            }
+            item(key = "recent-heading") { SectionLine("Recent sessions") }
             items(items = state.recentSessions, key = { it.id }) { session ->
-                Card(
+                Surface(
+                    color = MaterialTheme.colorScheme.surface,
+                    shape = IntakeShape.Field,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
-                    ),
                 ) {
-                    Column(Modifier.padding(14.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .heightIn(min = 54.dp)
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         Text(
                             text = dateOf(session.startedAt),
-                            style = MaterialTheme.typography.bodyLarge,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f),
                         )
                         Text(
                             text = if (session.finishedAt != null) {
-                                val minutes = (session.finishedAt - session.startedAt) / 60_000
-                                "$minutes minutes"
+                                "${(session.finishedAt - session.startedAt) / 60_000} min"
                             } else {
                                 "Unfinished"
                             },
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -216,33 +233,131 @@ fun TrainScreen(
         }
 
         item(key = "links") {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.padding(top = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 OutlinedButton(
                     onClick = onOpenHistory,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = IntakeShape.Button,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
                 ) { Text("History and analytics") }
                 OutlinedButton(
                     onClick = onOpenExercises,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = IntakeShape.Button,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
                 ) { Text("Exercise library") }
                 OutlinedButton(
                     onClick = onOpenBuilder,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = IntakeShape.Button,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
                 ) { Text("Program builder") }
             }
         }
     }
 }
 
+/** The mockup's `.nextday`: what is next on the left, a tall Start on the right. */
 @Composable
-private fun Section(content: @Composable () -> Unit) {
-    Card(
+private fun NextWorkoutCard(
+    dayName: String?,
+    busy: Boolean,
+    onStart: () -> Unit,
+    onFreestyle: () -> Unit,
+) {
+    IntakeCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Eyebrow("Next workout")
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = dayName ?: "Nothing scheduled",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = if (dayName == null) {
+                        "Start a freestyle session instead"
+                    } else {
+                        "Progression is applied when you open it"
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Button(
+                onClick = onStart,
+                enabled = !busy,
+                shape = IntakeShape.Field,
+                modifier = Modifier.heightIn(min = 52.dp),
+            ) {
+                Text(
+                    text = "Start\nworkout",
+                    style = MaterialTheme.typography.labelMedium,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        OutlinedButton(
+            onClick = onFreestyle,
+            shape = IntakeShape.Button,
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+        ) { Text("Freestyle session") }
+    }
+}
+
+/**
+ * The mockup's `.muscle` row. SPEC §10 asks for anything under ten working sets
+ * a week to be flagged; the flag carries the words "low · under 10" and the row
+ * repeats it as a sentence, so the warning never rests on colour alone.
+ */
+@Composable
+private fun MuscleRow(row: MuscleSetCount) {
+    val low = row.setCount < TrainUiState.WEEKLY_SET_FLOOR
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        shape = IntakeShape.Field,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
-        ),
     ) {
-        Column(Modifier.padding(16.dp)) { content() }
+        Row(
+            modifier = Modifier
+                .heightIn(min = 56.dp)
+                .padding(horizontal = 12.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = row.primaryMuscle.replaceFirstChar { it.uppercase() },
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    text = if (low) "Below weekly target" else "On track",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                text = "${row.setCount}",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.width(3.dp))
+            Text(
+                text = "sets",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (low) {
+                Spacer(Modifier.width(6.dp))
+                Flag("Low · under ${TrainUiState.WEEKLY_SET_FLOOR}")
+            }
+        }
     }
 }
 

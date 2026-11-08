@@ -27,12 +27,16 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /** SPEC §11: selectable 1M / 3M / 6M / 1Y / All ranges. */
-enum class ProgressRange(val label: String, val days: Int?) {
-    MONTH("1M", 30),
-    THREE_MONTHS("3M", 90),
-    SIX_MONTHS("6M", 180),
-    YEAR("1Y", 365),
-    ALL("All", null),
+/**
+ * [caption] is what the mockup prints beside a card title ("last 3 months"), so
+ * every figure on the screen says which window it covers.
+ */
+enum class ProgressRange(val label: String, val days: Int?, val caption: String) {
+    MONTH("1M", 30, "last month"),
+    THREE_MONTHS("3M", 90, "last 3 months"),
+    SIX_MONTHS("6M", 180, "last 6 months"),
+    YEAR("1Y", 365, "last year"),
+    ALL("All", null, "all time"),
 }
 
 data class ProgressUiState(

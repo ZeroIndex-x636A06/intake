@@ -1,6 +1,5 @@
 package com.zeroindex.intake.ui.screens.progress
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -9,25 +8,22 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -35,10 +31,19 @@ import coil3.compose.AsyncImage
 import com.zeroindex.intake.domain.model.TdeeConfidence
 import com.zeroindex.intake.domain.units.UnitConverter
 import com.zeroindex.intake.ui.components.AdherenceHeatmap
+import com.zeroindex.intake.ui.components.ChartLegend
 import com.zeroindex.intake.ui.components.ChartPoint
-import com.zeroindex.intake.ui.components.ScreenHeading
+import com.zeroindex.intake.ui.components.ChoiceChip
+import com.zeroindex.intake.ui.components.ConfidenceLine
+import com.zeroindex.intake.ui.components.Eyebrow
+import com.zeroindex.intake.ui.components.LegendEntry
+import com.zeroindex.intake.ui.components.SectionCard
+import com.zeroindex.intake.ui.components.SubHead
+import com.zeroindex.intake.ui.components.SummaryTile
 import com.zeroindex.intake.ui.components.TargetBarChart
 import com.zeroindex.intake.ui.components.TrendLineChart
+import com.zeroindex.intake.ui.theme.HeatFull
+import com.zeroindex.intake.ui.theme.IntakeShape
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -62,25 +67,45 @@ fun ProgressScreen(
         ),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item(key = "heading") { ScreenHeading("Progress") }
+        item(key = "heading") {
+            SubHead("Progress", "Patterns over time, without the noise.")
+        }
 
+        // The mockup's `.range`: equal-width segments across the full width, so
+        // the ranges read as one control rather than a scrolling list of chips.
         item(key = "ranges") {
-            Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                 ProgressRange.entries.forEach { range ->
-                    FilterChip(
+                    ChoiceChip(
+                        label = range.label,
                         selected = state.range == range,
                         onClick = { viewModel.selectRange(range) },
-                        label = { Text(range.label) },
+                        modifier = Modifier.weight(1f),
                     )
                 }
             }
         }
 
         item(key = "weight") {
-            SectionCard(title = "Weight") {
+            SectionCard(title = "Weight trend", caption = state.range.caption) {
+                // The headline figure is the latest raw weigh-in, labelled as
+                // such; the trend it sits on is the line in the chart below.
+                state.metrics.lastOrNull()?.let { latest ->
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            text = format(unit.fromKg(latest.weightKg)),
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Spacer(Modifier.width(5.dp))
+                        Text(
+                            text = "${unit.label} · raw weigh-ins",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 3.dp),
+                        )
+                    }
+                }
                 // SPEC §8: the trend line is what is shown, with raw points
                 // behind it rather than instead of it.
                 TrendLineChart(
@@ -92,31 +117,27 @@ fun ProgressScreen(
                     },
                     description = weightDescription(state, unit.label),
                 )
-                Spacer(Modifier.height(8.dp))
-                val trendWeight = state.trendWeightKg
                 val weekly = state.weeklyChangeKg
-                Text(
-                    text = buildString {
-                        if (trendWeight != null) {
-                            append("Trend ${format(unit.fromKg(trendWeight))} ${unit.label}")
-                        } else {
-                            append("No weigh-ins in this range")
-                        }
-                        if (weekly != null && abs(weekly) > 0.005) {
-                            val direction = if (weekly < 0) "down" else "up"
-                            append(
-                                ", $direction ${format(abs(unit.fromKg(weekly)))} " +
-                                    "${unit.label} a week",
-                            )
-                        }
-                        append(".")
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                ChartLegend(
+                    entries = listOf(
+                        LegendEntry("Daily weigh-in", MaterialTheme.colorScheme.tertiary),
+                        LegendEntry(
+                            label = if (weekly != null && abs(weekly) > 0.005) {
+                                val signed = unit.fromKg(weekly)
+                                val arrow = if (weekly < 0) "−" else "+"
+                                "Smoothed trend · $arrow${format(abs(signed))} ${unit.label}/week"
+                            } else {
+                                "Smoothed trend"
+                            },
+                            color = MaterialTheme.colorScheme.primary,
+                            isLine = true,
+                        ),
+                    ),
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(10.dp))
                 OutlinedButton(
                     onClick = onAddMeasurement,
+                    shape = IntakeShape.Button,
                     modifier = Modifier.fillMaxWidth().height(50.dp),
                 ) { Text("Add a weigh-in") }
             }
@@ -125,29 +146,51 @@ fun ProgressScreen(
         item(key = "summary") { WeeklySummaryCard(state, viewModel) }
 
         item(key = "adherence") {
-            SectionCard(title = "Logging") {
+            SectionCard(
+                title = "Days logged",
+                caption = "last ${minOf(state.daysInWindow, 28)} days",
+            ) {
                 // SPEC §11: never a streak that resets to zero on one bad day.
-                Text(
-                    text = "${state.daysLogged} of the last ${state.daysInWindow} days logged.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                )
-                Spacer(Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = "${state.daysLogged}",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Spacer(Modifier.width(5.dp))
+                    Text(
+                        text = "of the last ${state.daysInWindow} days logged",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 2.dp),
+                    )
+                }
+                Spacer(Modifier.height(11.dp))
                 AdherenceHeatmap(
                     days = state.dailyKcal.takeLast(28),
                     target = state.target?.kcal?.toDouble(),
                 )
-                Spacer(Modifier.height(16.dp))
-                Text(
-                    text = "Calories against target",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(6.dp))
+            }
+        }
+
+        item(key = "calories") {
+            SectionCard(title = "Calories vs target", caption = state.range.caption) {
                 TargetBarChart(
                     values = state.dailyKcal.map { it ?: 0.0 },
                     target = state.target?.kcal?.toDouble(),
                     description = intakeDescription(state),
+                )
+                ChartLegend(
+                    entries = listOfNotNull(
+                        LegendEntry("Calories logged", HeatFull),
+                        state.target?.let {
+                            LegendEntry(
+                                label = "Target",
+                                color = MaterialTheme.colorScheme.tertiary,
+                                isLine = true,
+                            )
+                        },
+                    ),
                 )
             }
         }
@@ -187,46 +230,65 @@ fun ProgressScreen(
     }
 }
 
+/**
+ * The mockup's week summary: four figures as a two-by-two grid of tiles rather
+ * than a list of label/value rows. Each tile is a number you can read at a
+ * glance; the confidence qualifier sits underneath where it applies to all of
+ * them.
+ */
 @Composable
 private fun WeeklySummaryCard(state: ProgressUiState, viewModel: ProgressViewModel) {
     val tdee = state.tdee
     val unit = state.settings.weightUnit
+    val weekly = state.weeklyChangeKg
 
-    SectionCard(title = "This week") {
-        val average = state.averageIntake
-        SummaryRow(
-            "Average intake",
-            if (average != null) "${average.roundToInt()} kcal" else "Not enough logged",
-        )
-        val weekly = state.weeklyChangeKg
-        SummaryRow(
-            "Average weight change",
-            if (weekly != null) {
-                "${format(unit.fromKg(weekly))} ${unit.label} a week"
-            } else {
-                "Needs two weigh-ins"
-            },
+    SectionCard(title = "This week", caption = state.range.caption) {
+        val tiles = listOf(
+            (state.averageIntake?.let { "${"%,d".format(it.roundToInt())}" } ?: "—")
+                to "avg kcal / day",
+            (
+                weekly?.let {
+                    val signed = unit.fromKg(it)
+                    "${if (it < 0) "−" else "+"}${format(abs(signed))} ${unit.label}"
+                } ?: "—"
+                ) to "avg weight change",
+            // SPEC §8: when data is too sparse, say so plainly rather than
+            // showing a confident number.
+            (tdee?.let { "≈${"%,d".format(it.estimatedTdee.roundToInt())}" } ?: "—")
+                to "maintenance kcal",
+            (state.proteinHitRate?.let { "${(it * 100).roundToInt()}%" } ?: "—")
+                to "protein target hit",
         )
 
-        // SPEC §8: when data is too sparse, say so plainly rather than showing a
-        // confident number.
-        SummaryRow(
-            "Estimated maintenance",
-            if (tdee == null) {
-                "Needs 14 days of weigh-ins and logs"
-            } else {
-                "${tdee.estimatedTdee.roundToInt()} kcal · ${tdee.confidence.describe()}"
-            },
-        )
-        state.proteinHitRate?.let {
-            SummaryRow("Protein target hit", "${(it * 100).roundToInt()}% of logged days")
+        tiles.chunked(2).forEach { pair ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 7.dp),
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                pair.forEach { (value, caption) ->
+                    SummaryTile(
+                        value = value,
+                        caption = caption,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                if (pair.size == 1) Spacer(Modifier.weight(1f))
+            }
         }
 
+        ConfidenceLine(
+            text = when {
+                tdee == null -> "Needs 14 days of weigh-ins and logs"
+                else -> "${tdee.confidence.describe().replaceFirstChar { it.uppercase() }} · " +
+                    "based on your intake and weight history"
+            },
+        )
+
         if (tdee != null && tdee.confidence == TdeeConfidence.LOW) {
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(6.dp))
             Text(
-                text = "Treat that number as provisional: there is not yet enough overlap " +
-                    "between weigh-ins and logged days to measure maintenance properly.",
+                text = "Treat that maintenance figure as provisional: there is not yet enough " +
+                    "overlap between weigh-ins and logged days to measure it properly.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -236,9 +298,10 @@ private fun WeeklySummaryCard(state: ProgressUiState, viewModel: ProgressViewMod
         OutlinedButton(
             onClick = viewModel::recalculateTdee,
             enabled = !state.isRecalculating,
+            shape = IntakeShape.Button,
             modifier = Modifier.fillMaxWidth().height(50.dp),
         ) {
-            Text(if (state.isRecalculating) "Recalculating..." else "Recalculate now")
+            Text(if (state.isRecalculating) "Recalculating…" else "Recalculate now")
         }
     }
 }
@@ -259,11 +322,9 @@ private fun MeasurementLines(state: ProgressUiState) {
             selector(metric)?.let { ChartPoint(metric.measuredAt.toDouble(), unit.fromCm(it)) }
         }
         if (points.size < 2) return@forEach
-        Text(
+        Eyebrow(
             text = label,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 10.dp),
+            modifier = Modifier.padding(top = 10.dp, bottom = 2.dp),
         )
         TrendLineChart(
             raw = points,
@@ -271,44 +332,6 @@ private fun MeasurementLines(state: ProgressUiState) {
             description = "$label over time, in $suffix. " +
                 "Latest ${format(points.last().y)} $suffix.",
             modifier = Modifier.height(120.dp),
-        )
-    }
-}
-
-@Composable
-private fun SectionCard(title: String, content: @Composable () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
-        ),
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(bottom = 10.dp),
-            )
-            content()
-        }
-    }
-}
-
-@Composable
-private fun SummaryRow(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
         )
     }
 }

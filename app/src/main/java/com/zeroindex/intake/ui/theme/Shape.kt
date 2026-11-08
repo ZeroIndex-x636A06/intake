@@ -27,6 +27,8 @@ object IntakeShape {
     val Chip = RoundedCornerShape(14.dp)
     val Banner = RoundedCornerShape(18.dp)
     val Heat = RoundedCornerShape(6.dp)
+    /** `.entry` and `.done` in the set grid: the tightest radius in the mockup. */
+    val ExtraSmall = RoundedCornerShape(11.dp)
     /** The ordering quote block: square on the left where the rule sits. */
     val Quote = RoundedCornerShape(topEnd = 15.dp, bottomEnd = 15.dp)
 }

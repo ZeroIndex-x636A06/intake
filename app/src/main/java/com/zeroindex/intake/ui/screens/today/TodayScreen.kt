@@ -42,6 +42,7 @@ import com.zeroindex.intake.ui.addfood.AddFoodSheet
 import com.zeroindex.intake.ui.components.AccentNote
 import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.MacroRing
+import com.zeroindex.intake.ui.components.SectionLine
 import com.zeroindex.intake.ui.screens.today.components.MealSlotCard
 import java.time.LocalDate
 import java.time.LocalTime
@@ -135,7 +136,7 @@ private fun TodayContent(
             start = 16.dp,
             end = 16.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item(key = "header") {
             DayHeader(state.date, state.isToday, onPreviousDay, onNextDay, onShowToday)
@@ -144,6 +145,9 @@ private fun TodayContent(
             IntakeCard { MacroRing(progress = state.progress) }
         }
         item(key = "remaining") { RemainingNote(state) }
+        item(key = "meals-heading") {
+            SectionLine(title = "Meals", note = "Long-press an entry to edit")
+        }
 
         items(items = state.slots, key = { it.slot.name }) { slotUi ->
             MealSlotCard(
@@ -163,6 +167,12 @@ private fun TodayContent(
     }
 }
 
+/**
+ * The mockup's `.date-row`: chevrons either side of a two-line centre that
+ * names the day above the date. "Today · Saturday" tells you both which day you
+ * are looking at and that it is the current one, so the chip below only appears
+ * once you have navigated away.
+ */
 @Composable
 private fun DayHeader(
     date: LocalDate,
@@ -171,24 +181,46 @@ private fun DayHeader(
     onNextDay: () -> Unit,
     onShowToday: () -> Unit,
 ) {
-    val formatter = remember { DateTimeFormatter.ofPattern("EEEE d MMMM") }
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    val weekday = remember { DateTimeFormatter.ofPattern("EEEE") }
+    val monthDay = remember { DateTimeFormatter.ofPattern("MMMM d") }
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         IconButton(onClick = onPreviousDay, modifier = Modifier.size(48.dp)) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous day")
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Previous day",
+                tint = MaterialTheme.colorScheme.primary,
+            )
         }
         Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = if (isToday) "Today" else date.format(formatter),
-                style = MaterialTheme.typography.titleLarge,
+                text = if (isToday) {
+                    "Today · ${date.format(weekday)}"
+                } else {
+                    date.format(weekday)
+                },
+                style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.semantics { heading() },
+            )
+            Text(
+                text = date.format(monthDay),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             if (!isToday) {
                 AssistChip(onClick = onShowToday, label = { Text("Back to today") })
             }
         }
         IconButton(onClick = onNextDay, modifier = Modifier.size(48.dp)) {
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next day")
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = "Next day",
+                tint = MaterialTheme.colorScheme.primary,
+            )
         }
     }
 }

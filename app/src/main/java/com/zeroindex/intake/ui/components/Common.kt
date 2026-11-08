@@ -57,28 +57,87 @@ fun IntakeCard(
     }
 }
 
-/** A titled card, with the optional trailing action the mockup's section lines have. */
+/**
+ * A titled card. [caption] is the mockup's `.chart-title` right-hand note -
+ * the range or window a card's figures cover, which belongs next to the title
+ * rather than buried in the body.
+ */
 @Composable
 fun SectionCard(
     title: String,
     modifier: Modifier = Modifier,
+    caption: String? = null,
     trailing: @Composable (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     IntakeCard(modifier = modifier) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f),
             )
+            if (caption != null) {
+                Text(
+                    text = caption,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             trailing?.invoke()
         }
         content()
+    }
+}
+
+/**
+ * The mockup's `.summary-tile`: like [StatTile] but left-aligned, for the
+ * two-column week summary where the figures are read as a list rather than
+ * compared across a row.
+ */
+@Composable
+fun SummaryTile(
+    value: String,
+    caption: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = IntakeShape.Tile,
+        modifier = modifier,
+    ) {
+        Column(Modifier.fillMaxWidth().padding(10.dp)) {
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(2.dp))
+            Eyebrow(caption, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+/**
+ * The mockup's `.confidence` line: how much the figure above it should be
+ * trusted. SPEC §8 wants sparse data stated plainly rather than dressed up as
+ * a confident number, so this sits directly under the number it qualifies.
+ */
+@Composable
+fun ConfidenceLine(text: String, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier.fillMaxWidth().padding(top = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "◉  $text",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.secondary,
+        )
     }
 }
 
