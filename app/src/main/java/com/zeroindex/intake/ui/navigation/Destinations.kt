@@ -28,6 +28,9 @@ sealed interface Route {
     @Serializable data object BodyMetrics : Route
     @Serializable data object Performance : Route
     @Serializable data object AiSettings : Route
+    @Serializable data object RecipeHunter : Route
+    @Serializable data class RecipeDetail(val recipeId: String) : Route
+    @Serializable data object PlanB : Route
     @Serializable data object ExerciseLibrary : Route
     @Serializable data object ProgramBuilder : Route
     @Serializable data object WorkoutHistory : Route

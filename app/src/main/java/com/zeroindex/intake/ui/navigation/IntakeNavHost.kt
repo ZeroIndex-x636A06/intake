@@ -12,6 +12,9 @@ import com.zeroindex.intake.ui.screens.body.BodyMetricsScreen
 import com.zeroindex.intake.ui.screens.more.MoreScreen
 import com.zeroindex.intake.ui.screens.performance.PerformanceScreen
 import com.zeroindex.intake.ui.screens.plan.PlanScreen
+import com.zeroindex.intake.ui.screens.planb.PlanBScreen
+import com.zeroindex.intake.ui.screens.plan.RecipeDetailScreen
+import com.zeroindex.intake.ui.screens.plan.RecipeHunterScreen
 import com.zeroindex.intake.ui.screens.progress.ProgressScreen
 import com.zeroindex.intake.ui.screens.settings.PrivacyScreen
 import com.zeroindex.intake.ui.screens.settings.SettingsScreen
@@ -34,7 +37,22 @@ fun IntakeNavHost(
         composable<Route.Plan> {
             PlanScreen(
                 contentPadding = contentPadding,
-                onCookRecipe = { recipeId -> navController.navigate(Route.CookMode(recipeId)) },
+                onOpenHunter = { navController.navigate(Route.RecipeHunter) },
+                onOpenPlanB = { navController.navigate(Route.PlanB) },
+                onOpenRecipe = { id -> navController.navigate(Route.RecipeDetail(id)) },
+            )
+        }
+        composable<Route.PlanB> {
+            PlanBScreen(contentPadding, onOpenAiSettings = { navController.navigate(Route.AiSettings) })
+        }
+        composable<Route.RecipeHunter> {
+            RecipeHunterScreen(contentPadding, onOpenAiSettings = { navController.navigate(Route.AiSettings) })
+        }
+        composable<Route.RecipeDetail> { entry ->
+            RecipeDetailScreen(
+                recipeId = entry.toRoute<Route.RecipeDetail>().recipeId,
+                contentPadding = contentPadding,
+                onDeleted = { navController.popBackStack() },
             )
         }
         composable<Route.Train> {

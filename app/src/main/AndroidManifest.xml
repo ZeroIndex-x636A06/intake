@@ -9,6 +9,9 @@
     <!-- Barcode scanning and meal photos (SPEC §5.2, §6). Optional: the app is
          fully usable with the permission denied. -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Amendment §1 Plan B: approximate location only, never fine. Optional:
+         a zip code works instead, and nothing else uses it. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-feature
         android:name="android.hardware.camera.any"
         android:required="false" />
