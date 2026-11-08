@@ -115,15 +115,6 @@ class SettingsViewModel @Inject constructor(
     fun setProteinPerKg(value: Double) = launchSetting { setProteinPerKg(value) }
     fun setFatPerKg(value: Double) = launchSetting { setFatPerKg(value) }
 
-    fun setAnthropicKey(key: String?) {
-        apiKeyStore.setAnthropicKey(key)
-        message.value = if (key.isNullOrBlank()) {
-            "Anthropic key cleared. Photo estimates are off; everything else is unaffected."
-        } else {
-            "Anthropic key saved, encrypted on this device."
-        }
-    }
-
     fun setUsdaKey(key: String?) {
         apiKeyStore.setUsdaKey(key)
         usdaTest.value = KeyTestResult.Untested

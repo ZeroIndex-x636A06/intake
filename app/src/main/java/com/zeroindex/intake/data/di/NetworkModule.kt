@@ -1,5 +1,6 @@
 package com.zeroindex.intake.data.di
 
+import com.zeroindex.intake.data.ai.OpenRouterClient
 import com.zeroindex.intake.data.remote.openfoodfacts.OpenFoodFactsService
 import com.zeroindex.intake.data.remote.usda.UsdaService
 import dagger.Module
@@ -29,6 +30,22 @@ object NetworkModule {
         .callTimeout(30, TimeUnit.SECONDS)
         .retryOnConnectionFailure(true)
         .build()
+
+    /**
+     * AI calls are not conveniences on a short fuse like the lookups above: a
+     * vision estimate takes seconds and a search-and-extract run can take a
+     * minute, so they get their own client with patient timeouts.
+     */
+    @Provides
+    @Singleton
+    fun provideOpenRouterClient(client: OkHttpClient, json: Json): OpenRouterClient = OpenRouterClient(
+        http = client.newBuilder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(150, TimeUnit.SECONDS)
+            .callTimeout(180, TimeUnit.SECONDS)
+            .build(),
+        json = json,
+    )
 
     @Provides
     @Singleton

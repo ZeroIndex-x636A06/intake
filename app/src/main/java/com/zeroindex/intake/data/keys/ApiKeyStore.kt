@@ -24,8 +24,14 @@ class ApiKeyStore @Inject constructor(
     private companion object {
         const val TAG = "ApiKeyStore"
         const val FILE = "intake_api_keys"
-        const val KEY_ANTHROPIC = "anthropic_api_key"
+        const val KEY_OPENROUTER = "openrouter_api_key"
         const val KEY_USDA = "usda_api_key"
+
+        /**
+         * Superseded by OpenRouter (amendment §1), which serves Anthropic
+         * models among others. Removed on start so no unused secret lingers.
+         */
+        const val KEY_ANTHROPIC_LEGACY = "anthropic_api_key"
     }
 
     /**
@@ -50,16 +56,20 @@ class ApiKeyStore @Inject constructor(
         }.getOrNull()
     }
 
-    private val _state = MutableStateFlow(read())
+    private val _state = MutableStateFlow(dropLegacyKeys().let { read() })
     val state: StateFlow<ApiKeyState> = _state.asStateFlow()
 
-    fun anthropicKey(): String? = prefs?.getString(KEY_ANTHROPIC, null)?.takeIf { it.isNotBlank() }
+    fun openRouterKey(): String? = prefs?.getString(KEY_OPENROUTER, null)?.takeIf { it.isNotBlank() }
     fun usdaKey(): String? = prefs?.getString(KEY_USDA, null)?.takeIf { it.isNotBlank() }
 
-    fun setAnthropicKey(key: String?) = put(KEY_ANTHROPIC, key)
+    fun setOpenRouterKey(key: String?) = put(KEY_OPENROUTER, key)
     fun setUsdaKey(key: String?) = put(KEY_USDA, key)
 
     fun refresh() { _state.value = read() }
+
+    private fun dropLegacyKeys() {
+        prefs?.takeIf { it.contains(KEY_ANTHROPIC_LEGACY) }?.edit()?.remove(KEY_ANTHROPIC_LEGACY)?.apply()
+    }
 
     private fun put(name: String, value: String?) {
         val editor = prefs?.edit() ?: return
@@ -69,7 +79,7 @@ class ApiKeyStore @Inject constructor(
     }
 
     private fun read() = ApiKeyState(
-        hasAnthropicKey = anthropicKey() != null,
+        hasOpenRouterKey = openRouterKey() != null,
         hasUsdaKey = usdaKey() != null,
         storeAvailable = prefs != null,
     )
@@ -77,7 +87,7 @@ class ApiKeyStore @Inject constructor(
 
 /** Only whether a key exists is exposed to the UI - never the key itself. */
 data class ApiKeyState(
-    val hasAnthropicKey: Boolean = false,
+    val hasOpenRouterKey: Boolean = false,
     val hasUsdaKey: Boolean = false,
     val storeAvailable: Boolean = true,
 )

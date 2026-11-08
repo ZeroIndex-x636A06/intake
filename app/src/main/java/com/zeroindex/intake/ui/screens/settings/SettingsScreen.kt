@@ -47,6 +47,7 @@ import com.zeroindex.intake.ui.theme.IntakeShape
 @Composable
 fun SettingsScreen(
     contentPadding: PaddingValues,
+    onOpenAi: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -157,13 +158,11 @@ fun SettingsScreen(
                     testResult = state.usdaTest,
                 )
                 Spacer(Modifier.height(12.dp))
-                KeyField(
-                    label = "Anthropic (photo estimates)",
-                    hasKey = state.keys.hasAnthropicKey,
-                    onSave = viewModel::setAnthropicKey,
-                    onTest = null,
-                    testResult = KeyTestResult.Untested,
-                )
+                OutlinedButton(
+                    onClick = onOpenAi,
+                    shape = IntakeShape.Button,
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                ) { Text("AI tools and models (OpenRouter) →") }
             }
         }
 

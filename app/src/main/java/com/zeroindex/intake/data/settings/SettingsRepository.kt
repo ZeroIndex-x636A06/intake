@@ -11,6 +11,8 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.zeroindex.intake.data.ai.AiPrivacy
+import com.zeroindex.intake.domain.ai.AiTask
 import com.zeroindex.intake.domain.units.LengthUnit
 import com.zeroindex.intake.domain.units.VolumeUnit
 import com.zeroindex.intake.domain.units.WeightUnit
@@ -50,6 +52,17 @@ data class AppSettings(
     /** Null means "work it out from bodyweight". */
     val hydrationBaseMl: Double? = null,
     val hydrationDynamic: Boolean = true,
+    /** Amendment §1. Defaults to the privacy-preserving middle setting. */
+    val aiPrivacy: AiPrivacy = AiPrivacy.NO_TRAINING,
+    /** Whether free models that may keep prompts can be suggested. */
+    val aiAllowRetainingModels: Boolean = false,
+    /** A model the user chose by hand per task; absent means "use the suggestion". */
+    val aiModelOverrides: Map<AiTask, String> = emptyMap(),
+    /**
+     * Amendment §3. Off by default: it sends a summary of food, training and
+     * body data off the phone, so it has to be asked for.
+     */
+    val dailyInsightEnabled: Boolean = false,
 ) {
     val platesKgList: List<Double>
         get() = availablePlatesKg.split(',')
@@ -85,6 +98,10 @@ class SettingsRepository @Inject constructor(
         val volumeUnit = stringPreferencesKey("volume_unit")
         val hydrationBase = doublePreferencesKey("hydration_base_ml")
         val hydrationDynamic = booleanPreferencesKey("hydration_dynamic")
+        val aiPrivacy = stringPreferencesKey("ai_privacy")
+        val aiAllowRetaining = booleanPreferencesKey("ai_allow_retaining")
+        val dailyInsight = booleanPreferencesKey("daily_insight_enabled")
+        fun aiModel(task: AiTask) = stringPreferencesKey("ai_model_${task.name}")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -113,6 +130,11 @@ class SettingsRepository @Inject constructor(
                 ?: VolumeUnit.US_FLUID_OUNCES,
             hydrationBaseMl = p[Keys.hydrationBase],
             hydrationDynamic = p[Keys.hydrationDynamic] ?: true,
+            aiPrivacy = p[Keys.aiPrivacy]?.let { runCatching { AiPrivacy.valueOf(it) }.getOrNull() }
+                ?: AiPrivacy.NO_TRAINING,
+            aiAllowRetainingModels = p[Keys.aiAllowRetaining] ?: false,
+            aiModelOverrides = AiTask.entries.mapNotNull { task -> p[Keys.aiModel(task)]?.let { task to it } }.toMap(),
+            dailyInsightEnabled = p[Keys.dailyInsight] ?: false,
         )
     }
 
@@ -140,6 +162,14 @@ class SettingsRepository @Inject constructor(
         if (ml == null) it.remove(Keys.hydrationBase) else it[Keys.hydrationBase] = ml
     }
     suspend fun setHydrationDynamic(enabled: Boolean) = put { it[Keys.hydrationDynamic] = enabled }
+    suspend fun setAiPrivacy(privacy: AiPrivacy) = put { it[Keys.aiPrivacy] = privacy.name }
+    suspend fun setAiAllowRetaining(allow: Boolean) = put { it[Keys.aiAllowRetaining] = allow }
+    suspend fun setDailyInsightEnabled(enabled: Boolean) = put { it[Keys.dailyInsight] = enabled }
+
+    /** Null clears the override, going back to the suggested model. */
+    suspend fun setAiModel(task: AiTask, modelId: String?) = put {
+        if (modelId == null) it.remove(Keys.aiModel(task)) else it[Keys.aiModel(task)] = modelId
+    }
 
     private suspend fun put(block: (MutablePreferences) -> Unit) {
         context.dataStore.edit(block)

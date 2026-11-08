@@ -6,6 +6,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
+import com.zeroindex.intake.ui.screens.ai.AiSettingsScreen
 import com.zeroindex.intake.ui.screens.allergen.AllergenReferenceScreen
 import com.zeroindex.intake.ui.screens.body.BodyMetricsScreen
 import com.zeroindex.intake.ui.screens.more.MoreScreen
@@ -58,7 +59,10 @@ fun IntakeNavHost(
         }
 
         composable<Route.AllergenReference> { AllergenReferenceScreen(contentPadding) }
-        composable<Route.Settings> { SettingsScreen(contentPadding) }
+        composable<Route.Settings> {
+            SettingsScreen(contentPadding, onOpenAi = { navController.navigate(Route.AiSettings) })
+        }
+        composable<Route.AiSettings> { AiSettingsScreen(contentPadding) }
         composable<Route.Privacy> { PrivacyScreen(contentPadding) }
         composable<Route.ExerciseLibrary> { ExerciseLibraryScreen(contentPadding) }
         composable<Route.WorkoutHistory> { WorkoutHistoryScreen(contentPadding) }
