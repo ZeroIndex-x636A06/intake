@@ -12,7 +12,7 @@ object IntakeScript {
 
     /** The kind named by the first non-blank line, or null when it is neither. */
     fun detect(text: String): ScriptKind? {
-        val first = text.removePrefix("﻿").lineSequence().firstOrNull { it.isNotBlank() } ?: return null
+        val first = text.removePrefix("\uFEFF").lineSequence().firstOrNull { it.isNotBlank() } ?: return null
         val m = Regex("""(?i)^\s{0,3}#\s*(program|meal\s*plan)\s*:""").find(first) ?: return null
         return if (m.groupValues[1].lowercase().startsWith("program")) ScriptKind.PROGRAM else ScriptKind.MEAL_PLAN
     }

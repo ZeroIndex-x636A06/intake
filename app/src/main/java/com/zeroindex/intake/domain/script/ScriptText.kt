@@ -36,7 +36,7 @@ internal object ScriptText {
             sink.report(DiagnosticCode.FILE_TOO_LARGE, 1, 1, "This file is too large to be a script (limit 2,000,000 characters).")
             return null
         }
-        val s = raw.removePrefix("﻿").replace("\r\n", "\n").replace('\r', '\n')
+        val s = raw.removePrefix("\uFEFF").replace("\r\n", "\n").replace('\r', '\n')
         val chars = s.toCharArray()
         var i = 0
         while (true) {
