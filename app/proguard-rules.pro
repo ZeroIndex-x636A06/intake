@@ -73,3 +73,16 @@
 # --- Keep our own line numbers readable in a crash ---------------------------
 -keepattributes SourceFile, LineNumberTable
 -renamesourcefileattribute SourceFile
+
+# --- Backup transports (amendment §2) ---------------------------------------
+# JSch instantiates its ciphers, KEX and MAC classes from class-name strings.
+-keep class com.jcraft.jsch.** { *; }
+-dontwarn com.jcraft.jsch.**
+# smbj dispatches connection events through mbassador, which finds @Handler
+# methods reflectively; smbj's Kerberos (GSS) path and mbassador's EL filters
+# reference JDK classes Android does not ship and Intake never uses.
+-keep class com.hierynomus.** { *; }
+-keep class net.engio.mbassy.** { *; }
+-dontwarn org.ietf.jgss.**
+-dontwarn javax.el.**
+-dontwarn org.slf4j.**

@@ -127,6 +127,10 @@ android {
                 "/META-INF/{AL2.0,LGPL2.1}",
                 "/META-INF/LICENSE.md",
                 "/META-INF/LICENSE-notice.md",
+                // BouncyCastle (via smbj) ships post-quantum test vectors as
+                // resources; SMB's NTLM needs none of them.
+                "/org/bouncycastle/pqc/**",
+                "/org/bouncycastle/x509/**",
             )
         }
     }
