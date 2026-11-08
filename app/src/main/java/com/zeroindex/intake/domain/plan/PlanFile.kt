@@ -61,6 +61,11 @@ data class PlanFileRecipe(
 @Serializable
 data class PlanFileIngredient(
     val name: String = "",
+    /**
+     * The amount as written, e.g. "3 lb", "1/2 cup", "5-6 lb" or "2". Optional display text
+     * (the script format fills it); [grams] is the number the macro math uses.
+     */
+    val quantityText: String = "",
     val grams: Double? = null,
     val kcalPer100g: Double? = null,
     val proteinPer100g: Double? = null,

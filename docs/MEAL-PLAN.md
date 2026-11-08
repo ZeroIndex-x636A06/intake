@@ -13,6 +13,17 @@ Re-importing the same file updates the same rows: ids are derived from week numb
 recipe name, so there are no duplicates. A re-import also restores anything from the file
 that you removed in the app, and overwrites edits to those rows.
 
+## Intake script is the format to write
+
+People write plans in **Intake script**, a Markdown-flavoured text format with labeled lines, documented in
+[docs/scripting/](scripting/README.md) (see [meal-plan.md](scripting/meal-plan.md) there). It parses
+deterministically into this same `PlanFile` model (`domain/script/MealPlanScript`), so a script and a JSON file
+import through the same importer. JSON remains the machine and interchange format.
+
+The script covers every field below. One addition: an ingredient's amount as written ("3 lb", "5-6 lb",
+"1/2 cup") is kept in `quantityText`, with `grams` worked out when the unit is a weight. An eat-out order with
+`weeks: 1, 3-5` becomes one option per week.
+
 ## Shape
 
 Only `format`, `version` and, per week, `weekNumber` and `mainDishName` are required.
@@ -48,6 +59,7 @@ Unknown keys are ignored.
       "steps": ["step text"],         // for MAIN these are the Sunday-batch steps; cook mode reads them
       "ingredients": [{
         "name": "text",
+        "quantityText": "3 lb",       // optional, the amount as written
         "grams": 600,                 // optional
         "kcalPer100g": 180,           // optional, all four or none
         "proteinPer100g": 20,
