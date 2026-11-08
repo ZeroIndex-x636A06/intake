@@ -7,6 +7,8 @@ data class BenchmarkScore(
     val accuracy: Double,
     val jsonValidity: Double,
     val fixtures: Int,
+    val medianLatencyMs: Long? = null,
+    val costUsdPerRequest: Double? = null,
 )
 
 /** Why a model is the suggestion, in words the picker can show as-is. */

@@ -3,6 +3,20 @@
 package com.zeroindex.intake.ui.screens.ai
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import com.zeroindex.intake.ui.components.EmptyState
+import com.zeroindex.intake.ui.components.ErrorState
+import com.zeroindex.intake.ui.components.LabeledField
+import com.zeroindex.intake.ui.components.PillTone
+import com.zeroindex.intake.ui.components.PrivacyTag
+import com.zeroindex.intake.ui.components.StatusPill
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -37,21 +51,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.ai.AiPrivacy
 import com.zeroindex.intake.domain.ai.AiTask
 import com.zeroindex.intake.domain.ai.RankedModel
-import com.zeroindex.intake.ui.components.AccentNote
 import com.zeroindex.intake.ui.components.Eyebrow
-import com.zeroindex.intake.ui.components.Flag
 import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.SectionLine
 import com.zeroindex.intake.ui.components.SettingRow
 import com.zeroindex.intake.ui.components.SubHead
-import com.zeroindex.intake.ui.components.Tag
 import com.zeroindex.intake.ui.theme.IntakeShape
 import java.time.Duration
 
@@ -80,9 +90,8 @@ fun AiSettingsScreen(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item(key = "head") {
-            SubHead("AI tools", "Optional. Logging, training and progress never need any of this.")
+            SubHead("AI model picker", "Choose a model for each optional task. Models run only when you request them.")
         }
-        item(key = "key") { KeyCard(state, onSave = viewModel::saveKey, onTest = viewModel::testKey) }
         item(key = "privacy") {
             IntakeCard {
                 Eyebrow("Privacy for AI requests")
@@ -126,15 +135,20 @@ fun AiSettingsScreen(
         }
         state.catalog.error?.let { error ->
             item(key = "catalog-error") {
-                AccentNote(
-                    lead = "Model list unavailable",
+                ErrorState(
+                    title = "Model list unavailable",
                     body = "$error Choices below use the last list saved on this phone.",
-                    container = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
                 )
             }
         }
-        items(state.rows, key = { it.task.name }) { row -> TaskCard(row, onClick = { picking = row }) }
+        item(key = "tasks") {
+            IntakeCard {
+                state.rows.forEachIndexed { i, row ->
+                    ModelRow(row, onChange = { picking = row })
+                    if (i != state.rows.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                }
+            }
+        }
         item(key = "refresh") {
             OutlinedButton(
                 onClick = { viewModel.refreshCatalog() },
@@ -157,8 +171,16 @@ fun AiSettingsScreen(
             }
         }
 
-        item(key = "bench-head") { SectionLine("Benchmark results") }
+        item(key = "bench-head") { SectionLine("Benchmark results", note = "Local evaluation set") }
         item(key = "bench") { BenchmarkTable(state) }
+        item(key = "key") { KeyCard(state, onSave = viewModel::saveKey, onTest = viewModel::testKey) }
+        item(key = "filter-note") {
+            Text(
+                "Only models able to do the selected task are shown in each picker.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 
     picking?.let { row ->
@@ -177,116 +199,143 @@ fun AiSettingsScreen(
 private fun KeyCard(state: AiSettingsUiState, onSave: (String?) -> Unit, onTest: () -> Unit) {
     var text by remember { mutableStateOf("") }
     IntakeCard {
-        Eyebrow("OpenRouter key · optional")
-        Spacer(Modifier.height(4.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("OpenRouter", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+            when {
+                state.keyCheck is KeyCheck.Ok -> StatusPill("● Connected")
+                state.keyCheck is KeyCheck.Failed -> StatusPill("● Not connected", tone = PillTone.Bad)
+                state.hasKey -> StatusPill("Key saved · not tested", tone = PillTone.Wait)
+                else -> StatusPill("No key · AI off", tone = PillTone.Wait)
+            }
+        }
         Text(
-            text = if (state.hasKey) "A key is saved, encrypted on this phone." else "No key saved. AI features are off.",
+            text = if (state.hasKey) "Your key is saved, encrypted on this phone, and sent only to OpenRouter." else
+                "Optional. Without a key every AI feature stays off and everything else works.",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 4.dp),
         )
-        Spacer(Modifier.height(6.dp))
-        OutlinedTextField(
+        LabeledField(
+            label = if (state.hasKey) "Replace key" else "API key",
             value = text,
-            onValueChange = { text = it },
-            placeholder = { Text("sk-or-…", style = MaterialTheme.typography.bodySmall) },
-            singleLine = true,
-            shape = IntakeShape.Field,
-            visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth(),
+            onValueChange = { text = it.trim() },
+            placeholder = "sk-or-…",
+            secret = true,
         )
-        Row(Modifier.padding(top = 7.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.padding(top = 9.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(
                 onClick = { onSave(text); text = "" },
                 enabled = text.isNotBlank(),
                 shape = IntakeShape.Chip,
+                modifier = Modifier.heightIn(min = 44.dp),
             ) { Text("Save") }
             if (state.hasKey) {
-                OutlinedButton(onClick = { onSave(null) }, shape = IntakeShape.Chip) { Text("Clear") }
                 OutlinedButton(
                     onClick = onTest,
                     enabled = state.keyCheck !is KeyCheck.Checking,
                     shape = IntakeShape.Chip,
-                ) { Text("Test connection") }
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                    modifier = Modifier.heightIn(min = 44.dp),
+                ) { Text(if (state.keyCheck is KeyCheck.Checking) "Testing…" else "Test connection", fontWeight = FontWeight.ExtraBold) }
+                TextButton(onClick = { onSave(null) }) { Text("Remove key") }
             }
         }
         when (val check = state.keyCheck) {
-            KeyCheck.Idle -> Unit
-            KeyCheck.Checking -> Text("Checking…", style = MaterialTheme.typography.bodySmall)
-            is KeyCheck.Ok -> Text(check.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
-            is KeyCheck.Failed -> Text(check.message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            is KeyCheck.Ok -> Text(check.detail, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+            is KeyCheck.Failed -> ErrorState(body = check.message)
+            else -> Unit
         }
     }
 }
 
+/** `.model-row`: task and per-use cost on the left, the model and a change button on the right. */
 @Composable
-private fun TaskCard(row: TaskRow, onClick: () -> Unit) {
+private fun ModelRow(row: TaskRow, onChange: () -> Unit) {
     val active = row.active
-    IntakeCard(modifier = Modifier.clickable(onClickLabel = "Choose the model for ${row.task.label}", onClick = onClick)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(row.task.label, style = MaterialTheme.typography.titleSmall)
-                Text(
-                    text = active?.model?.name ?: "No capable model in the list yet",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            active?.let {
-                Text(
-                    text = "≈ ${usd(it.estimatedUsdPerUse)} / ${row.task.perUse}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
+    Row(Modifier.fillMaxWidth().padding(vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(row.task.label, style = MaterialTheme.typography.titleSmall)
+            Text(
+                active?.let { "≈ ${usd(it.estimatedUsdPerUse)} / ${row.task.perUse}" } ?: "No capable model yet",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (!row.isOverride) {
+                row.suggestion.basis?.let {
+                    Text(it.explanation, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
+                }
             }
         }
-        Spacer(Modifier.height(6.dp))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            when {
-                row.overrideMissing -> Flag("Your pick is gone from OpenRouter")
-                row.isOverride -> Tag("Your choice")
-                row.suggestion.basis != null -> Tag("Suggested")
+        Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(start = 8.dp)) {
+            Text(
+                active?.model?.let(::displayName) ?: "—",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(top = 3.dp)) {
+                when {
+                    row.overrideMissing -> StatusPill("Your pick is gone", tone = PillTone.Bad)
+                    row.isOverride -> StatusPill("Your choice", tone = PillTone.Wait)
+                    row.suggestion.basis != null -> StatusPill("Suggested")
+                }
+                if (active?.model?.mayRetainPrompts == true) PrivacyTag("May keep prompts")
             }
-            if (active?.model?.isFree == true) Tag("Free")
-            if (active?.model?.mayRetainPrompts == true) Flag("May keep your prompts")
-        }
-        if (!row.isOverride) {
-            row.suggestion.basis?.let {
-                Text(
-                    it.explanation,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
+            TextButton(onClick = onChange, modifier = Modifier.semantics { contentDescription = "Change model for ${row.task.label}" }) {
+                Text("Change model")
             }
         }
     }
 }
+
+/** "OpenAI: GPT-6 Luna" reads as "OpenAI · GPT-6 Luna", matching the mockup. */
+private fun displayName(model: com.zeroindex.intake.domain.ai.ModelInfo): String =
+    model.name.replaceFirst(": ", " · ")
+
+private fun requirements(task: AiTask): String = buildList {
+    if (task.needsImages) add("read photos")
+    if (task.needsTools) add("search the web")
+    add("return structured output")
+    if (task.minContext >= 100_000) add("read ${task.minContext / 1000}k+ tokens")
+}.joinToString(", ", prefix = "Filtered to models that can ", postfix = ".")
 
 @Composable
 private fun BenchmarkTable(state: AiSettingsUiState) {
     if (state.benchmarks.isEmpty()) {
-        AccentNote(
-            lead = "No benchmark results yet",
+        EmptyState(
+            title = "No benchmark results yet",
             body = "Suggestions marked \"not benchmarked\" are the cheapest capable models, not tested ones. " +
-                "Run the benchmark harness with your key (see the README) and the results replace the guesses.",
-            container = MaterialTheme.colorScheme.secondaryContainer,
-            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                "Run the benchmark with your key (see the README) and the results replace the guesses.",
         )
         return
     }
     IntakeCard {
         Row(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
-            Eyebrow("Model", modifier = Modifier.weight(1f))
-            Eyebrow("Accuracy", modifier = Modifier.weight(0.4f))
-            Eyebrow("JSON", modifier = Modifier.weight(0.3f))
+            Eyebrow("Task / model", modifier = Modifier.weight(1f))
+            listOf("Accuracy", "JSON", "Speed", "Cost").forEach {
+                Eyebrow(it, modifier = Modifier.weight(0.42f))
+            }
         }
-        state.benchmarks.groupBy { it.task }.forEach { (task, scores) ->
-            Text(task.label, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 6.dp))
-            scores.sortedByDescending { it.accuracy }.forEach { s ->
-                Row(Modifier.fillMaxWidth().heightIn(min = 32.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(s.modelId, style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
-                    Text("${(s.accuracy * 100).toInt()}%", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(0.4f))
-                    Text("${(s.jsonValidity * 100).toInt()}%", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(0.3f))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        state.benchmarks.sortedWith(compareBy({ it.task.ordinal }, { -it.accuracy })).forEach { s ->
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 36.dp)
+                    .semantics(mergeDescendants = true) {},
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "${s.task.label.substringBefore(' ')} · ${s.modelId.substringAfter('/')}",
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.weight(1f),
+                )
+                listOf(
+                    "${(s.accuracy * 100).toInt()}%",
+                    "${(s.jsonValidity * 100).toInt()}%",
+                    s.medianLatencyMs?.let { "%.1f s".format(it / 1000.0) } ?: "—",
+                    s.costUsdPerRequest?.let(::usd) ?: "—",
+                ).forEach {
+                    Text(it, style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(0.42f))
                 }
             }
         }
@@ -302,9 +351,12 @@ private fun ModelPickerSheet(row: TaskRow, onPick: (String?) -> Unit, onDismiss:
     }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.padding(horizontal = 16.dp).navigationBarsPadding()) {
-            Text(row.task.label, style = MaterialTheme.typography.headlineSmall)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Choose for ${row.task.label}", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+                IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, contentDescription = "Close") }
+            }
             Text(
-                "${row.suggestion.candidates.size} models can do this. Cheapest first.",
+                "${requirements(row.task)} ${row.suggestion.candidates.size} match, cheapest first.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -333,37 +385,47 @@ private fun ModelPickerSheet(row: TaskRow, onPick: (String?) -> Unit, onDismiss:
                     )
                 }
             }
-            TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) { Text("Close") }
+            Text(
+                "Privacy varies by provider. Check the provider's current data-retention terms before sending a prompt.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 12.dp),
+            )
         }
     }
 }
 
 @Composable
 private fun CandidateRow(candidate: RankedModel, task: AiTask, isSuggested: Boolean, isActive: Boolean, onClick: () -> Unit) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .clickable(role = Role.RadioButton, onClick = onClick)
-            .heightIn(min = 60.dp)
-            .padding(vertical = 8.dp),
-    ) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            RadioButton(selected = isActive, onClick = null)
-            Column(Modifier.weight(1f).padding(start = 6.dp)) {
-                Text(candidate.model.name, style = MaterialTheme.typography.titleSmall)
-                Text(candidate.model.id, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Text("≈ ${usd(candidate.estimatedUsdPerUse)} / ${task.perUse}", style = MaterialTheme.typography.labelMedium)
+            Text(displayName(candidate.model), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+            StatusPill(if (candidate.model.isFree) "Free" else "Paid", tone = if (candidate.model.isFree) PillTone.Ok else PillTone.Wait)
         }
-        FlowRow(
-            modifier = Modifier.padding(start = 40.dp, top = 4.dp),
+        Text(
+            listOfNotNull(
+                "≈ ${usd(candidate.estimatedUsdPerUse)} / ${task.perUse}",
+                candidate.benchmark?.let { "${(it.accuracy * 100).toInt()}% in benchmark" },
+                candidate.model.id,
+            ).joinToString(" · "),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(
+            Modifier.fillMaxWidth().padding(top = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(5.dp),
-            verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
-            if (isSuggested) Tag("Suggested")
-            if (candidate.model.isFree) Tag("Free")
-            if (candidate.model.mayRetainPrompts) Flag("May keep your prompts")
-            candidate.benchmark?.let { Tag("${(it.accuracy * 100).toInt()}% in benchmark") }
+            if (isSuggested) StatusPill("Suggested")
+            if (candidate.model.mayRetainPrompts) PrivacyTag("May keep your prompts")
+            Spacer(Modifier.weight(1f))
+            if (isActive) {
+                StatusPill("In use")
+            } else {
+                OutlinedButton(onClick = onClick, shape = IntakeShape.Chip, modifier = Modifier.heightIn(min = 44.dp)) {
+                    Text("Select model")
+                }
+            }
         }
     }
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)

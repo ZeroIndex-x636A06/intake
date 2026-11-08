@@ -57,13 +57,13 @@ class ModelCatalogRepository @Inject constructor(
     fun observeBenchmarks(): Flow<List<BenchmarkScore>> = insightDao.observeBenchmarks().map { rows ->
         rows.mapNotNull { row ->
             val task = runCatching { AiTask.valueOf(row.task) }.getOrNull() ?: return@mapNotNull null
-            BenchmarkScore(task, row.modelId, row.accuracy, row.jsonValidity, row.fixtures)
+            BenchmarkScore(task, row.modelId, row.accuracy, row.jsonValidity, row.fixtures, row.medianLatencyMs, row.costUsdPerRequest)
         }
     }
 
     suspend fun benchmarks(): List<BenchmarkScore> = insightDao.allBenchmarks().mapNotNull { row ->
         runCatching { AiTask.valueOf(row.task) }.getOrNull()
-            ?.let { BenchmarkScore(it, row.modelId, row.accuracy, row.jsonValidity, row.fixtures) }
+            ?.let { BenchmarkScore(it, row.modelId, row.accuracy, row.jsonValidity, row.fixtures, row.medianLatencyMs, row.costUsdPerRequest) }
     }
 
     /** Loads the cache, then refreshes from the network if it is stale. */

@@ -57,7 +57,8 @@ import kotlinx.coroutines.sync.withLock
 enum class HealthAvailability { AVAILABLE, NOT_INSTALLED, UPDATE_REQUIRED, UNSUPPORTED }
 
 /** One Health Connect data type the app reads or writes, for the permissions screen. */
-data class HealthDataType(val label: String, val permission: String, val write: Boolean = false)
+/** One Health Connect permission, with the plain reason Intake asks for it. */
+data class HealthDataType(val label: String, val permission: String, val why: String, val write: Boolean = false)
 
 data class HealthSyncState(
     val availability: HealthAvailability = HealthAvailability.UNSUPPORTED,
@@ -93,28 +94,28 @@ class HealthConnectManager @Inject constructor(
         private const val WEIGH_IN_MATCH_WINDOW_MS = 10 * 60 * 1000L
 
         val TYPES: List<HealthDataType> = listOf(
-            read("Exercise sessions", ExerciseSessionRecord::class),
-            read("Total calories burned", TotalCaloriesBurnedRecord::class),
-            read("Active calories burned", ActiveCaloriesBurnedRecord::class),
-            read("Basal metabolic rate", BasalMetabolicRateRecord::class),
-            read("Steps", StepsRecord::class),
-            read("Sleep", SleepSessionRecord::class),
-            read("Heart rate", HeartRateRecord::class),
-            read("Resting heart rate", RestingHeartRateRecord::class),
-            read("Weight", WeightRecord::class),
-            read("Body fat", BodyFatRecord::class),
-            read("Lean body mass", LeanBodyMassRecord::class),
-            write("Nutrition (your food log)", NutritionRecord::class),
-            write("Weight (your weigh-ins)", WeightRecord::class),
-            write("Hydration", HydrationRecord::class),
-            write("Workouts", ExerciseSessionRecord::class),
+            read("Exercise sessions", ExerciseSessionRecord::class, "Read so only tracked workouts count"),
+            read("Total calories burned", TotalCaloriesBurnedRecord::class, "Read for daily energy balance"),
+            read("Active calories", ActiveCaloriesBurnedRecord::class, "Read for daily energy balance"),
+            read("Basal metabolic rate", BasalMetabolicRateRecord::class, "Read so resting burn is not counted twice"),
+            read("Steps", StepsRecord::class, "Read daily total"),
+            read("Sleep", SleepSessionRecord::class, "Read duration and stages"),
+            read("Heart rate", HeartRateRecord::class, "Read workout samples"),
+            read("Resting heart rate", RestingHeartRateRecord::class, "Read daily value"),
+            read("Weight", WeightRecord::class, "Read weigh-ins from your scale"),
+            read("Body fat", BodyFatRecord::class, "Read measurements"),
+            read("Lean body mass", LeanBodyMassRecord::class, "Read measurements · stands in for skeletal muscle"),
+            write("Nutrition", NutritionRecord::class, "Write your food log"),
+            write("Weight", WeightRecord::class, "Write weigh-ins you log here"),
+            write("Hydration", HydrationRecord::class, "Write water you log"),
+            write("Workouts", ExerciseSessionRecord::class, "Write finished training sessions"),
         )
 
-        private fun read(label: String, type: KClass<out Record>) =
-            HealthDataType(label, HealthPermission.getReadPermission(type))
+        private fun read(label: String, type: KClass<out Record>, why: String) =
+            HealthDataType(label, HealthPermission.getReadPermission(type), why)
 
-        private fun write(label: String, type: KClass<out Record>) =
-            HealthDataType(label, HealthPermission.getWritePermission(type), write = true)
+        private fun write(label: String, type: KClass<out Record>, why: String) =
+            HealthDataType(label, HealthPermission.getWritePermission(type), why, write = true)
 
         val ALL_PERMISSIONS: Set<String> = TYPES.map { it.permission }.toSet()
     }
