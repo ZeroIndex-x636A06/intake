@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Height
 import androidx.compose.material3.Button
@@ -24,18 +26,22 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.ui.components.IntakeCard
+import com.zeroindex.intake.ui.screens.train.NoProgramChoices
 import com.zeroindex.intake.ui.screens.train.TrainViewModel
 import com.zeroindex.intake.ui.theme.IntakeShape
 
 /**
  * The Train tab root: start or carry on with today's workout, then the sections. The workout
- * card works with no program at all, because a freestyle session is always one tap away.
+ * card works with no program at all, because an empty workout is always one tap away.
  */
 @Composable
 fun TrainHubScreen(
     contentPadding: PaddingValues,
     onOpenSession: (String) -> Unit,
     onOpenPrograms: () -> Unit,
+    onOpenBuilder: () -> Unit,
+    onOpenGenerator: () -> Unit,
+    onOpenTemplates: () -> Unit,
     onOpenExercises: () -> Unit,
     onOpenPerformance: () -> Unit,
     onOpenProgramScriptHelp: () -> Unit,
@@ -50,52 +56,61 @@ fun TrainHubScreen(
         modifier = modifier,
         before = {
             item(key = "workout") {
-                IntakeCard {
-                    val inProgress = state.inProgress
-                    val nextDay = state.nextDay
-                    Eyebrow(
-                        when {
-                            inProgress != null -> "Session in progress"
-                            nextDay != null -> "Next workout"
-                            else -> "Workout"
-                        },
+                val inProgress = state.inProgress
+                val nextDay = state.nextDay
+                if (inProgress == null && state.activeProgram == null) {
+                    NoProgramChoices(
+                        onBuild = onOpenBuilder,
+                        onGenerate = onOpenGenerator,
+                        onTemplate = onOpenTemplates,
+                        onFreestyle = { viewModel.startFreestyle(onOpenSession) },
                     )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = when {
-                            inProgress != null -> "Pick up where you left off"
-                            nextDay != null -> nextDay.name
-                            else -> "Start a freestyle workout"
-                        },
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
-                            onClick = {
-                                if (inProgress != null) onOpenSession(inProgress.id)
-                                else viewModel.startSession(nextDay?.id, onOpenSession)
+                } else {
+                    IntakeCard {
+                        Eyebrow(
+                            when {
+                                inProgress != null -> "Session in progress"
+                                nextDay != null -> "Next workout"
+                                else -> "Workout"
                             },
-                            enabled = !state.isWorking,
-                            shape = IntakeShape.Button,
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-                        ) {
-                            Text(
-                                when {
-                                    inProgress != null -> "Carry on"
-                                    nextDay != null -> "Start ${nextDay.name}"
-                                    else -> "Start freestyle workout"
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = when {
+                                inProgress != null -> "Pick up where you left off"
+                                nextDay != null -> nextDay.name
+                                else -> "Your program has no days yet"
+                            },
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = {
+                                    if (inProgress != null) onOpenSession(inProgress.id)
+                                    else viewModel.startSession(nextDay?.id, onOpenSession)
                                 },
-                            )
-                        }
-                        if (inProgress == null && nextDay != null) {
-                            OutlinedButton(
-                                onClick = { viewModel.startSession(null, onOpenSession) },
-                                enabled = !state.isWorking,
+                                enabled = !state.isWorking && (inProgress != null || nextDay != null),
                                 shape = IntakeShape.Button,
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-                            ) { Text("Freestyle workout instead") }
+                            ) {
+                                Text(
+                                    when {
+                                        inProgress != null -> "Carry on"
+                                        nextDay != null -> "Start ${nextDay.name}"
+                                        else -> "Add a day first"
+                                    },
+                                )
+                            }
+                            if (inProgress == null) {
+                                OutlinedButton(
+                                    onClick = { viewModel.startFreestyle(onOpenSession) },
+                                    enabled = !state.isWorking,
+                                    shape = IntakeShape.Button,
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                                ) { Text("Start an empty workout") }
+                            }
                         }
                     }
                 }
@@ -104,13 +119,25 @@ fun TrainHubScreen(
         items = listOf(
             HubItem(
                 title = "Programs",
-                description = "Your program, its days and progression. Build, import or export",
+                description = "Your programs. Build, edit, import or export",
                 icon = Icons.AutoMirrored.Filled.ListAlt,
                 onClick = onOpenPrograms,
             ),
             HubItem(
+                title = "Make one for me",
+                description = "Answer a few questions and get a plan, with the reasons",
+                icon = Icons.Filled.AutoAwesome,
+                onClick = onOpenGenerator,
+            ),
+            HubItem(
+                title = "Templates",
+                description = "Copy a ready-made program and make it yours",
+                icon = Icons.Filled.ContentCopy,
+                onClick = onOpenTemplates,
+            ),
+            HubItem(
                 title = "Exercises",
-                description = "The exercise library, and your own additions",
+                description = "Browse and search the library, add your own",
                 icon = Icons.Filled.FitnessCenter,
                 onClick = onOpenExercises,
             ),

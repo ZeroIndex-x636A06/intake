@@ -18,8 +18,13 @@ Core, from SPEC.md:
   hand-entered foods. Every path runs the local allergen check first.
 - Adaptive TDEE measured from your own intake and weight trend.
 - Training: progression rules, active workout, rest timer, plate calculator,
-  program builder, history.
-- Starter food library, exercises and a training program are seeded locally.
+  program builder, history. A new install has **no program**: build one by hand,
+  let the generator make one ("Make one for me": a short wizard, a preview with a
+  reason for every choice, nothing saved until you confirm), or copy a template.
+  You can also start an empty workout and pick exercises as you go.
+- Starter food library and a library of about 100 exercises (barbell, dumbbell,
+  machine, cable, bodyweight, common isolations) are seeded locally. Built-in
+  programs are templates, copied into your own editable program when picked.
 - Write a meal plan or workout program by hand and import or export it as a
   plain-text script, with an offline in-app reference:
   [docs/scripting/](docs/scripting/README.md).
@@ -34,8 +39,10 @@ to its root.
 
 - **Food**: Log food, Meal templates, Meal plans, Recipes (Recipe Hunter is an
   optional AI), Eating out (Plan B, menu import), Allergens, Food script help.
-- **Train**: start or carry on today's workout, Programs (builder, import and
-  export), Exercises, Performance (jump tests), Program script help.
+- **Train**: start or carry on today's workout (or an empty one), Programs
+  (build, edit, import and export), Make one for me, Templates, Exercises
+  (search, filter, add your own, history and estimated max), Performance (jump
+  tests), Program script help.
 - **Progress**: charts, plus Training stats, Weekly report and Health Connect.
 - **More**: Profile and goals, Settings, Backup and sync, AI (optional),
   Privacy, Help (every script doc).

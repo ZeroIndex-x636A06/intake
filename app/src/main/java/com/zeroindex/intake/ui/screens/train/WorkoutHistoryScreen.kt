@@ -104,7 +104,7 @@ fun WorkoutHistoryScreen(
                 ) {
                     Column(Modifier.padding(16.dp)) {
                         Text(
-                            text = "Estimated 1RM over time",
+                            text = "Estimated max over time",
                             style = MaterialTheme.typography.titleMedium,
                         )
                         Text(

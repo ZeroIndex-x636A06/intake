@@ -50,6 +50,20 @@ All of SPEC.md's built phases and every amendment feature are implemented:
   - Placeholders awaiting other work: Food > Recipes "Import from a link", Food >
     Allergens "My allergens", More "Body type, phase and baseline", Help "Replay the tour".
 
+- Training rework (SPEC-v3): no program on a new install; templates are in code
+  (`data/seed/ProgramTemplates.kt`) and copied into editable rows; exercise
+  library (`domain/training/generator/ExerciseCatalog.kt`, topped up on every
+  open, hidden exercises stay hidden); exercise library screen with history and
+  estimated max; manual builder with plain-language progression; freestyle
+  workouts (pick exercises as you go, optional "Save as a program day"); the
+  deterministic generator `generateProgram(GeneratorInputs): GeneratedProgram`
+  in `domain/training/generator/` (call it from baseline/onboarding, then save
+  with `TrainingRepository.createProgramFromBlueprint`). No schema change.
+  Existing installs keep every program and session: nothing is deleted, the
+  old "Upper / lower, four days" program is now just an ordinary program (it can
+  be archived, which is a soft delete), and the library gains the new exercises.
+  Not done: a workout card on Today (Today is nutrition only in this codebase).
+
 Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/SPEC-v3.md`, `docs/BACKUP.md`,
 `docs/BENCHMARK.md`, `docs/PRIVACY.md`, `server/README.md`.
 
@@ -73,7 +87,8 @@ Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/SPEC-v3.md`, `docs/BACKUP
 
 ## NOT verified
 
-- No emulator or on-screen visual check of any screen (this includes the script import sheets and the reference screen).
+- No emulator or on-screen visual check of any screen (this includes the script import sheets and the reference screen, and the whole training rework: library, builder, generator wizard and preview, freestyle workout, templates).
+- The watch's feed for a freestyle workout: a freestyle exercise appears on the watch only once a set is logged for it.
 - The floating pill: slide gesture, spring highlight, haptics, colours in both themes, the edge
   back-gesture rule, TalkBack, and the nested-graph tab back stacks (save/restore, pop to
   root, duplicated shared destinations) are compiled and unit-tested for their pure logic only.

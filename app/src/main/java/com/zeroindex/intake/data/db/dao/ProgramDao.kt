@@ -31,6 +31,9 @@ interface ProgramDao {
     @Query("SELECT * FROM program WHERE id = :id AND deletedAt IS NULL")
     suspend fun findById(id: String): ProgramEntity?
 
+    @Query("SELECT * FROM program WHERE id = :id AND deletedAt IS NULL")
+    fun observeById(id: String): Flow<ProgramEntity?>
+
     @Query("SELECT * FROM program_day WHERE programId = :programId AND deletedAt IS NULL ORDER BY dayIndex")
     fun observeDays(programId: String): Flow<List<ProgramDayEntity>>
 

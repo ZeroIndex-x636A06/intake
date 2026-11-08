@@ -23,6 +23,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import com.zeroindex.intake.ui.screens.train.ExercisePickerSheet
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -75,6 +80,8 @@ fun ActiveWorkoutScreen(
     val timer by TimerService.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val unit = state.settings.weightUnit
+    var picking by remember { mutableStateOf(false) }
+    var askSave by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
@@ -90,7 +97,7 @@ fun ActiveWorkoutScreen(
             WorkoutTopBar(
                 title = state.current?.exercise?.name?.let { _ ->
                     "Exercise ${state.currentIndex + 1} of ${state.prescriptions.size}"
-                } ?: "Freestyle",
+                } ?: "Empty workout",
                 elapsed = timer.takeIf { it.running || it.remainingSeconds > 0 }
                     ?.let { TimerService.format(it.remainingSeconds) },
             )
@@ -123,12 +130,19 @@ fun ActiveWorkoutScreen(
         if (state.prescriptions.isEmpty()) {
             item(key = "freestyle") {
                 AccentNote(
-                    lead = "Freestyle session",
-                    body = "No program day attached, so there are no prescriptions. Finish when " +
-                        "you are done and the sets still count towards your weekly volume.",
+                    lead = "Empty workout",
+                    body = "Pick the exercises as you go and log your sets. Everything still counts " +
+                        "towards your history and weekly volume.",
                     container = MaterialTheme.colorScheme.surfaceVariant,
                     contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+            item(key = "add-first") {
+                Button(
+                    onClick = { picking = true },
+                    shape = IntakeShape.Button,
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                ) { Text("Add an exercise") }
             }
         } else {
             item(key = "picker") {
@@ -235,18 +249,70 @@ fun ActiveWorkoutScreen(
             }
         }
 
+        if (state.prescriptions.isNotEmpty()) {
+            item(key = "add-more") {
+                OutlinedButton(
+                    onClick = { picking = true },
+                    shape = IntakeShape.Button,
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                ) { Text("Add an exercise") }
+            }
+        }
+
         item(key = "finish") {
             Button(
                 onClick = {
-                    TimerService.stop(context)
-                    viewModel.finish(onFinished)
+                    if (state.isFreestyle && state.hasWorkingSets) {
+                        askSave = true
+                    } else {
+                        TimerService.stop(context)
+                        viewModel.finish(onFinished)
+                    }
                 },
                 shape = IntakeShape.Button,
                 modifier = Modifier.fillMaxWidth().height(56.dp),
             ) { Text("Finish session") }
         }
     }
+
+    if (picking) {
+        ExercisePickerSheet(
+            title = "Add an exercise",
+            onPick = { id -> viewModel.addExercise(id); picking = false },
+            onDismiss = { picking = false },
+        )
+    }
+    if (askSave) {
+        var dayName by remember { mutableStateOf(defaultDayName()) }
+        AlertDialog(
+            onDismissRequest = { askSave = false },
+            title = { Text("Save as a program day?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Keep this workout as a day in your program, so you can repeat it. This is optional.")
+                    OutlinedTextField(value = dayName, onValueChange = { dayName = it }, label = { Text("Day name") }, singleLine = true)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    askSave = false
+                    TimerService.stop(context)
+                    viewModel.saveAsProgramDay(dayName) { viewModel.finish(onFinished) }
+                }) { Text("Save and finish") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    askSave = false
+                    TimerService.stop(context)
+                    viewModel.finish(onFinished)
+                }) { Text("Just finish") }
+            },
+        )
+    }
 }
+
+private fun defaultDayName(): String = "Workout " +
+    java.time.format.DateTimeFormatter.ofPattern("d MMM").format(java.time.LocalDate.now())
 
 /** The mockup's `.workout-top`: where you are, and the clock. */
 @Composable
@@ -371,8 +437,7 @@ private fun ExerciseCard(item: ExercisePrescription, state: ActiveWorkoutUiState
             )
             OneRepMax.best(item.lastSession.map { SetResult(it.weightKg, it.reps) })?.let { best ->
                 Text(
-                    text = "Estimated 1RM then: ${fmt(unit.fromKg(best))} ${unit.label} " +
-                        "(${OneRepMax.FORMULA})",
+                    text = "Estimated max then: ${fmt(unit.fromKg(best))} ${unit.label}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

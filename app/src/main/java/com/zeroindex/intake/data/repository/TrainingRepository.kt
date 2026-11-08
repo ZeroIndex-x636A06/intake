@@ -5,6 +5,14 @@ import com.zeroindex.intake.data.db.IntakeDatabase
 import com.zeroindex.intake.data.db.dao.ExerciseDao
 import com.zeroindex.intake.data.training.ExistingProgramState
 import com.zeroindex.intake.data.training.ProgramExportRows
+import com.zeroindex.intake.data.training.FreestyleDayBuilder
+import com.zeroindex.intake.data.training.ProgramBlueprintBuilder
+import com.zeroindex.intake.data.training.toEntity
+import com.zeroindex.intake.domain.training.ProgressionLabels
+import com.zeroindex.intake.domain.training.generator.ExerciseCatalog
+import com.zeroindex.intake.domain.training.generator.GeneratedProgram
+import com.zeroindex.intake.data.db.entity.SEED_TIMESTAMP
+import com.zeroindex.intake.data.db.entity.seedId
 import com.zeroindex.intake.data.training.ProgramExporter
 import com.zeroindex.intake.data.training.ProgramImportBatch
 import com.zeroindex.intake.data.training.ProgramImportBuilder
@@ -88,6 +96,7 @@ class TrainingRepository @Inject constructor(
         equipment: String = "",
         isBodyweight: Boolean = false,
         defaultRestSec: Int = 120,
+        secondaryMuscles: String = "",
     ): ExerciseEntity {
         val now = clock.nowMillis()
         val exercise = ExerciseEntity(
@@ -97,12 +106,38 @@ class TrainingRepository @Inject constructor(
             equipment = equipment,
             isBodyweight = isBodyweight,
             defaultRestSec = defaultRestSec,
+            secondaryMuscles = secondaryMuscles,
             createdAt = now,
             updatedAt = now,
         )
         exerciseDao.upsert(exercise)
         return exercise
     }
+
+    /** Adds the catalog exercises this database does not have; never touches existing or hidden rows. */
+    suspend fun ensureSeedExercises() {
+        val have = exerciseDao.allIds().toSet()
+        val missing = ExerciseCatalog.ALL.filter { it.id !in have }
+        if (missing.isNotEmpty()) exerciseDao.upsertAll(missing.map { it.toEntity(SEED_TIMESTAMP) })
+    }
+
+    fun observeHiddenExercises(): Flow<List<ExerciseEntity>> = exerciseDao.observeHidden()
+    suspend fun hiddenExerciseIds(): Set<String> = exerciseDao.hiddenIds().toSet()
+
+    /** Includes hidden exercises: a program or past session may still point at one. */
+    suspend fun exerciseAnyState(id: String): ExerciseEntity? = exerciseDao.findAnyById(id)
+
+    suspend fun updateExercise(exercise: ExerciseEntity) =
+        exerciseDao.upsert(exercise.copy(updatedAt = clock.nowMillis()))
+
+    /** Soft delete: the row stays, so history and programs that use it keep working. */
+    suspend fun hideExercise(id: String) = exerciseDao.softDelete(id, clock.nowMillis())
+
+    suspend fun restoreExercise(id: String) = exerciseDao.restore(id, clock.nowMillis())
+
+    /** Every set ever logged for an exercise, newest first, for the exercise detail. */
+    fun observeExerciseSets(exerciseId: String): Flow<List<SetLogEntity>> =
+        workoutDao.observeSetsForExercise(exerciseId)
 
     // ------------------------------------------------------------ programs
 
@@ -202,6 +237,352 @@ class TrainingRepository @Inject constructor(
     }
 
     suspend fun saveRules(rules: List<ProgressionRuleEntity>) = ruleDao.upsertAll(rules)
+
+    // ------------------------------------------------ rules, editing, templates
+
+    /** The default rules, keyed by type. Missing ones are added; existing ones are left alone. */
+    suspend fun ensureDefaultRules(): Map<ProgressionType, ProgressionRuleEntity> {
+        val existing = ruleDao.all()
+        val now = SEED_TIMESTAMP
+        fun seeded(type: ProgressionType, name: String, params: String) = ProgressionRuleEntity(
+            id = seedId("progression-rule", type.name),
+            name = name,
+            type = type,
+            params = params,
+            createdAt = now,
+            updatedAt = now,
+        )
+        val wanted = listOf(
+            seeded(ProgressionType.LINEAR, "Linear, +2.5 kg", """{"incrementKg":2.5,"deloadPercent":10,"failuresBeforeDeload":2}"""),
+            seeded(ProgressionType.DOUBLE_PROGRESSION, "Double progression", """{"incrementKg":2.5}"""),
+            seeded(ProgressionType.RPE_BASED, "RPE 8 target", "{}"),
+            seeded(ProgressionType.PERCENTAGE_1RM, "75% of estimated max", """{"percentageOf1rm":75}"""),
+        )
+        val ids = existing.map { it.id }.toSet()
+        val missing = wanted.filter { it.id !in ids }
+        if (missing.isNotEmpty()) ruleDao.upsertAll(missing)
+        val all = existing + missing
+        return ProgressionType.entries.mapNotNull { t -> all.firstOrNull { it.type == t }?.let { t to it } }.toMap()
+    }
+
+    /**
+     * The rule for a plain-language choice. The default increment reuses the shared rule; any other
+     * increment, percentage or formula finds or creates a matching rule row.
+     */
+    suspend fun ruleIdFor(
+        type: ProgressionType,
+        incrementKg: Double? = null,
+        percentOfMax: Double? = null,
+        expression: String? = null,
+    ): String {
+        val base = ensureDefaultRules()[type]
+        if (type != ProgressionType.CUSTOM && base != null) {
+            val defaultInc = ProgressionLabels.incrementOf(base.params)
+            val defaultPct = ProgressionLabels.percentOf(base.params)
+            val sameInc = incrementKg == null || incrementKg == defaultInc || type == ProgressionType.RPE_BASED
+            val samePct = percentOfMax == null || percentOfMax == defaultPct
+            if (sameInc && samePct) return base.id
+        }
+        val parts = mutableListOf<String>()
+        incrementKg?.let { parts += "\"incrementKg\":$it" }
+        if (type == ProgressionType.LINEAR) parts += "\"deloadPercent\":10,\"failuresBeforeDeload\":2"
+        percentOfMax?.let { parts += "\"percentageOf1rm\":$it" }
+        if (!expression.isNullOrBlank()) parts += "\"expression\":${kotlinx.serialization.json.JsonPrimitive(expression)}"
+        val params = "{" + parts.joinToString(",") + "}"
+        val existing = ruleDao.all().firstOrNull { it.type == type && it.params == params }
+        if (existing != null) return existing.id
+        val name = when (type) {
+            ProgressionType.LINEAR -> "Linear, +${incrementKg ?: 2.5} kg"
+            ProgressionType.DOUBLE_PROGRESSION -> "Double progression, +${incrementKg ?: 2.5} kg"
+            ProgressionType.PERCENTAGE_1RM -> "${percentOfMax ?: 75.0}% of estimated max"
+            ProgressionType.RPE_BASED -> "Go by effort"
+            ProgressionType.CUSTOM -> "Custom formula"
+        }
+        return saveRule(name, type, params).id
+    }
+
+    suspend fun rule(id: String): ProgressionRuleEntity? = ruleDao.findById(id)
+
+    suspend fun program(id: String): ProgramEntity? = programDao.findById(id)
+
+    fun observeProgram(id: String): Flow<ProgramEntity?> = programDao.observeById(id)
+
+    fun observeProgramExercises(dayId: String): Flow<List<ProgramExerciseEntity>> = programDao.observeExercises(dayId)
+
+    suspend fun renameProgram(id: String, name: String, description: String) {
+        val p = programDao.findById(id) ?: return
+        programDao.upsertProgram(
+            p.copy(name = name.trim().ifBlank { p.name }, description = description.trim(), updatedAt = clock.nowMillis()),
+        )
+    }
+
+    /** Soft delete. The program's days, exercises and any sessions logged against them stay in the database. */
+    suspend fun archiveProgram(id: String) {
+        programDao.softDeleteProgram(id, clock.nowMillis())
+    }
+
+    suspend fun renameDay(dayId: String, name: String) {
+        val d = programDao.findDay(dayId) ?: return
+        programDao.upsertDay(d.copy(name = name.trim().ifBlank { d.name }, updatedAt = clock.nowMillis()))
+    }
+
+    suspend fun moveDay(dayId: String, delta: Int) {
+        db.withTransaction {
+            val d = programDao.findDay(dayId) ?: return@withTransaction
+            val days = programDao.daysOf(d.programId).toMutableList()
+            val from = days.indexOfFirst { it.id == dayId }
+            val to = (from + delta).coerceIn(0, days.lastIndex)
+            if (from < 0 || from == to) return@withTransaction
+            days.add(to, days.removeAt(from))
+            renumberDays(days)
+        }
+    }
+
+    private suspend fun renumberDays(days: List<ProgramDayEntity>) {
+        val now = clock.nowMillis()
+        programDao.upsertDays(days.mapIndexed { i, d -> if (d.dayIndex == i) d else d.copy(dayIndex = i, updatedAt = now) })
+    }
+
+    suspend fun addDayTo(programId: String, name: String): ProgramDayEntity {
+        val index = programDao.daysOf(programId).size
+        return addDay(programId, index, name)
+    }
+
+    /** Copies a day and its exercises right after the original. */
+    suspend fun duplicateDay(dayId: String): ProgramDayEntity? = db.withTransaction {
+        val d = programDao.findDay(dayId) ?: return@withTransaction null
+        val now = clock.nowMillis()
+        val siblings = programDao.daysOf(d.programId)
+        val copy = d.copy(id = newId(), name = nextCopyName(d.name, siblings.map { it.name }), createdAt = now, updatedAt = now)
+        val days = siblings.toMutableList()
+        days.add(days.indexOfFirst { it.id == dayId } + 1, copy)
+        programDao.upsertDay(copy)
+        renumberDays(days)
+        programDao.upsertExercises(
+            programDao.exercisesOf(dayId).map { it.copy(id = newId(), programDayId = copy.id, createdAt = now, updatedAt = now) },
+        )
+        copy
+    }
+
+    suspend fun deleteDay(dayId: String) {
+        db.withTransaction {
+            val d = programDao.findDay(dayId) ?: return@withTransaction
+            val now = clock.nowMillis()
+            programDao.exercisesOf(dayId).forEach { programDao.softDeleteExercise(it.id, now) }
+            programDao.softDeleteDay(dayId, now)
+            val remaining = programDao.daysOf(d.programId)
+            renumberDays(remaining)
+            val p = programDao.findById(d.programId)
+            if (p != null && p.currentDayIndex >= remaining.size) programDao.updatePosition(p.id, p.currentWeek, 0, now)
+        }
+    }
+
+    suspend fun updateProgramExercise(pe: ProgramExerciseEntity) {
+        val repsMin = pe.targetRepsMin.coerceAtLeast(1)
+        programDao.upsertExercise(
+            pe.copy(
+                targetSets = pe.targetSets.coerceIn(1, 20),
+                targetRepsMin = repsMin,
+                targetRepsMax = maxOf(repsMin, pe.targetRepsMax),
+                restSec = pe.restSec.coerceIn(0, 900),
+                updatedAt = clock.nowMillis(),
+            ),
+        )
+    }
+
+    suspend fun deleteProgramExercise(id: String) {
+        db.withTransaction {
+            val pe = programDao.allProgramExercises().firstOrNull { it.id == id } ?: return@withTransaction
+            programDao.softDeleteExercise(id, clock.nowMillis())
+            renumberExercises(programDao.exercisesOf(pe.programDayId))
+        }
+    }
+
+    private suspend fun renumberExercises(list: List<ProgramExerciseEntity>) {
+        val now = clock.nowMillis()
+        programDao.upsertExercises(list.mapIndexed { i, e -> if (e.displayOrder == i) e else e.copy(displayOrder = i, updatedAt = now) })
+    }
+
+    suspend fun moveProgramExercise(id: String, delta: Int) {
+        db.withTransaction {
+            val pe = programDao.allProgramExercises().firstOrNull { it.id == id } ?: return@withTransaction
+            val list = programDao.exercisesOf(pe.programDayId).toMutableList()
+            val from = list.indexOfFirst { it.id == id }
+            val to = (from + delta).coerceIn(0, list.lastIndex)
+            if (from < 0 || from == to) return@withTransaction
+            list.add(to, list.removeAt(from))
+            renumberExercises(list)
+        }
+    }
+
+    /**
+     * Copies sets, reps, effort, rest and progression from one exercise to the others, either on
+     * the same day or across the program. Returns how many exercises changed.
+     */
+    suspend fun copySettingsToOthers(sourceId: String, wholeProgram: Boolean): Int = db.withTransaction {
+        val source = programDao.allProgramExercises().firstOrNull { it.id == sourceId } ?: return@withTransaction 0
+        val day = programDao.findDay(source.programDayId) ?: return@withTransaction 0
+        val dayIds = if (wholeProgram) programDao.daysOf(day.programId).map { it.id } else listOf(day.id)
+        val now = clock.nowMillis()
+        val targets = dayIds.flatMap { programDao.exercisesOf(it) }.filter { it.id != sourceId }
+        programDao.upsertExercises(
+            targets.map {
+                it.copy(
+                    targetSets = source.targetSets,
+                    targetRepsMin = source.targetRepsMin,
+                    targetRepsMax = source.targetRepsMax,
+                    targetRpe = source.targetRpe,
+                    restSec = source.restSec,
+                    progressionRuleId = source.progressionRuleId,
+                    updatedAt = now,
+                )
+            },
+        )
+        targets.size
+    }
+
+    /** Adds an exercise to the end of a day, starting from the settings of the day's last exercise. */
+    suspend fun addExerciseToDay(dayId: String, exerciseId: String): ProgramExerciseEntity? {
+        val exercise = exerciseDao.findAnyById(exerciseId) ?: return null
+        val existing = programDao.exercisesOf(dayId)
+        val rules = ensureDefaultRules()
+        val now = clock.nowMillis()
+        val last = existing.lastOrNull()
+        val row = ProgramExerciseEntity(
+            id = newId(),
+            programDayId = dayId,
+            exerciseId = exerciseId,
+            displayOrder = existing.size,
+            targetSets = last?.targetSets ?: 3,
+            targetRepsMin = last?.targetRepsMin ?: 8,
+            targetRepsMax = last?.targetRepsMax ?: 12,
+            targetRpe = null,
+            progressionRuleId = last?.progressionRuleId ?: rules[ProgressionType.DOUBLE_PROGRESSION]?.id,
+            restSec = exercise.defaultRestSec,
+            createdAt = now,
+            updatedAt = now,
+        )
+        programDao.upsertExercise(row)
+        return row
+    }
+
+    suspend fun duplicateProgram(programId: String): ProgramEntity? = db.withTransaction {
+        val p = programDao.findById(programId) ?: return@withTransaction null
+        val now = clock.nowMillis()
+        val copy = p.copy(
+            id = newId(),
+            name = nextCopyName(p.name, programDao.all().map { it.name }),
+            isActive = false,
+            currentWeek = 1,
+            currentDayIndex = 0,
+            createdAt = now,
+            updatedAt = now,
+        )
+        programDao.upsertProgram(copy)
+        programDao.daysOf(programId).forEach { d ->
+            val nd = d.copy(id = newId(), programId = copy.id, createdAt = now, updatedAt = now)
+            programDao.upsertDay(nd)
+            programDao.upsertExercises(
+                programDao.exercisesOf(d.id).map { it.copy(id = newId(), programDayId = nd.id, createdAt = now, updatedAt = now) },
+            )
+        }
+        copy
+    }
+
+    private fun nextCopyName(name: String, existing: List<String>): String {
+        val base = name.removeSuffix(" (copy)")
+        var candidate = "$base (copy)"
+        var n = 2
+        while (existing.any { it.equals(candidate, ignoreCase = true) }) {
+            candidate = "$base (copy $n)"
+            n++
+        }
+        return candidate
+    }
+
+    /**
+     * Creates a normal, editable program from a generator result or a template. Exercises the
+     * blueprint uses are added to the library if missing, and un-hidden if the person hid them.
+     */
+    suspend fun createProgramFromBlueprint(
+        blueprint: GeneratedProgram,
+        activate: Boolean,
+        name: String = blueprint.name,
+    ): ProgramEntity = db.withTransaction {
+        ensureSeedExercises()
+        val rules = ensureDefaultRules().mapValues { it.value.id }
+        val now = clock.nowMillis()
+        val hidden = exerciseDao.hiddenIds().toSet()
+        blueprint.days.flatMap { d -> d.exercises.map { it.exerciseId } }.distinct()
+            .filter { it in hidden }.forEach { exerciseDao.restore(it, now) }
+        val rows = ProgramBlueprintBuilder.build(blueprint, rules, now, activate = activate, name = name)
+        if (activate) programDao.clearActive(now)
+        programDao.upsertProgram(rows.program)
+        programDao.upsertDays(rows.days)
+        programDao.upsertExercises(rows.exercises)
+        rows.program
+    }
+
+    // ------------------------------------------------------------ freestyle
+
+    /** A freestyle exercise starts from last time's numbers, or empty if it has no history. */
+    suspend fun freestylePrescription(exerciseId: String, excludeSessionId: String?): ExercisePrescription? {
+        val exercise = exerciseDao.findAnyById(exerciseId) ?: return null
+        val last = workoutDao.lastWorkingSetsFor(exerciseId, excludeSessionId)
+        val top = last.maxOfOrNull { it.weightKg } ?: 0.0
+        val repsMin = last.minOfOrNull { it.reps }?.coerceAtLeast(1) ?: 8
+        val repsMax = maxOf(repsMin, last.maxOfOrNull { it.reps } ?: 12)
+        return ExercisePrescription(
+            programExercise = null,
+            exercise = exercise,
+            prescription = Prescription(
+                weightKg = top,
+                sets = maxOf(3, last.size),
+                repsMin = repsMin,
+                repsMax = repsMax,
+                targetRpe = null,
+                reason = if (last.isEmpty()) {
+                    "Freestyle: pick a weight, log what you do, and it is remembered for next time."
+                } else {
+                    "Freestyle: last time's numbers. Change them as you like."
+                },
+            ),
+            ruleError = null,
+            lastSession = last,
+        )
+    }
+
+    /** The exercises already logged in a session, in the order they were first lifted. */
+    private suspend fun freestyleExerciseIds(sessionId: String): List<String> =
+        workoutDao.setsOf(sessionId).sortedBy { it.completedAt }.map { it.exerciseId }.distinct()
+
+    /**
+     * Saves what a freestyle session contained as a new day of [programId] (default: the active
+     * program; if there is none, a new program is created and activated). Returns the new day,
+     * or null when the session had no working sets.
+     */
+    suspend fun saveSessionAsProgramDay(sessionId: String, dayName: String, programId: String? = null): ProgramDayEntity? =
+        db.withTransaction {
+            val sets = workoutDao.setsOf(sessionId)
+            if (sets.none { !it.isWarmup }) return@withTransaction null
+            val exercises = sets.map { it.exerciseId }.distinct().mapNotNull { exerciseDao.findAnyById(it) }.associateBy { it.id }
+            val day = FreestyleDayBuilder.toDay(dayName, sets, exercises)
+            if (day.exercises.isEmpty()) return@withTransaction null
+            val now = clock.nowMillis()
+            val existing = programId?.let { programDao.findById(it) } ?: programDao.active()
+            val target = existing ?: ProgramEntity(
+                id = newId(), name = "My program", description = "", isActive = true, createdAt = now, updatedAt = now,
+            ).also {
+                programDao.clearActive(now)
+                programDao.upsertProgram(it)
+            }
+            val rules = ensureDefaultRules().mapValues { it.value.id }
+            val index = programDao.daysOf(target.id).size
+            val rows = ProgramBlueprintBuilder.dayRows(target.id, index, day, rules, now)
+            programDao.upsertDay(rows.first)
+            programDao.upsertExercises(rows.second)
+            rows.first
+        }
 
     // ------------------------------------------------------ script import / export
 
@@ -400,14 +781,15 @@ class TrainingRepository @Inject constructor(
         val program = activeProgram()
 
         if (programDayId == null) {
-            // Freestyle session: no program, so no prescriptions - just the
-            // exercises the user has, with their last numbers for reference.
-            return emptyList()
+            // Freestyle session: no program, so no rules. The list is whatever has been logged so
+            // far (the phone adds exercises as you go; the watch sees them once a set exists).
+            if (excludeSessionId == null) return emptyList()
+            return freestyleExerciseIds(excludeSessionId).mapNotNull { freestylePrescription(it, excludeSessionId) }
         }
 
         val programExercises = programDao.exercisesOf(programDayId)
         return programExercises.mapNotNull { pe ->
-            val exercise = exerciseDao.findById(pe.exerciseId) ?: return@mapNotNull null
+            val exercise = exerciseDao.findAnyById(pe.exerciseId) ?: return@mapNotNull null
             val lastSets = workoutDao.lastWorkingSetsFor(pe.exerciseId, excludeSessionId)
             val rule = pe.progressionRuleId?.let { ruleDao.findById(it) }
 

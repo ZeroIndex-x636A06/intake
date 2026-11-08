@@ -1,19 +1,25 @@
 package com.zeroindex.intake.ui.screens.train
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.toRoute
 import com.zeroindex.intake.data.db.entity.ExerciseEntity
 import com.zeroindex.intake.data.db.entity.ProgramDayEntity
 import com.zeroindex.intake.data.db.entity.ProgramEntity
+import com.zeroindex.intake.data.db.entity.ProgramExerciseEntity
 import com.zeroindex.intake.data.db.entity.ProgressionRuleEntity
 import com.zeroindex.intake.data.repository.TrainingRepository
-import com.zeroindex.intake.data.seed.ProgramSeed
+import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.model.ProgressionType
 import com.zeroindex.intake.domain.training.ExpressionEvaluator
 import com.zeroindex.intake.domain.training.ExpressionResult
+import com.zeroindex.intake.domain.units.WeightUnit
+import com.zeroindex.intake.ui.navigation.Route
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -23,189 +29,143 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-data class ProgramBuilderUiState(
-    val program: ProgramEntity? = null,
-    val allPrograms: List<ProgramEntity> = emptyList(),
-    val days: List<ProgramDayEntity> = emptyList(),
-    val exerciseCounts: Map<String, Int> = emptyMap(),
-    val exercises: List<ExerciseEntity> = emptyList(),
-    val rules: List<ProgressionRuleEntity> = emptyList(),
-    val selectedDayId: String? = null,
-    val chosenExerciseId: String? = null,
-    val chosenRuleId: String? = null,
-    val expressionError: String? = null,
-    val message: String? = null,
-) {
-    val selectedDayName: String? get() = days.firstOrNull { it.id == selectedDayId }?.name
-    val chosenExercise: ExerciseEntity? get() = exercises.firstOrNull { it.id == chosenExerciseId }
-    val chosenRule: ProgressionRuleEntity? get() = rules.firstOrNull { it.id == chosenRuleId }
-}
+data class BuilderRow(
+    val row: ProgramExerciseEntity,
+    val exercise: ExerciseEntity?,
+    val rule: ProgressionRuleEntity?,
+)
 
+data class BuilderDay(val day: ProgramDayEntity, val rows: List<BuilderRow>)
+
+data class ProgramBuilderUiState(
+    val loaded: Boolean = false,
+    val program: ProgramEntity? = null,
+    val days: List<BuilderDay> = emptyList(),
+    val weightUnit: WeightUnit = WeightUnit.KILOGRAMS,
+    val message: String? = null,
+)
+
+/**
+ * Edits one program. With no program id the screen shows the "new program" step first; once the
+ * program exists the same screen becomes the editor. Every change is saved as it is made.
+ */
 @HiltViewModel
 class ProgramBuilderViewModel @Inject constructor(
     private val repository: TrainingRepository,
-    private val programSeed: ProgramSeed,
+    settingsRepository: SettingsRepository,
+    savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
-    private val selectedDayId = MutableStateFlow<String?>(null)
-    private val chosenExerciseId = MutableStateFlow<String?>(null)
-    private val chosenRuleId = MutableStateFlow<String?>(null)
-    private val expressionError = MutableStateFlow<String?>(null)
+    private val programId = MutableStateFlow(savedStateHandle.toRoute<Route.ProgramBuilder>().programId)
     private val message = MutableStateFlow<String?>(null)
-    private val counts = MutableStateFlow<Map<String, Int>>(emptyMap())
-    private val startingNew = MutableStateFlow(false)
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val uiState: StateFlow<ProgramBuilderUiState> = combine(
-        repository.observeActiveProgram(),
-        repository.observePrograms(),
-        repository.observeExercises(),
-        repository.observeRules(),
-        startingNew,
-    ) { active, all, exercises, rules, isNew ->
-        Inputs(if (isNew) null else active, all, exercises, rules)
-    }.flatMapLatest { inputs ->
-        val daysFlow = inputs.program?.let { repository.observeDays(it.id) } ?: flowOf(emptyList())
-        combine(
-            daysFlow,
-            selectedDayId,
-            chosenExerciseId,
-            combine(chosenRuleId, expressionError, message) { r, e, m -> Triple(r, e, m) },
-            counts,
-        ) { days, dayId, exerciseId, ruleAndErrors, exerciseCounts ->
-            ProgramBuilderUiState(
-                program = inputs.program,
-                allPrograms = inputs.all,
-                days = days,
-                exerciseCounts = exerciseCounts,
-                exercises = inputs.exercises,
-                rules = inputs.rules,
-                selectedDayId = dayId ?: days.firstOrNull()?.id,
-                chosenExerciseId = exerciseId,
-                chosenRuleId = ruleAndErrors.first,
-                expressionError = ruleAndErrors.second,
-                message = ruleAndErrors.third,
-            )
+    val uiState: StateFlow<ProgramBuilderUiState> = programId.flatMapLatest { id ->
+        if (id == null) {
+            combine(settingsRepository.settings, message) { settings, m ->
+                ProgramBuilderUiState(loaded = true, weightUnit = settings.weightUnit, message = m)
+            }
+        } else {
+            val daysFlow: Flow<List<BuilderDay>> = combine(
+                repository.observeDays(id),
+                repository.observeExercises(),
+                repository.observeHiddenExercises(),
+                repository.observeRules(),
+            ) { days, visible, hidden, rules -> BuilderInputs(days, (visible + hidden).associateBy { it.id }, rules.associateBy { it.id }) }
+                .flatMapLatest { inputs ->
+                    if (inputs.days.isEmpty()) {
+                        flowOf(emptyList())
+                    } else {
+                        combine(inputs.days.map { d -> repository.observeProgramExercises(d.id) }) { perDay ->
+                            inputs.days.mapIndexed { i, d ->
+                                BuilderDay(
+                                    d,
+                                    perDay[i].map { pe -> BuilderRow(pe, inputs.exercises[pe.exerciseId], pe.progressionRuleId?.let { inputs.rules[it] }) },
+                                )
+                            }
+                        }
+                    }
+                }
+            combine(repository.observeProgram(id), daysFlow, settingsRepository.settings, message) { program, days, settings, m ->
+                ProgramBuilderUiState(true, program, days, settings.weightUnit, m)
+            }
         }
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = ProgramBuilderUiState(),
-    )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ProgramBuilderUiState())
 
-    private data class Inputs(
-        val program: ProgramEntity?,
-        val all: List<ProgramEntity>,
-        val exercises: List<ExerciseEntity>,
-        val rules: List<ProgressionRuleEntity>,
+    private class BuilderInputs(
+        val days: List<ProgramDayEntity>,
+        val exercises: Map<String, ExerciseEntity>,
+        val rules: Map<String, ProgressionRuleEntity>,
     )
 
     init {
-        viewModelScope.launch {
-            programSeed.ensureExerciseLibrary()
-            programSeed.ensureRules()
-            refreshCounts()
-        }
+        viewModelScope.launch { repository.ensureSeedExercises(); repository.ensureDefaultRules() }
     }
 
-    fun createProgram(name: String, description: String) = viewModelScope.launch {
-        val program = repository.createProgram(name, description)
-        repository.activate(program.id)
-        startingNew.value = false
-        message.value = "Created \"$name\" and made it active. Add days next."
-    }
-
-    fun startNewProgram() { startingNew.value = true }
-
-    /** Script text and suggested file name for a program, for "Export program as script". */
-    suspend fun exportScript(programId: String): Pair<String, String>? = repository.exportProgramScript(programId)
-
+    fun clearMessage() { message.value = null }
     fun showMessage(text: String) { message.value = text }
 
-    fun activate(programId: String) = viewModelScope.launch {
-        repository.activate(programId)
-        startingNew.value = false
+    fun createProgram(name: String, description: String) = viewModelScope.launch {
+        val program = repository.createProgram(name.trim(), description.trim())
+        if (repository.activeProgram() == null) repository.activate(program.id)
+        programId.value = program.id
+        message.value = "Created \"${program.name}\". Add a day to begin."
+    }
+
+    fun rename(name: String, description: String) = viewModelScope.launch {
+        programId.value?.let { repository.renameProgram(it, name, description) }
+    }
+
+    fun activate() = viewModelScope.launch {
+        val id = programId.value ?: return@launch
+        repository.activate(id)
+        message.value = "This is now your active program."
     }
 
     fun addDay(name: String) = viewModelScope.launch {
-        val program = uiState.value.program ?: return@launch
-        val index = uiState.value.days.size
-        val day = repository.addDay(program.id, index, name)
-        selectedDayId.value = day.id
-        refreshCounts()
+        val id = programId.value ?: return@launch
+        repository.addDayTo(id, name.trim().ifBlank { "Day ${uiState.value.days.size + 1}" })
     }
 
-    fun selectDay(id: String) { selectedDayId.value = id }
-    fun chooseExercise(id: String) { chosenExerciseId.value = id }
-    fun chooseRule(id: String?) { chosenRuleId.value = id }
+    fun renameDay(dayId: String, name: String) = viewModelScope.launch { repository.renameDay(dayId, name) }
+    fun moveDay(dayId: String, delta: Int) = viewModelScope.launch { repository.moveDay(dayId, delta) }
+    fun duplicateDay(dayId: String) = viewModelScope.launch { repository.duplicateDay(dayId); message.value = "Day copied." }
+    fun deleteDay(dayId: String) = viewModelScope.launch { repository.deleteDay(dayId) }
 
-    fun addExerciseToDay(
-        sets: Int,
-        repsMin: Int,
-        repsMax: Int,
-        targetRpe: Double?,
-        restSec: Int,
+    fun addExercise(dayId: String, exerciseId: String) = viewModelScope.launch { repository.addExerciseToDay(dayId, exerciseId) }
+    fun removeExercise(id: String) = viewModelScope.launch { repository.deleteProgramExercise(id) }
+    fun moveExercise(id: String, delta: Int) = viewModelScope.launch { repository.moveProgramExercise(id, delta) }
+
+    /** Saves an exercise's settings; [rule] picks its progression in plain words. */
+    fun saveExercise(
+        row: ProgramExerciseEntity,
+        rule: RuleChoice?,
+        copyTo: CopyScope,
     ) = viewModelScope.launch {
-        val dayId = uiState.value.selectedDayId ?: return@launch
-        val exerciseId = chosenExerciseId.value ?: return@launch
-        val order = repository.programExercises(dayId).size
-        repository.addProgramExercise(
-            programDayId = dayId,
-            exerciseId = exerciseId,
-            displayOrder = order,
-            targetSets = sets,
-            targetRepsMin = repsMin,
-            targetRepsMax = maxOf(repsMin, repsMax),
-            targetRpe = targetRpe,
-            progressionRuleId = chosenRuleId.value,
-            restSec = restSec,
-        )
-        message.value = "Added to ${uiState.value.selectedDayName}."
-        refreshCounts()
+        val ruleId = rule?.let { repository.ruleIdFor(it.type, it.incrementKg, it.percentOfMax, it.expression) }
+        val saved = row.copy(progressionRuleId = if (rule == null) null else ruleId)
+        repository.updateProgramExercise(saved)
+        if (copyTo != CopyScope.None) {
+            val n = repository.copySettingsToOthers(row.id, wholeProgram = copyTo == CopyScope.Program)
+            message.value = "Settings copied to $n other exercise${if (n == 1) "" else "s"}."
+        }
     }
 
-    /** SPEC §10: custom rules are validated in the builder, not at workout time. */
-    fun validateExpression(expression: String) {
-        expressionError.value = when (val result = ExpressionEvaluator.validate(expression)) {
-            is ExpressionResult.Value -> null
-            is ExpressionResult.Error -> result.message
-        }
-        if (expressionError.value == null) message.value = "That rule reads fine."
+    fun checkFormula(expression: String): String? = when (val r = ExpressionEvaluator.validate(expression)) {
+        is ExpressionResult.Value -> null
+        is ExpressionResult.Error -> r.message
     }
 
-    fun createRule(
-        name: String,
-        type: ProgressionType,
-        incrementKg: Double?,
-        percentageOf1rm: Double?,
-        expression: String,
-    ) = viewModelScope.launch {
-        if (type == ProgressionType.CUSTOM) {
-            val check = ExpressionEvaluator.validate(expression)
-            if (check is ExpressionResult.Error) {
-                expressionError.value = check.message
-                return@launch
-            }
-        }
-        val params = buildString {
-            append("{")
-            val parts = mutableListOf<String>()
-            incrementKg?.let { parts += "\"incrementKg\":$it" }
-            percentageOf1rm?.let { parts += "\"percentageOf1rm\":$it" }
-            if (expression.isNotBlank()) {
-                parts += "\"expression\":\"${expression.replace("\"", "\\\"")}\""
-            }
-            append(parts.joinToString(","))
-            append("}")
-        }
-        repository.saveRule(name, type, params)
-        expressionError.value = null
-        message.value = "Saved \"$name\"."
-    }
-
-    private suspend fun refreshCounts() {
-        val program = repository.activeProgram() ?: return
-        val days = repository.days(program.id)
-        counts.value = days.associate { it.id to repository.programExercises(it.id).size }
-    }
+    /** Script text and suggested file name for the program, for "Export program as script". */
+    suspend fun exportScript(): Pair<String, String>? = programId.value?.let { repository.exportProgramScript(it) }
 }
+
+/** A plain-language progression choice and its settings. */
+data class RuleChoice(
+    val type: ProgressionType,
+    val incrementKg: Double? = null,
+    val percentOfMax: Double? = null,
+    val expression: String? = null,
+)
+
+enum class CopyScope { None, Day, Program }

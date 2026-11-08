@@ -80,6 +80,10 @@ interface WorkoutDao {
     )
     fun observeSetPoints(exerciseId: String): Flow<List<SetPoint>>
 
+    /** Every non-deleted set for an exercise, newest first. */
+    @Query("SELECT * FROM set_log WHERE exerciseId = :exerciseId AND deletedAt IS NULL ORDER BY completedAt DESC")
+    fun observeSetsForExercise(exerciseId: String): Flow<List<SetLogEntity>>
+
     /** SPEC §10: weekly working sets per muscle group, to flag anything under 10. */
     @Query(
         """

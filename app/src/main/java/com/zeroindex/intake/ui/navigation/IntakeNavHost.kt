@@ -46,6 +46,8 @@ import com.zeroindex.intake.ui.screens.templates.MealTemplatesScreen
 import com.zeroindex.intake.ui.screens.today.TodayScreen
 import com.zeroindex.intake.ui.screens.train.ExerciseLibraryScreen
 import com.zeroindex.intake.ui.screens.train.ProgramBuilderScreen
+import com.zeroindex.intake.ui.screens.train.ProgramGeneratorScreen
+import com.zeroindex.intake.ui.screens.train.ProgramTemplatesScreen
 import com.zeroindex.intake.ui.screens.train.TrainScreen
 import com.zeroindex.intake.ui.screens.train.WorkoutHistoryScreen
 import com.zeroindex.intake.ui.screens.workout.ActiveWorkoutScreen
@@ -189,6 +191,9 @@ fun IntakeNavHost(
                     contentPadding = contentPadding,
                     onOpenSession = { id -> navController.navigate(Route.ActiveWorkout(id)) },
                     onOpenPrograms = { navController.navigate(Route.Programs) },
+                    onOpenBuilder = { navController.navigate(Route.ProgramBuilder()) },
+                    onOpenGenerator = { navController.navigate(Route.ProgramGenerator) },
+                    onOpenTemplates = { navController.navigate(Route.ProgramTemplates) },
                     onOpenExercises = { navController.navigate(Route.ExerciseLibrary) },
                     onOpenPerformance = { navController.navigate(Route.Performance) },
                     onOpenProgramScriptHelp = { openScriptReference("program", null) },
@@ -198,11 +203,29 @@ fun IntakeNavHost(
                 TrainScreen(
                     contentPadding = contentPadding,
                     onOpenSession = { id -> navController.navigate(Route.ActiveWorkout(id)) },
-                    onOpenBuilder = { navController.navigate(Route.ProgramBuilder) },
+                    onOpenBuilder = { id -> navController.navigate(Route.ProgramBuilder(id)) },
+                    onOpenGenerator = { navController.navigate(Route.ProgramGenerator) },
+                    onOpenTemplates = { navController.navigate(Route.ProgramTemplates) },
                     onOpenScriptReference = openScriptReference,
                 )
             }
             composable<Route.ProgramBuilder> { ProgramBuilderScreen(contentPadding, onOpenScriptReference = openScriptReference) }
+            composable<Route.ProgramTemplates> {
+                ProgramTemplatesScreen(
+                    contentPadding = contentPadding,
+                    onCreated = { id ->
+                        navController.navigate(Route.ProgramBuilder(id)) { popUpTo<Route.ProgramTemplates> { inclusive = true } }
+                    },
+                )
+            }
+            composable<Route.ProgramGenerator> {
+                ProgramGeneratorScreen(
+                    contentPadding = contentPadding,
+                    onSaved = { id ->
+                        navController.navigate(Route.ProgramBuilder(id)) { popUpTo<Route.ProgramGenerator> { inclusive = true } }
+                    },
+                )
+            }
             composable<Route.ExerciseLibrary> { ExerciseLibraryScreen(contentPadding) }
             composable<Route.Performance> { PerformanceScreen(contentPadding = contentPadding, onSaved = {}) }
             composable<Route.ActiveWorkout> {
