@@ -14,7 +14,10 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.zeroindex.intake.data.ai.AiPrivacy
 import com.zeroindex.intake.domain.ai.AiTask
 import com.zeroindex.intake.domain.units.LengthUnit
+import com.zeroindex.intake.domain.backup.BackupDestination
+import com.zeroindex.intake.domain.backup.BackupSchedule
 import com.zeroindex.intake.domain.hydration.HydrationTarget
+import kotlinx.serialization.json.Json
 import com.zeroindex.intake.domain.units.VolumeUnit
 import com.zeroindex.intake.domain.units.WeightUnit
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -60,6 +63,9 @@ data class AppSettings(
     val aiAllowRetainingModels: Boolean = false,
     /** A model the user chose by hand per task; absent means "use the suggestion". */
     val aiModelOverrides: Map<AiTask, String> = emptyMap(),
+    /** Amendment §2: the server a nightly backup goes to. Null until set up. */
+    val backupDestination: BackupDestination? = null,
+    val backupSchedule: BackupSchedule = BackupSchedule.NIGHTLY,
     /**
      * Amendment §3. Off by default: it sends a summary of food, training and
      * body data off the phone, so it has to be asked for.
@@ -79,6 +85,9 @@ data class AppSettings(
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 @Singleton
+/** Lenient so a field added in a later version never wipes a saved destination. */
+private val settingsJson = Json { ignoreUnknownKeys = true }
+
 class SettingsRepository @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
@@ -98,6 +107,8 @@ class SettingsRepository @Inject constructor(
         val autoTargets = booleanPreferencesKey("auto_targets")
         val addActiveKcal = booleanPreferencesKey("add_active_kcal")
         val planWeek = intPreferencesKey("current_plan_week")
+        val backupDestination = stringPreferencesKey("backup_destination_json")
+        val backupSchedule = stringPreferencesKey("backup_schedule")
         val lastExport = longPreferencesKey("last_export_at")
         val demoLoaded = booleanPreferencesKey("demo_data_loaded")
         val volumeUnit = stringPreferencesKey("volume_unit")
@@ -143,6 +154,8 @@ class SettingsRepository @Inject constructor(
                 ?: AiPrivacy.NO_TRAINING,
             aiAllowRetainingModels = p[Keys.aiAllowRetaining] ?: false,
             aiModelOverrides = AiTask.entries.mapNotNull { task -> p[Keys.aiModel(task)]?.let { task to it } }.toMap(),
+            backupDestination = p[Keys.backupDestination]?.let { runCatching { settingsJson.decodeFromString<BackupDestination>(it) }.getOrNull() },
+            backupSchedule = p[Keys.backupSchedule]?.let { runCatching { BackupSchedule.valueOf(it) }.getOrNull() } ?: BackupSchedule.NIGHTLY,
             dailyInsightEnabled = p[Keys.dailyInsight] ?: false,
             healthLastWriteAt = p[Keys.healthLastWrite] ?: 0,
             healthLastSyncAt = p[Keys.healthLastSync],
@@ -186,6 +199,11 @@ class SettingsRepository @Inject constructor(
     suspend fun setAiModel(task: AiTask, modelId: String?) = put {
         if (modelId == null) it.remove(Keys.aiModel(task)) else it[Keys.aiModel(task)] = modelId
     }
+
+    suspend fun setBackupDestination(destination: BackupDestination?) = put {
+        if (destination == null) it.remove(Keys.backupDestination) else it[Keys.backupDestination] = settingsJson.encodeToString(destination)
+    }
+    suspend fun setBackupSchedule(schedule: BackupSchedule) = put { it[Keys.backupSchedule] = schedule.name }
 
     private suspend fun put(block: (MutablePreferences) -> Unit) {
         context.dataStore.edit(block)
