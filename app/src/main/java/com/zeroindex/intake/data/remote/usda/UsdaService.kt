@@ -3,6 +3,7 @@ package com.zeroindex.intake.data.remote.usda
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.Query
 
 /**
@@ -58,7 +59,7 @@ interface UsdaService {
      */
     @GET("fdc/v1/foods/search")
     suspend fun search(
-        @Query("api_key") apiKey: String,
+        @Header("X-Api-Key") apiKey: String,
         @Query("query") query: String,
         @Query("pageSize") pageSize: Int = 25,
         @Query("dataType") dataType: String = "Foundation,SR Legacy,Branded",

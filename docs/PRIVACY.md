@@ -39,8 +39,8 @@ Findings that hold for every path:
   (`data/keys/ApiKeyStore.kt:47`, AES-256-GCM values, AES-256-SIV names). Backup
   and sync secrets live in `data/backup/remote/BackupCredentialStore.kt:44`. The
   OpenRouter key and the sync token go only in an `Authorization: Bearer` header
-  (`OpenRouterClient.kt:59-72`, `SyncApi.kt:67`). **Exception: the USDA key is a
-  query parameter** (see issue 1).
+  (`OpenRouterClient.kt:59-72`, `SyncApi.kt:67`). The USDA key goes only in an
+  `X-Api-Key` header (`UsdaService.kt:61`).
 - **Permissions** (`app/src/main/AndroidManifest.xml`): `INTERNET`, `CAMERA`
   (photo and barcode, processed on device; ML Kit barcode scanning is the bundled
   model), `ACCESS_COARSE_LOCATION` (Plan B only), `NFC`, the Health Connect
@@ -68,7 +68,7 @@ Findings that hold for every path:
 
 | Feature | Trigger | Host | Sent | Not sent | Default | Code |
 | --- | --- | --- | --- | --- | --- | --- |
-| USDA FoodData Central search | Typing in Add food, or Test on the USDA key | `api.nal.usda.gov` `GET /fdc/v1/foods/search` | The query text, page size, data types, **the user's USDA key as `api_key`** | Anything about the user. The local table is searched first. | Off until a key is saved (`FoodSearchRepository` returns `MissingKey`) | `data/remote/usda/UsdaService.kt:59`, `data/repository/FoodSearchRepository.kt:31`, `ui/screens/settings/SettingsViewModel.kt:129` |
+| USDA FoodData Central search | Typing in Add food, or Test on the USDA key | `api.nal.usda.gov` `GET /fdc/v1/foods/search` | The query text, page size, data types, the user's USDA key in the `X-Api-Key` header | Anything about the user. The local table is searched first. | Off until a key is saved (`FoodSearchRepository` returns `MissingKey`) | `data/remote/usda/UsdaService.kt:59`, `data/repository/FoodSearchRepository.kt:31`, `ui/screens/settings/SettingsViewModel.kt:129` |
 | Open Food Facts barcode | Scanning a barcode not already in the local table | `world.openfoodfacts.org` `GET /api/v2/product/{barcode}.json?fields=...` | The barcode and a fixed field list | Everything else. No key, no account. | On, but only on a scan with no local hit | `data/remote/openfoodfacts/OpenFoodFactsService.kt:45`, `data/repository/BarcodeRepository.kt:43` |
 
 ### OpenRouter (the user's own key; `data/ai/OpenRouterClient.kt`)
@@ -121,15 +121,12 @@ Every request also sends the header `X-Title: Intake`.
 
 ## Issues and mismatches found
 
-Nothing was fixed in code: every item below is outside the privacy screen and docs
-that this audit was limited to, or is a design choice to confirm.
+Item 1 was fixed in code. The other items are outside the privacy screen and docs
+that this audit was limited to, or are design choices to confirm.
 
-1. **USDA key in the URL query.** `UsdaService.search` passes `api_key` as an
-   `@Query`. The stance says keys go only in `Authorization` headers. USDA
-   (api.data.gov) also accepts an `X-Api-Key` header, so switching to
-   `@Header("X-Api-Key")` would keep the key out of URLs, proxy logs and server
-   access logs. Nothing in the app logs the URL. Not changed, as it is in the
-   data layer.
+1. **USDA key in the URL query (fixed).** `UsdaService.search` now sends the key
+   as an `X-Api-Key` header (`@Header`), so it stays out of URLs, proxy logs and
+   server access logs.
 2. **Avoided allergen names are sent to OpenRouter** in the photo estimate, Recipe
    Hunter, Plan B, menu import and daily-insight prompts. This is intentional (the
    model is told what to avoid) but it is health information, and the daily insight
