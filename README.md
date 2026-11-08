@@ -1,211 +1,197 @@
 # Intake
 
 A personal, offline-first Android app for nutrition and training. Single user,
-no accounts, no server, no analytics. Installed by sideloading a signed release
-APK; it is never going near the Play Store.
+no accounts, no analytics. It is installed by sideloading a signed APK.
 
-Built to [SPEC.md](SPEC.md). See [RESUME.md](RESUME.md) for exactly where the
-build is up to and what comes next.
+Intake works fully offline and needs no API key. Every feature that uses the
+network is off until you supply a key or a server address.
 
----
+Requirements are in [docs/SPEC.md](docs/SPEC.md) and
+[docs/SPEC-amendments.md](docs/SPEC-amendments.md). The current state of the
+build is in [RESUME.md](RESUME.md).
 
-## What you need
+## Features
 
-- A JDK 17 or newer (`java -version`). JDK 21 is what this was built against.
-- The Android SDK, with **platform 37** and **build-tools 37.0.0**.
-- Nothing else. The Gradle wrapper fetches Gradle 9.9.0 itself, with a pinned
-  SHA-256, so there is no system Gradle to install.
+Core, from SPEC.md:
 
-If you do not have the SDK, the command-line tools are enough:
+- Food logging by recents, local and USDA search, barcode scan, quick add and
+  hand-entered foods. Every path runs the local allergen check first.
+- Adaptive TDEE measured from your own intake and weight trend.
+- Training: progression rules, active workout, rest timer, plate calculator,
+  program builder, history.
+- Starter food library, exercises and a training program are seeded locally.
+- Progress charts and a settings and privacy screen.
 
-```bash
-mkdir -p ~/android-sdk/cmdline-tools
-cd ~/android-sdk/cmdline-tools
-curl -O https://dl.google.com/android/repository/commandlinetools-linux-16111833_latest.zip
-unzip commandlinetools-linux-16111833_latest.zip
-mv cmdline-tools latest
-yes | latest/bin/sdkmanager --licenses
-latest/bin/sdkmanager --install "platforms;android-37.1" "build-tools;37.0.0" "platform-tools"
-```
+Amendment features:
 
-Then point the build at it, in `local.properties` at the repo root:
-
-```properties
-sdk.dir=/home/you/android-sdk
-```
-
-`local.properties` is untracked on purpose — it holds your SDK path and your
-signing passwords.
-
----
-
-## Signing
-
-Generate the keystore once:
-
-```bash
-keytool -genkey -v -keystore ~/.android/personal-release.jks \
-  -keyalg RSA -keysize 2048 -validity 10000 -alias mealtrain
-```
-
-Add four lines to `local.properties`:
-
-```properties
-RELEASE_STORE_FILE=/home/you/.android/personal-release.jks
-RELEASE_STORE_PASSWORD=...
-RELEASE_KEY_ALIAS=mealtrain
-RELEASE_KEY_PASSWORD=...
-```
-
-A release build with no keystore configured fails immediately with these
-instructions rather than producing an unsigned APK.
-
-> **Back the keystore up somewhere that is not this laptop.** Android identifies
-> an app by its signing key. If you ever sign with a different key, the only way
-> to install is to uninstall first, and uninstalling takes every gram of logged
-> data with it. There is no cloud backup — the JSON export is the backup.
-
----
-
-## Build and install
-
-```bash
-./gradlew assembleRelease
-adb install -r app/build/outputs/apk/release/app-release.apk
-```
-
-`versionCode` is derived from the build timestamp as `yyMMddHH`, so each build
-upgrades the last one in place instead of demanding an uninstall.
-
-### Getting adb to see the phone
-
-- On the phone: Settings → About phone → tap **Build number** seven times to
-  unlock Developer options, then Settings → System → Developer options → enable
-  **USB debugging**.
-- `adb` ships in the `android-tools` package on Arch, `android-tools-adb` on
-  Debian and Ubuntu, and `android-tools` on Fedora. It is also in the SDK at
-  `~/android-sdk/platform-tools/adb`.
-- `adb devices` showing the device as **unauthorized** means the RSA
-  fingerprint prompt is waiting on the phone's screen. Accept it, and tick
-  "always allow" so it stops asking.
-- The device not appearing **at all** is almost always a udev permissions
-  problem. Find the vendor ID with `lsusb`, then:
-
-  ```bash
-  # Samsung is 04e8; substitute your own vendor ID.
-  echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="04e8", MODE="0666", GROUP="plugdev"' \
-    | sudo tee /etc/udev/rules.d/51-android.rules
-  sudo udevadm control --reload-rules && sudo udevadm trigger
-  ```
-
-  Unplug and replug, then `adb kill-server && adb devices`.
-- Make sure your user is in the `plugdev` group (`groups | grep plugdev`).
-
----
-
-## Tests
-
-```bash
-./gradlew test                      # 111 unit tests, no device needed
-./gradlew connectedDebugAndroidTest # Room DAO tests, needs a phone or emulator
-```
-
-| Suite | Count | Covers |
-| --- | --- | --- |
-| `AllergenMatcherTest` | 20 | whole-word matching, buttermilk vs butternut, structured tags, plant milks |
-| `ExpressionEvaluatorTest` | 10 | the custom-rule parser, including nine malformed-rule shapes |
-| `ProgressionEvaluatorTest` | 19 | all five progression rule types |
-| `TdeeCalculatorTest` | 14 | TDEE maths, confidence bands, rate goals |
-| `WeightTrendTest` | 7 | EWMA smoothing and slope |
-| `DayRangeTest` | 10 | UTC-millis day boundaries, both DST transitions |
-| `UnitConverterTest` | 7 | kg/lb and cm/in, storage vs display |
-| `MacrosTest` + `MacroSplitTest` + `DayProgressTest` | 12 | per-100g scaling, protein range, fat floor |
-| `PlateCalculatorTest` + `WarmupGeneratorTest` + `OneRepMaxTest` | 12 | loading, ramps, Epley |
-
-Room DAO tests are instrumented rather than Robolectric: Robolectric's native
-SQLite artifact could not be fetched from Maven Central in the build
-environment, and an unrunnable suite is worse than one that needs a device.
-Their method names are camelCase because D8 rejects spaces in dexed lambda
-class names below DEX 040.
-
----
+- **Hydration.** Water card on Today with volume presets and a daily target.
+- **Explosive performance metrics.** Vertical jump, standing reach and total
+  reach, overlaid on training volume on the Progress tab.
+- **AI features through OpenRouter**, using your own key. See
+  [docs/PRIVACY.md](docs/PRIVACY.md) for what each one sends.
+  - Photo estimate: a conservative macro range, reviewed before saving.
+  - Recipe Hunter: web search for recipes, verified locally for dairy.
+  - Plan B: nearby places that fit your remaining macros.
+  - Menu import: from a URL, PDF or pasted text, weekly refresh optional.
+  - Daily insight: one suggestion from a numbers-only digest. Off by default.
+  - Model picker with a benchmark you run on your own key:
+    [docs/BENCHMARK.md](docs/BENCHMARK.md).
+  - A model can raise an allergen warning but never clear one. The local
+    engine decides.
+- **NFC meal-prep tags.** Save a meal as a template, write it to a tag, tap the
+  container to log it.
+- **Health Connect.** Reads and writes granted types. Active calories from
+  workouts have BMR for the same window subtracted, so they are not
+  double-counted.
+- **Weekly PDF report.** Made on the phone, saved or printed.
+- **Export and backup.** JSON and CSV export. Encrypted nightly backups to
+  WebDAV, SFTP or SMB: [docs/BACKUP.md](docs/BACKUP.md).
+- **Self-hosted sync server.** Last-writer-wins CRDT with a hybrid logical
+  clock, one Python file: [server/README.md](server/README.md).
+- **Wear OS companion.** Log sets, enter RPE and run the rest timer from the
+  watch.
+- **Adaptive layout.** Navigation rail and two-column Today and Progress on
+  tablets and in landscape.
 
 ## Layout
 
 ```
-app/src/main/java/com/zeroindex/intake/
-├── data/                 Room, network, DI. Only repositories touch DAOs.
-│   ├── db/entity/        23 tables, all soft-deletable
-│   ├── db/dao/           15 DAOs, every read filtered on deletedAt IS NULL
-│   ├── remote/           USDA search, Open Food Facts barcode lookup
-│   ├── repository/       the only things that touch DAOs or network
-│   ├── keys/             EncryptedSharedPreferences for user-supplied API keys
-│   ├── seed/             starter food library, exercises, program
-│   └── settings/         DataStore-backed preferences
-├── domain/               pure Kotlin. No Android imports here, by rule.
-│   ├── allergen/         whole-word alias matching
-│   ├── nutrition/        macro maths, protein range, fat floor
-│   ├── tdee/             EWMA smoothing, measured maintenance
-│   ├── training/         progression rules, custom-rule parser, plates, 1RM
-│   ├── time/             UTC-millis <-> local-day conversion
-│   └── units/            kg/cm storage, lb/in display
-├── timer/                foreground countdown for rest and cook-mode timers
-├── work/                 nightly TDEE recalculation
-└── ui/                   Compose screens, theme, navigation
-schemas/                  exported Room schema JSON, committed
+app/           Android phone app (com.zeroindex.intake)
+wear/          Wear OS companion
+wearprotocol/  Data Layer message types shared by app and wear
+server/        Sync server (intake_sync.py), Dockerfile, compose file, tests
+docs/          SPEC, SPEC-amendments, BACKUP, BENCHMARK, PRIVACY
+design/        HTML mockups used as the design reference
+schemas/       Exported Room schema JSON (committed)
 ```
 
-`domain/` having no Android imports is what makes it unit-testable without a
-device, and it is enforced by convention — if you find yourself importing
-`android.*` there, the logic belongs in `data/` or `ui/`.
+Inside `app/`, `domain/` is pure Kotlin with no `android.*` imports.
+Repositories are the only code that touches DAOs or the network.
 
----
+## Build (Linux)
 
-## Dependency versions
+Requirements:
 
-Every version in `gradle/libs.versions.toml` was resolved against Google Maven
-and Maven Central on 2026-11-08 rather than taken from memory:
+- JDK 17 or newer. The Java target is 17.
+- Android SDK with platform 37 and build-tools 37.0.0. `compileSdk` and
+  `targetSdk` are 37. `minSdk` is 29 for the phone and 30 for the watch.
+- Versions come from `gradle/libs.versions.toml`: Android Gradle Plugin 9.5.1,
+  Kotlin 2.4.21, KSP 2.3.12. The Gradle wrapper downloads Gradle itself.
+- Put the SDK path in `local.properties` at the repo root, which is untracked:
 
-| | |
-| --- | --- |
-| Android Gradle Plugin | 9.5.1 |
-| Gradle | 9.9.0 (wrapper, checksum-pinned) |
-| Kotlin | 2.4.21 |
-| KSP | 2.3.12 |
-| compileSdk / targetSdk / minSdk | 37 / 37 / 29 |
-| Compose BOM | 2026.09.00 |
-| Room | 2.8.5 |
-| Hilt | 2.60.1 |
+  ```properties
+  sdk.dir=/home/you/android-sdk
+  ```
 
-Three things to know before bumping anything:
+Debug build:
 
-- **AGP 9 has built-in Kotlin support.** The `org.jetbrains.kotlin.android`
-  plugin is no longer applied, and applying it is a hard error. AGP ships an
-  older Kotlin than current, so the `buildscript` block in the root
-  `build.gradle.kts` raises Kotlin and KSP — which is why Kotlin's version
-  appears in two places. Keep those classpath lines in step with
-  `[versions] kotlin` and `[versions] ksp`.
-- **KSP 2.3.13 is pinned back to 2.3.12.** The 2.3.13 Gradle plugin marker is
-  incompletely published (clean 404 on its `.module`), so plugin resolution
-  fails.
-- **Charts use Compose Canvas, not Vico.** §1 allows either; Canvas keeps the
-  dependency surface small and the rendering exactly as the spec describes.
+```bash
+./gradlew :app:assembleDebug
+```
 
-Retrofit, OkHttp and kotlinx.serialization are compiled in so the release build
-proves the R8 keep rules for them, which §15.4 and §16 call out as exactly what
-R8 breaks.
+Output: `app/build/outputs/apk/debug/app-debug.apk`. Debug builds use the
+application id suffix `.debug`.
 
----
+Release build. Add these properties to `local.properties` (names only, use your
+own values):
+
+```properties
+RELEASE_STORE_FILE=<path to your .jks>
+RELEASE_STORE_PASSWORD=<store password>
+RELEASE_KEY_ALIAS=<key alias>
+RELEASE_KEY_PASSWORD=<key password>
+```
+
+```bash
+./gradlew :app:assembleRelease :wear:assembleRelease
+```
+
+The phone release build fails with instructions if no keystore is configured.
+The wear release build is unsigned if the properties are missing.
+
+The wear app must be signed with the same key as the phone app and has the same
+`applicationId`, `com.zeroindex.intake`. The Data Layer will not connect
+otherwise. Both modules read the same `RELEASE_*` properties, so one keystore
+covers both. Keep a copy of the keystore off this machine. A different key
+means uninstalling first, which deletes your data.
+
+Outputs: `app/build/outputs/apk/release/app-release.apk` and
+`wear/build/outputs/apk/release/wear-release.apk`.
+
+### Tests
+
+```bash
+./gradlew test
+```
+
+This runs the JVM unit tests for all modules. The Room DAO tests need a device:
+`./gradlew connectedDebugAndroidTest`.
+
+Server tests:
+
+```bash
+cd server && python3 -m unittest test_intake_sync.py
+```
+
+Two integration suites are skipped unless you opt in:
+
+- `INTAKE_REMOTE_IT=1`: `RemoteStoreIntegrationTest` runs the WebDAV, SFTP and
+  SMB transports against real servers. It expects WebDAV on
+  `127.0.0.1:8099/dav`, sshd on `127.0.0.1:2222` and smbd on `127.0.0.1:445`
+  with a share named `backup`. Setup is in [docs/BACKUP.md](docs/BACKUP.md).
+
+  ```bash
+  INTAKE_REMOTE_IT=1 ./gradlew :app:testDebugUnitTest --tests '*RemoteStoreIntegrationTest*'
+  ```
+
+- `INTAKE_SYNC_IT=1`: `SyncProtocolIntegrationTest` starts `server/intake_sync.py`
+  itself and syncs two simulated devices through it. It needs `python3` on the
+  path and nothing else.
+
+  ```bash
+  INTAKE_SYNC_IT=1 ./gradlew :app:testDebugUnitTest --tests '*SyncProtocolIntegrationTest*'
+  ```
+
+## Install
+
+Enable USB debugging on the phone (Developer options), then:
+
+```bash
+adb install -r app/build/outputs/apk/release/app-release.apk
+```
+
+For the watch, enable Developer options, then Wireless debugging on the watch.
+Use its pairing code and address:
+
+```bash
+adb pair <watch-ip>:<pairing-port>
+adb connect <watch-ip>:<debugging-port>
+adb -s <watch-ip>:<debugging-port> install -r wear/build/outputs/apk/release/wear-release.apk
+```
+
+`versionCode` comes from the build time, so each build upgrades the last one in
+place.
+
+## First-run setup
+
+Nothing here is needed to use the app offline.
+
+1. **OpenRouter key.** Settings, AI: save your key, then run the benchmark so
+   the picker can suggest models. See [docs/BENCHMARK.md](docs/BENCHMARK.md).
+2. **USDA key (optional).** Settings: save a FoodData Central key to enable USDA
+   search. See [docs/PRIVACY.md](docs/PRIVACY.md).
+3. **Health Connect.** More, Health Connect: grant the read and write types you
+   want. Nothing is read until you do.
+4. **Backups.** More, Backup & sync: choose WebDAV, SFTP or SMB and set a
+   passphrase. Backups are never sent without one. Keep the passphrase
+   somewhere other than the phone. See [docs/BACKUP.md](docs/BACKUP.md).
+5. **Sync server.** Deploy `server/`, give it an https address, and pair each
+   device with a code. See [server/README.md](server/README.md).
 
 ## Privacy
 
-Everything lives in a single Room database in app-private storage. Cloud backup
-and device transfer are both switched off in the manifest, so nothing syncs
-anywhere.
-
-Exactly three things ever leave the phone, and only when you ask: a search term
-for USDA food lookup, a barcode for Open Food Facts, and a photo for AI
-estimation. API keys are supplied by you at runtime and stored in
-`EncryptedSharedPreferences`; no key is in this repo, and the app is fully
-functional without one, minus the AI feature. There is an in-app privacy screen
-saying the same.
+Data lives in app-private storage. Android cloud backup and device transfer are
+off. Keys are supplied by you, stored encrypted, sent only in request headers
+to their own service, and never logged. Data leaves the phone only through
+features you turn on. [docs/PRIVACY.md](docs/PRIVACY.md) lists every path with
+code references.
