@@ -77,6 +77,7 @@ fun AiSettingsScreen(
     viewModel: AiSettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val benchmark by viewModel.benchmarkState.collectAsStateWithLifecycle()
     var picking by remember { mutableStateOf<TaskRow?>(null) }
 
     LazyColumn(
@@ -171,6 +172,18 @@ fun AiSettingsScreen(
             }
         }
 
+        item(key = "bench-run-head") { SectionLine("Run benchmark", note = "On your key · you set the cap") }
+        item(key = "bench-run") {
+            BenchmarkRunCard(
+                hasKey = state.hasKey,
+                state = benchmark,
+                onToggleTask = viewModel::toggleBenchmarkTask,
+                onCapChange = viewModel::setBenchmarkCap,
+                onStart = viewModel::startBenchmark,
+                onCancel = viewModel::cancelBenchmark,
+                onDismiss = viewModel::dismissBenchmarkResult,
+            )
+        }
         item(key = "bench-head") { SectionLine("Benchmark results", note = "Local evaluation set") }
         item(key = "bench") { BenchmarkTable(state) }
         item(key = "key") { KeyCard(state, onSave = viewModel::saveKey, onTest = viewModel::testKey) }
@@ -304,7 +317,7 @@ private fun BenchmarkTable(state: AiSettingsUiState) {
         EmptyState(
             title = "No benchmark results yet",
             body = "Suggestions marked \"not benchmarked\" are the cheapest capable models, not tested ones. " +
-                "Run the benchmark with your key (see the README) and the results replace the guesses.",
+                "Run the benchmark above with your key and the results replace the guesses.",
         )
         return
     }
@@ -338,6 +351,14 @@ private fun BenchmarkTable(state: AiSettingsUiState) {
                     Text(it, style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(0.42f))
                 }
             }
+        }
+        AiTask.entries.filter { task -> state.benchmarks.none { it.task == task } }.forEach { task ->
+            Text(
+                "${task.label} · not benchmarked",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 6.dp),
+            )
         }
     }
 }

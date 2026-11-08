@@ -1,0 +1,172 @@
+{
+  "task": "MENU_INGESTION",
+  "fixtures": [
+    {
+      "id": "menu-1",
+      "restaurant": "Harbor Lantern Grill",
+      "text": "HARBOR LANTERN GRILL - Lunch\n\nGrilled Chicken Plate - herb-marinated chicken breast, jasmine rice, steamed broccoli, olive oil. 540 cal, 46g protein, 52g carbs, 14g fat\n\nCheddar Burger - beef patty, aged cheddar, brioche bun, lettuce, tomato, house sauce. 820 cal, 41g protein, 58g carbs, 46g fat\n\nSalmon Rice Bowl - seared salmon, brown rice, edamame, cucumber, sesame dressing. 610 cal, 38g protein, 60g carbs, 22g fat\n\nGarden Salad - mixed greens, tomato, cucumber, balsamic vinaigrette. 180 cal, 4g protein, 16g carbs, 12g fat",
+      "items": [
+        {
+          "name": "Grilled Chicken Plate",
+          "kcal": 540,
+          "proteinG": 46,
+          "dairy": false
+        },
+        {
+          "name": "Cheddar Burger",
+          "kcal": 820,
+          "proteinG": 41,
+          "dairy": true
+        },
+        {
+          "name": "Salmon Rice Bowl",
+          "kcal": 610,
+          "proteinG": 38,
+          "dairy": false
+        },
+        {
+          "name": "Garden Salad",
+          "kcal": 180,
+          "proteinG": 4,
+          "dairy": false
+        }
+      ]
+    },
+    {
+      "id": "menu-2",
+      "restaurant": "Saffron Table",
+      "text": "SAFFRON TABLE - Dinner menu\n\nButter Chicken - chicken thigh simmered in tomato, butter and cream sauce, basmati rice. 780 cal, 44g protein, 70g carbs, 34g fat\n\nChana Masala - chickpeas, tomato, onion, ginger, garlic, spices, served with rice. 520 cal, 17g protein, 88g carbs, 11g fat\n\nTandoori Chicken - yogurt-free dry rub, charred in the clay oven, with grilled vegetables. 430 cal, 52g protein, 12g carbs, 18g fat\n\nPalak Paneer - spinach and paneer cheese in a creamy sauce, basmati rice. 690 cal, 28g protein, 64g carbs, 36g fat\n\nMango Lassi - yogurt, mango, sugar. 260 cal, 7g protein, 46g carbs, 5g fat",
+      "items": [
+        {
+          "name": "Butter Chicken",
+          "kcal": 780,
+          "proteinG": 44,
+          "dairy": true
+        },
+        {
+          "name": "Chana Masala",
+          "kcal": 520,
+          "proteinG": 17,
+          "dairy": false
+        },
+        {
+          "name": "Tandoori Chicken",
+          "kcal": 430,
+          "proteinG": 52,
+          "dairy": false
+        },
+        {
+          "name": "Palak Paneer",
+          "kcal": 690,
+          "proteinG": 28,
+          "dairy": true
+        },
+        {
+          "name": "Mango Lassi",
+          "kcal": 260,
+          "proteinG": 7,
+          "dairy": true
+        }
+      ]
+    },
+    {
+      "id": "menu-3",
+      "restaurant": "Blue Door Taqueria",
+      "text": "BLUE DOOR TAQUERIA\n\nCarne Asada Bowl - grilled steak, cilantro-lime rice, black beans, pico de gallo, salsa verde. 640 cal, 43g protein, 66g carbs, 20g fat\n\nChicken Burrito - grilled chicken, rice, pinto beans, shredded Monterey Jack cheese, sour cream, flour tortilla. 910 cal, 49g protein, 94g carbs, 36g fat\n\nFish Tacos (3) - grilled cod, cabbage slaw, lime crema, corn tortillas. 480 cal, 32g protein, 45g carbs, 19g fat\n\nVeggie Fajitas - peppers, onion, zucchini, guacamole, corn tortillas. 450 cal, 11g protein, 62g carbs, 19g fat",
+      "items": [
+        {
+          "name": "Carne Asada Bowl",
+          "kcal": 640,
+          "proteinG": 43,
+          "dairy": false
+        },
+        {
+          "name": "Chicken Burrito",
+          "kcal": 910,
+          "proteinG": 49,
+          "dairy": true
+        },
+        {
+          "name": "Fish Tacos",
+          "kcal": 480,
+          "proteinG": 32,
+          "dairy": true
+        },
+        {
+          "name": "Veggie Fajitas",
+          "kcal": 450,
+          "proteinG": 11,
+          "dairy": false
+        }
+      ]
+    },
+    {
+      "id": "menu-4",
+      "restaurant": "Kettle & Crumb Cafe",
+      "text": "KETTLE & CRUMB CAFE - Breakfast\n\nEgg White Wrap - egg whites, spinach, roasted tomato, whole wheat wrap. 320 cal, 24g protein, 36g carbs, 8g fat\n\nButtermilk Pancakes - three pancakes made with buttermilk, maple syrup, whipped butter. 710 cal, 14g protein, 108g carbs, 24g fat\n\nOatmeal Bowl - steel-cut oats cooked in water, blueberries, walnuts, brown sugar. 390 cal, 10g protein, 62g carbs, 13g fat\n\nTurkey Sausage Scramble - eggs, turkey sausage, peppers, home fries. 560 cal, 38g protein, 34g carbs, 29g fat",
+      "items": [
+        {
+          "name": "Egg White Wrap",
+          "kcal": 320,
+          "proteinG": 24,
+          "dairy": false
+        },
+        {
+          "name": "Buttermilk Pancakes",
+          "kcal": 710,
+          "proteinG": 14,
+          "dairy": true
+        },
+        {
+          "name": "Oatmeal Bowl",
+          "kcal": 390,
+          "proteinG": 10,
+          "dairy": false
+        },
+        {
+          "name": "Turkey Sausage Scramble",
+          "kcal": 560,
+          "proteinG": 38,
+          "dairy": false
+        }
+      ]
+    },
+    {
+      "id": "menu-5",
+      "restaurant": "Pine Street Noodle House",
+      "text": "PINE STREET NOODLE HOUSE\n\nBeef Pho - rice noodles, sliced beef, bone broth, herbs, bean sprouts. 480 cal, 33g protein, 60g carbs, 9g fat\n\nPad Thai with Shrimp - rice noodles, shrimp, egg, peanuts, tamarind sauce. 690 cal, 31g protein, 82g carbs, 25g fat\n\nCreamy Tom Kha Soup - chicken in coconut milk broth with galangal and mushrooms. 410 cal, 26g protein, 14g carbs, 28g fat\n\nChicken Alfredo Udon - udon noodles, chicken, parmesan cream sauce. 870 cal, 45g protein, 88g carbs, 38g fat\n\nSteamed Edamame - sea salt. 120 cal, 11g protein, 9g carbs, 5g fat",
+      "items": [
+        {
+          "name": "Beef Pho",
+          "kcal": 480,
+          "proteinG": 33,
+          "dairy": false
+        },
+        {
+          "name": "Pad Thai with Shrimp",
+          "kcal": 690,
+          "proteinG": 31,
+          "dairy": false
+        },
+        {
+          "name": "Creamy Tom Kha Soup",
+          "kcal": 410,
+          "proteinG": 26,
+          "dairy": false
+        },
+        {
+          "name": "Chicken Alfredo Udon",
+          "kcal": 870,
+          "proteinG": 45,
+          "dairy": true
+        },
+        {
+          "name": "Steamed Edamame",
+          "kcal": 120,
+          "proteinG": 11,
+          "dairy": false
+        }
+      ]
+    }
+  ]
+}

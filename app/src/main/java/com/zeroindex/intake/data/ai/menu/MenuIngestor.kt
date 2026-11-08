@@ -114,8 +114,8 @@ class MenuIngestor @Inject constructor(
         val parsed = gateway.structured(
             task = AiTask.MENU_INGESTION,
             serializer = ParsedMenu.serializer(),
-            schema = schema,
-            system = systemPrompt(source.restaurantName, avoided),
+            schema = MenuPrompts.schema,
+            system = MenuPrompts.system(source.restaurantName, avoided),
             parts = parts,
             tools = tools,
         ).value
@@ -204,8 +204,11 @@ class MenuIngestor @Inject constructor(
             null
         }
     }
+}
 
-    private fun systemPrompt(restaurant: String, avoided: Set<String>) = buildString {
+/** The menu-import prompt and schema, shared with the in-app benchmark so both measure the same request. */
+internal object MenuPrompts {
+    fun system(restaurant: String, avoided: Set<String>) = buildString {
         appendLine("You extract a restaurant menu into structured items. The restaurant is $restaurant.")
         appendLine("One entry per orderable dish or drink. Skip section headers, prices-only lines and boilerplate.")
         appendLine("Copy ingredients and descriptions as written. Never invent dishes.")
@@ -222,7 +225,7 @@ class MenuIngestor @Inject constructor(
         append("Reply with JSON only, matching the schema.")
     }
 
-    private val schema = S.obj(
+    val schema = S.obj(
         "items" to S.array(
             S.obj(
                 "name" to S.string(),

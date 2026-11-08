@@ -142,8 +142,8 @@ class PlanBFinder @Inject constructor(
         val outcome = gateway.structured(
             task = AiTask.PLAN_B,
             serializer = FoundOptions.serializer(),
-            schema = schema,
-            system = systemPrompt(avoided),
+            schema = PlanBPrompts.schema,
+            system = PlanBPrompts.system(avoided),
             parts = listOf(AiPart.Text(userPrompt(area, left, avoided))),
             tools = listOf(ServerTool.WebSearch(maxResults = 6, maxUses = 3), ServerTool.WebFetch(maxUses = 5)),
         )
@@ -247,7 +247,20 @@ class PlanBFinder @Inject constructor(
         return fix?.let { SearchArea.Coordinates(PlanBFit.coarsen(it.latitude), PlanBFit.coarsen(it.longitude)) }
     }
 
-    private fun systemPrompt(avoided: Set<String>) = buildString {
+    private fun userPrompt(area: SearchArea, left: DayProgress, avoided: Set<String>) = buildString {
+        when (area) {
+            is SearchArea.Coordinates -> appendLine("Approximate location: latitude ${area.lat}, longitude ${area.lng}.")
+            is SearchArea.PostalCode -> appendLine("Near postal code ${area.code}.")
+        }
+        left.kcalRemaining?.let { appendLine("About $it kcal left today.") }
+        left.proteinRemaining?.let { appendLine("About $it g protein left today; favour high-protein orders.") }
+        if (avoided.isNotEmpty()) appendLine("Allergies: ${avoided.joinToString()}.")
+    }
+}
+
+/** The Plan B prompt and schema, shared with the in-app benchmark. */
+internal object PlanBPrompts {
+    fun system(avoided: Set<String>) = buildString {
         appendLine("You help someone pick a fast, safe meal near them right now.")
         appendLine("Search for restaurants near the given area and read their current menus or nutrition pages.")
         appendLine("Return up to 6 options, each a specific order at a specific restaurant, with nutrition for the order as modified.")
@@ -266,17 +279,7 @@ class PlanBFinder @Inject constructor(
         append("Never invent a restaurant. Reply with JSON only, matching the schema.")
     }
 
-    private fun userPrompt(area: SearchArea, left: DayProgress, avoided: Set<String>) = buildString {
-        when (area) {
-            is SearchArea.Coordinates -> appendLine("Approximate location: latitude ${area.lat}, longitude ${area.lng}.")
-            is SearchArea.PostalCode -> appendLine("Near postal code ${area.code}.")
-        }
-        left.kcalRemaining?.let { appendLine("About $it kcal left today.") }
-        left.proteinRemaining?.let { appendLine("About $it g protein left today; favour high-protein orders.") }
-        if (avoided.isNotEmpty()) appendLine("Allergies: ${avoided.joinToString()}.")
-    }
-
-    private val schema = S.obj(
+    val schema = S.obj(
         "options" to S.array(
             S.obj(
                 "restaurant" to S.string(),

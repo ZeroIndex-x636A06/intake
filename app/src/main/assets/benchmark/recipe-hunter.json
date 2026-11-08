@@ -1,0 +1,45 @@
+{
+  "task": "RECIPE_HUNTER",
+  "fixtures": [
+    {
+      "id": "recipe-1",
+      "pageText": "Lemon Herb Chicken and Rice\nSource: https://recipes.example.invalid/lemon-herb-chicken-and-rice\nMakes 4 servings\n\nIngredients\n- 600 g chicken breast\n- 1 cup jasmine rice\n- 2 tbsp olive oil\n- 1 lemon\n- 3 cloves garlic\n- 1 tsp dried oregano\n- 2 cups chicken stock\n\nMethod\n1. Sear the chicken in oil until golden.\n2. Add rice, garlic, stock, lemon and oregano.\n3. Cover and simmer for 18 minutes.\n\nNutrition per serving: 470 calories, 41 g protein, 44 g carbohydrates, 12 g fat",
+      "servings": 4,
+      "kcalPerServing": 470,
+      "proteinPerServing": 41,
+      "dairy": false
+    },
+    {
+      "id": "recipe-2",
+      "pageText": "Baked Mac and Cheese with Turkey\nSource: https://recipes.example.invalid/baked-mac-and-cheese-with-turkey\nMakes 6 servings\n\nIngredients\n- 400 g elbow macaroni\n- 500 g ground turkey\n- 2 cups shredded cheddar\n- 2 cups whole milk\n- 3 tbsp butter\n- 3 tbsp flour\n- 1 tsp mustard powder\n\nMethod\n1. Boil the macaroni.\n2. Brown the turkey.\n3. Make a roux with butter and flour, whisk in milk, melt in cheddar.\n4. Combine and bake 20 minutes.\n\nNutrition per serving: 610 calories, 38 g protein, 52 g carbohydrates, 27 g fat",
+      "servings": 6,
+      "kcalPerServing": 610,
+      "proteinPerServing": 38,
+      "dairy": true
+    },
+    {
+      "id": "recipe-3",
+      "pageText": "Sheet Pan Salmon and Sweet Potato\nSource: https://recipes.example.invalid/sheet-pan-salmon-and-sweet-potato\nMakes 4 servings\n\nIngredients\n- 4 salmon fillets (150 g each)\n- 700 g sweet potato\n- 2 tbsp olive oil\n- 1 tsp smoked paprika\n- 300 g green beans\n- 1 tbsp maple syrup\n\nMethod\n1. Heat the oven to 220 C.\n2. Roast the sweet potato 15 minutes.\n3. Add salmon and green beans, roast 12 minutes more.\n\nNutrition per serving: 520 calories, 36 g protein, 41 g carbohydrates, 24 g fat",
+      "servings": 4,
+      "kcalPerServing": 520,
+      "proteinPerServing": 36,
+      "dairy": false
+    },
+    {
+      "id": "recipe-4",
+      "pageText": "Slow Cooker Beef Chili\nSource: https://recipes.example.invalid/slow-cooker-beef-chili\nMakes 8 servings\n\nIngredients\n- 1 kg lean ground beef\n- 2 cans kidney beans\n- 1 can diced tomatoes\n- 1 onion\n- 2 tbsp chili powder\n- 1 tsp cumin\n- 2 cups beef stock\n\nMethod\n1. Brown the beef and onion.\n2. Combine everything in the slow cooker.\n3. Cook on low for 7 hours.\n\nNutrition (whole recipe): 3,200 calories, 256 g protein, 280 g carbohydrates, 120 g fat",
+      "servings": 8,
+      "kcalPerServing": 400,
+      "proteinPerServing": 32,
+      "dairy": false
+    },
+    {
+      "id": "recipe-5",
+      "pageText": "Creamy Tuscan Chicken\nSource: https://recipes.example.invalid/creamy-tuscan-chicken\nMakes 4 servings\n\nIngredients\n- 700 g chicken breast\n- 1 cup heavy cream\n- 1/2 cup grated parmesan\n- 1 cup sun-dried tomatoes\n- 2 cups baby spinach\n- 2 tbsp olive oil\n- 3 cloves garlic\n\nMethod\n1. Sear the chicken and set aside.\n2. Simmer garlic, cream, parmesan and tomatoes.\n3. Return the chicken, wilt in the spinach.\n\nNutrition per serving: 560 calories, 45 g protein, 12 g carbohydrates, 36 g fat",
+      "servings": 4,
+      "kcalPerServing": 560,
+      "proteinPerServing": 45,
+      "dairy": true
+    }
+  ]
+}

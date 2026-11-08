@@ -102,8 +102,8 @@ class DailyInsights @Inject constructor(
             val outcome = gateway.structured(
                 task = AiTask.DAILY_INSIGHT,
                 serializer = InsightReply.serializer(),
-                schema = schema,
-                system = systemPrompt(avoided),
+                schema = InsightPrompts.schema,
+                system = InsightPrompts.system(avoided),
                 parts = listOfNotNull(
                     AiPart.Text("The last two weeks:\n" + digest.joinToString("\n")),
                     feedback?.let { AiPart.Text("Your last suggestion mentioned $it, which the user cannot eat. Suggest something else.") },
@@ -171,8 +171,11 @@ class DailyInsights @Inject constructor(
             waterTargetMl = hydration.observeDay(today).first().target.totalMl,
         )
     }
+}
 
-    private fun systemPrompt(avoided: Set<String>) = buildString {
+/** The daily-insight prompt and schema, shared with the in-app benchmark. */
+internal object InsightPrompts {
+    fun system(avoided: Set<String>) = buildString {
         appendLine("You are a supportive nutrition and training coach writing one suggestion for today.")
         appendLine("Pick the single change most likely to help, based on the data. One or two sentences, under 240 characters.")
         appendLine("Be specific and actionable. Mention the numbers that support it. Encouraging, never scolding.")
@@ -181,7 +184,7 @@ class DailyInsights @Inject constructor(
         append("List in basedOn the data lines you used. Reply with JSON only.")
     }
 
-    private val schema = S.obj(
+    val schema = S.obj(
         "insight" to S.string(),
         "focus" to S.enumOf("protein", "calories", "training", "recovery", "hydration", "consistency"),
         "basedOn" to S.array(S.string()),

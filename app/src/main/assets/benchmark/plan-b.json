@@ -1,0 +1,183 @@
+{
+  "task": "PLAN_B",
+  "fixtures": [
+    {
+      "id": "planb-1",
+      "menuText": "Corner Grill (near you)\nGrilled Chicken Sandwich, no mayo - 430 cal, 38g protein\nCheeseburger - 750 cal, 36g protein, contains cheese\nChicken Caesar Salad - 520 cal, 34g protein, parmesan and creamy dressing\nFruit Cup - 90 cal, 1g protein",
+      "kcalLeft": 700,
+      "proteinLeft": 50,
+      "items": [
+        {
+          "name": "Grilled Chicken Sandwich",
+          "kcal": 430,
+          "proteinG": 38,
+          "dairy": false
+        },
+        {
+          "name": "Cheeseburger",
+          "kcal": 750,
+          "proteinG": 36,
+          "dairy": true
+        },
+        {
+          "name": "Chicken Caesar Salad",
+          "kcal": 520,
+          "proteinG": 34,
+          "dairy": true
+        },
+        {
+          "name": "Fruit Cup",
+          "kcal": 90,
+          "proteinG": 1,
+          "dairy": false
+        }
+      ],
+      "acceptable": [
+        "Grilled Chicken Sandwich"
+      ]
+    },
+    {
+      "id": "planb-2",
+      "menuText": "Sunrise Bowls\nSteak and Rice Bowl - 560 cal, 42g protein\nBurrito Bowl with Queso - 880 cal, 40g protein, queso cheese sauce\nGrilled Shrimp Bowl - 410 cal, 33g protein\nChips and Guacamole - 380 cal, 5g protein",
+      "kcalLeft": 600,
+      "proteinLeft": 45,
+      "items": [
+        {
+          "name": "Steak and Rice Bowl",
+          "kcal": 560,
+          "proteinG": 42,
+          "dairy": false
+        },
+        {
+          "name": "Burrito Bowl with Queso",
+          "kcal": 880,
+          "proteinG": 40,
+          "dairy": true
+        },
+        {
+          "name": "Grilled Shrimp Bowl",
+          "kcal": 410,
+          "proteinG": 33,
+          "dairy": false
+        },
+        {
+          "name": "Chips and Guacamole",
+          "kcal": 380,
+          "proteinG": 5,
+          "dairy": false
+        }
+      ],
+      "acceptable": [
+        "Steak and Rice Bowl",
+        "Grilled Shrimp Bowl"
+      ]
+    },
+    {
+      "id": "planb-3",
+      "menuText": "Noodle Express\nChicken Teriyaki Rice Plate - 640 cal, 40g protein\nCreamy Chicken Pasta - 900 cal, 42g protein, cream and parmesan sauce\nBeef Pho - 470 cal, 32g protein\nSpring Rolls (2) - 220 cal, 6g protein",
+      "kcalLeft": 650,
+      "proteinLeft": 35,
+      "items": [
+        {
+          "name": "Chicken Teriyaki Rice Plate",
+          "kcal": 640,
+          "proteinG": 40,
+          "dairy": false
+        },
+        {
+          "name": "Creamy Chicken Pasta",
+          "kcal": 900,
+          "proteinG": 42,
+          "dairy": true
+        },
+        {
+          "name": "Beef Pho",
+          "kcal": 470,
+          "proteinG": 32,
+          "dairy": false
+        },
+        {
+          "name": "Spring Rolls",
+          "kcal": 220,
+          "proteinG": 6,
+          "dairy": false
+        }
+      ],
+      "acceptable": [
+        "Chicken Teriyaki Rice Plate",
+        "Beef Pho"
+      ]
+    },
+    {
+      "id": "planb-4",
+      "menuText": "Pita Place\nChicken Shawarma Plate - 620 cal, 44g protein, served with garlic yogurt sauce unless removed\nFalafel Wrap - 540 cal, 17g protein\nGrilled Lamb Skewers with Rice - 580 cal, 39g protein\nGreek Salad with Feta - 350 cal, 12g protein",
+      "kcalLeft": 600,
+      "proteinLeft": 35,
+      "items": [
+        {
+          "name": "Chicken Shawarma Plate",
+          "kcal": 620,
+          "proteinG": 44,
+          "dairy": true
+        },
+        {
+          "name": "Falafel Wrap",
+          "kcal": 540,
+          "proteinG": 17,
+          "dairy": false
+        },
+        {
+          "name": "Grilled Lamb Skewers with Rice",
+          "kcal": 580,
+          "proteinG": 39,
+          "dairy": false
+        },
+        {
+          "name": "Greek Salad with Feta",
+          "kcal": 350,
+          "proteinG": 12,
+          "dairy": true
+        }
+      ],
+      "acceptable": [
+        "Grilled Lamb Skewers with Rice"
+      ]
+    },
+    {
+      "id": "planb-5",
+      "menuText": "Daybreak Diner\nVeggie Egg White Omelet - 310 cal, 26g protein\nButtermilk Biscuits and Gravy - 780 cal, 16g protein\nTurkey Club, no cheese - 500 cal, 36g protein\nPlain Oatmeal - 160 cal, 6g protein",
+      "kcalLeft": 550,
+      "proteinLeft": 30,
+      "items": [
+        {
+          "name": "Veggie Egg White Omelet",
+          "kcal": 310,
+          "proteinG": 26,
+          "dairy": false
+        },
+        {
+          "name": "Buttermilk Biscuits and Gravy",
+          "kcal": 780,
+          "proteinG": 16,
+          "dairy": true
+        },
+        {
+          "name": "Turkey Club, no cheese",
+          "kcal": 500,
+          "proteinG": 36,
+          "dairy": false
+        },
+        {
+          "name": "Plain Oatmeal",
+          "kcal": 160,
+          "proteinG": 6,
+          "dairy": false
+        }
+      ],
+      "acceptable": [
+        "Veggie Egg White Omelet",
+        "Turkey Club, no cheese"
+      ]
+    }
+  ]
+}
