@@ -85,6 +85,10 @@ class MealPlanViewModel @Inject constructor(
         settings.settings.map { it.weightUnit }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), WeightUnit.POUNDS)
 
     @OptIn(ExperimentalCoroutinesApi::class)
+    /** Soft "Check the label" terms in force, for ingredient and shopping rows. */
+    val checkLabelTerms: StateFlow<List<com.zeroindex.intake.domain.allergen.CheckLabelTerm>> =
+        repo.observeCheckLabelTerms().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     val content: StateFlow<WeekContent?> =
         currentWeek.flatMapLatest { repo.observeWeekContent(it) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)

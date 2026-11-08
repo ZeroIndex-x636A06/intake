@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.ai.recipes.HuntedRecipe
+import com.zeroindex.intake.ui.allergen.CheckLabelChip
 import com.zeroindex.intake.domain.ai.RecipeVerdict
 import com.zeroindex.intake.ui.components.AccentNote
 import com.zeroindex.intake.ui.components.ChoiceChip
@@ -229,7 +230,9 @@ private fun HuntedCard(hunted: HuntedRecipe, saved: Boolean, onClick: () -> Unit
         Row(verticalAlignment = Alignment.Top) {
             Text(r.title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f).padding(end = 6.dp))
             when (val v = hunted.verdict) {
-                RecipeVerdict.Passed -> StatusPill("Passed allergen check")
+                RecipeVerdict.Passed ->
+                    if (hunted.scan.hasCheckLabel) CheckLabelChip(hunted.scan.checkLabel.first().note, showReason = false)
+                    else StatusPill("Passed allergen check")
                 is RecipeVerdict.NeedsReview -> StatusPill("Check allergens", tone = PillTone.Wait)
                 is RecipeVerdict.Rejected -> StatusPill("Removed: ${v.reason.replaceFirstChar(Char::lowercase).let { if (it.length > 28) it.take(27) + "…" else it }}", tone = PillTone.Bad)
             }

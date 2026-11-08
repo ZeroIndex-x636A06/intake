@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.db.entity.AllergenStatus
+import com.zeroindex.intake.ui.allergen.CheckLabelChip
 import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.MacroTiles
 import com.zeroindex.intake.ui.components.PillTone
@@ -86,6 +87,7 @@ fun RecipeDetailScreen(
             SectionLine("Ingredients") {
                 when (recipe.allergenStatus) {
                     AllergenStatus.MAY_CONTAIN -> StatusPill("Check allergens", tone = PillTone.Wait)
+                    AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
                     AllergenStatus.CONTAINS -> StatusPill("Contains an allergen", tone = PillTone.Bad)
                     AllergenStatus.CLEAR -> StatusPill("Passed allergen check")
                     else -> StatusPill("Allergens not checked", tone = PillTone.Wait)

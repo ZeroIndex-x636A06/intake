@@ -53,6 +53,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.db.entity.AllergenStatus
+import com.zeroindex.intake.ui.allergen.CheckLabelChip
+import com.zeroindex.intake.ui.allergen.ProvideCheckLabelTerms
+import com.zeroindex.intake.ui.allergen.checkLabelReasonFor
 import com.zeroindex.intake.data.db.entity.RecipeEntity
 import com.zeroindex.intake.data.db.entity.RecipeOrigin
 import com.zeroindex.intake.data.db.entity.ShoppingListItemEntity
@@ -112,6 +115,7 @@ fun PlanScreen(
     val pending by viewModel.pending.collectAsStateWithLifecycle()
     val importState by viewModel.importState.collectAsStateWithLifecycle()
     val notice by viewModel.notice.collectAsStateWithLifecycle()
+    val checkTerms by viewModel.checkLabelTerms.collectAsStateWithLifecycle()
 
     var assigning by remember { mutableStateOf(false) }
     var parking by remember { mutableStateOf(false) }
@@ -129,6 +133,7 @@ fun PlanScreen(
     }
     val launchImport = { picker.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) }
 
+    ProvideCheckLabelTerms(checkTerms) {
     Box(modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -344,6 +349,7 @@ fun PlanScreen(
             onDismiss = viewModel::cancelImport,
         )
     }
+    }
 }
 
 private fun readPlanFile(context: Context, uri: Uri): String? = runCatching {
@@ -437,6 +443,7 @@ private fun DishCard(content: WeekContent, onEditProtein: () -> Unit, onChange: 
                 when (main.allergenStatus) {
                     AllergenStatus.CONTAINS -> StatusPill("Contains an allergen", tone = PillTone.Bad)
                     AllergenStatus.MAY_CONTAIN -> StatusPill("Check allergens", tone = PillTone.Wait)
+                    AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
                     AllergenStatus.CLEAR -> StatusPill("Passed allergen check")
                     AllergenStatus.UNKNOWN -> StatusPill("Allergens not checked", tone = PillTone.Wait)
                 }
@@ -448,7 +455,9 @@ private fun DishCard(content: WeekContent, onEditProtein: () -> Unit, onChange: 
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            if (main.allergenTerms.isNotEmpty() && main.allergenStatus != AllergenStatus.CLEAR) {
+            if (main.allergenTerms.isNotEmpty() && main.allergenStatus != AllergenStatus.CLEAR &&
+                main.allergenStatus != AllergenStatus.CHECK_LABEL
+            ) {
                 Spacer(Modifier.height(6.dp))
                 SandNote("Matched on this phone: ${main.allergenTerms.joinToString()}. Check the labels before cooking.")
             }
@@ -542,12 +551,15 @@ private fun ShoppingRow(
     val qty = ShoppingListBuilder.displayQuantity(item.quantity, unit)
     Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
         Checkbox(checked = item.isChecked, onCheckedChange = { onCheck(item.id, it) })
-        Text(
-            listOf(item.name, qty).filter { it.isNotBlank() }.joinToString(" · "),
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f).clickable { onCheck(item.id, !item.isChecked) },
-            textDecoration = if (item.isChecked) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
-        )
+        Column(Modifier.weight(1f).clickable { onCheck(item.id, !item.isChecked) }) {
+            Text(
+                listOf(item.name, qty).filter { it.isNotBlank() }.joinToString(" · "),
+                style = MaterialTheme.typography.bodyMedium,
+                textDecoration = if (item.isChecked) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
+            )
+            // Shopping is where the label gets read, so this is the most useful place for the nudge.
+            if (!item.isChecked) checkLabelReasonFor(item.name)?.let { CheckLabelChip(it, Modifier.padding(top = 2.dp)) }
+        }
         TextButton(
             onClick = { onRemove(item.id) },
             modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = "Remove ${item.name}" },
@@ -592,7 +604,10 @@ private fun StepsAccordion(main: RecipeContent?, onOpenCook: () -> Unit) {
         }
         if (main != null && main.ingredientLines.isNotEmpty()) {
             Eyebrow("Ingredients", Modifier.padding(top = 8.dp))
-            main.ingredientLines.forEach { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 1.dp)) }
+            main.ingredientLines.forEach { line ->
+                Text(line, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 1.dp))
+                checkLabelReasonFor(line)?.let { CheckLabelChip(it, Modifier.padding(bottom = 4.dp)) }
+            }
         }
     }
 }
@@ -664,6 +679,9 @@ internal fun RecipeRow(recipe: RecipeEntity, onClick: () -> Unit) {
         if (recipe.allergenStatus == AllergenStatus.MAY_CONTAIN) {
             Spacer(Modifier.height(6.dp))
             Flag("Check allergens")
+        } else if (recipe.allergenStatus == AllergenStatus.CHECK_LABEL) {
+            Spacer(Modifier.height(6.dp))
+            CheckLabelChip(null)
         }
     }
 }

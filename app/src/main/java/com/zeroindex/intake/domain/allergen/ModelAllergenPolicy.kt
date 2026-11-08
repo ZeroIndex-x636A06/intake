@@ -38,17 +38,28 @@ object ModelAllergenPolicy {
         val matches = mutableListOf<AllergenMatch>()
         val perItem = mutableMapOf<Int, AllergenMatchKind>()
         fun flag(index: Int, kind: AllergenMatchKind) {
-            if (perItem[index] != AllergenMatchKind.CONTAINS) perItem[index] = kind
+            // Only ever raise: CONTAINS > MAY_CONTAIN > CHECK_LABEL.
+            val current = perItem[index]
+            if (current == null || kind.rank > current.rank) perItem[index] = kind
         }
 
         local.forEachIndexed { index, result ->
-            if (result.hasAnything) {
+            if (result.matches.isNotEmpty()) {
                 matches += result.matches
-                flag(index, if (result.blocks) AllergenMatchKind.CONTAINS else AllergenMatchKind.MAY_CONTAIN)
+                flag(
+                    index,
+                    when {
+                        result.blocks -> AllergenMatchKind.CONTAINS
+                        result.mayContain.isNotEmpty() -> AllergenMatchKind.MAY_CONTAIN
+                        else -> AllergenMatchKind.CHECK_LABEL
+                    },
+                )
             }
         }
         claims.forEachIndexed { index, claim ->
-            val alreadyLocal = local.getOrNull(index)?.matches.orEmpty().map { it.allergen.lowercase() }.toSet()
+            val alreadyLocal = local.getOrNull(index)?.matches.orEmpty()
+                // A "check the label" hint is not an answer: the model's claim still raises a review.
+                .filter { it.kind != AllergenMatchKind.CHECK_LABEL }.map { it.allergen.lowercase() }.toSet()
             claim.allergens
                 .map { it.trim().lowercase() }
                 .mapNotNull { claimed -> avoided.firstOrNull { a -> claimed.contains(a) || a.contains(claimed) } }

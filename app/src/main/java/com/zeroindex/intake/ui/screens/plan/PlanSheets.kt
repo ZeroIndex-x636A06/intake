@@ -37,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.data.db.entity.AllergenStatus
+import com.zeroindex.intake.ui.allergen.CheckLabelChip
 import com.zeroindex.intake.data.db.entity.RecipeEntity
 import com.zeroindex.intake.data.repository.PlanImportPreview
 import com.zeroindex.intake.domain.nutrition.Macros
@@ -168,6 +169,7 @@ private fun EatOutCard(row: EatOutRow, onLog: () -> Unit) {
                 when (row.status) {
                     AllergenStatus.CONTAINS -> StatusPill("Contains an allergen", tone = PillTone.Bad)
                     AllergenStatus.MAY_CONTAIN -> StatusPill("Check: may contain", tone = PillTone.Wait)
+                    AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
                     AllergenStatus.CLEAR -> StatusPill("No flagged terms")
                     AllergenStatus.UNKNOWN -> StatusPill("Not checked", tone = PillTone.Wait)
                 }

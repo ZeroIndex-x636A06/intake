@@ -64,6 +64,9 @@ import com.zeroindex.intake.data.db.entity.FoodEntity
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nutrition.Macros
 import com.zeroindex.intake.ui.allergen.AllergenWarningSheet
+import com.zeroindex.intake.ui.allergen.CheckLabelChip
+import com.zeroindex.intake.ui.allergen.ProvideCheckLabelTerms
+import com.zeroindex.intake.ui.allergen.checkLabelReasonFor
 import com.zeroindex.intake.ui.photo.PhotoEstimateFlow
 import com.zeroindex.intake.ui.barcode.BarcodeScannerView
 import kotlin.math.roundToInt
@@ -85,6 +88,7 @@ fun AddFoodSheet(
     var portionFor by remember { mutableStateOf<FoodEntity?>(null) }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        ProvideCheckLabelTerms(state.checkLabelTerms) {
         Column(modifier = Modifier.fillMaxWidth().navigationBarsPadding().imePadding()) {
             val portioning = portionFor
             if (portioning != null) {
@@ -241,6 +245,7 @@ fun AddFoodSheet(
                 }
             }
         }
+        }
     }
 
     // SPEC §7.2: nothing is written until this is answered.
@@ -362,6 +367,12 @@ private fun FoodRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                 )
+                // Soft tier: shown beside the safe check too (the check means no
+                // contains/may-contain flag, not "no hidden carrier"). docs/ALLERGENS.md.
+                checkLabelReasonFor(food.name)?.let { reason ->
+                    Spacer(Modifier.size(4.dp))
+                    CheckLabelChip(reason)
+                }
             }
             Spacer(Modifier.size(8.dp))
             Column(horizontalAlignment = Alignment.End) {
@@ -566,6 +577,13 @@ private fun BarcodeTab(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            // Only when nothing stronger was found: the name match is a nudge, not a verdict.
+            if (!barcode.scan.hasAnything) {
+                barcode.scan.checkLabel.firstOrNull()?.let {
+                    Spacer(Modifier.height(8.dp))
+                    CheckLabelChip(it.note)
+                }
+            }
             Spacer(Modifier.height(16.dp))
             Button(
                 onClick = { onPick(barcode.food) },
@@ -855,6 +873,8 @@ private fun PortionStep(
                 OutlinedButton(onClick = { grams = value.toString() }) { Text(label) }
             }
         }
+
+        checkLabelReasonFor(food.name)?.let { CheckLabelChip(it) }
 
         NumberField(grams, { grams = it }, "Grams", Modifier.fillMaxWidth())
 

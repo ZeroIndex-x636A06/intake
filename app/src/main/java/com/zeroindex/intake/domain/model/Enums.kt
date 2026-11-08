@@ -25,5 +25,13 @@ enum class StoreCategory { PRODUCE, MEAT, PANTRY, FROZEN, OTHER }
 
 enum class AllergenSeverity { AVOID, STRICT }
 
-/** Whether a scan hit is a hard "contains" or a softer "may contain" (SPEC §7.3). */
-enum class AllergenMatchKind { CONTAINS, MAY_CONTAIN }
+/**
+ * How firmly a scan hit flags a food (SPEC §7.3, docs/ALLERGENS.md): a hard
+ * "contains", a softer "may contain", or the softest "check the label" for foods
+ * that commonly hide the allergen. Never persisted, so adding a value is free.
+ */
+enum class AllergenMatchKind(val rank: Int) {
+    CONTAINS(3),
+    MAY_CONTAIN(2),
+    CHECK_LABEL(1),
+}
