@@ -6,12 +6,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -52,6 +54,8 @@ import com.zeroindex.intake.ui.addfood.AddFoodSheet
 import com.zeroindex.intake.ui.components.AccentNote
 import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.MacroRing
+import com.zeroindex.intake.ui.adaptive.LocalWindowSizeClass
+import com.zeroindex.intake.ui.adaptive.isExpanded
 import com.zeroindex.intake.ui.components.SectionLine
 import com.zeroindex.intake.ui.screens.today.components.HydrationCard
 import com.zeroindex.intake.ui.screens.today.components.InsightCard
@@ -196,80 +200,141 @@ private fun TodayContent(
 ) {
     val swipeThreshold = with(LocalDensity.current) { 64.dp.toPx() }
     var dragged by remember { mutableStateOf(0f) }
-
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxWidth()
-            // SPEC §5: swipe left and right to change days.
-            .pointerInput(Unit) {
-                detectHorizontalDragGestures(
-                    onDragEnd = {
-                        if (abs(dragged) > swipeThreshold) {
-                            if (dragged > 0) onPreviousDay() else onNextDay()
-                        }
-                        dragged = 0f
-                    },
-                ) { _, amount -> dragged += amount }
+    // SPEC §5: swipe left and right to change days.
+    val swipeToChangeDay = Modifier.pointerInput(Unit) {
+        detectHorizontalDragGestures(
+            onDragEnd = {
+                if (abs(dragged) > swipeThreshold) {
+                    if (dragged > 0) onPreviousDay() else onNextDay()
+                }
+                dragged = 0f
             },
-        contentPadding = PaddingValues(
-            top = contentPadding.calculateTopPadding() + 8.dp,
-            bottom = contentPadding.calculateBottomPadding() + 24.dp,
-            start = 16.dp,
-            end = 16.dp,
-        ),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        item(key = "header") {
-            DayHeader(state.date, state.isToday, onPreviousDay, onNextDay, onShowToday)
-        }
-        item(key = "ring") {
-            IntakeCard { MacroRing(progress = state.progress) }
-        }
-        if (state.activityBonusKcal > 0) {
-            item(key = "activity") {
-                Text(
-                    text = "Target includes +${state.activityBonusKcal} kcal from tracked workouts, resting burn already taken out",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.padding(horizontal = 4.dp),
-                )
-            }
-        }
-        item(key = "remaining") { RemainingNote(state) }
-        state.hydration?.let { day ->
-            item(key = "water") {
-                HydrationCard(
-                    day = day,
-                    presets = state.hydrationPresets,
-                    unit = state.settings.volumeUnit,
-                    onPreset = onWaterPreset,
-                    onOpen = onOpenWater,
-                )
-            }
-        }
-        state.insight?.let { insight ->
-            item(key = "insight") { InsightCard(insight, onDismiss = { onDismissInsight(insight) }) }
-        }
-        item(key = "meals-heading") {
-            SectionLine(title = "Meals", note = "Long-press an entry to edit")
-        }
+        ) { _, amount -> dragged += amount }
+    }
 
-        items(items = state.slots, key = { it.slot.name }) { slotUi ->
-            MealSlotCard(
-                slotUi = slotUi,
-                onAdd = { onAddToSlot(slotUi.slot) },
-                onEntryLongPress = onEntryLongPress,
-                onEntrySwipedToCopy = onEntrySwipedToCopy,
-                onSaveAsTemplate = { onSaveTemplate(slotUi.slot) },
+    if (LocalWindowSizeClass.current.isExpanded) {
+        // Amendment §3, mockup `tabletToday()`: the date header spans the top,
+        // then nutrition on the left and meals on the right, each scrolling on
+        // its own so a long day never pushes the other column off screen.
+        val columnPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding() + 24.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(swipeToChangeDay)
+                .padding(
+                    top = contentPadding.calculateTopPadding() + 8.dp,
+                    start = 16.dp,
+                    end = 16.dp,
+                ),
+        ) {
+            DayHeader(state.date, state.isToday, onPreviousDay, onNextDay, onShowToday)
+            Row(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                LazyColumn(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    contentPadding = columnPadding,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    item(key = "nutrition-heading") { SectionLine(title = "Nutrition") }
+                    nutritionItems(state, onWaterPreset, onOpenWater, onDismissInsight)
+                }
+                LazyColumn(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    contentPadding = columnPadding,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    mealItems(
+                        state, onAddToSlot, onEntryLongPress, onEntrySwipedToCopy, onSaveTemplate,
+                    )
+                }
+            }
+        }
+    } else {
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth().then(swipeToChangeDay),
+            contentPadding = PaddingValues(
+                top = contentPadding.calculateTopPadding() + 8.dp,
+                bottom = contentPadding.calculateBottomPadding() + 24.dp,
+                start = 16.dp,
+                end = 16.dp,
+            ),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            item(key = "header") {
+                DayHeader(state.date, state.isToday, onPreviousDay, onNextDay, onShowToday)
+            }
+            nutritionItems(state, onWaterPreset, onOpenWater, onDismissInsight)
+            mealItems(state, onAddToSlot, onEntryLongPress, onEntrySwipedToCopy, onSaveTemplate)
+        }
+    }
+}
+
+/** The macro ring, its notes, water and the daily insight: the "Nutrition" column on a tablet. */
+private fun LazyListScope.nutritionItems(
+    state: TodayUiState,
+    onWaterPreset: (HydrationPresetEntity) -> Unit,
+    onOpenWater: () -> Unit,
+    onDismissInsight: (AiInsightEntity) -> Unit,
+) {
+    item(key = "ring") {
+        IntakeCard { MacroRing(progress = state.progress) }
+    }
+    if (state.activityBonusKcal > 0) {
+        item(key = "activity") {
+            Text(
+                text = "Target includes +${state.activityBonusKcal} kcal from tracked workouts, resting burn already taken out",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.padding(horizontal = 4.dp),
             )
         }
-
-        item(key = "add") {
-            Button(
-                onClick = { onAddToSlot(defaultSlotForNow()) },
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-            ) { Text("Add food") }
+    }
+    item(key = "remaining") { RemainingNote(state) }
+    state.hydration?.let { day ->
+        item(key = "water") {
+            HydrationCard(
+                day = day,
+                presets = state.hydrationPresets,
+                unit = state.settings.volumeUnit,
+                onPreset = onWaterPreset,
+                onOpen = onOpenWater,
+            )
         }
+    }
+    state.insight?.let { insight ->
+        item(key = "insight") { InsightCard(insight, onDismiss = { onDismissInsight(insight) }) }
+    }
+}
+
+/** The meal slot cards and the add button: the "Meals" column on a tablet. */
+private fun LazyListScope.mealItems(
+    state: TodayUiState,
+    onAddToSlot: (MealSlot) -> Unit,
+    onEntryLongPress: (FoodLogEntity) -> Unit,
+    onEntrySwipedToCopy: (FoodLogEntity) -> Unit,
+    onSaveTemplate: (MealSlot) -> Unit,
+) {
+    item(key = "meals-heading") {
+        SectionLine(title = "Meals", note = "Long-press an entry to edit")
+    }
+
+    items(items = state.slots, key = { it.slot.name }) { slotUi ->
+        MealSlotCard(
+            slotUi = slotUi,
+            onAdd = { onAddToSlot(slotUi.slot) },
+            onEntryLongPress = onEntryLongPress,
+            onEntrySwipedToCopy = onEntrySwipedToCopy,
+            onSaveAsTemplate = { onSaveTemplate(slotUi.slot) },
+        )
+    }
+
+    item(key = "add") {
+        Button(
+            onClick = { onAddToSlot(defaultSlotForNow()) },
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+        ) { Text("Add food") }
     }
 }
 

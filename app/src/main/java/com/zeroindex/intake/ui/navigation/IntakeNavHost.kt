@@ -2,6 +2,7 @@ package com.zeroindex.intake.ui.navigation
 
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -34,8 +35,9 @@ import com.zeroindex.intake.ui.screens.workout.ActiveWorkoutScreen
 fun IntakeNavHost(
     navController: NavHostController,
     contentPadding: PaddingValues,
+    modifier: Modifier = Modifier,
 ) {
-    NavHost(navController = navController, startDestination = Route.Today) {
+    NavHost(navController = navController, startDestination = Route.Today, modifier = modifier) {
         composable<Route.Today> {
             TodayScreen(contentPadding, onOpenAiSettings = { navController.navigate(Route.AiSettings) })
         }
