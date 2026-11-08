@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.allergen
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -10,9 +11,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.ui.components.ScreenHeading
+import com.zeroindex.intake.ui.theme.IntakeShape
 
 /**
  * SPEC §7.6: the hidden-allergen checklist and the per-venue eat-out notes,
@@ -67,11 +69,13 @@ fun AllergenReferenceScreen(
 
         state.aliasesByAllergen.forEach { (allergen, terms) ->
             item(key = "allergen-$allergen") {
-                Card(
+                OutlinedCard(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
+                    shape = IntakeShape.Card,
+                    colors = CardDefaults.outlinedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
                     ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 ) {
                     Column(Modifier.padding(16.dp)) {
                         Text(
@@ -117,11 +121,13 @@ fun AllergenReferenceScreen(
                 ScreenHeading("Eating out")
             }
             items(items = state.eatOutOptions, key = { it.id }) { option ->
-                Card(
+                OutlinedCard(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
+                    shape = IntakeShape.Card,
+                    colors = CardDefaults.outlinedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
                     ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 ) {
                     Column(Modifier.padding(16.dp)) {
                         Text(option.venueName, style = MaterialTheme.typography.titleMedium)

@@ -1,9 +1,13 @@
 package com.zeroindex.intake.ui
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,30 +38,50 @@ fun IntakeApp() {
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
             if (!hideBottomBar) {
-                NavigationBar {
-                    TopLevelDestination.entries.forEach { destination ->
-                        val selected = currentDestination?.isIn(destination) == true
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = {
-                                if (!selected) {
-                                    navController.navigate(destination.route) {
-                                        popUpTo(navController.graph.startDestinationId) {
-                                            saveState = true
+                Column {
+                    // The mockup separates the bar from the content with a
+                    // hairline rather than an elevation shadow.
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+                        TopLevelDestination.entries.forEach { destination ->
+                            val selected = currentDestination?.isIn(destination) == true
+                            NavigationBarItem(
+                                selected = selected,
+                                onClick = {
+                                    if (!selected) {
+                                        navController.navigate(destination.route) {
+                                            popUpTo(navController.graph.startDestinationId) {
+                                                saveState = true
+                                            }
+                                            launchSingleTop = true
+                                            restoreState = true
                                         }
-                                        launchSingleTop = true
-                                        restoreState = true
                                     }
-                                }
-                            },
-                            icon = {
-                                // The label is always visible, so a separate
-                                // description would just be read twice.
-                                Icon(imageVector = destination.icon, contentDescription = null)
-                            },
-                            label = { Text(stringResource(destination.labelRes)) },
-                            alwaysShowLabel = true,
-                        )
+                                },
+                                icon = {
+                                    // The label is always visible, so a separate
+                                    // description would just be read twice.
+                                    Icon(
+                                        imageVector = destination.icon,
+                                        contentDescription = null,
+                                    )
+                                },
+                                label = { Text(stringResource(destination.labelRes)) },
+                                alwaysShowLabel = true,
+                                // The mockup's active item is a pale green pill
+                                // behind the icon, in the primary family.
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor =
+                                        MaterialTheme.colorScheme.onPrimaryContainer,
+                                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                    unselectedIconColor =
+                                        MaterialTheme.colorScheme.onSurfaceVariant,
+                                    unselectedTextColor =
+                                        MaterialTheme.colorScheme.onSurfaceVariant,
+                                ),
+                            )
+                        }
                     }
                 }
             }

@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.train
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -10,13 +11,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,6 +33,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.domain.training.OneRepMax
 import com.zeroindex.intake.ui.components.ChartPoint
 import com.zeroindex.intake.ui.components.ScreenHeading
+import com.zeroindex.intake.ui.theme.IntakeShape
 import com.zeroindex.intake.ui.components.TrendLineChart
 import java.time.Instant
 import java.time.ZoneId
@@ -92,11 +94,13 @@ fun WorkoutHistoryScreen(
 
         if (state.selectedExercise != null) {
             item(key = "chart") {
-                Card(
+                OutlinedCard(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
+                    shape = IntakeShape.Card,
+                    colors = CardDefaults.outlinedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
                     ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 ) {
                     Column(Modifier.padding(16.dp)) {
                         Text(
@@ -150,11 +154,13 @@ fun WorkoutHistoryScreen(
         }
 
         items(items = state.sessions, key = { it.id }) { session ->
-            Card(
+            OutlinedCard(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
+                shape = IntakeShape.Card,
+                colors = CardDefaults.outlinedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
                 ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(14.dp),

@@ -39,6 +39,12 @@ data class SettingsUiState(
     val keys: ApiKeyState = ApiKeyState(),
     val avoidedAllergens: Set<String> = emptySet(),
     val allergenSeverity: AllergenSeverity = AllergenSeverity.AVOID,
+    /**
+     * Every term the engine will actually catch for the avoided allergens.
+     * Shown so the profile is auditable: "dairy" alone does not tell you that
+     * casein and lactalbumin are covered.
+     */
+    val knownAllergenTerms: List<String> = emptyList(),
     val usdaTest: KeyTestResult = KeyTestResult.Untested,
     val latestWeightKg: Double? = null,
     val message: String? = null,
@@ -62,22 +68,31 @@ class SettingsViewModel @Inject constructor(
         settingsRepository.settings,
         apiKeyStore.state,
         allergenRepository.observeProfile(),
-        usdaTest,
-        combine(bodyRepository.observeLatest(), message) { latest, msg -> latest to msg },
-    ) { settings, keys, profile, test, latestAndMessage ->
+        allergenRepository.observeAliasesByAllergen(),
+        combine(
+            usdaTest,
+            bodyRepository.observeLatest(),
+            message,
+        ) { test, latest, msg -> Triple(test, latest, msg) },
+    ) { settings, keys, profile, aliases, rest ->
+        val avoided = profile?.avoidedAllergens
+            ?.split(',')
+            ?.map { it.trim().lowercase() }
+            ?.filter { it.isNotEmpty() }
+            ?.toSet()
+            .orEmpty()
         SettingsUiState(
             settings = settings,
             keys = keys,
-            avoidedAllergens = profile?.avoidedAllergens
-                ?.split(',')
-                ?.map { it.trim().lowercase() }
-                ?.filter { it.isNotEmpty() }
-                ?.toSet()
-                .orEmpty(),
+            avoidedAllergens = avoided,
             allergenSeverity = profile?.severityLevel ?: AllergenSeverity.AVOID,
-            usdaTest = test,
-            latestWeightKg = latestAndMessage.first?.weightKg,
-            message = latestAndMessage.second,
+            knownAllergenTerms = avoided
+                .flatMap { allergen -> aliases[allergen].orEmpty() }
+                .distinct()
+                .sorted(),
+            usdaTest = rest.first,
+            latestWeightKg = rest.second?.weightKg,
+            message = rest.third,
         )
     }.stateIn(
         scope = viewModelScope,

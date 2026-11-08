@@ -30,7 +30,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -39,6 +38,17 @@ import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Surface
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.ui.graphics.Color
+import com.zeroindex.intake.ui.components.Eyebrow
+import com.zeroindex.intake.ui.theme.IntakeShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -87,15 +97,55 @@ fun AddFoodSheet(
                     },
                 )
             } else {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 8.dp, bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Add food",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
+                        Icon(Icons.Filled.Close, contentDescription = "Close")
+                    }
+                }
+
                 ScrollableTabRow(
                     selectedTabIndex = AddFoodTab.entries.indexOf(state.tab),
-                    edgePadding = 12.dp,
+                    edgePadding = 14.dp,
+                    containerColor = Color.Transparent,
+                    divider = {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    },
+                    // The mockup's tab marker is a short rounded bar inset from
+                    // the label, not a full-width underline.
+                    indicator = { tabPositions ->
+                        val position = tabPositions[AddFoodTab.entries.indexOf(state.tab)]
+                        Box(
+                            Modifier
+                                .tabIndicatorOffset(position)
+                                .padding(horizontal = 10.dp)
+                                .height(3.dp)
+                                .background(
+                                    color = MaterialTheme.colorScheme.primary,
+                                    shape = RoundedCornerShape(4.dp),
+                                ),
+                        )
+                    },
                 ) {
                     AddFoodTab.entries.forEach { tab ->
                         Tab(
                             selected = state.tab == tab,
                             onClick = { viewModel.selectTab(tab) },
-                            text = { Text(tab.label) },
+                            selectedContentColor = MaterialTheme.colorScheme.primary,
+                            unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            text = {
+                                Text(tab.label, style = MaterialTheme.typography.labelSmall)
+                            },
                         )
                     }
                 }
@@ -232,6 +282,11 @@ private fun FoodList(
     }
 }
 
+/**
+ * The mockup's `.food-row`: an initial tile, the name over its portion and
+ * meal, and the energy right-aligned. The initial stands in for the mockup's
+ * emoji - it needs no food-to-glyph mapping and never shows the wrong picture.
+ */
 @Composable
 private fun FoodRow(
     food: FoodEntity,
@@ -240,46 +295,91 @@ private fun FoodRow(
     onToggleFavorite: (FoodEntity) -> Unit,
 ) {
     val perServing = food.servingSizeGrams / 100.0
-    ListItem(
-        headlineContent = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(food.name, modifier = Modifier.weight(1f, fill = false))
-                if (isSafe) {
-                    Spacer(Modifier.size(6.dp))
-                    // SPEC §7.5: a green check on foods logged 3+ times clean.
-                    Icon(
-                        imageVector = Icons.Filled.CheckCircle,
-                        contentDescription = "Logged before with no allergen flag",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp),
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 65.dp)
+                .clickable(onClickLabel = "Choose a portion of ${food.name}") { onPick(food) }
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                color = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                shape = IntakeShape.Tile,
+                modifier = Modifier.size(38.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = food.name.trim().take(1).uppercase(),
+                        style = MaterialTheme.typography.titleMedium,
                     )
                 }
             }
-        },
-        supportingContent = {
-            Text(
-                buildString {
-                    food.brand?.let { append("$it · ") }
-                    append("${(food.kcalPer100g * perServing).roundToInt()} kcal")
-                    append(" · ${(food.proteinPer100g * perServing).roundToInt()} g protein")
-                    append(" per ${food.servingLabel}")
-                },
-            )
-        },
-        trailingContent = {
+            Spacer(Modifier.size(11.dp))
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = food.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    if (isSafe) {
+                        Spacer(Modifier.size(5.dp))
+                        // SPEC §7.5: a check on foods logged 3+ times clean.
+                        Icon(
+                            imageVector = Icons.Filled.CheckCircle,
+                            contentDescription = "Logged before with no allergen flag",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(14.dp),
+                        )
+                    }
+                }
+                Spacer(Modifier.size(2.dp))
+                Text(
+                    text = buildString {
+                        food.brand?.let { append("$it · ") }
+                        append(food.servingLabel)
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+            }
+            Spacer(Modifier.size(8.dp))
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = "${(food.kcalPer100g * perServing).roundToInt()}",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = "kcal · ${(food.proteinPer100g * perServing).roundToInt()}g P",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             IconButton(onClick = { onToggleFavorite(food) }, modifier = Modifier.size(48.dp)) {
                 Icon(
-                    imageVector = if (food.isFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                    imageVector = if (food.isFavorite) {
+                        Icons.Filled.Star
+                    } else {
+                        Icons.Outlined.StarBorder
+                    },
                     contentDescription = if (food.isFavorite) {
                         "Remove ${food.name} from favourites"
                     } else {
                         "Add ${food.name} to favourites"
                     },
+                    modifier = Modifier.size(19.dp),
                 )
             }
-        },
-        modifier = Modifier.clickable { onPick(food) },
-    )
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    }
 }
 
 @Composable
@@ -291,20 +391,35 @@ private fun SearchTab(
     onToggleFavorite: (FoodEntity) -> Unit,
 ) {
     Column {
-        OutlinedTextField(
+        TextField(
             value = state.query,
             onValueChange = onQueryChange,
-            label = { Text("Search foods") },
-            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+            placeholder = {
+                Text("Search foods", style = MaterialTheme.typography.bodyMedium)
+            },
+            leadingIcon = {
+                Icon(
+                    Icons.Filled.Search,
+                    contentDescription = null,
+                    modifier = Modifier.size(19.dp),
+                )
+            },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            shape = IntakeShape.Field,
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                disabledIndicatorColor = Color.Transparent,
+            ),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
         )
 
         // SPEC §5.1: local results first, above anything remote.
         if (state.localResults.isNotEmpty()) {
-            Text(
+            Eyebrow(
                 text = "On this phone",
-                style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier.padding(start = 16.dp, bottom = 4.dp),
             )
             LazyColumn(modifier = Modifier.heightIn(max = 220.dp)) {

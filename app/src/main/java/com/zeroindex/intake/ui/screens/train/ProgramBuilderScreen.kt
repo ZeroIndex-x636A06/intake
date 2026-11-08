@@ -2,6 +2,7 @@
 
 package com.zeroindex.intake.ui.screens.train
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -21,6 +22,7 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -37,6 +39,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.domain.model.ProgressionType
 import com.zeroindex.intake.ui.components.ScreenHeading
+import com.zeroindex.intake.ui.theme.IntakeShape
 
 @Composable
 fun ProgramBuilderScreen(
@@ -62,6 +65,7 @@ fun ProgramBuilderScreen(
             item(key = "message") {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
+                    shape = IntakeShape.Banner,
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                     ),
@@ -398,11 +402,13 @@ private fun RulesSection(state: ProgramBuilderUiState, viewModel: ProgramBuilder
 
 @Composable
 private fun Section(title: String, content: @Composable () -> Unit) {
-    Card(
+    OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
+        shape = IntakeShape.Card,
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
         ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(Modifier.padding(16.dp)) {
             Text(

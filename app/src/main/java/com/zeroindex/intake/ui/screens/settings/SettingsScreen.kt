@@ -1,6 +1,7 @@
 package com.zeroindex.intake.ui.screens.settings
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -11,12 +12,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,7 +35,14 @@ import com.zeroindex.intake.domain.model.AllergenSeverity
 import com.zeroindex.intake.domain.units.LengthUnit
 import com.zeroindex.intake.domain.units.UnitConverter
 import com.zeroindex.intake.domain.units.WeightUnit
-import com.zeroindex.intake.ui.components.ScreenHeading
+import com.zeroindex.intake.ui.components.ChoiceChip
+import com.zeroindex.intake.ui.components.Eyebrow
+import com.zeroindex.intake.ui.components.SectionCard
+import com.zeroindex.intake.ui.components.Segmented
+import com.zeroindex.intake.ui.components.SettingRow
+import com.zeroindex.intake.ui.components.SubHead
+import com.zeroindex.intake.ui.components.Tag
+import com.zeroindex.intake.ui.theme.IntakeShape
 
 @Composable
 fun SettingsScreen(
@@ -57,61 +63,70 @@ fun SettingsScreen(
         ),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        item(key = "heading") { ScreenHeading("Settings") }
+        item(key = "heading") {
+            SubHead("Settings", "Everything here stays on this phone.")
+        }
 
         state.message?.let { message ->
             item(key = "message") {
-                Card(
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    shape = IntakeShape.Banner,
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    ),
                 ) {
                     Column(Modifier.padding(14.dp)) {
-                        Text(message, style = MaterialTheme.typography.bodyMedium)
-                        Spacer(Modifier.height(6.dp))
-                        OutlinedButton(onClick = viewModel::clearMessage) { Text("Dismiss") }
+                        Text(message, style = MaterialTheme.typography.bodySmall)
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = viewModel::clearMessage,
+                            shape = IntakeShape.Chip,
+                        ) { Text("Dismiss") }
                     }
                 }
             }
         }
 
-        item(key = "units") {
-            Section("Units") {
-                Text(
-                    text = "Stored in kilograms and centimetres whatever you pick here, so " +
-                        "switching never rewrites your history.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(8.dp))
-                ChipRow(
-                    options = WeightUnit.entries.map { it to it.label },
-                    selected = settings.weightUnit,
-                    onSelect = viewModel::setWeightUnit,
-                )
-                Spacer(Modifier.height(6.dp))
-                ChipRow(
-                    options = LengthUnit.entries.map { it to it.label },
-                    selected = settings.lengthUnit,
-                    onSelect = viewModel::setLengthUnit,
-                )
-            }
-        }
-
-        item(key = "theme") {
-            Section("Appearance") {
-                ChipRow(
-                    options = ThemeMode.entries.map {
-                        it to it.name.lowercase().replaceFirstChar(Char::uppercase)
-                    },
-                    selected = settings.themeMode,
-                    onSelect = viewModel::setThemeMode,
-                )
+        // The mockup puts units and theme in segmented controls: with two or
+        // three options each, showing them all is one tap and no guessing.
+        item(key = "preferences") {
+            Section("Preferences") {
+                SettingRow(title = "Weight", subtitle = "Display unit") {
+                    Segmented(
+                        options = WeightUnit.entries.map { it.label },
+                        selectedIndex = WeightUnit.entries.indexOf(settings.weightUnit),
+                        onSelect = { viewModel.setWeightUnit(WeightUnit.entries[it]) },
+                    )
+                }
+                SettingRow(title = "Length", subtitle = "Display unit") {
+                    Segmented(
+                        options = LengthUnit.entries.map { it.label },
+                        selectedIndex = LengthUnit.entries.indexOf(settings.lengthUnit),
+                        onSelect = { viewModel.setLengthUnit(LengthUnit.entries[it]) },
+                    )
+                }
+                SettingRow(title = "Theme", subtitle = "App appearance") {
+                    Segmented(
+                        options = ThemeMode.entries.map {
+                            it.name.lowercase().replaceFirstChar(Char::uppercase)
+                        },
+                        selectedIndex = ThemeMode.entries.indexOf(settings.themeMode),
+                        onSelect = { viewModel.setThemeMode(ThemeMode.entries[it]) },
+                    )
+                }
                 SwitchRow(
                     label = "Use wallpaper colours",
+                    subtitle = "Overrides the designed palette",
                     checked = settings.dynamicColor,
                     onChange = viewModel::setDynamicColor,
+                    showDivider = false,
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Weights are stored in kilograms and lengths in centimetres whatever " +
+                        "you pick here, so switching never rewrites your history.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -157,6 +172,7 @@ fun SettingsScreen(
                 AllergenEditor(
                     avoided = state.avoidedAllergens,
                     severity = state.allergenSeverity,
+                    knownTerms = state.knownAllergenTerms,
                     onChange = viewModel::setAvoidedAllergens,
                     onAddAlias = viewModel::addAlias,
                 )
@@ -260,21 +276,7 @@ fun SettingsScreen(
 
 @Composable
 private fun Section(title: String, content: @Composable () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
-        ),
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(bottom = 8.dp),
-            )
-            content()
-        }
-    }
+    SectionCard(title = title) { content() }
 }
 
 @Composable
@@ -283,24 +285,26 @@ private fun <T> ChipRow(
     selected: T,
     onSelect: (T) -> Unit,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
         options.forEach { (value, label) ->
-            FilterChip(
+            ChoiceChip(
+                label = label,
                 selected = value == selected,
                 onClick = { onSelect(value) },
-                label = { Text(label) },
             )
         }
     }
 }
 
 @Composable
-private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+private fun SwitchRow(
+    label: String,
+    checked: Boolean,
+    onChange: (Boolean) -> Unit,
+    subtitle: String? = null,
+    showDivider: Boolean = true,
+) {
+    SettingRow(title = label, subtitle = subtitle, showDivider = showDivider) {
         Switch(checked = checked, onCheckedChange = onChange)
     }
 }
@@ -396,23 +400,25 @@ private fun KeyField(
 ) {
     var text by remember { mutableStateOf("") }
     Column(Modifier.fillMaxWidth()) {
-        Text(label, style = MaterialTheme.typography.bodyLarge)
+        Eyebrow("$label · optional")
+        Spacer(Modifier.height(4.dp))
         Text(
-            text = if (hasKey) "A key is saved." else "No key saved.",
-            style = MaterialTheme.typography.bodySmall,
+            text = if (hasKey) "A key is saved on this device." else "No key saved.",
+            style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(6.dp))
         OutlinedTextField(
             value = text,
             onValueChange = { text = it },
-            label = { Text("Paste key") },
+            placeholder = { Text("Paste key", style = MaterialTheme.typography.bodySmall) },
             singleLine = true,
+            shape = IntakeShape.Field,
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
         )
         Row(
-            modifier = Modifier.padding(top = 6.dp),
+            modifier = Modifier.padding(top = 7.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             OutlinedButton(
@@ -421,15 +427,20 @@ private fun KeyField(
                     text = ""
                 },
                 enabled = text.isNotBlank(),
+                shape = IntakeShape.Chip,
             ) { Text("Save") }
             if (hasKey) {
-                OutlinedButton(onClick = { onSave(null) }) { Text("Clear") }
+                OutlinedButton(
+                    onClick = { onSave(null) },
+                    shape = IntakeShape.Chip,
+                ) { Text("Clear") }
             }
             if (onTest != null && hasKey) {
                 OutlinedButton(
                     onClick = onTest,
                     enabled = testResult !is KeyTestResult.Testing,
-                ) { Text("Test") }
+                    shape = IntakeShape.Chip,
+                ) { Text("Test connection") }
             }
         }
         when (testResult) {
@@ -456,6 +467,7 @@ private fun KeyField(
 private fun AllergenEditor(
     avoided: Set<String>,
     severity: AllergenSeverity,
+    knownTerms: List<String>,
     onChange: (Set<String>, AllergenSeverity) -> Unit,
     onAddAlias: (String, String) -> Unit,
 ) {
@@ -464,27 +476,60 @@ private fun AllergenEditor(
     var aliasTerm by remember { mutableStateOf("") }
 
     Column {
+        // The mockup gives the active profile its own clay block, so what is
+        // being blocked is visible before any of the controls that change it.
+        if (avoided.isNotEmpty()) {
+            Surface(
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+                shape = IntakeShape.Banner,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(12.dp)) {
+                    Text(
+                        text = avoided.joinToString(", ") {
+                            it.replaceFirstChar(Char::uppercase)
+                        } + " · " + severity.name.lowercase(),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "Confirmed ingredients block saving. Possible traces are shown " +
+                            "as an amber review you have to answer.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (knownTerms.isNotEmpty()) {
+                        Spacer(Modifier.height(8.dp))
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                            knownTerms.forEach { term -> Tag(term) }
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+        }
+
         Text(
             text = "Every food entering the app is checked against these, from any path.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(8.dp))
-        common.chunked(3).forEach { row ->
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                row.forEach { name ->
-                    FilterChip(
-                        selected = name in avoided,
-                        onClick = {
-                            val next = if (name in avoided) avoided - name else avoided + name
-                            onChange(next, severity)
-                        },
-                        label = { Text(name) },
-                    )
-                }
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            common.forEach { name ->
+                ChoiceChip(
+                    label = name,
+                    selected = name in avoided,
+                    onClick = {
+                        val next = if (name in avoided) avoided - name else avoided + name
+                        onChange(next, severity)
+                    },
+                )
             }
         }
 
@@ -498,7 +543,7 @@ private fun AllergenEditor(
         )
 
         Spacer(Modifier.height(12.dp))
-        Text("Add a term the engine should catch", style = MaterialTheme.typography.labelLarge)
+        Eyebrow("Add a term the engine should catch")
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
