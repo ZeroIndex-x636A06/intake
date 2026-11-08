@@ -32,6 +32,7 @@ enum class AddFoodTab(val label: String) {
     RECENTS("Recents"),
     SEARCH("Search"),
     BARCODE("Barcode"),
+    PHOTO("Photo"),
     QUICK_ADD("Quick add"),
     MY_FOODS("My foods"),
 }

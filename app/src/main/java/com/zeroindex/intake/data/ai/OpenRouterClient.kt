@@ -302,5 +302,7 @@ sealed class AiError(override val message: String) : Exception(message) {
     )
     data class Network(val detail: String) : AiError("Could not reach OpenRouter. Everything else still works offline.")
     data class Server(val code: Int, val detail: String) : AiError("OpenRouter returned an error ($code). Try again shortly.")
-    data class BadResponse(val detail: String) : AiError("The model's answer could not be read: $detail.")
+    /** [raw] is the model's reply, kept so the UI can show it (SPEC §6.5). */
+    data class BadResponse(val detail: String, val raw: String? = null) :
+        AiError("The model's answer could not be read: $detail.")
 }

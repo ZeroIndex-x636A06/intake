@@ -87,7 +87,7 @@ class AiGateway @Inject constructor(
             ),
         )
         val value = decode(serializer, retry.content)
-            ?: throw AiError.BadResponse("it did not match the expected format")
+            ?: throw AiError.BadResponse("it did not match the expected format", raw = retry.content)
         return AiOutcome(value, retry.copy(costUsd = sum(first.costUsd, retry.costUsd)))
     }
 

@@ -64,6 +64,7 @@ import com.zeroindex.intake.data.db.entity.FoodEntity
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nutrition.Macros
 import com.zeroindex.intake.ui.allergen.AllergenWarningSheet
+import com.zeroindex.intake.ui.photo.PhotoEstimateFlow
 import com.zeroindex.intake.ui.barcode.BarcodeScannerView
 import kotlin.math.roundToInt
 
@@ -76,6 +77,7 @@ fun AddFoodSheet(
     mealSlot: MealSlot,
     loggedAtMillis: Long,
     onDismiss: () -> Unit,
+    onOpenAiSettings: () -> Unit = {},
     viewModel: AddFoodViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -186,6 +188,18 @@ fun AddFoodSheet(
                                 barcode = barcode,
                             ) { created -> portionFor = created }
                         },
+                    )
+
+                    AddFoodTab.PHOTO -> PhotoEstimateFlow(
+                        slot = mealSlot,
+                        slotLabel = mealSlot.name.lowercase().replaceFirstChar(Char::uppercase),
+                        loggedAtMillis = loggedAtMillis,
+                        onOpenAiSettings = {
+                            onDismiss()
+                            onOpenAiSettings()
+                        },
+                        onManualEntry = { viewModel.selectTab(AddFoodTab.QUICK_ADD) },
+                        onDone = onDismiss,
                     )
 
                     AddFoodTab.QUICK_ADD -> QuickAddTab(

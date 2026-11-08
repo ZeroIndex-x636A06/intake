@@ -39,6 +39,9 @@ class AllergenRepository @Inject constructor(
 
     suspend fun profile(): AllergenProfileEntity? = allergenDao.profile()
 
+    /** The allergens the user avoids, lower-cased. */
+    suspend fun avoidedAllergens(): Set<String> = allergenDao.profile().avoidedSet()
+
     suspend fun aliases(): List<AllergenAliasEntity> = allergenDao.aliases()
 
     suspend fun setProfile(avoided: Set<String>, severity: AllergenSeverity, notes: String) {

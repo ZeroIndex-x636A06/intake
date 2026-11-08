@@ -63,6 +63,7 @@ import kotlinx.coroutines.launch
 fun TodayScreen(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
+    onOpenAiSettings: () -> Unit = {},
     viewModel: TodayViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -133,6 +134,7 @@ fun TodayScreen(
             mealSlot = slot,
             loggedAtMillis = viewModel.timestampForSelectedDay(),
             onDismiss = { addToSlot = null },
+            onOpenAiSettings = onOpenAiSettings,
         )
     }
 

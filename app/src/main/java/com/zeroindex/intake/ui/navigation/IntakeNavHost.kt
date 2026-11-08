@@ -28,7 +28,9 @@ fun IntakeNavHost(
     contentPadding: PaddingValues,
 ) {
     NavHost(navController = navController, startDestination = Route.Today) {
-        composable<Route.Today> { TodayScreen(contentPadding) }
+        composable<Route.Today> {
+            TodayScreen(contentPadding, onOpenAiSettings = { navController.navigate(Route.AiSettings) })
+        }
         composable<Route.Plan> {
             PlanScreen(
                 contentPadding = contentPadding,
