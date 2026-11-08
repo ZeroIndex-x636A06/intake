@@ -1,10 +1,10 @@
 package com.zeroindex.intake.data.seed
 
 import com.zeroindex.intake.data.db.entity.FoodEntity
-import com.zeroindex.intake.data.db.entity.newId
+import com.zeroindex.intake.data.db.entity.SEED_TIMESTAMP
+import com.zeroindex.intake.data.db.entity.seedId
 import com.zeroindex.intake.data.repository.FoodRepository
 import com.zeroindex.intake.domain.model.FoodSource
-import com.zeroindex.intake.domain.time.Clock
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -19,7 +19,6 @@ import javax.inject.Singleton
 @Singleton
 class FoodSeed @Inject constructor(
     private val foodRepository: FoodRepository,
-    private val clock: Clock,
 ) {
     /** Returns name -> food for the recipe seeder to reference. */
     suspend fun ensureStaples(): Map<String, FoodEntity> {
@@ -27,10 +26,10 @@ class FoodSeed @Inject constructor(
         if (existing.size >= STAPLES.size) return existing.associateBy { it.name }
 
         val byName = existing.associateBy { it.name }.toMutableMap()
-        val now = clock.nowMillis()
+        val now = SEED_TIMESTAMP
         val toCreate = STAPLES.filter { it.name !in byName }.map { staple ->
             FoodEntity(
-                id = newId(),
+                id = seedId("food", staple.name),
                 name = staple.name,
                 brand = null,
                 servingSizeGrams = staple.servingGrams,

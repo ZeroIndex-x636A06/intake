@@ -19,3 +19,20 @@ interface Audited {
 
 /** Fresh UUID for a new row. */
 fun newId(): String = UUID.randomUUID().toString()
+
+/**
+ * The id of a row the app seeds itself (starter exercises, default presets).
+ * Derived from what the row is, not random, so two devices that each seed on
+ * first launch create the *same* rows and sync merges them instead of
+ * showing every starter exercise twice (amendment §3).
+ */
+/**
+ * createdAt / updatedAt for seeded rows: a fixed instant (2026-01-01 UTC)
+ * rather than "now". A device seeding today must never out-date an edit the
+ * user made on another device yesterday - with "now", a new tablet's default
+ * allergen profile would win the sync over the one the user set up.
+ */
+const val SEED_TIMESTAMP: Long = 1_767_225_600_000L
+
+fun seedId(kind: String, key: String): String =
+    UUID.nameUUIDFromBytes("intake-seed:$kind:${key.trim().lowercase()}".toByteArray()).toString()

@@ -44,7 +44,7 @@ class IntakeDatabaseTest {
             ApplicationProvider.getApplicationContext(),
             IntakeDatabase::class.java,
         )
-            .addCallback(IntakeDatabase.seedCallback { now })
+            .addCallback(IntakeDatabase.seedCallback())
             .allowMainThreadQueries()
             .build()
     }

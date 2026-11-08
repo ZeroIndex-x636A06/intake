@@ -30,6 +30,7 @@ import com.zeroindex.intake.data.db.entity.AiInsightEntity
 import com.zeroindex.intake.data.db.entity.AllergenAliasEntity
 import com.zeroindex.intake.data.db.entity.AllergenProfileEntity
 import com.zeroindex.intake.data.db.entity.BackupRunEntity
+import com.zeroindex.intake.data.db.entity.SEED_TIMESTAMP
 import com.zeroindex.intake.data.db.entity.SyncConflictEntity
 import com.zeroindex.intake.data.db.entity.BodyMetricEntity
 import com.zeroindex.intake.data.db.entity.EatOutOptionEntity
@@ -133,10 +134,10 @@ abstract class IntakeDatabase : RoomDatabase() {
         const val NAME = "intake.db"
 
         /** Seeds the allergen alias table the moment the database is created. */
-        fun seedCallback(nowProvider: () -> Long = System::currentTimeMillis): Callback =
+        fun seedCallback(): Callback =
             object : Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
-                    AllergenSeed.seed(db, nowProvider())
+                    AllergenSeed.seed(db, SEED_TIMESTAMP)
                 }
             }
     }

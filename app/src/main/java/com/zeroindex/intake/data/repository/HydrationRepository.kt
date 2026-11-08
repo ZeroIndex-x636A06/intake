@@ -4,6 +4,8 @@ import com.zeroindex.intake.data.db.dao.HealthSummaryDao
 import com.zeroindex.intake.data.db.dao.HydrationDao
 import com.zeroindex.intake.data.db.entity.HydrationLogEntity
 import com.zeroindex.intake.data.db.entity.HydrationPresetEntity
+import com.zeroindex.intake.data.db.entity.SEED_TIMESTAMP
+import com.zeroindex.intake.data.db.entity.seedId
 import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.hydration.HydrationTarget
 import com.zeroindex.intake.domain.time.Clock
@@ -103,7 +105,7 @@ class HydrationRepository @Inject constructor(
      */
     suspend fun ensureDefaultPresets() {
         if (dao.presetRowCount() > 0) return
-        val now = clock.nowMillis()
+        val now = SEED_TIMESTAMP
         val oz = VolumeUnit.US_FLUID_OUNCES
         dao.upsertPresets(
             listOf(
@@ -112,6 +114,7 @@ class HydrationRepository @Inject constructor(
                 Triple("Shaker", oz.toMl(24.0), 2),
             ).map { (name, ml, order) ->
                 HydrationPresetEntity(
+                    id = seedId("hydration-preset", name),
                     name = name,
                     volumeMl = ml,
                     displayOrder = order,

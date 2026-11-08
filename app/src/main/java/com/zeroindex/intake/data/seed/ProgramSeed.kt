@@ -3,9 +3,10 @@ package com.zeroindex.intake.data.seed
 import com.zeroindex.intake.data.db.entity.ExerciseEntity
 import com.zeroindex.intake.data.db.entity.ProgressionRuleEntity
 import com.zeroindex.intake.data.db.entity.newId
+import com.zeroindex.intake.data.db.entity.SEED_TIMESTAMP
+import com.zeroindex.intake.data.db.entity.seedId
 import com.zeroindex.intake.data.repository.TrainingRepository
 import com.zeroindex.intake.domain.model.ProgressionType
-import com.zeroindex.intake.domain.time.Clock
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -17,15 +18,14 @@ import javax.inject.Singleton
 @Singleton
 class ProgramSeed @Inject constructor(
     private val repository: TrainingRepository,
-    private val clock: Clock,
 ) {
     suspend fun ensureExerciseLibrary(): List<ExerciseEntity> {
         val existing = repository.exercises()
         if (existing.isNotEmpty()) return existing
-        val now = clock.nowMillis()
+        val now = SEED_TIMESTAMP
         val library = LIBRARY.map { (name, muscle, equipment, bodyweight) ->
             ExerciseEntity(
-                id = newId(),
+                id = seedId("exercise", name),
                 name = name,
                 primaryMuscle = muscle,
                 equipment = equipment,
@@ -42,10 +42,10 @@ class ProgramSeed @Inject constructor(
     suspend fun ensureRules(): Map<ProgressionType, ProgressionRuleEntity> {
         val existing = repository.rules()
         if (existing.isNotEmpty()) return existing.associateBy { it.type }
-        val now = clock.nowMillis()
+        val now = SEED_TIMESTAMP
         val rules = listOf(
             ProgressionRuleEntity(
-                id = newId(),
+                id = seedId("progression-rule", "LINEAR"),
                 name = "Linear, +2.5 kg",
                 type = ProgressionType.LINEAR,
                 params = """{"incrementKg":2.5,"deloadPercent":10,"failuresBeforeDeload":2}""",
@@ -53,7 +53,7 @@ class ProgramSeed @Inject constructor(
                 updatedAt = now,
             ),
             ProgressionRuleEntity(
-                id = newId(),
+                id = seedId("progression-rule", "DOUBLE_PROGRESSION"),
                 name = "Double progression",
                 type = ProgressionType.DOUBLE_PROGRESSION,
                 params = """{"incrementKg":2.5}""",
@@ -61,7 +61,7 @@ class ProgramSeed @Inject constructor(
                 updatedAt = now,
             ),
             ProgressionRuleEntity(
-                id = newId(),
+                id = seedId("progression-rule", "RPE_BASED"),
                 name = "RPE 8 target",
                 type = ProgressionType.RPE_BASED,
                 params = "{}",
