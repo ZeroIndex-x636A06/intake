@@ -33,7 +33,7 @@ import kotlinx.coroutines.launch
 
 /** One immutable state object per screen (SPEC §2). */
 data class TodayUiState(
-    val date: LocalDate = LocalDate.EPOCH,
+    val date: LocalDate = LocalDate.ofEpochDay(0),
     val isToday: Boolean = true,
     val isFuture: Boolean = false,
     val progress: DayProgress = DayProgress(Macros.ZERO, null),

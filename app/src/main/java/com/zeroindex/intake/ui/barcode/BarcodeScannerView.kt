@@ -196,7 +196,7 @@ private class BarcodeAnalyzer(
 
     @Volatile private var delivered = false
 
-    @OptIn(ExperimentalGetImage::class)
+    @ExperimentalGetImage
     override fun analyze(imageProxy: ImageProxy) {
         if (delivered) {
             imageProxy.close()

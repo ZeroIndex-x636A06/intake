@@ -30,7 +30,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 data class ReportUiState(
-    val weekStart: LocalDate = LocalDate.EPOCH,
+    val weekStart: LocalDate = LocalDate.ofEpochDay(0),
     val isCurrentWeek: Boolean = true,
     val pages: List<Bitmap> = emptyList(),
     val file: File? = null,

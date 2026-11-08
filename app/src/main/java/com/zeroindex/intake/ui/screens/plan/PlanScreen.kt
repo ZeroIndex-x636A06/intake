@@ -77,6 +77,7 @@ import com.zeroindex.intake.ui.components.StatusPill
 import com.zeroindex.intake.ui.components.SubHead
 import com.zeroindex.intake.ui.components.Tag
 import com.zeroindex.intake.ui.theme.IntakeShape
+import java.io.ByteArrayOutputStream
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -347,8 +348,18 @@ fun PlanScreen(
 
 private fun readPlanFile(context: Context, uri: Uri): String? = runCatching {
     context.contentResolver.openInputStream(uri)?.use { input ->
-        val bytes = input.readNBytes(PlanFileParser.MAX_BYTES + 1)
-        if (bytes.size > PlanFileParser.MAX_BYTES) null else bytes.toString(Charsets.UTF_8)
+        // Bounded copy instead of InputStream.readNBytes, which needs API 33.
+        val out = ByteArrayOutputStream()
+        val buffer = ByteArray(8 * 1024)
+        var total = 0
+        while (true) {
+            val n = input.read(buffer)
+            if (n < 0) break
+            total += n
+            if (total > PlanFileParser.MAX_BYTES) return@use null
+            out.write(buffer, 0, n)
+        }
+        out.toByteArray().toString(Charsets.UTF_8)
     }
 }.getOrNull()
 
