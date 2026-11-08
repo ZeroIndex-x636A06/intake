@@ -1,19 +1,246 @@
 package com.zeroindex.intake.ui.screens.today
 
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.zeroindex.intake.ui.components.EmptyState
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.zeroindex.intake.data.db.entity.FoodLogEntity
+import com.zeroindex.intake.domain.model.MealSlot
+import com.zeroindex.intake.ui.addfood.AddFoodSheet
+import com.zeroindex.intake.ui.components.MacroRing
+import com.zeroindex.intake.ui.screens.today.components.MealSlotCard
+import com.zeroindex.intake.ui.theme.CarbAccent
+import com.zeroindex.intake.ui.theme.FatAccent
+import com.zeroindex.intake.ui.theme.ProteinAccent
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import kotlin.math.abs
 
 @Composable
 fun TodayScreen(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
+    viewModel: TodayViewModel = hiltViewModel(),
 ) {
-    EmptyState(
-        title = "Today",
-        body = "Macro ring, meal slots and the add-food paths.",
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    var addToSlot by remember { mutableStateOf<MealSlot?>(null) }
+    var actionsFor by remember { mutableStateOf<FoodLogEntity?>(null) }
+    var copyTarget by remember { mutableStateOf<FoodLogEntity?>(null) }
+
+    TodayContent(
+        state = state,
         contentPadding = contentPadding,
         modifier = modifier,
+        onPreviousDay = viewModel::showPreviousDay,
+        onNextDay = viewModel::showNextDay,
+        onShowToday = viewModel::showToday,
+        onAddToSlot = { addToSlot = it },
+        onEntryLongPress = { actionsFor = it },
+        onEntrySwipedToCopy = { copyTarget = it },
     )
+
+    addToSlot?.let { slot ->
+        AddFoodSheet(
+            mealSlot = slot,
+            loggedAtMillis = viewModel.timestampForSelectedDay(),
+            onDismiss = { addToSlot = null },
+        )
+    }
+
+    actionsFor?.let { entry ->
+        LogEntryActionsSheet(
+            entry = entry,
+            onDismiss = { actionsFor = null },
+            onDelete = { viewModel.deleteLog(entry); actionsFor = null },
+            onQuantityChange = { grams -> viewModel.updateQuantity(entry, grams); actionsFor = null },
+            onMoveToSlot = { slot -> viewModel.moveLogToSlot(entry, slot); actionsFor = null },
+            onCopyToSlot = { slot -> viewModel.copyLogToSlot(entry, slot); actionsFor = null },
+        )
+    }
+
+    copyTarget?.let { entry ->
+        SlotPickerSheet(
+            title = "Copy \"${entry.foodNameAtLog}\" to",
+            onDismiss = { copyTarget = null },
+            onPick = { slot -> viewModel.copyLogToSlot(entry, slot); copyTarget = null },
+        )
+    }
+}
+
+@Composable
+private fun TodayContent(
+    state: TodayUiState,
+    contentPadding: PaddingValues,
+    modifier: Modifier = Modifier,
+    onPreviousDay: () -> Unit,
+    onNextDay: () -> Unit,
+    onShowToday: () -> Unit,
+    onAddToSlot: (MealSlot) -> Unit,
+    onEntryLongPress: (FoodLogEntity) -> Unit,
+    onEntrySwipedToCopy: (FoodLogEntity) -> Unit,
+) {
+    val swipeThreshold = with(LocalDensity.current) { 64.dp.toPx() }
+    var dragged by remember { mutableStateOf(0f) }
+
+    LazyColumn(
+        modifier = modifier
+            .fillMaxWidth()
+            // SPEC §5: swipe left and right to change days.
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        if (abs(dragged) > swipeThreshold) {
+                            if (dragged > 0) onPreviousDay() else onNextDay()
+                        }
+                        dragged = 0f
+                    },
+                ) { _, amount -> dragged += amount }
+            },
+        contentPadding = PaddingValues(
+            top = contentPadding.calculateTopPadding() + 8.dp,
+            bottom = contentPadding.calculateBottomPadding() + 24.dp,
+            start = 16.dp,
+            end = 16.dp,
+        ),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        item(key = "header") {
+            DayHeader(state.date, state.isToday, onPreviousDay, onNextDay, onShowToday)
+        }
+        item(key = "ring") {
+            Spacer(Modifier.height(4.dp))
+            MacroRing(
+                progress = state.progress,
+                proteinColor = ProteinAccent,
+                carbColor = CarbAccent,
+                fatColor = FatAccent,
+            )
+        }
+        item(key = "remaining") { RemainingLine(state) }
+
+        items(items = state.slots, key = { it.slot.name }) { slotUi ->
+            MealSlotCard(
+                slotUi = slotUi,
+                onAdd = { onAddToSlot(slotUi.slot) },
+                onEntryLongPress = onEntryLongPress,
+                onEntrySwipedToCopy = onEntrySwipedToCopy,
+            )
+        }
+
+        item(key = "add") {
+            Button(
+                onClick = { onAddToSlot(defaultSlotForNow()) },
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+            ) { Text("Add food") }
+        }
+    }
+}
+
+@Composable
+private fun DayHeader(
+    date: LocalDate,
+    isToday: Boolean,
+    onPreviousDay: () -> Unit,
+    onNextDay: () -> Unit,
+    onShowToday: () -> Unit,
+) {
+    val formatter = remember { DateTimeFormatter.ofPattern("EEEE d MMMM") }
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = onPreviousDay, modifier = Modifier.size(48.dp)) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous day")
+        }
+        Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = if (isToday) "Today" else date.format(formatter),
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.semantics { heading() },
+            )
+            if (!isToday) {
+                AssistChip(onClick = onShowToday, label = { Text("Back to today") })
+            }
+        }
+        IconButton(onClick = onNextDay, modifier = Modifier.size(48.dp)) {
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next day")
+        }
+    }
+}
+
+/**
+ * SPEC §5: remaining calories *and* remaining protein, because "120 g of
+ * protein left with 400 calories" is the framing you can act on.
+ */
+@Composable
+private fun RemainingLine(state: TodayUiState) {
+    val kcalLeft = state.progress.kcalRemaining
+    val proteinLeft = state.progress.proteinRemaining
+
+    val text = when {
+        kcalLeft == null || proteinLeft == null ->
+            "No calorie target set yet. Set one in More, or let the app work it out from two " +
+                "weeks of weigh-ins."
+        kcalLeft >= 0 && proteinLeft > 0 ->
+            "$proteinLeft g of protein left, with $kcalLeft kcal to spend."
+        kcalLeft >= 0 -> "Protein target met. $kcalLeft kcal left."
+        proteinLeft > 0 ->
+            "$proteinLeft g of protein still to go, and ${abs(kcalLeft)} kcal over."
+        else -> "Protein met, ${abs(kcalLeft)} kcal over target."
+    }
+
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = FontWeight.Medium,
+        color = if (state.progress.isOverKcal) {
+            MaterialTheme.colorScheme.tertiary
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        modifier = Modifier.padding(horizontal = 4.dp),
+    )
+}
+
+/** Guesses the slot from the time of day so the big button needs one tap, not two. */
+private fun defaultSlotForNow(): MealSlot {
+    val hour = LocalTime.now().hour
+    return when {
+        hour < 10 -> MealSlot.BREAKFAST
+        hour < 15 -> MealSlot.LUNCH
+        hour < 21 -> MealSlot.DINNER
+        else -> MealSlot.SNACK
+    }
 }
