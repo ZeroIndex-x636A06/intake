@@ -221,6 +221,16 @@ private fun TodayContent(
         item(key = "ring") {
             IntakeCard { MacroRing(progress = state.progress) }
         }
+        if (state.activityBonusKcal > 0) {
+            item(key = "activity") {
+                Text(
+                    text = "Target includes +${state.activityBonusKcal} kcal from tracked workouts, resting burn already taken out",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
+            }
+        }
         item(key = "remaining") { RemainingNote(state) }
         state.hydration?.let { day ->
             item(key = "water") {

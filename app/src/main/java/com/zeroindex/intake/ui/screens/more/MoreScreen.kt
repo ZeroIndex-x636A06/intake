@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Height
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.RestaurantMenu
@@ -74,6 +75,12 @@ fun MoreScreen(
             subtitle = "Vertical jump, standing and total reach",
             icon = Icons.Filled.Height,
             route = Route.Performance,
+        ),
+        MoreEntry(
+            title = "Health Connect",
+            subtitle = "Watch and scale data, and how workout calories count",
+            icon = Icons.Filled.MonitorHeart,
+            route = Route.HealthConnect,
         ),
         MoreEntry(
             title = "Settings",

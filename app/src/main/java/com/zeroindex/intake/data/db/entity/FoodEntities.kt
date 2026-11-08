@@ -33,6 +33,7 @@ data class FoodEntity(
     val fatPer100g: Double,
     val fiberPer100g: Double = 0.0,
     val sugarPer100g: Double = 0.0,
+    /** Milligrams, as USDA reports it; Open Food Facts grams are converted on import. */
     val sodiumPer100g: Double = 0.0,
     val saturatedFatPer100g: Double = 0.0,
     val source: FoodSource,
@@ -80,6 +81,7 @@ data class FoodLogEntity(
     val fat: Double,
     val fiber: Double = 0.0,
     val sugar: Double = 0.0,
+    /** Milligrams. */
     val sodium: Double = 0.0,
     val saturatedFat: Double = 0.0,
     val sourcePhotoUri: String? = null,

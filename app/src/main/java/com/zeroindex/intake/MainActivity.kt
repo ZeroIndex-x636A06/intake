@@ -12,6 +12,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.lifecycleScope
+import com.zeroindex.intake.data.health.HealthSync
 import com.zeroindex.intake.data.repository.MealTemplateRepository
 import com.zeroindex.intake.data.repository.TemplateLogResult
 import com.zeroindex.intake.data.settings.AppSettings
@@ -37,6 +38,13 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var settingsRepository: SettingsRepository
     @Inject lateinit var templates: MealTemplateRepository
     @Inject lateinit var messages: AppMessages
+    @Inject lateinit var healthSync: HealthSync
+
+    override fun onResume() {
+        super.onResume()
+        // SPEC §12: sync on resume (rate-limited inside), never on a timer.
+        healthSync.onResume()
+    }
 
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {

@@ -63,6 +63,9 @@ data class AppSettings(
      * body data off the phone, so it has to be asked for.
      */
     val dailyInsightEnabled: Boolean = false,
+    /** Health Connect: watermark for the write sync, and when it last ran. */
+    val healthLastWriteAt: Long = 0,
+    val healthLastSyncAt: Long? = null,
 ) {
     val platesKgList: List<Double>
         get() = availablePlatesKg.split(',')
@@ -102,6 +105,8 @@ class SettingsRepository @Inject constructor(
         val aiAllowRetaining = booleanPreferencesKey("ai_allow_retaining")
         val dailyInsight = booleanPreferencesKey("daily_insight_enabled")
         fun aiModel(task: AiTask) = stringPreferencesKey("ai_model_${task.name}")
+        val healthLastWrite = longPreferencesKey("health_last_write_at")
+        val healthLastSync = longPreferencesKey("health_last_sync_at")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -135,6 +140,8 @@ class SettingsRepository @Inject constructor(
             aiAllowRetainingModels = p[Keys.aiAllowRetaining] ?: false,
             aiModelOverrides = AiTask.entries.mapNotNull { task -> p[Keys.aiModel(task)]?.let { task to it } }.toMap(),
             dailyInsightEnabled = p[Keys.dailyInsight] ?: false,
+            healthLastWriteAt = p[Keys.healthLastWrite] ?: 0,
+            healthLastSyncAt = p[Keys.healthLastSync],
         )
     }
 
@@ -165,6 +172,10 @@ class SettingsRepository @Inject constructor(
     suspend fun setAiPrivacy(privacy: AiPrivacy) = put { it[Keys.aiPrivacy] = privacy.name }
     suspend fun setAiAllowRetaining(allow: Boolean) = put { it[Keys.aiAllowRetaining] = allow }
     suspend fun setDailyInsightEnabled(enabled: Boolean) = put { it[Keys.dailyInsight] = enabled }
+    suspend fun setHealthSynced(writeWatermark: Long, at: Long) = put {
+        it[Keys.healthLastWrite] = writeWatermark
+        it[Keys.healthLastSync] = at
+    }
 
     /** Null clears the override, going back to the suggested model. */
     suspend fun setAiModel(task: AiTask, modelId: String?) = put {

@@ -120,4 +120,12 @@ interface FoodLogDao {
         zoneOffsetMillis: Long,
         dayLengthMillis: Long = 86_400_000L,
     ): Int
+
+    /** Every row touched since [since], deleted rows included, for Health Connect sync. */
+    @Query("SELECT * FROM food_log WHERE updatedAt > :since ORDER BY updatedAt")
+    suspend fun changedSince(since: Long): List<FoodLogEntity>
+
+    /** Emits whenever the table changes; the sync debounces on it. */
+    @Query("SELECT MAX(updatedAt) FROM food_log")
+    fun observeLastChange(): Flow<Long?>
 }

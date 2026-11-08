@@ -117,4 +117,12 @@ interface WorkoutDao {
 
     @Query("UPDATE set_log SET deletedAt = :now, updatedAt = :now WHERE id = :id")
     suspend fun softDeleteSet(id: String, now: Long)
+
+    /** Every row touched since [since], deleted rows included, for Health Connect sync. */
+    @Query("SELECT * FROM workout_session WHERE updatedAt > :since ORDER BY updatedAt")
+    suspend fun changedSince(since: Long): List<WorkoutSessionEntity>
+
+    /** Emits whenever the table changes; the sync debounces on it. */
+    @Query("SELECT MAX(updatedAt) FROM workout_session")
+    fun observeLastChange(): Flow<Long?>
 }

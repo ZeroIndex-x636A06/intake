@@ -52,4 +52,16 @@ interface BodyMetricDao {
 
     @Query("UPDATE body_metric SET deletedAt = :now, updatedAt = :now WHERE id = :id")
     suspend fun softDelete(id: String, now: Long)
+
+    /** Every row touched since [since], deleted rows included, for Health Connect sync. */
+    @Query("SELECT * FROM body_metric WHERE updatedAt > :since ORDER BY updatedAt")
+    suspend fun changedSince(since: Long): List<BodyMetricEntity>
+
+    /** Emits whenever the table changes; the sync debounces on it. */
+    @Query("SELECT MAX(updatedAt) FROM body_metric")
+    fun observeLastChange(): Flow<Long?>
+
+    /** A row near [at], to avoid importing a weigh-in twice. */
+    @Query("SELECT * FROM body_metric WHERE deletedAt IS NULL AND measuredAt BETWEEN :at - :window AND :at + :window LIMIT 1")
+    suspend fun near(at: Long, window: Long): BodyMetricEntity?
 }

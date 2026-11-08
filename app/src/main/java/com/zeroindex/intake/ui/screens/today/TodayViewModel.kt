@@ -40,6 +40,8 @@ data class TodayUiState(
     val hydration: HydrationDay? = null,
     val hydrationPresets: List<HydrationPresetEntity> = emptyList(),
     val settings: AppSettings = AppSettings(),
+    /** Net workout kcal included in the target (SPEC §12: clearly labelled). */
+    val activityBonusKcal: Int = 0,
 ) {
     val totalEntries: Int get() = slots.sumOf { it.entries.size }
 }
@@ -86,7 +88,8 @@ class TodayViewModel @Inject constructor(
                 combine(
                     hydrationRepository.observePresets(),
                     settingsRepository.settings,
-                ) { presets, settings -> presets to settings },
+                    targetRepository.observeActivityBonus(date),
+                ) { presets, settings, bonus -> Triple(presets, settings, bonus) },
             ) { logs, totals, target, hydration, presetsAndSettings ->
                 val today = clock.today()
                 TodayUiState(
@@ -101,6 +104,7 @@ class TodayViewModel @Inject constructor(
                     hydration = hydration,
                     hydrationPresets = presetsAndSettings.first,
                     settings = presetsAndSettings.second,
+                    activityBonusKcal = presetsAndSettings.third,
                 )
             }
         }

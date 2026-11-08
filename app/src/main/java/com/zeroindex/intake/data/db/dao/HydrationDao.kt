@@ -50,4 +50,12 @@ interface HydrationDao {
 
     @Query("UPDATE hydration_preset SET deletedAt = :now, updatedAt = :now WHERE id = :id")
     suspend fun softDeletePreset(id: String, now: Long)
+
+    /** Every row touched since [since], deleted rows included, for Health Connect sync. */
+    @Query("SELECT * FROM hydration_log WHERE updatedAt > :since ORDER BY updatedAt")
+    suspend fun changedSince(since: Long): List<HydrationLogEntity>
+
+    /** Emits whenever the table changes; the sync debounces on it. */
+    @Query("SELECT MAX(updatedAt) FROM hydration_log")
+    fun observeLastChange(): Flow<Long?>
 }

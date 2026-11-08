@@ -42,6 +42,7 @@ internal val MIGRATION_1_2_STATEMENTS: List<String> = listOf(
     "ALTER TABLE `meal_template` ADD COLUMN `lastLoggedAt` INTEGER",
     // Body composition from Health Connect.
     "ALTER TABLE `body_metric` ADD COLUMN `skeletalMuscleKg` REAL",
+    "ALTER TABLE `body_metric` ADD COLUMN `leanBodyMassKg` REAL",
     "ALTER TABLE `body_metric` ADD COLUMN `source` TEXT NOT NULL DEFAULT 'MANUAL'",
     // Plan B results saved for offline use.
     "ALTER TABLE `eat_out_option` ADD COLUMN `estimatedCarbs` INTEGER NOT NULL DEFAULT 0",

@@ -16,8 +16,14 @@ data class BodyMetricEntity(
     val measuredAt: Long,
     val weightKg: Double,
     val bodyFatPercent: Double? = null,
-    /** Amendment §3: read from Health Connect when a scale reports it. */
+    /**
+     * Amendment §3 asks for skeletal muscle. Health Connect has no record type
+     * for it (checked against connect-client 1.1.0), so it is entered by hand
+     * from a scale's own app. [leanBodyMassKg] is what Health Connect does
+     * carry; the two are different measures and are kept apart.
+     */
     val skeletalMuscleKg: Double? = null,
+    val leanBodyMassKg: Double? = null,
     /** MANUAL, or HEALTH_CONNECT for rows imported from a smart scale. */
     @ColumnInfo(defaultValue = "MANUAL") val source: String = "MANUAL",
     val waistCm: Double? = null,

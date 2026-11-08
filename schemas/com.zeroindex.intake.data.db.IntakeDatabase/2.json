@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 2,
-    "identityHash": "5062f410a4b9380dca4b1df32cc2ffc4",
+    "identityHash": "7280fffa1bfd950a59e3f853225e147f",
     "entities": [
       {
         "tableName": "food",
@@ -787,7 +787,7 @@
       },
       {
         "tableName": "body_metric",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `measuredAt` INTEGER NOT NULL, `weightKg` REAL NOT NULL, `bodyFatPercent` REAL, `skeletalMuscleKg` REAL, `source` TEXT NOT NULL DEFAULT 'MANUAL', `waistCm` REAL, `chestCm` REAL, `armCm` REAL, `thighCm` REAL, `hipCm` REAL, `notes` TEXT, `photoUri` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `measuredAt` INTEGER NOT NULL, `weightKg` REAL NOT NULL, `bodyFatPercent` REAL, `skeletalMuscleKg` REAL, `leanBodyMassKg` REAL, `source` TEXT NOT NULL DEFAULT 'MANUAL', `waistCm` REAL, `chestCm` REAL, `armCm` REAL, `thighCm` REAL, `hipCm` REAL, `notes` TEXT, `photoUri` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -815,6 +815,11 @@
           {
             "fieldPath": "skeletalMuscleKg",
             "columnName": "skeletalMuscleKg",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "leanBodyMassKg",
+            "columnName": "leanBodyMassKg",
             "affinity": "REAL"
           },
           {
@@ -3375,7 +3380,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '5062f410a4b9380dca4b1df32cc2ffc4')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '7280fffa1bfd950a59e3f853225e147f')"
     ]
   }
 }
