@@ -37,6 +37,7 @@ import com.zeroindex.intake.domain.units.UnitConverter
 import com.zeroindex.intake.domain.units.WeightUnit
 import com.zeroindex.intake.ui.components.ChoiceChip
 import com.zeroindex.intake.ui.components.Eyebrow
+import com.zeroindex.intake.ui.components.SandNote
 import com.zeroindex.intake.ui.components.SectionCard
 import com.zeroindex.intake.ui.components.Segmented
 import com.zeroindex.intake.ui.components.SettingRow
@@ -48,6 +49,7 @@ import com.zeroindex.intake.ui.theme.IntakeShape
 fun SettingsScreen(
     contentPadding: PaddingValues,
     onOpenAi: () -> Unit,
+    onOpenBackup: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -85,6 +87,22 @@ fun SettingsScreen(
                         ) { Text("Dismiss") }
                     }
                 }
+            }
+        }
+
+        // SPEC §13: a prompt when nothing has been exported or backed up in 30 days.
+        val lastExport = settings.lastExportAtMillis
+        if (lastExport == null || System.currentTimeMillis() - lastExport > 30L * 86_400_000L) {
+            item(key = "export-prompt") {
+                SandNote(
+                    title = if (lastExport == null) "No backup yet" else "Last backup was over 30 days ago",
+                    body = "Everything lives only on this phone. Export a file or set up a nightly backup to your own server.",
+                )
+                OutlinedButton(
+                    onClick = onOpenBackup,
+                    shape = IntakeShape.Button,
+                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(50.dp),
+                ) { Text("Backup & export →") }
             }
         }
 

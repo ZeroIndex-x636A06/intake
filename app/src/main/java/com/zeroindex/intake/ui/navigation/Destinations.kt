@@ -35,6 +35,7 @@ sealed interface Route {
     @Serializable data object MealTemplates : Route
     @Serializable data object HealthConnect : Route
     @Serializable data object WeeklyReport : Route
+    @Serializable data object Backup : Route
     @Serializable data object ExerciseLibrary : Route
     @Serializable data object ProgramBuilder : Route
     @Serializable data object WorkoutHistory : Route

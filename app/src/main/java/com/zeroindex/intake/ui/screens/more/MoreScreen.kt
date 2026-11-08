@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Height
 import androidx.compose.material.icons.filled.Lock
@@ -90,8 +91,14 @@ fun MoreScreen(
             route = Route.HealthConnect,
         ),
         MoreEntry(
+            title = "Backup & sync",
+            subtitle = "Encrypted nightly backup to your server, export and import",
+            icon = Icons.Filled.CloudUpload,
+            route = Route.Backup,
+        ),
+        MoreEntry(
             title = "Settings",
-            subtitle = "Units, targets, API keys, allergens, export",
+            subtitle = "Units, targets, API keys, allergens",
             icon = Icons.Filled.Settings,
             route = Route.Settings,
         ),

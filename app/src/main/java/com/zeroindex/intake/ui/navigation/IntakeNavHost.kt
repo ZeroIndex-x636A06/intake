@@ -19,6 +19,7 @@ import com.zeroindex.intake.ui.screens.plan.RecipeDetailScreen
 import com.zeroindex.intake.ui.screens.plan.RecipeHunterScreen
 import com.zeroindex.intake.ui.screens.progress.ProgressScreen
 import com.zeroindex.intake.ui.screens.report.WeeklyReportScreen
+import com.zeroindex.intake.ui.screens.backup.BackupScreen
 import com.zeroindex.intake.ui.screens.settings.PrivacyScreen
 import com.zeroindex.intake.ui.screens.settings.SettingsScreen
 import com.zeroindex.intake.ui.screens.templates.MealTemplatesScreen
@@ -50,6 +51,7 @@ fun IntakeNavHost(
         composable<Route.MealTemplates> { MealTemplatesScreen(contentPadding) }
         composable<Route.HealthConnect> { HealthConnectScreen(contentPadding) }
         composable<Route.WeeklyReport> { WeeklyReportScreen(contentPadding) }
+        composable<Route.Backup> { BackupScreen(contentPadding) }
         composable<Route.PlanB> {
             PlanBScreen(contentPadding, onOpenAiSettings = { navController.navigate(Route.AiSettings) })
         }
@@ -88,7 +90,11 @@ fun IntakeNavHost(
 
         composable<Route.AllergenReference> { AllergenReferenceScreen(contentPadding) }
         composable<Route.Settings> {
-            SettingsScreen(contentPadding, onOpenAi = { navController.navigate(Route.AiSettings) })
+            SettingsScreen(
+                contentPadding,
+                onOpenAi = { navController.navigate(Route.AiSettings) },
+                onOpenBackup = { navController.navigate(Route.Backup) },
+            )
         }
         composable<Route.AiSettings> { AiSettingsScreen(contentPadding) }
         composable<Route.Privacy> { PrivacyScreen(contentPadding) }

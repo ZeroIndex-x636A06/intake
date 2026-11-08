@@ -28,7 +28,10 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 
-class ImportException(message: String) : Exception(message)
+open class ImportException(message: String) : Exception(message)
+
+/** The passphrase did not open the file; the UI asks again rather than giving up. */
+class WrongPassphraseException(message: String) : ImportException(message)
 
 /** What an import would do, shown before anything is written (SPEC §13). */
 class ImportPreview internal constructor(
@@ -103,7 +106,7 @@ class BackupService @Inject constructor(
             try {
                 BackupCrypto.decrypt(bytes, passphrase)
             } catch (e: BackupCrypto.WrongPassphrase) {
-                throw ImportException(e.message ?: "Wrong passphrase.")
+                throw WrongPassphraseException(e.message ?: "Wrong passphrase.")
             }
         } else {
             bytes
