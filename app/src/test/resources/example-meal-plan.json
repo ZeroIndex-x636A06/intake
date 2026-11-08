@@ -1,0 +1,63 @@
+{
+  "format": "intake-meal-plan",
+  "version": 1,
+  "intro": "EXAMPLE FILE for tests and documentation. Not a real plan.",
+  "standingBreakfasts": ["Two boiled eggs and a banana"],
+  "standingSnacks": ["Almonds", "Apple"],
+  "pantry": ["Olive oil", "Sea salt"],
+  "hiddenDairyChecklist": ["Seasoning packets", "Flour tortillas"],
+  "eatOutNotes": "Example guidance text shown under Every week.",
+  "weeks": [
+    {
+      "weekNumber": 1,
+      "mainDishName": "Example chicken and rice bowls",
+      "proteinType": "Chicken",
+      "notes": "Example note for the week.",
+      "servingTitle": "The bowls",
+      "serving": "Rice, chicken, cucumber and lemon in a container.",
+      "variations": ["Chicken in a warm wrap", "Cold over greens with extra lemon"],
+      "recipes": [
+        {
+          "name": "Example chicken and rice bowls",
+          "role": "MAIN",
+          "servings": 4,
+          "totalTimeMinutes": 35,
+          "steps": [
+            "Rinse the rice until the water runs clear.",
+            "Season the chicken with salt and lemon zest.",
+            "Sear the chicken 5 minutes per side.",
+            "Rest the chicken for 5 minutes, then slice it.",
+            "Serve over rice with cucumber."
+          ],
+          "ingredients": [
+            {"name": "Chicken thigh, boneless", "grams": 600, "kcalPer100g": 180, "proteinPer100g": 20, "carbsPer100g": 0, "fatPer100g": 11},
+            {"name": "Basmati rice, dry", "grams": 300, "kcalPer100g": 350, "proteinPer100g": 8, "carbsPer100g": 78, "fatPer100g": 1},
+            {"name": "Cucumber", "grams": 200, "kcalPer100g": 15, "proteinPer100g": 0.7, "carbsPer100g": 3.6, "fatPer100g": 0.1},
+            {"name": "Lemon", "grams": null}
+          ]
+        }
+      ]
+    }
+  ],
+  "shoppingItems": [
+    {"name": "Fresh parsley", "quantity": "1 bunch", "category": "PRODUCE", "isPantryStaple": false, "weekNumber": 1}
+  ],
+  "eatOutOptions": [
+    {
+      "venueName": "Example Sandwich Shop",
+      "whatToOrder": "Rotisserie chicken sandwich, no cheese, oil and vinegar",
+      "cautionNote": "Ask for a glove change before the sandwich is built.",
+      "estimatedKcal": 420,
+      "estimatedProtein": 34,
+      "estimatedCarbs": 40,
+      "estimatedFat": 12,
+      "weekNumber": null
+    },
+    {
+      "venueName": "Example Gas Station",
+      "whatToOrder": "Beef jerky and a banana",
+      "cautionNote": "",
+      "weekNumber": null
+    }
+  ]
+}

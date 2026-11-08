@@ -29,6 +29,10 @@ interface ShoppingListDao {
     )
     suspend fun forWeek(planWeekId: String): List<ShoppingListItemEntity>
 
+    /** Ids of every row for the week, soft-deleted ones included: generation must not resurrect a removal. */
+    @Query("SELECT id FROM shopping_list_item WHERE planWeekId = :planWeekId")
+    suspend fun idsForWeek(planWeekId: String): List<String>
+
     @Query("SELECT * FROM shopping_list_item WHERE deletedAt IS NULL")
     suspend fun all(): List<ShoppingListItemEntity>
 

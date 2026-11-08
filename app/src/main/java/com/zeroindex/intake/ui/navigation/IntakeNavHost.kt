@@ -14,6 +14,7 @@ import com.zeroindex.intake.ui.screens.health.HealthConnectScreen
 import com.zeroindex.intake.ui.screens.menu.MenuSourcesScreen
 import com.zeroindex.intake.ui.screens.more.MoreScreen
 import com.zeroindex.intake.ui.screens.performance.PerformanceScreen
+import com.zeroindex.intake.ui.screens.plan.CookModeScreen
 import com.zeroindex.intake.ui.screens.plan.PlanScreen
 import com.zeroindex.intake.ui.screens.planb.PlanBScreen
 import com.zeroindex.intake.ui.screens.plan.RecipeDetailScreen
@@ -47,6 +48,7 @@ fun IntakeNavHost(
                 onOpenHunter = { navController.navigate(Route.RecipeHunter) },
                 onOpenPlanB = { navController.navigate(Route.PlanB) },
                 onOpenRecipe = { id -> navController.navigate(Route.RecipeDetail(id)) },
+                onOpenCook = { id -> navController.navigate(Route.CookMode(id)) },
             )
         }
         composable<Route.MenuSources> { MenuSourcesScreen(contentPadding) }
@@ -65,6 +67,13 @@ fun IntakeNavHost(
                 recipeId = entry.toRoute<Route.RecipeDetail>().recipeId,
                 contentPadding = contentPadding,
                 onDeleted = { navController.popBackStack() },
+            )
+        }
+        composable<Route.CookMode> { entry ->
+            CookModeScreen(
+                recipeId = entry.toRoute<Route.CookMode>().recipeId,
+                contentPadding = contentPadding,
+                onClose = { navController.popBackStack() },
             )
         }
         composable<Route.Train> {

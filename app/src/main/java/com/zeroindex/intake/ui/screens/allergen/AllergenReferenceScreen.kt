@@ -147,8 +147,11 @@ fun AllergenReferenceScreen(
                         }
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            text = "About ${option.estimatedKcal} kcal · " +
-                                "${option.estimatedProtein} g protein",
+                            text = if (option.estimatedKcal > 0) {
+                                "About ${option.estimatedKcal} kcal · ${option.estimatedProtein} g protein"
+                            } else {
+                                "No estimate"
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
