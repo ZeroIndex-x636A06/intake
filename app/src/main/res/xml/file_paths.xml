@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Meal and progress photos live in app-private storage and are shared out
+     only through this provider (SPEC §11: excluded from the media scanner). -->
+<paths>
+    <files-path name="photos" path="photos/" />
+    <cache-path name="captures" path="captures/" />
+</paths>

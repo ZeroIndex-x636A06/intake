@@ -1,0 +1,2419 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "7f3a86a307cbf97c9178b5f2a4f49a7e",
+    "entities": [
+      {
+        "tableName": "food",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `brand` TEXT, `barcode` TEXT, `servingSizeGrams` REAL NOT NULL, `servingLabel` TEXT NOT NULL, `kcalPer100g` REAL NOT NULL, `proteinPer100g` REAL NOT NULL, `carbsPer100g` REAL NOT NULL, `fatPer100g` REAL NOT NULL, `fiberPer100g` REAL NOT NULL, `sugarPer100g` REAL NOT NULL, `sodiumPer100g` REAL NOT NULL, `saturatedFatPer100g` REAL NOT NULL, `source` TEXT NOT NULL, `allergenTags` TEXT NOT NULL, `isVerified` INTEGER NOT NULL, `isFavorite` INTEGER NOT NULL, `timesLogged` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "brand",
+            "columnName": "brand",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "barcode",
+            "columnName": "barcode",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "servingSizeGrams",
+            "columnName": "servingSizeGrams",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "servingLabel",
+            "columnName": "servingLabel",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kcalPer100g",
+            "columnName": "kcalPer100g",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "proteinPer100g",
+            "columnName": "proteinPer100g",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "carbsPer100g",
+            "columnName": "carbsPer100g",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fatPer100g",
+            "columnName": "fatPer100g",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fiberPer100g",
+            "columnName": "fiberPer100g",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sugarPer100g",
+            "columnName": "sugarPer100g",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sodiumPer100g",
+            "columnName": "sodiumPer100g",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "saturatedFatPer100g",
+            "columnName": "saturatedFatPer100g",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "source",
+            "columnName": "source",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "allergenTags",
+            "columnName": "allergenTags",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isVerified",
+            "columnName": "isVerified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isFavorite",
+            "columnName": "isFavorite",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timesLogged",
+            "columnName": "timesLogged",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_food_barcode",
+            "unique": false,
+            "columnNames": [
+              "barcode"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_food_barcode` ON `${TABLE_NAME}` (`barcode`)"
+          },
+          {
+            "name": "index_food_name",
+            "unique": false,
+            "columnNames": [
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_food_name` ON `${TABLE_NAME}` (`name`)"
+          },
+          {
+            "name": "index_food_deletedAt",
+            "unique": false,
+            "columnNames": [
+              "deletedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_food_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          },
+          {
+            "name": "index_food_timesLogged",
+            "unique": false,
+            "columnNames": [
+              "timesLogged"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_food_timesLogged` ON `${TABLE_NAME}` (`timesLogged`)"
+          }
+        ]
+      },
+      {
+        "tableName": "food_log",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `foodId` TEXT, `loggedAt` INTEGER NOT NULL, `mealSlot` TEXT NOT NULL, `quantityGrams` REAL, `foodNameAtLog` TEXT NOT NULL, `servingLabelAtLog` TEXT, `kcal` REAL NOT NULL, `protein` REAL NOT NULL, `carbs` REAL NOT NULL, `fat` REAL NOT NULL, `fiber` REAL NOT NULL, `sugar` REAL NOT NULL, `sodium` REAL NOT NULL, `saturatedFat` REAL NOT NULL, `sourcePhotoUri` TEXT, `aiConfidence` TEXT, `wasEdited` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`foodId`) REFERENCES `food`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "foodId",
+            "columnName": "foodId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "loggedAt",
+            "columnName": "loggedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mealSlot",
+            "columnName": "mealSlot",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "quantityGrams",
+            "columnName": "quantityGrams",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "foodNameAtLog",
+            "columnName": "foodNameAtLog",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "servingLabelAtLog",
+            "columnName": "servingLabelAtLog",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "kcal",
+            "columnName": "kcal",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "protein",
+            "columnName": "protein",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "carbs",
+            "columnName": "carbs",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fat",
+            "columnName": "fat",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fiber",
+            "columnName": "fiber",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sugar",
+            "columnName": "sugar",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sodium",
+            "columnName": "sodium",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "saturatedFat",
+            "columnName": "saturatedFat",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourcePhotoUri",
+            "columnName": "sourcePhotoUri",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "aiConfidence",
+            "columnName": "aiConfidence",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "wasEdited",
+            "columnName": "wasEdited",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_food_log_foodId",
+            "unique": false,
+            "columnNames": [
+              "foodId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_food_log_foodId` ON `${TABLE_NAME}` (`foodId`)"
+          },
+          {
+            "name": "index_food_log_loggedAt",
+            "unique": false,
+            "columnNames": [
+              "loggedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_food_log_loggedAt` ON `${TABLE_NAME}` (`loggedAt`)"
+          },
+          {
+            "name": "index_food_log_mealSlot",
+            "unique": false,
+            "columnNames": [
+              "mealSlot"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_food_log_mealSlot` ON `${TABLE_NAME}` (`mealSlot`)"
+          },
+          {
+            "name": "index_food_log_deletedAt",
+            "unique": false,
+            "columnNames": [
+              "deletedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_food_log_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "food",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "foodId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "recipe",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `servings` INTEGER NOT NULL, `instructions` TEXT NOT NULL, `totalTimeMinutes` INTEGER NOT NULL, `sourceWeekNumber` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "servings",
+            "columnName": "servings",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "instructions",
+            "columnName": "instructions",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalTimeMinutes",
+            "columnName": "totalTimeMinutes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceWeekNumber",
+            "columnName": "sourceWeekNumber",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_recipe_sourceWeekNumber",
+            "unique": false,
+            "columnNames": [
+              "sourceWeekNumber"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_recipe_sourceWeekNumber` ON `${TABLE_NAME}` (`sourceWeekNumber`)"
+          },
+          {
+            "name": "index_recipe_deletedAt",
+            "unique": false,
+            "columnNames": [
+              "deletedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_recipe_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          }
+        ]
+      },
+      {
+        "tableName": "recipe_ingredient",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `recipeId` TEXT NOT NULL, `foodId` TEXT NOT NULL, `quantityGrams` REAL NOT NULL, `displayOrder` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`recipeId`) REFERENCES `recipe`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION , FOREIGN KEY(`foodId`) REFERENCES `food`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recipeId",
+            "columnName": "recipeId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "foodId",
+            "columnName": "foodId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "quantityGrams",
+            "columnName": "quantityGrams",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayOrder",
+            "columnName": "displayOrder",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_recipe_ingredient_recipeId",
+            "unique": false,
+            "columnNames": [
+              "recipeId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_recipe_ingredient_recipeId` ON `${TABLE_NAME}` (`recipeId`)"
+          },
+          {
+            "name": "index_recipe_ingredient_foodId",
+            "unique": false,
+            "columnNames": [
+              "foodId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_recipe_ingredient_foodId` ON `${TABLE_NAME}` (`foodId`)"
+          },
+          {
+            "name": "index_recipe_ingredient_deletedAt",
+            "unique": false,
+            "columnNames": [
+              "deletedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_recipe_ingredient_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "recipe",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "recipeId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "food",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "foodId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "meal_template",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_meal_template_deletedAt",
+            "unique": false,
+            "columnNames": [
+              "deletedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_meal_template_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          }
+        ]
+      },
+      {
+        "tableName": "meal_template_item",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `mealTemplateId` TEXT NOT NULL, `foodId` TEXT NOT NULL, `quantityGrams` REAL NOT NULL, `displayOrder` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`mealTemplateId`) REFERENCES `meal_template`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION , FOREIGN KEY(`foodId`) REFERENCES `food`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mealTemplateId",
+            "columnName": "mealTemplateId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "foodId",
+            "columnName": "foodId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "quantityGrams",
+            "columnName": "quantityGrams",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayOrder",
+            "columnName": "displayOrder",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_meal_template_item_mealTemplateId",
+            "unique": false,
+            "columnNames": [
+              "mealTemplateId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_meal_template_item_mealTemplateId` ON `${TABLE_NAME}` (`mealTemplateId`)"
+          },
+          {
+            "name": "index_meal_template_item_foodId",
+            "unique": false,
+            "columnNames": [
+              "foodId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_meal_template_item_foodId` ON `${TABLE_NAME}` (`foodId`)"
+          },
+          {
+            "name": "index_meal_template_item_deletedAt",
+            "unique": false,
+            "columnNames": [
+              "deletedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_meal_template_item_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "meal_template",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "mealTemplateId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "food",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "foodId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "body_metric",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `measuredAt` INTEGER NOT NULL, `weightKg` REAL NOT NULL, `bodyFatPercent` REAL, `waistCm` REAL, `chestCm` REAL, `armCm` REAL, `thighCm` REAL, `hipCm` REAL, `notes` TEXT, `photoUri` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "measuredAt",
+            "columnName": "measuredAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "weightKg",
+            "columnName": "weightKg",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bodyFatPercent",
+            "columnName": "bodyFatPercent",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "waistCm",
+            "columnName": "waistCm",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "chestCm",
+            "columnName": "chestCm",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "armCm",
+            "columnName": "armCm",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "thighCm",
+            "columnName": "thighCm",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "hipCm",
+            "columnName": "hipCm",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "photoUri",
+            "columnName": "photoUri",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_body_metric_measuredAt",
+            "unique": false,
+            "columnNames": [
+              "measuredAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_body_metric_measuredAt` ON `${TABLE_NAME}` (`measuredAt`)"
+          },
+          {
+            "name": "index_body_metric_deletedAt",
+            "unique": false,
+            "columnNames": [
+              "deletedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_body_metric_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          }
+        ]
+      },
+      {
+        "tableName": "nutrition_target",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `effectiveFrom` INTEGER NOT NULL, `kcal` INTEGER NOT NULL, `proteinG` INTEGER NOT NULL, `carbsG` INTEGER NOT NULL, `fatG` INTEGER NOT NULL, `isAutoCalculated` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "effectiveFrom",
+            "columnName": "effectiveFrom",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kcal",
+            "columnName": "kcal",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "proteinG",
+            "columnName": "proteinG",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "carbsG",
+            "columnName": "carbsG",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fatG",
+            "columnName": "fatG",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isAutoCalculated",
+            "columnName": "isAutoCalculated",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_nutrition_target_effectiveFrom",
+            "unique": false,
+            "columnNames": [
+              "effectiveFrom"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_nutrition_target_effectiveFrom` ON `${TABLE_NAME}` (`effectiveFrom`)"
+          },
+          {
+            "name": "index_nutrition_target_deletedAt",
+            "unique": false,
+            "columnNames": [
+              "deletedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_nutrition_target_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          }
+        ]
+      },
+      {
+        "tableName": "tdee_estimate",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `calculatedFor` INTEGER NOT NULL, `estimatedTdee` REAL NOT NULL, `confidence` TEXT NOT NULL, `rollingIntakeAvg` REAL NOT NULL, `weightTrendSlope` REAL NOT NULL, `daysOfData` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "calculatedFor",
+            "columnName": "calculatedFor",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "estimatedTdee",
+            "columnName": "estimatedTdee",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "confidence",
+            "columnName": "confidence",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rollingIntakeAvg",
+            "columnName": "rollingIntakeAvg",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "weightTrendSlope",
+            "columnName": "weightTrendSlope",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "daysOfData",
+            "columnName": "daysOfData",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_tdee_estimate_calculatedFor",
+            "unique": false,
+            "columnNames": [
+              "calculatedFor"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_tdee_estimate_calculatedFor` ON `${TABLE_NAME}` (`calculatedFor`)"
+          },
+          {
+            "name": "index_tdee_estimate_deletedAt",
+            "unique": false,
+            "columnNames": [
+              "deletedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_tdee_estimate_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          }
+        ]
+      },
+      {
+        "tableName": "exercise",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `primaryMuscle` TEXT NOT NULL, `secondaryMuscles` TEXT NOT NULL, `equipment` TEXT NOT NULL, `isBodyweight` INTEGER NOT NULL, `defaultRestSec` INTEGER NOT NULL, `notes` TEXT, `videoUri` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "primaryMuscle",
+            "columnName": "primaryMuscle",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "secondaryMuscles",
+            "columnName": "secondaryMuscles",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "equipment",
+            "columnName": "equipment",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isBodyweight",
+            "columnName": "isBodyweight",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "defaultRestSec",
+            "columnName": "defaultRestSec",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "videoUri",
+            "columnName": "videoUri",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_exercise_name",
+            "unique": false,
+            "columnNames": [
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_exercise_name` ON `${TABLE_NAME}` (`name`)"
+          },
+          {
+            "name": "index_exercise_primaryMuscle",
+            "unique": false,
+            "columnNames": [
+              "primaryMuscle"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_exercise_primaryMuscle` ON `${TABLE_NAME}` (`primaryMuscle`)"
+          },
+          {
+            "name": "index_exercise_deletedAt",
+            "unique": false,
+            "columnNames": [
+              "deletedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_exercise_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          }
+        ]
+      },
+      {
+        "tableName": "program",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `isActive` INTEGER NOT NULL, `currentWeek` INTEGER NOT NULL, `currentDayIndex` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isActive",
+            "columnName": "isActive",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "currentWeek",
+            "columnName": "currentWeek",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "currentDayIndex",
+            "columnName": "currentDayIndex",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_program_isActive",
+            "unique": false,
+            "columnNames": [
+              "isActive"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_program_isActive` ON `${TABLE_NAME}` (`isActive`)"
+          },
+          {
+            "name": "index_program_deletedAt",
+            "unique": false,
+            "columnNames": [
+              "deletedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_program_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          }
+        ]
+      },
+      {
+        "tableName": "program_day",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `programId` TEXT NOT NULL, `dayIndex` INTEGER NOT NULL, `name` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`programId`) REFERENCES `program`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "programId",
+            "columnName": "programId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dayIndex",
+            "columnName": "dayIndex",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_program_day_programId",
+            "unique": false,
+            "columnNames": [
+              "programId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_program_day_programId` ON `${TABLE_NAME}` (`programId`)"
+          },
+          {
+            "name": "index_program_day_deletedAt",
+            "unique": false,
+            "columnNames": [
+              "deletedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_program_day_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "program",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "programId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "program_exercise",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `programDayId` TEXT NOT NULL, `exerciseId` TEXT NOT NULL, `displayOrder` INTEGER NOT NULL, `targetSets` INTEGER NOT NULL, `targetRepsMin` INTEGER NOT NULL, `targetRepsMax` INTEGER NOT NULL, `targetRpe` REAL, `progressionRuleId` TEXT, `restSec` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`programDayId`) REFERENCES `program_day`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION , FOREIGN KEY(`exerciseId`) REFERENCES `exercise`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION , FOREIGN KEY(`progressionRuleId`) REFERENCES `progression_rule`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "programDayId",
+            "columnName": "programDayId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "exerciseId",
+            "columnName": "exerciseId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayOrder",
+            "columnName": "displayOrder",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "targetSets",
+            "columnName": "targetSets",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "targetRepsMin",
+            "columnName": "targetRepsMin",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "targetRepsMax",
+            "columnName": "targetRepsMax",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "targetRpe",
+            "columnName": "targetRpe",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "progressionRuleId",
+            "columnName": "progressionRuleId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "restSec",
+            "columnName": "restSec",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_program_exercise_programDayId",
+            "unique": false,
+            "columnNames": [
+              "programDayId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_program_exercise_programDayId` ON `${TABLE_NAME}` (`programDayId`)"
+          },
+          {
+            "name": "index_program_exercise_exerciseId",
+            "unique": false,
+            "columnNames": [
+              "exerciseId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_program_exercise_exerciseId` ON `${TABLE_NAME}` (`exerciseId`)"
+          },
+          {
+            "name": "index_program_exercise_progressionRuleId",
+            "unique": false,
+            "columnNames": [
+              "progressionRuleId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_program_exercise_progressionRuleId` ON `${TABLE_NAME}` (`progressionRuleId`)"
+          },
+          {
+            "name": "index_program_exercise_deletedAt",
+            "unique": false,
+            "columnNames": [
+              "deletedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_program_exercise_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "program_day",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "programDayId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "exercise",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "exerciseId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "progression_rule",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "progressionRuleId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "progression_rule",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `type` TEXT NOT NULL, `params` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "params",
+            "columnName": "params",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_progression_rule_type",
+            "unique": false,
+            "columnNames": [
+              "type"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_progression_rule_type` ON `${TABLE_NAME}` (`type`)"
+          },
+          {
+            "name": "index_progression_rule_deletedAt",
+            "unique": false,
+            "columnNames": [
+              "deletedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_progression_rule_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          }
+        ]
+      },
+      {
+        "tableName": "workout_session",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `programDayId` TEXT, `startedAt` INTEGER NOT NULL, `finishedAt` INTEGER, `notes` TEXT, `bodyweightKg` REAL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`programDayId`) REFERENCES `program_day`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "programDayId",
+            "columnName": "programDayId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "startedAt",
+            "columnName": "startedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "finishedAt",
+            "columnName": "finishedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "bodyweightKg",
+            "columnName": "bodyweightKg",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_workout_session_programDayId",
+            "unique": false,
+            "columnNames": [
+              "programDayId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_workout_session_programDayId` ON `${TABLE_NAME}` (`programDayId`)"
+          },
+          {
+            "name": "index_workout_session_startedAt",
+            "unique": false,
+            "columnNames": [
+              "startedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_workout_session_startedAt` ON `${TABLE_NAME}` (`startedAt`)"
+          },
+          {
+            "name": "index_workout_session_deletedAt",
+            "unique": false,
+            "columnNames": [
+              "deletedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_workout_session_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "program_day",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "programDayId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "set_log",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `sessionId` TEXT NOT NULL, `exerciseId` TEXT NOT NULL, `setIndex` INTEGER NOT NULL, `weightKg` REAL NOT NULL, `reps` INTEGER NOT NULL, `rpe` REAL, `isWarmup` INTEGER NOT NULL, `isFailure` INTEGER NOT NULL, `restTakenSec` INTEGER, `completedAt` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`sessionId`) REFERENCES `workout_session`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION , FOREIGN KEY(`exerciseId`) REFERENCES `exercise`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sessionId",
+            "columnName": "sessionId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "exerciseId",
+            "columnName": "exerciseId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "setIndex",
+            "columnName": "setIndex",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "weightKg",
+            "columnName": "weightKg",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reps",
+            "columnName": "reps",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rpe",
+            "columnName": "rpe",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "isWarmup",
+            "columnName": "isWarmup",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isFailure",
+            "columnName": "isFailure",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "restTakenSec",
+            "columnName": "restTakenSec",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "completedAt",
+            "columnName": "completedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_set_log_sessionId",
+            "unique": false,
+            "columnNames": [
+              "sessionId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_set_log_sessionId` ON `${TABLE_NAME}` (`sessionId`)"
+          },
+          {
+            "name": "index_set_log_exerciseId",
+            "unique": false,
+            "columnNames": [
+              "exerciseId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_set_log_exerciseId` ON `${TABLE_NAME}` (`exerciseId`)"
+          },
+          {
+            "name": "index_set_log_completedAt",
+            "unique": false,
+            "columnNames": [
+              "completedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_set_log_completedAt` ON `${TABLE_NAME}` (`completedAt`)"
+          },
+          {
+            "name": "index_set_log_deletedAt",
+            "unique": false,
+            "columnNames": [
+              "deletedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_set_log_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "workout_session",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "sessionId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "exercise",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "exerciseId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "plan_week",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `weekNumber` INTEGER NOT NULL, `mainDishName` TEXT NOT NULL, `proteinType` TEXT NOT NULL, `notes` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "weekNumber",
+            "columnName": "weekNumber",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mainDishName",
+            "columnName": "mainDishName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "proteinType",
+            "columnName": "proteinType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_plan_week_weekNumber",
+            "unique": false,
+            "columnNames": [
+              "weekNumber"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_plan_week_weekNumber` ON `${TABLE_NAME}` (`weekNumber`)"
+          },
+          {
+            "name": "index_plan_week_deletedAt",
+            "unique": false,
+            "columnNames": [
+              "deletedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_plan_week_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          }
+        ]
+      },
+      {
+        "tableName": "plan_week_recipe",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `planWeekId` TEXT NOT NULL, `recipeId` TEXT NOT NULL, `role` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`planWeekId`) REFERENCES `plan_week`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION , FOREIGN KEY(`recipeId`) REFERENCES `recipe`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "planWeekId",
+            "columnName": "planWeekId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recipeId",
+            "columnName": "recipeId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "role",
+            "columnName": "role",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_plan_week_recipe_planWeekId",
+            "unique": false,
+            "columnNames": [
+              "planWeekId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_plan_week_recipe_planWeekId` ON `${TABLE_NAME}` (`planWeekId`)"
+          },
+          {
+            "name": "index_plan_week_recipe_recipeId",
+            "unique": false,
+            "columnNames": [
+              "recipeId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_plan_week_recipe_recipeId` ON `${TABLE_NAME}` (`recipeId`)"
+          },
+          {
+            "name": "index_plan_week_recipe_deletedAt",
+            "unique": false,
+            "columnNames": [
+              "deletedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_plan_week_recipe_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "plan_week",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "planWeekId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "recipe",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "recipeId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "eat_out_option",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `planWeekId` TEXT, `venueName` TEXT NOT NULL, `whatToOrder` TEXT NOT NULL, `cautionNote` TEXT NOT NULL, `estimatedKcal` INTEGER NOT NULL, `estimatedProtein` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`planWeekId`) REFERENCES `plan_week`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "planWeekId",
+            "columnName": "planWeekId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "venueName",
+            "columnName": "venueName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "whatToOrder",
+            "columnName": "whatToOrder",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cautionNote",
+            "columnName": "cautionNote",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "estimatedKcal",
+            "columnName": "estimatedKcal",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "estimatedProtein",
+            "columnName": "estimatedProtein",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_eat_out_option_planWeekId",
+            "unique": false,
+            "columnNames": [
+              "planWeekId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_eat_out_option_planWeekId` ON `${TABLE_NAME}` (`planWeekId`)"
+          },
+          {
+            "name": "index_eat_out_option_deletedAt",
+            "unique": false,
+            "columnNames": [
+              "deletedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_eat_out_option_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "plan_week",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "planWeekId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "shopping_list_item",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `planWeekId` TEXT NOT NULL, `name` TEXT NOT NULL, `quantity` TEXT NOT NULL, `category` TEXT NOT NULL, `isChecked` INTEGER NOT NULL, `isPantryStaple` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`planWeekId`) REFERENCES `plan_week`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "planWeekId",
+            "columnName": "planWeekId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "quantity",
+            "columnName": "quantity",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "category",
+            "columnName": "category",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isChecked",
+            "columnName": "isChecked",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isPantryStaple",
+            "columnName": "isPantryStaple",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_shopping_list_item_planWeekId",
+            "unique": false,
+            "columnNames": [
+              "planWeekId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_shopping_list_item_planWeekId` ON `${TABLE_NAME}` (`planWeekId`)"
+          },
+          {
+            "name": "index_shopping_list_item_category",
+            "unique": false,
+            "columnNames": [
+              "category"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_shopping_list_item_category` ON `${TABLE_NAME}` (`category`)"
+          },
+          {
+            "name": "index_shopping_list_item_isPantryStaple",
+            "unique": false,
+            "columnNames": [
+              "isPantryStaple"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_shopping_list_item_isPantryStaple` ON `${TABLE_NAME}` (`isPantryStaple`)"
+          },
+          {
+            "name": "index_shopping_list_item_deletedAt",
+            "unique": false,
+            "columnNames": [
+              "deletedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_shopping_list_item_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "plan_week",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "planWeekId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "allergen_profile",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `avoidedAllergens` TEXT NOT NULL, `severityLevel` TEXT NOT NULL, `notes` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "avoidedAllergens",
+            "columnName": "avoidedAllergens",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "severityLevel",
+            "columnName": "severityLevel",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "allergen_alias",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `allergen` TEXT NOT NULL, `aliasTerm` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "allergen",
+            "columnName": "allergen",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "aliasTerm",
+            "columnName": "aliasTerm",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_allergen_alias_allergen",
+            "unique": false,
+            "columnNames": [
+              "allergen"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_allergen_alias_allergen` ON `${TABLE_NAME}` (`allergen`)"
+          },
+          {
+            "name": "index_allergen_alias_allergen_aliasTerm",
+            "unique": true,
+            "columnNames": [
+              "allergen",
+              "aliasTerm"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_allergen_alias_allergen_aliasTerm` ON `${TABLE_NAME}` (`allergen`, `aliasTerm`)"
+          },
+          {
+            "name": "index_allergen_alias_deletedAt",
+            "unique": false,
+            "columnNames": [
+              "deletedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_allergen_alias_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          }
+        ]
+      },
+      {
+        "tableName": "ai_correction",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `correctedAt` INTEGER NOT NULL, `estimatedKcal` REAL NOT NULL, `correctedKcal` REAL NOT NULL, `estimatedGrams` REAL, `correctedGrams` REAL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "correctedAt",
+            "columnName": "correctedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "estimatedKcal",
+            "columnName": "estimatedKcal",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "correctedKcal",
+            "columnName": "correctedKcal",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "estimatedGrams",
+            "columnName": "estimatedGrams",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "correctedGrams",
+            "columnName": "correctedGrams",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_ai_correction_correctedAt",
+            "unique": false,
+            "columnNames": [
+              "correctedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_ai_correction_correctedAt` ON `${TABLE_NAME}` (`correctedAt`)"
+          },
+          {
+            "name": "index_ai_correction_deletedAt",
+            "unique": false,
+            "columnNames": [
+              "deletedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_ai_correction_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '7f3a86a307cbf97c9178b5f2a4f49a7e')"
+    ]
+  }
+}

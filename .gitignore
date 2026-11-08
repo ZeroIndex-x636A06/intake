@@ -1,0 +1,31 @@
+# --- Signing material. SPEC §15.1: never commit a keystore or a key. ---
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+keystore.properties
+signing.properties
+
+# --- Machine-local config (holds the SDK path and the keystore passwords) ---
+local.properties
+
+# --- Gradle / build output ---
+.gradle/
+build/
+app/build/
+captures/
+.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+output.json
+
+# --- IDE ---
+.idea/
+*.iml
+.kotlin/
+
+# --- OS ---
+.DS_Store

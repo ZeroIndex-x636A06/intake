@@ -1,0 +1,123 @@
+package com.zeroindex.intake.data.db.dao
+
+import androidx.room.Dao
+import androidx.room.Query
+import androidx.room.Upsert
+import com.zeroindex.intake.data.db.entity.FoodLogEntity
+import com.zeroindex.intake.data.db.projection.DailyIntake
+import com.zeroindex.intake.data.db.projection.MacroTotals
+import com.zeroindex.intake.data.db.projection.SlotTotals
+import com.zeroindex.intake.domain.model.MealSlot
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface FoodLogDao {
+
+    @Upsert suspend fun upsert(log: FoodLogEntity)
+    @Upsert suspend fun upsertAll(logs: List<FoodLogEntity>)
+
+    @Query("SELECT * FROM food_log WHERE id = :id AND deletedAt IS NULL")
+    suspend fun findById(id: String): FoodLogEntity?
+
+    @Query("SELECT * FROM food_log WHERE deletedAt IS NULL ORDER BY loggedAt")
+    suspend fun all(): List<FoodLogEntity>
+
+    /**
+     * Everything logged in one local day. The caller passes a half-open UTC
+     * millis range from `DayRange` - SPEC §3.4 forbids storing local dates.
+     */
+    @Query(
+        """
+        SELECT * FROM food_log
+        WHERE deletedAt IS NULL AND loggedAt >= :startInclusive AND loggedAt < :endExclusive
+        ORDER BY loggedAt
+        """,
+    )
+    fun observeInRange(startInclusive: Long, endExclusive: Long): Flow<List<FoodLogEntity>>
+
+    @Query(
+        """
+        SELECT * FROM food_log
+        WHERE deletedAt IS NULL AND loggedAt >= :startInclusive AND loggedAt < :endExclusive
+        ORDER BY loggedAt
+        """,
+    )
+    suspend fun inRange(startInclusive: Long, endExclusive: Long): List<FoodLogEntity>
+
+    @Query(
+        """
+        SELECT SUM(kcal) AS kcal, SUM(protein) AS protein, SUM(carbs) AS carbs, SUM(fat) AS fat
+        FROM food_log
+        WHERE deletedAt IS NULL AND loggedAt >= :startInclusive AND loggedAt < :endExclusive
+        """,
+    )
+    fun observeTotalsInRange(startInclusive: Long, endExclusive: Long): Flow<MacroTotals>
+
+    @Query(
+        """
+        SELECT mealSlot AS mealSlot, SUM(kcal) AS kcal, SUM(protein) AS protein
+        FROM food_log
+        WHERE deletedAt IS NULL AND loggedAt >= :startInclusive AND loggedAt < :endExclusive
+        GROUP BY mealSlot
+        """,
+    )
+    fun observeSlotTotalsInRange(startInclusive: Long, endExclusive: Long): Flow<List<SlotTotals>>
+
+    /**
+     * Calories per local day across a range, bucketed in SQL. The zone offset
+     * comes from the caller, which knows the zone, rather than being guessed.
+     */
+    @Query(
+        """
+        SELECT ((loggedAt + :zoneOffsetMillis) / :dayLengthMillis) * :dayLengthMillis - :zoneOffsetMillis
+                   AS dayStartMillis,
+               SUM(kcal) AS kcal
+        FROM food_log
+        WHERE deletedAt IS NULL AND loggedAt >= :startInclusive AND loggedAt < :endExclusive
+        GROUP BY dayStartMillis
+        ORDER BY dayStartMillis
+        """,
+    )
+    fun observeDailyIntake(
+        startInclusive: Long,
+        endExclusive: Long,
+        zoneOffsetMillis: Long,
+        dayLengthMillis: Long = 86_400_000L,
+    ): Flow<List<DailyIntake>>
+
+    @Query(
+        """
+        SELECT ((loggedAt + :zoneOffsetMillis) / :dayLengthMillis) * :dayLengthMillis - :zoneOffsetMillis
+                   AS dayStartMillis,
+               SUM(kcal) AS kcal
+        FROM food_log
+        WHERE deletedAt IS NULL AND loggedAt >= :startInclusive AND loggedAt < :endExclusive
+        GROUP BY dayStartMillis
+        ORDER BY dayStartMillis
+        """,
+    )
+    suspend fun dailyIntake(
+        startInclusive: Long,
+        endExclusive: Long,
+        zoneOffsetMillis: Long,
+        dayLengthMillis: Long = 86_400_000L,
+    ): List<DailyIntake>
+
+    @Query("UPDATE food_log SET deletedAt = :now, updatedAt = :now WHERE id = :id")
+    suspend fun softDelete(id: String, now: Long)
+
+    /** How many distinct days have any entry, for "18 of the last 21 days" (SPEC §11). */
+    @Query(
+        """
+        SELECT COUNT(DISTINCT ((loggedAt + :zoneOffsetMillis) / :dayLengthMillis))
+        FROM food_log
+        WHERE deletedAt IS NULL AND loggedAt >= :startInclusive AND loggedAt < :endExclusive
+        """,
+    )
+    suspend fun countDaysLogged(
+        startInclusive: Long,
+        endExclusive: Long,
+        zoneOffsetMillis: Long,
+        dayLengthMillis: Long = 86_400_000L,
+    ): Int
+}
