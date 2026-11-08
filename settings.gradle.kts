@@ -22,3 +22,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "Intake"
 include(":app")
+// Amendment §2: Wear OS workout companion and the protocol it shares with the phone.
+include(":wearprotocol")
+include(":wear")

@@ -194,6 +194,9 @@ dependencies {
     implementation(libs.okhttp)
     // Backup transports (amendment §2). WebDAV is plain HTTP over OkHttp.
     implementation(libs.jsch)
+    // Wear OS companion (amendment §2): the shared protocol and the Data Layer.
+    implementation(project(":wearprotocol"))
+    implementation(libs.play.services.wearable)
     implementation(libs.smbj)
 
     testImplementation(libs.junit)

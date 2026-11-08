@@ -96,6 +96,7 @@ class TrainingRepository @Inject constructor(
 
     suspend fun activeProgram(): ProgramEntity? = programDao.active()
     suspend fun days(programId: String): List<ProgramDayEntity> = programDao.daysOf(programId)
+    suspend fun day(id: String): ProgramDayEntity? = programDao.findDay(id)
     suspend fun programExercises(dayId: String): List<ProgramExerciseEntity> =
         programDao.exercisesOf(dayId)
 
@@ -263,6 +264,42 @@ class TrainingRepository @Inject constructor(
         )
         workoutDao.upsertSet(set)
         return set
+    }
+
+    /**
+     * A set logged on the watch (amendment §2). The watch's id becomes the
+     * set's id, so the Data Layer delivering the same item twice writes the
+     * same row twice rather than two rows. Ignored if the session is unknown.
+     */
+    suspend fun logSetFromWatch(
+        id: String,
+        sessionId: String,
+        exerciseId: String,
+        setIndex: Int,
+        weightKg: Double,
+        reps: Int,
+        rpe: Double?,
+        completedAt: Long,
+        restTakenSec: Int?,
+    ): Boolean {
+        if (workoutDao.findSession(sessionId) == null) return false
+        val now = clock.nowMillis()
+        workoutDao.upsertSet(
+            SetLogEntity(
+                id = id,
+                sessionId = sessionId,
+                exerciseId = exerciseId,
+                setIndex = setIndex,
+                weightKg = weightKg,
+                reps = reps,
+                rpe = rpe,
+                restTakenSec = restTakenSec,
+                completedAt = completedAt,
+                createdAt = now,
+                updatedAt = now,
+            ),
+        )
+        return true
     }
 
     suspend fun deleteSet(id: String) = workoutDao.softDeleteSet(id, clock.nowMillis())

@@ -1,0 +1,56 @@
+package com.zeroindex.intake.wear
+
+import android.util.Log
+import com.google.android.gms.wearable.DataEvent
+import com.google.android.gms.wearable.DataEventBuffer
+import com.google.android.gms.wearable.DataMapItem
+import com.google.android.gms.wearable.Wearable
+import com.google.android.gms.wearable.WearableListenerService
+import com.zeroindex.intake.data.repository.TrainingRepository
+import com.zeroindex.intake.wearprotocol.WearProtocol
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
+import kotlinx.coroutines.runBlocking
+
+/**
+ * Receives sets logged on the watch. Called by Google Play services on a
+ * background thread whenever the watch's queued items arrive - immediately
+ * when connected, or on reconnection - so blocking here is fine. Each item is
+ * deleted once written, which is the watch's signal that it went through.
+ */
+@AndroidEntryPoint
+class PhoneWearListener : WearableListenerService() {
+
+    @Inject lateinit var training: TrainingRepository
+
+    override fun onDataChanged(events: DataEventBuffer) {
+        val items = events.filter { it.type == DataEvent.TYPE_CHANGED && it.dataItem.uri.path?.startsWith(WearProtocol.PATH_LOGGED_PREFIX) == true }
+            .map { it.dataItem.freeze() }
+        events.release()
+        if (items.isEmpty()) return
+        val client = Wearable.getDataClient(this)
+        runBlocking {
+            items.forEach { item ->
+                val json = DataMapItem.fromDataItem(item).dataMap.getString(WearProtocol.KEY_JSON) ?: return@forEach
+                val set = runCatching { WearProtocol.decodeSet(json) }.getOrElse {
+                    Log.w(TAG, "Unreadable set from watch", it)
+                    return@forEach
+                }
+                training.logSetFromWatch(
+                    id = set.clientId,
+                    sessionId = set.sessionId,
+                    exerciseId = set.exerciseId,
+                    setIndex = set.setIndex,
+                    weightKg = set.weightKg,
+                    reps = set.reps,
+                    rpe = set.rpe,
+                    completedAt = set.completedAt,
+                    restTakenSec = set.restTakenSec,
+                )
+                runCatching { client.deleteDataItems(item.uri).await() }
+            }
+        }
+    }
+
+    private companion object { const val TAG = "PhoneWearListener" }
+}

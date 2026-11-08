@@ -5,6 +5,7 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import androidx.work.WorkManager
 import com.zeroindex.intake.data.health.HealthSync
+import com.zeroindex.intake.wear.WearBridge
 import com.zeroindex.intake.work.BackupScheduler
 import com.zeroindex.intake.work.MenuIngestionWorker
 import com.zeroindex.intake.work.SyncScheduler
@@ -20,6 +21,7 @@ class IntakeApplication : Application(), Configuration.Provider {
     @Inject lateinit var healthSync: HealthSync
     @Inject lateinit var backupScheduler: BackupScheduler
     @Inject lateinit var syncScheduler: SyncScheduler
+    @Inject lateinit var wearBridge: WearBridge
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -38,5 +40,7 @@ class IntakeApplication : Application(), Configuration.Provider {
         backupScheduler.start()
         // Amendment §3: device sync, only while paired.
         syncScheduler.start()
+        // Amendment §2: mirror the session in progress to a paired watch.
+        wearBridge.start()
     }
 }
