@@ -176,6 +176,7 @@ class TodayViewModel @Inject constructor(
     fun setVolumeUnit(unit: VolumeUnit) = viewModelScope.launch { settingsRepository.setVolumeUnit(unit) }
     fun setHydrationBase(ml: Double?) = viewModelScope.launch { settingsRepository.setHydrationBaseMl(ml) }
     fun setHydrationDynamic(on: Boolean) = viewModelScope.launch { settingsRepository.setHydrationDynamic(on) }
+    fun setHydrationTrainingBonus(ml: Double) = viewModelScope.launch { settingsRepository.setHydrationTrainingBonusMl(ml) }
 
     /**
      * Timestamp to attach when logging onto the viewed day. Logging onto a past

@@ -54,6 +54,7 @@ class HydrationRepository @Inject constructor(
                     dynamic = settings.hydrationDynamic,
                     trainedToday = trained,
                     activeKcalNet = health?.activeKcalNet,
+                    trainingDayBonusMl = settings.hydrationTrainingBonusMl,
                 ),
             )
         }

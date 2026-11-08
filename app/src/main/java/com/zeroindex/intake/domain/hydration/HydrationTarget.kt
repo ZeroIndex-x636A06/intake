@@ -10,7 +10,8 @@ import kotlin.math.roundToInt
  * - The base is either a number the user set, or 35 ml per kg of bodyweight -
  *   the middle of the commonly cited 30-40 ml/kg range for active adults -
  *   falling back to 2,500 ml before any weigh-in exists.
- * - A training day adds a flat [TRAINING_DAY_BONUS_ML].
+ * - A training day adds a flat amount the user sets, [TRAINING_DAY_BONUS_ML]
+ *   by default.
  * - Measured activity adds 1 ml per net active kcal (the usual sweat-loss rule
  *   of thumb), capped at [ACTIVITY_CAP_ML] so one long hike does not produce
  *   an absurd target. "Net" means BMR already subtracted (amendment §2), so the
@@ -37,6 +38,7 @@ object HydrationTarget {
         dynamic: Boolean,
         trainedToday: Boolean,
         activeKcalNet: Double?,
+        trainingDayBonusMl: Double = TRAINING_DAY_BONUS_ML,
     ): Target {
         val base = roundTo50(
             manualBaseMl?.takeIf { it > 0 }
@@ -46,7 +48,7 @@ object HydrationTarget {
         if (!dynamic) return Target(base, base, emptyList())
 
         val reasons = buildList {
-            if (trainedToday) add(Reason("training day", TRAINING_DAY_BONUS_ML))
+            if (trainedToday && trainingDayBonusMl > 0) add(Reason("training day", roundTo50(trainingDayBonusMl)))
             val activity = activeKcalNet?.takeIf { it > 0 }?.let {
                 roundTo50(min(it * ML_PER_ACTIVE_KCAL, ACTIVITY_CAP_ML))
             }

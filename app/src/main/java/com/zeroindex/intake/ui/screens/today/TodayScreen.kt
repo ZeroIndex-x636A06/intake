@@ -137,6 +137,7 @@ fun TodayScreen(
                 unit = state.settings.volumeUnit,
                 manualBaseMl = state.settings.hydrationBaseMl,
                 dynamic = state.settings.hydrationDynamic,
+                trainingBonusMl = state.settings.hydrationTrainingBonusMl,
                 onDismiss = { showWater = false },
                 onLog = { ml -> viewModel.logWater(ml) },
                 onDelete = viewModel::deleteWater,
@@ -146,6 +147,7 @@ fun TodayScreen(
                 onSetUnit = viewModel::setVolumeUnit,
                 onSetBase = viewModel::setHydrationBase,
                 onSetDynamic = viewModel::setHydrationDynamic,
+                onSetTrainingBonus = viewModel::setHydrationTrainingBonus,
             )
         }
     }
@@ -225,9 +227,6 @@ private fun TodayContent(
         item(key = "ring") {
             IntakeCard { MacroRing(progress = state.progress) }
         }
-        state.insight?.let { insight ->
-            item(key = "insight") { InsightCard(insight, onDismiss = { onDismissInsight(insight) }) }
-        }
         if (state.activityBonusKcal > 0) {
             item(key = "activity") {
                 Text(
@@ -249,6 +248,9 @@ private fun TodayContent(
                     onOpen = onOpenWater,
                 )
             }
+        }
+        state.insight?.let { insight ->
+            item(key = "insight") { InsightCard(insight, onDismiss = { onDismissInsight(insight) }) }
         }
         item(key = "meals-heading") {
             SectionLine(title = "Meals", note = "Long-press an entry to edit")

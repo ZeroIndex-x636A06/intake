@@ -86,12 +86,14 @@ enum class VolumeUnit(val label: String) {
     }
 
     /** "500 ml" or "16.9 fl oz": whole millilitres, ounces to one place. */
-    fun format(millilitres: Double): String = when (this) {
-        MILLILITRES -> "%,d ml".format(millilitres.roundToInt())
+    fun format(millilitres: Double): String = "${formatNumber(millilitres)} $label"
+
+    /** The number alone, as [format] writes it: "1,850" or "16.9". */
+    fun formatNumber(millilitres: Double): String = when (this) {
+        MILLILITRES -> "%,d".format(millilitres.roundToInt())
         US_FLUID_OUNCES -> {
             val oz = UnitConverter.round(fromMl(millilitres), 1)
-            val text = if (oz % 1.0 == 0.0) "%,d".format(oz.toInt()) else "%,.1f".format(oz)
-            "$text fl oz"
+            if (oz % 1.0 == 0.0) "%,d".format(oz.toInt()) else "%,.1f".format(oz)
         }
     }
 }

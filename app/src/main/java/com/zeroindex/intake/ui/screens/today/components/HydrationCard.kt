@@ -6,7 +6,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -14,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -24,19 +24,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.data.db.entity.HydrationPresetEntity
 import com.zeroindex.intake.data.repository.HydrationDay
-import com.zeroindex.intake.ui.components.Eyebrow
-import com.zeroindex.intake.ui.components.IntakeCard
-import com.zeroindex.intake.ui.theme.IntakeShape
 import com.zeroindex.intake.domain.units.VolumeUnit
+import com.zeroindex.intake.ui.components.IntakeCard
+import com.zeroindex.intake.ui.theme.WaterAccent
 
 /**
- * Amendment §3: water as a primary metric on Today. Progress toward the day's
- * target, the reason the target moved if it did, and one-tap presets - most
- * drinks are the same glass or bottle every time, so logging one should never
- * take more than a tap.
+ * Amendment §3: water as a primary metric on Today, laid out as mockup v2's
+ * `.hydration` card. The amount is the loudest thing on the card, the meta
+ * line says why the target moved, and the first three presets plus Custom sit
+ * in four equal tiles so logging the usual glass is one tap.
  */
 @Composable
 fun HydrationCard(
@@ -47,9 +48,8 @@ fun HydrationCard(
     onOpen: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val consumed = unit.format(day.consumedMl)
-    val target = unit.format(day.target.totalMl)
     val left = (day.target.totalMl - day.consumedMl).coerceAtLeast(0.0)
+    val amount = "${unit.formatNumber(day.consumedMl)} / ${unit.format(day.target.totalMl)}"
 
     IntakeCard(modifier = modifier) {
         Row(
@@ -57,96 +57,113 @@ fun HydrationCard(
                 .fillMaxWidth()
                 .clickable(onClickLabel = "Edit water presets and target", onClick = onOpen)
                 .semantics(mergeDescendants = true) {
-                    contentDescription = "Water: $consumed of $target. " +
+                    contentDescription = "Water today: ${unit.format(day.consumedMl)} of " +
+                        "${unit.format(day.target.totalMl)}. " +
                         if (left > 0) "${unit.format(left)} to go." else "Target reached."
                 },
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(Modifier.weight(1f)) {
-                Eyebrow("Water")
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = "$consumed of $target",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-            }
             Text(
-                text = if (left > 0) "${unit.format(left)} to go" else "Target reached",
-                style = MaterialTheme.typography.labelSmall,
+                "Water today",
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                amount,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.primary,
             )
         }
 
-        Spacer(Modifier.height(9.dp))
-        ProgressBar(fraction = day.progress)
+        Spacer(Modifier.height(10.dp))
+        WaterBar(day.progress)
+        Spacer(Modifier.height(7.dp))
 
-        if (day.target.reasons.isNotEmpty()) {
-            Spacer(Modifier.height(6.dp))
+        Row(Modifier.fillMaxWidth()) {
             Text(
-                text = day.target.reasons.joinToString("  ·  ") { "+${unit.format(it.ml)} ${it.label}" },
+                if (day.target.reasons.isEmpty()) "Daily target" else "Dynamic target",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.secondary,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = if (day.target.reasons.isEmpty()) {
+                    if (left > 0) "${unit.format(left)} to go" else "Target reached"
+                } else {
+                    day.target.reasons.joinToString(" · ") { "+${unit.format(it.ml)} · ${it.label}" }
+                },
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
-        Spacer(Modifier.height(10.dp))
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(7.dp),
-            verticalArrangement = Arrangement.spacedBy(7.dp),
-        ) {
-            presets.forEach { preset ->
-                PresetButton(
-                    label = "+ ${preset.name}",
-                    detail = unit.format(preset.volumeMl),
+        Spacer(Modifier.height(11.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            presets.take(3).forEach { preset ->
+                PresetTile(
+                    amount = "＋ ${unit.formatNumber(preset.volumeMl)}",
+                    name = preset.name.lowercase(),
+                    description = "Add ${unit.format(preset.volumeMl)}, ${preset.name}",
                     onClick = { onPreset(preset) },
+                    modifier = Modifier.weight(1f),
                 )
             }
-            PresetButton(label = "Custom", detail = null, onClick = onOpen)
+            PresetTile(
+                amount = "＋ Custom",
+                name = "amount",
+                description = "Add a custom amount",
+                onClick = onOpen,
+                modifier = Modifier.weight(1f),
+            )
+            repeat((3 - presets.size).coerceAtLeast(0)) { Spacer(Modifier.weight(1f)) }
         }
     }
 }
 
 @Composable
-private fun ProgressBar(fraction: Float) {
+private fun WaterBar(fraction: Float) {
     Box(
         Modifier
             .fillMaxWidth()
             .height(10.dp)
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(6.dp)),
+            .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
     ) {
         Box(
             Modifier
                 .fillMaxHeight()
                 .fillMaxWidth(fraction.coerceIn(0f, 1f))
-                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(6.dp)),
+                .background(WaterAccent, CircleShape),
         )
     }
 }
 
 @Composable
-private fun PresetButton(label: String, detail: String?, onClick: () -> Unit) {
+private fun PresetTile(
+    amount: String,
+    name: String,
+    description: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Surface(
-        color = MaterialTheme.colorScheme.primaryContainer,
-        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-        shape = IntakeShape.Chip,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = RoundedCornerShape(13.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier
+        modifier = modifier
             .heightIn(min = 48.dp)
-            .clickable(role = Role.Button, onClick = onClick),
+            .clickable(role = Role.Button, onClick = onClick)
+            .semantics(mergeDescendants = true) { contentDescription = description },
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 3.dp, vertical = 5.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            Text(text = label, style = MaterialTheme.typography.labelMedium)
-            if (detail != null) {
-                Text(
-                    text = detail,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            Text(amount, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, maxLines = 1, textAlign = TextAlign.Center)
+            Text(name, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
         }
     }
 }

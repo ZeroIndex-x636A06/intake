@@ -14,6 +14,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.zeroindex.intake.data.ai.AiPrivacy
 import com.zeroindex.intake.domain.ai.AiTask
 import com.zeroindex.intake.domain.units.LengthUnit
+import com.zeroindex.intake.domain.hydration.HydrationTarget
 import com.zeroindex.intake.domain.units.VolumeUnit
 import com.zeroindex.intake.domain.units.WeightUnit
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -52,6 +53,7 @@ data class AppSettings(
     /** Null means "work it out from bodyweight". */
     val hydrationBaseMl: Double? = null,
     val hydrationDynamic: Boolean = true,
+    val hydrationTrainingBonusMl: Double = HydrationTarget.TRAINING_DAY_BONUS_ML,
     /** Amendment §1. Defaults to the privacy-preserving middle setting. */
     val aiPrivacy: AiPrivacy = AiPrivacy.NO_TRAINING,
     /** Whether free models that may keep prompts can be suggested. */
@@ -101,6 +103,7 @@ class SettingsRepository @Inject constructor(
         val volumeUnit = stringPreferencesKey("volume_unit")
         val hydrationBase = doublePreferencesKey("hydration_base_ml")
         val hydrationDynamic = booleanPreferencesKey("hydration_dynamic")
+        val hydrationTrainingBonus = doublePreferencesKey("hydration_training_bonus_ml")
         val aiPrivacy = stringPreferencesKey("ai_privacy")
         val aiAllowRetaining = booleanPreferencesKey("ai_allow_retaining")
         val dailyInsight = booleanPreferencesKey("daily_insight_enabled")
@@ -135,6 +138,7 @@ class SettingsRepository @Inject constructor(
                 ?: VolumeUnit.US_FLUID_OUNCES,
             hydrationBaseMl = p[Keys.hydrationBase],
             hydrationDynamic = p[Keys.hydrationDynamic] ?: true,
+            hydrationTrainingBonusMl = p[Keys.hydrationTrainingBonus] ?: HydrationTarget.TRAINING_DAY_BONUS_ML,
             aiPrivacy = p[Keys.aiPrivacy]?.let { runCatching { AiPrivacy.valueOf(it) }.getOrNull() }
                 ?: AiPrivacy.NO_TRAINING,
             aiAllowRetainingModels = p[Keys.aiAllowRetaining] ?: false,
@@ -169,6 +173,7 @@ class SettingsRepository @Inject constructor(
         if (ml == null) it.remove(Keys.hydrationBase) else it[Keys.hydrationBase] = ml
     }
     suspend fun setHydrationDynamic(enabled: Boolean) = put { it[Keys.hydrationDynamic] = enabled }
+    suspend fun setHydrationTrainingBonusMl(ml: Double) = put { it[Keys.hydrationTrainingBonus] = ml.coerceIn(0.0, 3_000.0) }
     suspend fun setAiPrivacy(privacy: AiPrivacy) = put { it[Keys.aiPrivacy] = privacy.name }
     suspend fun setAiAllowRetaining(allow: Boolean) = put { it[Keys.aiAllowRetaining] = allow }
     suspend fun setDailyInsightEnabled(enabled: Boolean) = put { it[Keys.dailyInsight] = enabled }

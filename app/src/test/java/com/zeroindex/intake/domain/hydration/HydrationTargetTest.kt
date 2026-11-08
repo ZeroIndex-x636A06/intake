@@ -48,6 +48,14 @@ class HydrationTargetTest {
     }
 
     @Test
+    fun `training day increase is the user's number, and zero turns it off`() {
+        val custom = HydrationTarget.compute(2_500.0, null, dynamic = true, trainedToday = true, activeKcalNet = null, trainingDayBonusMl = 750.0)
+        assertThat(custom.totalMl).isEqualTo(3_250.0)
+        val off = HydrationTarget.compute(2_500.0, null, dynamic = true, trainedToday = true, activeKcalNet = null, trainingDayBonusMl = 0.0)
+        assertThat(off.reasons).isEmpty()
+    }
+
+    @Test
     fun `volume formats in both units`() {
         assertThat(VolumeUnit.MILLILITRES.format(1_850.0)).isEqualTo("1,850 ml")
         assertThat(VolumeUnit.US_FLUID_OUNCES.format(500.0)).isEqualTo("16.9 fl oz")

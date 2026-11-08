@@ -64,3 +64,6 @@ val HeatPartial = Color(0xFFB8D7CA)
 val PlateLarge = Color(0xFF2E7D6B)
 val PlateSmall = Color(0xFFB08415)
 val BarSteel = Color(0xFF747C78)
+
+/** Mockup v2's water bar: a teal distinct from protein green, same in both themes. */
+val WaterAccent = Color(0xFF4C9B92)
