@@ -150,3 +150,80 @@ Every generated number shows a one-line "why", and every one can be edited.
 - Data files may be bundled. USDA FoodData Central is public domain.
   Open Food Facts is ODbL: use it online and do not bundle it.
 - Never commit the user's personal plan (release/ is git-ignored).
+
+## Additions (2026-11-08, second round)
+
+**Goal.** The aim is the smartest yet simplest health app: deep insights, but simple
+enough for anyone. It should be close to replacing a trainer, and still work with no AI.
+
+### Hydration v2: weather and drinks
+
+- **Weather.** Fetch the day's high temperature and humidity from Open-Meteo. It is
+  free and needs no key. Raise the water target in heat and humidity.
+  - Location is opt-in. Either it is approximate (rounded to about 10 km, fetched
+    once a day), or the user types a city or ZIP code.
+  - No location means no weather adjustment. The app says so.
+  - Add this to PRIVACY.md.
+- **Drinks count by what they actually do.** Each drink type has a hydration factor
+  taken from the beverage hydration index research:
+  - water, tea and coffee at normal amounts ≈ 1.0
+  - milk and oral rehydration drinks > 1.0
+  - beer and wine count less
+  - spirits count as negative
+- **Caffeine.** Tracked in mg. Above about 300 mg in a day, show a note and add a
+  small top-up to the water target.
+- **Alcohol.** Adds a top-up as well.
+- **Wording.** Copy must be honest. Moderate tea and coffee are not dehydrating, so
+  the app must not claim they are.
+- **Workouts.** Training adds sweat loss: session duration × an intensity-based rate.
+  An Advanced option lets the user measure their own sweat rate by weighing
+  before and after a session.
+
+### Coach engine: rules, no AI needed
+
+A weekly check-in reviews the past week and suggests changes. Each suggestion has a
+plain "why". The user taps to apply it or dismiss it, and nothing changes silently.
+
+| Signal | What the coach does |
+| --- | --- |
+| Weight trend vs goal pace | Adjust calories in small steps |
+| Adherence (days logged, targets hit) | Don't change targets on bad data. Say so. |
+| Strength stalls (no progress in 2–3 sessions) | Suggest a deload or an exercise swap |
+| Recovery (sleep, resting HR, HRV trend from Health Connect, effort ratings) | Suggest an easier day or a deload |
+| Protein or water shortfall | Point it out |
+| Volume per muscle vs target range | Point it out |
+
+**Daily "one thing to do today" card on Today.** It is chosen by priority rules, not AI.
+
+**The AI version is optional.** It rewords or expands the coach's findings. It never
+decides numbers on its own.
+
+### AI policy and cost
+
+- **Deterministic first.** AI runs only when no rule can do the job, and only on an
+  explicit user action:
+  - photo estimate
+  - unstructured menu text
+  - Recipe Hunter search
+  - the optional coach narrative
+  - recipe URL import falls back to AI only when the page has no structured recipe
+    data, and only when the user taps "Try with AI"
+- **Never AI** for:
+  - targets
+  - water
+  - program generation
+  - allergen decisions
+  - barcode or database lookups
+  - structured recipe import
+  - parsing scripts
+- **Audit every OpenRouter call site.** Each one is gated behind a user action or an
+  opt-in schedule.
+- **AI usage meter (Settings → AI):**
+  - calls and dollars per feature for today, the week and the month, from the cost
+    OpenRouter reports
+  - a monthly budget cap that blocks further calls once it is reached
+- **Cost estimate.** Once a model is chosen for each feature, show the expected daily
+  and monthly cost. The calculation is:
+  `uses per day (user-editable defaults per feature) × average tokens per call
+  (measured from benchmark runs) × the model's price`.
+  The same calculation goes in docs/AI-COSTS.md.
