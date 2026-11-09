@@ -246,6 +246,15 @@ opens Plan B, so the split is already leaking. My foods is part of logging (the 
 tab). The database credits and script help are reference material, not food features. v4 combines them (see
 `docs/IA-v4.md` section 2d).
 
+### 2i-2. Two more findings from the user
+
+* **Weekly check-in and Weekly report are the same thing** in the user's words. Today they are two routes
+  (`CoachCheckIn`, `WeeklyReport`), a row each in Progress, and a third row in More for the check-in.
+* **Too many ways to sync and back up.** The code has the nightly encrypted remote backup (Backup screen), device
+  sync (its own section on the same screen), a local export file, a Settings banner pointing at backup, and a
+  Privacy section for each. The user: "If we sync it to a server we really don't need backup. The local json/csv
+  backup can stay." v4 keeps sync and the local export, and removes the remote backup (`docs/IA-v4.md` 2i).
+
 ### 2j. Bugs seen on a device
 
 * **No top inset on the hubs.** In the screenshot of the Food hub, the "Log food" button is drawn under the status
@@ -305,7 +314,7 @@ stopwatch on a phone.
 | 27 | Change the water target | Today > water > scroll to Daily target settings | 2 | Today > water gear | 2 |
 | 28 | Measure my sweat rate | Today > water > Advanced > Measure | 4 | Today > water gear > Advanced | 3 |
 | 29 | Add workout calories to the target | More > Settings > Show advanced > toggle | 4 | You > Nutrition and water > toggle | 3 |
-| 30 | Back up now / set up backup | More > Backup & sync | 2 | You > Backup and data | 2 |
+| 30 | Sync or export my data | More > Backup & sync | 2 | You > Sync and export | 2 |
 | 31 | Turn on AI and add a key | More > AI | 2 | You > AI | 2 |
 | 32 | Pick the model for one AI task | More > AI > Model per task > picker | 4 | You > AI > Model per task > picker | 4 |
 | 33 | Replay the tour | More > Help > Replay the tour | 3 | You > Help and tour | 2 |

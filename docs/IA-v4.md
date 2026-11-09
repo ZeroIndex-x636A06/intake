@@ -14,7 +14,7 @@ Nothing here has been built, and the mockup has not been seen on a real phone.
 3. **Food is one screen, not eight.** Plan, Recipes, Saved meals and Eating out become four sections of the Food
    tab, with Log food on top. My foods moves inside Log food. Database credits and script help move to Settings and
    Help. The "More tools" drawers are gone, and every other mention of a feature is only a shortcut to its home.
-4. **One Settings, in six clear groups.** Each feature keeps a single gear or "⋯" for its own options, and nothing
+4. **One Settings, in six clear groups.** Backup and sync become one simple "Sync and export" screen, and the weekly check-in and report become one screen. Each feature keeps a single gear or "⋯", and nothing
    about water, targets or AI is spread over three screens any more.
 5. **A search icon, "Find anything", on every tab.** It finds screens, settings, foods, recipes, exercises and
    actions, so rarely used things can sit deeper without being lost. **Allergen warnings do not move**: a strip at
@@ -34,13 +34,12 @@ Pill (4)                         Top bar on each tab root: title · search icon 
 │    (My foods is a tab inside Log food)
 ├─ Train     Start card · This week muscle map
 │    Programs · Exercises (photo, diagram, equipment picker)
-└─ Progress  Check-in card · Weight and body · Nutrition · Training
-     menu: Weekly report PDF
+└─ Progress  Weekly check-in card · Weight and body · Nutrition · Training
 
 You (avatar)                     reached from every tab, and by search
 ├─ Goals and plan                (Profile + Your plan, one screen)
 ├─ Settings, six groups          Look and units · Nutrition and water · Training
-│                                · Backup and data · AI (optional) · Privacy
+│                                · Sync and export · AI (optional) · Privacy
 └─ Help and tour                 replay tour, script docs, about
 ```
 
@@ -52,7 +51,7 @@ Where things went that used to live in a drawer or a hub:
 | Food > Recipes | Food > **Recipes** section |
 | Food > Meal templates | Food > **Meals** section (saved meals, NFC), and the **Mine** tab of Log food |
 | Food > More food tools > My foods | **Mine** tab inside Log food (foods, saved meals, recipes). Editing and sharing a food opens from there |
-| Food > More food tools > Food database & credits | You > Settings > Backup and data > Food database (credits line included) |
+| Food > More food tools > Food database & credits | You > Settings > Nutrition and water > Data sources > Food database (credits line included) |
 | Food > More food tools > Food script help | "?" in the Plan menu, and You > Help and tour > Scripts |
 | Food > Eating out (a hub of two) > Plan B, Menu import | Food > **Eating out** section: find a place, saved options, saved menus |
 | Food > Allergens (a hub of two) | **Allergen strip** on Food opens one Allergens screen (my list, strictness, a link to the hidden-ingredient guide) |
@@ -60,9 +59,9 @@ Where things went that used to live in a drawer or a hub:
 | Train > More training tools > Performance | Progress > Weight and body > **Jump tests** |
 | Train > More training tools > Program script help | "?" in the program editor, and You > Help and tour > Scripts |
 | Train hub > Make one for me, Programs > Make one, no-program card | One **New program** choice list: Build, Make me one, From a template, Import |
-| More > Weekly check-in | Progress, first card (Today still links to it when it is due) |
+| More > Weekly check-in, Progress > Weekly report | **One screen, "Weekly check-in"** (summary, suggestions, export/print). Entry: the Progress card, with a Today link when it is due |
 | More > Profile & goals, Settings > Targets, Your plan | You > **Goals and plan** |
-| More > Backup, AI, Privacy, Settings | You > Settings groups |
+| More > Backup & sync, AI, Privacy, Settings | You > Settings groups. Backup & sync becomes **Sync and export** (one simple screen) |
 | More > Help | You > Help and tour |
 
 ### Tap depth for the top 15 tasks
@@ -77,7 +76,7 @@ From Today, the pill switch counts as one tap. The full 37-task table is in the 
 | 4 | Weigh in | 2 | **1** | Today > Weight tile |
 | 5 | Start today's workout | 2 | **1** | Today > Start, straight into the session |
 | 6 | See how I'm doing | 1 | 1 | Progress |
-| 7 | Weekly check-in | 2 | 2 | Progress > check-in card (1 from Today when it is due) |
+| 7 | Weekly check-in (and its report) | 2 | 2 | Progress > Weekly check-in card (1 from Today when it is due) |
 | 8 | Log the planned meal | 3 | **1** | Today > Next up > Log |
 | 9 | See this week's plan | 2 | **1** | Food (opens on the Plan section) |
 | 10 | Find a safe place to eat | 3 | **2** | Food > Eating out |
@@ -145,15 +144,15 @@ Rule: a feature has one screen that owns its data and options. Every other row t
 | Feature | Home | Links in |
 | --- | --- | --- |
 | Weight and body | Progress > Weight and body | Today Weight tile, Focus card |
-| Weekly check-in | Progress, first card | Today Focus card, notification |
+| Weekly check-in, with its report | Progress, first card | Today Next up row when it is due, the notification. Nothing else |
 | Water log | Today water chips and sheet | Search |
 | Water settings | You > Settings > Nutrition and water | Today water gear, "How the target adds up" |
 | Targets and goals | You > Goals and plan | Settings > Nutrition and water (a single link row), Today Focus card |
 | Allergens | Food > allergen strip > Allergens | Add food footer, plan import preview, Search |
-| Food database and keys | You > Settings > Backup and data | Food detail "Contribute" link, credits line |
+| Food database and keys | You > Settings > Nutrition and water > Data sources | Food detail "Contribute" link, credits line |
 | My foods | Log food > Mine | Search |
 | Saved meals | Food > Meals | Log food > Mine, Today "save as meal prep" |
-| Health Connect | You > Settings > Backup and data | Progress shows its data |
+| Health Connect | You > Settings > Nutrition and water > Data sources | Progress shows its data |
 | Jump tests | Progress > Weight and body | Search |
 | Programs and generator | Train > Programs > New program | Today workout card "Make a program" |
 | Exercises | Train > Exercises | Pickers in the builder and the workout, Search |
@@ -184,7 +183,7 @@ Food
 
 What moved out of Food: **My foods** is the **Mine** tab inside Log food, because that is where a person wants
 it; a food's edit and "Contribute to Open Food Facts" open from there. **Food database & credits** goes to
-Settings > Backup and data. **Food script help** goes to the "?" in the Plan menu and to Help. **Allergens** is
+Settings > Nutrition and water > Data sources. **Food script help** goes to the "?" in the Plan menu and to Help. **Allergens** is
 the strip.
 
 This is a real merge, so it carries a risk: the Plan section is the longest screen in the app today (about 32
@@ -196,7 +195,7 @@ controls). It keeps its own menu and sub-headings and is the only section that s
 | --- | --- | --- |
 | Food | One screen with four sections (above) | None. The drawer is gone because nothing is left to put in it |
 | Train | Start card, This week (muscle map), Programs, Exercises | None needed |
-| Progress | Check-in, Weight and body, Nutrition, Training (4 cards) | Menu: Weekly report |
+| Progress | Weekly check-in, Weight and body, Nutrition, Training (4 cards) | None. The report PDF is an action inside the check-in |
 | You | Goals and plan, Settings (6 groups), Help and tour | Each settings group has its own **Advanced** disclosure |
 
 A hub needs an "All ..." list only when it has more than about four things. None of these does: the long tail went
@@ -210,14 +209,14 @@ collapsed **Advanced** section.
 | Group | Takes in |
 | --- | --- |
 | **Look and units** | Weight, length and volume units (volume used to live in the water sheet), theme, reduce motion, wallpaper colours |
-| **Nutrition and water** | Target mode (automatic or by hand), fine-tune protein and fat, calorie floor, carb cycling, add workout calories (the Settings and Health Connect copies become one), water target adjustments, weather, drink values, sweat rate, quick-add drinks. Goal weight and rate stay in Goals and plan, with a link row here |
+| **Nutrition and water** | Data sources (Health Connect, Food database and USDA key, Open Food Facts search and contribute) under Advanced. Target mode (automatic or by hand), fine-tune protein and fat, calorie floor, carb cycling, add workout calories (the Settings and Health Connect copies become one), water target adjustments, weather, drink values, sweat rate, quick-add drinks. Goal weight and rate stay in Goals and plan, with a link row here |
 | **Training** | Default rest, vibrate, bar weight, plates |
-| **Backup and data** | Backup and sync, export and import, Health Connect, Food database and USDA key, Open Food Facts search and contribute |
+| **Sync and export** | One simple screen with two parts. **Sync**: the optional self-hosted server is the off-device copy; a new phone pairs with it and pulls. **Export and import**: the local JSON or CSV file through the file picker, with an optional passphrase (open question) |
 | **AI (optional)** | Master switch, key, budget, free models, scheduled AI, models per task; usage, cost and the benchmark under Advanced. "Reword my check-in" lives only here |
 | **Privacy** | What leaves this phone. The statement stays one tap away because it is a feature |
 
 Feature gears and "⋯" menus (the only other place options live): Today water gear, Meal plan menu (new, import,
-export, script help), Programs menu, Recipes menu (Recipe Hunter), Progress menu (weekly report), Check-in gear
+export, script help), Programs menu, Recipes menu (Recipe Hunter), Check-in gear
 (notification), Allergens gear (strictness).
 
 The water sheet on Today keeps four things: add a drink, today's entries, how the target adds up (read-only),
@@ -273,6 +272,31 @@ exercises, 40 foods and 12 programs.
 | Health Connect | Kept (it is the Android name), with "Watch and scale data" under it |
 | RPE | Kept, with a tap-for-explanation |
 
+### 2i. Decided: one weekly screen, simpler sync
+
+Two decisions from the user, taken as given.
+
+**Weekly check-in and Weekly report are the same thing** ("those are the same thing"). One screen, "Weekly check-in",
+with three parts: the **week summary**, the **coach suggestions** with Apply and Dismiss, and the printable report
+as an **Export / print this week** action. The week chips show ranges ("Nov 9–15"). It has one entry, the Progress
+card; the Today Next up row and the weekly notification only deep-link to it. The Progress report row and the
+Progress menu disappear. This takes two audit duplicates (check-in in More and Progress; report as its own row)
+down to none.
+
+**Too many ways to sync and back up.** The new model has two, and says what each is for:
+
+| | Role | Where |
+| --- | --- | --- |
+| **Sync** | The optional self-hosted server is the off-device copy. A new phone pairs with it and pulls. If you sync, you do not need a backup | You > Settings > Sync and export |
+| **Export and import** | A local JSON or CSV file through the file picker. Stays | Same screen |
+| ~~Nightly encrypted remote backup~~ (WebDAV, SFTP, SMB, destinations, schedule, server identity prompts) | **Removed** | |
+
+"Backup & sync" is renamed **Sync and export** and is one simple screen. It sheds the schedule, the destination
+list and the server-identity dialogs of the old backup. Consequences to build around: the restore story becomes
+"pair, then pull", so the sync server's pairing needs to be easy to find on a fresh install (first-run welcome
+should offer "Restore from my server" and "Import a file"); `docs/BACKUP.md` and the Privacy screen's "Nightly
+backup" line need updating; and people with no server rely on the export file alone (see the open questions).
+
 ## 3. Old to new, every screen
 
 "Stays" means the screen is kept as is, only its parents change. The 21 sheets and 25 dialogs are covered in the
@@ -285,7 +309,7 @@ last two blocks.
 | `Today` | **Rebuilt** | Four cards (section 2b) |
 | `Food` | **Becomes the one Food screen** | Allergen strip, Log food, scan, four sections: Plan, Recipes, Meals, Eating out |
 | `Train` | **Slimmed, with room for insight** | Start card, This week muscle map, 2 rows |
-| `Progress` | **Regrouped** | Check-in, Weight and body, Nutrition, Training. Report links become a menu |
+| `Progress` | **Regrouped** | Weekly check-in, Weight and body, Nutrition, Training |
 | `More` | **Becomes You** | Avatar, not a tab |
 | `Onboarding` | **Stays**, copy updated | Four tabs, avatar, Edit Today. Sets Today defaults |
 | `MealPlans` | **Becomes the Plan section** | Food > Plan. Week / Shopping switch. Menu holds new, import, export, "?" |
@@ -299,7 +323,7 @@ last two blocks.
 | `MealTemplates` | **Becomes the Meals section** | Food > Meals; also the Mine tab in Log food |
 | `MyFoods` | **Moved into Log food** | The Mine tab, Foods list. Opens as a full list from there |
 | `FoodDetail` | **Stays** | From the Mine tab in Log food |
-| `FoodData` | **Moved** | You > Settings > Backup and data > Food database |
+| `FoodData` | **Moved** | You > Settings > Nutrition and water > Data sources > Food database |
 | `Allergens` (hub of two) | **Removed** | The allergen strip opens the Allergens screen |
 | `MyAllergens` | **Renamed** Allergens | The list, strictness gear, guide row |
 | `AllergenKeywords` | **Stays** | Drill-in from an allergen |
@@ -311,13 +335,13 @@ last two blocks.
 | `Performance` | **Moved** | Progress > Weight and body > Jump tests |
 | `ActiveWorkout` | **Stays** | Info button per exercise opens the detail page. Rest ring, plates unchanged |
 | `WorkoutHistory` | **Renamed**, moved | Progress > Training ("Training log") |
-| `WeeklyReport` | **Demoted** | Progress menu |
-| `CoachCheckIn` | **Moved** | Progress first card; settings behind its gear; past check-ins inside |
-| `HealthConnect` | **Moved** | You > Settings > Backup and data |
+| `WeeklyReport` | **Merged** into Weekly check-in | The PDF is the "Export / print this week" action on the check-in screen |
+| `CoachCheckIn` | **Becomes "Weekly check-in", the one weekly screen** | Progress first card. Three parts: the week summary, the coach suggestions (Apply or Dismiss), Export / print this week. Week chips show ranges such as "Nov 9–15". Settings behind its gear; past check-ins inside |
+| `HealthConnect` | **Moved** | You > Settings > Nutrition and water > Data sources |
 | `BodyMetrics` | **Becomes a small sheet** for weight; measurements in Progress | Today Weight tile and Progress |
 | `Settings` | **Flattened** into You | Six groups (2e) |
 | `Privacy` | **Moved** | You > Settings > Privacy |
-| `Backup` | **Moved** | You > Settings > Backup and data |
+| `Backup` | **Simplified, renamed Sync and export** | You > Settings > Sync and export. Sync (the server) plus local export and import. The nightly encrypted remote backup and its destinations are **removed** (see 2i) |
 | `AiSettings` | **Moved** | You > Settings > AI. Usage, cost, benchmark under Advanced |
 | `Help` | **Trimmed** | You > Help and tour: Replay tour, Show tips again, Scripts (one row, then the wiki), About |
 | `Profile` + `YourPlan` | **Merged** | You > Goals and plan: Your plan on top, "About you" below |
@@ -423,3 +447,6 @@ person asks, soft deletes, allergen checks local and deterministic.
 12. **Old names.** "Plan B" and "Recipe Hunter" are yours. Rename them as proposed, or keep the names and add a
     plain-words subtitle?
 13. **The weekly check-in's home.** Progress (proposed), or only the Next up row on check-in day?
+14. **Export passphrase.** Should the JSON or CSV export keep an optional passphrase (an encrypted file), or be plain only? Plain is simpler, and the file is yours to protect.
+15. **Sync-less people.** Without a server, the export file is the only off-device copy. Should the app remind you to export now and then (a quiet monthly nudge), or never nag?
+16. **Old backups.** Anyone who set up the nightly remote backup would lose it. Is there anyone but you? If not, we can drop it with no migration. A remote backup already on a server can be read once by the restore path, then removed.

@@ -213,6 +213,8 @@ const SCR={
   settings:{kind:'push',title:'Nutrition and water',parent:'you',back:'You'},
   allergens:{kind:'push',title:'Allergens',parent:'food',back:'Food',
     menu:[['How strict to be','Strict · Careful. Models can raise a warning, never clear one'],['Add your own allergen','Adds a custom allergen with keywords']]},
+  checkin:{kind:'push',title:'Weekly check-in',parent:'progress',back:'Progress',menu:[['Check-in settings','Notification, AI reword (optional)'],['Past check-ins','Opens earlier weeks']]},
+  syncx:{kind:'push',title:'Sync and export',parent:'you',back:'You'},
   exercises:{kind:'push',title:'Exercises',parent:'train',back:'Train'},
   exercise:{kind:'push',title:'Exercise',parent:'exercises',back:'Exercises',
     menu:[['Edit this exercise','Name, muscles, equipment, rest'],['Add a photo of my own','Pick from your gallery. Stays on this phone'],['Hide from the list','Soft delete. History is kept']]},
@@ -231,7 +233,8 @@ const IDX=[
  {t:'Calorie and protein target',g:'Settings',ic:'⚙',w:'You › Goals and plan',k:'tdee macros calories protein goal maintenance target',go:'toast:Opens You › Goals and plan'},
  {t:'Add workout calories to my target',g:'Settings',ic:'⚙',w:'You › Nutrition and water',k:'active calories health connect burn target',go:'screen:settings'},
  {t:'Units and theme',g:'Settings',ic:'⚙',w:'You › Look and units',k:'kg lb units theme dark motion length',go:'toast:Opens You › Look and units'},
- {t:'Backup and sync',g:'Settings',ic:'⚙',w:'You › Backup and data',k:'backup export import sync server restore',go:'toast:Opens You › Backup and data'},
+ {t:'Sync and export',g:'Settings',ic:'⚙',w:'You › Sync and export',k:'backup export import sync server restore csv json pair',go:'screen:syncx'},
+ {t:'Weekly check-in',g:'Screens',ic:'✓',w:'Progress',k:'report pdf print week check-in coach suggestions',go:'screen:checkin'},
  {t:'AI (optional)',g:'Settings',ic:'⚙',w:'You › AI',k:'ai key openrouter model budget photo',go:'toast:Opens You › AI'},
  {t:'Allergens',g:'Screens',ic:'⚠',w:'Food',k:'milk peanut sesame allergy avoid allergen',go:'screen:allergens'},
  {t:'Meal plan',g:'Screens',ic:'▤',w:'Food › Plan',k:'week plan menu shopping list',go:'screen:food'},
@@ -319,6 +322,19 @@ train(){return `<p class="subcopy">Start a workout, or look after the plan behin
   ${menuitem('☰','Programs','Push / Pull / Legs · active · ＋ New program','data-toast="Opens the active program. New program: Build, Make me one, From a template, Import"')}
   ${menuitem('🏋','Exercises','214 exercises · by muscle and equipment','data-go="exercises"')}
   </div><p class="note">History, PRs and trends live in Progress › Training. Jump tests live in Progress › Weight and body.</p>`},
+checkin(S){const wk=S.seg.ck||'w2';return `<div class="weekstrip">${[['w0','Oct 26–Nov 1'],['w1','Nov 2–8'],['w2','Nov 9–15']].map(w=>`<button class="chip sm ${wk===w[0]?'selected':''}" data-seg="ck:${w[0]}" style="flex:0 0 auto">${w[1]}</button>`).join('')}</div>
+  <span class="label">The week</span><div class="card"><div class="week-summary"><div class="summary-tile"><b>2,010</b><small>AVG KCAL · TARGET 2,040</small></div><div class="summary-tile"><b>182 g</b><small>AVG PROTEIN</small></div><div class="summary-tile"><b>−0.6 kg</b><small>WEIGHT TREND</small></div><div class="summary-tile"><b>4 / 4</b><small>SESSIONS DONE</small></div></div></div>
+  <span class="label">Suggestions</span>
+  ${[['Add 100 kcal on training days','Your weight is dropping a little fast for your pace.'],['Move protein to 2.0 g per kg','You hit 190 g on 5 of 7 days. The target can match.'],['Add a rest day after Legs','Your last two Legs sessions went down in reps.']].map(x=>`<div class="recipe-card"><h4>${x[0]}</h4><p>${x[1]}</p><div style="display:flex;gap:8px"><button class="mini2 f" data-toast="Applied. Targets updated">Apply</button><button class="mini2" data-toast="Dismissed for this week">Dismiss</button></div></div>`).join('')}
+  <button class="primary-btn" data-toast="Saves or prints the week as a PDF: intake, weight, sleep, training">Export / print this week</button>
+  <p class="note">One screen for the week. The report is an action here, not its own place.</p>`},
+syncx(){return `<p class="subcopy" style="margin-top:6px">Two ways to keep your data safe. Nothing else to set up.</p>
+  <span class="label">Sync · optional</span><div class="card"><div class="row-between"><b style="font:700 14px Manrope">Your own server</b><span class="status-pill">PAIRED</span></div><p class="note">The server is your off-device copy. On a new phone: pair it, then pull. If you sync, you do not need a separate backup.</p>
+   <div class="tinyline"><span>Last sync</span><b>9:12 today</b></div><div class="tinyline"><span>This phone</span><b>Jordan's Pixel</b></div>
+   <div class="warn-actions"><button class="anyway" data-toast="Syncs now">Sync now</button><button class="anyway" data-toast="Shows a code to pair another phone">Pair another phone</button></div></div>
+  <span class="label">Export and import</span><div class="card"><p class="note" style="margin-top:0">A file you keep yourself: JSON for everything, CSV for spreadsheets.</p>
+   <div class="warn-actions"><button class="dont" data-toast="Choose where to save the file">Export</button><button class="anyway" data-toast="Choose a file to import">Import</button></div>
+   <div class="setting-row" style="border-bottom:0"><span>Protect the export with a passphrase<small>Optional. Open question in the proposal</small></span><button class="sw" data-sw="pass" role="switch" aria-label="Passphrase"></button></div></div>`},
 exercises(){return `<div class="searchbox">⌕ <input placeholder="Search exercises" aria-label="Search exercises"></div>
   <div class="chips" style="margin-bottom:10px"><button class="chip sm selected">All</button><button class="chip sm">Chest</button><button class="chip sm">Back</button><button class="chip sm">Legs</button><button class="chip sm">Shoulders</button><button class="chip sm" data-go="equipment">Equipment ▾</button></div>
   ${[['Barbell bench press','Chest · barbell'],['Incline dumbbell press','Chest · dumbbell'],['Overhead press','Shoulders · barbell'],['Cable fly','Chest · cable'],['Triceps pushdown','Triceps · cable']].map(e=>`<button class="food-row" data-go="exercise" style="background:none;border:0;border-bottom:1px solid var(--bd);width:100%;text-align:left;color:var(--fg)"><div class="food-icon">🏋</div><div class="food-details"><b>${e[0]}</b><small>${e[1]}</small></div><span class="chevron" style="color:var(--sub)">›</span></button>`).join('')}
@@ -347,13 +363,13 @@ workout(){return `<div class="workout-top"><button class="textbutton" data-back 
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px"><button class="outline-btn" data-toast="Add an exercise: opens the picker">＋ Add an exercise</button><button class="primary-btn" style="margin:0" data-toast="Next exercise: Incline dumbbell press">Next exercise</button></div>
   <button class="quiet-btn" style="width:100%;margin-top:8px" data-back>Finish session</button>`},
 progress(S){const t=S.seg.pg||'weight';return `<div class="range"><button class="chip active">Week</button><button class="chip">Month</button><button class="chip">3 mo</button><button class="chip">All</button></div>
-  <div class="checkin" style="margin-top:12px"><small>Weekly check-in · ready</small><h3>3 small suggestions for next week</h3><p>Your coach looked at food, weight and training. You decide what to apply.</p><button data-toast="Opens the weekly check-in. Its settings are behind its gear">Review</button></div>
+  <div class="checkin" style="margin-top:12px"><small>Weekly check-in · ready</small><h3>3 small suggestions for next week</h3><p>The week, the suggestions and the printable report, in one place.</p><button data-go="checkin">Review</button></div>
   <div class="chart-card"><div class="chart-title"><b>Weight and body</b><small>Trend −0.6 kg / week</small></div>
    <div class="tabs t4" style="margin:6px 0 4px"><button class="tab ${t==='weight'?'active':''}" data-seg="pg:weight">Weight</button><button class="tab ${t==='measures'?'active':''}" data-seg="pg:measures">Measures</button><button class="tab ${t==='photos'?'active':''}" data-seg="pg:photos">Photos</button><button class="tab ${t==='jump'?'active':''}" data-seg="pg:jump">Jump tests</button></div>
    ${t==='weight'?`<div class="weight-big">81.4 <small>kg · 7-day trend 81.6</small></div><div class="chart"><div class="trend"></div><div class="points">${[70,62,66,50,54,42,38].map(v=>`<i style="--v:${v}"></i>`).join('')}</div></div><button class="primary-btn" data-go="weighin" style="margin-top:12px">Weigh in</button>`:`<div class="empty-state">${t==='measures'?'Waist, chest, arms and more. Add one, or a set.':t==='photos'?'Progress photos stay on this phone.':'Vertical jump, standing reach, total reach. Optional.'}</div>`}</div>
   <div class="chart-card"><div class="cardhead"><b>Nutrition</b><button class="go" data-toast="Opens Nutrition: calories vs target, adherence, protein days">Details ›</button></div><div class="tinyline"><span>On target</span><b>5 of 7 days</b></div><div class="tinyline"><span>Average</span><b>2,010 kcal · 182 g protein</b></div></div>
   <div class="chart-card"><div class="cardhead"><b>Training</b><button class="go" data-toast="Opens Training: sessions, volume per muscle, PRs">Details ›</button></div><div class="heat"><i class="on"></i><i></i><i class="on"></i><i class="mid"></i><i class="on"></i><i></i><i class="today"></i></div><div class="tinyline" style="margin-top:8px"><span>This week</span><b>4 sessions · 2 PRs</b></div></div>
-  <button class="edit-today" data-menu>Weekly report PDF and more ⋯</button>`},
+  `},
 you(){return `<div class="profile"><div class="avatar" aria-hidden="true">J</div><div><b>Jordan</b><small>Cutting · 2,040 kcal · 190 g protein · 3,000 ml water</small></div></div>
   <div class="card more-list" style="padding:3px 14px">${menuitem('◎','Goals and plan','Your targets, with the reasons. Edit about you','data-toast="Opens Goals and plan: Your plan on top, About you below"')}</div>
   <div class="sectionline"><h3>Settings</h3><span class="note" style="margin:0">six groups</span></div>
@@ -361,7 +377,7 @@ you(){return `<div class="profile"><div class="avatar" aria-hidden="true">J</div
    ${menuitem('Aa','Look and units','kg or lb, litres or oz, theme, motion','data-toast="Opens Look and units"')}
    ${menuitem('◔','Nutrition and water','Targets, water, weather, workout calories','data-go="settings"')}
    ${menuitem('↗','Training','Rest timer, bar weight, plates','data-toast="Opens Training settings"')}
-   ${menuitem('⇅','Backup and data','Backup, sync, export, Health Connect, food database','data-toast="Opens Backup and data"')}
+   ${menuitem('⇅','Sync and export','Your server, and a file you keep','data-go="syncx"')}
    ${menuitem('✦','AI (optional)','Off until you add a key','data-toast="Opens AI settings. Everything works without it"')}
    ${menuitem('🔒','Privacy','Exactly what leaves this phone, and when','data-toast="Opens Privacy"')}</div>
   <div class="card more-list" style="padding:3px 14px">${menuitem('?','Help and tour','Replay the tour, write it as text, about','data-toast="Opens Help and tour"')}</div>
@@ -378,7 +394,7 @@ settings(S){const sw=(k,d)=>{const on=S.sw[k]===undefined?d:S.sw[k];return `<but
    <div class="setting-row"><span>Adjust for hot weather<small>Asks for your location only while you use it</small></span>${sw('wx',false)}</div>
    <div class="setting-row"><span>Unit</span><div class="segmented"><button class="active">ml</button><button>fl oz</button></div></div>
    ${row('Quick-add drinks','First six show on Today','data-toast="Opens the drinks editor"')}</div>
-  <div class="accordion"><button class="acc-head" data-acc="adv" aria-expanded="${S.acc.adv?'true':'false'}">Advanced <span class="arrow">⌄</span></button><div class="acc-body" ${S.acc.adv?'':'hidden'}>${['Calorie floor · 1.1 × resting','Carb cycling · off','Drink values and caffeine top-ups','Measure my sweat rate'].map(x=>`<div class="setting-row" style="border-bottom:1px solid var(--bd)"><span>${x}</span><span class="chev" style="color:var(--sub)">›</span></div>`).join('')}</div></div>
+  <div class="accordion"><button class="acc-head" data-acc="adv" aria-expanded="${S.acc.adv?'true':'false'}">Advanced <span class="arrow">⌄</span></button><div class="acc-body" ${S.acc.adv?'':'hidden'}>${['Calorie floor · 1.1 × resting','Carb cycling · off','Drink values and caffeine top-ups','Measure my sweat rate','Data sources: Health Connect, Food database'].map(x=>`<div class="setting-row" style="border-bottom:1px solid var(--bd)"><span>${x}</span><span class="chev" style="color:var(--sub)">›</span></div>`).join('')}</div></div>
   <p class="note">Used by: Today's water card and Water sheet. Nothing else keeps a copy of these settings.</p>`},
 };
 const SHEETS={
@@ -431,7 +447,7 @@ function mk(el,start,opts={}){
     if(d.kind==='root'){bar=`<header class="appbar"><div class="title">${b==='today'?'in<b>take</b>':d.title}</div><button class="iconbtn" data-go="search" aria-label="Find anything">⌕</button><button class="avatar" data-go="you" aria-label="You: profile, goals and settings">J</button></header>`}
     else{bar=`<div class="backbar"><button class="back" data-back>‹ ${d.back}</button><h2>${d.title}</h2>${d.menu?`<button class="iconbtn" data-menu aria-label="More options">⋯</button>`:''}</div>`}
     let menu='';
-    const mItems=d.menu||(b==='food'?[['New plan','Write it, build it, or import it'],['Import a plan file','Allergens are checked before saving'],['Export as text','Shares the plan as a script'],['Find recipes (AI, optional)','Off until you add a key'],['?  Write it as text','Opens the script docs']]:b==='progress'?[['Weekly report PDF','Opens the printable report'],['Health Connect data','Opens You › Backup and data']]:null);
+    const mItems=d.menu||(b==='food'?[['New plan','Write it, build it, or import it'],['Import a plan file','Allergens are checked before saving'],['Export as text','Shares the plan as a script'],['Find recipes (AI, optional)','Off until you add a key'],['?  Write it as text','Opens the script docs']]:null);
     if(S.menu&&mItems)menu=`<div class="popover"${b==='progress'?' style="top:auto;bottom:96px"':''}>${mItems.map(m=>`<button data-toast="${m[1]}">${m[0]}</button>`).join('')}</div>`;
     let layer='';const t=top(),td=SCR[t];
     if(td.kind==='sheet')layer=`<div class="scrim" data-close-bg><div class="sheetbox" data-stop>${SHEETS[t](S)}</div></div>`;
@@ -490,9 +506,11 @@ const FRAMES=[
  ['workout','Active workout','Pill hides. Info button opens the exercise page',{}],
  ['exercise','Exercise detail','Photo, diagram, muscle map, equipment (placeholders)',{}],
  ['equipment','Equipment picker','Icons for what you have (placeholders)',{}],
- ['progress','Progress','Check-in, weight and body, nutrition, training',{}],
+ ['progress','Progress','Weekly check-in, weight and body, nutrition, training',{}],
+ ['checkin','Weekly check-in','One weekly screen: summary, suggestions, export',{}],
  ['you','You','Behind the avatar. Goals, six settings groups, help',{}],
  ['settings','Settings group','Nutrition and water: one page, one Advanced',{}],
+ ['syncx','Sync and export','Sync with your server, or keep a file',{}],
  ['search','Find anything','Screens, settings, foods, exercises, actions',{query:'wat'}],
  ['edittoday','Edit Today','Four switches. Hide any card',{}]
 ];
