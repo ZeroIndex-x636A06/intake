@@ -26,6 +26,9 @@ sealed interface Route {
     @Serializable data object Progress : Route
     @Serializable data object More : Route
 
+    /** The welcome flow, shown before the tabs on a first run and from Help, "Show the welcome again". */
+    @Serializable data object Onboarding : Route
+
     // Food tab. Hubs first, then the screens they open.
     @Serializable data object MealPlans : Route
     @Serializable data object Recipes : Route

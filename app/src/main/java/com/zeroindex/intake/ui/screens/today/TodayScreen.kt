@@ -57,6 +57,10 @@ import com.zeroindex.intake.ui.components.MacroRing
 import com.zeroindex.intake.ui.adaptive.LocalWindowSizeClass
 import com.zeroindex.intake.ui.adaptive.isExpanded
 import com.zeroindex.intake.ui.components.SectionLine
+import com.zeroindex.intake.domain.onboarding.TourIds
+import com.zeroindex.intake.ui.onboarding.TourScrollHook
+import com.zeroindex.intake.ui.onboarding.TourTargetsPresent
+import com.zeroindex.intake.ui.onboarding.tourTarget
 import com.zeroindex.intake.ui.screens.today.components.BaselineCard
 import com.zeroindex.intake.ui.screens.today.components.HydrationCard
 import com.zeroindex.intake.ui.screens.today.components.InsightCard
@@ -222,6 +226,15 @@ private fun TodayContent(
     onSaveTemplate: (MealSlot) -> Unit,
     onDismissInsight: (AiInsightEntity) -> Unit,
 ) {
+    // Tour: these exist even while a lazy item is scrolled out of view.
+    TourTargetsPresent(
+        buildSet {
+            add(TourIds.RING)
+            add(TourIds.ADD_FOOD)
+            if (state.hydration != null) add(TourIds.WATER)
+            if (state.isToday && (extras.baseline != null || extras.workout !is WorkoutCardState.Loading)) add(TourIds.WORKOUT)
+        },
+    )
     val swipeThreshold = with(LocalDensity.current) { 64.dp.toPx() }
     var dragged by remember { mutableStateOf(0f) }
     // SPEC §5: swipe left and right to change days.
@@ -276,7 +289,10 @@ private fun TodayContent(
             }
         }
     } else {
+        val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+        TourScrollHook(listState)
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxWidth().then(swipeToChangeDay),
             contentPadding = PaddingValues(
                 top = contentPadding.calculateTopPadding() + 8.dp,
@@ -308,12 +324,17 @@ private fun LazyListScope.nutritionItems(
     if (state.isToday) {
         extras.baseline?.let { baseline ->
             item(key = "baseline") {
-                BaselineCard(baseline, onOpenProfile = cardActions.onOpenProfile, onBuildPlan = cardActions.onBuildPlan)
+                BaselineCard(
+                    baseline,
+                    onOpenProfile = cardActions.onOpenProfile,
+                    onBuildPlan = cardActions.onBuildPlan,
+                    modifier = Modifier.tourTarget(TourIds.WORKOUT),
+                )
             }
         }
     }
     item(key = "ring") {
-        IntakeCard { MacroRing(progress = state.progress) }
+        IntakeCard(Modifier.tourTarget(TourIds.RING)) { MacroRing(progress = state.progress) }
     }
     if (state.activityBonusKcal > 0) {
         item(key = "activity") {
@@ -334,6 +355,7 @@ private fun LazyListScope.nutritionItems(
                 unit = state.settings.volumeUnit,
                 onPreset = onWaterPreset,
                 onOpen = onOpenWater,
+                modifier = Modifier.tourTarget(TourIds.WATER),
             )
         }
     }
@@ -344,6 +366,7 @@ private fun LazyListScope.nutritionItems(
                 onStart = cardActions.onOpenTrain,
                 onResume = cardActions.onResumeWorkout,
                 onMakeProgram = cardActions.onMakeProgram,
+                modifier = if (state.isToday && extras.baseline != null) Modifier else Modifier.tourTarget(TourIds.WORKOUT),
             )
         }
     }
@@ -377,7 +400,7 @@ private fun LazyListScope.mealItems(
     item(key = "add") {
         Button(
             onClick = { onAddToSlot(defaultSlotForNow()) },
-            modifier = Modifier.fillMaxWidth().height(52.dp),
+            modifier = Modifier.fillMaxWidth().height(52.dp).tourTarget(TourIds.ADD_FOOD),
         ) { Text("Add food") }
     }
 }

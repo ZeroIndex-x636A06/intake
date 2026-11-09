@@ -57,6 +57,8 @@ fun HubScreen(
     modifier: Modifier = Modifier,
     before: LazyListScope.() -> Unit = {},
     after: LazyListScope.() -> Unit = {},
+    /** A first-visit tip shown under the heading (see `TabTip`). */
+    tip: (@Composable () -> Unit)? = null,
 ) {
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
@@ -64,6 +66,7 @@ fun HubScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item(key = "heading") { SubHead(title, subtitle) }
+        if (tip != null) item(key = "tip") { tip() }
         before()
         item(key = "sections") { HubList(items) }
         after()

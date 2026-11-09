@@ -22,8 +22,26 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.background
+import androidx.compose.material3.MaterialTheme
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.zeroindex.intake.domain.onboarding.GateDecision
+import com.zeroindex.intake.domain.onboarding.PendingDestination
+import com.zeroindex.intake.domain.onboarding.TourIds
+import com.zeroindex.intake.ui.onboarding.AppFlowViewModel
+import com.zeroindex.intake.ui.onboarding.LocalTourState
+import com.zeroindex.intake.ui.onboarding.TourOverlay
+import com.zeroindex.intake.ui.onboarding.TourState
+import com.zeroindex.intake.ui.onboarding.tourTarget
+import com.zeroindex.intake.ui.navigation.TabGraph
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,7 +51,6 @@ import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.zeroindex.intake.ui.adaptive.LocalWindowSizeClass
 import com.zeroindex.intake.ui.adaptive.isAtLeastMedium
 import com.zeroindex.intake.ui.adaptive.isExpanded
@@ -51,13 +68,31 @@ import com.zeroindex.intake.ui.navigation.tabOf
 @Composable
 fun IntakeApp(messages: AppMessages? = null) {
     CompositionLocalProvider(LocalReduceMotion provides rememberSystemReduceMotion()) {
-        IntakeAppContent(messages)
+        val flow: AppFlowViewModel = hiltViewModel()
+        val gate by flow.gate.collectAsStateWithLifecycle()
+        val decision = gate
+        if (decision == null) {
+            // A few milliseconds while the welcome-or-tabs decision is made.
+            Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
+        } else {
+            IntakeAppContent(messages, flow, startOnboarding = decision == GateDecision.SHOW_ONBOARDING)
+        }
     }
 }
 
+/** Where each "Your plans" choice opens: its tab, then the screen. */
+private fun PendingDestination.target(): Pair<TopLevelDestination, Route> = when (this) {
+    PendingDestination.MEAL_PLAN_IMPORT, PendingDestination.MEAL_PLAN_BUILD -> TopLevelDestination.FOOD to Route.MealPlans
+    PendingDestination.PROGRAM_IMPORT -> TopLevelDestination.TRAIN to Route.Programs
+    PendingDestination.PROGRAM_GENERATE -> TopLevelDestination.TRAIN to Route.ProgramGenerator
+    PendingDestination.PROGRAM_TEMPLATE -> TopLevelDestination.TRAIN to Route.ProgramTemplates
+}
+
 @Composable
-private fun IntakeAppContent(messages: AppMessages?) {
+private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, startOnboarding: Boolean) {
     val navController = rememberNavController()
+    val tour = remember { TourState() }
+    val prefs by flow.prefs.collectAsStateWithLifecycle()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
     val currentTab = tabOf(currentDestination)
@@ -65,7 +100,8 @@ private fun IntakeAppContent(messages: AppMessages?) {
     // Full-screen flows (cook mode, active workout) hide the navigation: SPEC §9
     // wants cook mode full-screen with oversized targets and no chrome.
     val hideNavigation = currentDestination?.hierarchy?.any {
-        it.hasRoute(Route.CookMode::class) || it.hasRoute(Route.ActiveWorkout::class)
+        it.hasRoute(Route.CookMode::class) || it.hasRoute(Route.ActiveWorkout::class) ||
+            it.hasRoute(Route.Onboarding::class)
     } == true
 
     val snackbar = remember { SnackbarHostState() }
@@ -98,6 +134,39 @@ private fun IntakeAppContent(messages: AppMessages?) {
     // left, which leaves the full height for content on a landscape display.
     val showRail = LocalWindowSizeClass.current.isAtLeastMedium && !hideNavigation
 
+    // The Today tour starts once, when it is due and Today is showing with its targets laid out.
+    val onToday = currentDestination?.hasRoute(Route.Today::class) == true
+    DisposableEffect(tour) {
+        tour.onFinished = { flow.tourFinished() }
+        onDispose { tour.onFinished = null }
+    }
+    LaunchedEffect(prefs.tourPending, onToday) {
+        if (prefs.loaded && prefs.tourPending && prefs.done && onToday && !tour.running) {
+            val ready = withTimeoutOrNull(5_000) {
+                snapshotFlow { TourIds.RING in tour.available && TourIds.PILL in tour.available }.first { it }
+            }
+            if (ready == true) {
+                delay(500)
+                if (!tour.start()) flow.tourFinished()
+            }
+        }
+    }
+
+    // A "Your plans" choice opens once onboarding is done and the tour has finished or was skipped.
+    val ready = remember(prefs) { flow.readyDestination() }
+    LaunchedEffect(ready) {
+        val (tab, route) = ready?.target() ?: return@LaunchedEffect
+        flow.pendingOpened()
+        navController.navigate(tab.graph) {
+            popUpTo<Route.Today> { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+        navController.navigate(route)
+    }
+
+    CompositionLocalProvider(LocalTourState provides tour) {
+    Box(Modifier.fillMaxSize()) {
     Row(Modifier.fillMaxSize()) {
         if (showRail) {
             Box(
@@ -115,6 +184,7 @@ private fun IntakeAppContent(messages: AppMessages?) {
                     selectedIndex = selectedIndex,
                     onSelect = onSelectTab,
                     vertical = true,
+                    modifier = Modifier.tourTarget(TourIds.PILL),
                 )
             }
         }
@@ -150,7 +220,7 @@ private fun IntakeAppContent(messages: AppMessages?) {
                             destinations = destinations,
                             selectedIndex = selectedIndex,
                             onSelect = onSelectTab,
-                            modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth(),
+                            modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth().tourTarget(TourIds.PILL),
                         )
                     }
                 }
@@ -168,8 +238,12 @@ private fun IntakeAppContent(messages: AppMessages?) {
                 navController = navController,
                 contentPadding = innerPadding,
                 modifier = if (capWidth) Modifier.readableWidth() else Modifier,
+                startOnboarding = startOnboarding,
             )
         }
+    }
+    TourOverlay(tour)
+    }
     }
 }
 
@@ -185,7 +259,7 @@ private fun selectTab(
 ) {
     when (TabPolicy.actionFor(currentTab, target, atRoot)) {
         TabAction.SWITCH -> navController.navigate(target.graph) {
-            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+            popUpTo<Route.Today> { saveState = true }
             launchSingleTop = true
             restoreState = true
         }

@@ -93,6 +93,12 @@ fun ProgressScreen(
                 )
                 RangeSelector(state.range, viewModel::selectRange, Modifier.weight(1f))
             }
+            com.zeroindex.intake.ui.onboarding.TabTip(
+                key = com.zeroindex.intake.domain.onboarding.TipKey.PROGRESS,
+                body = com.zeroindex.intake.ui.onboarding.TabTipCopy.PROGRESS,
+                actionLabel = "Weigh in",
+                onAction = onAddMeasurement,
+            )
             Row(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -135,6 +141,14 @@ fun ProgressScreen(
         ) {
             item(key = "heading") {
                 SubHead("Progress", "Patterns over time, without the noise.")
+            }
+            item(key = "tip") {
+                com.zeroindex.intake.ui.onboarding.TabTip(
+                    key = com.zeroindex.intake.domain.onboarding.TipKey.PROGRESS,
+                    body = com.zeroindex.intake.ui.onboarding.TabTipCopy.PROGRESS,
+                    actionLabel = "Weigh in",
+                    onAction = onAddMeasurement,
+                )
             }
             item(key = "ranges") { RangeSelector(state.range, viewModel::selectRange) }
             item(key = "weight") { WeightCard(state, onAddMeasurement) }

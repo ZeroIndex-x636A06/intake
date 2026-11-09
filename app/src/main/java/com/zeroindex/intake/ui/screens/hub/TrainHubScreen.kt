@@ -54,6 +54,14 @@ fun TrainHubScreen(
         subtitle = "Start a workout, or build the plan behind it.",
         contentPadding = contentPadding,
         modifier = modifier,
+        tip = {
+            com.zeroindex.intake.ui.onboarding.TabTip(
+                key = com.zeroindex.intake.domain.onboarding.TipKey.TRAIN,
+                body = com.zeroindex.intake.ui.onboarding.TabTipCopy.TRAIN,
+                actionLabel = "Make a program",
+                onAction = onOpenGenerator,
+            )
+        },
         before = {
             item(key = "workout") {
                 val inProgress = state.inProgress

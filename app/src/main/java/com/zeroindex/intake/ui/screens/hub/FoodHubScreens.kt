@@ -74,6 +74,14 @@ fun FoodHubScreen(
         subtitle = "Log what you eat, plan your week, eat out safely.",
         contentPadding = contentPadding,
         modifier = modifier,
+        tip = {
+            com.zeroindex.intake.ui.onboarding.TabTip(
+                key = com.zeroindex.intake.domain.onboarding.TipKey.FOOD,
+                body = com.zeroindex.intake.ui.onboarding.TabTipCopy.FOOD,
+                actionLabel = "Log a meal",
+                onAction = { scanning = false; logging = true },
+            )
+        },
         items = listOf(
             HubItem(
                 title = "Log food",

@@ -37,6 +37,14 @@ fun MoreScreen(
         subtitle = "Your profile and preferences, all on this phone.",
         contentPadding = contentPadding,
         modifier = modifier,
+        tip = {
+            com.zeroindex.intake.ui.onboarding.TabTip(
+                key = com.zeroindex.intake.domain.onboarding.TipKey.MORE,
+                body = com.zeroindex.intake.ui.onboarding.TabTipCopy.MORE,
+                actionLabel = "Open Profile & goals",
+                onAction = { onNavigate(Route.Profile) },
+            )
+        },
         items = listOf(
             HubItem(
                 title = "Profile & goals",

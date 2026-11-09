@@ -17,6 +17,7 @@ import androidx.navigation.compose.navigation
 import androidx.navigation.toRoute
 import com.zeroindex.intake.ui.motion.LocalReduceMotion
 import com.zeroindex.intake.ui.motion.Motion
+import com.zeroindex.intake.ui.onboarding.OnboardingScreen
 import com.zeroindex.intake.ui.screens.ai.AiSettingsScreen
 import com.zeroindex.intake.ui.screens.allergen.AllergenKeywordsScreen
 import com.zeroindex.intake.ui.screens.allergen.AllergenReferenceScreen
@@ -82,11 +83,14 @@ fun IntakeNavHost(
     navController: NavHostController,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
+    /** True on a first run: the welcome flow is the start destination, the tabs follow it. */
+    startOnboarding: Boolean = false,
 ) {
     val reduce = LocalReduceMotion.current
+    val start: Any = if (startOnboarding) Route.Onboarding else TabGraph.Today
     NavHost(
         navController = navController,
-        startDestination = TabGraph.Today,
+        startDestination = start,
         modifier = modifier,
         // Moving between tabs fades through; pushing inside a tab is shared-axis X, reversed on back.
         enterTransition = {
@@ -109,11 +113,27 @@ fun IntakeNavHost(
         // Another tab's root, with that tab's own back stack restored (the same move the pill makes).
         val openTab = { tab: TopLevelDestination ->
             navController.navigate(tab.graph) {
-                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                // Pop to Today (not the graph's start, which is the welcome flow on a first run).
+                popUpTo<Route.Today> { saveState = true }
                 launchSingleTop = true
                 restoreState = true
             }
             Unit
+        }
+
+        // ---- Welcome flow ----
+        composable<Route.Onboarding> {
+            OnboardingScreen(
+                contentPadding = contentPadding,
+                onFinished = {
+                    if (navController.previousBackStackEntry != null) {
+                        // Replayed from Help: go back to where it was opened.
+                        navController.popBackStack()
+                    } else {
+                        navController.navigate(TabGraph.Today) { popUpTo<Route.Onboarding> { inclusive = true } }
+                    }
+                },
+            )
         }
 
         // ---- Today ----
@@ -338,6 +358,8 @@ fun IntakeNavHost(
                 HelpScreen(
                     contentPadding = contentPadding,
                     onOpenScriptDocs = { page -> openScriptReference(page, null) },
+                    onGoToToday = { openTab(TopLevelDestination.TODAY) },
+                    onOpenWelcome = { navController.navigate(Route.Onboarding) },
                 )
             }
             scriptReference(contentPadding)
