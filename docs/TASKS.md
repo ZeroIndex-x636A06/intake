@@ -8,13 +8,8 @@ with its merge commit. Read `CLAUDE.md` before you claim anything.
 
 **Claimed by the coordinating session**
 
-- **Food database, barcode fix, Open Food Facts.** Done on branch
-  `worktree-agent-a9e0fd1e72bfd3051` and waiting to merge. This adds
-  `MIGRATION_2_3` and `food.offContributedAt`.
-- **Flexible meal plans, manual recipes, recipe import from a link.** Covers
-  plans of any length, a loop schedule, multiple plans, a manual plan builder, a
-  recipe editor, and JSON-LD recipe import. The schema part goes into
-  `MIGRATION_2_3`.
+- **Hydration v2** (open task 2 below): weather, drink factors, caffeine, sweat.
+- **Coach engine** (open task 3 below), plus putting settings and the profile into backup/export.
 
 ## Open: anyone can claim these
 
@@ -80,7 +75,7 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
   - the floating pill and its slide gesture;
   - barcode scanning on the release build;
   - the new screens.
-- Keep the release keystore safe. Updates must be signed with the same key.
+- A new signing key will be generated for the next release. Export a backup, uninstall, install, then import.
 - Optional: deploy the sync server (`server/README.md`), add an OpenRouter key
   and run the benchmark, and set a backup destination.
 
@@ -95,11 +90,12 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
   The allergen columns and `allergen_definition` moved into `migrateAllergens_2_3`,
   next to `migrateFoodOff_2_3`. Other agents add `migrateXxx_2_3` functions to
   `MIGRATION_2_3_STATEMENTS`. `MigrationSchemaTest` upgrades the released v2 to v3.
-- Profile, baseline week and goal builder (branch `worktree-agent-ae10ffb5057435846`, not yet
-  merged). More → Profile & goals; the baseline week with a daily WorkManager check and one
+- Profile, baseline week and goal builder (4f4c902). More → Profile & goals; the baseline week with a daily WorkManager check and one
   notification; "Your plan" with a why, an (i) and an Edit on every number; Today's baseline and
   workout cards. Pure engine in `domain/goals/`, formulas in `docs/GOALS.md`. No schema change.
   The Hydration v2 task should add `WaterAdjustment` lines to `WaterPlanner`; the Coach engine can
   reuse `GoalBuilder` with `PlanOverrides` and `ProfileRepository.applyPlan`.
 - Training v3: start from scratch, templates, exercise library, freestyle
-  workouts, program generator. Merged locally and being verified.
+  workouts, program generator (05b7466).
+- Food database, barcode fixes, Open Food Facts search and contribution (ede46d6).
+- Flexible meal plans, recipe editor, recipe import from a link (71e4911).
