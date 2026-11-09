@@ -70,6 +70,7 @@ private val CUISINES = listOf("Mediterranean", "Mexican", "East Asian", "Indian"
 fun RecipeHunterScreen(
     contentPadding: PaddingValues,
     onOpenAiSettings: () -> Unit,
+    onOpenImport: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: RecipeHunterViewModel = hiltViewModel(),
 ) {
@@ -85,6 +86,10 @@ fun RecipeHunterScreen(
     when (val stage = state.stage) {
         HuntStage.NeedsKey -> Column(modifier.padding(pad)) {
             SubHead("Recipe Hunter", "Searches the web, so it needs an OpenRouter key.")
+            OutlinedButton(onClick = onOpenImport, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+                Text("Have a link? Import it with no AI")
+            }
+            Spacer(Modifier.height(8.dp))
             Button(onClick = onOpenAiSettings, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(52.dp)) {
                 Text("Set up AI tools")
             }
@@ -100,6 +105,9 @@ fun RecipeHunterScreen(
                 if (q.avoidedAllergens.isEmpty()) "Find recipes that fit your macros." else
                     "Find recipes that fit your macros and your ${q.avoidedAllergens.joinToString(" and ")} allergy.",
             )
+            OutlinedButton(onClick = onOpenImport, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+                Text("Have a link? Import it with no AI")
+            }
             IntakeCard {
                 FormRow(
                     left = { m ->

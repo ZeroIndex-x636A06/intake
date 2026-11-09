@@ -5,6 +5,7 @@ import com.zeroindex.intake.data.db.entity.rank
 import com.zeroindex.intake.data.db.entity.EatOutOptionEntity
 import com.zeroindex.intake.data.db.entity.EatOutOrigin
 import com.zeroindex.intake.data.db.entity.FoodEntity
+import com.zeroindex.intake.data.db.entity.MealPlanEntity
 import com.zeroindex.intake.data.db.entity.PlanWeekEntity
 import com.zeroindex.intake.data.db.entity.PlanWeekRecipeEntity
 import com.zeroindex.intake.data.db.entity.RecipeEntity
@@ -69,6 +70,14 @@ data class PlanImportBatch(
     /** Ingredients kept as text because the file gave no grams or nutrition. */
     val ingredientsWithoutNutrition: Int,
     val eatOutWithoutEstimate: Int,
+    /** The plan these rows belong to (new, or the existing plan with the same name, updated). Set by the repository. */
+    val plan: MealPlanEntity? = null,
+    /** True when [plan] already existed and is being updated. */
+    val isUpdate: Boolean = false,
+    /** Weeks of an updated plan that the file no longer has: removed softly. */
+    val removedWeekIds: List<String> = emptyList(),
+    /** Recipe links of an updated plan's weeks that the file no longer has: removed softly. */
+    val staleLinkIds: List<String> = emptyList(),
 ) {
     val blocked: List<ImportFinding> get() = findings.filter { it.status == AllergenStatus.CONTAINS }
     val mayContain: List<ImportFinding> get() = findings.filter { it.status == AllergenStatus.MAY_CONTAIN }
@@ -104,10 +113,27 @@ fun interface AllergenCheck {
  */
 object PlanImportBuilder {
 
-    fun weekId(weekNumber: Int) = seedId("plan-week", weekNumber.toString())
-    fun recipeId(weekNumber: Int, name: String) = seedId("plan-recipe", "$weekNumber|$name")
+    /** The plan that schema 2 databases were migrated into; its rows keep their pre-plan id formulas. */
+    const val LEGACY_PLAN_ID = "plan-default"
 
-    fun build(file: PlanFile, now: Long, check: AllergenCheck): PlanImportBatch {
+    private fun scope(planId: String) = if (planId == LEGACY_PLAN_ID || planId.isEmpty()) "" else "$planId|"
+
+    fun weekId(planId: String, weekNumber: Int) = seedId("plan-week", "${scope(planId)}$weekNumber")
+    fun recipeId(planId: String, weekNumber: Int, name: String) = seedId("plan-recipe", "${scope(planId)}$weekNumber|$name")
+
+    /**
+     * [existingWeekIds] maps week number to the id of a week row the plan already has (live or
+     * removed), so a re-import updates that row instead of adding a twin.
+     */
+    fun build(
+        file: PlanFile,
+        now: Long,
+        check: AllergenCheck,
+        planId: String,
+        existingWeekIds: Map<Int, String> = emptyMap(),
+    ): PlanImportBatch {
+        fun weekId(n: Int) = existingWeekIds[n] ?: weekId(planId, n)
+        val sc = scope(planId)
         val foods = LinkedHashMap<String, FoodEntity>()
         val recipes = ArrayList<RecipeEntity>()
         val ingredients = ArrayList<RecipeIngredientEntity>()
@@ -139,25 +165,13 @@ object PlanImportBuilder {
             return status
         }
 
-        val meta = PlanMeta.of(file)
-        if (!meta.isEmpty) {
-            weeks += PlanWeekEntity(
-                id = weekId(PlanMeta.WEEK_NUMBER),
-                weekNumber = PlanMeta.WEEK_NUMBER,
-                mainDishName = "Every week",
-                proteinType = "",
-                notes = meta.encode(),
-                createdAt = now,
-                updatedAt = now,
-            )
-        }
-
         file.weeks.sortedBy { it.weekNumber }.forEach { w ->
             val wid = weekId(w.weekNumber)
             val at = "Week ${w.weekNumber}"
             record(at, w.mainDishName, check.scan(w.mainDishName, null))
             weeks += PlanWeekEntity(
                 id = wid,
+                planId = planId,
                 weekNumber = w.weekNumber,
                 mainDishName = w.mainDishName.trim(),
                 proteinType = w.proteinType.trim(),
@@ -174,7 +188,7 @@ object PlanImportBuilder {
             w.variations.forEach { v -> record("$at · idea", v, check.scan(v, null)) }
 
             w.recipes.forEach { r ->
-                val rid = recipeId(w.weekNumber, r.name)
+                val rid = recipeId(planId, w.weekNumber, r.name)
                 val role = if (r.role.uppercase() == "VARIATION") PlanRecipeRole.VARIATION else PlanRecipeRole.MAIN
                 val known = ArrayList<IngredientNutrition>()
                 val textOnly = ArrayList<String>()
@@ -189,7 +203,7 @@ object PlanImportBuilder {
                         val food = foodFor(i, now)
                         foods.putIfAbsent(food.id, food)
                         ingredients += RecipeIngredientEntity(
-                            id = seedId("plan-ingredient", "${w.weekNumber}|${r.name}|$index|${i.name}"),
+                            id = seedId("plan-ingredient", "$sc${w.weekNumber}|${r.name}|$index|${i.name}"),
                             recipeId = rid,
                             foodId = food.id,
                             quantityGrams = i.grams!!,
@@ -242,7 +256,7 @@ object PlanImportBuilder {
                     updatedAt = now,
                 )
                 links += PlanWeekRecipeEntity(
-                    id = seedId("plan-link", "${w.weekNumber}|${r.name}"),
+                    id = seedId("plan-link", "$sc${w.weekNumber}|${r.name}"),
                     planWeekId = wid,
                     recipeId = rid,
                     role = role,

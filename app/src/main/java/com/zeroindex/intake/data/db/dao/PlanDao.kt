@@ -74,6 +74,9 @@ interface PlanDao {
     @Query("SELECT * FROM plan_week_recipe WHERE planWeekId = :planWeekId AND deletedAt IS NULL")
     suspend fun weekRecipes(planWeekId: String): List<PlanWeekRecipeEntity>
 
+    @Query("SELECT * FROM plan_week_recipe WHERE id = :id")
+    suspend fun weekRecipeById(id: String): PlanWeekRecipeEntity?
+
     @Query("SELECT * FROM plan_week_recipe WHERE planWeekId = :planWeekId")
     suspend fun weekRecipesIncludingRemoved(planWeekId: String): List<PlanWeekRecipeEntity>
 

@@ -69,14 +69,14 @@ class AllergenRepository @Inject constructor(
     fun observeCheckLabelTerms(): Flow<List<CheckLabelTerm>> =
         combine(
             observeAvoidedAllergens(),
-            planDao.observeWeek(PlanMeta.WEEK_NUMBER),
+            planDao.observeActivePlan(),
             allergenDao.observeAliases(),
-        ) { avoided, week, aliases ->
+        ) { avoided, plan, aliases ->
             val own = aliases.filter { it.level == KeywordLevel.CHECK_LABEL }.map {
                 CheckLabelTerm(it.allergen, it.aliasTerm, "Says ${it.aliasTerm} - check the label")
             }
             val all = HiddenCarriers.ALL + own +
-                PlanWatchTerms.extract(PlanMeta.decode(week?.notes).hiddenDairyChecklist)
+                PlanWatchTerms.extract(PlanMeta.decode(plan?.metaJson).hiddenDairyChecklist)
             all.filter { it.allergen in avoided }
         }
 
@@ -243,7 +243,7 @@ class AllergenRepository @Inject constructor(
             structuredContains = structuredContains,
             structuredTraces = structuredTraces,
             checkLabelTerms = HiddenCarriers.forAllergens(avoided) +
-                PlanWatchTerms.extract(PlanMeta.decode(planDao.week(PlanMeta.WEEK_NUMBER)?.notes).hiddenDairyChecklist),
+                PlanWatchTerms.extract(PlanMeta.decode(planDao.activePlan()?.metaJson).hiddenDairyChecklist),
             checkLabelInIngredients = checkLabelInIngredients,
         )
     }

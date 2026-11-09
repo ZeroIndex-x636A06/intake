@@ -47,10 +47,12 @@ fun RecipeDetailScreen(
     recipeId: String,
     contentPadding: PaddingValues,
     onDeleted: () -> Unit,
+    onEdit: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: RecipeLibraryViewModel = hiltViewModel(),
 ) {
     val recipes by viewModel.recipes.collectAsStateWithLifecycle()
+    val notice by viewModel.notice.collectAsStateWithLifecycle()
     val recipe = recipes.firstOrNull { it.id == recipeId } ?: return
     val context = LocalContext.current
     var picking by remember { mutableStateOf(false) }
@@ -128,6 +130,17 @@ fun RecipeDetailScreen(
                 modifier = Modifier.fillMaxWidth().height(50.dp),
             ) { Text("Open the original page") }
         }
+        OutlinedButton(
+            onClick = { viewModel.addToThisWeek(recipe) },
+            shape = IntakeShape.Button,
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+        ) { Text("Add to this week") }
+        notice?.let { SandNote(it) }
+        OutlinedButton(
+            onClick = { onEdit(recipe.id) },
+            shape = IntakeShape.Button,
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+        ) { Text("Edit recipe") }
         TextButton(onClick = { viewModel.delete(recipe); onDeleted() }) { Text("Delete recipe") }
         Spacer(Modifier.height(24.dp))
     }

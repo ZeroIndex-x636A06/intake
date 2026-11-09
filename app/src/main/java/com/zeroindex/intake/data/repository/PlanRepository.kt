@@ -4,7 +4,6 @@ import com.zeroindex.intake.data.db.dao.PlanDao
 import com.zeroindex.intake.data.db.dao.RecipeDao
 import com.zeroindex.intake.data.db.dao.ShoppingListDao
 import com.zeroindex.intake.data.db.entity.EatOutOptionEntity
-import com.zeroindex.intake.data.db.entity.PlanWeekEntity
 import com.zeroindex.intake.data.db.entity.RecipeEntity
 import com.zeroindex.intake.data.db.entity.ShoppingListItemEntity
 import com.zeroindex.intake.domain.time.Clock
@@ -19,8 +18,6 @@ class PlanRepository @Inject constructor(
     private val shoppingListDao: ShoppingListDao,
     private val clock: Clock,
 ) {
-    fun observeWeeks(): Flow<List<PlanWeekEntity>> = planDao.observeWeeks()
-    fun observeWeek(weekNumber: Int): Flow<PlanWeekEntity?> = planDao.observeWeek(weekNumber)
     fun observeAllEatOutOptions(): Flow<List<EatOutOptionEntity>> = planDao.observeAllEatOutOptions()
 
     /** SPEC §9: current week's options plus the ones that apply to every week. */
@@ -32,7 +29,6 @@ class PlanRepository @Inject constructor(
 
     fun observeRecipes(): Flow<List<RecipeEntity>> = recipeDao.observeAll()
 
-    suspend fun week(weekNumber: Int): PlanWeekEntity? = planDao.week(weekNumber)
     suspend fun recipe(id: String): RecipeEntity? = recipeDao.findById(id)
     suspend fun weekRecipes(planWeekId: String) = planDao.weekRecipes(planWeekId)
     suspend fun ingredients(recipeId: String) = recipeDao.ingredientsOf(recipeId)

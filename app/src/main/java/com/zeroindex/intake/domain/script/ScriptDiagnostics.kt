@@ -48,6 +48,8 @@ enum class DiagnosticCode(val severity: Severity, val anchor: String) {
 
     // Meal plan
     MISSING_PLAN_NAME(Severity.ERROR, "meal-plan#header"),
+    BAD_START_DATE(Severity.ERROR, "meal-plan#header"),
+    BAD_REPEAT(Severity.ERROR, "meal-plan#header"),
     UNKNOWN_SECTION(Severity.ERROR, "meal-plan#sections"),
     NO_WEEKS(Severity.ERROR, "meal-plan#weeks"),
     BAD_WEEK_HEADING(Severity.ERROR, "meal-plan#weeks"),

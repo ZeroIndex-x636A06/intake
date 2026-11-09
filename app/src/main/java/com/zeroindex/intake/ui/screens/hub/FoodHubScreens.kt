@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.Person
@@ -79,7 +80,7 @@ fun FoodHubScreen(
             ),
             HubItem(
                 title = "Meal plans",
-                description = "Your plan week by week, shopping list, import and export",
+                description = "Build plans of any length, loop them, shopping lists, import and export",
                 icon = Icons.Filled.CalendarMonth,
                 onClick = onOpenMealPlans,
             ),
@@ -126,6 +127,8 @@ fun RecipesScreen(
     contentPadding: PaddingValues,
     onOpenRecipe: (String) -> Unit,
     onOpenHunter: () -> Unit,
+    onOpenImport: () -> Unit,
+    onOpenNew: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: RecipeLibraryViewModel = hiltViewModel(),
 ) {
@@ -137,18 +140,23 @@ fun RecipesScreen(
         modifier = modifier,
         items = listOf(
             HubItem(
+                title = "Add a recipe",
+                description = "Type in the name, ingredients and steps. Macros add up as you go",
+                icon = Icons.Filled.Edit,
+                onClick = onOpenNew,
+            ),
+            HubItem(
+                title = "Import from a link",
+                description = "Paste a recipe page. Read straight off the page, no AI",
+                icon = Icons.Filled.Link,
+                onClick = onOpenImport,
+            ),
+            HubItem(
                 title = "Recipe Hunter",
                 description = "Finds recipes that fit your macros and checks them for your allergens",
                 icon = Icons.Filled.AutoAwesome,
                 onClick = onOpenHunter,
                 tag = "Optional AI",
-            ),
-            // Another change wires this up: the row is here so its place is settled.
-            HubItem(
-                title = "Import from a link",
-                description = "Coming soon",
-                icon = Icons.Filled.Link,
-                enabled = false,
             ),
         ),
         after = {
@@ -157,7 +165,7 @@ fun RecipesScreen(
                 item(key = "no-recipes") {
                     AccentNote(
                         lead = "No recipes yet",
-                        body = "Recipes you save from Recipe Hunter land here, ready to log a serving.",
+                        body = "Add one by hand, import one from a link, or save one from Recipe Hunter. They land here, ready to log a serving.",
                         container = MaterialTheme.colorScheme.surfaceVariant,
                         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

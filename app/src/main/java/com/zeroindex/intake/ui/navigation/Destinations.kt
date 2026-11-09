@@ -35,6 +35,8 @@ sealed interface Route {
     @Serializable data object MyAllergens : Route
     @Serializable data class AllergenKeywords(val allergenKey: String) : Route
     @Serializable data object RecipeHunter : Route
+    @Serializable data object RecipeImport : Route
+    @Serializable data class RecipeEditor(val recipeId: String? = null) : Route
     @Serializable data class RecipeDetail(val recipeId: String) : Route
     @Serializable data class CookMode(val recipeId: String) : Route
     @Serializable data object PlanB : Route
