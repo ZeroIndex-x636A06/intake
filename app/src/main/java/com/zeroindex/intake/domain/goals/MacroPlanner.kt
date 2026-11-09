@@ -1,5 +1,6 @@
 package com.zeroindex.intake.domain.goals
 
+import com.zeroindex.intake.domain.nutrition.MacroTarget
 import kotlinx.serialization.Serializable
 import kotlin.math.max
 import kotlin.math.min
@@ -159,6 +160,17 @@ data class WeekPattern(val baseKcal: Int, val days: List<DayMacros>) {
     val weeklyKcal: Int get() = days.sumOf { it.kcal }
     val weeklyCarbsG: Int get() = days.sumOf { it.carbsG }
     fun forWeekday(isoDay: Int): DayMacros = days.first { it.weekday == isoDay }
+
+    /**
+     * The target for [isoWeekday]: this pattern's day, but only while [base] is still the target
+     * the pattern was built from. If the stored target was edited or recalculated since, the plain
+     * target wins and nothing is applied silently.
+     */
+    fun targetFor(base: MacroTarget, isoWeekday: Int): MacroTarget {
+        if (base.kcal != baseKcal) return base
+        val day = days.firstOrNull { it.weekday == isoWeekday } ?: return base
+        return MacroTarget(kcal = day.kcal, proteinG = day.proteinG, carbsG = day.carbsG, fatG = day.fatG)
+    }
 }
 
 data class WeekBuild(val pattern: WeekPattern, val warnings: List<PlanWarning>, val notes: List<String>)

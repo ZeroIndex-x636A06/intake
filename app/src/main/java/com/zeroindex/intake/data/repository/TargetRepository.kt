@@ -44,16 +44,9 @@ class TargetRepository @Inject constructor(
         return base.withWeekPattern(pattern, date).plusActivity(activityBonusFor(date))
     }
 
-    /**
-     * Advanced carb cycling and refeeds (goal builder): the day's own macros replace the base,
-     * but only while the stored target is still the one the pattern was built from. If the target
-     * has since been edited or recalculated, the plain target wins and nothing is applied silently.
-     */
-    private fun MacroTarget.withWeekPattern(pattern: WeekPattern?, date: LocalDate): MacroTarget {
-        if (pattern == null || pattern.baseKcal != kcal) return this
-        val day = pattern.days.firstOrNull { it.weekday == date.dayOfWeek.value } ?: return this
-        return MacroTarget(kcal = day.kcal, proteinG = day.proteinG, carbsG = day.carbsG, fatG = day.fatG)
-    }
+    /** Advanced carb cycling and refeeds: see [WeekPattern.targetFor] for when it applies. */
+    private fun MacroTarget.withWeekPattern(pattern: WeekPattern?, date: LocalDate): MacroTarget =
+        pattern?.targetFor(this, date.dayOfWeek.value) ?: this
 
     /** Net activity kcal added to [date]'s target, 0 when the option is off. */
     fun observeActivityBonus(date: LocalDate): Flow<Int> = combine(
