@@ -26,6 +26,8 @@ class ApiKeyStore @Inject constructor(
         const val FILE = "intake_api_keys"
         const val KEY_OPENROUTER = "openrouter_api_key"
         const val KEY_USDA = "usda_api_key"
+        const val KEY_OFF_USER = "off_username"
+        const val KEY_OFF_PASSWORD = "off_password"
 
         /**
          * Superseded by OpenRouter (amendment §1), which serves Anthropic
@@ -62,6 +64,22 @@ class ApiKeyStore @Inject constructor(
     fun openRouterKey(): String? = prefs?.getString(KEY_OPENROUTER, null)?.takeIf { it.isNotBlank() }
     fun usdaKey(): String? = prefs?.getString(KEY_USDA, null)?.takeIf { it.isNotBlank() }
 
+    /**
+     * The user's own Open Food Facts account, used only to contribute a product they
+     * chose to send (docs/FOOD-DATA.md). Stored like the keys above; read only by
+     * the contribution call, which puts them in a POST body and nowhere else.
+     */
+    fun offUsername(): String? = prefs?.getString(KEY_OFF_USER, null)?.takeIf { it.isNotBlank() }
+    fun offPassword(): String? = prefs?.getString(KEY_OFF_PASSWORD, null)?.takeIf { it.isNotEmpty() }
+
+    fun setOffCredentials(username: String?, password: String?) {
+        val editor = prefs?.edit() ?: return
+        if (username.isNullOrBlank()) editor.remove(KEY_OFF_USER) else editor.putString(KEY_OFF_USER, username.trim())
+        if (password.isNullOrEmpty()) editor.remove(KEY_OFF_PASSWORD) else editor.putString(KEY_OFF_PASSWORD, password)
+        editor.apply()
+        _state.value = read()
+    }
+
     fun setOpenRouterKey(key: String?) = put(KEY_OPENROUTER, key)
     fun setUsdaKey(key: String?) = put(KEY_USDA, key)
 
@@ -81,13 +99,19 @@ class ApiKeyStore @Inject constructor(
     private fun read() = ApiKeyState(
         hasOpenRouterKey = openRouterKey() != null,
         hasUsdaKey = usdaKey() != null,
+        hasOffCredentials = offUsername() != null && offPassword() != null,
+        offUsername = offUsername(),
         storeAvailable = prefs != null,
     )
 }
 
-/** Only whether a key exists is exposed to the UI - never the key itself. */
+/** Only whether a key exists is exposed to the UI - never the key or password itself. */
 data class ApiKeyState(
     val hasOpenRouterKey: Boolean = false,
     val hasUsdaKey: Boolean = false,
+    /** Whether an Open Food Facts username and password are saved. The password is never exposed. */
+    val hasOffCredentials: Boolean = false,
+    /** The username is not a secret and is shown back to the user; the password never is. */
+    val offUsername: String? = null,
     val storeAvailable: Boolean = true,
 )

@@ -1,0 +1,6 @@
+"fdc_id","data_type","description","food_category_id","publication_date"
+"1001","sr_legacy_food","Cheese, cheddar (Includes foods for USDA's Food Distribution Program)","1","2019-04-01"
+"1002","sr_legacy_food","Apples, raw, with skin","9","2019-04-01"
+"1003","sr_legacy_food","Spice, no energy listed","2","2019-04-01"
+"1004","sr_legacy_food","Rice, white, cooked","20","2019-04-01"
+"1005","branded_food","Not part of SR Legacy","1","2019-04-01"

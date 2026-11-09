@@ -1,6 +1,10 @@
 package com.zeroindex.intake.data.di
 
+import com.zeroindex.intake.BuildConfig
 import com.zeroindex.intake.data.ai.OpenRouterClient
+import com.zeroindex.intake.data.remote.openfoodfacts.OffContributionService
+import com.zeroindex.intake.data.remote.openfoodfacts.OffSearchService
+import com.zeroindex.intake.data.remote.openfoodfacts.OffUserAgent
 import com.zeroindex.intake.data.remote.openfoodfacts.OpenFoodFactsService
 import com.zeroindex.intake.data.remote.usda.UsdaService
 import dagger.Module
@@ -8,6 +12,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import java.util.concurrent.TimeUnit
+import javax.inject.Qualifier
 import javax.inject.Singleton
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -15,9 +20,26 @@ import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 
+/** The HTTP client for every Open Food Facts call: the shared one plus the User-Agent they ask for. */
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class OffHttp
+
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
+
+    @Provides
+    @Singleton
+    @OffHttp
+    fun provideOffHttp(client: OkHttpClient): OkHttpClient {
+        val userAgent = OffUserAgent.forVersion(BuildConfig.VERSION_NAME)
+        return client.newBuilder()
+            .addInterceptor { chain ->
+                chain.proceed(chain.request().newBuilder().header("User-Agent", userAgent).build())
+            }
+            .build()
+    }
 
     @Provides
     @Singleton
@@ -59,11 +81,31 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOpenFoodFactsService(client: OkHttpClient, json: Json): OpenFoodFactsService =
+    fun provideOpenFoodFactsService(@OffHttp client: OkHttpClient, json: Json): OpenFoodFactsService =
         Retrofit.Builder()
             .baseUrl(OpenFoodFactsService.BASE_URL)
             .client(client)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
             .create(OpenFoodFactsService::class.java)
+
+    @Provides
+    @Singleton
+    fun provideOffSearchService(@OffHttp client: OkHttpClient, json: Json): OffSearchService =
+        Retrofit.Builder()
+            .baseUrl(OffSearchService.BASE_URL)
+            .client(client)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
+            .create(OffSearchService::class.java)
+
+    @Provides
+    @Singleton
+    fun provideOffContributionService(@OffHttp client: OkHttpClient, json: Json): OffContributionService =
+        Retrofit.Builder()
+            .baseUrl(OffContributionService.BASE_URL)
+            .client(client)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
+            .create(OffContributionService::class.java)
 }

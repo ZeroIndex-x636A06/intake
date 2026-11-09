@@ -64,6 +64,13 @@ interface PlanDao {
     @Query("SELECT * FROM plan_week WHERE deletedAt IS NULL AND planId = :planId AND weekNumber = :weekNumber LIMIT 1")
     suspend fun week(planId: String, weekNumber: Int): PlanWeekEntity?
 
+    /** Weeks with no plan: rows that arrived from a schema-2 backup or peer. */
+    @Query("SELECT * FROM plan_week WHERE planId = '' AND deletedAt IS NULL")
+    suspend fun orphanWeeks(): List<PlanWeekEntity>
+
+    @Query("SELECT * FROM meal_plan WHERE id = :id")
+    suspend fun planIncludingArchived(id: String): MealPlanEntity?
+
     /** Includes soft-deleted weeks: an import reuses a removed week's row instead of adding a twin. */
     @Query("SELECT * FROM plan_week WHERE planId = :planId")
     suspend fun weeksIncludingRemoved(planId: String): List<PlanWeekEntity>

@@ -112,8 +112,11 @@ Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/SPEC-v3.md`, `docs/BACKUP
 - Never use `fallbackToDestructiveMigration`.
 - A model can raise an allergen warning but never clear one. The local engine
   decides.
-- Room schema v2 is unreleased. Changes may still go into v2, with
-  `schemas/2.json` regenerated and the migration test kept passing.
+- Room schema v2 is FROZEN at 4952404 (the released APK). Never edit `2.json` or
+  `MIGRATION_1_2`. All newer schema changes go into `MIGRATION_2_3` (v3, unreleased) as
+  small `migrateXxx_2_3` functions. `MigrationSchemaTest` upgrades the released v2 to v3.
+- A v2 backup imports into v3: missing columns take their entity defaults, and
+  `LegacyRows` marks non-`seed-` `allergen_alias` rows custom, as the migration does.
 - `domain/` must not import `android.*`.
 - Every way to add food goes through `AllergenRepository.scan` first.
 - Macro columns on `food` are per 100 g. `food_log` stores absolute amounts

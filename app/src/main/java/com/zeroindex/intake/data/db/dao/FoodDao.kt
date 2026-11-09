@@ -56,6 +56,12 @@ interface FoodDao {
     @Query("UPDATE food SET isFavorite = :favorite, updatedAt = :now WHERE id = :id")
     suspend fun setFavorite(id: String, favorite: Boolean, now: Long)
 
+    @Query("UPDATE food SET offContributedAt = :at, updatedAt = :at WHERE id = :id")
+    suspend fun markContributed(id: String, at: Long)
+
+    @Query("SELECT * FROM food WHERE deletedAt IS NULL ORDER BY updatedAt DESC")
+    fun observeAll(): Flow<List<FoodEntity>>
+
     /** SPEC §3.8: soft delete only. */
     @Query("UPDATE food SET deletedAt = :now, updatedAt = :now WHERE id = :id")
     suspend fun softDelete(id: String, now: Long)

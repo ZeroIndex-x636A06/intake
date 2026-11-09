@@ -14,7 +14,8 @@ build is in [RESUME.md](RESUME.md).
 
 Core, from SPEC.md:
 
-- Food logging by recents, local and USDA search, barcode scan, quick add and
+- Food logging by recents, offline USDA search (about 8,000 foods bundled, no key), optional
+  Open Food Facts search, barcode scan, quick add and
   hand-entered foods. Every path runs the local allergen check first.
 - Adaptive TDEE measured from your own intake and weight trend.
 - Training: progression rules, active workout, rest timer, plate calculator,
@@ -88,7 +89,8 @@ app/           Android phone app (com.zeroindex.intake)
 wear/          Wear OS companion
 wearprotocol/  Data Layer message types shared by app and wear
 server/        Sync server (intake_sync.py), Dockerfile, compose file, tests
-docs/          SPEC, SPEC-amendments, BACKUP, BENCHMARK, PRIVACY
+docs/          SPEC, SPEC-amendments, BACKUP, BENCHMARK, PRIVACY, FOOD-DATA
+tools/         build_food_db.py: rebuilds the bundled USDA food database
 design/        HTML mockups used as the design reference
 schemas/       Exported Room schema JSON (committed)
 ```
@@ -206,7 +208,9 @@ Nothing here is needed to use the app offline.
 
 1. **OpenRouter key.** More, AI: save your key, then run the benchmark so
    the picker can suggest models. See [docs/BENCHMARK.md](docs/BENCHMARK.md).
-2. **USDA key (optional).** More, Settings: save a FoodData Central key to enable USDA
+2. **USDA key (optional, not needed for search).** Search works offline with no key; see
+   [docs/FOOD-DATA.md](docs/FOOD-DATA.md) for the data sources and licences.
+   A key only adds live USDA branded foods. More, Settings: save a FoodData Central key to enable USDA
    search. See [docs/PRIVACY.md](docs/PRIVACY.md).
 3. **Health Connect.** Progress, Health Connect: grant the read and write types you
    want. Nothing is read until you do.

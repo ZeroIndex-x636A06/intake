@@ -125,7 +125,7 @@ class BackupService @Inject constructor(
             val t = table.typed<Audited>()
             val array = incoming[t.name]?.jsonArray ?: return@mapNotNull null
             val decoded = try {
-                array.map { json.decodeFromJsonElement(t.serializer, it) }
+                array.map { json.decodeFromJsonElement(t.serializer, LegacyRows.upgrade(t.name, it)) }
             } catch (e: SerializationException) {
                 throw ImportException("The ${t.name} table in the backup does not match this app: ${e.message?.take(120)}")
             } catch (e: IllegalArgumentException) {
@@ -161,6 +161,8 @@ class BackupService @Inject constructor(
                 t.write(toWrite)
             }
         }
+        // Plan weeks from a schema-2 backup have no plan yet.
+        com.zeroindex.intake.data.plan.LegacyPlanRepair.run(db, clock.nowMillis(), clock.today().toEpochDay())
     }
 
     // ----- CSV, per domain (SPEC §13) --------------------------------------

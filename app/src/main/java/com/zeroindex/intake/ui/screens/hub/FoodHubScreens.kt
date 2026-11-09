@@ -29,6 +29,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.ui.addfood.AddFoodSheet
+import com.zeroindex.intake.ui.addfood.AddFoodTab
+import androidx.compose.material.icons.filled.Fastfood
+import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Storage
 import com.zeroindex.intake.ui.components.AccentNote
 import com.zeroindex.intake.ui.components.SectionLine
 import com.zeroindex.intake.ui.screens.plan.RecipeLibraryViewModel
@@ -57,9 +61,14 @@ fun FoodHubScreen(
     onOpenAllergens: () -> Unit,
     onOpenFoodScriptHelp: () -> Unit,
     onOpenAiSettings: () -> Unit,
+    onOpenMyFoods: () -> Unit,
+    onOpenFood: (String) -> Unit,
+    onOpenFoodData: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var logging by rememberSaveable { mutableStateOf(false) }
+    // Which tab Add food opens on: Search for "Log food", Barcode for "Scan a barcode".
+    var scanning by rememberSaveable { mutableStateOf(false) }
     HubScreen(
         title = "Food",
         subtitle = "Log what you eat, plan your week, eat out safely.",
@@ -70,7 +79,19 @@ fun FoodHubScreen(
                 title = "Log food",
                 description = "Search, scan a barcode, pick from your foods or recents",
                 icon = Icons.Filled.Add,
-                onClick = { logging = true },
+                onClick = { scanning = false; logging = true },
+            ),
+            HubItem(
+                title = "Scan a barcode",
+                description = "Point the camera at a package, or type the number",
+                icon = Icons.Filled.QrCodeScanner,
+                onClick = { scanning = true; logging = true },
+            ),
+            HubItem(
+                title = "My foods",
+                description = "Every food on this phone: edit it or share it with Open Food Facts",
+                icon = Icons.Filled.Fastfood,
+                onClick = onOpenMyFoods,
             ),
             HubItem(
                 title = "Meal templates",
@@ -103,6 +124,12 @@ fun FoodHubScreen(
                 onClick = onOpenAllergens,
             ),
             HubItem(
+                title = "Food database & credits",
+                description = "Offline USDA foods, Open Food Facts search and contributing, licences",
+                icon = Icons.Filled.Storage,
+                onClick = onOpenFoodData,
+            ),
+            HubItem(
                 title = "Food script help",
                 description = "Write a meal plan by hand, with the full reference",
                 icon = Icons.AutoMirrored.Filled.MenuBook,
@@ -117,6 +144,11 @@ fun FoodHubScreen(
             loggedAtMillis = now,
             onDismiss = { logging = false },
             onOpenAiSettings = onOpenAiSettings,
+            initialTab = if (scanning) AddFoodTab.BARCODE else AddFoodTab.RECENTS,
+            onOpenFood = { id ->
+                logging = false
+                onOpenFood(id)
+            },
         )
     }
 }
