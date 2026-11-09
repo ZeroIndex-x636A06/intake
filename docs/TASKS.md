@@ -10,6 +10,26 @@ with its merge commit. Read `CLAUDE.md` before you claim anything.
 
 - Debug APK build for device testing.
 
+## Bugs fixed from device testing
+
+Branch `worktree-agent-acbf47c924ce706e7`. None of this has been seen on a device (no emulator in the cloud container).
+
+- **Crashes on Menu import, Meal templates, Health Connect, Training stats and Settings -> AI.** One cause: two public
+  composables named `EmptyState` in `ui/components` (`States.kt` and `ScreenScaffold.kt`). A call with `title` and `body`
+  bound to the `ScreenScaffold` one, which is `fillMaxSize()` plus `verticalScroll()`, and threw "measured with an infinity
+  maximum height" inside a `LazyColumn` item. The whole-screen one is now `FullScreenMessage`; `NoShadowedComposablesTest`
+  fails if a package declares one public composable name twice.
+- Nav graph guard (`NavGraphGuardTest`): every route has a `composable<...>`, and every `navigate(Route.X)` in a tab graph targets a
+  route registered in that same graph. Today and More now register the screens their cards open, so the pill stays on the tab.
+- Barcode: the camera sits in a bounded, clipped 4:3 card; Back, torch and the manual entry are drawn above it; system back leaves the scanner.
+- Log food sheet: full height under the status bar (status bar padding inside the sheet), results fill the height.
+- Open Food Facts search asks for the phone's language then English (`langs`), picks `product_name_<lang>`, then `product_name_en`, then
+  `product_name`, and hides results whose name is in another script, unless "Show products in other languages" is on.
+- Product thumbnails (Open Food Facts only, https, online, with search on); generic icons for USDA and offline foods.
+- Weekly check-in chips show the week as a period ("Nov 9-15", "Oct 30 - Nov 5", with the year across years).
+- Floating pill: frosted-glass backdrop blur on Android 12 and up, translucent fill below.
+- Schema: `food.imageUrl` in `migrateFoodUi_2_3`, with a `MigrationSchemaTest` case.
+
 ## Open: anyone can claim these
 
 Each task links to the section of `docs/SPEC-v3.md` that defines it.

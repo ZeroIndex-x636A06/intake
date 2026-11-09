@@ -34,6 +34,7 @@ class PortableSettingsTest {
         "ai_privacy" to "NO_TRAINING",
         "ai_model_DAILY_INSIGHT" to "vendor/model",
         "off_search_enabled" to true,
+        "off_other_languages" to true,
         "weather_enabled" to true,
         "weather_location_mode" to "CITY",
         "weather_place" to "Leeds",
@@ -75,6 +76,7 @@ class PortableSettingsTest {
         assertThat(back.version).isEqualTo(PortableSettings.VERSION)
         assertThat(back.ignored).isEmpty()
         val v = back.values
+        assertThat(v["off_other_languages"]).isEqualTo(PortableSettings.Value.Bool(true))
         assertThat(v["weight_unit"]).isEqualTo(PortableSettings.Value.Str("KILOGRAMS"))
         assertThat(v["dynamic_color"]).isEqualTo(PortableSettings.Value.Bool(true))
         assertThat(v["default_rest_sec"]).isEqualTo(PortableSettings.Value.IntV(90))

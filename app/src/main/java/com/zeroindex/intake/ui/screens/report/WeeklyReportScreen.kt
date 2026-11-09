@@ -37,6 +37,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import com.zeroindex.intake.domain.report.WeekLabel
 import com.zeroindex.intake.domain.report.WeeklyReport
 import com.zeroindex.intake.domain.units.WeightUnit
 import com.zeroindex.intake.ui.components.ChoiceChip
@@ -63,8 +64,7 @@ fun WeeklyReportScreen(
     val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
         uri?.let(viewModel::saveTo)
     }
-    val label = "${state.weekStart.format(DateTimeFormatter.ofPattern("d MMM"))} – " +
-        state.weekStart.plusDays(6).format(DateTimeFormatter.ofPattern("d MMM"))
+    val label = WeekLabel.forWeek(state.weekStart)
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
@@ -80,14 +80,13 @@ fun WeeklyReportScreen(
             SubHead("Weekly check-in", "A clear, printable snapshot · week of $label")
         }
         item(key = "weeks") {
-            val short = DateTimeFormatter.ofPattern("MMM d")
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(5.dp),
             ) {
                 (5 downTo 0).map { viewModel.thisWeek.minusWeeks(it.toLong()) }.forEach { week ->
                     ChoiceChip(
-                        label = week.format(short),
+                        label = WeekLabel.forWeek(week),
                         selected = week == state.weekStart,
                         onClick = { viewModel.jumpTo(week) },
                     )

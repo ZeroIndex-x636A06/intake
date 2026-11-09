@@ -86,6 +86,8 @@ fun FloatingPillBar(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
     vertical: Boolean = false,
+    /** The content region's recording, for a frosted-glass background (API 31+); null keeps the plain fill. */
+    backdrop: PillBackdrop? = null,
 ) {
     val reduce = LocalReduceMotion.current
     val haptics = LocalHapticFeedback.current
@@ -93,7 +95,9 @@ fun FloatingPillBar(
     val layoutDirection = LocalLayoutDirection.current
     val view = LocalView.current
     val gestureInsets = WindowInsets.systemGestures
-    val colors = pillColors()
+    val blurOn = backdrop != null && PillBackdrop.supported
+    val colors = pillColors(frosted = blurOn)
+    val blurLayer = androidx.compose.ui.graphics.rememberGraphicsLayer()
     val count = destinations.size
     val currentOnSelect by rememberUpdatedState(onSelect)
 
@@ -132,6 +136,20 @@ fun FloatingPillBar(
                 shape = CircleShape,
                 ambientColor = Color.Black.copy(alpha = 0.30f),
                 spotColor = Color.Black.copy(alpha = 0.30f),
+            )
+            .then(
+                if (blurOn && backdrop != null) {
+                    // The blurred backdrop first, the translucent tint over it.
+                    Modifier.pillBlurBehind(
+                        backdrop = backdrop,
+                        blurLayer = blurLayer,
+                        shape = CircleShape,
+                        radiusPx = with(density) { 20.dp.toPx() },
+                        pillOrigin = { origin },
+                    )
+                } else {
+                    Modifier
+                },
             )
             .background(colors.container, CircleShape)
             .border(1.dp, colors.border, CircleShape)
@@ -294,11 +312,13 @@ internal class PillColors(
  * and wallpaper colours are both handled.
  */
 @Composable
-internal fun pillColors(): PillColors {
+internal fun pillColors(frosted: Boolean = false): PillColors {
     val scheme = MaterialTheme.colorScheme
+    // Frosted: enough tint to keep the icons legible over any content, thin enough for the blur to show.
+    val tint = if (frosted) 0.62f else 0.94f
     return if (scheme.surface.luminance() < 0.5f) {
         PillColors(
-            container = scheme.surface.copy(alpha = 0.94f),
+            container = scheme.surface.copy(alpha = tint),
             border = scheme.outlineVariant,
             indicator = scheme.onSurface.copy(alpha = 0.14f),
             selected = scheme.primary,
@@ -306,7 +326,7 @@ internal fun pillColors(): PillColors {
         )
     } else {
         PillColors(
-            container = scheme.inverseSurface.copy(alpha = 0.94f),
+            container = scheme.inverseSurface.copy(alpha = tint),
             border = Color.Transparent,
             indicator = scheme.inverseOnSurface.copy(alpha = 0.18f),
             selected = scheme.inversePrimary,

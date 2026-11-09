@@ -85,7 +85,7 @@ class BackupService @Inject constructor(
             "weather_enabled", "weather_location_mode", "weather_place", "drink_overrides",
             "sweat_pre_kg", "sweat_post_kg", "sweat_fluid_ml", "sweat_minutes", "sweat_use_measured",
         )
-        private val FOOD_STORE_NAMES = setOf("off_search_enabled", "off_contribute_enabled")
+        private val FOOD_STORE_NAMES = setOf("off_search_enabled", "off_contribute_enabled", "off_other_languages")
     }
 
     private val tables by lazy { backupTables(exportDao) }

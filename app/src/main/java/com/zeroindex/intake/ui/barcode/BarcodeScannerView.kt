@@ -27,6 +27,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.activity.compose.BackHandler
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.zIndex
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -46,6 +54,9 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -99,9 +110,13 @@ fun BarcodeScannerView(
     onBarcode: (String) -> Unit,
     onEnterManually: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Leaves the scanner (back to the sheet's other tabs). System back and the Back button both call it. */
+    onExit: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    // System back always leaves the scanner, whatever state it is in.
+    BackHandler(onBack = onExit)
 
     var hasPermission by remember { mutableStateOf(context.hasCameraPermission()) }
     var askedOnce by rememberSaveable { mutableStateOf(false) }
@@ -143,8 +158,19 @@ fun BarcodeScannerView(
         camera?.takeIf { it.cameraInfo.hasFlashUnit() }?.cameraControl?.enableTorch(torchOn)
     }
 
-    Column(modifier = modifier.fillMaxSize()) {
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+    // The camera lives in a bounded 4:3 card, clipped to it, so the preview can never grow over the sheet's own
+    // tabs, Close button or the manual entry below. The controls sit above the preview in z-order (the
+    // preview is a TextureView, which would otherwise draw over siblings that come earlier).
+    Column(modifier = modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .fillMaxWidth()
+                .heightIn(max = 340.dp)
+                .aspectRatio(4f / 3f)
+                .clip(RoundedCornerShape(16.dp))
+                .clipToBounds(),
+        ) {
             when {
                 !hasCamera -> FallbackMessage(
                     title = "No camera on this device",
@@ -210,7 +236,7 @@ fun BarcodeScannerView(
                     if (camera?.cameraInfo?.hasFlashUnit() == true) {
                         IconButton(
                             onClick = { torchOn = !torchOn },
-                            modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).size(48.dp),
+                            modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).size(48.dp).zIndex(2f),
                         ) {
                             Icon(
                                 imageVector = if (torchOn) Icons.Filled.FlashOn else Icons.Filled.FlashOff,
@@ -219,6 +245,16 @@ fun BarcodeScannerView(
                             )
                         }
                     }
+                }
+            }
+            // Back is always drawn above the preview, in every state.
+            Surface(
+                color = Color.Black.copy(alpha = 0.45f),
+                shape = CircleShape,
+                modifier = Modifier.align(Alignment.TopStart).padding(8.dp).size(48.dp).zIndex(2f),
+            ) {
+                IconButton(onClick = onExit) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Leave the scanner", tint = Color.White)
                 }
             }
         }
@@ -391,7 +427,7 @@ private fun CameraPreview(
         }
     }
 
-    AndroidView(modifier = Modifier.fillMaxSize(), factory = { previewView })
+    AndroidView(modifier = Modifier.fillMaxSize().zIndex(0f), factory = { previewView })
 }
 
 /**
@@ -450,10 +486,15 @@ private fun FallbackMessage(
     onPrimary: (() -> Unit)? = null,
 ) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 12.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            // The card is short on a small phone; the message scrolls inside it instead of spilling out.
+            .verticalScroll(rememberScrollState())
+            .padding(start = 64.dp, end = 24.dp, top = 12.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.Center,
     ) {
-        Text(title, style = MaterialTheme.typography.titleLarge)
+        Text(title, style = MaterialTheme.typography.titleMedium)
         Text(
             text = body,
             style = MaterialTheme.typography.bodyMedium,

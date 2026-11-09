@@ -13,7 +13,9 @@ import com.zeroindex.intake.data.remote.openfoodfacts.OffSearchService
 import com.zeroindex.intake.data.remote.openfoodfacts.OffWriteResponse
 import com.zeroindex.intake.data.settings.FoodDataPrefs
 import com.zeroindex.intake.BuildConfig
+import com.zeroindex.intake.domain.food.OffLanguage
 import java.io.IOException
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
@@ -43,10 +45,21 @@ class OffSearchRepository @Inject constructor(
     suspend fun search(query: String): OffSearchOutcome {
         val trimmed = query.trim()
         if (trimmed.length < MIN_QUERY) return OffSearchOutcome.Results(emptyList())
-        if (!prefs.settings.first().offSearch || !connectivity.isOnline()) return OffSearchOutcome.Unavailable
+        val settings = prefs.settings.first()
+        if (!settings.offSearch || !connectivity.isOnline()) return OffSearchOutcome.Unavailable
+        val language = Locale.getDefault().language.ifBlank { "en" }
         return try {
-            val foods = service.search(trimmed).hits
-                .mapNotNull { OffMapping.fromHit(it) }
+            // The user's language, then English, are searched and returned; results whose name is in a script
+            // the user does not read are left out unless "Show products in other languages" is on.
+            val hits = service.search(
+                query = trimmed,
+                fields = OffLanguage.searchFields(language, OffSearchService.FIELDS),
+                langs = OffLanguage.searchLanguages(language).joinToString(","),
+            ).hits
+            val foods = hits
+                .mapNotNull { OffMapping.fromHit(it, language) }
+                .filter { it.readable || settings.offOtherLanguages }
+                .map { it.food }
                 .distinctBy { it.barcode }
             OffSearchOutcome.Results(foods)
         } catch (e: CancellationException) {

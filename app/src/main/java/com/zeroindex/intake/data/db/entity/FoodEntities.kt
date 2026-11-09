@@ -46,6 +46,11 @@ data class FoodEntity(
     val timesLogged: Int = 0,
     /** UTC millis of the last time the user sent this product to Open Food Facts, or null. */
     val offContributedAt: Long? = null,
+    /**
+     * An https thumbnail from Open Food Facts, kept so My foods can show the product. Only the address is
+     * stored: the picture is fetched again when it is needed and is never part of a backup.
+     */
+    val imageUrl: String? = null,
     override val createdAt: Long,
     override val updatedAt: Long,
     override val deletedAt: Long? = null,

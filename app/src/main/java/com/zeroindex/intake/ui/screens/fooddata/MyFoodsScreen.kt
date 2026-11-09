@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -79,9 +80,13 @@ fun MyFoodsScreen(
             contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding() + 24.dp),
         ) {
             items(shown, key = { it.id }) { food ->
-                Column(
+                androidx.compose.foundation.layout.Row(
                     Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable { onOpenFood(food.id) }.padding(vertical = 10.dp),
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
                 ) {
+                com.zeroindex.intake.ui.images.FoodThumb(food)
+                androidx.compose.foundation.layout.Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
                     Text(food.name, style = MaterialTheme.typography.titleSmall, maxLines = 2)
                     Text(
                         buildString {
@@ -92,6 +97,7 @@ fun MyFoodsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                     )
+                }
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }

@@ -184,6 +184,18 @@ Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/SPEC-v3.md`, `docs/BACKUP
   paired with a recipe seeder.
 - Demo data loader in Settings (`SettingsRepository.demoDataLoaded` exists).
 
+## Device-testing fixes (branch `worktree-agent-acbf47c924ce706e7`)
+
+- Root cause of the Menu import, Meal templates, Health Connect, Training stats and AI settings crashes: a second `EmptyState`
+  composable in `ui/components/ScreenScaffold.kt` (now `FullScreenMessage`) that a titled call inside a `LazyColumn` bound to.
+  Guarded by `NoShadowedComposablesTest` and `NavGraphGuardTest`.
+- Barcode scanner layout, full-height Log food sheet, OFF language filter (`domain/food/OffLanguage.kt`), product thumbnails
+  (`ui/images/ProductImages.kt`, rules in `domain/food/ProductImagePolicy.kt`), week range labels (`domain/report/WeekLabel.kt`),
+  pill backdrop blur (`ui/navigation/PillBackdrop.kt`).
+- Schema v3 gains `food.imageUrl` (`migrateFoodUi_2_3`). New portable setting `off_other_languages`.
+- NOT verified on a device: any of the UI above, the camera preview z-order, the blur, the sheet insets, and image loading
+  over the network. The language rule is tested against captured responses in `src/test/resources/off`.
+
 ## NOT verified
 
 - Exercise photos, the muscle map, the exercise sheet, the custom exercise form (camera, gallery, tap-the-body picker),

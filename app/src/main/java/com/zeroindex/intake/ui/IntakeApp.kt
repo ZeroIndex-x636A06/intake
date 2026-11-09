@@ -64,6 +64,8 @@ import com.zeroindex.intake.ui.navigation.Route
 import com.zeroindex.intake.ui.navigation.TabAction
 import com.zeroindex.intake.ui.navigation.TabPolicy
 import com.zeroindex.intake.ui.navigation.TopLevelDestination
+import com.zeroindex.intake.ui.navigation.pillBackdropSource
+import com.zeroindex.intake.ui.navigation.rememberPillBackdrop
 import com.zeroindex.intake.ui.navigation.tabOf
 
 @Composable
@@ -95,6 +97,7 @@ private fun PendingDestination.target(): Pair<TopLevelDestination, Route> = when
 @Composable
 private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, startOnboarding: Boolean) {
     val navController = rememberNavController()
+    val backdrop = rememberPillBackdrop()
     val tour = remember { TourState() }
     val prefs by flow.prefs.collectAsStateWithLifecycle()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -197,6 +200,7 @@ private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, sta
                     selectedIndex = selectedIndex,
                     onSelect = onSelectTab,
                     vertical = true,
+                    backdrop = backdrop,
                     modifier = Modifier.tourTarget(TourIds.PILL),
                 )
             }
@@ -234,6 +238,7 @@ private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, sta
                             selectedIndex = selectedIndex,
                             onSelect = onSelectTab,
                             modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth().tourTarget(TourIds.PILL),
+                            backdrop = backdrop,
                         )
                     }
                 }
@@ -250,7 +255,7 @@ private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, sta
             IntakeNavHost(
                 navController = navController,
                 contentPadding = innerPadding,
-                modifier = if (capWidth) Modifier.readableWidth() else Modifier,
+                modifier = (if (capWidth) Modifier.readableWidth() else Modifier).pillBackdropSource(backdrop),
                 startOnboarding = startOnboarding,
             )
         }

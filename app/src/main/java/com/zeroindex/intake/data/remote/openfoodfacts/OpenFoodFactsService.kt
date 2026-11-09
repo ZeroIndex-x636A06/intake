@@ -53,6 +53,8 @@ data class OffProduct(
     @SerialName("allergens_tags") val allergensTags: List<String> = emptyList(),
     @SerialName("traces_tags") val tracesTags: List<String> = emptyList(),
     val nutriments: OffNutriments? = null,
+    @SerialName("image_front_small_url") val imageFrontSmallUrl: String? = null,
+    @SerialName("image_front_url") val imageFrontUrl: String? = null,
 )
 
 /** Open Food Facts reports per-100g values under the `_100g` suffix. */
@@ -96,7 +98,7 @@ interface OpenFoodFactsService {
         const val BASE_URL = "https://world.openfoodfacts.org/"
         const val FIELDS =
             "product_name,brands,serving_size,serving_quantity,ingredients_text," +
-                "allergens_tags,traces_tags,nutriments"
+                "allergens_tags,traces_tags,nutriments,image_front_small_url,image_front_url"
     }
 }
 

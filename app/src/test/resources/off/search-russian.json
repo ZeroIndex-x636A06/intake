@@ -1,0 +1,87 @@
+{
+ "hits": [
+  {
+   "code": "4630250260075",
+   "brands": [
+    "Правильное молоко"
+   ],
+   "lang": "en",
+   "nutriments": {
+    "carbohydrates_100g": 4.69999980926514,
+    "energy-kcal_100g": 44,
+    "fat_100g": 1.5,
+    "proteins_100g": 3
+   },
+   "product_name": "Молоко 1,5",
+   "product_name_en": "Молоко 1,5"
+  },
+  {
+   "code": "4630250260136",
+   "brands": [
+    "Правильное молоко"
+   ],
+   "lang": "en",
+   "nutriments": {
+    "carbohydrates_100g": 4.69999980926514,
+    "energy-kcal_100g": 53,
+    "fat_100g": 2.5,
+    "proteins_100g": 3
+   },
+   "product_name": "Молоко 2,5",
+   "product_name_en": "Молоко 2,5"
+  },
+  {
+   "code": "4610030032405",
+   "brands": [
+    "Славянские Кружева"
+   ],
+   "lang": "en",
+   "nutriments": {
+    "carbohydrates_100g": 4.7,
+    "energy-kcal_100g": 60,
+    "fat_100g": 3.2,
+    "proteins_100g": 3
+   },
+   "product_name": "Молоко",
+   "product_name_en": "Молоко"
+  },
+  {
+   "code": "4650061710323",
+   "lang": "en",
+   "nutriments": {
+    "carbohydrates_100g": 4.7,
+    "energy-kcal_100g": 64,
+    "proteins_100g": 3,
+    "fat_100g": 3.2
+   },
+   "product_name": "Молоко",
+   "product_name_en": "Молоко",
+   "image_front_small_url": "https://images.openfoodfacts.org/images/products/465/006/171/0323/front_en.3.200.jpg",
+   "image_front_thumb_url": "https://images.openfoodfacts.org/images/products/465/006/171/0323/front_en.3.100.jpg"
+  },
+  {
+   "code": "0099990001892",
+   "lang": "ru",
+   "quantity": "100g",
+   "nutriments": {
+    "carbohydrates_100g": 4.8,
+    "energy-kcal_100g": 66.244,
+    "fat_100g": 3.6,
+    "proteins_100g": 3.2
+   },
+   "product_name": "Молоко",
+   "product_name_en": "Молоко"
+  },
+  {
+   "code": "4690363223770",
+   "lang": "en",
+   "nutriments": {
+    "energy-kcal_100g": 44,
+    "fat_100g": 1000
+   },
+   "product_name": "Молоко",
+   "product_name_en": "Молоко"
+  }
+ ],
+ "count": 219
+}

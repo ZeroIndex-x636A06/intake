@@ -27,6 +27,8 @@ private val Context.foodDataStore: DataStore<Preferences> by preferencesDataStor
 data class FoodDataSettings(
     val offSearch: Boolean = true,
     val offContribute: Boolean = false,
+    /** Show Open Food Facts products whose name is in another language or script. Off by default. */
+    val offOtherLanguages: Boolean = false,
 )
 
 @Singleton
@@ -36,17 +38,23 @@ class FoodDataPrefs @Inject constructor(
     private object Keys {
         val offSearch = booleanPreferencesKey("off_search_enabled")
         val offContribute = booleanPreferencesKey("off_contribute_enabled")
+        val offOtherLanguages = booleanPreferencesKey("off_other_languages")
     }
 
     val settings: Flow<FoodDataSettings> = context.foodDataStore.data.map { p ->
         FoodDataSettings(
             offSearch = p[Keys.offSearch] ?: true,
             offContribute = p[Keys.offContribute] ?: false,
+            offOtherLanguages = p[Keys.offOtherLanguages] ?: false,
         )
     }
 
     suspend fun setOffSearch(enabled: Boolean) {
         context.foodDataStore.edit { it[Keys.offSearch] = enabled }
+    }
+
+    suspend fun setOffOtherLanguages(enabled: Boolean) {
+        context.foodDataStore.edit { it[Keys.offOtherLanguages] = enabled }
     }
 
     suspend fun setOffContribute(enabled: Boolean) {

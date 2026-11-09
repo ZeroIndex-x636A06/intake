@@ -1,6 +1,7 @@
 package com.zeroindex.intake.data.remote.openfoodfacts
 
 import com.zeroindex.intake.data.db.entity.FoodEntity
+import com.zeroindex.intake.domain.food.OffLanguage
 import com.zeroindex.intake.domain.model.FoodSource
 
 /**
@@ -20,13 +21,24 @@ object OffMapping {
         ingredientsText = product.ingredientsText,
         allergenTags = product.allergensTags,
         traceTags = product.tracesTags,
+        imageUrl = product.imageFrontSmallUrl ?: product.imageFrontUrl,
     )
 
-    fun fromHit(hit: OffSearchHit): FoodEntity? {
+    fun fromHit(hit: OffSearchHit): FoodEntity? = fromHit(hit, language = null)?.food
+
+    /** A search result, with whether its chosen name is in a script the reader of the language uses. */
+    class SearchItem(val food: FoodEntity, val readable: Boolean)
+
+    /**
+     * With a [language], the name is `product_name_<language>`, then `product_name_en`, then `product_name`
+     * (see [OffLanguage]). Without one it is plain `product_name`, as before.
+     */
+    fun fromHit(hit: OffSearchHit, language: String?): SearchItem? {
         val code = hit.code?.trim()?.takeIf { it.isNotEmpty() } ?: return null
-        return toFood(
+        val picked = language?.let { OffLanguage.pickName(hit.names, hit.productName, it) }
+        val food = toFood(
             barcode = code,
-            name = hit.productName,
+            name = picked?.name ?: hit.productName,
             brand = hit.firstBrand,
             servingSize = hit.servingSize,
             servingQuantity = hit.servingQuantity,
@@ -34,7 +46,9 @@ object OffMapping {
             ingredientsText = null,
             allergenTags = hit.allergensTags.orEmpty(),
             traceTags = emptyList(),
-        )
+            imageUrl = hit.imageFrontSmallUrl ?: hit.imageFrontThumbUrl,
+        ) ?: return null
+        return SearchItem(food, readable = picked?.readable ?: true)
     }
 
     private fun toFood(
@@ -47,6 +61,7 @@ object OffMapping {
         ingredientsText: String?,
         allergenTags: List<String>,
         traceTags: List<String>,
+        imageUrl: String? = null,
     ): FoodEntity? {
         val n = nutriments ?: return null
         val kcal = n.energyKcal100g?.takeIf { it > 0.0 } ?: return null
@@ -71,6 +86,7 @@ object OffMapping {
             sodiumPer100g = sodiumMg,
             saturatedFatPer100g = n.saturatedFat100g ?: 0.0,
             source = FoodSource.OPEN_FOOD_FACTS,
+            imageUrl = OffImages.safeUrl(imageUrl),
             // Both the structured tags and the panel text are kept: the allergen
             // engine rescans this whenever the food is logged again (SPEC §7.3).
             allergenTags = FoodIngredients.join(allergenTags + traceTags, ingredientsText),
@@ -115,5 +131,14 @@ object FoodIngredients {
     private fun looksLikeTags(part: String): Boolean {
         val pieces = part.split(',').map { it.trim() }.filter { it.isNotEmpty() }
         return pieces.isNotEmpty() && pieces.all { Regex("^[a-z]{2}:[a-z0-9-]+$").matches(it) }
+    }
+}
+
+/** Product pictures are loaded over https from Open Food Facts' image host only; anything else is dropped. */
+object OffImages {
+    fun safeUrl(url: String?): String? {
+        val u = url?.trim()?.takeIf { it.startsWith("https://") } ?: return null
+        val host = u.removePrefix("https://").substringBefore('/').substringBefore(':').lowercase()
+        return u.takeIf { host == "openfoodfacts.org" || host.endsWith(".openfoodfacts.org") }
     }
 }

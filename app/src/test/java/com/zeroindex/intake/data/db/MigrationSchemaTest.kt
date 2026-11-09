@@ -114,6 +114,25 @@ class MigrationSchemaTest {
     }
 
     @Test
+    fun migrationTwoToThreeAddsANullableFoodImageUrlAndKeepsEveryFood() {
+        val c = createAt(2)
+        assertThat(entities(2).getValue("food")["fields"]!!.jsonArray.map { it.jsonObject["columnName"]!!.jsonPrimitive.content })
+            .doesNotContain("imageUrl")
+        c.exec(
+            "INSERT INTO food (id, name, servingSizeGrams, servingLabel, kcalPer100g, proteinPer100g, carbsPer100g, " +
+                "fatPer100g, fiberPer100g, sugarPer100g, sodiumPer100g, saturatedFatPer100g, source, allergenTags, " +
+                "isVerified, isFavorite, timesLogged, createdAt, updatedAt) " +
+                "VALUES ('f9', 'Oats', 100, '100 g', 370, 13, 60, 7, 10, 1, 5, 1, 'MANUAL', '', 0, 0, 1, 1, 1)",
+        )
+        MIGRATION_2_3_STATEMENTS.forEach { c.exec(it) }
+        val food = c.rows("SELECT * FROM food WHERE id = 'f9'").single()
+        assertThat(food["name"]).isEqualTo("Oats")
+        assertThat(food["imageUrl"]).isNull()
+        assertMatches(c, 3)
+        c.close()
+    }
+
+    @Test
     fun migrationTwoToThreeCreatesTheCoachHistoryTableEmptyAndUsable() {
         val v2 = createAt(2)
         assertThat(entities(2)).doesNotContainKey("coach_suggestion")
