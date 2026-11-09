@@ -112,6 +112,11 @@ internal fun migrateFoodOff_2_3(): List<String> = listOf(
     "ALTER TABLE `food` ADD COLUMN `offContributedAt` INTEGER",
 )
 
+internal fun migrateFoodUi_2_3(): List<String> = listOf(
+    // Product thumbnails in Add food and My foods: the Open Food Facts image address, nullable. No picture is stored.
+    "ALTER TABLE `food` ADD COLUMN `imageUrl` TEXT",
+)
+
 internal fun migrateAllergens_2_3(): List<String> = listOf(
     // Allergens rebuild: a level and an off switch on every keyword, a custom flag, and the allergen list.
     // Built-in rows and keywords are seeded on every open (AllergenSeed.topUp, INSERT OR IGNORE), so v2
@@ -160,7 +165,8 @@ internal val MIGRATION_2_3_STATEMENTS: List<String> =
         migrateMealPlans_2_3() +
         migrateHydration_2_3() +
         migrateCoach_2_3() +
-        migrateAiUsage_2_3()
+        migrateAiUsage_2_3() +
+        migrateFoodUi_2_3()
 
 internal val MIGRATION_2_3 = object : Migration(2, 3) {
     override fun migrate(db: SupportSQLiteDatabase) {

@@ -60,6 +60,10 @@ class FoodDataViewModel @Inject constructor(
         viewModelScope.launch { prefs.setOffSearch(enabled) }
     }
 
+    fun setOffOtherLanguages(enabled: Boolean) {
+        viewModelScope.launch { prefs.setOffOtherLanguages(enabled) }
+    }
+
     fun setOffContribute(enabled: Boolean) {
         viewModelScope.launch { prefs.setOffContribute(enabled) }
     }
@@ -110,6 +114,16 @@ fun FoodDataScreen(
                         "and only when you are online.",
                     on = state.settings.offSearch,
                     onToggle = { viewModel.setOffSearch(!state.settings.offSearch) },
+                    onLabel = "On",
+                    offLabel = "Off",
+                )
+                SwitchRow(
+                    title = "Show products in other languages",
+                    subtitle = "Off: results are in your language (or English), and products named in another " +
+                        "script, such as Russian or Thai, are left out. Product thumbnails load from " +
+                        "images.openfoodfacts.org only while search is on and you are online.",
+                    on = state.settings.offOtherLanguages,
+                    onToggle = { viewModel.setOffOtherLanguages(!state.settings.offOtherLanguages) },
                     onLabel = "On",
                     offLabel = "Off",
                 )

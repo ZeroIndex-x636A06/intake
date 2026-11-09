@@ -164,7 +164,7 @@ private fun TemplateRow(
         Column(Modifier.weight(1f)) {
             Text(t.template.name, style = MaterialTheme.typography.titleSmall)
             Text(
-                "${t.kcal.roundToInt()} kcal · ${t.protein.roundToInt()} g protein · " +
+                "${t.kcal.safeRound()} kcal · ${t.protein.safeRound()} g protein · " +
                     (written?.let { "Tag written $it" } ?: "Not on a tag"),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -269,3 +269,6 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
     is ContextWrapper -> baseContext.findActivity()
     else -> null
 }
+
+/** A food with a missing or broken energy value must not take the whole screen down: NaN rounds to 0. */
+private fun Double.safeRound(): Int = if (isFinite()) roundToInt() else 0

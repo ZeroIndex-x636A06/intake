@@ -1,0 +1,195 @@
+{
+ "hits": [
+  {
+   "code": "5000316000256",
+   "brands": [
+    "Moo Milk"
+   ],
+   "lang": "en",
+   "quantity": "1l",
+   "allergens_tags": [
+    "en:milk"
+   ],
+   "nutriments": {
+    "carbohydrates_100g": 9.1,
+    "energy-kcal_100g": 67,
+    "fat_100g": 1.4,
+    "fiber_100g": 0.5,
+    "proteins_100g": 4.2,
+    "salt_100g": 0.1,
+    "saturated-fat_100g": 1,
+    "sodium_100g": 0.04,
+    "sugars_100g": 9.1
+   },
+   "product_name": "Moo Milk chocolate flavoured",
+   "product_name_en": "Moo Milk chocolate flavoured",
+   "image_front_small_url": "https://images.openfoodfacts.org/images/products/500/031/600/0256/front_en.21.200.jpg",
+   "image_front_thumb_url": "https://images.openfoodfacts.org/images/products/500/031/600/0256/front_en.21.100.jpg"
+  },
+  {
+   "code": "0025073009910",
+   "brands": [
+    "California sunshine"
+   ],
+   "lang": "th",
+   "quantity": "1 Quart",
+   "allergens_tags": [
+    "en:milk"
+   ],
+   "nutriments": {
+    "carbohydrates_100g": 5,
+    "energy-kcal_100g": 65,
+    "fat_100g": 3.5,
+    "fiber_100g": 0,
+    "proteins_100g": 3.5,
+    "salt_100g": 0.0938,
+    "saturated-fat_100g": 2.25,
+    "sodium_100g": 0.0375,
+    "sugars_100g": 5
+   },
+   "product_name": "ผลิตภัณฑ์นมพาสเจอไรซ์ - 946 ml",
+   "product_name_en": "Homogenized Milk",
+   "image_front_small_url": "https://images.openfoodfacts.org/images/products/002/507/300/9910/front_th.8.200.jpg",
+   "image_front_thumb_url": "https://images.openfoodfacts.org/images/products/002/507/300/9910/front_th.8.100.jpg"
+  },
+  {
+   "code": "7591691180292",
+   "brands": [
+    "Zuli Milk"
+   ],
+   "lang": "es",
+   "quantity": "400 g",
+   "allergens_tags": [
+    "en:milk"
+   ],
+   "nutriments": {
+    "carbohydrates_100g": 50,
+    "fat_100g": 0,
+    "proteins_100g": 35
+   },
+   "product_name": "Leche Deslactosada",
+   "image_front_small_url": "https://images.openfoodfacts.org/images/products/759/169/118/0292/front_es.4.200.jpg",
+   "image_front_thumb_url": "https://images.openfoodfacts.org/images/products/759/169/118/0292/front_es.4.100.jpg"
+  },
+  {
+   "code": "5099603111157",
+   "brands": [
+    "Thurles Milk"
+   ],
+   "lang": "en",
+   "quantity": "2.5 l",
+   "allergens_tags": [
+    "en:milk"
+   ],
+   "nutriments": {
+    "carbohydrates_100g": 4.7,
+    "energy-kcal_100g": 68,
+    "fat_100g": 3.5,
+    "fiber_100g": 0.1,
+    "proteins_100g": 3.3,
+    "salt_100g": 0.11,
+    "saturated-fat_100g": 2.2,
+    "sodium_100g": 0.044,
+    "sugars_100g": 4.7
+   },
+   "product_name": "Thurles Fresh Milk 2.5 Litre",
+   "product_name_en": "Thurles Fresh Milk 2.5 Litre",
+   "image_front_small_url": "https://images.openfoodfacts.org/images/products/509/960/311/1157/front_en.5.200.jpg",
+   "image_front_thumb_url": "https://images.openfoodfacts.org/images/products/509/960/311/1157/front_en.5.100.jpg"
+  },
+  {
+   "code": "0027495012769",
+   "brands": [
+    "Hollandia Dairy"
+   ],
+   "lang": "en",
+   "quantity": "1/2 gal",
+   "allergens_tags": [
+    "en:milk"
+   ],
+   "nutriments": {
+    "carbohydrates_100g": 5.5084745762712,
+    "energy-kcal_100g": 55.084745762712,
+    "fat_100g": 2.1186440677966,
+    "fiber_100g": 0,
+    "proteins_100g": 4.2372881355932,
+    "salt_100g": 0.13771186440678,
+    "saturated-fat_100g": 1.271186440678,
+    "sodium_100g": 0.055084745762712,
+    "sugars_100g": 5.5084745762712
+   },
+   "product_name": "2% milk",
+   "product_name_en": "2% milk",
+   "image_front_small_url": "https://images.openfoodfacts.org/images/products/002/749/501/2769/front_en.20.200.jpg",
+   "image_front_thumb_url": "https://images.openfoodfacts.org/images/products/002/749/501/2769/front_en.20.100.jpg"
+  },
+  {
+   "code": "6281021110105",
+   "brands": [
+    "Milk"
+   ],
+   "lang": "en",
+   "quantity": "1000 ml",
+   "nutriments": {
+    "carbohydrates_100g": 5,
+    "energy-kcal_100g": 59,
+    "fat_100g": 3,
+    "fiber_100g": 0,
+    "proteins_100g": 3,
+    "salt_100g": 0.1,
+    "saturated-fat_100g": 1.6,
+    "sodium_100g": 0.04,
+    "sugars_100g": 5
+   },
+   "product_name": "Rainbow full cream milk",
+   "product_name_en": "Rainbow full cream milk",
+   "image_front_small_url": "https://images.openfoodfacts.org/images/products/628/102/111/0105/front_en.19.200.jpg",
+   "image_front_thumb_url": "https://images.openfoodfacts.org/images/products/628/102/111/0105/front_en.19.100.jpg"
+  },
+  {
+   "code": "0865743000393",
+   "brands": [
+    "MALK"
+   ],
+   "lang": "en",
+   "quantity": "32 fl oz (946 ml)",
+   "allergens_tags": [
+    "en:nuts"
+   ],
+   "nutriments": {
+    "carbohydrates_100g": 0.88495575221239,
+    "energy-kcal_100g": 44.247787610619,
+    "fat_100g": 3.9823008849558,
+    "fiber_100g": 1,
+    "proteins_100g": 1.7699115044248,
+    "salt_100g": 0.082964601769912,
+    "saturated-fat_100g": 0.3716814159292,
+    "sodium_100g": 0.0331858407079648,
+    "sugars_100g": 0.44247787610619
+   },
+   "product_name": "Organic Almond Milk",
+   "product_name_en": "Organic Almond Milk",
+   "image_front_small_url": "https://images.openfoodfacts.org/images/products/086/574/300/0393/front_en.29.200.jpg",
+   "image_front_thumb_url": "https://images.openfoodfacts.org/images/products/086/574/300/0393/front_en.29.100.jpg"
+  },
+  {
+   "code": "8938503131957",
+   "brands": [
+    "Dakar Milk"
+   ],
+   "lang": "vi",
+   "quantity": "220ml",
+   "nutriments": {
+    "carbohydrates_100g": 4.5,
+    "energy-kcal_100g": 65,
+    "fat_100g": 3.8,
+    "proteins_100g": 3.2
+   },
+   "product_name": "sữa tươi tiệt trùng",
+   "product_name_en": "Fresh Milk Natural Plain",
+   "image_front_small_url": "https://images.openfoodfacts.org/images/products/893/850/313/1957/front_vi.4.200.jpg",
+   "image_front_thumb_url": "https://images.openfoodfacts.org/images/products/893/850/313/1957/front_vi.4.100.jpg"
+  }
+ ],
+ "count": 10000
+}

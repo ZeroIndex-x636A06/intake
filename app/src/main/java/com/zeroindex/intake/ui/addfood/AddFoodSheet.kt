@@ -74,6 +74,11 @@ import com.zeroindex.intake.ui.allergen.ProvideCheckLabelTerms
 import com.zeroindex.intake.ui.allergen.checkLabelReasonFor
 import com.zeroindex.intake.ui.photo.PhotoEstimateFlow
 import com.zeroindex.intake.ui.barcode.BarcodeScannerView
+import com.zeroindex.intake.ui.images.FoodThumb
+import com.zeroindex.intake.ui.images.ThumbTile
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.statusBarsPadding
 import kotlin.math.roundToInt
 
 /**
@@ -108,7 +113,9 @@ fun AddFoodSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         ProvideCheckLabelTerms(state.checkLabelTerms) {
-        Column(modifier = Modifier.fillMaxWidth().navigationBarsPadding().imePadding()) {
+        // Full height: the sheet is the whole screen below the status bar, with the keyboard pushing the
+        // result list up rather than covering it.
+        Column(modifier = Modifier.fillMaxWidth().fillMaxHeight().statusBarsPadding().navigationBarsPadding().imePadding()) {
             val portioning = portionFor
             if (portioning != null) {
                 PortionStep(
@@ -220,6 +227,7 @@ fun AddFoodSheet(
                         onRescan = viewModel::rescanBarcode,
                         onRetry = viewModel::retryBarcode,
                         onPick = choose,
+                        onExit = { viewModel.selectTab(AddFoodTab.SEARCH) },
                         onCreateForBarcode = { barcode, name, brand, grams, label, k, p, c, f ->
                             viewModel.createFood(
                                 name = name,
@@ -335,7 +343,7 @@ private fun FoodList(
         )
         return
     }
-    LazyColumn(modifier = Modifier.heightIn(max = 420.dp)) {
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(items = foods, key = { it.id }) { food ->
             FoodRow(food, food.id in safeIds, onPick, onToggleFavorite)
         }
@@ -364,19 +372,7 @@ private fun FoodRow(
                 .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Surface(
-                color = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                shape = IntakeShape.Tile,
-                modifier = Modifier.size(38.dp),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = food.name.trim().take(1).uppercase(),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-            }
+            FoodThumb(food)
             Spacer(Modifier.size(11.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -475,7 +471,7 @@ private fun SearchTab(
         return
     }
 
-    Column {
+    Column(Modifier.fillMaxSize()) {
         TextField(
             value = state.query,
             onValueChange = onQueryChange,
@@ -519,7 +515,7 @@ private fun SearchTab(
             offResults.isEmpty() && usdaApiResults.isEmpty()
 
         // Sources in order: this phone, the offline USDA database, Open Food Facts, the USDA API.
-        LazyColumn(modifier = Modifier.heightIn(max = 420.dp)) {
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
             if (state.localResults.isNotEmpty()) {
                 item(key = "h-local") { SourceHeader("My foods and recents") }
                 items(items = state.localResults, key = { "l-${it.id}" }) { food ->
@@ -637,6 +633,9 @@ private fun RefFoodRow(ref: RefFood, onChoose: (RefFood) -> Unit) {
                 .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            // USDA foods have no photo: a generic icon for the kind of food.
+            ThumbTile(name = ref.name, imageUrl = null, category = ref.category)
+            Spacer(Modifier.size(11.dp))
             Column(Modifier.weight(1f)) {
                 Text(ref.name, style = MaterialTheme.typography.titleSmall, maxLines = 2)
                 Spacer(Modifier.size(2.dp))
@@ -673,6 +672,7 @@ private fun BarcodeTab(
     onRescan: () -> Unit,
     onRetry: (String) -> Unit,
     onPick: (FoodEntity) -> Unit,
+    onExit: () -> Unit,
     onCreateForBarcode: (
         String?, String, String?, Double, String, Double, Double, Double, Double,
     ) -> Unit,
@@ -699,11 +699,13 @@ private fun BarcodeTab(
 
     when (val barcode = state.barcodeState) {
         BarcodeState.Idle, BarcodeState.Scanning -> Column(
-            modifier = Modifier.fillMaxWidth().heightIn(min = 320.dp, max = 460.dp),
+            // Scrolls, so the manual entry stays reachable on a short screen or with the keyboard open.
+            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
         ) {
             BarcodeScannerView(
                 onBarcode = onBarcode,
                 onEnterManually = { manualFor = "" },
+                onExit = onExit,
             )
         }
 
@@ -714,13 +716,19 @@ private fun BarcodeTab(
         }
 
         is BarcodeState.Found -> Column(Modifier.padding(20.dp)) {
-            Text(barcode.food.name, style = MaterialTheme.typography.titleLarge)
-            barcode.food.brand?.let {
-                Text(
-                    it,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                FoodThumb(barcode.food, size = 64.dp)
+                Spacer(Modifier.size(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(barcode.food.name, style = MaterialTheme.typography.titleLarge)
+                    barcode.food.brand?.let {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
             Spacer(Modifier.height(4.dp))
             Text(

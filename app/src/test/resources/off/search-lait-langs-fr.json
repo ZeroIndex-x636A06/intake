@@ -1,0 +1,157 @@
+{
+ "hits": [
+  {
+   "code": "3496080210137",
+   "brands": [
+    "Le lait d ici",
+    "Le Lait d'Ici"
+   ],
+   "lang": "fr",
+   "quantity": "1 l e",
+   "allergens_tags": [
+    "en:milk"
+   ],
+   "nutriments": {
+    "carbohydrates_100g": 4.8,
+    "energy-kcal_100g": 46,
+    "fat_100g": 1.6,
+    "proteins_100g": 3.2,
+    "salt_100g": 0.1,
+    "saturated-fat_100g": 1,
+    "sodium_100g": 0.04,
+    "sugars_100g": 4.8
+   },
+   "product_name": "J'aime le lait d'ici",
+   "product_name_fr": "J'aime le lait d'ici",
+   "image_front_small_url": "https://images.openfoodfacts.org/images/products/349/608/021/0137/front.8.200.jpg",
+   "image_front_thumb_url": "https://images.openfoodfacts.org/images/products/349/608/021/0137/front.8.100.jpg"
+  },
+  {
+   "code": "3428271930050",
+   "brands": [
+    "Lait de France",
+    " Lactalis Consommation Hors Foyer (L.C.H.F.)"
+   ],
+   "lang": "fr",
+   "quantity": "1 L",
+   "allergens_tags": [
+    "en:milk"
+   ],
+   "nutriments": {
+    "carbohydrates_100g": 4.8,
+    "energy-kcal_100g": 46,
+    "fat_100g": 1.5,
+    "fiber_100g": 0,
+    "proteins_100g": 3.2,
+    "salt_100g": 0.1,
+    "saturated-fat_100g": 1,
+    "sodium_100g": 0.04,
+    "sugars_100g": 4.8
+   },
+   "product_name": "Lait",
+   "product_name_fr": "Lait",
+   "image_front_small_url": "https://images.openfoodfacts.org/images/products/342/827/193/0050/front.13.200.jpg",
+   "image_front_thumb_url": "https://images.openfoodfacts.org/images/products/342/827/193/0050/front.13.100.jpg"
+  },
+  {
+   "code": "3228020127492",
+   "brands": [
+    "Lait des Élevages Français"
+   ],
+   "lang": "fr",
+   "quantity": "1 l",
+   "allergens_tags": [
+    "en:milk"
+   ],
+   "nutriments": {
+    "carbohydrates_100g": 4.8,
+    "energy-kcal_100g": 46,
+    "fat_100g": 1.5,
+    "proteins_100g": 3.2,
+    "salt_100g": 0.1,
+    "saturated-fat_100g": 1,
+    "sodium_100g": 0.04,
+    "sugars_100g": 4.8
+   },
+   "product_name": "Lait stérilisé U.H.T. demi-écrémé",
+   "product_name_fr": "Lait stérilisé U.H.T. demi-écrémé",
+   "image_front_small_url": "https://images.openfoodfacts.org/images/products/322/802/012/7492/front_fr.3.200.jpg",
+   "image_front_thumb_url": "https://images.openfoodfacts.org/images/products/322/802/012/7492/front_fr.3.100.jpg"
+  },
+  {
+   "code": "3496080210199",
+   "brands": [
+    "Le lait d'ici",
+    "Orlait"
+   ],
+   "lang": "fr",
+   "quantity": "6 x 1 L (6 x 3496080210137)",
+   "allergens_tags": [
+    "en:milk"
+   ],
+   "nutriments": {
+    "carbohydrates_100g": 4.8,
+    "fat_100g": 1.6,
+    "proteins_100g": 3.2,
+    "salt_100g": 0.13,
+    "saturated-fat_100g": 1,
+    "sodium_100g": 0.052,
+    "sugars_100g": 4.8
+   },
+   "product_name": "J'♥ le lait d'ici demi-écrémé stérilisé UHT",
+   "product_name_fr": "J'♥ le lait d'ici demi-écrémé stérilisé UHT",
+   "image_front_small_url": "https://images.openfoodfacts.org/images/products/349/608/021/0199/front.7.200.jpg",
+   "image_front_thumb_url": "https://images.openfoodfacts.org/images/products/349/608/021/0199/front.7.100.jpg"
+  },
+  {
+   "code": "3262970100235",
+   "brands": [
+    "Alsace Lait"
+   ],
+   "lang": "fr",
+   "quantity": "1.5 L",
+   "allergens_tags": [
+    "en:milk"
+   ],
+   "nutriments": {
+    "carbohydrates_100g": 4.7,
+    "energy-kcal_100g": 65,
+    "fat_100g": 3.6,
+    "proteins_100g": 3.4,
+    "salt_100g": 0.12,
+    "saturated-fat_100g": 2.5,
+    "sodium_100g": 0.048,
+    "sugars_100g": 4.7
+   },
+   "product_name": "Lait Frais Entier Pasteurisé issu de vaches nourries sans OGM",
+   "product_name_fr": "Lait Frais Entier Pasteurisé issu de vaches nourries sans OGM",
+   "image_front_small_url": "https://images.openfoodfacts.org/images/products/326/297/010/0235/front_fr.30.200.jpg",
+   "image_front_thumb_url": "https://images.openfoodfacts.org/images/products/326/297/010/0235/front_fr.30.100.jpg"
+  },
+  {
+   "code": "3329770071636",
+   "brands": [
+    "Perle de Lait",
+    "Yoplait",
+    "Perle de lait vegetal"
+   ],
+   "lang": "fr",
+   "quantity": "400 g",
+   "nutriments": {
+    "carbohydrates_100g": 13.1,
+    "energy-kcal_100g": 107,
+    "fat_100g": 5.7,
+    "proteins_100g": 0.1,
+    "salt_100g": 0.1,
+    "saturated-fat_100g": 5.2,
+    "sodium_100g": 0.04,
+    "sugars_100g": 8.1
+   },
+   "product_name": "Perle de lait vegetal coco",
+   "product_name_fr": "Perle de lait vegetal coco",
+   "image_front_small_url": "https://images.openfoodfacts.org/images/products/332/977/007/1636/front_fr.19.200.jpg",
+   "image_front_thumb_url": "https://images.openfoodfacts.org/images/products/332/977/007/1636/front_fr.19.100.jpg"
+  }
+ ],
+ "count": 10000
+}

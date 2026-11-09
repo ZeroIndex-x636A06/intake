@@ -129,7 +129,7 @@ fun HealthConnectScreen(
                                 onToggle = {
                                     // Health Connect can grant one type at a time but only revokes
                                     // from its own screen, so "off" opens it there.
-                                    if (granted) openHealthConnectSettings(context) else request.launch(setOf(type.permission))
+                                    if (granted) openHealthConnectSettings(context) else runCatching { request.launch(setOf(type.permission)) }
                                 },
                             )
                             if (i != types.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
