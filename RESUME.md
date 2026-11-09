@@ -124,6 +124,14 @@ All of SPEC.md's built phases and every amendment feature are implemented:
   `docs/COACH.md`. Settings in backup/export: `domain/backup/PortableSettings.kt`, `data/settings/PortableStore.kt`,
   `BackupService` (`settings` section, preview line); see `docs/BACKUP.md`.
 
+- **Motion and clarity polish (this pass).** `domain/motion/MotionRules.kt` (reduce-motion rule, stagger schedule, once-a-day
+  protein rule, pulse rule, count-up text, rest fraction), `ui/motion/MotionKit.kt` and `MotionCanvas.kt` (press scale, shimmer,
+  stagger, count-up, `MoreDetail`, pulse/flash, `AnimatedCheck`, `BurstOverlay`, `WaterWave`, `RestRing`, chart draw-in).
+  New DataStore keys `reduce_motion` (portable) and `last_celebration_day` (device-local). `AppFlowViewModel` now takes
+  `SettingsRepository` for the reduce-motion switch. `TimerState.totalSeconds`. `data/training/ProgramEdits.kt` holds the pure row
+  builders behind `moveDay`, `duplicateDay` and `copySettingsToOthers`. Screens changed: Today, Food and Train hubs, Recipes, Plan,
+  Active workout, Progress, Settings, Coach check-in, plus small copy changes. Full list in `docs/DESIGN-MOTION.md`.
+
 Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/SPEC-v3.md`, `docs/BACKUP.md`,
 `docs/BENCHMARK.md`, `docs/PRIVACY.md`, `server/README.md`.
 
@@ -147,6 +155,9 @@ Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/SPEC-v3.md`, `docs/BACKUP
 
 ## NOT verified
 
+- The motion polish was never seen running (no emulator): sweeps, count-ups, the protein burst, the water wave, stagger,
+  check morphs, the rest ring, chart draw-in, shimmer, press scale, haptics, the new Settings layout and the folded hubs.
+  Haptic types (`Confirm`, `ToggleOn`/`ToggleOff`) and `Modifier.onGloballyPositioned` off-screen detection are untested on hardware.
 - Onboarding and the Today tour were never seen on a screen (no emulator): the step transitions, the IME
   behaviour on About you, the spotlight cut-out and bubble placement (phone and the vertical rail), the
   scroll-to-target on Today, TalkBack announcements and the notification permission prompt are unchecked.

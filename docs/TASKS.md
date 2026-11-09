@@ -13,14 +13,6 @@ with its merge commit. Read `CLAUDE.md` before you claim anything.
 
 Each task links to the section of `docs/SPEC-v3.md` that defines it.
 
-3. **Motion and clarity polish.** See SPEC-v3 point 5.
-   - Motion tokens already exist in `ui/motion/Motion.kt`.
-   - Animate the calorie ring sweep and count-ups, the water wave, protein-goal
-     confetti, set and item check-offs, the rest-timer ring, chart draw-in and
-     shimmer loading.
-   - Add a "Reduce motion" setting.
-   - Rewrite jargon as InfoTips (`ui/components/InfoTip.kt` exists). Give each
-     screen one primary action, and make every empty state say what to do next.
 4. **AI policy audit, usage meter and cost analysis.** See "Additions → AI
    policy and cost". Do this last, once the AI features are final.
    - Audit every OpenRouter call site.
@@ -28,14 +20,6 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
    - Add a monthly budget cap.
    - Estimate daily and monthly cost from the chosen models, and write
      `docs/AI-COSTS.md`.
-5. **Small follow-ups.**
-   - Remove the duplicate Allergens section from Settings. My allergens
-     replaces it.
-   - Add "As many as you can" (AMRAP) to the UI, if it's wanted.
-   - Show "mentioned as avoided" notes on recipe and plan screens.
-   - Write database-level tests for `TrainingRepository`'s new functions
-     (`moveDay`, `duplicateDay`, `copySettingsToOthers`,
-     `createProgramFromBlueprint`).
 
 ## Needs the user
 
@@ -49,6 +33,11 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
 
 ## Done (v3)
 
+- Motion and clarity polish and the small follow-ups (branch `worktree-agent-ac43c051116cef0e9`; see `docs/DESIGN-MOTION.md`):
+  reduce-motion setting, ring sweep and count-up, protein burst, water wave, stagger, check morphs, rest ring, chart
+  draw-in, shimmer, press feedback, per-screen declutter, Settings regrouped (duplicate Allergens removed, Replay the tour added),
+  AMRAP label, mentioned-as-avoided notes, `ProgramEdits` tests. No schema change. Not seen on a device. Skipped: shared-element
+  transition and the watch rest ring.
 - Onboarding and Today tour: nine-step welcome flow, auto-skip for installs with data, Today coach marks, first-visit
   tips per tab, Help replay rows (branch `agent/onboarding-tour`; see `RESUME.md`). No schema change. Not seen on a device.
 - Coach engine, "One thing to do today" card, and settings/profile in backup and export (branch `agent/coach-engine`).
