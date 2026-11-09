@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Upsert
 import com.zeroindex.intake.data.db.entity.ProgramDayEntity
+import com.zeroindex.intake.data.db.projection.WorkoutSummary
 import com.zeroindex.intake.data.db.entity.ProgramEntity
 import com.zeroindex.intake.data.db.entity.ProgramExerciseEntity
 import kotlinx.coroutines.flow.Flow
@@ -25,6 +26,19 @@ interface ProgramDao {
 
     @Query("SELECT * FROM program WHERE deletedAt IS NULL AND isStandalone = 1 ORDER BY name")
     suspend fun workouts(): List<ProgramEntity>
+
+    @Query(
+        """
+        SELECT p.id AS programId, p.name AS name, MIN(d.id) AS dayId, COUNT(pe.id) AS exerciseCount, p.updatedAt AS updatedAt
+        FROM program p
+        LEFT JOIN program_day d ON d.programId = p.id AND d.deletedAt IS NULL
+        LEFT JOIN program_exercise pe ON pe.programDayId = d.id AND pe.deletedAt IS NULL
+        WHERE p.deletedAt IS NULL AND p.isStandalone = 1
+        GROUP BY p.id
+        ORDER BY p.name COLLATE NOCASE
+        """,
+    )
+    fun observeWorkoutSummaries(): Flow<List<WorkoutSummary>>
 
     @Query("SELECT * FROM program WHERE deletedAt IS NULL ORDER BY name")
     suspend fun all(): List<ProgramEntity>

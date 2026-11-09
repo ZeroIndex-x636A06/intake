@@ -28,6 +28,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.zeroindex.intake.ui.screens.train.ExercisePickerSheet
+import com.zeroindex.intake.ui.screens.train.ExerciseDetailSheet
+import com.zeroindex.intake.ui.components.ExerciseThumb
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -96,6 +99,7 @@ fun ActiveWorkoutScreen(
     val context = LocalContext.current
     val unit = state.settings.weightUnit
     var picking by remember { mutableStateOf(false) }
+    var detailFor by remember { mutableStateOf<String?>(null) }
     var askSave by remember { mutableStateOf(false) }
 
     LazyColumn(
@@ -187,7 +191,7 @@ fun ActiveWorkoutScreen(
 
             state.current?.let { current ->
                 item(key = "current-${current.exercise.id}") {
-                    ExerciseCard(item = current, state = state)
+                    ExerciseCard(item = current, state = state, onOpenDetail = { detailFor = current.exercise.id })
                 }
 
                 item(key = "sets-heading") {
@@ -299,6 +303,7 @@ fun ActiveWorkoutScreen(
         }
     }
 
+    detailFor?.let { id -> ExerciseDetailSheet(exerciseId = id, onDismiss = { detailFor = null }) }
     if (picking) {
         ExercisePickerSheet(
             title = "Add an exercise",
@@ -373,22 +378,38 @@ private fun WorkoutTopBar(title: String, elapsed: String?) {
  * session's numbers on a rule below.
  */
 @Composable
-private fun ExerciseCard(item: ExercisePrescription, state: ActiveWorkoutUiState) {
+private fun ExerciseCard(item: ExercisePrescription, state: ActiveWorkoutUiState, onOpenDetail: () -> Unit) {
     val unit = state.settings.weightUnit
     val prescription = item.prescription
 
     IntakeCard {
-        Eyebrow(
-            text = item.exercise.primaryMuscle +
-                if (item.exercise.equipment.isNotBlank()) " · ${item.exercise.equipment}" else "",
-            color = MaterialTheme.colorScheme.secondary,
-        )
-        Spacer(Modifier.height(5.dp))
-        Text(
-            text = item.exercise.name,
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
+        // Tap the name or the picture for the photos, the muscle map and how to do it.
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(role = androidx.compose.ui.semantics.Role.Button, onClickLabel = "Show how to do ${item.exercise.name}", onClick = onOpenDetail),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Column(Modifier.weight(1f)) {
+                Eyebrow(
+                    text = item.exercise.primaryMuscle +
+                        if (item.exercise.equipment.isNotBlank()) " · ${item.exercise.equipment}" else "",
+                    color = MaterialTheme.colorScheme.secondary,
+                )
+                Spacer(Modifier.height(5.dp))
+                Text(
+                    text = item.exercise.name,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+            ExerciseThumb(item.exercise.id, item.exercise.photoPath, size = 64.dp)
+        }
+        item.programExercise?.notes?.takeIf { it.isNotBlank() }?.let { note ->
+            Spacer(Modifier.height(4.dp))
+            Text(note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
 
         if (item.ruleError != null) {
             // SPEC §10: a malformed rule shows a validation error, and the

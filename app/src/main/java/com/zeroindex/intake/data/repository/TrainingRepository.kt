@@ -8,6 +8,8 @@ import com.zeroindex.intake.data.training.ProgramExportRows
 import com.zeroindex.intake.data.training.FreestyleDayBuilder
 import com.zeroindex.intake.data.training.ProgramBlueprintBuilder
 import com.zeroindex.intake.data.training.ProgramEdits
+import com.zeroindex.intake.data.training.WorkoutBuilder
+import com.zeroindex.intake.data.db.projection.WorkoutSummary
 import com.zeroindex.intake.data.training.toEntity
 import com.zeroindex.intake.domain.training.ProgressionLabels
 import com.zeroindex.intake.domain.training.generator.ExerciseCatalog
@@ -331,6 +333,12 @@ class TrainingRepository @Inject constructor(
         programDao.softDeleteProgram(id, clock.nowMillis())
     }
 
+    /** Schedules a program day on an ISO weekday (1 Monday to 7 Sunday), or null to leave it in the rotation. */
+    suspend fun setDayWeekday(dayId: String, weekday: Int?) {
+        val d = programDao.findDay(dayId) ?: return
+        programDao.upsertDay(d.copy(weekday = weekday?.takeIf { it in 1..7 }, updatedAt = clock.nowMillis()))
+    }
+
     suspend fun renameDay(dayId: String, name: String) {
         val d = programDao.findDay(dayId) ?: return
         programDao.upsertDay(d.copy(name = name.trim().ifBlank { d.name }, updatedAt = clock.nowMillis()))
@@ -534,6 +542,72 @@ class TrainingRepository @Inject constructor(
         return StartingWeightEstimator.apply(scheduled, context) { id -> history[id].orEmpty() }
     }
 
+    // -------------------------------------------------------- saved workouts
+
+    fun observeWorkouts(): Flow<List<WorkoutSummary>> = programDao.observeWorkoutSummaries()
+
+    private suspend fun insertRows(rows: com.zeroindex.intake.data.training.ProgramRows) {
+        programDao.upsertProgram(rows.program)
+        programDao.upsertDays(rows.days)
+        programDao.upsertExercises(rows.exercises)
+    }
+
+    /** An empty saved workout, ready for exercises (the builder opens on it). */
+    suspend fun createWorkout(name: String): ProgramEntity = db.withTransaction {
+        val rows = WorkoutBuilder.blank(name, clock.nowMillis())
+        insertRows(rows)
+        rows.program
+    }
+
+    /** "Copy to my workouts" on a program day: the day and its exercises become a workout of their own. */
+    suspend fun copyDayAsWorkout(dayId: String, name: String? = null): ProgramEntity? = db.withTransaction {
+        val day = programDao.findDay(dayId) ?: return@withTransaction null
+        val taken = programDao.all().map { it.name }
+        val wanted = name?.takeIf { it.isNotBlank() } ?: day.name
+        val rows = WorkoutBuilder.copyOfDay(
+            name = if (wanted in taken) WorkoutBuilder.duplicateName(wanted, taken) else wanted,
+            sourceDay = day,
+            sourceExercises = programDao.exercisesOf(dayId),
+            now = clock.nowMillis(),
+        )
+        insertRows(rows)
+        rows.program
+    }
+
+    /** "Save as workout" after a session (usually a freestyle one). Null if it had no working sets. */
+    suspend fun saveSessionAsWorkout(sessionId: String, name: String): ProgramEntity? = db.withTransaction {
+        val sets = workoutDao.setsOf(sessionId)
+        if (sets.none { !it.isWarmup }) return@withTransaction null
+        val exercises = sets.map { it.exerciseId }.distinct().mapNotNull { exerciseDao.findAnyById(it) }.associateBy { it.id }
+        val day = FreestyleDayBuilder.toDay(name, sets, exercises)
+        if (day.exercises.isEmpty()) return@withTransaction null
+        val rules = ensureDefaultRules().mapValues { it.value.id }
+        val rows = WorkoutBuilder.fromGeneratedDay(name, day, rules, clock.nowMillis())
+        insertRows(rows)
+        rows.program
+    }
+
+    suspend fun duplicateWorkout(programId: String): ProgramEntity? = duplicateProgram(programId)
+
+    /** Soft delete: the workout leaves "My workouts"; sessions logged on it stay in your history. */
+    suspend fun deleteWorkout(programId: String) = db.withTransaction {
+        val now = clock.nowMillis()
+        programDao.daysOf(programId).forEach { d ->
+            programDao.exercisesOf(d.id).forEach { programDao.softDeleteExercise(it.id, now) }
+            programDao.softDeleteDay(d.id, now)
+        }
+        programDao.softDeleteProgram(programId, now)
+    }
+
+    /** Renames the workout and its one day together. */
+    suspend fun renameWorkout(programId: String, name: String) = db.withTransaction {
+        val p = programDao.findById(programId) ?: return@withTransaction
+        val clean = name.trim().ifBlank { return@withTransaction }
+        val now = clock.nowMillis()
+        programDao.upsertProgram(p.copy(name = clean, updatedAt = now))
+        programDao.daysOf(programId).forEach { programDao.upsertDay(it.copy(name = clean, updatedAt = now)) }
+    }
+
     // ------------------------------------------------------------ freestyle
 
     /** A freestyle exercise starts from last time's numbers, or empty if it has no history. */
@@ -696,6 +770,7 @@ class TrainingRepository @Inject constructor(
         val dayId = session.programDayId ?: return
         val day = programDao.findDay(dayId) ?: return
         val program = programDao.findById(day.programId) ?: return
+        if (program.isStandalone) return // a saved workout has no rotation to advance
         val days = programDao.daysOf(program.id)
         if (days.isEmpty()) return
         val nextIndex = (days.indexOfFirst { it.id == dayId } + 1) % days.size
