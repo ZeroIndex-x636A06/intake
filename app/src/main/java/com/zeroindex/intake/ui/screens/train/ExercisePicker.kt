@@ -44,6 +44,7 @@ fun ExercisePickerSheet(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var adding by remember { mutableStateOf(false) }
+    var info by remember { mutableStateOf<String?>(null) }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(
             modifier = Modifier.fillMaxHeight(0.92f).padding(horizontal = 16.dp),
@@ -55,7 +56,7 @@ fun ExercisePickerSheet(
                 if (state.shown.isEmpty()) {
                     item {
                         Text(
-                            "No exercise matches. Add it as your own below.",
+                            "No exercise matches. Use \"Add your own exercise\" below.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(vertical = 12.dp),
@@ -71,7 +72,7 @@ fun ExercisePickerSheet(
                         ) {
                             Column {
                                 state.shown.forEachIndexed { i, e ->
-                                    ExerciseRow(e, onClick = { onPick(e.id) })
+                                    ExerciseRow(e, onClick = { onPick(e.id) }, onInfo = { info = e.id })
                                     if (i != state.shown.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                                 }
                             }
@@ -83,18 +84,20 @@ fun ExercisePickerSheet(
                         onClick = { adding = true },
                         shape = IntakeShape.Button,
                         modifier = Modifier.fillMaxWidth().padding(top = 10.dp).heightIn(min = 48.dp),
-                    ) { Text("Add a new exercise") }
+                    ) { Text("Add your own exercise") }
                 }
             }
         }
     }
+    info?.let { id -> ExerciseDetailSheet(exerciseId = id, onDismiss = { info = null }) }
     if (adding) {
         ExerciseFormSheet(
             existing = null,
+            viewModel = viewModel,
             initialName = state.query,
             onDismiss = { adding = false },
-            onSave = { name, muscle, equipment, bodyweight, rest ->
-                viewModel.add(name, muscle, equipment, bodyweight, rest) { created -> onPick(created.id) }
+            onSave = { form ->
+                viewModel.add(form) { created -> onPick(created.id) }
                 adding = false
             },
         )

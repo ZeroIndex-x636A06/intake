@@ -4,4 +4,6 @@
 <paths>
     <files-path name="photos" path="photos/" />
     <cache-path name="captures" path="captures/" />
+    <!-- Camera captures for a custom exercise photo (PhotoPreparer.newCaptureFile). -->
+    <cache-path name="capture" path="capture/" />
 </paths>

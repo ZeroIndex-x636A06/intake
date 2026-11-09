@@ -113,6 +113,16 @@
                 android:value="androidx.startup"
                 tools:node="remove" />
         </provider>
+        <!-- Lets the camera app write one picture into our cache (custom exercise photo). Nothing is shared out. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
         <!-- Amendment §2: sets logged on the Wear OS companion arrive here. -->
         <service
             android:name=".wear.PhoneWearListener"

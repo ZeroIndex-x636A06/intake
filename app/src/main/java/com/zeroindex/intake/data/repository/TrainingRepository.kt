@@ -103,6 +103,8 @@ class TrainingRepository @Inject constructor(
         isBodyweight: Boolean = false,
         defaultRestSec: Int = 120,
         secondaryMuscles: String = "",
+        howTo: String? = null,
+        photoPath: String? = null,
     ): ExerciseEntity {
         val now = clock.nowMillis()
         val exercise = ExerciseEntity(
@@ -113,6 +115,8 @@ class TrainingRepository @Inject constructor(
             isBodyweight = isBodyweight,
             defaultRestSec = defaultRestSec,
             secondaryMuscles = secondaryMuscles,
+            notes = howTo?.trim()?.ifBlank { null },
+            photoPath = photoPath,
             createdAt = now,
             updatedAt = now,
         )
