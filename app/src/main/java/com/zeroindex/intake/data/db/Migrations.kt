@@ -92,8 +92,30 @@ internal val MIGRATION_1_2_STATEMENTS: List<String> = listOf(
     "CREATE TABLE IF NOT EXISTS `sync_conflict` (`id` TEXT NOT NULL, `tableName` TEXT NOT NULL, `rowId` TEXT NOT NULL, `keptJson` TEXT NOT NULL, `otherJson` TEXT NOT NULL, `otherSource` TEXT NOT NULL, `detectedAt` INTEGER NOT NULL, `resolvedAt` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
     "CREATE INDEX IF NOT EXISTS `index_sync_conflict_resolvedAt` ON `sync_conflict` (`resolvedAt`)",
     "CREATE INDEX IF NOT EXISTS `index_sync_conflict_tableName_rowId` ON `sync_conflict` (`tableName`, `rowId`)",
+)
+
+internal val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        MIGRATION_1_2_STATEMENTS.forEach(db::execSQL)
+    }
+}
+
+/**
+ * 2 -> 3: everything added after the v2 release (APK built at 4952404). Version 2 is FROZEN: the user's
+ * installed database is exactly `schemas/.../2.json`, so every later change lands here. Purely additive.
+ *
+ * One small named function per feature, run in order by [MIGRATION_2_3_STATEMENTS]. Each is a plain
+ * statement list so `MigrationSchemaTest` executes the same SQL a phone would.
+ */
+internal fun migrateFoodOff_2_3(): List<String> = listOf(
+    // Open Food Facts contributions (docs/FOOD-DATA.md): when the user last sent a product to OFF.
+    "ALTER TABLE `food` ADD COLUMN `offContributedAt` INTEGER",
+)
+
+internal fun migrateAllergens_2_3(): List<String> = listOf(
     // Allergens rebuild: a level and an off switch on every keyword, a custom flag, and the allergen list.
-    // Built-in rows and keywords are seeded on open (AllergenSeed.topUp); existing rows keep CONTAINS.
+    // Built-in rows and keywords are seeded on every open (AllergenSeed.topUp, INSERT OR IGNORE), so v2
+    // installs receive them too; existing rows keep CONTAINS.
     "ALTER TABLE `allergen_alias` ADD COLUMN `level` TEXT NOT NULL DEFAULT 'CONTAINS'",
     "ALTER TABLE `allergen_alias` ADD COLUMN `isCustom` INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE `allergen_alias` ADD COLUMN `isEnabled` INTEGER NOT NULL DEFAULT 1",
@@ -104,19 +126,10 @@ internal val MIGRATION_1_2_STATEMENTS: List<String> = listOf(
     "CREATE INDEX IF NOT EXISTS `index_allergen_definition_deletedAt` ON `allergen_definition` (`deletedAt`)",
 )
 
-internal val MIGRATION_1_2 = object : Migration(1, 2) {
-    override fun migrate(db: SupportSQLiteDatabase) {
-        MIGRATION_1_2_STATEMENTS.forEach(db::execSQL)
-    }
-}
-
-/**
- * 2 -> 3: Open Food Facts contributions (docs/FOOD-DATA.md). One nullable column on
- * `food`: when the user last sent this product to Open Food Facts. Purely additive.
- */
-internal val MIGRATION_2_3_STATEMENTS: List<String> = listOf(
-    "ALTER TABLE `food` ADD COLUMN `offContributedAt` INTEGER",
-)
+// Add new 2 -> 3 steps (for example migrateMealPlans_2_3) to the list below, after the existing ones.
+internal val MIGRATION_2_3_STATEMENTS: List<String> =
+    migrateFoodOff_2_3() +
+        migrateAllergens_2_3()
 
 internal val MIGRATION_2_3 = object : Migration(2, 3) {
     override fun migrate(db: SupportSQLiteDatabase) {

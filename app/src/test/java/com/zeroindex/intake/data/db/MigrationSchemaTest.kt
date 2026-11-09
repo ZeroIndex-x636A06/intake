@@ -114,6 +114,68 @@ class MigrationSchemaTest {
     }
 
     @Test
+    fun releasedVersionTwoSchemaIsFrozen() {
+        // 2.json is the schema of the installed APK (built at 4952404). Nothing later may touch it.
+        val v2 = entities(2)
+        assertThat(v2).doesNotContainKey("allergen_definition")
+        val aliasColumns = v2.getValue("allergen_alias")["fields"]!!.jsonArray
+            .map { it.jsonObject["columnName"]!!.jsonPrimitive.content }
+        assertThat(aliasColumns).containsExactly("id", "allergen", "aliasTerm", "createdAt", "updatedAt", "deletedAt")
+        val foodColumns = v2.getValue("food")["fields"]!!.jsonArray
+            .map { it.jsonObject["columnName"]!!.jsonPrimitive.content }
+        assertThat(foodColumns).doesNotContain("offContributedAt")
+        assertThat(v2.keys).containsAtLeast("sync_conflict", "hydration_log", "backup_run")
+    }
+
+    @Test
+    fun releasedVersionTwoUpgradesToThreeWithAllergenAndFoodChanges() {
+        val c = createAt(2)
+        MIGRATION_2_3_STATEMENTS.forEach { c.exec(it) }
+        assertMatches(c, 3)
+        c.close()
+    }
+
+    @Test
+    fun migrationTwoToThreeMarksNonSeedKeywordsCustomAndLeavesFoodsUncontributed() {
+        val c = createAt(2)
+        c.exec(
+            "INSERT INTO allergen_alias (id, allergen, aliasTerm, createdAt, updatedAt) VALUES " +
+                "('seed-dairy-whey', 'dairy', 'whey', 1, 1), ('3f2a-user-typed', 'dairy', 'oat creamer', 2, 2)",
+        )
+        c.exec(
+            "INSERT INTO food (id, name, servingSizeGrams, servingLabel, kcalPer100g, proteinPer100g, carbsPer100g, " +
+                "fatPer100g, fiberPer100g, sugarPer100g, sodiumPer100g, saturatedFatPer100g, source, allergenTags, " +
+                "isVerified, isFavorite, timesLogged, createdAt, updatedAt) " +
+                "VALUES ('f1', 'Rice', 100, '100 g', 130, 2.7, 28, 0.3, 0.4, 0, 1, 0.1, 'MANUAL', '', 0, 0, 0, 1, 1)",
+        )
+        MIGRATION_2_3_STATEMENTS.forEach { c.exec(it) }
+
+        val seed = c.rows("SELECT * FROM allergen_alias WHERE id = 'seed-dairy-whey'").single()
+        assertThat(seed["isCustom"]).isEqualTo(0)
+        assertThat(seed["isEnabled"]).isEqualTo(1)
+        assertThat(seed["level"]).isEqualTo("CONTAINS")
+        val typed = c.rows("SELECT * FROM allergen_alias WHERE id = '3f2a-user-typed'").single()
+        assertThat(typed["isCustom"]).isEqualTo(1)
+        assertThat(typed["isEnabled"]).isEqualTo(1)
+        assertThat(typed["level"]).isEqualTo("CONTAINS")
+        assertThat(typed["aliasTerm"]).isEqualTo("oat creamer")
+        assertThat(c.rows("SELECT * FROM food WHERE id = 'f1'").single()["offContributedAt"]).isNull()
+        assertThat(c.rows("SELECT COUNT(*) AS n FROM allergen_definition").single()["n"]).isEqualTo(0)
+        c.close()
+    }
+
+    @Test
+    fun fullChainOneToTwoToThreeMatchesTheCurrentSchema() {
+        val c = createAt(1)
+        MIGRATION_1_2_STATEMENTS.forEach { c.exec(it) }
+        assertMatches(c, 2)
+        MIGRATION_2_3_STATEMENTS.forEach { c.exec(it) }
+        assertMatches(c, 3)
+        assertThat(IntakeDatabase.VERSION).isEqualTo(3)
+        c.close()
+    }
+
+    @Test
     fun migrationOneToTwoKeepsExistingRowsAndFillsDefaults() {
         val c = createAt(1)
         c.exec(

@@ -11,12 +11,6 @@ with its merge commit. Read `CLAUDE.md` before you claim anything.
 - **Food database, barcode fix, Open Food Facts.** Done on branch
   `worktree-agent-a9e0fd1e72bfd3051` and waiting to merge. This adds
   `MIGRATION_2_3` and `food.offContributedAt`.
-- **Schema repair.**
-  - Restore v2 to exactly what shipped at 4952404.
-  - Move the allergen v2 edits (`allergen_alias.level/isCustom/isEnabled` and
-    the `allergen_definition` table) into `MIGRATION_2_3`.
-  - Add a test that upgrades the released v2 schema to v3.
-  - This must land before any other schema work.
 - **Flexible meal plans, manual recipes, recipe import from a link.** Covers
   plans of any length, a loop schedule, multiple plans, a manual plan builder, a
   recipe editor, and JSON-LD recipe import. The schema part goes into
@@ -103,7 +97,11 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
 - Navigation: floating pill, Food/Train/Progress/More hubs, split script docs
   (4485a76).
 - Allergens v2: 15 built-in allergens, custom allergens and keywords,
-  negation-aware matching, a new import preview (7eeaff5). Its schema edits are
-  being moved to v3; see In progress.
+  negation-aware matching, a new import preview (7eeaff5). Its schema edits now
+  live in `MIGRATION_2_3` (see Schema repair).
+- Schema repair: SCHEMA_REPAIR_HASH. v2 is restored byte-for-byte to 4952404.
+  The allergen columns and `allergen_definition` moved into `migrateAllergens_2_3`,
+  next to `migrateFoodOff_2_3`. Other agents add `migrateXxx_2_3` functions to
+  `MIGRATION_2_3_STATEMENTS`. `MigrationSchemaTest` upgrades the released v2 to v3.
 - Training v3: start from scratch, templates, exercise library, freestyle
   workouts, program generator. Merged locally and being verified.

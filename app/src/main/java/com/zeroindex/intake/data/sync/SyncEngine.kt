@@ -2,6 +2,7 @@ package com.zeroindex.intake.data.sync
 
 import androidx.room.withTransaction
 import com.zeroindex.intake.data.backup.BackupTable
+import com.zeroindex.intake.data.backup.LegacyRows
 import com.zeroindex.intake.data.backup.backupTables
 import com.zeroindex.intake.data.backup.remote.BackupCredentialStore
 import com.zeroindex.intake.data.db.IntakeDatabase
@@ -147,7 +148,7 @@ class SyncEngine @Inject constructor(
             val wireRows = byTable[table.name] ?: continue
             val decoded = wireRows.map { wr ->
                 try {
-                    wire.decodeFromJsonElement(table.serializer, wr.payload)
+                    wire.decodeFromJsonElement(table.serializer, LegacyRows.upgrade(table.name, wr.payload))
                 } catch (e: Exception) {
                     throw SyncException("A ${table.name.replace('_', ' ')} row from the server does not match this app version. Update Intake on every device.", cause = e)
                 }
