@@ -776,6 +776,23 @@ class TrainingRepository @Inject constructor(
         programDayId: String?,
         excludeSessionId: String?,
     ): List<ExercisePrescription> {
+        val base = basePrescriptionsFor(programDayId, excludeSessionId)
+        // The coach's deload week or easier day, when the person applied one (docs/COACH.md).
+        val coach = settingsRepository.settings.first()
+        val now = clock.nowMillis()
+        val increment = coach.platesKgList.minOrNull()?.times(2) ?: 2.5
+        return base.map { p ->
+            val adjusted = p.prescription?.let {
+                com.zeroindex.intake.domain.coach.CoachAdjustments.apply(it, coach.coachState, now, increment)
+            }
+            if (adjusted === p.prescription) p else p.copy(prescription = adjusted)
+        }
+    }
+
+    private suspend fun basePrescriptionsFor(
+        programDayId: String?,
+        excludeSessionId: String?,
+    ): List<ExercisePrescription> {
         val settings = settingsRepository.settings.first()
         val increment = settings.platesKgList.minOrNull()?.times(2) ?: 2.5
         val program = activeProgram()

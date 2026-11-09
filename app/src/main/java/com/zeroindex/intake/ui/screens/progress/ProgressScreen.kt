@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material3.MaterialTheme
@@ -67,6 +68,7 @@ fun ProgressScreen(
     onAddJumpTest: () -> Unit,
     onOpenTrainingStats: () -> Unit,
     onOpenWeeklyReport: () -> Unit,
+    onOpenCoach: () -> Unit = {},
     onOpenHealthConnect: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ProgressViewModel = hiltViewModel(),
@@ -123,7 +125,7 @@ fun ProgressScreen(
                         PerformanceCard(state = state, onAddJump = onAddJumpTest)
                     }
                     item(key = "reports") {
-                        ProgressLinks(onOpenTrainingStats, onOpenWeeklyReport, onOpenHealthConnect)
+                        ProgressLinks(onOpenTrainingStats, onOpenWeeklyReport, onOpenHealthConnect, onOpenCoach)
                     }
                 }
             }
@@ -160,7 +162,7 @@ fun ProgressScreen(
             }
             detailItems(state)
             item(key = "reports") {
-                ProgressLinks(onOpenTrainingStats, onOpenWeeklyReport, onOpenHealthConnect)
+                ProgressLinks(onOpenTrainingStats, onOpenWeeklyReport, onOpenHealthConnect, onOpenCoach)
             }
         }
     }
@@ -172,9 +174,16 @@ private fun ProgressLinks(
     onOpenTrainingStats: () -> Unit,
     onOpenWeeklyReport: () -> Unit,
     onOpenHealthConnect: () -> Unit,
+    onOpenCoach: () -> Unit,
 ) {
     HubList(
         listOf(
+            HubItem(
+                title = "Weekly check-in",
+                description = "Your coach reviews the week and suggests small changes",
+                icon = Icons.Filled.Checklist,
+                onClick = onOpenCoach,
+            ),
             HubItem(
                 title = "Training stats",
                 description = "Workout history, volume per muscle and personal records",

@@ -263,6 +263,15 @@ decides numbers on its own.
   (measured from benchmark runs) × the model's price`.
   The same calculation goes in docs/AI-COSTS.md.
 
+## Implemented: coach engine and settings in backup
+
+Built as specified; see `docs/COACH.md` for every rule and threshold. Notes: the check-in is a daily WorkManager
+job that acts on the chosen weekday; Apply for a deload sets a 7-day coach deload applied to prescriptions (the
+program is not edited), and swaps and set changes edit the active program through `TrainingRepository`. The optional
+AI reword reuses the daily-insight model choice and is accepted per item only if the numbers are unchanged. HRV is an
+input but is not captured yet. Settings and the profile now ride in the JSON export and encrypted backup
+(`settings` section, `docs/BACKUP.md`); they do not sync.
+
 ## Implemented: meal plans of any length, recipes by hand and from a link
 
 - **Plans (item 8).** `meal_plan` entity (schema 3): name, notes, `startDate` (epoch day), loop mode

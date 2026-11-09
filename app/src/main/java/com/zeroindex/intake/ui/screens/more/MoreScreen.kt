@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
@@ -51,6 +52,12 @@ fun MoreScreen(
                 description = "Body type, goal, baseline week and your plan",
                 icon = Icons.Filled.Person,
                 onClick = { onNavigate(Route.Profile) },
+            ),
+            HubItem(
+                title = "Weekly check-in",
+                description = "Your coach reviews the week and suggests small changes",
+                icon = Icons.Filled.Checklist,
+                onClick = { onNavigate(Route.CoachCheckIn) },
             ),
             HubItem(
                 title = "Settings",

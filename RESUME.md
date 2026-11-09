@@ -110,11 +110,19 @@ All of SPEC.md's built phases and every amendment feature are implemented:
   `SettingsRepository` / `AllergenRepository` as they are given. Auto-skip: any food log row, weigh-in row,
   workout session row or profile basics, unless the flow was already started or is being replayed.
   Today tour: `Modifier.tourTarget(id)`, `TourState`, `TourOverlay` (`ui/onboarding/Tour.kt`), pure plan in
-  `domain/onboarding/TourPlan.kt`; targets ring, add food, water, baseline/workout card, pill, and `coach`
-  (the coach agent's card should add `Modifier.tourTarget(TourIds.COACH)` and put `TourIds.COACH` in the set
-  passed to `TourTargetsPresent` in `TodayContent`; until then that step is skipped). First-visit tips:
+  `domain/onboarding/TourPlan.kt`; targets ring, add food, water, baseline/workout card, "One thing to do today" card (`coach`) and the pill; steps with no target are skipped. First-visit tips:
   `TabTip` in the Food, Train, Progress and More hubs. Help has Replay the tour, Show the welcome again and
   Show screen tips again. New DAO methods `hasAnyRow` / `hasAnySession`; no schema change.
+- **Coach engine (agent/coach-engine).** `domain/coach/`: `CoachEngine.review` (weight trend vs pace, data gate,
+  diet break, recovery, strength stall, protein, volume, water; all thresholds in `CoachConfig`), `DailyFocusPicker`,
+  `CoachAdjustments` (deload and easier-day applied to prescriptions in `TrainingRepository.prescriptionsFor`),
+  `CoachSchedule`, `SuggestionHistory`, `ProteinIdeas`, `CoachReword`. `data/coach/CoachRepository` builds the
+  inputs from the tables and runs Apply; `CoachReworder` is the optional AI wording (reuses the daily-insight model
+  choice). `work/CoachWorker` is a daily job plus one notification. Screen: `ui/screens/coach/` (route
+  `CoachCheckIn`, linked from the Today card, More and Progress). Schema: new `coach_suggestion` table in
+  `migrateCoach_2_3` (backup, export and sync). Settings: `coach_*` DataStore keys. Rules and thresholds:
+  `docs/COACH.md`. Settings in backup/export: `domain/backup/PortableSettings.kt`, `data/settings/PortableStore.kt`,
+  `BackupService` (`settings` section, preview line); see `docs/BACKUP.md`.
 
 Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/SPEC-v3.md`, `docs/BACKUP.md`,
 `docs/BENCHMARK.md`, `docs/PRIVACY.md`, `server/README.md`.
@@ -143,6 +151,11 @@ Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/SPEC-v3.md`, `docs/BACKUP
   behaviour on About you, the spotlight cut-out and bubble placement (phone and the vertical rail), the
   scroll-to-target on Today, TalkBack announcements and the notification permission prompt are unchecked.
   Pure logic is unit-tested.
+- Coach: no device run. Not seen: the check-in screen and Today card layout, the weekly notification and its tap
+  to open the screen, the Health Connect signals (sleep, resting HR) feeding the recovery rule, and Apply against a
+  real program. HRV is not captured by the app yet. The pure rules, schedule, reword guard, settings export and the
+  migration are unit-tested.
+- Settings restore: the DataStore write path is not exercised by a JVM test (the encode/decode rules are).
 
 - Hydration v2 on a device: the coarse location prompt and fix, the live Open-Meteo calls from the app (the URLs
   and response shapes were checked with curl from the build container, and the parsers are unit-tested against

@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 3,
-    "identityHash": "17cdde286dc7507839260611f61ca001",
+    "identityHash": "301e5c062372d600051a967931000117",
     "entities": [
       {
         "tableName": "food",
@@ -3751,11 +3751,143 @@
             "createSql": "CREATE INDEX IF NOT EXISTS `index_sync_conflict_tableName_rowId` ON `${TABLE_NAME}` (`tableName`, `rowId`)"
           }
         ]
+      },
+      {
+        "tableName": "coach_suggestion",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `checkInDay` INTEGER NOT NULL, `suggestionKey` TEXT NOT NULL, `kind` TEXT NOT NULL, `title` TEXT NOT NULL, `why` TEXT NOT NULL, `details` TEXT, `actionJson` TEXT NOT NULL, `priority` INTEGER NOT NULL, `status` TEXT NOT NULL, `decidedAt` INTEGER, `aiTitle` TEXT, `aiWhy` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "checkInDay",
+            "columnName": "checkInDay",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "suggestionKey",
+            "columnName": "suggestionKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "why",
+            "columnName": "why",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "details",
+            "columnName": "details",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "actionJson",
+            "columnName": "actionJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "priority",
+            "columnName": "priority",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "decidedAt",
+            "columnName": "decidedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "aiTitle",
+            "columnName": "aiTitle",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "aiWhy",
+            "columnName": "aiWhy",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_coach_suggestion_checkInDay",
+            "unique": false,
+            "columnNames": [
+              "checkInDay"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_coach_suggestion_checkInDay` ON `${TABLE_NAME}` (`checkInDay`)"
+          },
+          {
+            "name": "index_coach_suggestion_status",
+            "unique": false,
+            "columnNames": [
+              "status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_coach_suggestion_status` ON `${TABLE_NAME}` (`status`)"
+          },
+          {
+            "name": "index_coach_suggestion_deletedAt",
+            "unique": false,
+            "columnNames": [
+              "deletedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_coach_suggestion_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          }
+        ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '17cdde286dc7507839260611f61ca001')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '301e5c062372d600051a967931000117')"
     ]
   }
 }

@@ -62,6 +62,8 @@ import com.zeroindex.intake.ui.onboarding.TourScrollHook
 import com.zeroindex.intake.ui.onboarding.TourTargetsPresent
 import com.zeroindex.intake.ui.onboarding.tourTarget
 import com.zeroindex.intake.ui.screens.today.components.BaselineCard
+import com.zeroindex.intake.domain.coach.FocusTarget
+import com.zeroindex.intake.ui.screens.today.components.FocusCard
 import com.zeroindex.intake.ui.screens.today.components.HydrationCard
 import com.zeroindex.intake.ui.screens.today.components.InsightCard
 import com.zeroindex.intake.ui.screens.today.components.MealSlotCard
@@ -79,6 +81,10 @@ private data class TodayCardActions(
     val onMakeProgram: () -> Unit,
     val onOpenProfile: () -> Unit,
     val onBuildPlan: () -> Unit,
+    val onOpenCheckIn: () -> Unit,
+    val onOpenBodyMetrics: () -> Unit,
+    val onLogFood: () -> Unit,
+    val onLogWater: () -> Unit,
 )
 
 @Composable
@@ -91,12 +97,13 @@ fun TodayScreen(
     onMakeProgram: () -> Unit = {},
     onOpenProfile: () -> Unit = {},
     onBuildPlan: () -> Unit = {},
+    onOpenCheckIn: () -> Unit = {},
+    onOpenBodyMetrics: () -> Unit = {},
     viewModel: TodayViewModel = hiltViewModel(),
     extrasViewModel: TodayExtrasViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val extras by extrasViewModel.extras.collectAsStateWithLifecycle()
-    val cards = TodayCardActions(onOpenTrain, onResumeWorkout, onMakeProgram, onOpenProfile, onBuildPlan)
 
     var addToSlot by remember { mutableStateOf<MealSlot?>(null) }
     var showWater by remember { mutableStateOf(false) }
@@ -105,6 +112,12 @@ fun TodayScreen(
     val scope = rememberCoroutineScope()
     var actionsFor by remember { mutableStateOf<FoodLogEntity?>(null) }
     var copyTarget by remember { mutableStateOf<FoodLogEntity?>(null) }
+
+    val cards = TodayCardActions(
+        onOpenTrain, onResumeWorkout, onMakeProgram, onOpenProfile, onBuildPlan, onOpenCheckIn, onOpenBodyMetrics,
+        onLogFood = { addToSlot = defaultSlotForNow() },
+        onLogWater = { showWater = true },
+    )
 
     Box(modifier.fillMaxSize()) {
         TodayContent(
@@ -231,6 +244,7 @@ private fun TodayContent(
         buildSet {
             add(TourIds.RING)
             add(TourIds.ADD_FOOD)
+            if (state.isToday && extras.focus != null) add(TourIds.COACH)
             if (state.hydration != null) add(TourIds.WATER)
             if (state.isToday && (extras.baseline != null || extras.workout !is WorkoutCardState.Loading)) add(TourIds.WORKOUT)
         },
@@ -320,6 +334,28 @@ private fun LazyListScope.nutritionItems(
     onOpenWater: () -> Unit,
     onDismissInsight: (AiInsightEntity) -> Unit,
 ) {
+    // "One thing to do today": exactly one item, picked by fixed rules (domain/coach/DailyFocus.kt).
+    if (state.isToday) {
+        extras.focus?.let { focus ->
+            item(key = "focus") {
+                FocusCard(
+                    focus = focus,
+                    modifier = Modifier.tourTarget(TourIds.COACH),
+                    onAction = {
+                        when (focus.target) {
+                            FocusTarget.CHECK_IN -> cardActions.onOpenCheckIn()
+                            FocusTarget.LOG_WEIGHT -> cardActions.onOpenBodyMetrics()
+                            FocusTarget.LOG_FOOD -> cardActions.onLogFood()
+                            FocusTarget.WORKOUT -> cardActions.onOpenTrain()
+                            FocusTarget.WATER -> cardActions.onLogWater()
+                            FocusTarget.BASELINE -> cardActions.onOpenProfile()
+                            FocusTarget.NONE -> Unit
+                        }
+                    },
+                )
+            }
+        }
+    }
     // The baseline week sits above the ring while it runs, so it is seen and then gone.
     if (state.isToday) {
         extras.baseline?.let { baseline ->

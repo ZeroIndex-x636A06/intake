@@ -77,6 +77,10 @@ class MainActivity : ComponentActivity() {
      * profile, nothing is logged and the message says which food.
      */
     private fun handleTagIntent(intent: Intent?) {
+        intent?.getStringExtra(com.zeroindex.intake.work.CoachNotifier.EXTRA_OPEN)?.let {
+            messages.requestOpen(it)
+            intent.removeExtra(com.zeroindex.intake.work.CoachNotifier.EXTRA_OPEN)
+        }
         val action = intent?.action
         if (action != NfcAdapter.ACTION_NDEF_DISCOVERED && action != Intent.ACTION_VIEW) return
         val id = TemplateLink.parse(intent.dataString) ?: return

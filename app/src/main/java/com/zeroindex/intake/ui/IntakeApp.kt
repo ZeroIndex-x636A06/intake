@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.foundation.background
 import androidx.compose.material3.MaterialTheme
@@ -105,6 +106,15 @@ private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, sta
     } == true
 
     val snackbar = remember { SnackbarHostState() }
+    if (messages != null) {
+        val open by messages.openRequest.collectAsState()
+        LaunchedEffect(open) {
+            if (open == com.zeroindex.intake.work.CoachNotifier.OPEN_COACH) {
+                navController.navigate(Route.CoachCheckIn)
+                messages.openConsumed()
+            }
+        }
+    }
     if (messages != null) {
         LaunchedEffect(messages) {
             messages.events.collect { message ->

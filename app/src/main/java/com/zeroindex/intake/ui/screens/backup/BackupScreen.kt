@@ -370,7 +370,7 @@ fun BackupScreen(
             val p = stage.preview
             AlertDialog(
                 onDismissRequest = viewModel::cancelImport,
-                title = { Text(if (p.totalChanges == 0) "Nothing to change" else "Import ${p.totalChanges} changes?") },
+                title = { Text(if (p.totalChanges == 0 && p.settingsCount == 0) "Nothing to change" else "Import ${p.totalChanges} changes?") },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         p.exportedAt?.let { Text("Backup made ${at(it)}", style = MaterialTheme.typography.labelSmall) }
@@ -381,13 +381,14 @@ fun BackupScreen(
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         }
+                        p.settingsLine?.let { Text("$it (${p.settingsCount} preferences)", style = MaterialTheme.typography.bodySmall) }
                         if (p.unknownTables.isNotEmpty()) {
                             Text("Ignored, not in this version: ${p.unknownTables.joinToString()}", style = MaterialTheme.typography.labelSmall)
                         }
                         Text("Nothing is deleted. Where both sides changed a row, the later change wins.", style = MaterialTheme.typography.labelSmall)
                     }
                 },
-                confirmButton = { TextButton(onClick = viewModel::applyImport, enabled = p.totalChanges > 0) { Text("Import") } },
+                confirmButton = { TextButton(onClick = viewModel::applyImport, enabled = p.totalChanges > 0 || p.settingsCount > 0) { Text("Import") } },
                 dismissButton = { TextButton(onClick = viewModel::cancelImport) { Text("Cancel") } },
             )
         }

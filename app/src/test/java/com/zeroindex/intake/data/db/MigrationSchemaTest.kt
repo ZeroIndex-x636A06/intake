@@ -114,6 +114,22 @@ class MigrationSchemaTest {
     }
 
     @Test
+    fun migrationTwoToThreeCreatesTheCoachHistoryTableEmptyAndUsable() {
+        val v2 = createAt(2)
+        assertThat(entities(2)).doesNotContainKey("coach_suggestion")
+        MIGRATION_2_3_STATEMENTS.forEach { v2.exec(it) }
+        assertThat(v2.rows("SELECT COUNT(*) AS n FROM coach_suggestion").single()["n"]).isEqualTo(0)
+        v2.exec(
+            "INSERT INTO coach_suggestion (id, checkInDay, suggestionKey, kind, title, why, details, actionJson, priority, status, " +
+                "decidedAt, aiTitle, aiWhy, createdAt, updatedAt, deletedAt) VALUES ('c1', 20000, 'cal:down', 'WEIGHT_TREND', " +
+                "'Eat 150 fewer calories', 'why', NULL, '{}', 10, 'PENDING', NULL, NULL, NULL, 1, 1, NULL)",
+        )
+        assertThat(v2.rows("SELECT status FROM coach_suggestion").single()["status"]).isEqualTo("PENDING")
+        assertMatches(v2, 3)
+        v2.close()
+    }
+
+    @Test
     fun releasedVersionTwoSchemaIsFrozen() {
         // 2.json is the schema of the installed APK (built at 4952404). Nothing later may touch it.
         val v2 = entities(2)

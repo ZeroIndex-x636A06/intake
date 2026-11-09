@@ -262,13 +262,12 @@ fun TourOverlay(tour: TourState, modifier: Modifier = Modifier) {
     // The rectangle currently spotlighted, once the step's target is on screen.
     var shown by remember { mutableStateOf<Rect?>(null) }
     var shownIndex by remember { mutableIntStateOf(-1) }
-    var lastIndex by remember { mutableIntStateOf(0) }
 
     val step = tour.steps.getOrNull(tour.index)
     LaunchedEffect(tour.running, tour.index, tour.steps, container) {
         if (!tour.running || step == null || container == IntSize.Zero) return@LaunchedEffect
-        val forward = tour.index >= lastIndex
-        lastIndex = tour.index
+        // The cards at the top of Today are searched for upwards, everything else downwards.
+        val forward = step.targetId != TourIds.RING && step.targetId != TourIds.COACH
         val pill = tour.boundsOf(TourIds.PILL)
         val bottomLimit = if (pill != null && pill.width > pill.height) pill.top - edge else container.height - bottomInset - edge
         val ok = tour.bringIntoView(step.targetId, forward, topInset + edge, bottomLimit)
