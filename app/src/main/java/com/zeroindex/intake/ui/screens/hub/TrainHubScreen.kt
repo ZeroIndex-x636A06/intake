@@ -42,6 +42,7 @@ fun TrainHubScreen(
     onOpenSession: (String) -> Unit,
     onOpenPrograms: () -> Unit,
     onOpenBuilder: () -> Unit,
+    onEditWorkout: (programId: String) -> Unit,
     onOpenGenerator: () -> Unit,
     onOpenTemplates: () -> Unit,
     onOpenExercises: () -> Unit,
@@ -146,6 +147,9 @@ fun TrainHubScreen(
             ),
         ),
         after = {
+            item(key = "my-workouts") {
+                com.zeroindex.intake.ui.screens.train.MyWorkoutsSection(onOpenSession = onOpenSession, onEditWorkout = onEditWorkout)
+            }
             // Rarely needed, so folded away instead of lengthening the list.
             item(key = "more-train") {
                 MoreDetail(title = "More training tools") {

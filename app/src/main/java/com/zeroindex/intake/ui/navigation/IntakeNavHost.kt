@@ -283,6 +283,7 @@ fun IntakeNavHost(
                     onOpenSession = { id -> navController.navigate(Route.ActiveWorkout(id)) },
                     onOpenPrograms = { navController.navigate(Route.Programs) },
                     onOpenBuilder = { navController.navigate(Route.ProgramBuilder()) },
+                    onEditWorkout = { id -> navController.navigate(Route.ProgramBuilder(id)) },
                     onOpenGenerator = { navController.navigate(Route.ProgramGenerator) },
                     onOpenTemplates = { navController.navigate(Route.ProgramTemplates) },
                     onOpenExercises = { navController.navigate(Route.ExerciseLibrary) },

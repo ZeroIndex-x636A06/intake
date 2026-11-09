@@ -128,6 +128,9 @@ class ProgramBuilderViewModel @Inject constructor(
     }
 
     fun renameDay(dayId: String, name: String) = viewModelScope.launch { repository.renameDay(dayId, name) }
+    fun copyDayAsWorkout(dayId: String) = viewModelScope.launch {
+        repository.copyDayAsWorkout(dayId)?.let { message.value = "Copied to My workouts as \"${it.name}\"." }
+    }
     fun setDayWeekday(dayId: String, weekday: Int?) = viewModelScope.launch { repository.setDayWeekday(dayId, weekday) }
     fun moveDay(dayId: String, delta: Int) = viewModelScope.launch { repository.moveDay(dayId, delta) }
     fun duplicateDay(dayId: String) = viewModelScope.launch { repository.duplicateDay(dayId); message.value = "Day copied." }

@@ -348,6 +348,7 @@ private fun DayCard(
                     DropdownMenuItem(text = { Text("Rename") }, onClick = { menu = false; renaming = true })
                     if (!standalone) {
                         DropdownMenuItem(text = { Text("Set weekday") }, onClick = { menu = false; weekdayDialog = true })
+                        DropdownMenuItem(text = { Text("Copy to My workouts") }, onClick = { menu = false; viewModel.copyDayAsWorkout(day.day.id) })
                         DropdownMenuItem(text = { Text("Duplicate this day") }, onClick = { menu = false; viewModel.duplicateDay(day.day.id) })
                         DropdownMenuItem(text = { Text("Delete this day") }, onClick = { menu = false; confirmDelete = true })
                     }

@@ -129,6 +129,11 @@ class ActiveWorkoutViewModel @Inject constructor(
         onDone(day != null)
     }
 
+    /** "Save as workout": keeps this session as a saved single-session workout in My workouts. */
+    fun saveAsWorkout(name: String, onDone: (Boolean) -> Unit) = viewModelScope.launch {
+        onDone(repository.saveSessionAsWorkout(sessionId, name) != null)
+    }
+
     fun nextExercise() {
         currentIndex.value = (currentIndex.value + 1)
             .coerceAtMost(maxOf(0, prescriptions.value.lastIndex))

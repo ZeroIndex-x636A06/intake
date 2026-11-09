@@ -315,11 +315,16 @@ fun ActiveWorkoutScreen(
         var dayName by remember { mutableStateOf(defaultDayName()) }
         AlertDialog(
             onDismissRequest = { askSave = false },
-            title = { Text("Save as a program day?") },
+            title = { Text("Keep this workout?") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Keep this workout as a day in your program, so you can repeat it. This is optional.")
-                    OutlinedTextField(value = dayName, onValueChange = { dayName = it }, label = { Text("Day name") }, singleLine = true)
+                    Text("Keep this workout so you can repeat it, as a day in your program or as a saved workout you can start any time. This is optional.")
+                    OutlinedTextField(value = dayName, onValueChange = { dayName = it }, label = { Text("Name") }, singleLine = true)
+                    TextButton(onClick = {
+                        askSave = false
+                        TimerService.stop(context)
+                        viewModel.saveAsWorkout(dayName) { viewModel.finish(onFinished) }
+                    }) { Text("Save as workout instead") }
                 }
             },
             confirmButton = {
@@ -327,7 +332,7 @@ fun ActiveWorkoutScreen(
                     askSave = false
                     TimerService.stop(context)
                     viewModel.saveAsProgramDay(dayName) { viewModel.finish(onFinished) }
-                }) { Text("Save and finish") }
+                }) { Text("Save as program day") }
             },
             dismissButton = {
                 TextButton(onClick = {
