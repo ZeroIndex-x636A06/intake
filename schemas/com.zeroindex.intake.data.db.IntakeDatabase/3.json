@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 3,
-    "identityHash": "76ede2535d4592925e9aab8483a1776e",
+    "identityHash": "32d6fa040912aaba6ca30d61f9f0909e",
     "entities": [
       {
         "tableName": "food",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `brand` TEXT, `barcode` TEXT, `servingSizeGrams` REAL NOT NULL, `servingLabel` TEXT NOT NULL, `kcalPer100g` REAL NOT NULL, `proteinPer100g` REAL NOT NULL, `carbsPer100g` REAL NOT NULL, `fatPer100g` REAL NOT NULL, `fiberPer100g` REAL NOT NULL, `sugarPer100g` REAL NOT NULL, `sodiumPer100g` REAL NOT NULL, `saturatedFatPer100g` REAL NOT NULL, `source` TEXT NOT NULL, `allergenTags` TEXT NOT NULL, `isVerified` INTEGER NOT NULL, `isFavorite` INTEGER NOT NULL, `timesLogged` INTEGER NOT NULL, `offContributedAt` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `brand` TEXT, `barcode` TEXT, `servingSizeGrams` REAL NOT NULL, `servingLabel` TEXT NOT NULL, `kcalPer100g` REAL NOT NULL, `proteinPer100g` REAL NOT NULL, `carbsPer100g` REAL NOT NULL, `fatPer100g` REAL NOT NULL, `fiberPer100g` REAL NOT NULL, `sugarPer100g` REAL NOT NULL, `sodiumPer100g` REAL NOT NULL, `saturatedFatPer100g` REAL NOT NULL, `source` TEXT NOT NULL, `allergenTags` TEXT NOT NULL, `isVerified` INTEGER NOT NULL, `isFavorite` INTEGER NOT NULL, `timesLogged` INTEGER NOT NULL, `offContributedAt` INTEGER, `imageUrl` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -124,6 +124,11 @@
             "fieldPath": "offContributedAt",
             "columnName": "offContributedAt",
             "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "imageUrl",
+            "columnName": "imageUrl",
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "createdAt",
@@ -4025,7 +4030,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '76ede2535d4592925e9aab8483a1776e')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '32d6fa040912aaba6ca30d61f9f0909e')"
     ]
   }
 }
