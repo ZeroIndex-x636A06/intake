@@ -7,6 +7,7 @@ import androidx.work.WorkManager
 import com.zeroindex.intake.data.health.HealthSync
 import com.zeroindex.intake.wear.WearBridge
 import com.zeroindex.intake.work.BackupScheduler
+import com.zeroindex.intake.work.BaselineWorker
 import com.zeroindex.intake.work.MenuIngestionWorker
 import com.zeroindex.intake.work.SyncScheduler
 import com.zeroindex.intake.work.TdeeWorker
@@ -34,6 +35,8 @@ class IntakeApplication : Application(), Configuration.Provider {
         // reset on every launch.
         TdeeWorker.schedule(WorkManager.getInstance(this))
         MenuIngestionWorker.schedule(WorkManager.getInstance(this))
+        // Goal builder: a daily look at the baseline week; it does nothing unless one is running.
+        BaselineWorker.schedule(WorkManager.getInstance(this))
         // SPEC §12: Health Connect follows local writes, debounced - never a timer.
         healthSync.start()
         // Amendment §2: nightly backup, scheduled only once a server is set up.

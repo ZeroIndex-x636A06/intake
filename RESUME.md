@@ -62,7 +62,20 @@ All of SPEC.md's built phases and every amendment feature are implemented:
   Existing installs keep every program and session: nothing is deleted, the
   old "Upper / lower, four days" program is now just an ordinary program (it can
   be archived, which is a soft delete), and the library gains the new exercises.
-  Not done: a workout card on Today (Today is nutrition only in this codebase).
+  The workout card on Today is now built (see Profile & goals below).
+
+- Profile, baseline week and goal builder (SPEC-v3 "Engines"): More → Profile & goals
+  (`ui/screens/profile/`), Your plan, the baseline card and Today's workout card
+  (`ui/screens/today/components/TodayCards.kt`). Pure engine in `domain/goals/` (readiness rule,
+  Mifflin-St Jeor / Katch-McArdle, measured burn blend, phase offsets and safety rails, macros,
+  carb cycling, refeeds, diet breaks, water via `HydrationTarget`). Data glue in
+  `data/profile/ProfileRepository.kt`; `work/BaselineWorker.kt` checks daily and sends one
+  "Your plan is ready to build" notification. **No schema change**: the profile, baseline marker,
+  applied-plan history and week pattern are JSON values in DataStore (so, like other settings,
+  they are not in backup or sync); applied targets are normal `nutrition_target` rows.
+  `TargetRepository` applies the Advanced week pattern per weekday only while the stored target
+  still equals the one it was built from. `ProgramGeneratorViewModel` now starts from the profile's
+  training answers. Formulas and sources: `docs/GOALS.md`.
 
 - **Meal plans of any length, recipes by hand and from a link** (v3, schema 3). `meal_plan` holds a
   name, notes, `startDate` (epoch day), `loopMode` (NONE, REPEAT, REPEAT_N + `loopCount`), `isActive`
@@ -108,6 +121,12 @@ Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/SPEC-v3.md`, `docs/BACKUP
   against a real site.
 
 - No emulator or on-screen visual check of any screen (this includes the script import sheets and the reference screen, and the whole training rework: library, builder, generator wizard and preview, freestyle workout, templates).
+- Profile & goals, Your plan, the Today baseline and workout cards, and the Android 13 notification
+  permission prompt have never been seen on a screen or a device. The "plan is ready" notification
+  (channel `baseline-week`) and the daily `BaselineWorker` schedule are untested on hardware, and
+  the worker's timing under Doze is not checked. The numbers are covered by 93 JVM tests; the
+  data glue (`ProfileRepository`, DataStore round trip on a device) is compiled but has no
+  database-level test.
 - The watch's feed for a freestyle workout: a freestyle exercise appears on the watch only once a set is logged for it.
 - The floating pill: slide gesture, spring highlight, haptics, colours in both themes, the edge
   back-gesture rule, TalkBack, and the nested-graph tab back stacks (save/restore, pop to

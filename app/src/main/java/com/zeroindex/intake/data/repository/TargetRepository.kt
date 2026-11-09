@@ -5,6 +5,7 @@ import com.zeroindex.intake.data.db.dao.NutritionTargetDao
 import com.zeroindex.intake.data.db.entity.NutritionTargetEntity
 import com.zeroindex.intake.data.db.entity.newId
 import com.zeroindex.intake.data.settings.SettingsRepository
+import com.zeroindex.intake.domain.goals.WeekPattern
 import com.zeroindex.intake.domain.nutrition.MacroTarget
 import com.zeroindex.intake.domain.time.Clock
 import java.time.LocalDate
@@ -13,7 +14,9 @@ import javax.inject.Singleton
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
 @Singleton
 class TargetRepository @Inject constructor(
@@ -32,12 +35,18 @@ class TargetRepository @Inject constructor(
     fun observeTargetFor(date: LocalDate): Flow<MacroTarget?> = combine(
         dao.observeEffectiveAt(clock.rangeFor(date).endExclusive - 1),
         observeActivityBonus(date),
-    ) { base, bonus -> base?.toDomain()?.plusActivity(bonus) }
+        settings.settings.map { it.weekPattern }.distinctUntilChanged(),
+    ) { base, bonus, pattern -> base?.toDomain()?.withWeekPattern(pattern, date)?.plusActivity(bonus) }
 
     suspend fun targetFor(date: LocalDate): MacroTarget? {
         val base = dao.effectiveAt(clock.rangeFor(date).endExclusive - 1)?.toDomain() ?: return null
-        return base.plusActivity(activityBonusFor(date))
+        val pattern = settings.settings.first().weekPattern
+        return base.withWeekPattern(pattern, date).plusActivity(activityBonusFor(date))
     }
+
+    /** Advanced carb cycling and refeeds: see [WeekPattern.targetFor] for when it applies. */
+    private fun MacroTarget.withWeekPattern(pattern: WeekPattern?, date: LocalDate): MacroTarget =
+        pattern?.targetFor(this, date.dayOfWeek.value) ?: this
 
     /** Net activity kcal added to [date]'s target, 0 when the option is off. */
     fun observeActivityBonus(date: LocalDate): Flow<Int> = combine(

@@ -8,6 +8,7 @@ import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -51,6 +52,8 @@ import com.zeroindex.intake.ui.screens.templates.MealTemplatesScreen
 import com.zeroindex.intake.ui.screens.today.TodayScreen
 import com.zeroindex.intake.ui.screens.train.ExerciseLibraryScreen
 import com.zeroindex.intake.ui.screens.train.ProgramBuilderScreen
+import com.zeroindex.intake.ui.screens.profile.ProfileScreen
+import com.zeroindex.intake.ui.screens.profile.YourPlanScreen
 import com.zeroindex.intake.ui.screens.train.ProgramGeneratorScreen
 import com.zeroindex.intake.ui.screens.train.ProgramTemplatesScreen
 import com.zeroindex.intake.ui.screens.train.TrainScreen
@@ -103,10 +106,29 @@ fun IntakeNavHost(
             navController.navigate(Route.ScriptReference(page, anchor))
         }
         val openAiSettings = { navController.navigate(Route.AiSettings) }
+        // Another tab's root, with that tab's own back stack restored (the same move the pill makes).
+        val openTab = { tab: TopLevelDestination ->
+            navController.navigate(tab.graph) {
+                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+            Unit
+        }
 
         // ---- Today ----
         navigation<TabGraph.Today>(startDestination = Route.Today) {
-            composable<Route.Today> { TodayScreen(contentPadding, onOpenAiSettings = openAiSettings) }
+            composable<Route.Today> {
+                TodayScreen(
+                    contentPadding,
+                    onOpenAiSettings = openAiSettings,
+                    onOpenTrain = { openTab(TopLevelDestination.TRAIN) },
+                    onResumeWorkout = { id -> navController.navigate(Route.ActiveWorkout(id)) },
+                    onMakeProgram = { navController.navigate(Route.ProgramGenerator) },
+                    onOpenProfile = { navController.navigate(Route.Profile) },
+                    onBuildPlan = { navController.navigate(Route.YourPlan) },
+                )
+            }
             aiSettings(contentPadding)
             // Today is not restructured; add new Today routes above this line.
         }
@@ -319,6 +341,21 @@ fun IntakeNavHost(
                 )
             }
             scriptReference(contentPadding)
+            composable<Route.Profile> {
+                ProfileScreen(
+                    contentPadding = contentPadding,
+                    onBuildPlan = { navController.navigate(Route.YourPlan) },
+                    onOpenTargetSettings = { navController.navigate(Route.Settings(section = "targets")) },
+                )
+            }
+            composable<Route.YourPlan> {
+                YourPlanScreen(
+                    contentPadding = contentPadding,
+                    onOpenProfile = { navController.navigate(Route.Profile) },
+                    onOpenGenerator = { navController.navigate(Route.ProgramGenerator) },
+                    onOpenProgram = { id -> navController.navigate(Route.ProgramBuilder(id)) },
+                )
+            }
             // Add new More routes above this line.
         }
     }

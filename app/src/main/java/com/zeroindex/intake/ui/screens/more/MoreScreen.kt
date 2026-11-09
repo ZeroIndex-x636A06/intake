@@ -11,7 +11,6 @@ import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,16 +40,9 @@ fun MoreScreen(
         items = listOf(
             HubItem(
                 title = "Profile & goals",
-                description = "Goal weight, calorie and protein targets",
+                description = "Body type, goal, baseline week and your plan",
                 icon = Icons.Filled.Person,
-                onClick = { onNavigate(Route.Settings(section = "targets")) },
-            ),
-            // The baseline week, body type and phase arrive later; the row holds their place.
-            HubItem(
-                title = "Body type, phase and baseline",
-                description = "Coming soon",
-                icon = Icons.Filled.Spa,
-                enabled = false,
+                onClick = { onNavigate(Route.Profile) },
             ),
             HubItem(
                 title = "Settings",

@@ -16,6 +16,10 @@ import com.zeroindex.intake.domain.ai.AiTask
 import com.zeroindex.intake.domain.units.LengthUnit
 import com.zeroindex.intake.domain.backup.BackupDestination
 import com.zeroindex.intake.domain.backup.BackupSchedule
+import com.zeroindex.intake.domain.goals.AppliedPlan
+import com.zeroindex.intake.domain.goals.BaselineState
+import com.zeroindex.intake.domain.goals.UserProfile
+import com.zeroindex.intake.domain.goals.WeekPattern
 import com.zeroindex.intake.domain.hydration.HydrationTarget
 import kotlinx.serialization.json.Json
 import com.zeroindex.intake.domain.units.VolumeUnit
@@ -76,6 +80,17 @@ data class AppSettings(
     /** Health Connect: watermark for the write sync, and when it last ran. */
     val healthLastWriteAt: Long = 0,
     val healthLastSyncAt: Long? = null,
+    /** Profile & goals: who the plan is for. One JSON value, see [UserProfile]. */
+    val profile: UserProfile = UserProfile(),
+    /** Baseline week progress marker. */
+    val baseline: BaselineState = BaselineState(),
+    /** The last few plans the person applied, newest first. */
+    val planHistory: List<AppliedPlan> = emptyList(),
+    /**
+     * Advanced carb cycling / refeeds from the last applied plan. Only used while the stored
+     * calorie target still equals [WeekPattern.baseKcal], so a later change to the target wins.
+     */
+    val weekPattern: WeekPattern? = null,
 ) {
     val platesKgList: List<Double>
         get() = availablePlatesKg.split(',')
@@ -151,6 +166,10 @@ class SettingsRepository @Inject constructor(
         fun aiModel(task: AiTask) = stringPreferencesKey("ai_model_${task.name}")
         val healthLastWrite = longPreferencesKey("health_last_write_at")
         val healthLastSync = longPreferencesKey("health_last_sync_at")
+        val profile = stringPreferencesKey("profile_json")
+        val baseline = stringPreferencesKey("baseline_json")
+        val planHistory = stringPreferencesKey("plan_history_json")
+        val weekPattern = stringPreferencesKey("week_pattern_json")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -199,6 +218,14 @@ class SettingsRepository @Inject constructor(
             dailyInsightEnabled = p[Keys.dailyInsight] ?: false,
             healthLastWriteAt = p[Keys.healthLastWrite] ?: 0,
             healthLastSyncAt = p[Keys.healthLastSync],
+            profile = p[Keys.profile]?.let { runCatching { settingsJson.decodeFromString<UserProfile>(it) }.getOrNull() }
+                ?: UserProfile(),
+            baseline = p[Keys.baseline]?.let { runCatching { settingsJson.decodeFromString<BaselineState>(it) }.getOrNull() }
+                ?: BaselineState(),
+            planHistory = p[Keys.planHistory]
+                ?.let { runCatching { settingsJson.decodeFromString<List<AppliedPlan>>(it) }.getOrNull() }
+                ?: emptyList(),
+            weekPattern = p[Keys.weekPattern]?.let { runCatching { settingsJson.decodeFromString<WeekPattern>(it) }.getOrNull() },
         )
     }
 
@@ -235,6 +262,22 @@ class SettingsRepository @Inject constructor(
         it[Keys.healthLastSync] = at
     }
 
+    suspend fun setProfile(profile: UserProfile) = put { it[Keys.profile] = settingsJson.encodeToString(profile) }
+
+    suspend fun setWeekPattern(pattern: WeekPattern?) = put {
+        if (pattern == null) it.remove(Keys.weekPattern) else it[Keys.weekPattern] = settingsJson.encodeToString(pattern)
+    }
+
+    suspend fun setBaseline(state: BaselineState) = put { it[Keys.baseline] = settingsJson.encodeToString(state) }
+
+    /** Newest first, capped so the value stays small. */
+    suspend fun addAppliedPlan(plan: AppliedPlan) = put { p ->
+        val current = p[Keys.planHistory]
+            ?.let { runCatching { settingsJson.decodeFromString<List<AppliedPlan>>(it) }.getOrNull() }
+            ?: emptyList()
+        p[Keys.planHistory] = settingsJson.encodeToString((listOf(plan) + current).take(PLAN_HISTORY_LIMIT))
+    }
+
     /** Null clears the override, going back to the suggested model. */
     suspend fun setAiModel(task: AiTask, modelId: String?) = put {
         if (modelId == null) it.remove(Keys.aiModel(task)) else it[Keys.aiModel(task)] = modelId
@@ -269,6 +312,10 @@ class SettingsRepository @Inject constructor(
         listOf(Keys.syncServer, Keys.syncDeviceId, Keys.syncDeviceName, Keys.syncLastError).forEach { p.remove(it) }
         listOf(Keys.syncPulledSeq, Keys.syncPushedUpTo, Keys.syncLastAt).forEach { p.remove(it) }
         p.remove(Keys.syncSchema)
+    }
+
+    private companion object {
+        const val PLAN_HISTORY_LIMIT = 12
     }
 
     private suspend fun put(block: (MutablePreferences) -> Unit) {

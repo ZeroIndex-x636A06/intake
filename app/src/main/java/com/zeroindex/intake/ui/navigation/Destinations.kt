@@ -72,6 +72,10 @@ sealed interface Route {
     @Serializable data object Backup : Route
     @Serializable data object AiSettings : Route
     @Serializable data object Help : Route
+    /** Profile & goals: basics, build, phase, training availability, and the baseline week. */
+    @Serializable data object Profile : Route
+    /** "Your plan": calories, macros, water and training built from the profile, with a why for each. */
+    @Serializable data object YourPlan : Route
 
     /**
      * The bundled scripting wiki. [page] is a docs/scripting page such as "README"; [anchor] a

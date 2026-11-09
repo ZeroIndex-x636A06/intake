@@ -20,23 +20,15 @@ with its merge commit. Read `CLAUDE.md` before you claim anything.
 
 Each task links to the section of `docs/SPEC-v3.md` that defines it.
 
-1. **Profile, baseline week and goal builder.** See "Engines".
-   - **Profile:** body type (a simple build picker plus an optional body-fat %),
-     phase (cut, lean bulk, bulk, maintain, recomp, contest prep, reverse diet),
-     experience, and training availability.
-   - **Baseline week:** 7 days of logged intake, weigh-ins, steps, sleep and
-     resting heart rate, all from existing data and Health Connect. When enough
-     data exists, a WorkManager job sends a notification.
-   - **Generators:** calorie and macro targets (Mifflin-St Jeor or
-     Katch-McArdle on day one, then the measured TDEE), the water target, and a
-     training program through
-     `domain/training/generator/ProgramGenerator.generateProgram`.
-   - **Display:** every number shows a one-line "why" and can be edited.
-     Advanced mode adds g/kg macros, carb cycling, refeeds and diet breaks.
-   - **Today:** add a "today's workout" card. Today is nutrition-only at the
-     moment.
-2. **Onboarding and Today tour.**
-   - Do this after task 1, because it reuses the profile and baseline screens.
+1. **Onboarding and Today tour.**
+   - Task "Profile, baseline week and goal builder" is done, so reuse its pieces:
+     `ProfileScreen` and its small composables (`OptionTile`, `ChipGroup`, `CommitField`
+     in `ui/screens/profile/`), `ProfileRepository` / `UserProfile` for the "about you" and
+     "goal and phase" steps, `startBaseline()` and `BaselineSnapshot` for the baseline offer, and
+     `YourPlanScreen` as the "your plan" step. Everything saves as it is edited, so a welcome step
+     can embed the same sections and simply skip.
+   - A baseline can be started from the welcome flow with `ProfileRepository.startBaseline()`; ask
+     for the notification permission the same way `ProfileScreen` does.
    - **Welcome flow:** units, about you, goal and phase, foods you avoid (My
      allergens), your plans (import / build / generate), optional extras. Every
      step can be skipped. Installs that already have data skip the flow.
@@ -44,21 +36,21 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
    - **One-time tips** on each tab.
    - **Settings:** add "Replay the tour". The Help screen already has a
      placeholder for it.
-3. **Hydration v2.** See "Additions → Hydration v2".
+2. **Hydration v2.** See "Additions → Hydration v2".
    - Opt-in Open-Meteo weather (rounded location or a typed city).
    - Drink hydration factors.
    - Caffeine in mg, plus an alcohol top-up.
    - Sweat loss from workouts, with an optional measured sweat rate.
    - Wording must be honest: tea and coffee are not dehydrating at normal
      amounts.
-4. **Coach engine.** See "Additions → Coach engine".
+3. **Coach engine.** See "Additions → Coach engine".
    - Weekly check-in suggestions from deterministic rules, each with a "why",
      covering weight trend vs pace, adherence, strength stalls, recovery
      signals, protein/water gaps and volume per muscle. The user taps Apply or
      Dismiss.
    - A daily "one thing to do today" card on Today.
    - AI narrative is optional and only rewords the suggestions.
-5. **Motion and clarity polish.** See SPEC-v3 point 5.
+4. **Motion and clarity polish.** See SPEC-v3 point 5.
    - Motion tokens already exist in `ui/motion/Motion.kt`.
    - Animate the calorie ring sweep and count-ups, the water wave, protein-goal
      confetti, set and item check-offs, the rest-timer ring, chart draw-in and
@@ -66,14 +58,14 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
    - Add a "Reduce motion" setting.
    - Rewrite jargon as InfoTips (`ui/components/InfoTip.kt` exists). Give each
      screen one primary action, and make every empty state say what to do next.
-6. **AI policy audit, usage meter and cost analysis.** See "Additions → AI
+5. **AI policy audit, usage meter and cost analysis.** See "Additions → AI
    policy and cost". Do this last, once the AI features are final.
    - Audit every OpenRouter call site.
    - Show calls and spend per feature.
    - Add a monthly budget cap.
    - Estimate daily and monthly cost from the chosen models, and write
      `docs/AI-COSTS.md`.
-7. **Small follow-ups.**
+6. **Small follow-ups.**
    - Remove the duplicate Allergens section from Settings. My allergens
      replaces it.
    - Add "As many as you can" (AMRAP) to the UI, if it's wanted.
@@ -103,5 +95,11 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
   The allergen columns and `allergen_definition` moved into `migrateAllergens_2_3`,
   next to `migrateFoodOff_2_3`. Other agents add `migrateXxx_2_3` functions to
   `MIGRATION_2_3_STATEMENTS`. `MigrationSchemaTest` upgrades the released v2 to v3.
+- Profile, baseline week and goal builder (branch `worktree-agent-ae10ffb5057435846`, not yet
+  merged). More → Profile & goals; the baseline week with a daily WorkManager check and one
+  notification; "Your plan" with a why, an (i) and an Edit on every number; Today's baseline and
+  workout cards. Pure engine in `domain/goals/`, formulas in `docs/GOALS.md`. No schema change.
+  The Hydration v2 task should add `WaterAdjustment` lines to `WaterPlanner`; the Coach engine can
+  reuse `GoalBuilder` with `PlanOverrides` and `ProfileRepository.applyPlan`.
 - Training v3: start from scratch, templates, exercise library, freestyle
   workouts, program generator. Merged locally and being verified.
