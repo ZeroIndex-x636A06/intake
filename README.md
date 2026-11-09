@@ -214,7 +214,11 @@ place.
 
 ## First-run setup
 
-Nothing here is needed to use the app offline.
+The app now walks you through it. On first launch a short welcome asks for your units, a few
+basics, your goal and the foods you avoid, then offers a baseline week or an instant estimate and a
+quick tour of Today. Every step can be skipped, and More, Help can replay the tour, the welcome and
+the screen tips. The list below is only for the optional extras, and none of it is needed to use the
+app offline.
 
 1. **OpenRouter key.** More, AI: save your key, then run the benchmark so
    the picker can suggest models. See [docs/BENCHMARK.md](docs/BENCHMARK.md).

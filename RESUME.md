@@ -102,6 +102,20 @@ All of SPEC.md's built phases and every amendment feature are implemented:
   microdata, then an optional "Try with AI"; `domain/recipe/`, `data/recipe/`). Ingredient pickers use
   `FoodRepository.search`. Not built: a per-day meal choice (the model is one main dish per week).
 
+- Onboarding and Today tour (branch `agent/onboarding-tour`). `Route.Onboarding` is the start destination
+  on a first run (`ui/onboarding/OnboardingScreen`, nine steps from `domain/onboarding/OnboardingFlow`).
+  Step, units-seeded, start choice, pending destination, tour-due and per-tab tips-seen live in their own
+  DataStore file `intake_onboarding` (`data/onboarding/OnboardingRepository`), so they are device-local and
+  outside `intake_settings` and any backup. Answers are saved through the existing `ProfileRepository` /
+  `SettingsRepository` / `AllergenRepository` as they are given. Auto-skip: any food log row, weigh-in row,
+  workout session row or profile basics, unless the flow was already started or is being replayed.
+  Today tour: `Modifier.tourTarget(id)`, `TourState`, `TourOverlay` (`ui/onboarding/Tour.kt`), pure plan in
+  `domain/onboarding/TourPlan.kt`; targets ring, add food, water, baseline/workout card, pill, and `coach`
+  (the coach agent's card should add `Modifier.tourTarget(TourIds.COACH)` and put `TourIds.COACH` in the set
+  passed to `TourTargetsPresent` in `TodayContent`; until then that step is skipped). First-visit tips:
+  `TabTip` in the Food, Train, Progress and More hubs. Help has Replay the tour, Show the welcome again and
+  Show screen tips again. New DAO methods `hasAnyRow` / `hasAnySession`; no schema change.
+
 Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/SPEC-v3.md`, `docs/BACKUP.md`,
 `docs/BENCHMARK.md`, `docs/PRIVACY.md`, `server/README.md`.
 
@@ -124,6 +138,11 @@ Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/SPEC-v3.md`, `docs/BACKUP
 - Demo data loader in Settings (`SettingsRepository.demoDataLoaded` exists).
 
 ## NOT verified
+
+- Onboarding and the Today tour were never seen on a screen (no emulator): the step transitions, the IME
+  behaviour on About you, the spotlight cut-out and bubble placement (phone and the vertical rail), the
+  scroll-to-target on Today, TalkBack announcements and the notification permission prompt are unchecked.
+  Pure logic is unit-tested.
 
 - Hydration v2 on a device: the coarse location prompt and fix, the live Open-Meteo calls from the app (the URLs
   and response shapes were checked with curl from the build container, and the parsers are unit-tested against

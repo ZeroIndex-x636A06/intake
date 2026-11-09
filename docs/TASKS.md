@@ -14,22 +14,6 @@ with its merge commit. Read `CLAUDE.md` before you claim anything.
 
 Each task links to the section of `docs/SPEC-v3.md` that defines it.
 
-1. **Onboarding and Today tour.**
-   - Task "Profile, baseline week and goal builder" is done, so reuse its pieces:
-     `ProfileScreen` and its small composables (`OptionTile`, `ChipGroup`, `CommitField`
-     in `ui/screens/profile/`), `ProfileRepository` / `UserProfile` for the "about you" and
-     "goal and phase" steps, `startBaseline()` and `BaselineSnapshot` for the baseline offer, and
-     `YourPlanScreen` as the "your plan" step. Everything saves as it is edited, so a welcome step
-     can embed the same sections and simply skip.
-   - A baseline can be started from the welcome flow with `ProfileRepository.startBaseline()`; ask
-     for the notification permission the same way `ProfileScreen` does.
-   - **Welcome flow:** units, about you, goal and phase, foods you avoid (My
-     allergens), your plans (import / build / generate), optional extras. Every
-     step can be skipped. Installs that already have data skip the flow.
-   - **Coach-mark tour on Today.**
-   - **One-time tips** on each tab.
-   - **Settings:** add "Replay the tour". The Help screen already has a
-     placeholder for it.
 2. **Coach engine.** See "Additions → Coach engine".
    - Weekly check-in suggestions from deterministic rules, each with a "why",
      covering weight trend vs pace, adherence, strength stalls, recovery
@@ -73,6 +57,8 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
 
 ## Done (v3)
 
+- Onboarding and Today tour: nine-step welcome flow, auto-skip for installs with data, Today coach marks, first-visit
+  tips per tab, Help replay rows (branch `agent/onboarding-tour`; see `RESUME.md`). No schema change. Not seen on a device.
 - Hydration v2: drink types and hydration factors, caffeine and alcohol tracking and top-ups, opt-in Open-Meteo
   weather, sweat loss from logged workouts with a measured sweat rate, and a target breakdown in the water sheet
   (branch `worktree-agent-a18b02fa9b8eab30d`; see `docs/HYDRATION.md`). Schema change: `migrateHydration_2_3`.

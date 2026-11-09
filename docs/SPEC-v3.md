@@ -33,6 +33,9 @@ constraint in SPEC §3 still holds:
    - Sliding a finger along the pill switches tabs.
 5. First run is confusing: there is no onboarding and no tutorial. Things
    need to be simpler to understand, with fancier animations.
+   - **Implemented** (onboarding and Today tour): a nine-step welcome flow (`Route.Onboarding`) before the
+     tabs, auto-skipped for installs that already have data; a coach-mark tour on Today; first-visit tips
+     on Food, Train, Progress and More; Help rows to replay each. No AI, no network. See RESUME.md.
 6. Allergens:
    - A predefined list of common allergens with keywords ships with the
      app.
