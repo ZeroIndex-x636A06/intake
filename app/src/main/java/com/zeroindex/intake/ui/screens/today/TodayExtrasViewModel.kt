@@ -17,6 +17,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
+import com.zeroindex.intake.domain.training.ScheduleDay
+import com.zeroindex.intake.domain.training.TodayPlan
+import com.zeroindex.intake.domain.training.WorkoutSchedule
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
@@ -33,7 +36,22 @@ sealed interface WorkoutCardState {
     /** A session is open right now. */
     data class InProgress(val sessionId: String, val programName: String?) : WorkoutCardState
 
-    data class Next(val programName: String, val dayName: String, val dayNumber: Int, val daysInProgram: Int) : WorkoutCardState
+    /** [weekday] is the ISO weekday the day is scheduled on, or null when the program runs as a rotation. */
+    data class Next(
+        val programName: String,
+        val dayName: String,
+        val dayNumber: Int,
+        val daysInProgram: Int,
+        val weekday: Int? = null,
+    ) : WorkoutCardState
+
+    /** A weekday-scheduled program with nothing scheduled today: say what is next and when. */
+    data class Rest(
+        val programName: String,
+        val nextDayName: String,
+        val nextWeekday: Int,
+        val daysAway: Int,
+    ) : WorkoutCardState
 }
 
 data class TodayExtras(
@@ -55,7 +73,7 @@ class TodayExtrasViewModel @Inject constructor(
     foodLog: FoodLogRepository,
     body: BodyRepository,
     hydration: HydrationRepository,
-    clock: Clock,
+    private val clock: Clock,
 ) : ViewModel() {
 
     init {
@@ -72,8 +90,19 @@ class TodayExtrasViewModel @Inject constructor(
                 program == null -> WorkoutCardState.NoProgram
                 dayList.isEmpty() -> WorkoutCardState.NoProgram
                 else -> {
-                    val index = program.currentDayIndex.coerceIn(0, dayList.lastIndex)
-                    WorkoutCardState.Next(program.name, dayList[index].name, index + 1, dayList.size)
+                    val plan = WorkoutSchedule.planFor(
+                        dayList.map { ScheduleDay(it.dayIndex, it.name, it.weekday) },
+                        program.currentDayIndex,
+                        clock.today().dayOfWeek.value,
+                    )
+                    when (plan) {
+                        is TodayPlan.Train -> WorkoutCardState.Next(
+                            program.name, plan.day.name, dayList.indexOfFirst { it.dayIndex == plan.day.dayIndex } + 1,
+                            dayList.size, plan.day.weekday,
+                        )
+                        is TodayPlan.Rest -> WorkoutCardState.Rest(program.name, plan.next.name, plan.next.weekday ?: 1, plan.daysAway)
+                        TodayPlan.NoDays -> WorkoutCardState.NoProgram
+                    }
                 }
             }
         }
