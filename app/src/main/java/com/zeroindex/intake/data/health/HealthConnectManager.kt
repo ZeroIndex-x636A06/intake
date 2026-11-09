@@ -376,7 +376,8 @@ class HealthConnectManager @Inject constructor(
             changed.filter { it.deletedAt != null }.map { it.id }.takeIf { it.isNotEmpty() }?.let {
                 runCatching { hc.deleteRecords(HydrationRecord::class, emptyList(), it) }
             }
-            changed.filter { it.deletedAt == null }.takeIf { it.isNotEmpty() }?.let { rows ->
+            // Alcohol is not written as hydration: Health Connect would count it as water.
+            changed.filter { it.deletedAt == null && it.alcoholMl == 0.0 }.takeIf { it.isNotEmpty() }?.let { rows ->
                 hc.insertRecords(
                     rows.map { h ->
                         val at = Instant.ofEpochMilli(h.loggedAt)

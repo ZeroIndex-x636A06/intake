@@ -98,7 +98,7 @@ fun TodayScreen(
                     scope.launch {
                         val unit = state.settings.volumeUnit
                         val result = snackbar.showSnackbar(
-                            message = "Added ${unit.format(logged.volumeMl)} of water",
+                            message = "Added ${unit.format(logged.volumeMl)} of ${logged.drinkType.label.lowercase()}",
                             actionLabel = "Undo",
                             duration = SnackbarDuration.Short,
                         )
@@ -137,14 +137,15 @@ fun TodayScreen(
                 day = day,
                 presets = state.hydrationPresets,
                 unit = state.settings.volumeUnit,
+                weightUnit = state.settings.weightUnit,
                 manualBaseMl = state.settings.hydrationBaseMl,
                 dynamic = state.settings.hydrationDynamic,
                 trainingBonusMl = state.settings.hydrationTrainingBonusMl,
                 onDismiss = { showWater = false },
-                onLog = { ml -> viewModel.logWater(ml) },
+                onLog = { ml, drink -> viewModel.logWater(ml, drink = drink) },
                 onDelete = viewModel::deleteWater,
                 onRestore = viewModel::restoreWater,
-                onSavePreset = viewModel::saveWaterPreset,
+                onSavePreset = { name, ml, existing, drink -> viewModel.saveWaterPreset(name, ml, existing, drink) },
                 onDeletePreset = viewModel::deleteWaterPreset,
                 onSetUnit = viewModel::setVolumeUnit,
                 onSetBase = viewModel::setHydrationBase,

@@ -44,6 +44,13 @@ interface HydrationDao {
     @Query("SELECT * FROM hydration_preset WHERE deletedAt IS NULL ORDER BY displayOrder")
     suspend fun presets(): List<HydrationPresetEntity>
 
+    /** True if the id exists at all, deleted or not: a seeded preset the user removed must not come back. */
+    @Query("SELECT COUNT(*) FROM hydration_preset WHERE id = :id")
+    suspend fun presetIdCount(id: String): Int
+
+    @Query("SELECT * FROM hydration_preset WHERE id = :id")
+    suspend fun presetById(id: String): HydrationPresetEntity?
+
     /** Counts soft-deleted rows too, so deleting every preset never re-seeds. */
     @Query("SELECT COUNT(*) FROM hydration_preset")
     suspend fun presetRowCount(): Int
