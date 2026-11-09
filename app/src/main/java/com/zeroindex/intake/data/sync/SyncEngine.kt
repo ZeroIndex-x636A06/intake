@@ -191,6 +191,7 @@ class SyncEngine @Inject constructor(
             conflictRows.forEach { conflictDao.upsert(it) }
         }
         rows.maxOfOrNull { it.updatedAt }?.let(clock::observe)
+        com.zeroindex.intake.data.plan.LegacyPlanRepair.run(db, clock.nowMillis(), java.time.LocalDate.now().toEpochDay())
         return toWrite.sumOf { it.second.size } to conflictRows.size
     }
 

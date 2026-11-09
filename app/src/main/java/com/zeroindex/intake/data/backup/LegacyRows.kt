@@ -15,7 +15,9 @@ import kotlinx.serialization.json.JsonPrimitive
  */
 internal object LegacyRows {
     fun upgrade(table: String, row: JsonElement): JsonElement {
-        if (table != "allergen_alias" || row !is JsonObject || "isCustom" in row) return row
+        if (row !is JsonObject) return row
+        // A v2 plan week has no plan; LegacyPlanRepair gives it one after the rows are written.
+        if (table != "allergen_alias" || "isCustom" in row) return row
         val id = (row["id"] as? JsonPrimitive)?.takeIf { it.isString }?.content ?: return row
         return if (id.startsWith("seed-")) row else JsonObject(row + ("isCustom" to JsonPrimitive(true)))
     }

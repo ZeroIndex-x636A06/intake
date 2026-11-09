@@ -164,6 +164,62 @@ class MigrationSchemaTest {
         c.close()
     }
 
+    private fun planWeek(c: Connection, id: String, number: Int, dish: String, notes: String = "", deleted: String = "NULL") =
+        c.exec(
+            "INSERT INTO plan_week (id, weekNumber, mainDishName, proteinType, notes, createdAt, updatedAt, deletedAt) " +
+                "VALUES ('$id', $number, '$dish', 'Chicken', '${notes.replace("'", "''")}', 1, 1, $deleted)",
+        )
+
+    @Test
+    fun migrationTwoToThreeTurnsExistingPlanWeeksIntoMyPlanAndMovesTheWeekZeroData() {
+        val c = createAt(2)
+        planWeek(c, "w0", 0, "Every week", """{"intro":"Hello","pantry":["rice"]}""")
+        planWeek(c, "w1", 1, "Taco bowls", "a note")
+        planWeek(c, "w2", 2, "Burgers")
+        planWeek(c, "w3", 3, "Removed week", deleted = "5")
+        c.exec("INSERT INTO shopping_list_item (id, planWeekId, name, quantity, category, isChecked, isPantryStaple, createdAt, updatedAt) VALUES ('s1', 'w1', 'Onions', '', 'PRODUCE', 1, 0, 1, 1)")
+        c.exec("INSERT INTO eat_out_option (id, planWeekId, venueName, whatToOrder, cautionNote, estimatedKcal, estimatedProtein, createdAt, updatedAt) VALUES ('e1', 'w1', 'Subway', 'Bowl', '', 500, 30, 1, 1)")
+
+        MIGRATION_2_3_STATEMENTS.forEach { c.exec(it) }
+        assertMatches(c, 3)
+
+        val plan = c.rows("SELECT * FROM meal_plan").single()
+        assertThat(plan["id"]).isEqualTo("plan-default")
+        assertThat(plan["name"]).isEqualTo("My plan")
+        assertThat(plan["isActive"]).isEqualTo(1)
+        assertThat(plan["loopMode"]).isEqualTo("NONE")
+        assertThat(plan["deletedAt"]).isNull()
+        assertThat(plan["metaJson"]).isEqualTo("""{"intro":"Hello","pantry":["rice"]}""")
+        val day = (plan["startDate"] as Number).toLong()
+        assertThat(day).isGreaterThan(19_000L) // an epoch day, not millis
+        assertThat(day).isLessThan(100_000L)
+
+        // Every week, the removed one included, belongs to the plan; week 0 is retired softly, never deleted.
+        val weeks = c.rows("SELECT * FROM plan_week ORDER BY weekNumber")
+        assertThat(weeks.map { it["planId"] }.toSet()).containsExactly("plan-default")
+        assertThat(weeks.map { it["weekNumber"] }).containsExactly(0, 1, 2, 3).inOrder()
+        assertThat(weeks.first { it["weekNumber"] == 0 }["deletedAt"]).isNotNull()
+        assertThat(weeks.first { it["weekNumber"] == 1 }["deletedAt"]).isNull()
+        assertThat(weeks.first { it["weekNumber"] == 1 }["notes"]).isEqualTo("a note")
+        assertThat(weeks.first { it["weekNumber"] == 3 }["deletedAt"]).isEqualTo(5)
+
+        // Children keep pointing at their weeks.
+        assertThat(c.rows("SELECT isChecked FROM shopping_list_item WHERE id = 's1'").single()["isChecked"]).isEqualTo(1)
+        assertThat(c.rows("SELECT planWeekId FROM eat_out_option WHERE id = 'e1'").single()["planWeekId"]).isEqualTo("w1")
+        c.close()
+    }
+
+    @Test
+    fun migrationTwoToThreeMakesNoPlanWhenThereAreNoPlanWeeks() {
+        val c = createAt(2)
+        // Only a retired week: nothing live to build a plan from.
+        planWeek(c, "w1", 1, "Old", deleted = "5")
+        MIGRATION_2_3_STATEMENTS.forEach { c.exec(it) }
+        assertMatches(c, 3)
+        assertThat(c.rows("SELECT COUNT(*) AS n FROM meal_plan").single()["n"]).isEqualTo(0)
+        c.close()
+    }
+
     @Test
     fun fullChainOneToTwoToThreeMatchesTheCurrentSchema() {
         val c = createAt(1)

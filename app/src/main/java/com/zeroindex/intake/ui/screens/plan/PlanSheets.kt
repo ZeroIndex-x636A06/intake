@@ -281,6 +281,20 @@ fun ImportPreviewDialog(
                     is PlanImportPreview.ScriptErrors -> Unit // Shown as the diagnostics sheet, not here.
                     is PlanImportPreview.Ready -> {
                         val b = preview.batch
+                        b.plan?.let { p ->
+                            Text(
+                                if (b.isUpdate) "Updates your plan \"${p.name}\" and makes it the active plan." else "Creates a new plan, \"${p.name}\", and makes it the active plan.",
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            Text(
+                                "Starts ${com.zeroindex.intake.domain.plan.PlanSchedule.date(p.startDate)} · repeat: " +
+                                    com.zeroindex.intake.domain.plan.PlanSchedule.repeatText(p.loopMode, p.loopCount),
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                            if (b.removedWeekIds.isNotEmpty()) {
+                                SandNote("${b.removedWeekIds.size} weeks in the current plan are not in this file and will be removed from it (nothing is erased).")
+                            }
+                        }
                         Text(
                             "${preview.weeks} weeks, ${preview.recipes} recipes, ${b.shoppingItems.size} shopping items, " +
                                 "${preview.eatOut} eat-out options. Re-importing the same file updates these rather than adding copies.",

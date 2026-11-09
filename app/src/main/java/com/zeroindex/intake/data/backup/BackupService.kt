@@ -161,6 +161,8 @@ class BackupService @Inject constructor(
                 t.write(toWrite)
             }
         }
+        // Plan weeks from a schema-2 backup have no plan yet.
+        com.zeroindex.intake.data.plan.LegacyPlanRepair.run(db, clock.nowMillis(), clock.today().toEpochDay())
     }
 
     // ----- CSV, per domain (SPEC §13) --------------------------------------

@@ -35,6 +35,11 @@ Unknown keys are ignored.
   "format": "intake-meal-plan",
   "version": 1,
 
+  // Optional schedule. A file whose name matches a plan you already have updates that plan.
+  "name": "text",
+  "startsOn": "2026-11-09",           // first day of week 1; empty = the day you import
+  "repeat": "no",                     // "no", "yes" (forever) or "3 times"
+
   // Plan-wide, shown collapsed under "Every week" on the Plan tab.
   "intro": "text",
   "standingBreakfasts": ["text"],
@@ -44,7 +49,7 @@ Unknown keys are ignored.
   "eatOutNotes": "text",
 
   "weeks": [{
-    "weekNumber": 1,                  // 1-12, each at most once
+    "weekNumber": 1,                  // 1-104, each at most once
     "mainDishName": "text",
     "proteinType": "text",
     "notes": "free text for the week",
@@ -94,7 +99,7 @@ Unknown keys are ignored.
 ### Validation
 
 Rejected with a list of reasons (nothing imported): wrong `format`; a `version` other than
-1 (a newer version says to update the app); no weeks; week number outside 1-12 or repeated;
+1 (a newer version says to update the app); no weeks; week number outside 1-104 or repeated; a `startsOn` that is not a date; a `repeat` that is not no/yes/N times;
 blank dish or recipe names; two MAIN recipes in a week; duplicate recipe names in a week;
 role other than MAIN/VARIATION; servings below 1; negative or implausible grams or
 nutrition (over 900 kcal per 100 g, or protein+carbs+fat over 100 g per 100 g); a shopping

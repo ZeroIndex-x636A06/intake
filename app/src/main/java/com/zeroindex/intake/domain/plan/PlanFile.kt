@@ -12,6 +12,12 @@ import kotlinx.serialization.json.Json
 data class PlanFile(
     val format: String = "",
     val version: Int = 0,
+    /** The plan's name. Importing a file whose name matches an existing plan updates that plan. */
+    val name: String = "",
+    /** Optional first day of week 1, "yyyy-MM-dd". Empty: the plan starts the day it is imported. */
+    val startsOn: String = "",
+    /** Optional: "no", "yes" (loop forever) or "N times". Empty: no repeat. */
+    val repeat: String = "",
     /** Plan-wide: "How this works" guidance. */
     val intro: String = "",
     val standingBreakfasts: List<String> = emptyList(),
@@ -113,6 +119,8 @@ object PlanFileParser {
     const val FORMAT = "intake-meal-plan"
     const val SUPPORTED_VERSION = 1
     const val MAX_BYTES = 2_000_000
+    /** The longest plan: two years of weeks. */
+    const val MAX_WEEKS = PlanSchedule.MAX_WEEKS
     private val CATEGORIES = setOf("PRODUCE", "MEAT", "PANTRY", "FROZEN", "OTHER")
     private val ROLES = setOf("MAIN", "VARIATION")
 
@@ -144,10 +152,16 @@ object PlanFileParser {
             }
         }
         if (file.weeks.isEmpty()) e += "The file has no weeks."
+        if (file.startsOn.isNotBlank() && runCatching { java.time.LocalDate.parse(file.startsOn.trim()) }.isFailure) {
+            e += "startsOn \"${file.startsOn}\" is not a date like 2026-11-09."
+        }
+        if (file.repeat.isNotBlank() && PlanSchedule.parseRepeat(file.repeat) == null) {
+            e += "repeat \"${file.repeat}\" must be \"no\", \"yes\" or a count like \"3 times\"."
+        }
         val seen = HashSet<Int>()
         file.weeks.forEach { w ->
             val at = "Week ${w.weekNumber}"
-            if (w.weekNumber !in 1..12) e += "Week number ${w.weekNumber} is outside 1-12."
+            if (w.weekNumber !in 1..MAX_WEEKS) e += "Week number ${w.weekNumber} is outside 1-$MAX_WEEKS."
             else if (!seen.add(w.weekNumber)) e += "$at appears more than once."
             if (w.mainDishName.isBlank()) e += "$at has no mainDishName."
             if (w.recipes.count { it.role.uppercase() == "MAIN" } > 1) e += "$at has more than one MAIN recipe."
@@ -173,12 +187,12 @@ object PlanFileParser {
         file.shoppingItems.forEach { s ->
             if (s.name.isBlank()) e += "A shopping item has no name."
             if (s.category.uppercase() !in CATEGORIES) e += "Shopping item \"${s.name}\": category \"${s.category}\" is not one of $CATEGORIES."
-            if (s.weekNumber != null && s.weekNumber !in 1..12) e += "Shopping item \"${s.name}\": weekNumber is outside 1-12."
+            if (s.weekNumber != null && s.weekNumber !in 1..MAX_WEEKS) e += "Shopping item \"${s.name}\": weekNumber is outside 1-$MAX_WEEKS."
         }
         file.eatOutOptions.forEach { o ->
             if (o.venueName.isBlank()) e += "An eat-out option has no venueName."
             if (o.whatToOrder.isBlank()) e += "Eat-out option at \"${o.venueName}\" has no whatToOrder."
-            if (o.weekNumber != null && o.weekNumber !in 1..12) e += "Eat-out option at \"${o.venueName}\": weekNumber is outside 1-12."
+            if (o.weekNumber != null && o.weekNumber !in 1..MAX_WEEKS) e += "Eat-out option at \"${o.venueName}\": weekNumber is outside 1-$MAX_WEEKS."
             listOf(o.estimatedKcal, o.estimatedProtein, o.estimatedCarbs, o.estimatedFat).forEach {
                 if (it != null && it < 0) e += "Eat-out option at \"${o.venueName}\": estimates cannot be negative."
             }
@@ -216,9 +230,9 @@ data class PlanWeekExtras(
 }
 
 /**
- * Plan-wide content ("Every week"): stored as JSON in the notes of a PlanWeek
- * row with weekNumber 0, which the week strip never shows. That row is covered
- * by sync, export and backup like any other.
+ * Plan-wide content ("Every week"): stored as JSON in `meal_plan.metaJson`, so it is covered by
+ * sync, export and backup with the plan. (Before schema 3 it lived in a week-0 row; the 2 -> 3
+ * migration moved it.)
  */
 @Serializable
 data class PlanMeta(
@@ -236,7 +250,6 @@ data class PlanMeta(
     fun encode(): String = metaJson.encodeToString(serializer(), this)
 
     companion object {
-        const val WEEK_NUMBER = 0
         private val metaJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
         fun decode(notes: String?): PlanMeta =
             if (notes.isNullOrBlank()) PlanMeta()

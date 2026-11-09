@@ -126,16 +126,43 @@ internal fun migrateAllergens_2_3(): List<String> = listOf(
     "CREATE INDEX IF NOT EXISTS `index_allergen_definition_deletedAt` ON `allergen_definition` (`deletedAt`)",
 )
 
-// Add new 2 -> 3 steps (for example migrateMealPlans_2_3) to the list below, after the existing ones.
+// Add new 2 -> 3 steps to the list below, after the existing ones.
 internal val MIGRATION_2_3_STATEMENTS: List<String> =
     migrateFoodOff_2_3() +
-        migrateAllergens_2_3()
+        migrateAllergens_2_3() +
+        migrateMealPlans_2_3()
 
 internal val MIGRATION_2_3 = object : Migration(2, 3) {
     override fun migrate(db: SupportSQLiteDatabase) {
         MIGRATION_2_3_STATEMENTS.forEach(db::execSQL)
     }
 }
+
+/**
+ * Meal plans of any length (SPEC-v3 item 8). Kept as its own block so it can sit beside the other
+ * 2 -> 3 changes. Purely additive except the plan-wide row: week 0 (which held the "Every week"
+ * JSON) is copied onto the new plan and then **soft-deleted**, never removed.
+ *
+ * Existing weeks (weekNumber 1..N) become "My plan": active, starting today, no repeat. A database
+ * with no plan weeks gets no plan, and the app asks the user to create one.
+ */
+internal fun migrateMealPlans_2_3(): List<String> = listOf(
+    "CREATE TABLE IF NOT EXISTS `meal_plan` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `notes` TEXT NOT NULL DEFAULT '', `startDate` INTEGER NOT NULL, `loopMode` TEXT NOT NULL DEFAULT 'NONE', `loopCount` INTEGER NOT NULL DEFAULT 0, `isActive` INTEGER NOT NULL DEFAULT 0, `metaJson` TEXT NOT NULL DEFAULT '', `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+    "CREATE INDEX IF NOT EXISTS `index_meal_plan_isActive` ON `meal_plan` (`isActive`)",
+    "CREATE INDEX IF NOT EXISTS `index_meal_plan_deletedAt` ON `meal_plan` (`deletedAt`)",
+    "ALTER TABLE `plan_week` ADD COLUMN `planId` TEXT NOT NULL DEFAULT ''",
+    "CREATE INDEX IF NOT EXISTS `index_plan_week_planId_weekNumber` ON `plan_week` (`planId`, `weekNumber`)",
+    // One plan from whatever the user already has (live rows only; start date = today's UTC epoch day).
+    "INSERT INTO `meal_plan` (`id`, `name`, `notes`, `startDate`, `loopMode`, `loopCount`, `isActive`, `metaJson`, `createdAt`, `updatedAt`, `deletedAt`) " +
+        "SELECT 'plan-default', 'My plan', '', CAST(strftime('%s','now') AS INTEGER) / 86400, 'NONE', 0, 1, " +
+        "COALESCE((SELECT `notes` FROM `plan_week` WHERE `weekNumber` = 0 AND `deletedAt` IS NULL LIMIT 1), ''), " +
+        "CAST(strftime('%s','now') AS INTEGER) * 1000, CAST(strftime('%s','now') AS INTEGER) * 1000, NULL " +
+        "WHERE EXISTS (SELECT 1 FROM `plan_week` WHERE `deletedAt` IS NULL)",
+    "UPDATE `plan_week` SET `planId` = 'plan-default' WHERE EXISTS (SELECT 1 FROM `meal_plan` WHERE `id` = 'plan-default')",
+    // The plan-wide row has moved onto the plan: retire it (soft).
+    "UPDATE `plan_week` SET `deletedAt` = CAST(strftime('%s','now') AS INTEGER) * 1000, `updatedAt` = CAST(strftime('%s','now') AS INTEGER) * 1000 " +
+        "WHERE `weekNumber` = 0 AND `deletedAt` IS NULL",
+)
 
 /** Every migration, in order. [IntakeDatabase] registers all of them. */
 internal val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)

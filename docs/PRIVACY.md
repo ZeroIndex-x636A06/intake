@@ -113,6 +113,16 @@ Every request also sends the header `X-Title: Intake`.
 | Health Connect | On resume and, debounced, after local writes (never on a timer) | Reads only granted types: exercise, total and active calories, BMR, steps, sleep, heart rate, resting HR, weight, body fat, lean mass. Writes only granted types: nutrition, weight, hydration, exercise sessions. Handled by the Health Connect store on the phone; Intake does not send it to a server (though a Health Connect row can then be read by other apps the user allows) | **Off** until the user grants permissions | `data/health/HealthConnectManager.kt:96,144`, `data/health/HealthSync.kt:44`, manifest `READ_*`/`WRITE_*` |
 | NFC meal tags | User writes a tag, or taps one | The tag holds a URI `intake://log-template/<id>` and an Android Application Record with the package name. No food data. Reading a tag logs the template locally | Only on user action; `NfcTagWriter` | `nfc/NfcTagWriter.kt:28-60`, `MainActivity.kt:79` |
 
+### Recipe link import (the user's action)
+
+| Feature | Trigger | Host | Sent | Not sent | Default | Code |
+| --- | --- | --- | --- | --- | --- | --- |
+| Import a recipe from a link | Only when the user taps "Read this page" on Food > Recipes > Import from a link, after pasting an address | The site the user typed, straight from the phone: a single `GET` of that page | The request itself, with the User-Agent `Intake/<version> (recipe import)`. No cookies, no key, no account, nothing about the user | Nothing goes to Intake, Anthropic or any third party. The site sees the phone's IP address, like any page visit | Never automatic. HTTPS only (plain `http://` only for local hosts such as `localhost`, `192.168.x.x`, `*.local`). Page size capped at 5 MB, 25 s timeout. The recipe is read on the phone from the page's own data, with no AI | `data/recipe/RecipeFetcher.kt`, `domain/recipe/RecipePageParser.kt` |
+| "Try with AI" on a page with no recipe data | Only when the user taps that button, and only if an OpenRouter key is saved | `openrouter.ai`, through the same gateway as every other AI call | The visible text of that page (up to 20,000 characters), under the user's AI privacy setting, counted in the AI usage meter and budget cap | The allergen profile and any other data | Off. The button is hidden without a key | `data/recipe/RecipeAiExtractor.kt`, `data/ai/AiGateway.kt` |
+
+The recipe is saved with its source address so the user can open the original page. Allergens are checked
+on the phone from the ingredient lines, whatever the page or a model says.
+
 ### Files and links, by the user's action
 
 | Feature | What happens | Code |

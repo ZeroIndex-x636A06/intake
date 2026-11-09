@@ -23,6 +23,7 @@ import com.zeroindex.intake.data.db.entity.MenuSourceEntity
 import com.zeroindex.intake.data.db.entity.ModelBenchmarkEntity
 import com.zeroindex.intake.data.db.entity.NutritionTargetEntity
 import com.zeroindex.intake.data.db.entity.PerformanceMetricEntity
+import com.zeroindex.intake.data.db.entity.MealPlanEntity
 import com.zeroindex.intake.data.db.entity.PlanWeekEntity
 import com.zeroindex.intake.data.db.entity.PlanWeekRecipeEntity
 import com.zeroindex.intake.data.db.entity.ProgramDayEntity
@@ -64,6 +65,7 @@ fun backupTables(dao: ExportDao): List<BackupTable<out Audited>> = listOf(
     BackupTable("allergen_profile", AllergenProfileEntity.serializer(), dao::allergenProfile, dao::upsertAllergenProfile),
     BackupTable("backup_run", BackupRunEntity.serializer(), dao::backupRun, dao::upsertBackupRun),
     BackupTable("body_metric", BodyMetricEntity.serializer(), dao::bodyMetric, dao::upsertBodyMetric),
+    BackupTable("meal_plan", MealPlanEntity.serializer(), dao::mealPlan, dao::upsertMealPlan),
     BackupTable("plan_week", PlanWeekEntity.serializer(), dao::planWeek, dao::upsertPlanWeek),
     BackupTable("eat_out_option", EatOutOptionEntity.serializer(), dao::eatOutOption, dao::upsertEatOutOption),
     BackupTable("exercise", ExerciseEntity.serializer(), dao::exercise, dao::upsertExercise),

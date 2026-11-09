@@ -12,6 +12,7 @@ import com.zeroindex.intake.data.db.entity.RecipeEntity
 import com.zeroindex.intake.data.keys.ApiKeyStore
 import com.zeroindex.intake.data.repository.AllergenRepository
 import com.zeroindex.intake.data.repository.FoodLogRepository
+import com.zeroindex.intake.data.repository.MealPlanRepository
 import com.zeroindex.intake.domain.ai.RecipeQuery
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nutrition.Macros
@@ -31,8 +32,18 @@ import kotlinx.coroutines.launch
 class RecipeLibraryViewModel @Inject constructor(
     private val recipeDao: RecipeDao,
     private val foodLog: FoodLogRepository,
+    private val plans: MealPlanRepository,
     private val clock: Clock,
 ) : ViewModel() {
+    private val _notice = MutableStateFlow<String?>(null)
+    val notice: StateFlow<String?> = _notice.asStateFlow()
+
+    /** "Add to this week": puts the recipe in the current week of the active plan. */
+    fun addToThisWeek(recipe: RecipeEntity) = viewModelScope.launch {
+        val where = plans.addToCurrentWeek(recipe)
+        _notice.value = if (where != null) "Added to $where." else "Could not add it to a plan."
+    }
+
     val recipes: StateFlow<List<RecipeEntity>> =
         recipeDao.observeAll().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 

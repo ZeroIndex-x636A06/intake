@@ -64,6 +64,20 @@ All of SPEC.md's built phases and every amendment feature are implemented:
   be archived, which is a soft delete), and the library gains the new exercises.
   Not done: a workout card on Today (Today is nutrition only in this codebase).
 
+- **Meal plans of any length, recipes by hand and from a link** (v3, schema 3). `meal_plan` holds a
+  name, notes, `startDate` (epoch day), `loopMode` (NONE, REPEAT, REPEAT_N + `loopCount`), `isActive`
+  (exactly one) and the plan-wide "Every week" JSON (`metaJson`). `plan_week.planId` ties a week to its
+  plan; weeks are 1..N, up to 104. The week is computed (`domain/plan/PlanSchedule.kt`); "make this the
+  current week" moves the start date, nothing else is stored. `MIGRATION_2_3` (`migrateMealPlans_2_3`) turns
+  existing weeks into one active "My plan" (id `plan-default`, starts today) and moves the week-0 JSON onto
+  it, retiring week 0 softly; `LegacyPlanRepair` does the same for a v2 backup or v2 sync peer.
+  The script header gained `starts:` and `repeat:` (diagnostics `bad-start-date`, `bad-repeat`); importing
+  a file whose name matches a plan updates that plan. Food > Meal plans can create, switch and archive
+  plans and add, duplicate, move, remove and edit weeks. Recipes: `RecipeEditorScreen` (picked foods or
+  free text, live macros, incomplete list, normal-rules allergen scan), `RecipeImportScreen` (JSON-LD, then
+  microdata, then an optional "Try with AI"; `domain/recipe/`, `data/recipe/`). Ingredient pickers use
+  `FoodRepository.search`. Not built: a per-day meal choice (the model is one main dish per week).
+
 Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/SPEC-v3.md`, `docs/BACKUP.md`,
 `docs/BENCHMARK.md`, `docs/PRIVACY.md`, `server/README.md`.
 
@@ -86,6 +100,12 @@ Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/SPEC-v3.md`, `docs/BACKUP
 - Demo data loader in Settings (`SettingsRepository.demoDataLoaded` exists).
 
 ## NOT verified
+
+- Meal plans and recipes by hand and from a link: the plan manager, week strip, recipe editor and link-import
+  screens have never been seen on a screen (no emulator). The repository code that talks to Room
+  (create, switch, archive, duplicate, move and remove weeks, re-import by name) is not covered by a database
+  test, only its pure parts (schedule, id scoping, migration SQL, parsers) are. The link fetch has not run
+  against a real site.
 
 - No emulator or on-screen visual check of any screen (this includes the script import sheets and the reference screen, and the whole training rework: library, builder, generator wizard and preview, freestyle workout, templates).
 - The watch's feed for a freestyle workout: a freestyle exercise appears on the watch only once a set is logged for it.

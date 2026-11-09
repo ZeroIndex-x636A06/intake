@@ -41,6 +41,8 @@ import com.zeroindex.intake.ui.screens.plan.PlanScreen
 import com.zeroindex.intake.ui.screens.plan.RecipeDetailScreen
 import com.zeroindex.intake.ui.screens.plan.RecipeHunterScreen
 import com.zeroindex.intake.ui.screens.planb.PlanBScreen
+import com.zeroindex.intake.ui.screens.recipe.RecipeEditorScreen
+import com.zeroindex.intake.ui.screens.recipe.RecipeImportScreen
 import com.zeroindex.intake.ui.screens.progress.ProgressScreen
 import com.zeroindex.intake.ui.screens.report.WeeklyReportScreen
 import com.zeroindex.intake.ui.screens.settings.PrivacyScreen
@@ -139,14 +141,40 @@ fun IntakeNavHost(
                     contentPadding = contentPadding,
                     onOpenRecipe = { id -> navController.navigate(Route.RecipeDetail(id)) },
                     onOpenHunter = { navController.navigate(Route.RecipeHunter) },
+                    onOpenImport = { navController.navigate(Route.RecipeImport) },
+                    onOpenNew = { navController.navigate(Route.RecipeEditor()) },
                 )
             }
-            composable<Route.RecipeHunter> { RecipeHunterScreen(contentPadding, onOpenAiSettings = openAiSettings) }
+            composable<Route.RecipeHunter> {
+                RecipeHunterScreen(
+                    contentPadding,
+                    onOpenAiSettings = openAiSettings,
+                    onOpenImport = { navController.navigate(Route.RecipeImport) },
+                )
+            }
+            composable<Route.RecipeImport> {
+                RecipeImportScreen(
+                    contentPadding = contentPadding,
+                    onSaved = { id ->
+                        navController.navigate(Route.RecipeDetail(id)) { popUpTo<Route.RecipeImport> { inclusive = true } }
+                    },
+                )
+            }
+            composable<Route.RecipeEditor> { entry ->
+                RecipeEditorScreen(
+                    recipeId = entry.toRoute<Route.RecipeEditor>().recipeId,
+                    contentPadding = contentPadding,
+                    onDone = { id ->
+                        navController.navigate(Route.RecipeDetail(id)) { popUpTo<Route.RecipeEditor> { inclusive = true } }
+                    },
+                )
+            }
             composable<Route.RecipeDetail> { entry ->
                 RecipeDetailScreen(
                     recipeId = entry.toRoute<Route.RecipeDetail>().recipeId,
                     contentPadding = contentPadding,
                     onDeleted = { navController.popBackStack() },
+                    onEdit = { id -> navController.navigate(Route.RecipeEditor(id)) },
                 )
             }
             composable<Route.CookMode> { entry ->

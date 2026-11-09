@@ -105,7 +105,12 @@ fun PlanScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val week by viewModel.currentWeek.collectAsStateWithLifecycle()
+    val week by viewModel.viewedWeek.collectAsStateWithLifecycle()
+    val current by viewModel.currentWeek.collectAsStateWithLifecycle()
+    val plans by viewModel.plans.collectAsStateWithLifecycle()
+    val activePlan by viewModel.activePlan.collectAsStateWithLifecycle()
+    val position by viewModel.position.collectAsStateWithLifecycle()
+    val length by viewModel.length.collectAsStateWithLifecycle()
     val planned by viewModel.plannedWeeks.collectAsStateWithLifecycle()
     val content by viewModel.content.collectAsStateWithLifecycle()
     val meta by viewModel.meta.collectAsStateWithLifecycle()
@@ -123,6 +128,10 @@ fun PlanScreen(
     var assigning by remember { mutableStateOf(false) }
     var parking by remember { mutableStateOf(false) }
     var editingProtein by remember { mutableStateOf(false) }
+    var showPlans by remember { mutableStateOf(false) }
+    var planForm by remember { mutableStateOf<PlanFormTarget?>(null) }
+    var editingWeek by remember { mutableStateOf(false) }
+    var weekMenu by remember { mutableStateOf(false) }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -160,11 +169,18 @@ fun PlanScreen(
             item(key = "head") {
                 Row(verticalAlignment = Alignment.Bottom) {
                     Column(Modifier.weight(1f)) {
-                        SubHead("Your meal plan", "12 weeks · built around what works for you")
+                        SubHead(
+                            activePlan?.name ?: "Your meal plan",
+                            position?.label() ?: "Make a plan of any length, or import one.",
+                        )
                     }
                     TextButton(onClick = launchImport, modifier = Modifier.heightIn(min = 48.dp)) { Text("Import plan") }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = { showPlans = true }, modifier = Modifier.heightIn(min = 48.dp)) {
+                        Text(if (plans.size > 1) "Plans (${plans.size})" else "Plans")
+                    }
+                    TextButton(onClick = { planForm = PlanFormTarget.New }, modifier = Modifier.heightIn(min = 48.dp)) { Text("New plan") }
                     TextButton(
                         onClick = { onOpenScriptReference("meal-plan", null) },
                         modifier = Modifier.heightIn(min = 48.dp),
@@ -183,12 +199,59 @@ fun PlanScreen(
                     TextButton(onClick = viewModel::clearNotice) { Text("Dismiss") }
                 }
             }
-            item(key = "strip") {
-                WeekStrip(current = week, planned = planned, onSelect = viewModel::selectWeek)
+            if (activePlan != null) {
+                item(key = "strip") {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        WeekStrip(
+                            viewed = week, now = current, length = length, planned = planned,
+                            onSelect = viewModel::selectWeek, onAdd = viewModel::addWeek,
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (week != current) {
+                                TextButton(onClick = viewModel::jumpToViewedWeek, modifier = Modifier.heightIn(min = 48.dp)) {
+                                    Text("Make week $week the current week")
+                                }
+                            }
+                            Spacer(Modifier.weight(1f))
+                            Box {
+                                TextButton(onClick = { weekMenu = true }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Week $week options") }
+                                DropdownMenu(expanded = weekMenu, onDismissRequest = { weekMenu = false }) {
+                                    DropdownMenuItem(text = { Text("Edit this week") }, onClick = { weekMenu = false; editingWeek = true })
+                                    DropdownMenuItem(text = { Text("Duplicate this week") }, onClick = { weekMenu = false; viewModel.duplicateWeek(week) })
+                                    if (week > 1) DropdownMenuItem(text = { Text("Move earlier") }, onClick = { weekMenu = false; viewModel.moveWeek(week, -1) })
+                                    if (week < length) DropdownMenuItem(text = { Text("Move later") }, onClick = { weekMenu = false; viewModel.moveWeek(week, 1) })
+                                    DropdownMenuItem(text = { Text("Remove this week") }, onClick = { weekMenu = false; viewModel.removeWeek(week) })
+                                    DropdownMenuItem(text = { Text("Add a week at the end") }, onClick = { weekMenu = false; viewModel.addWeek() })
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             val c = content
-            if (c == null) {
+            if (activePlan == null) {
+                item(key = "noplan") {
+                    EmptyState(
+                        title = "No meal plan yet",
+                        body = "A plan can be any length, from one week to two years, and can repeat. Make one by hand or import a file.",
+                        action = {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(
+                                    onClick = { planForm = PlanFormTarget.New },
+                                    shape = IntakeShape.Button,
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                                ) { Text("Make a plan") }
+                                OutlinedButton(
+                                    onClick = launchImport,
+                                    shape = IntakeShape.Button,
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                                ) { Text("Import a plan file") }
+                            }
+                        },
+                    )
+                }
+            } else if (c == null || (c.week.mainDishName.isBlank() && c.main == null)) {
                 item(key = "empty") {
                     EmptyState(
                         title = "Week $week isn't planned yet",
@@ -201,6 +264,11 @@ fun PlanScreen(
                                     modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                                 ) { Text("Choose a recipe for week $week") }
                                 OutlinedButton(
+                                    onClick = { editingWeek = true },
+                                    shape = IntakeShape.Button,
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                                ) { Text("Write it yourself") }
+                                OutlinedButton(
                                     onClick = launchImport,
                                     shape = IntakeShape.Button,
                                     modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
@@ -209,7 +277,7 @@ fun PlanScreen(
                         },
                     )
                 }
-            } else {
+            } else if (c != null) {
                 item(key = "dish") {
                     DishCard(
                         content = c,
@@ -283,6 +351,52 @@ fun PlanScreen(
             onDismiss = { assigning = false },
             onPick = { recipe, protein -> viewModel.assign(week, recipe, protein); assigning = false },
         )
+    }
+    if (showPlans) {
+        PlansSheet(
+            plans = plans,
+            onSwitch = { viewModel.switchPlan(it) },
+            onNew = { showPlans = false; planForm = PlanFormTarget.New },
+            onEdit = { showPlans = false; planForm = PlanFormTarget.Edit(it) },
+            onArchive = { viewModel.archivePlan(it) },
+            onDismiss = { showPlans = false },
+        )
+    }
+    planForm?.let { target ->
+        PlanFormDialog(
+            initial = (target as? PlanFormTarget.Edit)?.plan,
+            today = viewModel.today(),
+            onSave = { name, weeks, mode, count, startDay ->
+                when (target) {
+                    PlanFormTarget.New -> viewModel.createPlan(name, weeks, mode, count, startDay)
+                    is PlanFormTarget.Edit -> viewModel.updatePlan(target.plan, name, mode, count, startDay)
+                }
+                planForm = null
+            },
+            onDismiss = { planForm = null },
+        )
+    }
+    if (editingWeek) {
+        content?.week?.let { w ->
+            WeekEditSheet(
+                week = w,
+                hasRecipe = content?.main != null,
+                onSave = { dish, protein, note, vars -> viewModel.saveWeek(w.weekNumber, dish, protein, note, vars); editingWeek = false },
+                onChooseRecipe = { editingWeek = false; assigning = true },
+                onDismiss = { editingWeek = false },
+            )
+        } ?: run {
+            // The week has no row yet: saving creates it.
+            val blank = remember(week) {
+                com.zeroindex.intake.data.db.entity.PlanWeekEntity(weekNumber = week, mainDishName = "", proteinType = "", createdAt = 0, updatedAt = 0)
+            }
+            WeekEditSheet(
+                week = blank, hasRecipe = false,
+                onSave = { dish, protein, note, vars -> viewModel.saveWeek(week, dish, protein, note, vars); editingWeek = false },
+                onChooseRecipe = { editingWeek = false; assigning = true },
+                onDismiss = { editingWeek = false },
+            )
+        }
     }
     if (editingProtein) {
         var text by remember { mutableStateOf(content?.week?.proteinType.orEmpty()) }
@@ -375,11 +489,22 @@ private fun shareText(context: Context, text: String) {
     context.startActivity(Intent.createChooser(send, "Share shopping list"))
 }
 
+/** What the plan form is doing: making a new plan, or editing one. */
+internal sealed interface PlanFormTarget {
+    data object New : PlanFormTarget
+    data class Edit(val plan: com.zeroindex.intake.data.db.entity.MealPlanEntity) : PlanFormTarget
+}
+
+/** One chip per week, any number of them, scrolling sideways. [now] is the calendar's week; [viewed] is the one on screen. */
 @Composable
-private fun WeekStrip(current: Int, planned: Set<Int>, onSelect: (Int) -> Unit) {
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        items((1..12).toList()) { n ->
-            val selected = n == current
+private fun WeekStrip(viewed: Int, now: Int, length: Int, planned: Set<Int>, onSelect: (Int) -> Unit, onAdd: () -> Unit) {
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    androidx.compose.runtime.LaunchedEffect(viewed, length) {
+        if (viewed in 1..length) listState.animateScrollToItem((viewed - 2).coerceAtLeast(0))
+    }
+    LazyRow(state = listState, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        items((1..length.coerceAtLeast(1)).toList(), key = { it }) { n ->
+            val selected = n == viewed
             val has = n in planned
             Surface(
                 color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
@@ -390,15 +515,31 @@ private fun WeekStrip(current: Int, planned: Set<Int>, onSelect: (Int) -> Unit) 
                     .heightIn(min = 48.dp)
                     .widthIn(min = 52.dp)
                     .semantics {
-                        contentDescription = "Week $n, ${if (has) "planned" else "not planned"}${if (selected) ", current" else ""}"
+                        contentDescription = "Week $n, ${if (has) "planned" else "not planned"}${if (n == now) ", this week" else ""}${if (selected) ", selected" else ""}"
                     }
                     .clickable(role = Role.Tab) { onSelect(n) },
             ) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 12.dp)) {
                     Text(
-                        "W$n" + if (has) "" else " ·",
+                        "W$n" + (if (n == now) " ●" else "") + (if (has) "" else " ·"),
                         style = MaterialTheme.typography.labelLarge,
                     )
+                }
+            }
+        }
+        item(key = "add") {
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                shape = IntakeShape.Chip,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .widthIn(min = 52.dp)
+                    .semantics { contentDescription = "Add a week" }
+                    .clickable(role = Role.Button, onClick = onAdd),
+            ) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 12.dp)) {
+                    Text("+", style = MaterialTheme.typography.labelLarge)
                 }
             }
         }
@@ -675,7 +816,7 @@ internal fun RecipeRow(recipe: RecipeEntity, onClick: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            if (recipe.origin == RecipeOrigin.HUNTER) Tag("From the web")
+            if (recipe.origin == RecipeOrigin.HUNTER) Tag("From the web") else if (recipe.origin == RecipeOrigin.LINK) Tag("From a link")
         }
         if (recipe.allergenStatus == AllergenStatus.MAY_CONTAIN) {
             Spacer(Modifier.height(6.dp))

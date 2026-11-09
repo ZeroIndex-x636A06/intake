@@ -8,6 +8,7 @@ import com.zeroindex.intake.domain.plan.PlanFileParser
 import com.zeroindex.intake.domain.plan.PlanFileRecipe
 import com.zeroindex.intake.domain.plan.PlanFileShoppingItem
 import com.zeroindex.intake.domain.plan.PlanFileWeek
+import com.zeroindex.intake.domain.plan.PlanSchedule
 
 /**
  * A parsed meal plan script. The content is the importer's own [PlanFile]
@@ -43,7 +44,10 @@ object MealPlanScript {
     private val CONTINUABLE = setOf(Sec.STEPS, Sec.VARIATIONS, Sec.BREAKFASTS, Sec.SNACKS, Sec.WATCH)
 
     // normalised key -> canonical key
-    private val HEADER_LABELS = mapOf("avoid" to "avoid", "about" to "about")
+    private val HEADER_LABELS = mapOf(
+        "avoid" to "avoid", "about" to "about", "starts" to "starts", "start" to "starts",
+        "startson" to "starts", "repeat" to "repeat", "repeats" to "repeat", "loop" to "repeat",
+    )
     private val EVERY_LABELS = mapOf(
         "breakfasts" to "breakfasts", "standingbreakfasts" to "breakfasts", "breakfast" to "breakfasts",
         "snacks" to "snacks", "standingsnacks" to "snacks", "snack" to "snacks",
@@ -68,7 +72,7 @@ object MealPlanScript {
     private val ORDER_SUBKEYS = mapOf("caution" to "caution", "estimate" to "estimate", "weeks" to "weeks", "week" to "weeks")
 
     private val NAMES = mapOf(
-        "avoid" to "avoid", "about" to "About", "breakfasts" to "Breakfasts", "snacks" to "Snacks",
+        "avoid" to "avoid", "starts" to "starts", "repeat" to "repeat", "about" to "About", "breakfasts" to "Breakfasts", "snacks" to "Snacks",
         "pantry" to "Pantry", "watch" to "Watch for", "shopping" to "Shopping", "protein" to "Protein",
         "servings" to "Servings", "time" to "Time", "serve" to "Serve", "servetitle" to "Serve title",
         "ingredients" to "Ingredients", "steps" to "Steps", "variations" to "Variations", "notes" to "Notes",
@@ -149,6 +153,8 @@ object MealPlanScript {
 
     private class Parser(val lines: List<SrcLine>, val sink: DiagnosticSink) {
         var name = ""
+        var startsOn = ""
+        var repeat = ""
         val avoid = ArrayList<String>()
         val about = ArrayList<String>()
         val breakfasts = ArrayList<String>()
@@ -203,6 +209,9 @@ object MealPlanScript {
             val file = PlanFile(
                 format = PlanFileParser.FORMAT,
                 version = PlanFileParser.SUPPORTED_VERSION,
+                name = name,
+                startsOn = startsOn,
+                repeat = repeat,
                 intro = intro,
                 standingBreakfasts = breakfasts.toList(),
                 standingSnacks = snacks.toList(),
@@ -228,7 +237,7 @@ object MealPlanScript {
             }
             name = m.groupValues[1].trim()
             if (name.isEmpty()) {
-                sink.report(DiagnosticCode.MISSING_PLAN_NAME, line.no, line.text.length + 1, "The plan needs a name: \"# Meal plan: 12-Week Plan\".")
+                sink.report(DiagnosticCode.MISSING_PLAN_NAME, line.no, line.text.length + 1, "The plan needs a name: \"# Meal plan: Winter plan\".")
             }
             return true
         }
@@ -282,8 +291,8 @@ object MealPlanScript {
             val n = m.groupValues[1].toIntOrNull() ?: -1
             val dish = m.groupValues[2].trim()
             var ok = true
-            if (n !in 1..12) {
-                sink.report(DiagnosticCode.BAD_WEEK_NUMBER, line.no, h.textCol, "Week numbers run from 1 to 12, found ${m.groupValues[1]}.")
+            if (n !in 1..PlanFileParser.MAX_WEEKS) {
+                sink.report(DiagnosticCode.BAD_WEEK_NUMBER, line.no, h.textCol, "Week numbers run from 1 to ${PlanFileParser.MAX_WEEKS}, found ${m.groupValues[1]}.")
                 ok = false
             } else if (!weekNumbers.add(n)) {
                 sink.report(DiagnosticCode.DUPLICATE_WEEK, line.no, h.textCol, "Week $n appears more than once.")
@@ -412,7 +421,7 @@ object MealPlanScript {
             flushItems()
             val v = lab.value
             when (canon) {
-                "avoid", "protein", "servings", "time", "servetitle" -> {
+                "avoid", "starts", "repeat", "protein", "servings", "time", "servetitle" -> {
                     sec = null
                     if (v.isEmpty()) {
                         sink.report(DiagnosticCode.EMPTY_VALUE, line.no, lab.valueCol, "\"${lab.raw}:\" needs a value after the colon.")
@@ -426,6 +435,27 @@ object MealPlanScript {
                     }
                     when (canon) {
                         "avoid" -> v.split(',').map { it.trim() }.filter { it.isNotEmpty() }.forEach { avoid += it }
+                        "starts" -> {
+                            val d = runCatching { java.time.LocalDate.parse(v.trim()) }.getOrNull()
+                            if (d == null) {
+                                sink.report(
+                                    DiagnosticCode.BAD_START_DATE, line.no, lab.valueCol,
+                                    "Expected a date like \"2026-11-09\" (year-month-day), found \"$v\".",
+                                )
+                            } else {
+                                startsOn = d.toString()
+                            }
+                        }
+                        "repeat" -> {
+                            if (PlanSchedule.parseRepeat(v) == null) {
+                                sink.report(
+                                    DiagnosticCode.BAD_REPEAT, line.no, lab.valueCol,
+                                    "Expected \"no\", \"yes\" or a count like \"3 times\", found \"$v\".",
+                                )
+                            } else {
+                                repeat = v.trim()
+                            }
+                        }
                         "protein" -> week?.protein = v
                         "servetitle" -> week?.serveTitle = v
                         "servings" -> servings(v, line, lab)
@@ -694,11 +724,11 @@ object MealPlanScript {
             val out = LinkedHashSet<Int>()
             for (part in v.split(',', ';')) {
                 val p = part.trim()
-                val m = Regex("""(?i)^(?:week\s*)?(\d{1,2})(?:\s*(?:-|–|—|to)\s*(\d{1,2}))?$""").matchEntire(p)
+                val m = Regex("""(?i)^(?:week\s*)?(\d{1,3})(?:\s*(?:-|–|—|to)\s*(\d{1,3}))?$""").matchEntire(p)
                 val a = m?.groupValues?.get(1)?.toInt()
                 val b = m?.groupValues?.get(2)?.takeIf { it.isNotEmpty() }?.toInt() ?: a
-                if (m == null || a == null || b == null || a !in 1..12 || b !in 1..12 || a > b) {
-                    sink.report(DiagnosticCode.BAD_WEEKS_LIST, line, col, "Expected weeks like \"1, 3-5\" (each from 1 to 12), found \"$p\".")
+                if (m == null || a == null || b == null || a !in 1..PlanFileParser.MAX_WEEKS || b !in 1..PlanFileParser.MAX_WEEKS || a > b) {
+                    sink.report(DiagnosticCode.BAD_WEEKS_LIST, line, col, "Expected weeks like \"1, 3-5\" (each from 1 to ${PlanFileParser.MAX_WEEKS}), found \"$p\".")
                     return null
                 }
                 for (w in a..b) out += w
@@ -857,9 +887,11 @@ object MealPlanScript {
     fun print(doc: MealPlanDoc): String = printFile(doc.file, doc.name, doc.avoid)
 
     /** Canonical script text for [file]. `parse(print(doc))` yields an equal document. */
-    fun printFile(file: PlanFile, name: String = "Meal plan", avoid: List<String> = emptyList()): String = buildString {
+    fun printFile(file: PlanFile, name: String = file.name.ifBlank { "Meal plan" }, avoid: List<String> = emptyList()): String = buildString {
         append("# Meal plan: $name\n")
         if (avoid.isNotEmpty()) append("avoid: ${avoid.joinToString(", ")}\n")
+        if (file.startsOn.isNotBlank()) append("starts: ${file.startsOn.trim()}\n")
+        if (file.repeat.isNotBlank()) append("repeat: ${file.repeat.trim()}\n")
         if (file.intro.isNotBlank()) append("About:\n${file.intro.trim()}\n")
 
         val everyShopping = file.shoppingItems.filter { it.weekNumber == null }

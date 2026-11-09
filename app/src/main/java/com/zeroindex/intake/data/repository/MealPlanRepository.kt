@@ -9,6 +9,7 @@ import com.zeroindex.intake.data.db.dao.ShoppingListDao
 import com.zeroindex.intake.data.db.entity.AllergenStatus
 import com.zeroindex.intake.data.db.entity.EatOutOptionEntity
 import com.zeroindex.intake.data.db.entity.FoodLogEntity
+import com.zeroindex.intake.data.db.entity.MealPlanEntity
 import com.zeroindex.intake.data.db.entity.PlanWeekEntity
 import com.zeroindex.intake.data.db.entity.PlanWeekRecipeEntity
 import com.zeroindex.intake.data.db.entity.RecipeEntity
@@ -34,7 +35,12 @@ import com.zeroindex.intake.domain.allergen.AllergenMatcher
 import com.zeroindex.intake.domain.allergen.HiddenCarriers
 import com.zeroindex.intake.domain.plan.PlanWatchTerms
 import com.zeroindex.intake.domain.model.MealSlot
+import com.zeroindex.intake.domain.model.PlanLoopMode
 import com.zeroindex.intake.domain.model.PlanRecipeRole
+import com.zeroindex.intake.domain.plan.PlanPosition
+import com.zeroindex.intake.domain.recipe.IngredientLineParser
+import com.zeroindex.intake.domain.plan.PlanSchedule
+import java.time.LocalDate
 import com.zeroindex.intake.domain.model.StoreCategory
 import com.zeroindex.intake.domain.nutrition.Macros
 import com.zeroindex.intake.domain.plan.CookSteps
@@ -97,7 +103,7 @@ sealed interface MealLogResult {
     data class Blocked(val terms: List<String>) : MealLogResult
 }
 
-/** SPEC §9: the 12-week plan, its shopping list, import, and logging from it. */
+/** SPEC §9: meal plans of any length, their shopping lists, import, and logging from them. */
 @Singleton
 class MealPlanRepository @Inject constructor(
     private val db: IntakeDatabase,
@@ -111,35 +117,259 @@ class MealPlanRepository @Inject constructor(
     private val settings: SettingsRepository,
     private val clock: Clock,
 ) {
-    fun observeCurrentWeekNumber(): Flow<Int> = settings.settings.map { it.currentPlanWeek.coerceIn(1, 12) }
+    // ---- plans and the schedule ---------------------------------------------------------------
 
-    /** Weeks 1-12 that have a plan; the plan-wide row (week 0) is not one of them. */
+    private fun today(): Long = clock.today().toEpochDay()
+
+    fun observePlans(): Flow<List<MealPlanEntity>> = planDao.observePlans()
+
+    fun observeActivePlan(): Flow<MealPlanEntity?> = planDao.observeActivePlan()
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun <T> withActivePlan(block: (MealPlanEntity) -> Flow<T>, none: T): Flow<T> =
+        planDao.observeActivePlan().flatMapLatest { plan -> if (plan == null) flowOf(none) else block(plan) }
+
+    /** The live weeks of the active plan, in order. */
+    fun observeWeeks(): Flow<List<PlanWeekEntity>> = withActivePlan({ planDao.observeWeeks(it.id) }, emptyList())
+
+    /** How many weeks the active plan has (the highest week number); 0 with no plan. */
+    fun observePlanLength(): Flow<Int> = observeWeeks().map { rows -> rows.maxOfOrNull { it.weekNumber } ?: 0 }
+
+    /** Where today falls in the active plan, or null with no plan. Re-read when the plan changes. */
+    fun observePosition(): Flow<PlanPosition?> =
+        combine(planDao.observeActivePlan(), observeWeeks()) { plan, weeks ->
+            plan?.let { positionOf(it, weeks.maxOfOrNull { w -> w.weekNumber } ?: 1) }
+        }
+
+    private fun positionOf(plan: MealPlanEntity, length: Int): PlanPosition =
+        PlanSchedule.position(plan.startDate, today(), length, plan.loopMode, plan.loopCount)
+
+    fun observeCurrentWeekNumber(): Flow<Int> = observePosition().map { it?.week ?: 1 }
+
+    /** Weeks that have a main dish. */
     fun observePlannedWeekNumbers(): Flow<Set<Int>> =
-        planDao.observeWeeks().map { rows -> rows.map { it.weekNumber }.filter { it in 1..12 }.toSet() }
+        observeWeeks().map { rows -> rows.filter { it.mainDishName.isNotBlank() }.map { it.weekNumber }.toSet() }
 
-    fun observeMeta(): Flow<PlanMeta> =
-        planDao.observeWeek(PlanMeta.WEEK_NUMBER).map { PlanMeta.decode(it?.notes) }
+    fun observeMeta(): Flow<PlanMeta> = planDao.observeActivePlan().map { PlanMeta.decode(it?.metaJson) }
 
     /**
-     * Switches the current week. SPEC §9: check state resets when the week
-     * changes, so both the week being left and the one being entered start clean.
+     * Jumps to [weekNumber] by moving the plan's start date so that today is the first day of
+     * that week (no override is stored, so the schedule stays the single source of truth).
+     * SPEC §9: check state resets when the week changes, so both the week being left and the
+     * one being entered start clean.
      */
     suspend fun setCurrentWeek(weekNumber: Int) {
-        val target = weekNumber.coerceIn(1, 12)
-        val previous = settings.settings.first().currentPlanWeek
-        if (previous == target) return
+        val active = planDao.activePlan() ?: return
+        val weeks = planDao.weeksOf(active.id)
+        val length = weeks.maxOfOrNull { it.weekNumber } ?: return
+        val target = weekNumber.coerceIn(1, length)
+        val previous = positionOf(active, length).week
+        planDao.upsertPlan(active.copy(startDate = PlanSchedule.startForWeek(today(), target), updatedAt = clock.nowMillis()))
         settings.setCurrentPlanWeek(target)
-        listOf(previous, target).forEach { n -> planDao.week(n)?.let { plan.resetChecks(it.id) } }
+        if (previous != target) {
+            listOf(previous, target).forEach { n -> weeks.firstOrNull { it.weekNumber == n }?.let { plan.resetChecks(it.id) } }
+        }
+    }
+
+    /**
+     * The week can also change by itself as the calendar moves. This keeps the "last seen week"
+     * marker in step and, when it differs, resets the shopping checks of both weeks (SPEC §9).
+     */
+    suspend fun syncWeekMarker(position: PlanPosition?) {
+        if (position == null) return
+        val seen = settings.settings.first().currentPlanWeek
+        if (seen == position.week) return
+        settings.setCurrentPlanWeek(position.week)
+        val active = planDao.activePlan() ?: return
+        val weeks = planDao.weeksOf(active.id)
+        listOf(seen, position.week).forEach { n -> weeks.firstOrNull { it.weekNumber == n }?.let { plan.resetChecks(it.id) } }
+    }
+
+    /** A name no live plan uses yet: "Cut", then "Cut 2", "Cut 3". */
+    private suspend fun uniqueName(wanted: String, exceptId: String? = null): String {
+        val base = wanted.trim().ifBlank { "My plan" }
+        val taken = planDao.plans().filter { it.id != exceptId }.map { it.name.lowercase() }.toSet()
+        if (base.lowercase() !in taken) return base
+        var n = 2
+        while ("$base $n".lowercase() in taken) n++
+        return "$base $n"
+    }
+
+    /**
+     * Creates a plan with [weeks] empty weeks (1..104) and makes it the active one. [startDay] is an
+     * epoch day; null means today.
+     */
+    suspend fun createPlan(
+        name: String,
+        weeks: Int,
+        loopMode: PlanLoopMode = PlanLoopMode.NONE,
+        loopCount: Int = 0,
+        startDay: Long? = null,
+    ): MealPlanEntity {
+        val now = clock.nowMillis()
+        val count = weeks.coerceIn(1, PlanSchedule.MAX_WEEKS)
+        val created = MealPlanEntity(
+            name = uniqueName(name),
+            startDate = startDay ?: today(),
+            loopMode = loopMode,
+            loopCount = if (loopMode == PlanLoopMode.REPEAT_N) loopCount.coerceAtLeast(2) else 0,
+            isActive = true,
+            createdAt = now,
+            updatedAt = now,
+        )
+        db.withTransaction {
+            planDao.deactivateOthers(created.id, now)
+            planDao.upsertPlan(created)
+            planDao.upsertWeeks((1..count).map { n -> emptyWeek(created.id, n, now) })
+        }
+        return created
+    }
+
+    private fun emptyWeek(planId: String, n: Int, now: Long) = PlanWeekEntity(
+        planId = planId, weekNumber = n, mainDishName = "", proteinType = "", createdAt = now, updatedAt = now,
+    )
+
+    suspend fun updatePlan(
+        planId: String,
+        name: String,
+        notes: String,
+        startDay: Long,
+        loopMode: PlanLoopMode,
+        loopCount: Int,
+    ) {
+        val existing = planDao.plan(planId) ?: return
+        planDao.upsertPlan(
+            existing.copy(
+                name = uniqueName(name, exceptId = planId),
+                notes = notes.trim(),
+                startDate = startDay,
+                loopMode = loopMode,
+                loopCount = if (loopMode == PlanLoopMode.REPEAT_N) loopCount.coerceAtLeast(2) else 0,
+                updatedAt = clock.nowMillis(),
+            ),
+        )
+    }
+
+    /** Exactly one plan is active: this one. */
+    suspend fun setActive(planId: String) {
+        val target = planDao.plan(planId) ?: return
+        val now = clock.nowMillis()
+        db.withTransaction {
+            planDao.deactivateOthers(planId, now)
+            planDao.upsertPlan(target.copy(isActive = true, updatedAt = now))
+        }
+    }
+
+    /** Archives a plan (soft delete). If it was the active one, the next plan takes over. */
+    suspend fun archivePlan(planId: String) {
+        val target = planDao.plan(planId) ?: return
+        val now = clock.nowMillis()
+        db.withTransaction {
+            planDao.softDeletePlan(planId, now)
+            if (target.isActive) {
+                planDao.plans().firstOrNull { it.id != planId }
+                    ?.let { planDao.upsertPlan(it.copy(isActive = true, updatedAt = now)) }
+            }
+        }
+    }
+
+    /** Appends an empty week; returns its number, or null at the 104-week limit or with no active plan. */
+    suspend fun addWeek(): Int? {
+        val active = planDao.activePlan() ?: return null
+        val rows = planDao.weeksOf(active.id)
+        val next = (rows.maxOfOrNull { it.weekNumber } ?: 0) + 1
+        if (next > PlanSchedule.MAX_WEEKS) return null
+        val now = clock.nowMillis()
+        planDao.upsertWeek(emptyWeek(active.id, next, now))
+        return next
+    }
+
+    /** Inserts a copy of [weekNumber] right after it; later weeks move down one. Returns the new week's number. */
+    suspend fun duplicateWeek(weekNumber: Int): Int? {
+        val active = planDao.activePlan() ?: return null
+        val rows = planDao.weeksOf(active.id)
+        val source = rows.firstOrNull { it.weekNumber == weekNumber } ?: return null
+        if ((rows.maxOfOrNull { it.weekNumber } ?: 0) >= PlanSchedule.MAX_WEEKS) return null
+        val now = clock.nowMillis()
+        val copy = source.copy(id = newId(), weekNumber = weekNumber + 1, createdAt = now, updatedAt = now)
+        db.withTransaction {
+            planDao.upsertWeeks(rows.filter { it.weekNumber > weekNumber }.map { it.copy(weekNumber = it.weekNumber + 1, updatedAt = now) })
+            planDao.upsertWeek(copy)
+            // The copy uses the same recipes (editing a recipe changes both weeks) and its own, unchecked list.
+            planDao.weekRecipes(source.id).forEach {
+                planDao.upsertWeekRecipe(it.copy(id = newId(), planWeekId = copy.id, createdAt = now, updatedAt = now))
+            }
+            shoppingDao.forWeek(source.id).forEach {
+                shoppingDao.upsert(it.copy(id = newId(), planWeekId = copy.id, isChecked = false, createdAt = now, updatedAt = now))
+            }
+        }
+        return copy.weekNumber
+    }
+
+    /** Removes a week (soft) and closes the gap. The last remaining week cannot be removed. */
+    suspend fun removeWeek(weekNumber: Int): Boolean {
+        val active = planDao.activePlan() ?: return false
+        val rows = planDao.weeksOf(active.id)
+        val target = rows.firstOrNull { it.weekNumber == weekNumber } ?: return false
+        if (rows.size <= 1) return false
+        val now = clock.nowMillis()
+        db.withTransaction {
+            planDao.weekRecipes(target.id).forEach { planDao.upsertWeekRecipe(it.copy(deletedAt = now, updatedAt = now)) }
+            softDeleteShopping(target.id, now)
+            planDao.softDeleteWeek(target.id, now)
+            planDao.upsertWeeks(rows.filter { it.weekNumber > weekNumber }.map { it.copy(weekNumber = it.weekNumber - 1, updatedAt = now) })
+        }
+        return true
+    }
+
+    /** Swaps a week with its neighbour: [delta] is -1 (earlier) or +1 (later). */
+    suspend fun moveWeek(weekNumber: Int, delta: Int): Boolean {
+        val active = planDao.activePlan() ?: return false
+        val rows = planDao.weeksOf(active.id)
+        val a = rows.firstOrNull { it.weekNumber == weekNumber } ?: return false
+        val b = rows.firstOrNull { it.weekNumber == weekNumber + delta } ?: return false
+        val now = clock.nowMillis()
+        db.withTransaction {
+            planDao.upsertWeeks(listOf(a.copy(weekNumber = b.weekNumber, updatedAt = now), b.copy(weekNumber = a.weekNumber, updatedAt = now)))
+        }
+        return true
+    }
+
+    /** Saves what the user typed for a week: dish name, protein, a note and one-line variation ideas. */
+    suspend fun saveWeekDetails(weekNumber: Int, dish: String, protein: String, note: String, variations: List<String>) {
+        val week = ensureWeek(weekNumber) ?: return
+        val extras = PlanWeekExtras.decode(week.notes).copy(
+            note = note.trim(),
+            variations = variations.map { it.trim() }.filter { it.isNotEmpty() },
+        )
+        planDao.upsertWeek(
+            week.copy(
+                mainDishName = dish.trim(), proteinType = protein.trim(), notes = extras.encode(),
+                updatedAt = clock.nowMillis(), deletedAt = null,
+            ),
+        )
+    }
+
+    /** The active plan's row for [weekNumber], created empty if the plan has none yet. */
+    private suspend fun ensureWeek(weekNumber: Int): PlanWeekEntity? {
+        val active = planDao.activePlan() ?: return null
+        planDao.week(active.id, weekNumber)?.let { return it }
+        if (weekNumber !in 1..PlanSchedule.MAX_WEEKS) return null
+        val created = emptyWeek(active.id, weekNumber, clock.nowMillis())
+        planDao.upsertWeek(created)
+        return created
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     fun observeWeekContent(weekNumber: Int): Flow<WeekContent?> =
-        planDao.observeWeek(weekNumber).flatMapLatest { week ->
-            if (week == null) {
-                flowOf(null)
-            } else {
-                combine(planDao.observeWeekRecipes(week.id), recipeDao.observeAll()) { links, recipes -> links to recipes }
-                    .map { (links, recipes) -> buildContent(week, links, recipes) }
+        planDao.observeActivePlan().flatMapLatest { active ->
+            if (active == null) flowOf(null) else planDao.observeWeek(active.id, weekNumber).flatMapLatest { week ->
+                if (week == null) {
+                    flowOf(null)
+                } else {
+                    combine(planDao.observeWeekRecipes(week.id), recipeDao.observeAll()) { links, recipes -> links to recipes }
+                        .map { (links, recipes) -> buildContent(week, links, recipes) }
+                }
             }
         }
 
@@ -200,7 +430,7 @@ class MealPlanRepository @Inject constructor(
         val avoided = allergens.avoidedAllergens()
         val aliases = allergens.aliases().map { AllergenAlias(it.allergen, it.aliasTerm, it.level) }
         val soft = HiddenCarriers.forAllergens(avoided) + PlanWatchTerms.extract(
-            planChecklist ?: PlanMeta.decode(planDao.week(PlanMeta.WEEK_NUMBER)?.notes).hiddenDairyChecklist,
+            planChecklist ?: PlanMeta.decode(planDao.activePlan()?.metaJson).hiddenDairyChecklist,
         )
         return object : AllergenCheck {
             // Plan text is written by a person with no label to read, so it gets the soft scan and may
@@ -220,22 +450,24 @@ class MealPlanRepository @Inject constructor(
 
     fun observeRecipes(): Flow<List<RecipeEntity>> = recipeDao.observeAll()
 
-    /** Creates or updates the week to use [recipe] as its MAIN dish. Replaces any previous MAIN link (soft). */
-    suspend fun assignRecipe(weekNumber: Int, recipe: RecipeEntity, proteinType: String) {
+    /**
+     * Makes [recipe] the MAIN dish of [weekNumber] in the active plan, creating the week if needed.
+     * Replaces any previous MAIN link (soft). Returns false when there is no active plan.
+     */
+    suspend fun assignRecipe(weekNumber: Int, recipe: RecipeEntity, proteinType: String): Boolean {
         val now = clock.nowMillis()
-        val existing = planDao.week(weekNumber)
-        val wid = existing?.id ?: PlanImportBuilder.weekId(weekNumber)
+        val week = ensureWeek(weekNumber) ?: return false
+        val wid = week.id
         db.withTransaction {
             planDao.upsertWeek(
-                (existing ?: PlanWeekEntity(id = wid, weekNumber = weekNumber, mainDishName = "", proteinType = "", createdAt = now, updatedAt = now))
-                    .copy(mainDishName = recipe.name, proteinType = proteinType.trim(), updatedAt = now, deletedAt = null),
+                week.copy(mainDishName = recipe.name, proteinType = proteinType.trim().ifBlank { week.proteinType }, updatedAt = now, deletedAt = null),
             )
             planDao.weekRecipes(wid).filter { it.role == PlanRecipeRole.MAIN && it.recipeId != recipe.id }.forEach {
                 planDao.upsertWeekRecipe(it.copy(deletedAt = now, updatedAt = now))
             }
             planDao.upsertWeekRecipe(
                 PlanWeekRecipeEntity(
-                    id = seedId("plan-link", "$weekNumber|${recipe.id}|MAIN"),
+                    id = seedId("plan-link", "$wid|${recipe.id}|MAIN"),
                     planWeekId = wid, recipeId = recipe.id, role = PlanRecipeRole.MAIN,
                     createdAt = now, updatedAt = now,
                 ),
@@ -244,21 +476,39 @@ class MealPlanRepository @Inject constructor(
             softDeleteShopping(wid, now)
             generateShopping(wid, listOf(recipe), force = true)
         }
+        return true
+    }
+
+    /**
+     * "Add to this week" from a recipe: puts it in the current week of the active plan, making a
+     * small plan first when there is none. Returns "Week N of Plan", or null if it could not.
+     */
+    suspend fun addToCurrentWeek(recipe: RecipeEntity): String? {
+        var active = planDao.activePlan()
+        if (active == null) active = createPlan("My plan", weeks = 4)
+        val length = planDao.weeksOf(active.id).maxOfOrNull { it.weekNumber } ?: 1
+        val week = positionOf(active, length).week
+        if (!assignRecipe(week, recipe, "")) return null
+        return "Week $week of ${active.name}"
     }
 
     suspend fun updateProtein(weekNumber: Int, proteinType: String) {
-        val week = planDao.week(weekNumber) ?: return
+        val week = ensureWeek(weekNumber) ?: return
         planDao.upsertWeek(week.copy(proteinType = proteinType.trim(), updatedAt = clock.nowMillis()))
     }
 
-    /** Removes the week's plan. Soft delete only: the week, its links and its shopping rows keep their data. */
+    /**
+     * Empties the week's dish: the slot stays (a plan keeps its length), but its recipe links and
+     * shopping rows are removed (soft) and the dish, protein and notes are cleared.
+     */
     suspend fun clearWeek(weekNumber: Int) {
-        val week = planDao.week(weekNumber) ?: return
+        val active = planDao.activePlan() ?: return
+        val week = planDao.week(active.id, weekNumber) ?: return
         val now = clock.nowMillis()
         db.withTransaction {
             planDao.weekRecipes(week.id).forEach { planDao.upsertWeekRecipe(it.copy(deletedAt = now, updatedAt = now)) }
             softDeleteShopping(week.id, now)
-            planDao.softDeleteWeek(week.id, now)
+            planDao.upsertWeek(week.copy(mainDishName = "", proteinType = "", notes = "", updatedAt = now))
         }
     }
 
@@ -289,8 +539,11 @@ class MealPlanRepository @Inject constructor(
             }
             val lines = r.ingredientsText.lines().map { it.trim() }.filter { it.isNotEmpty() }.map { line ->
                 // Plan-imported text lines carry a "250 g " prefix the import did not use in the item's name.
-                val name = if (r.origin == RecipeOrigin.PLAN) line.replace(Regex("^\\d+(\\.\\d+)? g "), "") else line
-                ShoppingIngredient(name, null)
+                when (r.origin) {
+                    RecipeOrigin.PLAN -> ShoppingIngredient(line.replace(Regex("^\\d+(\\.\\d+)? g "), ""), null)
+                    // Typed or imported lines are "1 1/2 cups milk": shop for the item, with grams when the unit is a weight.
+                    else -> IngredientLineParser.parse(line).let { ShoppingIngredient(it.name, it.grams) }
+                }
             }
             rows + lines
         }
@@ -333,7 +586,7 @@ class MealPlanRepository @Inject constructor(
         return when (val doc = result.document) {
             is ScriptDocument.MealPlan -> {
                 val file = doc.doc.file
-                val batch = PlanImportBuilder.build(file, clock.nowMillis(), scanner(file.hiddenDairyChecklist))
+                val batch = buildBatch(file)
                 PlanImportPreview.Ready(batch, file.weeks.size, batch.recipes.size, batch.eatOutOptions.size, result.warnings)
             }
             is ScriptDocument.Program ->
@@ -342,29 +595,71 @@ class MealPlanRepository @Inject constructor(
         }
     }
 
-    /** The current plan as a PlanFile, ready for [com.zeroindex.intake.domain.script.MealPlanScript.printFile]. */
-    suspend fun exportPlanFile(): PlanFile {
-        val weeks = planDao.allWeeks()
-        val recipes = recipeDao.all()
+    /**
+     * Rows for [file]: a new plan, or, when a live plan has the same name, that plan updated in
+     * place (its week rows are reused, weeks missing from the file are removed softly). The file's
+     * `starts:` and `repeat:` are used when present; otherwise a new plan starts today and does not
+     * repeat, and an existing plan keeps its schedule.
+     */
+    private suspend fun buildBatch(file: PlanFile): PlanImportBatch {
+        val now = clock.nowMillis()
+        val name = file.name.trim().ifBlank { "Imported plan" }
+        val existing = planDao.planByName(name)
+        val planId = existing?.id ?: newId()
+        val oldWeeks = existing?.let { planDao.weeksIncludingRemoved(it.id) }.orEmpty()
+        val built = PlanImportBuilder.build(
+            file, now, scanner(file.hiddenDairyChecklist), planId,
+            existingWeekIds = oldWeeks.associate { it.weekNumber to it.id },
+        )
+        val repeat = PlanSchedule.parseRepeat(file.repeat)
+        val start = file.startsOn.takeIf { it.isNotBlank() }?.let { runCatching { LocalDate.parse(it.trim()).toEpochDay() }.getOrNull() }
+        val meta = PlanMeta.of(file)
+        val plan = (existing ?: MealPlanEntity(name = name, startDate = today(), createdAt = now, updatedAt = now, id = planId)).copy(
+            name = existing?.name ?: name,
+            startDate = start ?: existing?.startDate ?: today(),
+            loopMode = repeat?.first ?: existing?.loopMode ?: PlanLoopMode.NONE,
+            loopCount = repeat?.second ?: existing?.loopCount ?: 0,
+            isActive = true,
+            metaJson = if (meta.isEmpty) "" else meta.encode(),
+            updatedAt = now,
+            deletedAt = null,
+        )
+        val inFile = file.weeks.map { it.weekNumber }.toSet()
+        val gone = oldWeeks.filter { it.deletedAt == null && it.weekNumber !in inFile }.map { it.id }
+        val keptLinkIds = built.links.map { it.id }.toSet()
+        val staleLinks = built.weeks.flatMap { w -> planDao.weekRecipesIncludingRemoved(w.id) }
+            .filter { it.deletedAt == null && it.id !in keptLinkIds }.map { it.id }
+        return built.copy(plan = plan, isUpdate = existing != null, removedWeekIds = gone, staleLinkIds = staleLinks)
+    }
+
+    /** A plan as a PlanFile (default: the active plan), ready for [MealPlanScript.printFile]. */
+    suspend fun exportPlanFile(planId: String? = null): PlanFile {
+        val plan = (if (planId != null) planDao.plan(planId) else planDao.activePlan()) ?: return PlanFile(
+            format = PlanFileParser.FORMAT, version = PlanFileParser.SUPPORTED_VERSION,
+        )
+        val weeks = planDao.weeksOf(plan.id)
+        val weekIds = weeks.map { it.id }.toSet()
         val rows = PlanExportRows(
+            plan = plan,
             weeks = weeks,
-            links = planDao.allWeekRecipes(),
-            recipes = recipes,
+            links = planDao.allWeekRecipes().filter { it.planWeekId in weekIds },
+            recipes = recipeDao.all(),
             ingredients = recipeDao.allIngredients(),
             foods = foodDao.all(),
-            shopping = shoppingDao.all(),
-            eatOut = planDao.allEatOutOptions().filter { it.origin == EatOutOrigin.PLAN },
+            shopping = shoppingDao.all().filter { it.planWeekId in weekIds },
+            eatOut = planDao.allEatOutOptions()
+                .filter { it.origin == EatOutOrigin.PLAN && (it.planWeekId == null || it.planWeekId in weekIds) },
         )
         return PlanExporter.toPlanFile(rows)
     }
 
-    suspend fun exportPlanScript(): String = MealPlanScript.printFile(exportPlanFile())
+    suspend fun exportPlanScript(planId: String? = null): String = MealPlanScript.printFile(exportPlanFile(planId))
 
     private suspend fun previewJson(text: String): PlanImportPreview =
         when (val parsed = PlanFileParser.parse(text)) {
             is PlanFileParse.Invalid -> PlanImportPreview.Invalid(parsed.errors)
             is PlanFileParse.Ok -> {
-                val batch = PlanImportBuilder.build(parsed.file, clock.nowMillis(), scanner(parsed.file.hiddenDairyChecklist))
+                val batch = buildBatch(parsed.file)
                 PlanImportPreview.Ready(batch, parsed.file.weeks.size, batch.recipes.size, batch.eatOutOptions.size)
             }
         }
@@ -376,6 +671,21 @@ class MealPlanRepository @Inject constructor(
      */
     suspend fun applyImport(batch: PlanImportBatch) {
         db.withTransaction {
+            batch.plan?.let { p ->
+                // Exactly one plan is active: the one just imported.
+                planDao.deactivateOthers(p.id, p.updatedAt)
+                planDao.upsertPlan(p)
+            }
+            val now = batch.plan?.updatedAt ?: clock.nowMillis()
+            batch.removedWeekIds.forEach { id ->
+                planDao.weekRecipesIncludingRemoved(id).filter { it.deletedAt == null }
+                    .forEach { planDao.upsertWeekRecipe(it.copy(deletedAt = now, updatedAt = now)) }
+                softDeleteShopping(id, now)
+                planDao.softDeleteWeek(id, now)
+            }
+            batch.staleLinkIds.forEach { id ->
+                planDao.weekRecipeById(id)?.let { planDao.upsertWeekRecipe(it.copy(deletedAt = now, updatedAt = now)) }
+            }
             val newFoods = batch.foods.filter { foodDao.findById(it.id) == null }
             if (newFoods.isNotEmpty()) foodDao.upsertAll(newFoods)
             recipeDao.upsertRecipes(batch.recipes)
@@ -423,5 +733,5 @@ class MealPlanRepository @Inject constructor(
 
     fun observeEatOutOptions(): Flow<List<EatOutOptionEntity>> = plan.observeAllEatOutOptions()
 
-    suspend fun weekByNumber(n: Int): PlanWeekEntity? = planDao.week(n)
+    suspend fun weekByNumber(n: Int): PlanWeekEntity? = planDao.activePlan()?.let { planDao.week(it.id, n) }
 }

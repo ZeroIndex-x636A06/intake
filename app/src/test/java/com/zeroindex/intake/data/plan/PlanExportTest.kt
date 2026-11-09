@@ -2,7 +2,9 @@ package com.zeroindex.intake.data.plan
 
 import com.google.common.truth.Truth.assertThat
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
+import com.zeroindex.intake.data.db.entity.MealPlanEntity
 import com.zeroindex.intake.domain.plan.PlanFile
+import com.zeroindex.intake.domain.plan.PlanMeta
 import com.zeroindex.intake.domain.script.DocsFiles
 import com.zeroindex.intake.domain.script.MealPlanScript
 import com.zeroindex.intake.domain.script.ScriptInput
@@ -18,8 +20,12 @@ class PlanExportTest {
     /** Rows exactly as the importer writes them, handed back to the exporter. */
     private fun roundTrip(file: PlanFile): PlanFile {
         val b = PlanImportBuilder.build(file, 1L, noHits)
+        val plan = MealPlanEntity(
+            id = PlanImportBuilder.LEGACY_PLAN_ID, name = file.name.ifBlank { "Meal plan" }, startDate = 20_000L,
+            metaJson = PlanMeta.of(file).let { if (it.isEmpty) "" else it.encode() }, createdAt = 1L, updatedAt = 1L,
+        )
         return PlanExporter.toPlanFile(
-            PlanExportRows(b.weeks, b.links, b.recipes, b.ingredients, b.foods, b.shoppingItems, b.eatOutOptions),
+            PlanExportRows(plan, b.weeks, b.links, b.recipes, b.ingredients, b.foods, b.shoppingItems, b.eatOutOptions),
         )
     }
 

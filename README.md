@@ -38,7 +38,9 @@ TalkBack gets ordinary tab semantics. On tablets the pill stands on end as a
 rail. Each tab keeps its own back stack, and tapping the current tab returns it
 to its root.
 
-- **Food**: Log food, Meal templates, Meal plans, Recipes (Recipe Hunter is an
+- **Food**: Log food, Meal templates, Meal plans (plans of any length, several
+  of them, with a repeat schedule; build one by hand or import it), Recipes (type
+  one in, import one from a link with no AI, or let Recipe Hunter find one, an
   optional AI), Eating out (Plan B, menu import), Allergens, Food script help.
 - **Train**: start or carry on today's workout (or an empty one), Programs
   (build, edit, import and export), Make one for me, Templates, Exercises

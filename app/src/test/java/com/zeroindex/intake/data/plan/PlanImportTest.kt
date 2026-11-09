@@ -55,7 +55,7 @@ class PlanImportTest {
         assertThat(b.foods).hasSize(3)
         assertThat(b.links.single().role).isEqualTo(PlanRecipeRole.MAIN)
         assertThat(b.eatOutOptions).hasSize(2)
-        assertThat(b.weeks.map { it.weekNumber }).containsExactly(0, 1)
+        assertThat(b.weeks.map { it.weekNumber }).containsExactly(1)
     }
 
     @Test fun `an ingredient with no nutrition stays text and the recipe has no stored macros`() {
@@ -74,7 +74,8 @@ class PlanImportTest {
 
     @Test fun `plan wide content and week extras are stored without schema changes`() {
         val b = PlanImportBuilder.build(example(), 1000L, dairyCheck)
-        val meta = PlanMeta.decode(b.weeks.first { it.weekNumber == 0 }.notes)
+        assertThat(b.weeks.none { it.weekNumber == 0 }).isTrue()
+        val meta = PlanMeta.of(example())
         assertThat(meta.standingBreakfasts).containsExactly("Two boiled eggs and a banana")
         assertThat(meta.hiddenDairyChecklist).hasSize(2)
         val extras = PlanWeekExtras.decode(b.weeks.first { it.weekNumber == 1 }.notes)
@@ -104,11 +105,11 @@ class PlanImportTest {
     }
 
     @Test fun `validation reports every problem`() {
-        val bad = """{"format":"other","version":2,"weeks":[{"weekNumber":13,"mainDishName":""},{"weekNumber":1,"mainDishName":"A"},{"weekNumber":1,"mainDishName":"B"}]}"""
+        val bad = """{"format":"other","version":2,"weeks":[{"weekNumber":105,"mainDishName":""},{"weekNumber":1,"mainDishName":"A"},{"weekNumber":1,"mainDishName":"B"}]}"""
         val errors = (PlanFileParser.parse(bad) as PlanFileParse.Invalid).errors
         assertThat(errors.joinToString("\n")).contains("format should be")
         assertThat(errors.joinToString("\n")).contains("version 2")
-        assertThat(errors.joinToString("\n")).contains("outside 1-12")
+        assertThat(errors.joinToString("\n")).contains("outside 1-104")
         assertThat(errors.joinToString("\n")).contains("no mainDishName")
         assertThat(errors.joinToString("\n")).contains("more than once")
     }
@@ -234,7 +235,7 @@ class PlanImportTest {
         assertThat(a.recipes.map { it.id }).isEqualTo(b.recipes.map { it.id })
         assertThat(a.shoppingItems.map { it.id }.toSet()).isEqualTo(b.shoppingItems.map { it.id }.toSet())
         assertThat(a.eatOutOptions.map { it.id }).isEqualTo(b.eatOutOptions.map { it.id })
-        assertThat(a.recipes.single().id).isEqualTo(PlanImportBuilder.recipeId(1, "Example chicken and rice bowls"))
+        assertThat(a.recipes.single().id).isEqualTo(PlanImportBuilder.recipeId(PlanImportBuilder.LEGACY_PLAN_ID, 1, "Example chicken and rice bowls"))
     }
 
     @Test fun `the same food in two weeks is one row but different nutrition is two`() {

@@ -2,6 +2,7 @@ package com.zeroindex.intake.data.plan
 
 import com.zeroindex.intake.data.db.entity.EatOutOptionEntity
 import com.zeroindex.intake.data.db.entity.FoodEntity
+import com.zeroindex.intake.data.db.entity.MealPlanEntity
 import com.zeroindex.intake.data.db.entity.PlanWeekEntity
 import com.zeroindex.intake.data.db.entity.PlanWeekRecipeEntity
 import com.zeroindex.intake.data.db.entity.RecipeEntity
@@ -18,13 +19,16 @@ import com.zeroindex.intake.domain.plan.PlanFileRecipe
 import com.zeroindex.intake.domain.plan.PlanFileShoppingItem
 import com.zeroindex.intake.domain.plan.PlanFileWeek
 import com.zeroindex.intake.domain.plan.PlanMeta
+import com.zeroindex.intake.domain.plan.PlanSchedule
 import com.zeroindex.intake.domain.plan.PlanWeekExtras
 import com.zeroindex.intake.domain.plan.ShoppingIngredient
 import com.zeroindex.intake.domain.plan.ShoppingListBuilder
 
 /** The live rows of the plan, as the exporter needs them. */
 data class PlanExportRows(
-    /** Includes the plan-wide row (week 0) if there is one. */
+    /** The plan being exported: its name, schedule and plan-wide content. */
+    val plan: MealPlanEntity,
+    /** Live weeks of that plan only. */
     val weeks: List<PlanWeekEntity>,
     val links: List<PlanWeekRecipeEntity>,
     val recipes: List<RecipeEntity>,
@@ -43,9 +47,8 @@ data class PlanExportRows(
 object PlanExporter {
 
     fun toPlanFile(rows: PlanExportRows): PlanFile {
-        val meta = rows.weeks.firstOrNull { it.weekNumber == PlanMeta.WEEK_NUMBER }
-            ?.let { PlanMeta.decode(it.notes) } ?: PlanMeta()
-        val planWeeks = rows.weeks.filter { it.weekNumber in 1..12 }.sortedBy { it.weekNumber }
+        val meta = PlanMeta.decode(rows.plan.metaJson)
+        val planWeeks = rows.weeks.filter { it.weekNumber >= 1 }.sortedBy { it.weekNumber }
         val recipesById = rows.recipes.associateBy { it.id }
         val foodsById = rows.foods.associateBy { it.id }
         val ingredientsByRecipe = rows.ingredients.groupBy { it.recipeId }
@@ -98,13 +101,16 @@ object PlanExporter {
                 estimatedProtein = o.estimatedProtein.takeIf { has },
                 estimatedCarbs = o.estimatedCarbs.takeIf { has },
                 estimatedFat = o.estimatedFat.takeIf { has },
-                weekNumber = o.planWeekId?.let { weekNumberById[it] }?.takeIf { it in 1..12 },
+                weekNumber = o.planWeekId?.let { weekNumberById[it] }?.takeIf { it >= 1 },
             )
         }
 
         return PlanFile(
             format = PlanFileParser.FORMAT,
             version = PlanFileParser.SUPPORTED_VERSION,
+            name = rows.plan.name,
+            startsOn = PlanSchedule.date(rows.plan.startDate).toString(),
+            repeat = PlanSchedule.repeatText(rows.plan.loopMode, rows.plan.loopCount),
             intro = meta.intro,
             standingBreakfasts = meta.standingBreakfasts,
             standingSnacks = meta.standingSnacks,

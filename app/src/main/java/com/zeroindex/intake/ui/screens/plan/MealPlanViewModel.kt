@@ -17,6 +17,10 @@ import com.zeroindex.intake.domain.nfc.TemplateLink
 import com.zeroindex.intake.domain.nutrition.Macros
 import com.zeroindex.intake.domain.plan.EatOutFilter
 import com.zeroindex.intake.domain.plan.PlanMeta
+import com.zeroindex.intake.domain.plan.PlanPosition
+import com.zeroindex.intake.domain.plan.PlanSchedule
+import com.zeroindex.intake.domain.model.PlanLoopMode
+import com.zeroindex.intake.data.db.entity.MealPlanEntity
 import com.zeroindex.intake.domain.plan.ShoppingListBuilder
 import com.zeroindex.intake.domain.plan.ShoppingSections
 import com.zeroindex.intake.domain.time.Clock
@@ -69,8 +73,33 @@ class MealPlanViewModel @Inject constructor(
     settings: SettingsRepository,
 ) : ViewModel() {
 
+    /** The week the calendar says it is (from the plan's start date and repeat setting). */
     val currentWeek: StateFlow<Int> =
         repo.observeCurrentWeekNumber().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 1)
+
+    val plans: StateFlow<List<MealPlanEntity>> =
+        repo.observePlans().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val activePlan: StateFlow<MealPlanEntity?> =
+        repo.observeActivePlan().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val position: StateFlow<PlanPosition?> =
+        repo.observePosition().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val length: StateFlow<Int> =
+        repo.observePlanLength().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    /** The week on screen. Null follows the current week; picking a week to look at or edit does not move the schedule. */
+    private val viewed = MutableStateFlow<Int?>(null)
+    val viewedWeek: StateFlow<Int> =
+        combine(viewed, currentWeek, length) { v, c, n -> (v ?: c).coerceIn(1, n.coerceAtLeast(1)) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 1)
+
+    init {
+        // The week can change by itself as days pass: keep the marker current and reset shopping checks (SPEC §9).
+        viewModelScope.launch { repo.observePosition().collect { repo.syncWeekMarker(it) } }
+        viewModelScope.launch { repo.observeActivePlan().map { it?.id }.distinctUntilChanged().collect { viewed.value = null } }
+    }
 
     val plannedWeeks: StateFlow<Set<Int>> =
         repo.observePlannedWeekNumbers().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
@@ -90,7 +119,7 @@ class MealPlanViewModel @Inject constructor(
         repo.observeCheckLabelTerms().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val content: StateFlow<WeekContent?> =
-        currentWeek.flatMapLatest { repo.observeWeekContent(it) }
+        viewedWeek.flatMapLatest { repo.observeWeekContent(it) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -135,14 +164,67 @@ class MealPlanViewModel @Inject constructor(
     val notice: StateFlow<String?> = _notice.asStateFlow()
     fun clearNotice() { _notice.value = null }
 
-    fun selectWeek(n: Int) = viewModelScope.launch { repo.setCurrentWeek(n) }
+    /** Look at (and edit) a week without changing which week is current. */
+    fun selectWeek(n: Int) { viewed.value = n }
+
+    /** Makes the week on screen the current one, by moving the plan's start date. */
+    fun jumpToViewedWeek() = viewModelScope.launch {
+        repo.setCurrentWeek(viewedWeek.value)
+        viewed.value = null
+    }
+
+    fun today() = clock.today()
+
+    // ---- plans and weeks ---------------------------------------------------------------------
+
+    fun createPlan(name: String, weeks: Int, mode: PlanLoopMode, count: Int, startDay: Long) = viewModelScope.launch {
+        val p = repo.createPlan(name, weeks, mode, count, startDay)
+        _notice.value = "Created ${p.name} with ${weeks.coerceIn(1, PlanSchedule.MAX_WEEKS)} weeks."
+    }
+
+    fun updatePlan(plan: MealPlanEntity, name: String, mode: PlanLoopMode, count: Int, startDay: Long) = viewModelScope.launch {
+        repo.updatePlan(plan.id, name, plan.notes, startDay, mode, count)
+    }
+
+    fun switchPlan(plan: MealPlanEntity) = viewModelScope.launch {
+        repo.setActive(plan.id)
+        _notice.value = "Now using ${plan.name}."
+    }
+
+    fun archivePlan(plan: MealPlanEntity) = viewModelScope.launch {
+        repo.archivePlan(plan.id)
+        _notice.value = "Archived ${plan.name}. Nothing was erased."
+    }
+
+    fun addWeek() = viewModelScope.launch {
+        val n = repo.addWeek()
+        if (n == null) _notice.value = "A plan can have up to ${PlanSchedule.MAX_WEEKS} weeks." else viewed.value = n
+    }
+
+    fun duplicateWeek(n: Int) = viewModelScope.launch {
+        val copy = repo.duplicateWeek(n)
+        if (copy == null) _notice.value = "A plan can have up to ${PlanSchedule.MAX_WEEKS} weeks." else viewed.value = copy
+    }
+
+    fun removeWeek(n: Int) = viewModelScope.launch {
+        if (!repo.removeWeek(n)) _notice.value = "A plan needs at least one week." else viewed.value = null
+    }
+
+    fun moveWeek(n: Int, delta: Int) = viewModelScope.launch {
+        if (repo.moveWeek(n, delta)) viewed.value = n + delta
+    }
+
+    fun saveWeek(n: Int, dish: String, protein: String, note: String, variations: List<String>) =
+        viewModelScope.launch { repo.saveWeekDetails(n, dish, protein, note, variations) }
 
     fun toggleShowAllEatOut() = showAllEatOut.update { !it }
 
     // ---- assigning ---------------------------------------------------------------------------
 
     fun assign(weekNumber: Int, recipe: RecipeEntity, protein: String) =
-        viewModelScope.launch { repo.assignRecipe(weekNumber, recipe, protein) }
+        viewModelScope.launch {
+            if (!repo.assignRecipe(weekNumber, recipe, protein)) _notice.value = "Make a plan first, then choose recipes for its weeks."
+        }
 
     fun setProtein(weekNumber: Int, protein: String) = viewModelScope.launch { repo.updateProtein(weekNumber, protein) }
 
@@ -228,7 +310,9 @@ class MealPlanViewModel @Inject constructor(
     fun confirmImport(batch: PlanImportBatch) = viewModelScope.launch {
         repo.applyImport(batch)
         _import.value = ImportUiState()
-        _notice.value = "Imported ${batch.weeks.count { it.weekNumber in 1..12 }} weeks and ${batch.recipes.size} recipes."
+        val name = batch.plan?.name ?: "your plan"
+        _notice.value = (if (batch.isUpdate) "Updated $name: " else "Created $name: ") +
+            "${batch.weeks.size} weeks and ${batch.recipes.size} recipes. It is now the active plan."
     }
 
     fun cancelImport() { _import.value = ImportUiState() }

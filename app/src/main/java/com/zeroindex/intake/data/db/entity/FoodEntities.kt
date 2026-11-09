@@ -97,7 +97,8 @@ data class FoodLogEntity(
     override val deletedAt: Long? = null,
 ) : Audited
 
-enum class RecipeOrigin { USER, PLAN, HUNTER }
+/** USER: typed in. PLAN: from a meal plan file. HUNTER: Recipe Hunter. LINK: imported from a web page the user pasted. */
+enum class RecipeOrigin { USER, PLAN, HUNTER, LINK }
 
 @Serializable
 @Entity(tableName = "recipe", indices = [Index("sourceWeekNumber"), Index("deletedAt")])
