@@ -20,6 +20,9 @@ enum class ProgressionType { LINEAR, DOUBLE_PROGRESSION, RPE_BASED, PERCENTAGE_1
 
 enum class PlanRecipeRole { MAIN, VARIATION }
 
+/** What happens when a meal plan reaches its last week. */
+enum class PlanLoopMode { NONE, REPEAT, REPEAT_N }
+
 /** Shopping list grouping, ordered the way a store is walked (SPEC §9). */
 enum class StoreCategory { PRODUCE, MEAT, PANTRY, FROZEN, OTHER }
 

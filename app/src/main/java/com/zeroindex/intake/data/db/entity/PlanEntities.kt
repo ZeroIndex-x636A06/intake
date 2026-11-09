@@ -5,15 +5,48 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.zeroindex.intake.domain.model.PlanLoopMode
 import com.zeroindex.intake.domain.model.PlanRecipeRole
 import com.zeroindex.intake.domain.model.StoreCategory
 import kotlinx.serialization.Serializable
 
-/** One of the twelve weeks in the plan (SPEC §9). */
+/**
+ * A meal plan of any length (1..104 weeks) with a schedule (SPEC-v3 item 8).
+ * Exactly one plan is active at a time; an archived plan is soft-deleted.
+ *
+ * [startDate] is the **epoch day** (days since 1970-01-01, UTC calendar date) of the first
+ * day of week 1; a week is 7 days. What week it is today comes from [startDate] and
+ * [loopMode] (see PlanSchedule), never from a stored counter.
+ */
 @Serializable
-@Entity(tableName = "plan_week", indices = [Index("weekNumber"), Index("deletedAt")])
+@Entity(tableName = "meal_plan", indices = [Index("isActive"), Index("deletedAt")])
+data class MealPlanEntity(
+    @PrimaryKey override val id: String = newId(),
+    val name: String,
+    @ColumnInfo(defaultValue = "") val notes: String = "",
+    /** Epoch day of the first day of week 1. */
+    val startDate: Long,
+    @ColumnInfo(defaultValue = "NONE") val loopMode: PlanLoopMode = PlanLoopMode.NONE,
+    /** Total number of runs through the plan when [loopMode] is REPEAT_N (2 = once, then once more). */
+    @ColumnInfo(defaultValue = "0") val loopCount: Int = 0,
+    @ColumnInfo(defaultValue = "0") val isActive: Boolean = false,
+    /** Plan-wide content ("Every week") as PlanMeta JSON; empty when there is none. */
+    @ColumnInfo(defaultValue = "") val metaJson: String = "",
+    override val createdAt: Long,
+    override val updatedAt: Long,
+    override val deletedAt: Long? = null,
+) : Audited
+
+/** One week of a [MealPlanEntity] (SPEC §9); weekNumber runs 1..N with no cap. */
+@Serializable
+@Entity(
+    tableName = "plan_week",
+    indices = [Index("weekNumber"), Index("deletedAt"), Index("planId", "weekNumber")],
+)
 data class PlanWeekEntity(
     @PrimaryKey override val id: String = newId(),
+    /** The owning [MealPlanEntity]; empty only transiently during migration. */
+    @ColumnInfo(defaultValue = "") val planId: String = "",
     val weekNumber: Int,
     val mainDishName: String,
     val proteinType: String,

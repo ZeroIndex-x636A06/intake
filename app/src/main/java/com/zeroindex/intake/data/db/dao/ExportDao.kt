@@ -24,6 +24,7 @@ import com.zeroindex.intake.data.db.entity.MenuSourceEntity
 import com.zeroindex.intake.data.db.entity.ModelBenchmarkEntity
 import com.zeroindex.intake.data.db.entity.NutritionTargetEntity
 import com.zeroindex.intake.data.db.entity.PerformanceMetricEntity
+import com.zeroindex.intake.data.db.entity.MealPlanEntity
 import com.zeroindex.intake.data.db.entity.PlanWeekEntity
 import com.zeroindex.intake.data.db.entity.PlanWeekRecipeEntity
 import com.zeroindex.intake.data.db.entity.ProgramDayEntity
@@ -58,6 +59,8 @@ interface ExportDao {
     @Upsert suspend fun upsertBackupRun(rows: List<BackupRunEntity>)
     @Query("SELECT * FROM body_metric") suspend fun bodyMetric(): List<BodyMetricEntity>
     @Upsert suspend fun upsertBodyMetric(rows: List<BodyMetricEntity>)
+    @Query("SELECT * FROM meal_plan") suspend fun mealPlan(): List<MealPlanEntity>
+    @Upsert suspend fun upsertMealPlan(rows: List<MealPlanEntity>)
     @Query("SELECT * FROM plan_week") suspend fun planWeek(): List<PlanWeekEntity>
     @Upsert suspend fun upsertPlanWeek(rows: List<PlanWeekEntity>)
     @Query("SELECT * FROM eat_out_option") suspend fun eatOutOption(): List<EatOutOptionEntity>

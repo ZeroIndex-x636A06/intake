@@ -48,6 +48,7 @@ import com.zeroindex.intake.data.db.entity.MenuSourceEntity
 import com.zeroindex.intake.data.db.entity.ModelBenchmarkEntity
 import com.zeroindex.intake.data.db.entity.NutritionTargetEntity
 import com.zeroindex.intake.data.db.entity.PerformanceMetricEntity
+import com.zeroindex.intake.data.db.entity.MealPlanEntity
 import com.zeroindex.intake.data.db.entity.PlanWeekEntity
 import com.zeroindex.intake.data.db.entity.PlanWeekRecipeEntity
 import com.zeroindex.intake.data.db.entity.ProgramDayEntity
@@ -85,6 +86,7 @@ import com.zeroindex.intake.data.db.entity.WorkoutSessionEntity
         ProgressionRuleEntity::class,
         WorkoutSessionEntity::class,
         SetLogEntity::class,
+        MealPlanEntity::class,
         PlanWeekEntity::class,
         PlanWeekRecipeEntity::class,
         EatOutOptionEntity::class,
@@ -132,7 +134,7 @@ abstract class IntakeDatabase : RoomDatabase() {
     abstract fun syncConflictDao(): SyncConflictDao
 
     companion object {
-        const val VERSION = 2
+        const val VERSION = 3
         const val NAME = "intake.db"
 
         /** Seeds the allergen alias table the moment the database is created. */
