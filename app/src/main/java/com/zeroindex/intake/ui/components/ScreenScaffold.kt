@@ -32,9 +32,14 @@ fun ScreenHeading(
     )
 }
 
-/** Shown where a screen has nothing to display yet, rather than a blank box. */
+/**
+ * A whole-screen message, for a screen that has nothing else to show. Named apart from the in-list
+ * `EmptyState` (States.kt) on purpose: when both shared a name, `EmptyState(title = ..., body = ...)` inside a
+ * LazyColumn bound to this one (its non-null `title` is the more specific overload), whose `fillMaxSize` +
+ * `verticalScroll` throws "measured with an infinity maximum height" in a lazy item.
+ */
 @Composable
-fun EmptyState(
+fun FullScreenMessage(
     title: String,
     body: String,
     contentPadding: PaddingValues = PaddingValues(0.dp),
