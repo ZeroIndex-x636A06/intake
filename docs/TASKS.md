@@ -99,7 +99,7 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
 - Allergens v2: 15 built-in allergens, custom allergens and keywords,
   negation-aware matching, a new import preview (7eeaff5). Its schema edits now
   live in `MIGRATION_2_3` (see Schema repair).
-- Schema repair: SCHEMA_REPAIR_HASH. v2 is restored byte-for-byte to 4952404.
+- Schema repair: 3c7600b. v2 is restored byte-for-byte to 4952404.
   The allergen columns and `allergen_definition` moved into `migrateAllergens_2_3`,
   next to `migrateFoodOff_2_3`. Other agents add `migrateXxx_2_3` functions to
   `MIGRATION_2_3_STATEMENTS`. `MigrationSchemaTest` upgrades the released v2 to v3.
