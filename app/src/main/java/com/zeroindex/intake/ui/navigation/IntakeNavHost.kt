@@ -153,6 +153,18 @@ fun IntakeNavHost(
                 )
             }
             aiSettings(contentPadding)
+            // Screens a Today card opens, registered here too so the pill keeps showing Today
+            // (NavGraphGuardTest checks that every navigate() in a graph has its target in that graph).
+            activeWorkout(navController, contentPadding)
+            programGenerator(navController, contentPadding)
+            programBuilder(contentPadding, openScriptReference)
+            profileRoutes(navController, contentPadding)
+            coachCheckIn(contentPadding)
+            bodyMetrics(navController, contentPadding)
+            settings(navController, contentPadding, onGoToToday = { openTab(TopLevelDestination.TODAY) })
+            composable<Route.Backup> { BackupScreen(contentPadding) }
+            foodDataRoutes(navController, contentPadding)
+            scriptReference(contentPadding)
             // Today is not restructured; add new Today routes above this line.
         }
 
@@ -251,15 +263,7 @@ fun IntakeNavHost(
             aiSettings(contentPadding)
             settings(navController, contentPadding, onGoToToday = { openTab(TopLevelDestination.TODAY) })
             composable<Route.Backup> { BackupScreen(contentPadding) }
-            composable<Route.MyAllergens> {
-                MyAllergensScreen(
-                    contentPadding,
-                    onOpenAllergen = { navController.navigate(Route.AllergenKeywords(it)) },
-                )
-            }
-            composable<Route.AllergenKeywords> { entry ->
-                AllergenKeywordsScreen(entry.toRoute<Route.AllergenKeywords>().allergenKey, contentPadding)
-            }
+            foodDataRoutes(navController, contentPadding)
             composable<Route.MyFoods> {
                 MyFoodsScreen(contentPadding, onOpenFood = { id -> navController.navigate(Route.FoodDetail(id)) })
             }
@@ -271,7 +275,6 @@ fun IntakeNavHost(
                     onOpenFoodData = { navController.navigate(Route.FoodData) },
                 )
             }
-            composable<Route.FoodData> { FoodDataScreen(contentPadding) }
             // Add new Food routes above this line.
         }
 
@@ -300,7 +303,7 @@ fun IntakeNavHost(
                     onOpenScriptReference = openScriptReference,
                 )
             }
-            composable<Route.ProgramBuilder> { ProgramBuilderScreen(contentPadding, onOpenScriptReference = openScriptReference) }
+            programBuilder(contentPadding, openScriptReference)
             composable<Route.ProgramTemplates> {
                 ProgramTemplatesScreen(
                     contentPadding = contentPadding,
@@ -309,19 +312,10 @@ fun IntakeNavHost(
                     },
                 )
             }
-            composable<Route.ProgramGenerator> {
-                ProgramGeneratorScreen(
-                    contentPadding = contentPadding,
-                    onSaved = { id ->
-                        navController.navigate(Route.ProgramBuilder(id)) { popUpTo<Route.ProgramGenerator> { inclusive = true } }
-                    },
-                )
-            }
+            programGenerator(navController, contentPadding)
             composable<Route.ExerciseLibrary> { ExerciseLibraryScreen(contentPadding) }
             composable<Route.Performance> { PerformanceScreen(contentPadding = contentPadding, onSaved = {}) }
-            composable<Route.ActiveWorkout> {
-                ActiveWorkoutScreen(contentPadding = contentPadding, onFinished = { navController.popBackStack() })
-            }
+            activeWorkout(navController, contentPadding)
             scriptReference(contentPadding)
             // Add new Train routes above this line.
         }
@@ -339,16 +333,12 @@ fun IntakeNavHost(
                     onOpenCoach = { navController.navigate(Route.CoachCheckIn) },
                 )
             }
-            composable<Route.BodyMetrics> {
-                BodyMetricsScreen(contentPadding = contentPadding, onSaved = { navController.popBackStack() })
-            }
+            bodyMetrics(navController, contentPadding)
             composable<Route.Performance> { PerformanceScreen(contentPadding = contentPadding, onSaved = {}) }
             composable<Route.WorkoutHistory> { WorkoutHistoryScreen(contentPadding) }
             composable<Route.WeeklyReport> { WeeklyReportScreen(contentPadding) }
             composable<Route.HealthConnect> { HealthConnectScreen(contentPadding) }
-            composable<Route.CoachCheckIn> {
-                CoachCheckInScreen(contentPadding = contentPadding)
-            }
+            coachCheckIn(contentPadding)
             // Add new Progress routes above this line.
         }
 
@@ -370,21 +360,10 @@ fun IntakeNavHost(
                 )
             }
             scriptReference(contentPadding)
-            composable<Route.Profile> {
-                ProfileScreen(
-                    contentPadding = contentPadding,
-                    onBuildPlan = { navController.navigate(Route.YourPlan) },
-                    onOpenTargetSettings = { navController.navigate(Route.Settings(section = "targets")) },
-                )
-            }
-            composable<Route.YourPlan> {
-                YourPlanScreen(
-                    contentPadding = contentPadding,
-                    onOpenProfile = { navController.navigate(Route.Profile) },
-                    onOpenGenerator = { navController.navigate(Route.ProgramGenerator) },
-                    onOpenProgram = { id -> navController.navigate(Route.ProgramBuilder(id)) },
-                )
-            }
+            profileRoutes(navController, contentPadding)
+            programGenerator(navController, contentPadding)
+            programBuilder(contentPadding, openScriptReference)
+            foodDataRoutes(navController, contentPadding)
             // Add new More routes above this line.
         }
     }
@@ -394,6 +373,72 @@ private fun NavGraphBuilder.scriptReference(contentPadding: PaddingValues) {
     composable<Route.ScriptReference> { entry ->
         val args = entry.toRoute<Route.ScriptReference>()
         ScriptReferenceScreen(args.page, args.anchor, contentPadding)
+    }
+}
+
+private fun NavGraphBuilder.activeWorkout(navController: NavHostController, contentPadding: PaddingValues) {
+    composable<Route.ActiveWorkout> {
+        ActiveWorkoutScreen(contentPadding = contentPadding, onFinished = { navController.popBackStack() })
+    }
+}
+
+private fun NavGraphBuilder.programBuilder(
+    contentPadding: PaddingValues,
+    openScriptReference: (String, String?) -> Unit,
+) {
+    composable<Route.ProgramBuilder> { ProgramBuilderScreen(contentPadding, onOpenScriptReference = openScriptReference) }
+}
+
+private fun NavGraphBuilder.programGenerator(navController: NavHostController, contentPadding: PaddingValues) {
+    composable<Route.ProgramGenerator> {
+        ProgramGeneratorScreen(
+            contentPadding = contentPadding,
+            onSaved = { id ->
+                navController.navigate(Route.ProgramBuilder(id)) { popUpTo<Route.ProgramGenerator> { inclusive = true } }
+            },
+        )
+    }
+}
+
+private fun NavGraphBuilder.profileRoutes(navController: NavHostController, contentPadding: PaddingValues) {
+    composable<Route.Profile> {
+        ProfileScreen(
+            contentPadding = contentPadding,
+            onBuildPlan = { navController.navigate(Route.YourPlan) },
+            onOpenTargetSettings = { navController.navigate(Route.Settings(section = "targets")) },
+        )
+    }
+    composable<Route.YourPlan> {
+        YourPlanScreen(
+            contentPadding = contentPadding,
+            onOpenProfile = { navController.navigate(Route.Profile) },
+            onOpenGenerator = { navController.navigate(Route.ProgramGenerator) },
+            onOpenProgram = { id -> navController.navigate(Route.ProgramBuilder(id)) },
+        )
+    }
+}
+
+private fun NavGraphBuilder.coachCheckIn(contentPadding: PaddingValues) {
+    composable<Route.CoachCheckIn> { CoachCheckInScreen(contentPadding = contentPadding) }
+}
+
+private fun NavGraphBuilder.bodyMetrics(navController: NavHostController, contentPadding: PaddingValues) {
+    composable<Route.BodyMetrics> {
+        BodyMetricsScreen(contentPadding = contentPadding, onSaved = { navController.popBackStack() })
+    }
+}
+
+/** Food data and the allergen screens Settings links to; registered in every graph that has Settings. */
+private fun NavGraphBuilder.foodDataRoutes(navController: NavHostController, contentPadding: PaddingValues) {
+    composable<Route.FoodData> { FoodDataScreen(contentPadding) }
+    composable<Route.MyAllergens> {
+        MyAllergensScreen(
+            contentPadding,
+            onOpenAllergen = { navController.navigate(Route.AllergenKeywords(it)) },
+        )
+    }
+    composable<Route.AllergenKeywords> { entry ->
+        AllergenKeywordsScreen(entry.toRoute<Route.AllergenKeywords>().allergenKey, contentPadding)
     }
 }
 
