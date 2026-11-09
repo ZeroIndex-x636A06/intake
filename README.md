@@ -58,7 +58,11 @@ to its root.
 
 Amendment features:
 
-- **Hydration.** Water card on Today with volume presets and a daily target.
+- **Hydration.** Water card on Today with one-tap drink chips and a daily target that
+  shows its working. Every drink has a type and an "adds to hydration" factor (tea and
+  coffee count like water), caffeine and alcohol are tracked, workouts add sweat water,
+  and an opt-in weather adjustment (Open-Meteo, rounded location or a typed city) adds
+  water on hot days. See [docs/HYDRATION.md](docs/HYDRATION.md).
 - **Explosive performance metrics.** Vertical jump, standing reach and total
   reach, overlaid on training volume on the Progress tab.
 - **AI features through OpenRouter**, using your own key. See

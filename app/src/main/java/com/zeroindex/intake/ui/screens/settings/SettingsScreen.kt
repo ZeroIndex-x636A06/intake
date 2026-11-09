@@ -309,6 +309,10 @@ fun SettingsScreen(
             }
         }
 
+        item(key = "water-weather") {
+            Section("Water") { WeatherSettingsSection() }
+        }
+
         item(key = "health") {
             Section("Health Connect") {
                 SwitchRow(

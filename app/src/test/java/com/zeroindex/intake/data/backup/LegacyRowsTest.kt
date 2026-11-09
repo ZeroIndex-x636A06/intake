@@ -62,4 +62,34 @@ class LegacyRowsTest {
         assertThat(food.offContributedAt).isNull()
         assertThat(food.name).isEqualTo("Rice")
     }
+
+    @Test
+    fun aV2WaterRowDecodesAsPlainWater() {
+        val row = LegacyRows.upgrade(
+            "hydration_log",
+            json.parseToJsonElement("""{"id":"h1","loggedAt":10,"volumeMl":500.0,"presetId":null,"createdAt":1,"updatedAt":1}"""),
+        )
+        val log = json.decodeFromJsonElement(com.zeroindex.intake.data.db.entity.HydrationLogEntity.serializer(), row)
+        assertThat(log.drinkType).isEqualTo(com.zeroindex.intake.domain.hydration.DrinkType.WATER)
+        assertThat(log.hydrationFactor).isEqualTo(1.0)
+        assertThat(log.caffeineMg).isEqualTo(0.0)
+        assertThat(log.alcoholMl).isEqualTo(0.0)
+        assertThat(log.effectiveMl).isEqualTo(500.0)
+    }
+
+    @Test
+    fun aV2PresetDecodesAsWater() {
+        val row = json.parseToJsonElement("""{"id":"p1","name":"Bottle","volumeMl":500.0,"displayOrder":1,"createdAt":1,"updatedAt":1}""")
+        val preset = json.decodeFromJsonElement(com.zeroindex.intake.data.db.entity.HydrationPresetEntity.serializer(), row)
+        assertThat(preset.drinkType).isEqualTo(com.zeroindex.intake.domain.hydration.DrinkType.WATER)
+    }
+
+    @Test
+    fun aV3DrinkRowKeepsItsFactor() {
+        val row = json.parseToJsonElement(
+            """{"id":"h1","loggedAt":10,"volumeMl":44.0,"drinkType":"SPIRITS","hydrationFactor":-0.4,"alcoholMl":17.6,"createdAt":1,"updatedAt":1}""",
+        )
+        val log = json.decodeFromJsonElement(com.zeroindex.intake.data.db.entity.HydrationLogEntity.serializer(), row)
+        assertThat(log.effectiveMl).isWithin(1e-9).of(-17.6)
+    }
 }

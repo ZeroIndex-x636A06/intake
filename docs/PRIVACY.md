@@ -43,7 +43,7 @@ Findings that hold for every path:
   `X-Api-Key` header (`UsdaService.kt:61`).
 - **Permissions** (`app/src/main/AndroidManifest.xml`): `INTERNET`, `CAMERA`
   (photo and barcode, processed on device; ML Kit barcode scanning is the bundled
-  model), `ACCESS_COARSE_LOCATION` (Plan B only), `NFC`, the Health Connect
+  model), `ACCESS_COARSE_LOCATION` (Plan B, and the opt-in weather adjustment), `NFC`, the Health Connect
   permissions listed below, notifications, vibrate, wake lock, foreground service.
   `allowBackup="false"` with data extraction rules, so Android cloud backup and
   device-to-device transfer are off. The watch app requests only `VIBRATE`; it has
@@ -73,6 +73,24 @@ Findings that hold for every path:
 | Offline USDA food database | Typing in Add food | Nothing leaves the phone. Searched in the bundled `food_ref.db` | None | n/a | Always on, needs no key or network | `data/foodref/FoodRefRepository.kt`, `docs/FOOD-DATA.md` |
 | Open Food Facts search | Typing in Add food (600 ms debounce, 3 or more characters) while online | `search.openfoodfacts.org` `GET /search?q=...&fields=...` | The query text, and the User-Agent `Intake/<version> (personal Android app)` | No key, no account, nothing about the user, no email | **On**; switch it off in Food > Food database & credits (`FoodDataPrefs.offSearch`) | `data/remote/openfoodfacts/OffSearchService.kt`, `data/repository/OffRepository.kt` |
 | Open Food Facts contribution | Only when the user presses Send in the confirmation dialog of "Contribute to Open Food Facts", one product at a time | `world.openfoodfacts.org` `POST /cgi/product_jqm2.pl` over HTTPS | The barcode, product name, brand, quantity, nutrition per 100 g, ingredient text if entered, and the user's **own** Open Food Facts username and password as form fields **in the POST body** (never the URL or headers, never logged) | Photos, the log, any other food. Nothing is ever sent automatically | **Off**; needs the switch on, saved account, and a per-product confirmation. The result is public under the ODbL licence | `data/remote/openfoodfacts/OffContribution.kt`, `data/repository/OffRepository.kt`, `ui/screens/fooddata/FoodDetailScreen.kt` |
+
+### Weather for the water target (opt-in; `data/weather/`, `data/remote/openmeteo/OpenMeteo.kt`)
+
+Off until the user turns on Settings, Adjust water for weather. No key, no account, no AI. Open-Meteo is free for
+non-commercial use; its data is CC BY 4.0 and is credited in Settings and in Food, Food database & credits.
+
+| Feature | Trigger | Host and request | Sent | Not sent | Default | Code |
+| --- | --- | --- | --- | --- | --- | --- |
+| City or ZIP lookup | The user types a place and presses Find | `geocoding-api.open-meteo.com` `GET /v1/search?name=<text>&count=5&language=en&format=json` | The text the user typed | Location, identity, the log | Off | `OpenMeteo.geocodingUrl`, `WeatherRepository.geocode` |
+| Daily forecast | Today opens and the saved forecast is not from today (retry no sooner than 30 minutes after a failure) | `api.open-meteo.com` `GET /v1/forecast?latitude=<1 dp>&longitude=<1 dp>&daily=temperature_2m_max,relative_humidity_2m_mean&timezone=auto&forecast_days=1` | Coordinates rounded to one decimal (about 10 km). Rounded at the point they are produced (`CoarseCoordinates.round`), before they are stored or sent | Exact position, the log, any water or workout data | Off | `OpenMeteo.forecastUrl`, `WeatherRepository.refreshIfStale` |
+
+- Approximate location uses the **coarse** permission only, takes one fix at most once a day while the app is open
+  (`CoarseLocationProvider`), never in the background, and only if the user already granted it from the weather
+  setting. A typed city or ZIP is geocoded once and only the rounded coordinates are kept.
+- The forecast is cached for the day in app-private DataStore (`intake_hydration`). Offline, there is no request,
+  no weather line, and the card says so.
+- "Forget this location" deletes the saved coordinates, place name and cached forecast.
+- The calls use the shared OkHttp client; nothing is logged.
 
 ### OpenRouter (the user's own key; `data/ai/OpenRouterClient.kt`)
 

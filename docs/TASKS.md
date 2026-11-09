@@ -8,8 +8,7 @@ with its merge commit. Read `CLAUDE.md` before you claim anything.
 
 **Claimed by the coordinating session**
 
-- **Hydration v2** (open task 2 below): weather, drink factors, caffeine, sweat.
-- **Coach engine** (open task 3 below), plus putting settings and the profile into backup/export.
+- **Coach engine** (open task 2 below), plus putting settings and the profile into backup/export.
 
 ## Open: anyone can claim these
 
@@ -31,21 +30,14 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
    - **One-time tips** on each tab.
    - **Settings:** add "Replay the tour". The Help screen already has a
      placeholder for it.
-2. **Hydration v2.** See "Additions → Hydration v2".
-   - Opt-in Open-Meteo weather (rounded location or a typed city).
-   - Drink hydration factors.
-   - Caffeine in mg, plus an alcohol top-up.
-   - Sweat loss from workouts, with an optional measured sweat rate.
-   - Wording must be honest: tea and coffee are not dehydrating at normal
-     amounts.
-3. **Coach engine.** See "Additions → Coach engine".
+2. **Coach engine.** See "Additions → Coach engine".
    - Weekly check-in suggestions from deterministic rules, each with a "why",
      covering weight trend vs pace, adherence, strength stalls, recovery
      signals, protein/water gaps and volume per muscle. The user taps Apply or
      Dismiss.
    - A daily "one thing to do today" card on Today.
    - AI narrative is optional and only rewords the suggestions.
-4. **Motion and clarity polish.** See SPEC-v3 point 5.
+3. **Motion and clarity polish.** See SPEC-v3 point 5.
    - Motion tokens already exist in `ui/motion/Motion.kt`.
    - Animate the calorie ring sweep and count-ups, the water wave, protein-goal
      confetti, set and item check-offs, the rest-timer ring, chart draw-in and
@@ -53,14 +45,14 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
    - Add a "Reduce motion" setting.
    - Rewrite jargon as InfoTips (`ui/components/InfoTip.kt` exists). Give each
      screen one primary action, and make every empty state say what to do next.
-5. **AI policy audit, usage meter and cost analysis.** See "Additions → AI
+4. **AI policy audit, usage meter and cost analysis.** See "Additions → AI
    policy and cost". Do this last, once the AI features are final.
    - Audit every OpenRouter call site.
    - Show calls and spend per feature.
    - Add a monthly budget cap.
    - Estimate daily and monthly cost from the chosen models, and write
      `docs/AI-COSTS.md`.
-6. **Small follow-ups.**
+5. **Small follow-ups.**
    - Remove the duplicate Allergens section from Settings. My allergens
      replaces it.
    - Add "As many as you can" (AMRAP) to the UI, if it's wanted.
@@ -81,6 +73,10 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
 
 ## Done (v3)
 
+- Hydration v2: drink types and hydration factors, caffeine and alcohol tracking and top-ups, opt-in Open-Meteo
+  weather, sweat loss from logged workouts with a measured sweat rate, and a target breakdown in the water sheet
+  (branch `worktree-agent-a18b02fa9b8eab30d`; see `docs/HYDRATION.md`). Schema change: `migrateHydration_2_3`.
+  Not seen on a device.
 - Navigation: floating pill, Food/Train/Progress/More hubs, split script docs
   (4485a76).
 - Allergens v2: 15 built-in allergens, custom allergens and keywords,

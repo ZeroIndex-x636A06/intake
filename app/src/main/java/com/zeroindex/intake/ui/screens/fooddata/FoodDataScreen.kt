@@ -186,6 +186,11 @@ fun FoodDataScreen(
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(top = 8.dp),
                 )
+                Text(
+                    "Weather for the water target: data by Open-Meteo.com, licensed CC BY 4.0, only if you turn it on.",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
             }
         }
     }

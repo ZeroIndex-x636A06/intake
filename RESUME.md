@@ -30,6 +30,17 @@ All of SPEC.md's built phases and every amendment feature are implemented:
   the `copyScriptDocs` task in `app/build.gradle.kts` and shown by
   `ScriptReferenceScreen` (`domain/docs/Markdown.kt` parses it).
 
+- Hydration v2 (SPEC-v3 "Hydration v2", `docs/HYDRATION.md`): every water-log row has a drink type, a frozen
+  hydration factor, caffeine mg and pure-alcohol ml (`migrateHydration_2_3`, schema v3 only; v2 rows and v2
+  backup or sync rows become plain water). The pure rules are in `domain/hydration/` (`Drinks`, `CaffeineAlcohol`,
+  `WeatherAdjustment`, `SweatLoss`, `HydrationPlan.compose`; `HydrationTarget.compute` is unchanged). Opt-in
+  Open-Meteo weather: `data/weather/WeatherRepository` fetches when Today opens if the cached forecast is not from
+  today (no WorkManager job), location from the coarse permission rounded to 0.1 degree, or a typed city or ZIP
+  geocoded once. Settings live in their own DataStore (`HydrationPrefs`, "intake_hydration"). UI: the Today card has
+  drink chips, the sheet has the target breakdown, an add-a-drink picker and an Advanced section (drink values,
+  measured sweat rate); Settings has a "Water" section for the weather switch. Seeded Tea and Coffee presets are
+  added once to existing installs. Alcohol rows are not written to Health Connect.
+
 - Navigation and IA rebuild (SPEC-v3 "Information architecture"):
   - `ui/navigation/FloatingPillBar.kt` is the floating pill (vertical on Medium+
     widths). Touch is one `awaitEachGesture` on the whole pill; the logic is pure in
@@ -114,6 +125,12 @@ Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/SPEC-v3.md`, `docs/BACKUP
 
 ## NOT verified
 
+- Hydration v2 on a device: the coarse location prompt and fix, the live Open-Meteo calls from the app (the URLs
+  and response shapes were checked with curl from the build container, and the parsers are unit-tested against
+  those responses), the drink chips and water sheet layout, and the Settings, Water section have never been seen
+  on a screen. The logged-workout sweat estimate has not run against a real session. The planned-training-day flat
+  bonus is only used when a session has started but has no time yet, because the app has no "today is a training
+  day" signal to read.
 - Meal plans and recipes by hand and from a link: the plan manager, week strip, recipe editor and link-import
   screens have never been seen on a screen (no emulator). The repository code that talks to Room
   (create, switch, archive, duplicate, move and remove weeks, re-import by name) is not covered by a database

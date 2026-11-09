@@ -164,6 +164,39 @@ class MigrationSchemaTest {
         c.close()
     }
 
+    @Test
+    fun migrationTwoToThreeTurnsExistingWaterIntoPlainWaterAndKeepsEveryTotal() {
+        val c = createAt(2)
+        c.exec("INSERT INTO hydration_log (id, loggedAt, volumeMl, presetId, createdAt, updatedAt) VALUES ('h1', 10, 500, 'p1', 1, 1)")
+        c.exec("INSERT INTO hydration_log (id, loggedAt, volumeMl, createdAt, updatedAt, deletedAt) VALUES ('h2', 20, 250, 1, 1, 5)")
+        c.exec("INSERT INTO hydration_preset (id, name, volumeMl, displayOrder, createdAt, updatedAt) VALUES ('p1', 'Bottle', 500, 1, 1, 1)")
+        MIGRATION_2_3_STATEMENTS.forEach { c.exec(it) }
+
+        val rows = c.rows("SELECT * FROM hydration_log ORDER BY id")
+        assertThat(rows).hasSize(2)
+        rows.forEach {
+            assertThat(it["drinkType"]).isEqualTo("WATER")
+            assertThat((it["hydrationFactor"] as Number).toDouble()).isEqualTo(1.0)
+            assertThat((it["caffeineMg"] as Number).toDouble()).isEqualTo(0.0)
+            assertThat((it["alcoholMl"] as Number).toDouble()).isEqualTo(0.0)
+        }
+        assertThat((rows[0]["volumeMl"] as Number).toDouble()).isEqualTo(500.0)
+        assertThat(rows[1]["deletedAt"]).isEqualTo(5)
+        assertThat(c.rows("SELECT drinkType FROM hydration_preset").single()["drinkType"]).isEqualTo("WATER")
+        assertMatches(c, 3)
+        c.close()
+    }
+
+    @Test
+    fun hydrationColumnsAreOnlyInVersionThree() {
+        val v2 = entities(2).getValue("hydration_log")["fields"]!!.jsonArray
+            .map { it.jsonObject["columnName"]!!.jsonPrimitive.content }
+        assertThat(v2).containsExactly("id", "loggedAt", "volumeMl", "presetId", "createdAt", "updatedAt", "deletedAt")
+        val v3 = entities(3).getValue("hydration_log")["fields"]!!.jsonArray
+            .map { it.jsonObject["columnName"]!!.jsonPrimitive.content }
+        assertThat(v3).containsAtLeast("drinkType", "hydrationFactor", "caffeineMg", "alcoholMl")
+    }
+
     private fun planWeek(c: Connection, id: String, number: Int, dish: String, notes: String = "", deleted: String = "NULL") =
         c.exec(
             "INSERT INTO plan_week (id, weekNumber, mainDishName, proteinType, notes, createdAt, updatedAt, deletedAt) " +

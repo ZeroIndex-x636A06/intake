@@ -91,6 +91,14 @@ fun PrivacyScreen(
             whenSent = "Only when you press Send in the confirmation that lists exactly what goes. Never automatically.",
         )
         PathRow(
+            title = "Weather for your water target",
+            tag = "Sends a rounded location or a city to Open-Meteo",
+            pill = "Off until you turn it on",
+            sent = "Either coordinates rounded to about 10 km, or the city or ZIP code you typed. No key, no account, nothing about your log.",
+            where = "api.open-meteo.com and geocoding-api.open-meteo.com",
+            whenSent = "Once a day when Today opens, and when you press Find for a typed place. Turn it off in Settings, Water.",
+        )
+        PathRow(
             title = "Model list",
             tag = "Public list, nothing of yours",
             pill = "On",

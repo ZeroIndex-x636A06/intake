@@ -9,6 +9,7 @@ import com.zeroindex.intake.data.db.entity.HydrationLogEntity
 import com.zeroindex.intake.data.db.entity.HydrationPresetEntity
 import com.zeroindex.intake.data.repository.FoodLogRepository
 import com.zeroindex.intake.data.repository.HydrationDay
+import com.zeroindex.intake.domain.hydration.DrinkType
 import com.zeroindex.intake.data.repository.HydrationRepository
 import com.zeroindex.intake.data.repository.MealTemplateRepository
 import com.zeroindex.intake.data.repository.TargetRepository
@@ -80,6 +81,7 @@ class TodayViewModel @Inject constructor(
 
     init {
         viewModelScope.launch { hydrationRepository.ensureDefaultPresets() }
+        viewModelScope.launch { hydrationRepository.refreshWeather() }
         viewModelScope.launch { insights.ensureToday() }
     }
 
@@ -159,16 +161,24 @@ class TodayViewModel @Inject constructor(
 
     // --- Water (amendment §3) ---------------------------------------------
 
-    fun logWater(volumeMl: Double, presetId: String? = null, onLogged: (HydrationLogEntity) -> Unit = {}) =
+    fun logWater(
+        volumeMl: Double,
+        presetId: String? = null,
+        drink: DrinkType? = null,
+        onLogged: (HydrationLogEntity) -> Unit = {},
+    ) =
         viewModelScope.launch {
-            onLogged(hydrationRepository.log(volumeMl, timestampForSelectedDay(), presetId))
+            onLogged(hydrationRepository.log(volumeMl, timestampForSelectedDay(), presetId, drink))
         }
 
     fun deleteWater(log: HydrationLogEntity) = viewModelScope.launch { hydrationRepository.delete(log.id) }
     fun restoreWater(log: HydrationLogEntity) = viewModelScope.launch { hydrationRepository.restore(log) }
 
-    fun saveWaterPreset(name: String, volumeMl: Double, existing: HydrationPresetEntity?) =
-        viewModelScope.launch { hydrationRepository.savePreset(name, volumeMl, existing) }
+    fun saveWaterPreset(name: String, volumeMl: Double, existing: HydrationPresetEntity?, drink: DrinkType? = null) =
+        viewModelScope.launch {
+            if (drink == null) hydrationRepository.savePreset(name, volumeMl, existing)
+            else hydrationRepository.savePreset(name, volumeMl, existing, drink)
+        }
 
     fun deleteWaterPreset(preset: HydrationPresetEntity) =
         viewModelScope.launch { hydrationRepository.deletePreset(preset.id) }

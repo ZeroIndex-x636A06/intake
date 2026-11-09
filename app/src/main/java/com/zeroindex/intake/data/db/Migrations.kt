@@ -126,11 +126,22 @@ internal fun migrateAllergens_2_3(): List<String> = listOf(
     "CREATE INDEX IF NOT EXISTS `index_allergen_definition_deletedAt` ON `allergen_definition` (`deletedAt`)",
 )
 
+internal fun migrateHydration_2_3(): List<String> = listOf(
+    // Hydration v2: every drink has a type and a frozen hydration factor, caffeine and pure alcohol. Existing
+    // rows become plain water (factor 1.0), so every old daily total stays exactly as it was.
+    "ALTER TABLE `hydration_log` ADD COLUMN `drinkType` TEXT NOT NULL DEFAULT 'WATER'",
+    "ALTER TABLE `hydration_log` ADD COLUMN `hydrationFactor` REAL NOT NULL DEFAULT 1.0",
+    "ALTER TABLE `hydration_log` ADD COLUMN `caffeineMg` REAL NOT NULL DEFAULT 0.0",
+    "ALTER TABLE `hydration_log` ADD COLUMN `alcoholMl` REAL NOT NULL DEFAULT 0.0",
+    "ALTER TABLE `hydration_preset` ADD COLUMN `drinkType` TEXT NOT NULL DEFAULT 'WATER'",
+)
+
 // Add new 2 -> 3 steps to the list below, after the existing ones.
 internal val MIGRATION_2_3_STATEMENTS: List<String> =
     migrateFoodOff_2_3() +
         migrateAllergens_2_3() +
-        migrateMealPlans_2_3()
+        migrateMealPlans_2_3() +
+        migrateHydration_2_3()
 
 internal val MIGRATION_2_3 = object : Migration(2, 3) {
     override fun migrate(db: SupportSQLiteDatabase) {

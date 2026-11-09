@@ -4,6 +4,16 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.Icon
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.zeroindex.intake.domain.hydration.WeatherAdjustment
+import com.zeroindex.intake.domain.hydration.WeatherStatus
+import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,7 +39,6 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.data.db.entity.HydrationPresetEntity
 import com.zeroindex.intake.data.repository.HydrationDay
@@ -41,8 +50,11 @@ import com.zeroindex.intake.ui.theme.WaterAccent
  * Amendment §3: water as a primary metric on Today, laid out as mockup v2's
  * `.hydration` card. The amount is the loudest thing on the card, the meta
  * line says why the target moved, and the first three presets plus Custom sit
- * in four equal tiles so logging the usual glass is one tap.
+ * as drink chips (an icon, the amount, the name) so logging the usual glass or cup is one tap.
+ * Tea and coffee count toward the day like water, so they sit beside it. The weather line only appears when
+ * the user turned weather on, and says plainly when there is nothing to adjust.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun HydrationCard(
     day: HydrationDay,
@@ -108,27 +120,51 @@ fun HydrationCard(
             )
         }
 
+        weatherLine(day.weather)?.let {
+            Text(
+                it,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+
         Spacer(Modifier.height(11.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            presets.take(3).forEach { preset ->
-                PresetTile(
-                    amount = "＋ ${unit.formatNumber(preset.volumeMl)}",
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            presets.take(MAX_CHIPS).forEach { preset ->
+                DrinkChip(
+                    icon = preset.drinkType.icon(),
+                    amount = "\uFF0B ${unit.formatNumber(preset.volumeMl)}",
                     name = preset.name.lowercase(),
                     description = "Add ${unit.format(preset.volumeMl)}, ${preset.name}",
                     onClick = { onPreset(preset) },
-                    modifier = Modifier.weight(1f),
                 )
             }
-            PresetTile(
-                amount = "＋ Custom",
-                name = "amount",
-                description = "Add a custom amount",
+            DrinkChip(
+                icon = Icons.Filled.Tune,
+                amount = "\uFF0B Custom",
+                name = "drink",
+                description = "Add a custom drink",
                 onClick = onOpen,
-                modifier = Modifier.weight(1f),
             )
-            repeat((3 - presets.size).coerceAtLeast(0)) { Spacer(Modifier.weight(1f)) }
         }
     }
+}
+
+private const val MAX_CHIPS = 6
+
+/** The weather line is silent when the feature is off, and honest when it cannot help. */
+private fun weatherLine(status: WeatherStatus): String? = when (status) {
+    WeatherStatus.Off -> null
+    WeatherStatus.NeedsLocation -> "Weather: no location set, so no weather adjustment."
+    WeatherStatus.Unavailable -> "Weather: could not load today's forecast, so no weather adjustment."
+    is WeatherStatus.Ready ->
+        if (WeatherAdjustment.adjustmentMl(status.day) > 0) null
+        else "Weather: ${status.day.tempMaxC.roundToInt()} \u00B0C today, no extra water needed."
 }
 
 @Composable
@@ -149,7 +185,8 @@ private fun WaterBar(fraction: Float) {
 }
 
 @Composable
-private fun PresetTile(
+private fun DrinkChip(
+    icon: ImageVector,
     amount: String,
     name: String,
     description: String,
@@ -166,13 +203,16 @@ private fun PresetTile(
             .clickable(role = Role.Button, onClick = onClick)
             .semantics(mergeDescendants = true) { contentDescription = description },
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 3.dp, vertical = 5.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Text(amount, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, maxLines = 1, textAlign = TextAlign.Center)
-            Text(name, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+            Icon(icon, contentDescription = null, tint = WaterAccent, modifier = Modifier.size(18.dp))
+            Column {
+                Text(amount, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+                Text(name, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+            }
         }
     }
 }

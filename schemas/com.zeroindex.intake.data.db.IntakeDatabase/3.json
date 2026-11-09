@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 3,
-    "identityHash": "9e5d563b1325a3dac38e4e2641bd95a3",
+    "identityHash": "17cdde286dc7507839260611f61ca001",
     "entities": [
       {
         "tableName": "food",
@@ -2757,7 +2757,7 @@
       },
       {
         "tableName": "hydration_log",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `loggedAt` INTEGER NOT NULL, `volumeMl` REAL NOT NULL, `presetId` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `loggedAt` INTEGER NOT NULL, `volumeMl` REAL NOT NULL, `presetId` TEXT, `drinkType` TEXT NOT NULL DEFAULT 'WATER', `hydrationFactor` REAL NOT NULL DEFAULT 1.0, `caffeineMg` REAL NOT NULL DEFAULT 0.0, `alcoholMl` REAL NOT NULL DEFAULT 0.0, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -2781,6 +2781,34 @@
             "fieldPath": "presetId",
             "columnName": "presetId",
             "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "drinkType",
+            "columnName": "drinkType",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'WATER'"
+          },
+          {
+            "fieldPath": "hydrationFactor",
+            "columnName": "hydrationFactor",
+            "affinity": "REAL",
+            "notNull": true,
+            "defaultValue": "1.0"
+          },
+          {
+            "fieldPath": "caffeineMg",
+            "columnName": "caffeineMg",
+            "affinity": "REAL",
+            "notNull": true,
+            "defaultValue": "0.0"
+          },
+          {
+            "fieldPath": "alcoholMl",
+            "columnName": "alcoholMl",
+            "affinity": "REAL",
+            "notNull": true,
+            "defaultValue": "0.0"
           },
           {
             "fieldPath": "createdAt",
@@ -2829,7 +2857,7 @@
       },
       {
         "tableName": "hydration_preset",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `volumeMl` REAL NOT NULL, `displayOrder` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `volumeMl` REAL NOT NULL, `displayOrder` INTEGER NOT NULL, `drinkType` TEXT NOT NULL DEFAULT 'WATER', `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -2854,6 +2882,13 @@
             "columnName": "displayOrder",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "drinkType",
+            "columnName": "drinkType",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'WATER'"
           },
           {
             "fieldPath": "createdAt",
@@ -3720,7 +3755,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '9e5d563b1325a3dac38e4e2641bd95a3')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '17cdde286dc7507839260611f61ca001')"
     ]
   }
 }

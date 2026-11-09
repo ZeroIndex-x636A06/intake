@@ -40,11 +40,7 @@ object HydrationTarget {
         activeKcalNet: Double?,
         trainingDayBonusMl: Double = TRAINING_DAY_BONUS_ML,
     ): Target {
-        val base = roundTo50(
-            manualBaseMl?.takeIf { it > 0 }
-                ?: bodyweightKg?.takeIf { it > 0 }?.let { it * ML_PER_KG }
-                ?: FALLBACK_BASE_ML,
-        )
+        val base = baseMl(manualBaseMl, bodyweightKg)
         if (!dynamic) return Target(base, base, emptyList())
 
         val reasons = buildList {
@@ -56,6 +52,13 @@ object HydrationTarget {
         }
         return Target(base + reasons.sumOf { it.ml }, base, reasons)
     }
+
+    /** The base alone: a number the user set, else 35 ml per kg, else the fallback. Shared with [HydrationPlan]. */
+    fun baseMl(manualBaseMl: Double?, bodyweightKg: Double?): Double = roundTo50(
+        manualBaseMl?.takeIf { it > 0 }
+            ?: bodyweightKg?.takeIf { it > 0 }?.let { it * ML_PER_KG }
+            ?: FALLBACK_BASE_ML,
+    )
 
     /** Targets read better as round numbers; 50 ml is below any glass size. */
     internal fun roundTo50(ml: Double): Double = (ml / 50.0).roundToInt() * 50.0
