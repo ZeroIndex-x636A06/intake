@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Intake — v4 structure mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+
+:root{--ink:#20221f;--muted:#6e746e;--line:#e4e6e0;--green:#1f5d50;--green-soft:#e2f1eb;--sand:#6c5d2f;--sand-soft:#f4efd9;--clay:#8f4c38;--clay-soft:#f9e4dd;--protein:#2e7d6b;--carbs:#b08415;--fat:#9a5540;--bg:#f5f6f1;--white:#fff;--shadow:0 8px 28px rgba(31,45,38,.08)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:'DM Sans',sans-serif}button,input{font:inherit}button{cursor:pointer}.gallery{max-width:1440px;margin:auto;padding:36px 28px 70px}.hero{display:flex;justify-content:space-between;align-items:end;margin-bottom:30px;gap:20px}.eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--green)}h1{font:800 clamp(32px,4vw,48px)/1.05 Manrope;margin:8px 0}.hero p{margin:0;color:var(--muted);max-width:620px;line-height:1.5}.pill{background:#e9eee7;border-radius:99px;padding:9px 14px;font-size:12px;font-weight:700;white-space:nowrap}.group{margin:35px 0 50px}.group-head{display:flex;align-items:baseline;gap:12px;margin:0 0 15px}.group-head h2{font:700 21px Manrope;margin:0}.group-head span{font-size:12px;color:var(--muted)}.pair{display:grid;grid-template-columns:repeat(2,minmax(320px,390px));gap:18px;align-items:start}.frame-wrap{min-width:0}.frame-label{font-size:12px;font-weight:700;color:var(--muted);padding:0 4px 8px}.phone{width:100%;height:880px;overflow:hidden;border-radius:28px;background:var(--bgc);color:var(--fg);border:1px solid var(--bd);box-shadow:var(--shadow);position:relative;display:flex;flex-direction:column;--bgc:#FFFBFF;--surface:#fff;--variant:#F5F2F7;--fg:#1c1d20;--sub:#65676e;--bd:#e8e5ec;--primary:#1F5D50;--pale:#e1f1eb;--secondary:#6C5D2F;--sand:#f4efd9;--clay:#8F4C38;--clayp:#f8e6df}.phone.dark{--bgc:#121318;--surface:#1a1b21;--variant:#1E1F25;--fg:#f1f0f5;--sub:#a6a6ae;--bd:#34353c;--primary:#8FD6C4;--pale:#263d37;--secondary:#D9C78E;--sand:#363222;--clay:#FFB5A0;--clayp:#472b27}.status{height:31px;flex:none;padding:8px 19px 0;display:flex;justify-content:space-between;font-size:11px;font-weight:700;letter-spacing:.02em}.appbar{height:52px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 18px}.brand{font:800 19px Manrope;letter-spacing:-.04em}.brand b{color:var(--primary)}.avatar{width:32px;height:32px;border-radius:50%;background:var(--pale);color:var(--primary);display:grid;place-items:center;font-size:13px;font-weight:700}.screen{padding:4px 16px 14px;overflow:auto;scrollbar-width:none;flex:1}.screen::-webkit-scrollbar{display:none}.bottom{height:68px;flex:none;background:var(--surface);border-top:1px solid var(--bd);display:grid;grid-template-columns:repeat(5,1fr);padding:5px 7px 8px}.navitem{border:0;background:none;color:var(--sub);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:9px;min-width:48px;min-height:48px}.navitem .ico{font-size:18px;line-height:1}.navitem.active{color:var(--primary);font-weight:700}.navitem.active .ico{background:var(--pale);border-radius:14px;padding:4px 13px}.date-row{display:flex;align-items:center;justify-content:space-between;margin:5px 0 10px}.date-row button{border:0;background:transparent;color:var(--primary);font-size:22px;min-width:48px;min-height:48px}.date-title{text-align:center}.date-title strong{font:700 16px Manrope;display:block}.date-title small{color:var(--sub);font-size:11px}.ring-card,.card{background:var(--surface);border:1px solid var(--bd);border-radius:22px;padding:15px;margin-bottom:12px}.ring-card{display:flex;flex-direction:column;align-items:center;padding:14px 13px 12px}.ring{width:192px;height:192px;position:relative;margin:0 auto 5px}.ring svg{width:100%;height:100%;transform:rotate(-90deg)}.ring circle{fill:none;stroke-width:9;stroke-linecap:round}.ring .track{stroke:var(--variant)}.ring .protein{stroke:#2E7D6B;stroke-width:12;stroke-dasharray:339 364}.ring .carbs{stroke:#B08415;stroke-dasharray:252 283}.ring .fat{stroke:#9A5540;stroke-dasharray:188 202}.ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}.ring-center strong{font:800 33px Manrope;letter-spacing:-.05em}.ring-center span{font-size:11px;color:var(--sub);margin-top:-1px}.ring-center small{font-size:11px;margin-top:7px;color:var(--primary);font-weight:700}.macro-row{display:grid;grid-template-columns:repeat(3,1fr);width:100%;gap:6px;text-align:center;margin-top:0}.macro{border-radius:14px;padding:9px 3px;background:var(--variant)}.macro b{display:block;font:700 15px Manrope}.macro small{font-size:10px;color:var(--sub)}.macro.prot b{color:#2E7D6B}.macro.carb b{color:#B08415}.macro.fat b{color:#9A5540}.remaining{background:var(--pale);color:var(--primary);border-radius:16px;padding:12px 13px;margin:10px 0 14px;font-size:12px;line-height:1.4}.remaining strong{font:700 15px Manrope;display:block;margin-bottom:2px}.sectionline{display:flex;justify-content:space-between;align-items:center;margin:13px 1px 8px}.sectionline h3{font:700 15px Manrope;margin:0}.textbutton{border:0;background:none;color:var(--primary);font-size:12px;font-weight:700;min-height:48px;padding:0 10px}.meal{background:var(--surface);border:1px solid var(--bd);border-radius:18px;padding:12px 13px;margin-bottom:8px}.meal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}.meal-head strong{font:700 13px Manrope}.meal-head span{font-size:10px;color:var(--sub)}.food{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:11px}.food small{color:var(--sub)}.add-food{width:48px;height:48px;border-radius:16px;border:0;background:var(--primary);color:#fff;font-size:24px;float:right;margin:2px 0 6px}.subhead{font:800 22px Manrope;letter-spacing:-.04em;margin:8px 0 3px}.subcopy{font-size:12px;color:var(--sub);margin:0 0 14px}.searchbox{background:var(--variant);border-radius:15px;display:flex;align-items:center;padding:0 13px;height:48px;color:var(--sub);gap:8px;margin-bottom:12px}.searchbox input{border:0;background:none;color:var(--fg);outline:0;width:100%;font-size:13px}.tabs{display:flex;gap:4px;overflow:auto;scrollbar-width:none;border-bottom:1px solid var(--bd);margin:0 -2px 12px}.tab{flex:0 0 auto;min-height:48px;padding:0 12px;border:0;background:none;color:var(--sub);font-size:11px;font-weight:600;position:relative}.tab.active{color:var(--primary)}.tab.active:after{content:"";height:3px;border-radius:4px;background:var(--primary);position:absolute;bottom:0;left:10px;right:10px}.food-row{display:flex;align-items:center;gap:11px;padding:12px 4px;border-bottom:1px solid var(--bd);min-height:65px}.food-icon{width:38px;height:38px;background:var(--pale);border-radius:13px;display:grid;place-items:center;font-size:17px}.food-details{flex:1;min-width:0}.food-details b{font-size:12px;display:block}.food-details small{font-size:10px;color:var(--sub)}.food-kcal{text-align:right;font-size:12px;font-weight:700}.food-kcal small{display:block;font-size:10px;color:var(--sub);font-weight:400}.sheet-handle{width:36px;height:4px;background:var(--bd);border-radius:4px;margin:5px auto 12px}.sheet-head{display:flex;justify-content:space-between;align-items:center}.sheet-head h3{font:800 20px Manrope;margin:0}.close{border:0;background:var(--variant);color:var(--fg);border-radius:50%;height:42px;width:42px;font-size:18px}.label{font-size:10px;color:var(--sub);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin:12px 0 6px;display:block}.chips{display:flex;gap:7px;flex-wrap:wrap}.chip{min-height:48px;border:1px solid var(--bd);border-radius:14px;background:var(--surface);color:var(--fg);padding:0 13px;font-size:11px;font-weight:600}.chip.selected{border-color:var(--primary);background:var(--pale);color:var(--primary)}.gram-field{height:58px;border:1.5px solid var(--primary);border-radius:15px;display:flex;align-items:center;padding:0 14px;justify-content:space-between}.gram-field input{font:700 23px Manrope;width:100px;border:0;outline:0;background:none;color:var(--fg)}.gram-field span{color:var(--sub);font-size:12px}.math{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:11px}.math div{background:var(--variant);border-radius:12px;padding:8px 4px;text-align:center}.math b{font:700 13px Manrope;display:block}.math small{font-size:9px;color:var(--sub)}.primary-btn,.outline-btn,.quiet-btn{min-height:52px;border-radius:16px;padding:0 16px;font-weight:700;border:0;font-size:13px}.primary-btn{background:var(--primary);color:#fff;width:100%;margin-top:12px}.phone.dark .primary-btn{color:#0e221d}.outline-btn{background:transparent;border:1px solid var(--bd);color:var(--fg)}.quiet-btn{background:var(--variant);color:var(--fg)}
+/* Allergen */.warn-banner{background:#9f3026;color:white;border-radius:18px;padding:16px 16px 17px;margin:12px 0 13px}.warn-banner.amber{background:#825014}.warn-top{display:flex;gap:10px;align-items:center;font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:800}.warn-icon{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.19);display:grid;place-items:center;font-size:19px}.warn-banner h3{font:800 20px/1.18 Manrope;margin:11px 0 6px}.warn-banner p{font-size:12px;line-height:1.45;margin:0;color:#fff}.allergen-food{padding:14px;border:1px solid var(--bd);border-radius:17px;background:var(--surface);display:flex;justify-content:space-between;margin:10px 0}.allergen-food b{font:700 14px Manrope}.allergen-food small{display:block;color:var(--sub);font-size:10px;margin-top:4px}.blocked{color:#a63d31;font-size:10px;font-weight:800}.amber-note{background:var(--sand);color:var(--secondary);border-radius:14px;padding:11px;font-size:11px;line-height:1.45;margin:10px 0}.phone.dark .amber-note{background:#383424}.ing-card{border:1px solid var(--bd);border-radius:16px;padding:12px;background:var(--surface);font-size:11px;line-height:1.55;color:var(--sub)}.match{color:#9f3026;font-weight:800;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:2px}.warn-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.warn-actions button{min-height:54px;border-radius:15px;font-size:12px;font-weight:800}.dont{background:var(--primary);color:white;border:0}.anyway{background:transparent;border:1px solid var(--bd);color:var(--fg)}.amber .dont{background:#825014}.blocking-label{display:flex;gap:8px;align-items:center;background:var(--clayp);color:var(--clay);padding:10px 12px;border-radius:13px;font-size:11px;font-weight:700}
+/* Plan */.weekstrip{display:flex;gap:5px;overflow:auto;scrollbar-width:none;padding:4px 1px 11px}.week{min-width:42px;height:44px;border:1px solid var(--bd);border-radius:13px;background:var(--surface);color:var(--sub);font-size:11px;font-weight:700}.week.active{background:var(--primary);color:white;border-color:var(--primary)}.dish{padding:0;overflow:hidden}.dish-art{height:118px;background:linear-gradient(120deg,#b7c9ac,#e7c18c 55%,#d78861);display:flex;align-items:end;padding:13px;color:#26392d;position:relative}.dish-art:before{content:"";position:absolute;inset:14px 70px 6px 70px;border-radius:50%;background:radial-gradient(ellipse at 50% 50%,#cf7341 0 12%,#497347 13% 20%,#d7d8bc 21% 34%,#eee9d8 35% 48%,transparent 49%)}.dish-art span{position:relative;background:rgba(255,255,255,.85);padding:5px 9px;border-radius:9px;font-size:10px;font-weight:700}.dish-info{padding:13px}.dish-info h3{font:800 18px Manrope;margin:0 0 5px}.dish-info p{font-size:11px;color:var(--sub);margin:0 0 11px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.stat{background:var(--variant);border-radius:12px;padding:9px;text-align:center}.stat b{display:block;font:700 14px Manrope}.stat small{font-size:9px;color:var(--sub)}.accordion{background:var(--surface);border:1px solid var(--bd);border-radius:16px;margin-bottom:8px;overflow:hidden}.acc-head{width:100%;min-height:52px;border:0;background:none;color:var(--fg);display:flex;align-items:center;justify-content:space-between;padding:0 14px;text-align:left;font-weight:700;font-size:12px}.acc-head .arrow{font-size:15px;color:var(--primary);transition:transform .15s}.acc-head[aria-expanded="true"] .arrow{transform:rotate(180deg)}.acc-body{padding:0 13px 12px;font-size:11px;color:var(--sub)}.group-title{font-weight:800;color:var(--fg);margin:7px 0}.checkrow{display:flex;align-items:center;gap:9px;min-height:39px;border-bottom:1px solid var(--bd);color:var(--fg)}.checkrow input{accent-color:var(--primary);width:18px;height:18px}.checkrow.checked span{text-decoration:line-through;color:var(--sub)}.step-list{padding-left:18px;margin:0;line-height:1.65}.step-list li{padding:3px 0}.sticky-action{margin-top:10px}.parking{background:var(--primary);color:white;border:0;width:100%;min-height:58px;border-radius:18px;font-weight:800;font-size:13px;margin-top:7px;box-shadow:0 7px 16px rgba(31,93,80,.17)}.parking small{display:block;font-size:10px;font-weight:500;opacity:.85;margin-top:2px}
+/* Parking sheet */.offline{display:inline-flex;align-items:center;gap:6px;border-radius:99px;background:var(--pale);color:var(--primary);font-size:10px;font-weight:800;padding:7px 10px}.venue{border-radius:18px;background:var(--variant);padding:13px;margin:12px 0}.venue h3{font:800 17px Manrope;margin:0 0 3px}.venue p{font-size:11px;color:var(--sub);margin:0}.quote{border-left:3px solid var(--primary);background:var(--pale);padding:12px 13px;border-radius:0 15px 15px 0;font:600 12px/1.5 Manrope;margin:10px 0}.caution{font-size:11px;color:var(--clay);line-height:1.4;background:var(--clayp);padding:11px;border-radius:13px}.macro-mini{display:flex;justify-content:space-between;margin-top:10px;padding:11px;background:var(--surface);border:1px solid var(--bd);border-radius:14px;font-size:10px}.macro-mini b{font-size:12px}
+/* Cook */.cook{height:100%;display:flex;flex-direction:column;padding:0 18px 16px}.cook-top{display:flex;align-items:center;justify-content:space-between;padding:4px 0 14px;font-size:11px;color:var(--sub)}.step-count{font-weight:800;color:var(--primary)}.cook-progress{height:5px;background:var(--variant);border-radius:9px;overflow:hidden;margin-bottom:20px}.cook-progress i{display:block;height:100%;width:33%;background:var(--primary);border-radius:9px}.step-kicker{font-size:11px;color:var(--secondary);font-weight:800;text-transform:uppercase;letter-spacing:.12em}.cook h2{font:800 34px/1.14 Manrope;letter-spacing:-.05em;margin:10px 0 12px}.cook p{font-size:15px;line-height:1.5;color:var(--sub);margin:0}.cook-illustration{margin:22px 0;background:var(--pale);min-height:145px;border-radius:22px;display:grid;place-items:center;font-size:54px}.timer-chip{margin-top:4px;border:1.5px solid var(--primary);border-radius:16px;min-height:56px;padding:0 15px;background:var(--surface);color:var(--primary);font-weight:800;font-size:14px;display:flex;justify-content:space-between;align-items:center}.timer-chip span{font-size:11px}.cook-bottom{margin-top:auto;display:grid;grid-template-columns:54px 1fr 54px;gap:8px}.cook-bottom button{height:60px;border-radius:18px;border:0;background:var(--variant);color:var(--fg);font-size:18px;font-weight:800}.cook-bottom .next{background:var(--primary);color:white}.awake{display:flex;gap:7px;align-items:center;font-size:10px;color:var(--primary);font-weight:700}
+/* Train */.program-banner{background:var(--primary);color:white;border-radius:20px;padding:17px;margin:12px 0}.program-banner small{font-size:10px;opacity:.78;font-weight:700;letter-spacing:.08em;text-transform:uppercase}.program-banner h2{font:800 21px Manrope;margin:5px 0}.program-banner p{font-size:11px;margin:0;opacity:.88}.nextday{border-radius:20px;background:var(--surface);border:1px solid var(--bd);padding:15px;margin-bottom:13px}.nextday-head{display:flex;justify-content:space-between;align-items:center}.nextday h3{font:800 18px Manrope;margin:2px 0 5px}.nextday p{font-size:11px;color:var(--sub);margin:0}.startbtn{border:0;border-radius:15px;background:var(--primary);color:white;font-weight:800;min-height:52px;padding:0 16px}.subsection{font:800 15px Manrope;margin:16px 0 9px}.muscle{display:flex;align-items:center;justify-content:space-between;padding:11px 12px;background:var(--surface);border:1px solid var(--bd);border-radius:15px;margin-bottom:7px}.muscle b{font-size:12px}.muscle small{display:block;color:var(--sub);font-size:10px;margin-top:3px}.setcount{font:800 18px Manrope}.setcount small{font:500 9px 'DM Sans';color:var(--sub)}.flag{border:1px solid var(--clay);color:var(--clay);background:var(--clayp);border-radius:99px;padding:6px 8px;font-size:9px;font-weight:800;margin-left:6px}
+/* Workout */.workout-top{display:flex;justify-content:space-between;align-items:center;margin:4px 0 12px}.workout-top b{font:700 13px Manrope}.timer{background:var(--pale);color:var(--primary);border-radius:13px;padding:9px 11px;font:800 15px Manrope}.exercise-card{padding:15px;border-radius:20px;background:var(--surface);border:1px solid var(--bd)}.exercise-card small{font-size:10px;color:var(--secondary);font-weight:800;text-transform:uppercase;letter-spacing:.1em}.exercise-card h2{font:800 23px Manrope;margin:5px 0 5px}.prescription{font:800 28px Manrope;color:var(--primary);letter-spacing:-.04em}.reason{font-size:11px;color:var(--sub);line-height:1.45;margin-top:3px}.reason strong{color:var(--fg)}.last-inline{font-size:10px;color:var(--sub);margin-top:9px;padding-top:9px;border-top:1px solid var(--bd)}.grid-head,.set-row{display:grid;grid-template-columns:36px 1fr 1fr 38px;gap:6px;align-items:center;text-align:center}.grid-head{font-size:9px;color:var(--sub);padding:12px 0 6px}.set-row{min-height:48px;border-top:1px solid var(--bd);font-size:11px}.set-n{font-size:11px;color:var(--sub)}.entry{height:37px;border:1px solid var(--bd);background:var(--variant);color:var(--fg);border-radius:10px;text-align:center;font-weight:700;width:100%;font-size:12px}.done{width:34px;height:34px;border-radius:11px;border:0;background:var(--pale);color:var(--primary);font-weight:800;font-size:15px}.done.active{background:var(--primary);color:white}.plate-card{background:var(--variant);padding:12px;border-radius:16px;margin-top:11px}.plate-card h4{margin:0 0 7px;font:700 12px Manrope}.plate-visual{display:flex;align-items:center;justify-content:center;gap:3px;height:40px}.bar{width:43px;height:8px;background:#747c78;border-radius:5px}.plate{height:27px;background:#2e7d6b;border-radius:4px;width:9px}.plate.small{height:20px;width:7px;background:#b08415}.plate-amount{text-align:center;font-size:10px;color:var(--sub);margin-top:5px}.restbar{display:flex;justify-content:space-between;align-items:center;background:var(--sand);border-radius:15px;padding:10px 12px;margin:11px 0;font-size:11px;color:var(--secondary);font-weight:700}.phone.dark .restbar{background:#373321}
+/* Progress */.range{display:flex;gap:5px;justify-content:space-between}.range .chip{min-height:43px;flex:1;padding:0 7px;font-size:10px}.range .chip.active{background:var(--primary);color:white;border-color:var(--primary)}.chart-card{background:var(--surface);border:1px solid var(--bd);border-radius:18px;padding:14px;margin:10px 0}.chart-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}.chart-title b{font:700 13px Manrope}.chart-title small{font-size:10px;color:var(--sub)}.chart{height:125px;position:relative;margin:9px 3px 0;border-bottom:1px solid var(--bd);background:repeating-linear-gradient(to bottom,transparent 0 30px,var(--bd) 31px,var(--bd) 32px)}.trend{position:absolute;left:3%;right:3%;top:30px;height:65px;border-top:3px solid var(--primary);transform:skewY(-9deg);border-radius:45%}.points{position:absolute;inset:20px 4% 10px;display:flex;align-items:end;justify-content:space-between}.points i{height:11px;width:11px;border:3px solid var(--surface);background:var(--clay);border-radius:50%;box-shadow:0 0 0 1px var(--clay);margin-bottom:calc(var(--v)*1%)}.chart-legend{display:flex;gap:14px;font-size:9px;color:var(--sub);margin-top:8px}.legend-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--clay);margin-right:4px}.legend-line{display:inline-block;width:14px;height:2px;background:var(--primary);vertical-align:middle;margin-right:4px}.weight-big{font:800 27px Manrope}.weight-big small{font:500 11px 'DM Sans';color:var(--sub)}.sparse{padding:11px;background:var(--sand);color:var(--secondary);border-radius:13px;font-size:11px;line-height:1.4;margin-top:10px}.heat{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:11px}.heat i{height:22px;border-radius:6px;background:var(--variant)}.heat i.on{background:#83b9a6}.heat i.mid{background:#b8d7ca}.heat i.today{outline:2px solid var(--primary)}.week-summary{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}.summary-tile{background:var(--variant);border-radius:13px;padding:10px}.summary-tile b{font:800 16px Manrope;display:block}.summary-tile small{font-size:9px;color:var(--sub)}.confidence{font-size:9px;color:var(--secondary);font-weight:800}.cal-bars{position:absolute;inset:14px 0 0;display:flex;align-items:end;justify-content:space-around}.cal-bars i{width:16px;border-radius:5px 5px 0 0;background:#83b9a6;position:relative}.target-line{position:absolute;left:0;right:0;border-top:2px dashed var(--clay);top:44px}.target-tag{position:absolute;right:0;top:31px;color:var(--clay);font-size:9px;background:var(--surface);padding:2px 4px}
+/* AI estimate */.photo{height:120px;border-radius:18px;background:linear-gradient(130deg,#d3bd9a,#eeddbb 40%,#738b64);position:relative;overflow:hidden;display:grid;place-items:center;margin:9px 0}.plate-shape{height:90px;width:90px;border-radius:50%;background:radial-gradient(circle,#855b3c 0 17%,#8ca274 18% 33%,#eee9d8 34% 60%,#d1d4c7 61%);box-shadow:0 3px 12px #4445}.estimate-banner{background:var(--sand);color:var(--secondary);border-radius:16px;padding:12px;margin:10px 0}.estimate-banner b{font:800 13px Manrope;display:block}.estimate-banner p{font-size:11px;line-height:1.4;margin:4px 0 0}.scale-head{display:flex;justify-content:space-between;font-size:11px;font-weight:800;margin:7px 1px}.scale-value{color:var(--primary);font:800 15px Manrope}.slider{width:100%;accent-color:var(--primary);height:28px}.scale-ticks{display:flex;justify-content:space-between;font-size:9px;color:var(--sub)}.estimate-row{display:grid;grid-template-columns:1fr 75px;gap:9px;align-items:center;padding:6px 0}.estimate-row label{font-size:11px;font-weight:700}.estimate-row input{height:43px;width:100%;border:1px solid var(--bd);background:var(--surface);color:var(--fg);border-radius:12px;padding:0 9px;font-weight:700;text-align:right}.more-list{padding:5px 14px;margin:7px 0}.menuitem{display:grid;grid-template-columns:42px minmax(0,1fr) 16px;align-items:center;column-gap:12px;min-height:68px;border-bottom:1px solid var(--bd);font-size:13px}.menuitem:last-child{border-bottom:0}.menuitem .mi{height:40px;width:40px;border-radius:14px;background:var(--pale);display:grid;place-items:center;color:var(--primary);font-size:16px}.menu-copy{min-width:0}.menu-copy b{display:block;font-weight:700}.menu-copy small{display:block;color:var(--sub);font-size:10px;margin-top:3px;line-height:1.3}.menuitem .chevron{color:var(--sub);font-size:17px;text-align:right}.assistant-card{border:1px solid var(--bd);background:var(--surface);border-radius:19px;padding:14px;margin:12px 0}.assistant-card .assist-head{display:flex;align-items:center;gap:10px}.assistant-mark{width:38px;height:38px;display:grid;place-items:center;border-radius:14px;background:var(--pale);color:var(--primary);font-size:17px}.assistant-card h3{font:700 14px Manrope;margin:0}.assistant-card p{font-size:11px;line-height:1.45;color:var(--sub);margin:8px 0 11px}.assistant-features{display:flex;gap:6px;flex-wrap:wrap}.assistant-features span{border-radius:99px;padding:6px 9px;background:var(--variant);font-size:9px;color:var(--sub);font-weight:700}.online-note{font-size:9px;color:var(--secondary);font-weight:700;margin-top:10px}.setting-row{display:flex;align-items:center;justify-content:space-between;min-height:56px;border-bottom:1px solid var(--bd);font-size:12px}.setting-row small{display:block;color:var(--sub);font-size:10px;margin-top:3px}.segmented{display:flex;background:var(--variant);padding:3px;border-radius:12px}.segmented button{border:0;background:transparent;color:var(--sub);border-radius:9px;min-height:38px;padding:0 10px;font-size:10px;font-weight:700}.segmented button.active{background:var(--primary);color:white}.api-field{height:45px;border:1px solid var(--bd);border-radius:12px;background:var(--surface);display:flex;align-items:center;padding:0 10px;margin:6px 0}.api-field input{border:0;outline:0;background:transparent;color:var(--fg);width:100%;font-size:11px}.testbtn{border:1px solid var(--primary);color:var(--primary);background:transparent;min-height:44px;border-radius:13px;padding:0 14px;font-size:11px;font-weight:800}.allergen-edit{background:var(--clayp);border-radius:16px;padding:12px;margin:10px 0}.allergen-edit b{font:700 13px Manrope;color:var(--clay)}.allergen-edit p{font-size:10px;color:var(--sub);line-height:1.45;margin:4px 0 8px}.tags{display:flex;flex-wrap:wrap;gap:5px}.tags span{border-radius:99px;background:var(--surface);border:1px solid var(--bd);padding:6px 8px;font-size:9px;color:var(--fg)}
+
+/* Round-two screens: hydration, optional models, research, health and large layouts */
+.hydration{border:1px solid var(--bd);background:var(--surface);border-radius:22px;padding:14px;margin:10px 0}.water-top{display:flex;align-items:center;justify-content:space-between}.water-top h3{font:700 14px Manrope;margin:0}.water-top strong{font:800 20px Manrope;color:var(--primary)}.water-bar{height:10px;border-radius:99px;background:var(--variant);margin:10px 0 7px;overflow:hidden}.water-bar i{display:block;height:100%;width:62%;border-radius:99px;background:#4c9b92}.water-meta{display:flex;justify-content:space-between;color:var(--sub);font-size:10px}.presets{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:11px}.presets button{min-height:48px;padding:4px 3px;border:1px solid var(--bd);border-radius:13px;background:var(--variant);color:var(--fg);font-size:9px;font-weight:700}.presets b{display:block;font-size:11px;margin-bottom:2px}.water-entries{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--bd);font-size:11px}.water-entries button{min-height:42px;border:0;background:none;color:var(--primary);font-weight:800}.insight{background:var(--sand);color:var(--secondary);border-radius:18px;padding:13px;margin:10px 0}.insight-head{display:flex;justify-content:space-between;align-items:center;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}.insight p{font:600 12px/1.45 Manrope;margin:9px 0}.disclosure{border:0;background:none;color:var(--secondary);font-weight:800;min-height:44px;padding:0;font-size:10px}.disclosure-body{font-size:10px;line-height:1.5;padding:7px 0 2px;border-top:1px solid #0002}.model-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:11px 0;border-bottom:1px solid var(--bd)}.model-row b{font-size:11px;display:block}.model-row small{font-size:9px;color:var(--sub)}.model-choice{text-align:right;font-size:10px;font-weight:800;color:var(--primary)}.suggested{font-size:8px;background:var(--pale);color:var(--primary);border-radius:99px;padding:4px 6px;margin-left:4px}.privacy-tag{display:inline-block;color:var(--clay);background:var(--clayp);border-radius:99px;padding:4px 6px;font-size:8px;font-weight:800}.table{width:100%;border-collapse:collapse;font-size:9px;margin-top:7px}.table th,.table td{padding:7px 4px;text-align:left;border-bottom:1px solid var(--bd)}.table th{color:var(--sub);font-weight:700}.table td:first-child{font-weight:800}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.field label{display:block;font-size:9px;color:var(--sub);font-weight:800;margin:5px 0}.field input,.field select{width:100%;height:46px;border:1px solid var(--bd);border-radius:12px;padding:0 10px;background:var(--surface);color:var(--fg);font-size:11px}.field.full{grid-column:1/-1}.field select{appearance:auto}.lock-chip{background:var(--pale);border-color:var(--primary);color:var(--primary)}.progress-list{padding:0;margin:8px 0;list-style:none}.progress-list li{padding:10px 0;border-bottom:1px solid var(--bd);font-size:11px}.progress-list b{color:var(--primary)}.status-pill{border-radius:99px;padding:6px 8px;font-size:9px;font-weight:800;white-space:nowrap;background:var(--pale);color:var(--primary)}.status-pill.bad{background:var(--clayp);color:var(--clay)}.status-pill.wait{background:var(--sand);color:var(--secondary)}.recipe-card{padding:12px;border-radius:17px;border:1px solid var(--bd);background:var(--surface);margin:8px 0}.recipe-card h4{font:700 13px Manrope;margin:0 0 5px}.recipe-card p{font-size:10px;color:var(--sub);margin:5px 0;line-height:1.4}.recipe-card.rejected{opacity:.56;background:var(--variant)}.row-between{display:flex;justify-content:space-between;align-items:center;gap:8px}.restaurant{border:1px solid var(--bd);border-radius:16px;padding:12px;background:var(--surface);margin:8px 0}.restaurant h4{font:700 13px Manrope;margin:0}.restaurant p{font-size:10px;color:var(--sub);line-height:1.4;margin:5px 0}.source-row{padding:10px 0;display:grid;grid-template-columns:1fr auto;gap:6px;border-bottom:1px solid var(--bd);font-size:10px}.source-row b{font-size:11px}.empty-state,.loading-state,.error-state{border-radius:17px;padding:15px;margin:9px 0;font-size:11px;line-height:1.45}.empty-state{border:1px dashed var(--bd);color:var(--sub);text-align:center;background:var(--surface)}.loading-state{background:var(--variant);color:var(--sub)}.error-state{background:var(--clayp);color:var(--clay)}.spinner{display:inline-block;width:13px;height:13px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;vertical-align:-2px;margin-right:6px}.tag-icon{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:10px;background:var(--sand);color:var(--secondary);font-size:14px;margin-right:7px}.big-stat{font:800 25px Manrope}.mini-chart{height:75px;background:repeating-linear-gradient(to bottom,transparent 0 23px,var(--bd) 24px,var(--bd) 25px);position:relative;margin:9px 0}.mini-chart:after{content:"";position:absolute;left:3%;right:3%;top:35px;border-top:3px solid var(--primary);transform:rotate(-7deg)}.health-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid var(--bd);font-size:11px}.health-row small{display:block;color:var(--sub);font-size:9px;margin-top:2px}.switch{border:1px solid var(--bd);background:var(--variant);color:var(--sub);border-radius:99px;padding:5px 9px;font-size:8px;font-weight:800}.switch.on{background:var(--pale);border-color:var(--primary);color:var(--primary)}.equation{display:grid;grid-template-columns:1fr 20px 1fr 20px 1fr;align-items:center;gap:4px;text-align:center;margin-top:9px}.equation div{background:var(--variant);border-radius:12px;padding:10px 4px;font-size:9px}.equation b{display:block;font:800 14px Manrope}.equation em{font-style:normal;font-weight:900;color:var(--primary)}.pdfpage{width:100%;aspect-ratio:8.5/11;background:#fff;color:#1b1b1b;border:1px solid #ccc;box-shadow:0 4px 14px #0002;padding:15px 17px;margin:10px auto;font:10px Arial,sans-serif;overflow:hidden}.pdfpage h3{font:700 17px Arial;margin:0 0 4px}.pdfpage h4{font:700 10px Arial;border-bottom:1px solid #333;padding-bottom:4px;margin:10px 0 5px}.pdf-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}.pdf-kpis div{border:1px solid #777;padding:6px}.pdf-kpis b{display:block;font-size:12px}.pdf-bars{height:58px;display:flex;align-items:end;justify-content:space-around;border-bottom:1px solid #444}.pdf-bars i{width:10px;background:#aaa;border:1px solid #222}.pdf-table{width:100%;border-collapse:collapse;font-size:7px}.pdf-table td,.pdf-table th{padding:3px;border:1px solid #777;text-align:left}.pdf-line{height:42px;border-bottom:1px solid #444;border-top:1px solid #aaa;position:relative}.pdf-line:after{content:"";position:absolute;left:4%;right:4%;top:22px;border-top:1px solid #111;transform:rotate(-5deg)}.device-list{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--bd);font-size:10px}.device-dot{width:9px;height:9px;border-radius:50%;background:#488a68}.conflict{background:var(--sand);border-radius:15px;padding:11px;font-size:10px;line-height:1.45;margin-top:9px}.watch{width:100%;aspect-ratio:1;background:#000;color:#f5f5f5;border:5px solid #303030;border-radius:36%;padding:26px 18px;display:flex;flex-direction:column;align-items:center;text-align:center;font-family:'DM Sans',sans-serif}.watch h3{font:700 15px Manrope;margin:3px 0}.watch .watch-weight{font:800 21px Manrope;color:#8FD6C4}.watch .watch-reps{font-size:11px;color:#c7c7c7}.watch .watch-button{min-width:48px;min-height:48px;border-radius:50%;border:1px solid #555;background:#171717;color:#fff;font-weight:800}.watch .watch-done{width:58px;height:58px;border:0;border-radius:50%;background:#8FD6C4;color:#000;font-size:22px;font-weight:900}.watch-rpe{display:flex;gap:4px;margin:8px 0}.watch-rpe button{border-radius:99px;min-height:38px;padding:0 8px;border:1px solid #555;background:#111;color:#fff;font-size:9px}.watch-timer{width:122px;height:122px;border-radius:50%;border:9px solid #8FD6C4;display:grid;place-items:center;font:800 22px Manrope;margin:7px auto}.tablet{min-height:700px;background:var(--bgc);color:var(--fg);border:1px solid var(--bd);border-radius:24px;display:grid;grid-template-columns:80px 1fr;overflow:hidden;box-shadow:var(--shadow)}.rail{background:var(--surface);border-right:1px solid var(--bd);display:flex;flex-direction:column;align-items:center;padding:14px 7px;gap:8px}.rail .navitem{width:64px;border-radius:16px}.tablet-main{padding:20px;min-width:0}.tablet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.tablet-columns{display:grid;grid-template-columns:1fr 1fr;gap:14px}.tablet-columns .ring-card{min-height:265px}.tablet-columns .chart-card{margin-top:0}.tablet-cols-heading{font:800 25px Manrope;margin:0}.tablet .tablet-card{background:var(--surface);border:1px solid var(--bd);border-radius:22px;padding:15px;margin-bottom:12px}.tablet .tablet-card h3{font:700 15px Manrope;margin:0 0 8px}.state-frame{min-height:410px}.nfc-art{height:125px;display:grid;place-items:center;background:var(--variant);border-radius:18px;font-size:50px;margin:10px 0}.nfc-ripple{height:95px;width:95px;border:2px dashed var(--primary);border-radius:50%;display:grid;place-items:center}.plan-b-row{font-size:10px;padding:8px 0;border-bottom:1px solid var(--bd)}
+
+@media(max-width:760px){.gallery{padding:22px 14px 50px}.hero{display:block}.hero .pill{display:inline-block;margin-top:14px}.pair{grid-template-columns:minmax(0,390px);justify-content:center}.group{margin:28px 0 38px}.phone{height:880px}}
+
+
+/* ===== v3 mockup additions: same palette, same cards ===== */
+html{-webkit-text-size-adjust:100%}
+body{overflow-x:hidden}
+.gallery{padding:30px 16px 70px}
+.hero .actions{display:flex;gap:8px;flex-wrap:wrap}
+.hero button.pill{border:0;color:var(--ink)}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:10px;margin:0 0 8px}
+.summary div{background:var(--white);border:1px solid var(--line);border-radius:18px;padding:13px 14px;font-size:13px;line-height:1.45;color:var(--muted)}
+.summary b{display:block;font:800 14px Manrope;color:var(--ink);margin-bottom:3px}
+.try{display:grid;grid-template-columns:minmax(0,390px) minmax(0,1fr);gap:26px;align-items:start}
+.try .notes{font-size:13px;line-height:1.6;color:var(--muted);max-width:520px}
+.try .notes h3{font:800 18px Manrope;color:var(--ink);margin:0 0 8px}
+.try .notes li{margin:5px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,360px),390px));gap:26px 18px;align-items:start}
+.phone{height:820px;max-width:390px}
+.phone .screen{padding-bottom:104px}
+.phone.nobar .screen{padding-bottom:16px}
+.tag{font-size:11px;font-weight:600;color:var(--muted);padding:0 4px 8px;line-height:1.4}
+.tag b{color:var(--ink);font-weight:700}
+
+/* top bar: title, search, avatar */
+.appbar{gap:6px}
+.appbar .title{font:800 19px Manrope;letter-spacing:-.04em;margin-right:auto}
+.appbar .title b{color:var(--primary)}
+.iconbtn{width:40px;height:40px;border-radius:50%;border:0;background:var(--variant);color:var(--fg);display:grid;place-items:center;font-size:17px;padding:0;flex:none}
+.avatar{border:0;padding:0;cursor:pointer;width:36px;height:36px}
+.backbar{height:52px;flex:none;display:flex;align-items:center;gap:4px;padding:0 10px 0 6px;position:relative}
+.backbar .back{border:0;background:none;color:var(--primary);font-size:15px;font-weight:700;min-height:48px;padding:0 10px}
+.backbar h2{font:800 17px Manrope;margin:0 auto 0 2px;letter-spacing:-.03em}
+.popover{position:absolute;right:12px;top:84px;background:var(--surface);border:1px solid var(--bd);border-radius:16px;box-shadow:0 12px 30px rgba(0,0,0,.18);padding:6px;z-index:20;min-width:210px}
+.popover[hidden]{display:none}
+.popover button{display:block;width:100%;text-align:left;border:0;background:none;color:var(--fg);min-height:44px;padding:0 12px;font-size:12px;font-weight:600;border-radius:11px}
+.popover button:hover{background:var(--variant)}
+
+/* the floating pill */
+.fpill{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;padding:5px;border-radius:99px;background:var(--pillbg);box-shadow:0 10px 28px rgba(10,14,12,.32);touch-action:none;z-index:30}
+.fpill .slot{position:relative;display:flex}
+.fpill .ind{position:absolute;top:0;bottom:0;left:0;width:var(--w);border-radius:99px;background:var(--pillon);transition:transform .28s cubic-bezier(.3,1.3,.5,1),opacity .15s;pointer-events:none}
+.fp{position:relative;width:var(--w);height:54px;border:0;background:none;border-radius:99px;color:#b9bac2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:10px;font-weight:600;padding:0;z-index:1}
+.fp .ico{font-size:18px;line-height:1}
+.fp.on{color:#fff}
+.phone{--pillbg:#202226;--pillon:#3a3d44;--w:76px}
+.pv{display:flex;flex-direction:column;flex:1;min-height:0}
+.more-list .menuitem:last-child{border-bottom:0!important}
+.phone.dark{--pillbg:#2b2d33;--pillon:#4a4d56}
+
+/* scrim and sheets */
+.scrim{position:absolute;inset:0;background:rgba(10,12,12,.42);z-index:40;display:flex;align-items:flex-end}
+.sheetbox{background:var(--bgc);width:100%;max-height:88%;overflow:auto;border-radius:26px 26px 0 0;padding:6px 16px 22px;scrollbar-width:none}
+.sheetbox::-webkit-scrollbar{display:none}
+.overlay{position:absolute;inset:0;background:var(--bgc);z-index:35;display:flex;flex-direction:column}
+.overlay .screen{padding-bottom:16px}
+.toast{position:absolute;left:16px;right:16px;bottom:92px;background:#202226;color:#fff;border-radius:14px;padding:12px 14px;font-size:12px;font-weight:600;z-index:60}
+
+/* cards */
+.focus{background:var(--sand);color:var(--secondary);border-radius:22px;padding:14px;margin-bottom:12px}
+.focus small{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.focus p{font:600 13px/1.45 Manrope;margin:7px 0 10px;color:var(--fg)}
+.focus .bar{height:6px;background:rgba(0,0,0,.12);border-radius:9px;overflow:hidden;margin:7px 0 0;width:100%}
+.focus .bar i{display:block;height:100%;width:57%;background:var(--secondary)}
+.focus .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.focus .go{border:0;background:var(--secondary);color:#fff;border-radius:13px;min-height:44px;padding:0 14px;font-weight:800;font-size:12px}
+.phone.dark .focus .go{color:#1d1a10}
+.phone.dark .focus{background:var(--sand)}
+.logrow{display:flex;gap:8px;margin:0 0 12px}
+.logrow .primary-btn{margin:0;flex:1}
+.logrow .sq{width:52px;min-height:52px;border-radius:16px;border:0;background:var(--pale);color:var(--primary);font-size:20px;flex:none}
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.tile{background:var(--surface);border:1px solid var(--bd);border-radius:22px;padding:13px}
+.tile h3{font:700 12px Manrope;margin:0;display:flex;justify-content:space-between;align-items:center}
+.tile .big{font:800 21px Manrope;margin:7px 0 2px;letter-spacing:-.03em}
+.tile .big small{font:500 10px 'DM Sans';color:var(--sub)}
+.tile .meta{font-size:10px;color:var(--sub);line-height:1.35}
+.tile .gear{border:0;background:var(--variant);color:var(--fg);width:30px;height:30px;border-radius:50%;font-size:13px;padding:0}
+.tile .mini{display:flex;gap:5px;margin-top:9px}
+.tile .mini button{flex:1;min-height:44px;border:1px solid var(--bd);background:var(--variant);color:var(--fg);border-radius:12px;font-weight:700;font-size:11px}
+.tile .mini button.p{background:var(--primary);color:#fff;border-color:var(--primary)}
+.phone.dark .tile .mini button.p{color:#0e221d}
+.wbar{height:8px;border-radius:99px;background:var(--variant);overflow:hidden;margin:7px 0 4px}
+.wbar i{display:block;height:100%;width:62%;background:#4c9b92;border-radius:99px}
+.mealcard{background:var(--surface);border:1px solid var(--bd);border-radius:22px;padding:4px 13px;margin-bottom:12px}
+.mrow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd);min-height:56px}
+.mrow:last-child{border-bottom:0}
+.mrow .nm{flex:1;min-width:0}
+.mrow b{font:700 13px Manrope;display:block}
+.mrow small{font-size:10px;color:var(--sub);display:block;margin-top:2px;line-height:1.35}
+.mrow .k{font-size:11px;font-weight:700;color:var(--fg);white-space:nowrap}
+.mrow .add{width:44px;height:44px;border-radius:14px;border:0;background:var(--pale);color:var(--primary);font-size:20px;flex:none}
+.mrow .mini2{border:1px solid var(--primary);background:transparent;color:var(--primary);border-radius:11px;min-height:40px;padding:0 10px;font-size:11px;font-weight:800}
+.mrow .mini2.f{background:var(--primary);color:#fff}
+.phone.dark .mrow .mini2.f{color:#0e221d}
+.planned{background:var(--pale);border-radius:14px;padding:8px 10px;margin:2px 0 8px}
+.ic2{width:34px;height:34px;border-radius:12px;background:var(--pale);color:var(--primary);display:grid;place-items:center;font-size:15px;flex:none}
+.edit-today{display:block;margin:2px auto 0;border:0;background:none;color:var(--primary);font-weight:700;font-size:12px;min-height:48px}
+.allergy{display:flex;align-items:center;gap:10px;background:var(--clayp);color:var(--clay);border-radius:16px;padding:11px 12px;margin:2px 0 12px;border:0;width:100%;text-align:left;min-height:52px}
+.allergy .ic{width:32px;height:32px;border-radius:50%;background:rgba(143,76,56,.16);display:grid;place-items:center;font-size:16px;flex:none}
+.allergy b{display:block;font-size:12px}
+.allergy small{display:block;font-size:10px;margin-top:2px;opacity:.9}
+.allergy .ed{margin-left:auto;font-size:11px;font-weight:800;white-space:nowrap}
+.allergy.empty{background:var(--sand);color:var(--secondary)}
+.seg2{display:flex;background:var(--variant);padding:3px;border-radius:13px;margin:4px 0 12px}
+.seg2 button{flex:1;border:0;background:transparent;color:var(--sub);border-radius:10px;min-height:42px;font-size:11px;font-weight:700}
+.seg2 button.active{background:var(--surface);color:var(--primary);box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.days .mrow b{font-size:12px}
+.days .today-row{background:var(--pale);margin:0 -13px;padding:10px 13px;border-radius:0}
+.chk{display:flex;align-items:center;gap:9px;min-height:44px;border-bottom:1px solid var(--bd);font-size:12px}
+.chk input{accent-color:var(--primary);width:18px;height:18px}
+.exphoto{height:190px;border-radius:22px;border:2px dashed var(--bd);background:linear-gradient(135deg,var(--variant),var(--pale));display:grid;place-items:center;text-align:center;color:var(--sub);font-size:11px;font-weight:700;letter-spacing:.06em;margin:4px 0 10px;position:relative}
+.exphoto .g{font-size:46px;display:block;margin-bottom:4px;opacity:.7}
+.exphoto span.cap{position:absolute;bottom:9px;left:0;right:0}
+.mm{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:var(--surface);border:1px solid var(--bd);border-radius:20px;padding:10px 6px 6px;position:relative}
+.mm svg{width:100%;height:auto;max-height:210px}
+.mm .lbl{text-align:center;font-size:10px;font-weight:700;color:var(--sub);margin-top:2px}
+.mm-cap{grid-column:1/-1;text-align:center;font-size:9px;letter-spacing:.1em;font-weight:800;color:var(--sub);text-transform:uppercase}
+.legend{display:flex;gap:14px;font-size:10px;color:var(--sub);margin:8px 2px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.rowlink{display:flex;align-items:center;justify-content:space-between;min-height:56px;border-bottom:1px solid var(--bd);font-size:12px;border-top:0;background:none;border-left:0;border-right:0;width:100%;color:var(--fg);text-align:left;padding:0}
+.rowlink small{display:block;color:var(--sub);font-size:10px;margin-top:3px}
+.rowlink .chev{color:var(--sub);font-size:17px}
+.sw{width:42px;height:26px;border-radius:99px;background:var(--variant);border:1px solid var(--bd);position:relative;flex:none;padding:0}
+.sw:after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--sub);transition:transform .18s}
+.sw.on{background:var(--primary);border-color:var(--primary)}
+.sw.on:after{transform:translateX(16px);background:#fff}
+.profile{display:flex;align-items:center;gap:13px;background:var(--surface);border:1px solid var(--bd);border-radius:22px;padding:14px;margin:4px 0 12px}
+.profile .avatar{width:52px;height:52px;font-size:20px;cursor:default}
+.profile b{font:800 16px Manrope;display:block}
+.profile small{font-size:11px;color:var(--sub);display:block;margin-top:2px}
+.you-list{padding:3px 14px}
+.srch-res .grp{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--sub);margin:14px 2px 4px}
+.srch-res .hit{display:flex;align-items:center;gap:11px;min-height:54px;padding:6px 4px;border:0;border-bottom:1px solid var(--bd);background:none;width:100%;color:var(--fg);text-align:left}
+.srch-res .hit .ic{width:34px;height:34px;border-radius:12px;background:var(--pale);color:var(--primary);display:grid;place-items:center;font-size:15px;flex:none}
+.srch-res .hit b{font-size:12px;display:block}
+.srch-res .hit small{font-size:10px;color:var(--sub);display:block;margin-top:2px}
+.srch-res .hit .where{margin-left:auto;font-size:9px;font-weight:800;color:var(--sub);white-space:nowrap}
+.chip.sm{min-height:40px;font-size:11px}
+.note{font-size:10px;color:var(--sub);line-height:1.45;margin:6px 2px}
+.accordion .acc-body[hidden]{display:none}
+.tabs.t4 .tab{flex:1}
+.range .chip{min-height:40px}
+.checkin{background:var(--primary);color:#fff;border-radius:22px;padding:15px;margin:2px 0 12px}
+.phone.dark .checkin{color:#0e221d}
+.checkin small{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;opacity:.8}
+.checkin h3{font:800 17px Manrope;margin:5px 0 4px}
+.checkin p{font-size:11px;margin:0 0 10px;opacity:.9;line-height:1.4}
+.checkin button{border:0;border-radius:13px;min-height:44px;padding:0 14px;font-weight:800;font-size:12px;background:#fff;color:var(--primary)}
+.cardhead{display:flex;justify-content:space-between;align-items:center}
+.cardhead b{font:700 14px Manrope}
+.cardhead .go{border:0;background:none;color:var(--primary);font-weight:800;font-size:11px;min-height:40px;padding:0}
+.tinyline{display:flex;justify-content:space-between;font-size:11px;padding:7px 0;border-bottom:1px solid var(--bd)}
+.tinyline:last-child{border-bottom:0}
+.tinyline b{font-weight:700}
+
+@media(max-width:860px){.try{grid-template-columns:minmax(0,390px);justify-content:center}.try .notes{max-width:none}.hero{display:block}.hero .actions{margin-top:14px}}
+@media(max-width:420px){.gallery{padding:22px 16px 50px}.phone{height:780px}.grid{gap:22px}.phone{--w:68px}}
+</style>
+</head>
+<body><main class="gallery">
+<header class="hero"><div><div class="eyebrow">Offline-first · design proposal v4</div><h1>Intake, calmer</h1><p>Four tabs, a four-card Today, one Food screen, one home per feature, one Settings, and a search that finds anything. Every feature is still here. Tap the pill, the search icon and the avatar. Nothing in this page is built yet, and it has not been seen on a real phone.</p></div><div class="actions"><button class="pill" id="darkbtn" type="button">Dark mode</button><div class="pill">Visual prototype · tap around</div></div></header>
+
+<section class="summary" aria-label="What changed">
+<div><b>4 tabs, not 5</b>Today · Food · Train · Progress. "More" becomes <em>You</em>, behind the avatar.</div>
+<div><b>Today: 4 cards</b>Left, next, quick log, eaten. Hide any. A new person starts with three.</div>
+<div><b>Food is one screen</b>Plan, Recipes, Meals, Eating out. My foods lives in Log food.</div>
+<div><b>One Settings</b>Six groups under You. Features keep one gear or "⋯".</div>
+<div><b>Find anything</b>Search icon on every tab. Allergen strip stays on top of Food.</div>
+</section>
+
+<section class="group"><div class="group-head"><h2>Try it</h2><span>Slide a finger along the pill, or tap</span></div>
+<div class="try"><div class="frame-wrap"><div class="tag"><b>Live prototype</b> · start on Today</div><div class="phone-host" data-start="today"></div></div>
+<div class="notes"><h3>Things to try</h3><ul>
+<li>Slide across the pill to change tabs. The highlight follows your finger, as in the app.</li>
+<li>On Today, tap <b>Weigh in</b>, the water gear, the planned dinner's <b>Log</b> in Next up, or <b>Edit Today</b> to hide a card.</li>
+<li>Tap the search icon and type "water", "tdee", "bench" or "milk".</li>
+<li>Tap the avatar for <b>You</b>: goals, six settings groups, help.</li>
+<li>On Food, try the four sections, the ⋯ menu, and the red allergen strip.</li>
+<li>On Train, tap <b>Start</b>, then the info button on the exercise, then <b>Change</b> equipment.</li></ul>
+<p style="margin-top:14px">The pill hides on the active workout, as it does in the app. On You, no tab is lit, because You is not a tab.</p></div></div></section>
+
+<section class="group"><div class="group-head"><h2>All frames</h2><span>each one is live too</span></div><div class="grid" id="grid"></div></section>
+</main>
+<script>
+const TABS=[['today','◷','Today'],['food','▤','Food'],['train','↗','Train'],['progress','⌁','Progress']];
+const TAB_IDS=TABS.map(t=>t[0]);
+// kind: root | push | sheet | overlay.  parent is used to build a start stack.
+const SCR={
+  today:{kind:'root',title:'Today'},food:{kind:'root',title:'Food'},train:{kind:'root',title:'Train'},progress:{kind:'root',title:'Progress'},
+  you:{kind:'push',title:'You',parent:'today',back:'Back'},
+  settings:{kind:'push',title:'Nutrition and water',parent:'you',back:'You'},
+  allergens:{kind:'push',title:'Allergens',parent:'food',back:'Food',
+    menu:[['How strict to be','Strict · Careful. Models can raise a warning, never clear one'],['Add your own allergen','Adds a custom allergen with keywords']]},
+  checkin:{kind:'push',title:'Weekly check-in',parent:'progress',back:'Progress',menu:[['Check-in settings','Notification, AI reword (optional)'],['Past check-ins','Opens earlier weeks']]},
+  syncx:{kind:'push',title:'Sync and export',parent:'you',back:'You'},
+  exercises:{kind:'push',title:'Exercises',parent:'train',back:'Train'},
+  exercise:{kind:'push',title:'Exercise',parent:'exercises',back:'Exercises',
+    menu:[['Edit this exercise','Name, muscles, equipment, rest'],['Add a photo of my own','Pick from your gallery. Stays on this phone'],['Hide from the list','Soft delete. History is kept']]},
+  workout:{kind:'push',title:'Push A',parent:'train',back:'Train',nopill:true},
+  search:{kind:'overlay',title:'Find anything',parent:'today'},
+  addfood:{kind:'sheet',parent:'today'},equipment:{kind:'sheet',parent:'exercises'},weighin:{kind:'sheet',parent:'today'},edittoday:{kind:'sheet',parent:'today'}
+};
+const IDX=[
+ {t:'Log water',g:'Actions',ic:'💧',w:'Today',k:'water drink glass hydrate',go:'toast:Added 250 ml. Water is 2,100 of 3,000 ml'},
+ {t:'Weigh in',g:'Actions',ic:'⚖',w:'Today',k:'weight scale weigh body',go:'sheet:weighin'},
+ {t:'Log food',g:'Actions',ic:'＋',w:'Today',k:'add food eat meal snack',go:'sheet:addfood'},
+ {t:'Scan a barcode',g:'Actions',ic:'▥',w:'Today',k:'barcode scan code',go:'sheet:addfood'},
+ {t:"Start today's workout",g:'Actions',ic:'↗',w:'Train',k:'workout start session train',go:'screen:workout'},
+ {t:'Import a meal plan',g:'Actions',ic:'⇪',w:'Food › Plan',k:'import plan file script',go:'screen:food'},
+ {t:'Water target and drinks',g:'Settings',ic:'⚙',w:'You › Nutrition and water',k:'water target hydration weather sweat drinks unit',go:'screen:settings'},
+ {t:'Calorie and protein target',g:'Settings',ic:'⚙',w:'You › Goals and plan',k:'tdee macros calories protein goal maintenance target',go:'toast:Opens You › Goals and plan'},
+ {t:'Add workout calories to my target',g:'Settings',ic:'⚙',w:'You › Nutrition and water',k:'active calories health connect burn target',go:'screen:settings'},
+ {t:'Units and theme',g:'Settings',ic:'⚙',w:'You › Look and units',k:'kg lb units theme dark motion length',go:'toast:Opens You › Look and units'},
+ {t:'Sync and export',g:'Settings',ic:'⚙',w:'You › Sync and export',k:'backup export import sync server restore csv json pair',go:'screen:syncx'},
+ {t:'Weekly check-in',g:'Screens',ic:'✓',w:'Progress',k:'report pdf print week check-in coach suggestions',go:'screen:checkin'},
+ {t:'AI (optional)',g:'Settings',ic:'⚙',w:'You › AI',k:'ai key openrouter model budget photo',go:'toast:Opens You › AI'},
+ {t:'Allergens',g:'Screens',ic:'⚠',w:'Food',k:'milk peanut sesame allergy avoid allergen',go:'screen:allergens'},
+ {t:'Meal plan',g:'Screens',ic:'▤',w:'Food › Plan',k:'week plan menu shopping list',go:'screen:food'},
+ {t:'Saved meals',g:'Screens',ic:'▤',w:'Food › Meals',k:'templates nfc tag meal prep saved meals',go:'screen:food'},
+ {t:'Jump tests',g:'Screens',ic:'⌁',w:'Progress › Weight and body',k:'performance vertical jump reach test',go:'toast:Opens Progress › Weight and body › Jump tests'},
+ {t:'Chicken thigh, cooked',g:'Foods',ic:'🍗',w:'209 kcal · 100 g',k:'chicken protein thigh',go:'sheet:addfood'},
+ {t:'Oat milk latte',g:'Foods',ic:'🥛',w:'May contain milk · check the label',k:'milk oat latte coffee',go:'sheet:addfood',warn:1},
+ {t:'Barbell bench press',g:'Exercises',ic:'🏋',w:'Chest · barbell',k:'bench chest press barbell',go:'screen:exercise'},
+ {t:'Incline dumbbell press',g:'Exercises',ic:'🏋',w:'Chest · dumbbell',k:'incline press chest dumbbell',go:'screen:exercise'},
+ {t:'Push / Pull / Legs',g:'Programs',ic:'☰',w:'Train · active, week 3',k:'program ppl push pull legs',go:'screen:workout'}
+];
+const GROUPS=['Actions','Settings','Screens','Foods','Exercises','Programs'];
+const SUGGEST=['water','weigh in','tdee','bench','milk','backup'];
+
+function status(){return `<div class="status"><span>9:41</span><span>●●●　◖　▰</span></div>`}
+function ringBlock(){return `<div class="ring-card" style="padding:12px 13px 10px"><div class="ring" style="width:184px;height:184px"><svg viewBox="0 0 140 140"><circle class="track" cx="70" cy="70" r="58"/><circle class="protein" cx="70" cy="70" r="58"/><circle class="track" cx="70" cy="70" r="45"/><circle class="carbs" cx="70" cy="70" r="45"/><circle class="track" cx="70" cy="70" r="32"/><circle class="fat" cx="70" cy="70" r="32"/></svg><div class="ring-center"><strong style="font-size:25px">1,640</strong><span style="font-size:9px">of 2,040 kcal</span><small style="font-size:9px;margin-top:3px">400 left</small></div></div><div class="macro-row"><div class="macro prot"><b>70 / 190 g</b><small>PROTEIN</small></div><div class="macro carb"><b>168 / 240 g</b><small>CARBS</small></div><div class="macro fat"><b>54 / 70 g</b><small>FAT</small></div></div></div>`}
+function body(view){
+  const base=`<g fill="var(--variant)" stroke="var(--bd)" stroke-width="1.5"><circle cx="60" cy="16" r="12"/><rect x="54" y="26" width="12" height="9" rx="3"/><path d="M36 38 Q60 30 84 38 L88 102 Q60 112 32 102 Z"/><path d="M33 40 L16 96 Q15 102 22 102 L28 98 L44 52 Z"/><path d="M87 40 L104 96 Q105 102 98 102 L92 98 L76 52 Z"/><path d="M34 104 L58 106 L55 204 Q54 210 46 210 Q38 210 38 204 Z"/><path d="M62 106 L86 104 L82 204 Q82 210 74 210 Q66 210 65 204 Z"/></g>`;
+  const hi=view==='front'
+   ?`<ellipse cx="49" cy="55" rx="12" ry="9" fill="var(--primary)" opacity=".92"/><ellipse cx="71" cy="55" rx="12" ry="9" fill="var(--primary)" opacity=".92"/><circle cx="36" cy="46" r="7" fill="var(--primary)" opacity=".4"/><circle cx="84" cy="46" r="7" fill="var(--primary)" opacity=".4"/>`
+   :`<ellipse cx="28" cy="68" rx="6" ry="15" transform="rotate(18 28 68)" fill="var(--primary)" opacity=".4"/><ellipse cx="92" cy="68" rx="6" ry="15" transform="rotate(-18 92 68)" fill="var(--primary)" opacity=".4"/>`;
+  return `<div><svg viewBox="0 0 120 214" role="img" aria-label="Muscle map placeholder, ${view}">${base}${hi}</svg><div class="lbl">${view==='front'?'Front':'Back'}</div></div>`;
+}
+function bodyVol(view){
+  const base=body(view).replace(/<ellipse[^>]*\/>|<circle cx="(36|84)"[^>]*\/>/g,'').replace('<div>','<div>');
+  const f=view==='front'
+   ?`<ellipse cx="49" cy="55" rx="12" ry="9" fill="var(--primary)" opacity=".85"/><ellipse cx="71" cy="55" rx="12" ry="9" fill="var(--primary)" opacity=".85"/><circle cx="36" cy="46" r="7" fill="var(--primary)" opacity=".55"/><circle cx="84" cy="46" r="7" fill="var(--primary)" opacity=".55"/><rect x="50" y="72" width="20" height="26" rx="6" fill="var(--primary)" opacity=".25"/><ellipse cx="46" cy="140" rx="9" ry="26" fill="var(--primary)" opacity=".4"/><ellipse cx="74" cy="140" rx="9" ry="26" fill="var(--primary)" opacity=".4"/>`
+   :`<path d="M42 44 L78 44 L72 84 L48 84 Z" fill="var(--primary)" opacity=".8"/><ellipse cx="28" cy="68" rx="6" ry="15" transform="rotate(18 28 68)" fill="var(--primary)" opacity=".5"/><ellipse cx="92" cy="68" rx="6" ry="15" transform="rotate(-18 92 68)" fill="var(--primary)" opacity=".5"/><ellipse cx="46" cy="130" rx="9" ry="20" fill="var(--primary)" opacity=".2"/><ellipse cx="74" cy="130" rx="9" ry="20" fill="var(--primary)" opacity=".2"/>`;
+  return base.replace('</svg>',f+'</svg>');
+}
+const row=(t,s,go,extra='')=>`<button class="rowlink" ${go}><span><b style="font-weight:700">${t}</b><small>${s}</small></span>${extra||'<span class="chev">›</span>'}</button>`;
+const menuitem=(ic,t,s,go)=>`<button class="menuitem" ${go} style="background:none;border:0;border-bottom:1px solid var(--bd);width:100%;text-align:left;color:var(--fg);padding:0"><span class="mi">${ic}</span><span class="menu-copy"><b>${t}</b><small>${s}</small></span><span class="chevron">›</span></button>`;
+
+const VIEWS={
+today(S){
+  const h=S.hidden;let o=`<div class="date-row"><button aria-label="Previous day">‹</button><div class="date-title"><strong>Today · Saturday</strong><small>November 7</small></div><button aria-label="Next day">›</button></div>`;
+  if(!h.has('calories'))o+=`${ringBlock()}<div class="logrow"><button class="primary-btn" data-go="addfood">Log food</button><button class="sq" data-go="addfood" aria-label="Scan a barcode">▥</button></div>`;
+  if(!h.has('next'))o+=`<div class="mealcard" style="padding:12px 13px 4px"><div class="cardhead"><b>Next up</b><small class="note" style="margin:0">in the order they happen</small></div>
+    <div class="mrow"><span class="ic2">◎</span><div class="nm"><b>Protein is 40 g short</b><small>A yoghurt and a scoop closes the gap · your first week, day 4 of 7</small></div><button class="mini2 f" data-go="addfood">Log</button></div>
+    <div class="mrow"><span class="ic2">▤</span><div class="nm"><b>Dinner: chicken tacos</b><small>Planned · 640 kcal · 48 g protein</small></div><button class="mini2" data-toast="Opens Cook, step by step">Cook</button><button class="mini2 f" data-toast="Logged Chicken tacos, 640 kcal. The ring moved">Log</button></div>
+    <div class="mrow"><span class="ic2">↗</span><div class="nm"><b>Push A</b><small>6 exercises · about 55 min</small></div><button class="mini2 f" data-go="workout">Start</button></div></div>`;
+  if(!h.has('water')){
+    const water=`<div class="tile"><h3>Water<button class="gear" data-go="settings" aria-label="Water settings">⚙</button></h3><div class="big">1,850 <small>/ 3,000 ml</small></div><div class="wbar"><i></i></div><div class="meta">+500 ml for training today</div><div class="mini"><button data-toast="Added 250 ml">+250</button><button data-toast="Added 500 ml">+500</button></div></div>`;
+    const weight=`<div class="tile"><h3>Weight</h3><div class="big">81.4 <small>kg</small></div><div class="meta">−0.6 kg this week<br>Last weighed 2 days ago</div><div class="mini"><button class="p" data-go="weighin">Weigh in</button></div></div>`;
+    o+=S.noWeight?`<div style="margin-bottom:12px">${water}</div>`:`<div class="duo">${water}${weight}</div>`;
+  }
+  if(!h.has('meals'))o+=`<div class="mealcard">
+    <div class="mrow"><div class="nm"><b>Breakfast</b><small>Coconut yoghurt, blueberries</small></div><span class="k">420</span><button class="add" data-go="addfood" aria-label="Add to breakfast">＋</button></div>
+    <div class="mrow"><div class="nm"><b>Lunch</b><small>Chicken thigh, roasted potatoes</small></div><span class="k">510</span><button class="add" data-go="addfood" aria-label="Add to lunch">＋</button></div>
+    <div class="mrow"><div class="nm"><b>Dinner</b><small>Not logged</small></div><button class="add" data-go="addfood" aria-label="Add to dinner">＋</button></div>
+    <div class="mrow"><div class="nm"><b>Snacks</b><small>Apple</small></div><span class="k">310</span><button class="add" data-go="addfood" aria-label="Add a snack">＋</button></div></div>`;
+  if(h.size>=4)o+=`<div class="empty-state">Nothing here. Everything is hidden.</div>`;
+  o+=`<button class="edit-today" data-go="edittoday">Edit Today</button>`;
+  return o;
+},
+food(S){return `
+  <button class="allergy" data-go="allergens"><span class="ic">⚠</span><span><b>Avoiding milk · peanuts · sesame</b><small>Checked on every food, plan and menu</small></span><span class="ed">Edit ›</span></button>
+  <div class="logrow"><button class="primary-btn" data-go="addfood">Log food</button><button class="sq" data-go="addfood" aria-label="Scan a barcode">▥</button></div>
+  <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px"><div class="seg2" style="margin:0;flex:1"><button class="${(S.seg.fd||'plan')==='plan'?'active':''}" data-seg="fd:plan">Plan</button><button class="${S.seg.fd==='recipes'?'active':''}" data-seg="fd:recipes">Recipes</button><button class="${S.seg.fd==='meals'?'active':''}" data-seg="fd:meals">Meals</button><button class="${S.seg.fd==='out'?'active':''}" data-seg="fd:out">Eating out</button></div><button class="iconbtn" data-menu aria-label="More options">⋯</button></div>
+  ${(S.seg.fd||'plan')==='plan'?`<div class="seg2" style="margin-top:0"><button class="${(S.seg.mp||'week')==='week'?'active':''}" data-seg="mp:week">This week</button><button class="${S.seg.mp==='shop'?'active':''}" data-seg="mp:shop">Shopping list</button></div>
+  ${(S.seg.mp||'week')==='week'?`<div class="weekstrip">${Array.from({length:12},(_,i)=>`<button class="week ${i===2?'active':''}" data-toast="Week ${i+1}">${i+1}</button>`).join('')}</div><div class="mealcard days">
+   ${[['Mon','Lemon chicken, rice','610'],['Tue','Beef chilli, beans','690'],['Wed','Salmon, potatoes','640'],['Thu','Turkey stir-fry','580'],['Fri','Eating out','—']].map(d=>`<div class="mrow"><div class="nm"><b>${d[0]}</b><small>${d[1]}</small></div><span class="k">${d[2]}</span></div>`).join('')}
+   <div class="mrow today-row"><div class="nm"><b>Sat · today</b><small>Chicken tacos with slaw</small></div><span class="k">640</span></div>
+   <div class="mrow"><div class="nm"><b>Sun</b><small>Not planned yet</small></div><button class="mini2" data-toast="Choose a recipe for Sunday">Choose</button></div></div>
+  <div class="card dish"><div class="dish-art"><span>Today · dinner</span></div><div class="dish-info"><h3>Chicken tacos with slaw</h3><p>Allergens checked for you</p><div class="stats"><div class="stat"><b>640</b><small>kcal</small></div><div class="stat"><b>48 g</b><small>protein</small></div><div class="stat"><b>62 g</b><small>carbs</small></div></div><div class="warn-actions" style="margin-top:12px"><button class="anyway" data-toast="Opens Cook, step by step">Cook this meal</button><button class="dont" data-toast="Logged. Today's ring updated">Log this meal</button></div></div></div>`
+  :`<div class="card"><div class="group-title">Produce</div>${['Limes ×4','Cabbage, small','Coriander'].map((x,i)=>`<label class="chk"><input type="checkbox" ${i===0?'checked':''}><span>${x}</span></label>`).join('')}<div class="group-title" style="margin-top:12px">Protein</div>${['Chicken thigh 1.2 kg','Salmon fillets ×2'].map(x=>`<label class="chk"><input type="checkbox"><span>${x}</span></label>`).join('')}</div><button class="quiet-btn" style="width:100%" data-toast="Shared the list as text">Share as text</button>`}`
+  :S.seg.fd==='recipes'?`<div class="logrow"><button class="primary-btn" style="margin:0" data-toast="Write a recipe: name, ingredients, steps">＋ New recipe</button><button class="outline-btn" data-toast="Paste a link. Read straight off the page, no AI">Import</button></div>
+   <div class="card" style="padding:2px 14px">${[['Chicken tacos with slaw','640 kcal · 48 g protein'],['Beef chilli','690 kcal · 52 g protein'],['Lemon chicken and rice','610 kcal · 46 g protein']].map(r=>`<div class="mrow"><div class="nm"><b>${r[0]}</b><small>${r[1]}</small></div><button class="mini2" data-toast="Opens Cook, step by step">Cook</button><button class="mini2 f" data-toast="Logged one serving">Log</button></div>`).join('')}</div><p class="note">Find recipes that fit your macros (AI, optional) is in the ⋯ menu.</p>`
+  :S.seg.fd==='meals'?`<div class="card" style="padding:2px 14px">${[['Post-workout shake','320 kcal · 40 g protein · NFC tag written'],['Usual breakfast','420 kcal · 24 g protein'],['Work lunch box','610 kcal · 45 g protein']].map(r=>`<div class="mrow"><div class="nm"><b>${r[0]}</b><small>${r[1]}</small></div><button class="mini2 f" data-toast="Logged in one tap">Log</button></div>`).join('')}</div><button class="outline-btn" style="width:100%;margin-top:4px" data-toast="Save today's meals as a saved meal">＋ Save a meal</button>`
+  :`<div class="searchbox">⌕ <input placeholder="Find a safer place nearby" aria-label="Find a safer place"></div><div class="card"><div class="cardhead"><b>Saved options</b><span class="offline">WORKS OFFLINE</span></div>${[['Grill house','Plain grilled chicken, no sauce'],['Sushi bar','Sashimi, rice, no tempura']].map(r=>`<div class="mrow"><div class="nm"><b>${r[0]}</b><small>${r[1]}</small></div><span class="chevron" style="color:var(--sub)">›</span></div>`).join('')}</div>
+   <div class="card"><div class="cardhead"><b>Saved menus</b><button class="go" data-toast="Add a menu: paste text or a link. Checked against your allergens">＋ Add a menu</button></div><div class="tinyline"><span>Taco Place</span><b>38 items · 31 safe</b></div><div class="tinyline"><span>Noodle Bar</span><b>22 items · 9 safe</b></div></div>`}`},
+allergens(S){return `<div class="subhead">Allergens</div><p class="subcopy">What you avoid. Kept on this phone, checked every time.</p>
+  <div class="card" style="padding:4px 14px">
+  ${[['Milk','Strict · 14 keywords incl. casein, whey, lactalbumin'],['Peanuts','Strict · 6 keywords'],['Sesame','Careful · 5 keywords']].map(a=>`<button class="rowlink" data-toast="Opens ${a[0]}: keywords, strictness"><span><b style="font-weight:700">${a[0]}</b><small>${a[1]}</small></span><span class="chev">›</span></button>`).join('')}
+  <button class="rowlink" data-toast="Adds a custom allergen with its own keywords" style="border-bottom:0"><span style="color:var(--primary);font-weight:800">＋ Add an allergen</span></button></div>
+  <div class="amber-note"><b>A model or an imported file can raise a warning. It can never clear one.</b> Ingredient lists and Open Food Facts tags are never downgraded.</div>
+  <div class="card" style="padding:4px 14px">${row('Hidden-ingredient guide','Read-only checklist and eat-out notes, offline','data-toast="Opens the guide"')}</div>
+  <div class="remaining"><strong>Same rules as before</strong>A match still stops the save and asks what you want to do. Nothing about matching changes in v4.</div>`},
+train(){return `<p class="subcopy">Start a workout, or look after the plan behind it.</p>
+  <div class="nextday"><div class="nextday-head"><div><small class="label" style="margin:0">Next workout</small><h3>Push A</h3><p>Push / Pull / Legs · week 3 · about 55 min</p></div><button class="startbtn" data-go="workout">Start</button></div><button class="textbutton" style="padding:0" data-toast="Starts an empty workout">Or start an empty workout</button></div>
+  <div class="chart-card"><div class="cardhead"><b>This week</b><button class="go" data-toast="Opens Progress › Training: per muscle, per week, per exercise">Details ›</button></div>
+   <div class="mm" style="border:0;padding:0;margin-top:4px">${bodyVol('front')}${bodyVol('back')}</div>
+   <div class="legend"><span><i style="background:var(--primary)"></i>Sets vs target</span><span>Chest 12 · Back 14 · Legs 8 · Delts 9</span></div><p class="note" style="margin-top:0">Placeholder map. Sets per muscle come from your logged sets.</p></div>
+  <div class="card more-list" style="padding:3px 14px;margin-top:12px">
+  ${menuitem('☰','Programs','Push / Pull / Legs · active · ＋ New program','data-toast="Opens the active program. New program: Build, Make me one, From a template, Import"')}
+  ${menuitem('🏋','Exercises','214 exercises · by muscle and equipment','data-go="exercises"')}
+  </div><p class="note">History, PRs and trends live in Progress › Training. Jump tests live in Progress › Weight and body.</p>`},
+checkin(S){const wk=S.seg.ck||'w2';return `<div class="weekstrip">${[['w0','Oct 26–Nov 1'],['w1','Nov 2–8'],['w2','Nov 9–15']].map(w=>`<button class="chip sm ${wk===w[0]?'selected':''}" data-seg="ck:${w[0]}" style="flex:0 0 auto">${w[1]}</button>`).join('')}</div>
+  <span class="label">The week</span><div class="card"><div class="week-summary"><div class="summary-tile"><b>2,010</b><small>AVG KCAL · TARGET 2,040</small></div><div class="summary-tile"><b>182 g</b><small>AVG PROTEIN</small></div><div class="summary-tile"><b>−0.6 kg</b><small>WEIGHT TREND</small></div><div class="summary-tile"><b>4 / 4</b><small>SESSIONS DONE</small></div></div></div>
+  <span class="label">Suggestions</span>
+  ${[['Add 100 kcal on training days','Your weight is dropping a little fast for your pace.'],['Move protein to 2.0 g per kg','You hit 190 g on 5 of 7 days. The target can match.'],['Add a rest day after Legs','Your last two Legs sessions went down in reps.']].map(x=>`<div class="recipe-card"><h4>${x[0]}</h4><p>${x[1]}</p><div style="display:flex;gap:8px"><button class="mini2 f" data-toast="Applied. Targets updated">Apply</button><button class="mini2" data-toast="Dismissed for this week">Dismiss</button></div></div>`).join('')}
+  <button class="primary-btn" data-toast="Saves or prints the week as a PDF: intake, weight, sleep, training">Export / print this week</button>
+  <p class="note">One screen for the week. The report is an action here, not its own place.</p>`},
+syncx(){return `<p class="subcopy" style="margin-top:6px">Two ways to keep your data safe. Nothing else to set up.</p>
+  <span class="label">Sync · optional</span><div class="card"><div class="row-between"><b style="font:700 14px Manrope">Your own server</b><span class="status-pill">PAIRED</span></div><p class="note">The server is your off-device copy. On a new phone: pair it, then pull. If you sync, you do not need a separate backup.</p>
+   <div class="tinyline"><span>Last sync</span><b>9:12 today</b></div><div class="tinyline"><span>This phone</span><b>Jordan's Pixel</b></div>
+   <div class="warn-actions"><button class="anyway" data-toast="Syncs now">Sync now</button><button class="anyway" data-toast="Shows a code to pair another phone">Pair another phone</button></div></div>
+  <span class="label">Export and import</span><div class="card"><p class="note" style="margin-top:0">A file you keep yourself: JSON for everything, CSV for spreadsheets.</p>
+   <div class="warn-actions"><button class="dont" data-toast="Choose where to save the file">Export</button><button class="anyway" data-toast="Choose a file to import">Import</button></div>
+   <div class="setting-row" style="border-bottom:0"><span>Protect the export with a passphrase<small>Optional. Open question in the proposal</small></span><button class="sw" data-sw="pass" role="switch" aria-label="Passphrase"></button></div></div>`},
+exercises(){return `<div class="searchbox">⌕ <input placeholder="Search exercises" aria-label="Search exercises"></div>
+  <div class="chips" style="margin-bottom:10px"><button class="chip sm selected">All</button><button class="chip sm">Chest</button><button class="chip sm">Back</button><button class="chip sm">Legs</button><button class="chip sm">Shoulders</button><button class="chip sm" data-go="equipment">Equipment ▾</button></div>
+  ${[['Barbell bench press','Chest · barbell'],['Incline dumbbell press','Chest · dumbbell'],['Overhead press','Shoulders · barbell'],['Cable fly','Chest · cable'],['Triceps pushdown','Triceps · cable']].map(e=>`<button class="food-row" data-go="exercise" style="background:none;border:0;border-bottom:1px solid var(--bd);width:100%;text-align:left;color:var(--fg)"><div class="food-icon">🏋</div><div class="food-details"><b>${e[0]}</b><small>${e[1]}</small></div><span class="chevron" style="color:var(--sub)">›</span></button>`).join('')}
+  <button class="primary-btn" data-toast="Adds your own exercise">＋ Add an exercise</button>`},
+exercise(){return `<div class="exphoto"><div><span class="g">🏋</span>PHOTO PLACEHOLDER</div><span class="cap">Your own photo, or a bundled one. Works offline.</span></div>
+  <div class="subhead" style="margin-top:0">Barbell bench press</div>
+  <p class="subcopy">Chest · also triceps, front delts · barbell · rest 2 min</p>
+  <div class="exphoto" style="height:110px;margin:0 0 10px"><div><span class="g" style="font-size:30px">⤢</span>MOVEMENT DIAGRAM PLACEHOLDER</div></div>
+  <div class="mm"><div class="mm-cap">Muscle map · placeholder</div>${body('front')}${body('back')}</div>
+  <div class="legend"><span><i style="background:var(--primary)"></i>Main muscle</span><span><i style="background:var(--primary);opacity:.4"></i>Also works</span></div>
+  <div class="card" style="display:flex;gap:12px;align-items:center;padding:10px 14px"><div class="food-icon" style="width:54px;height:54px;font-size:26px">🏋</div><div style="flex:1"><b style="font:700 13px Manrope">Barbell + flat bench</b><div class="note" style="margin:2px 0 0">Equipment diagram placeholder</div></div><button class="textbutton" data-go="equipment">Change</button></div>
+  <div class="stats" style="margin:6px 0 10px"><div class="stat"><b>102 kg</b><small>ESTIMATED 1-REP MAX</small></div><div class="stat"><b>48</b><small>SETS LOGGED</small></div><div class="stat"><b>80 × 8</b><small>LAST TIME</small></div></div>
+  <div class="card"><div class="cardhead"><b>History</b><button class="go textbutton" style="min-height:36px" data-toast="Opens full history">All ›</button></div>
+   ${[['Thu 5 Nov','80 kg × 8, 8, 7, 7'],['Mon 2 Nov','77.5 kg × 8, 8, 8, 6'],['Thu 29 Oct','77.5 kg × 8, 7, 7, 6']].map(r=>`<div class="tinyline"><span>${r[0]}</span><b>${r[1]}</b></div>`).join('')}</div>
+  <div class="logrow"><button class="primary-btn" data-toast="Added to today's workout">Add to workout</button></div>`},
+workout(){return `<div class="workout-top"><button class="textbutton" data-back style="padding:0">‹ Leave</button><b>Push A · 38:12</b><button class="iconbtn" data-toast="More: plates, notes, move this exercise later" aria-label="More" style="width:36px;height:36px">⋯</button></div>
+  <div class="exercise-card"><div class="row-between"><small>Exercise 1 of 6</small><button class="iconbtn" data-go="exercise" aria-label="About this exercise" style="width:40px;height:40px;font-size:14px">ⓘ</button></div><h2>Barbell bench press</h2><div class="prescription">4 × 6–8 · 80 kg</div><div class="reason"><strong>Why 80 kg:</strong> you did 8 reps last time, so the weight goes up 2.5 kg. <b style="color:var(--primary)">How the weight goes up ›</b></div>
+   <div class="grid-head"><span>SET</span><span>KG</span><span>REPS</span><span>DONE</span></div>
+   <div class="set-row"><span class="set-n">1</span><input class="entry" value="80" aria-label="Set 1 weight"><input class="entry" value="8" aria-label="Set 1 reps"><button class="done active" aria-label="Set 1 done">✓</button></div>
+   <div class="set-row"><span class="set-n">2</span><input class="entry" value="80" aria-label="Set 2 weight"><input class="entry" value="7" aria-label="Set 2 reps"><button class="done active" aria-label="Set 2 done">✓</button></div>
+   <div class="set-row"><span class="set-n">3</span><input class="entry" value="80" aria-label="Set 3 weight"><input class="entry" placeholder="8" aria-label="Set 3 reps"><button class="done" aria-label="Set 3 done">✓</button></div>
+   <div class="set-row"><span class="set-n">4</span><input class="entry" value="80" aria-label="Set 4 weight"><input class="entry" placeholder="8" aria-label="Set 4 reps"><button class="done" aria-label="Set 4 done">✓</button></div>
+   <div class="restbar"><span>Rest · 1:30 left</span><button class="textbutton" style="min-height:36px;padding:0">Skip rest</button></div>
+   <div class="plate-card"><h4>Plates per side · 80 kg</h4><div class="plate-visual"><span class="plate"></span><span class="plate"></span><span class="plate small"></span><div class="bar"></div><span class="plate small"></span><span class="plate"></span><span class="plate"></span></div><div class="plate-amount">20 + 10 + 2.5 per side · 20 kg bar</div></div>
+   <div class="last-inline">Last time: 77.5 kg × 8, 8, 8, 6</div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px"><button class="outline-btn" data-toast="Add an exercise: opens the picker">＋ Add an exercise</button><button class="primary-btn" style="margin:0" data-toast="Next exercise: Incline dumbbell press">Next exercise</button></div>
+  <button class="quiet-btn" style="width:100%;margin-top:8px" data-back>Finish session</button>`},
+progress(S){const t=S.seg.pg||'weight';return `<div class="range"><button class="chip active">Week</button><button class="chip">Month</button><button class="chip">3 mo</button><button class="chip">All</button></div>
+  <div class="checkin" style="margin-top:12px"><small>Weekly check-in · ready</small><h3>3 small suggestions for next week</h3><p>The week, the suggestions and the printable report, in one place.</p><button data-go="checkin">Review</button></div>
+  <div class="chart-card"><div class="chart-title"><b>Weight and body</b><small>Trend −0.6 kg / week</small></div>
+   <div class="tabs t4" style="margin:6px 0 4px"><button class="tab ${t==='weight'?'active':''}" data-seg="pg:weight">Weight</button><button class="tab ${t==='measures'?'active':''}" data-seg="pg:measures">Measures</button><button class="tab ${t==='photos'?'active':''}" data-seg="pg:photos">Photos</button><button class="tab ${t==='jump'?'active':''}" data-seg="pg:jump">Jump tests</button></div>
+   ${t==='weight'?`<div class="weight-big">81.4 <small>kg · 7-day trend 81.6</small></div><div class="chart"><div class="trend"></div><div class="points">${[70,62,66,50,54,42,38].map(v=>`<i style="--v:${v}"></i>`).join('')}</div></div><button class="primary-btn" data-go="weighin" style="margin-top:12px">Weigh in</button>`:`<div class="empty-state">${t==='measures'?'Waist, chest, arms and more. Add one, or a set.':t==='photos'?'Progress photos stay on this phone.':'Vertical jump, standing reach, total reach. Optional.'}</div>`}</div>
+  <div class="chart-card"><div class="cardhead"><b>Nutrition</b><button class="go" data-toast="Opens Nutrition: calories vs target, adherence, protein days">Details ›</button></div><div class="tinyline"><span>On target</span><b>5 of 7 days</b></div><div class="tinyline"><span>Average</span><b>2,010 kcal · 182 g protein</b></div></div>
+  <div class="chart-card"><div class="cardhead"><b>Training</b><button class="go" data-toast="Opens Training: sessions, volume per muscle, PRs">Details ›</button></div><div class="heat"><i class="on"></i><i></i><i class="on"></i><i class="mid"></i><i class="on"></i><i></i><i class="today"></i></div><div class="tinyline" style="margin-top:8px"><span>This week</span><b>4 sessions · 2 PRs</b></div></div>
+  `},
+you(){return `<div class="profile"><div class="avatar" aria-hidden="true">J</div><div><b>Jordan</b><small>Cutting · 2,040 kcal · 190 g protein · 3,000 ml water</small></div></div>
+  <div class="card more-list" style="padding:3px 14px">${menuitem('◎','Goals and plan','Your targets, with the reasons. Edit about you','data-toast="Opens Goals and plan: Your plan on top, About you below"')}</div>
+  <div class="sectionline"><h3>Settings</h3><span class="note" style="margin:0">six groups</span></div>
+  <div class="card more-list" style="padding:3px 14px">
+   ${menuitem('Aa','Look and units','kg or lb, litres or oz, theme, motion','data-toast="Opens Look and units"')}
+   ${menuitem('◔','Nutrition and water','Targets, water, weather, workout calories','data-go="settings"')}
+   ${menuitem('↗','Training','Rest timer, bar weight, plates','data-toast="Opens Training settings"')}
+   ${menuitem('⇅','Sync and export','Your server, and a file you keep','data-go="syncx"')}
+   ${menuitem('✦','AI (optional)','Off until you add a key','data-toast="Opens AI settings. Everything works without it"')}
+   ${menuitem('🔒','Privacy','Exactly what leaves this phone, and when','data-toast="Opens Privacy"')}</div>
+  <div class="card more-list" style="padding:3px 14px">${menuitem('?','Help and tour','Replay the tour, write it as text, about','data-toast="Opens Help and tour"')}</div>
+  <div class="remaining"><strong>Private by design</strong>Your meals, training and weight stay on this phone. No accounts, analytics or subscriptions.</div><p class="note">Intake 4.0 preview</p>`},
+settings(S){const sw=(k,d)=>{const on=S.sw[k]===undefined?d:S.sw[k];return `<button class="sw ${on?'on':''}" data-sw="${k}" role="switch" aria-checked="${on}" aria-label="${k}"></button>`};
+  return `<p class="subcopy" style="margin-top:6px">One page for everything about targets and water. Today's water gear opens here.</p>
+  <span class="label">Targets</span><div class="card" style="padding:2px 14px">
+   <div class="setting-row"><span>Work my target out from my data<small>Starts from a formula, then learns from your logs</small></span>${sw('auto',true)}</div>
+   ${row('Goal weight and pace','Lives in Goals and plan','data-toast="Opens You › Goals and plan"')}
+   <div class="setting-row"><span>Protein<small>g per kg of goal weight</small></span><b>2.0</b></div>
+   <div class="setting-row" style="border-bottom:0"><span>Add workout calories to my target<small>Off on purpose. Watch burn estimates run high</small></span>${sw('kcal',false)}</div></div>
+  <span class="label">Water</span><div class="card" style="padding:2px 14px">
+   <div class="setting-row"><span>Adjust for workouts and activity</span>${sw('wk',true)}</div>
+   <div class="setting-row"><span>Adjust for hot weather<small>Asks for your location only while you use it</small></span>${sw('wx',false)}</div>
+   <div class="setting-row"><span>Unit</span><div class="segmented"><button class="active">ml</button><button>fl oz</button></div></div>
+   ${row('Quick-add drinks','First six show on Today','data-toast="Opens the drinks editor"')}</div>
+  <div class="accordion"><button class="acc-head" data-acc="adv" aria-expanded="${S.acc.adv?'true':'false'}">Advanced <span class="arrow">⌄</span></button><div class="acc-body" ${S.acc.adv?'':'hidden'}>${['Calorie floor · 1.1 × resting','Carb cycling · off','Drink values and caffeine top-ups','Measure my sweat rate','Data sources: Health Connect, Food database'].map(x=>`<div class="setting-row" style="border-bottom:1px solid var(--bd)"><span>${x}</span><span class="chev" style="color:var(--sub)">›</span></div>`).join('')}</div></div>
+  <p class="note">Used by: Today's water card and Water sheet. Nothing else keeps a copy of these settings.</p>`},
+};
+const SHEETS={
+addfood(S){return `<div class="sheet-handle"></div><div class="sheet-head"><h3>Add food</h3><button class="close" data-close aria-label="Close">×</button></div>
+  <div class="tabs t4" style="margin-top:8px"><button class="tab ${(S.seg.af||'find')==='find'?'active':''}" data-seg="af:find">Find</button><button class="tab ${S.seg.af==='scan'?'active':''}" data-seg="af:scan">Scan</button><button class="tab ${S.seg.af==='mine'?'active':''}" data-seg="af:mine">Mine</button><button class="tab ${S.seg.af==='quick'?'active':''}" data-seg="af:quick">Quick add</button></div>
+  <div class="searchbox">⌕ <input placeholder="Search foods, or pick a recent one" aria-label="Search foods"><button class="iconbtn" data-toast="Photo estimate, AI, optional: only shown when AI is on" aria-label="Photo estimate" style="width:34px;height:34px;font-size:14px">📷</button></div>
+  <div class="sectionline"><h3>Recent</h3><span class="note" style="margin:0">On this phone</span></div>
+  ${[['🍗','Chicken thigh','150 g · Lunch','314','34'],['🥥','Coconut yoghurt','170 g · Breakfast','142','5'],['🥔','Roasted potatoes','180 g · Dinner','278','5'],['🍎','Apple, medium','1 medium · Snack','95','0']].map(x=>`<button class="food-row" data-toast="Opens the portion step. Allergens are checked before saving" style="background:none;border:0;border-bottom:1px solid var(--bd);width:100%;text-align:left;color:var(--fg)"><div class="food-icon">${x[0]}</div><div class="food-details"><b>${x[1]}</b><small>${x[2]}</small></div><div class="food-kcal">${x[3]}<small>kcal · ${x[4]}g P</small></div></button>`).join('')}
+  <div class="allergy" style="margin-top:12px"><span class="ic">⚠</span><span><b>Allergen check is on</b><small>Avoiding milk, peanuts, sesame. A match blocks saving.</small></span></div>`},
+weighin(){return `<div class="sheet-handle"></div><div class="sheet-head"><h3>Weigh in</h3><button class="close" data-close aria-label="Close">×</button></div>
+  <p class="subcopy" style="margin-top:6px">Saturday 7 November · morning is best</p>
+  <div class="gram-field"><input type="number" value="81.2" step="0.1" aria-label="Weight in kilograms"><span>kg</span></div>
+  <p class="note">Last: 81.4 kg · 7-day trend 81.6 kg</p>
+  <button class="primary-btn" data-save>Save weight</button>`},
+equipment(S){const eq=[['🏋','Barbell'],['💪','Dumbbell'],['⛓','Cable'],['⚙','Machine'],['◐','Kettlebell'],['〰','Band'],['🧍','Bodyweight'],['▭','Bench'],['⌶','Pull-up bar']];
+  return `<div class="sheet-handle"></div><div class="sheet-head"><h3>Equipment</h3><button class="close" data-close aria-label="Close">×</button></div>
+  <p class="subcopy" style="margin-top:6px">Pick what you have. The library and the builder show only what you can do. Icons are placeholders.</p>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${eq.map((e,i)=>`<button class="chip ${S.sw['eq'+i]===undefined?(i<4||i===6?'selected':''):(S.sw['eq'+i]?'selected':'')}" data-eqt="${i}" style="flex-direction:column;display:flex;align-items:center;justify-content:center;gap:4px;min-height:78px"><span style="font-size:24px">${e[0]}</span>${e[1]}</button>`).join('')}</div>
+  <p class="note">One list for the whole app, or a profile per gym: an open question.</p><button class="primary-btn" data-close>Done</button>`},
+edittoday(S){const items=[['calories','Calories','The ring, Log food and scan'],['next','Next up','The one thing, the planned meal, the workout'],['water','Water and weight','Weight appears after your first weigh-in'],['meals','Meals','Four meals, with entries']];
+  return `<div class="sheet-handle"></div><div class="sheet-head"><h3>Edit Today</h3><button class="close" data-close aria-label="Close">×</button></div>
+  <p class="subcopy" style="margin-top:6px">Four cards, always in this order. Hide any of them.</p>
+  ${items.map(i=>`<div class="setting-row"><span>${i[1]}<small>${i[2]}</small></span><button class="sw ${S.hidden.has(i[0])?'':'on'}" data-hide="${i[0]}" role="switch" aria-checked="${!S.hidden.has(i[0])}" aria-label="Show ${i[1]}"></button></div>`).join('')}
+  <button class="primary-btn" data-close>Done</button>`}
+};
+function searchHTML(q){
+  const terms=q.toLowerCase().split(/\s+/).filter(Boolean);
+  const hits=IDX.filter(x=>terms.every(t=>(x.t+' '+x.k).toLowerCase().includes(t)));
+  if(!terms.length)return `<div class="grp" style="margin-top:6px">Try</div><div class="chips">${SUGGEST.map(s=>`<button class="chip sm" data-q-set="${s}">${s}</button>`).join('')}</div><p class="note" style="margin-top:14px">Finds screens, settings, foods, recipes, exercises and actions. Works offline. No AI.</p>`;
+  if(!hits.length)return `<div class="empty-state">Nothing for “${q.replace(/[<>&]/g,'')}”. Try a shorter word.</div>`;
+  return GROUPS.map(g=>{const hs=hits.filter(h=>h.g===g);return hs.length?`<div class="grp">${g}</div>`+hs.map(h=>`<button class="hit" data-hit="${h.go}"><span class="ic">${h.ic}</span><span><b>${h.t}</b><small${h.warn?' style="color:var(--clay);font-weight:700"':''}>${h.warn?'⚠ ':''}${h.w}</small></span><span class="where">${h.g==='Actions'?'DO':'OPEN'}</span></button>`).join(''):''}).join('');
+}
+
+function parentsOf(id){const c=[];let x=id;while(x){c.unshift(x);x=SCR[x]&&SCR[x].parent;}return c}
+function startStack(id){const c=parentsOf(id);return c[0]==='today'||TAB_IDS.includes(c[0])?c:['today',...c]}
+function tabFor(stack){if(stack.includes('you'))return null;const r=stack[0];return TAB_IDS.includes(r)?r:'today'}
+
+function mk(el,start,opts={}){
+  el.className='phone'+(opts.dark?' dark':'');el.dataset.live='1';
+  const S={stack:startStack(start),hidden:new Set(opts.hidden||[]),noWeight:!!opts.noWeight,seg:opts.fd?{fd:opts.fd}:{},sw:{},acc:{},menu:false,toast:'',q:opts.query||''};
+  el.innerHTML=`<div class="pv"></div><nav class="fpill" aria-label="Main"><div class="slot"><div class="ind"></div>${TABS.map(t=>`<button class="fp" data-tab="${t[0]}" aria-label="${t[2]}"><span class="ico">${t[1]}</span><span>${t[2]}</span></button>`).join('')}</div></nav>`;
+  const pv=el.querySelector('.pv'),pill=el.querySelector('.fpill'),ind=el.querySelector('.ind');
+  let timer=0;
+  function top(){return S.stack[S.stack.length-1]}
+  function baseId(){for(let i=S.stack.length-1;i>=0;i--){const k=SCR[S.stack[i]].kind;if(k==='root'||k==='push')return S.stack[i]}return 'today'}
+  function render(keepScroll){
+    const sc=pv.querySelector('.screen');const st=sc?sc.scrollTop:0,prev=pv.dataset.base;
+    const b=baseId(),d=SCR[b];pv.dataset.base=b;
+    let bar;
+    if(d.kind==='root'){bar=`<header class="appbar"><div class="title">${b==='today'?'in<b>take</b>':d.title}</div><button class="iconbtn" data-go="search" aria-label="Find anything">⌕</button><button class="avatar" data-go="you" aria-label="You: profile, goals and settings">J</button></header>`}
+    else{bar=`<div class="backbar"><button class="back" data-back>‹ ${d.back}</button><h2>${d.title}</h2>${d.menu?`<button class="iconbtn" data-menu aria-label="More options">⋯</button>`:''}</div>`}
+    let menu='';
+    const mItems=d.menu||(b==='food'?[['New plan','Write it, build it, or import it'],['Import a plan file','Allergens are checked before saving'],['Export as text','Shares the plan as a script'],['Find recipes (AI, optional)','Off until you add a key'],['?  Write it as text','Opens the script docs']]:null);
+    if(S.menu&&mItems)menu=`<div class="popover"${b==='progress'?' style="top:auto;bottom:96px"':''}>${mItems.map(m=>`<button data-toast="${m[1]}">${m[0]}</button>`).join('')}</div>`;
+    let layer='';const t=top(),td=SCR[t];
+    if(td.kind==='sheet')layer=`<div class="scrim" data-close-bg><div class="sheetbox" data-stop>${SHEETS[t](S)}</div></div>`;
+    if(td.kind==='overlay')layer=`<div class="overlay"><div class="status" style="height:31px;padding:8px 19px 0;display:flex;justify-content:space-between;font-size:11px;font-weight:700"><span>9:41</span><span>●●●　◖　▰</span></div><div style="display:flex;gap:8px;align-items:center;padding:8px 14px 4px"><div class="searchbox" style="flex:1;margin:0">⌕ <input data-q value="${S.q.replace(/"/g,'&quot;')}" placeholder="Find anything" aria-label="Find anything"></div><button class="textbutton" data-close style="padding:0 4px">Cancel</button></div><div class="screen srch-res">${searchHTML(S.q)}</div></div>`;
+    pv.innerHTML=`${status()}${bar}<div class="screen">${VIEWS[b](S)}</div>${menu}${layer}${S.toast?`<div class="toast" role="status">${S.toast}</div>`:''}`;
+    el.classList.toggle('nobar',!!d.nopill);
+    pill.style.display=d.nopill?'none':'flex';
+    const tab=tabFor(S.stack),idx=TAB_IDS.indexOf(tab);
+    ind.style.opacity=idx<0?0:1;ind.style.transform=`translateX(calc(var(--w, 76px) * ${Math.max(idx,0)}))`;
+    pill.querySelectorAll('.fp').forEach((b2,i)=>b2.classList.toggle('on',i===idx));
+    const ns=pv.querySelector('.screen');if(ns&&(keepScroll||prev===b))ns.scrollTop=st;
+    if(td.kind==='overlay'&&!keepScroll){const i=pv.querySelector('[data-q]');if(i&&el.dataset.autofocus==='1')i.focus()}
+  }
+  function say(m){S.toast=m;clearTimeout(timer);timer=setTimeout(()=>{S.toast='';render(true)},2300)}
+  function go(id){S.menu=false;if(TAB_IDS.includes(id)){S.stack=[id];return}S.stack.push(id)}
+  function apply(spec){if(spec.startsWith('toast:')){say(spec.slice(6));return}if(spec.startsWith('sheet:')||spec.startsWith('screen:')){const id=spec.split(':')[1];S.stack=S.stack.filter(x=>SCR[x].kind!=='overlay');if(TAB_IDS.includes(id))S.stack=[id];else S.stack.push(id);S.menu=false;return}}
+  el.addEventListener('click',e=>{
+    const c=e.target.closest.bind(e.target);let n;
+    if((n=c('[data-tab]'))){const id=n.dataset.tab;S.stack=[id];S.menu=false;render();return}
+    if((n=c('[data-hit]'))){apply(n.dataset.hit);render();return}
+    if((n=c('[data-q-set]'))){S.q=n.dataset.qSet;render();return}
+    if((n=c('[data-eqt]'))){const k='eq'+n.dataset.eqt;S.sw[k]=!n.classList.contains('selected');render(true);return}
+    if((n=c('[data-hide]'))){const k=n.dataset.hide;S.hidden.has(k)?S.hidden.delete(k):S.hidden.add(k);render(true);return}
+    if((n=c('[data-sw]'))){const k=n.dataset.sw;const cur=n.classList.contains('on');S.sw[k]=!cur;render(true);return}
+    if((n=c('[data-seg]'))){const [g,v]=n.dataset.seg.split(':');S.seg[g]=v;render(true);return}
+    if((n=c('[data-acc]'))){const k=n.dataset.acc;S.acc[k]=!S.acc[k];render(true);return}
+    if((n=c('[data-save]'))){S.stack.pop();say('Saved 81.2 kg. Trend updated');render(true);return}
+    if((n=c('[data-toast]'))){S.menu=false;say(n.dataset.toast);render(true);return}
+    if((n=c('[data-menu]'))){S.menu=!S.menu;render(true);return}
+    if((n=c('[data-go]'))){const id=n.dataset.go;go(id);render();if(id==='search'){const i=pv.querySelector('[data-q]');if(i)i.focus({preventScroll:true})}return}
+    if((n=c('[data-back]'))){S.menu=false;S.stack.pop();if(!S.stack.length)S.stack=['today'];render();return}
+    if((n=c('[data-close]'))){S.stack.pop();if(!S.stack.length)S.stack=['today'];render();return}
+    if(c('[data-close-bg]')&&!c('[data-stop]')){S.stack.pop();render();return}
+    if(S.menu&&!c('.popover')){S.menu=false;render(true)}
+  });
+  el.addEventListener('input',e=>{if(e.target.matches('[data-q]')){S.q=e.target.value;const r=pv.querySelector('.srch-res');if(r)r.innerHTML=searchHTML(S.q)}});
+  // Press or slide along the pill to switch tabs, as in the app.
+  let dragging=false;
+  function pick(e,isDown){const r=pill.querySelector('.slot').getBoundingClientRect();let i=Math.floor((e.clientX-r.left)/(r.width/TABS.length));i=Math.max(0,Math.min(TABS.length-1,i));
+    if(tabFor(S.stack)!==TAB_IDS[i]||(isDown&&S.stack.length>1)){S.stack=[TAB_IDS[i]];S.menu=false;render()}}
+  pill.addEventListener('pointerdown',e=>{dragging=true;try{pill.setPointerCapture(e.pointerId)}catch(_){}pick(e,true)});
+  pill.addEventListener('pointermove',e=>{if(dragging)pick(e,false)});
+  const stop=()=>{dragging=false};pill.addEventListener('pointerup',stop);pill.addEventListener('pointercancel',stop);
+  render();
+  return {el,S,render};
+}
+
+const FRAMES=[
+ ['today','Today','Four cards, one reading order. Weigh in, water and Start are one tap',{}],
+ ['today','Today · first run','A new person starts with three cards',{hidden:['next'],noWeight:true}],
+ ['addfood','Add food','Four tabs, not six. Allergen check always shown',{}],
+ ['food','Food','One screen: Plan, Recipes, Meals, Eating out',{}],
+ ['food','Food · Eating out','Places, saved options and menus in the same screen',{fd:'out'}],
+ ['allergens','Allergens','One screen, not a hub of two',{}],
+ ['train','Train','Start, this-week muscle map, Programs, Exercises',{}],
+ ['workout','Active workout','Pill hides. Info button opens the exercise page',{}],
+ ['exercise','Exercise detail','Photo, diagram, muscle map, equipment (placeholders)',{}],
+ ['equipment','Equipment picker','Icons for what you have (placeholders)',{}],
+ ['progress','Progress','Weekly check-in, weight and body, nutrition, training',{}],
+ ['checkin','Weekly check-in','One weekly screen: summary, suggestions, export',{}],
+ ['you','You','Behind the avatar. Goals, six settings groups, help',{}],
+ ['settings','Settings group','Nutrition and water: one page, one Advanced',{}],
+ ['syncx','Sync and export','Sync with your server, or keep a file',{}],
+ ['search','Find anything','Screens, settings, foods, exercises, actions',{query:'wat'}],
+ ['edittoday','Edit Today','Four switches. Hide any card',{}]
+];
+const darkBtn=document.getElementById('darkbtn');
+document.querySelectorAll('.phone-host').forEach(h=>{mk(h,h.dataset.start,{})});
+const grid=document.getElementById('grid');
+FRAMES.forEach(f=>{const w=document.createElement('div');w.className='frame-wrap';w.innerHTML=`<div class="tag"><b>${f[1]}</b> · ${f[2]}</div><div class="phone-host"></div>`;grid.appendChild(w);mk(w.querySelector('.phone-host'),f[0],f[3])});
+darkBtn.addEventListener('click',()=>{const on=darkBtn.dataset.on!=='1';darkBtn.dataset.on=on?'1':'0';darkBtn.textContent=on?'Light mode':'Dark mode';document.querySelectorAll('.phone').forEach(p=>p.classList.toggle('dark',on))});
+
+</script>
+</body></html>
