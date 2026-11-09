@@ -37,6 +37,8 @@ class IntakeApplication : Application(), Configuration.Provider {
         MenuIngestionWorker.schedule(WorkManager.getInstance(this))
         // Goal builder: a daily look at the baseline week; it does nothing unless one is running.
         BaselineWorker.schedule(WorkManager.getInstance(this))
+        // Coach: a daily look at whether the weekly check-in is due.
+        com.zeroindex.intake.work.CoachWorker.schedule(WorkManager.getInstance(this))
         // SPEC §12: Health Connect follows local writes, debounced - never a timer.
         healthSync.start()
         // Amendment §2: nightly backup, scheduled only once a server is set up.

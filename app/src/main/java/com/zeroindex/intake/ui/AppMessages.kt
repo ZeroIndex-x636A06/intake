@@ -27,6 +27,18 @@ class AppMessages @Inject constructor() {
         _events.tryEmit(message)
     }
 
+    /** A screen to open, asked for from outside (a notification tap). Consumed by the app shell. */
+    private val _openRequest = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    val openRequest: kotlinx.coroutines.flow.StateFlow<String?> = _openRequest
+
+    fun requestOpen(name: String) {
+        _openRequest.value = name
+    }
+
+    fun openConsumed() {
+        _openRequest.value = null
+    }
+
     /** Clears the replay slot once shown, so it does not reappear on rotation. */
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     fun consumed() = _events.resetReplayCache()

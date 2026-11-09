@@ -5,9 +5,12 @@ import com.zeroindex.intake.data.db.IntakeDatabase
 import com.zeroindex.intake.data.db.dao.ExerciseDao
 import com.zeroindex.intake.data.db.dao.ExportDao
 import com.zeroindex.intake.data.db.entity.Audited
+import com.zeroindex.intake.data.settings.FoodDataPrefs
+import com.zeroindex.intake.data.settings.HydrationPrefs
 import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.backup.BackupCrypto
 import com.zeroindex.intake.domain.backup.MergePlan
+import com.zeroindex.intake.domain.backup.PortableSettings
 import com.zeroindex.intake.domain.backup.RowVersion
 import com.zeroindex.intake.domain.backup.TablePlan
 import com.zeroindex.intake.domain.time.Clock
@@ -40,8 +43,16 @@ class ImportPreview internal constructor(
     val plans: List<TablePlan>,
     val unknownTables: List<String>,
     internal val rows: Map<String, List<Audited>>,
+    /** Preferences found in the file, already filtered to the portable ones. Empty for an older backup. */
+    internal val settingsValues: Map<String, PortableSettings.Value> = emptyMap(),
 ) {
     val totalChanges: Int get() = plans.sumOf { it.changes }
+
+    /** How many preferences would be restored. */
+    val settingsCount: Int get() = settingsValues.size
+
+    /** "Settings: units, targets, profile ..." for the import preview; null when the file has none. */
+    val settingsLine: String? get() = settingsValues.keys.takeIf { it.isNotEmpty() }?.let(PortableSettings::describe)
 }
 
 /**
@@ -60,12 +71,21 @@ class BackupService @Inject constructor(
     private val exportDao: ExportDao,
     private val exerciseDao: ExerciseDao,
     private val settings: SettingsRepository,
+    private val hydrationPrefs: HydrationPrefs,
+    private val foodDataPrefs: FoodDataPrefs,
     private val json: Json,
     private val clock: Clock,
 ) {
     companion object {
         const val FORMAT = "intake-export"
         const val FORMAT_VERSION = 1
+
+        /** Names kept in the Hydration v2 store; everything else portable belongs to the main settings store. */
+        private val HYDRATION_STORE_NAMES = setOf(
+            "weather_enabled", "weather_location_mode", "weather_place", "drink_overrides",
+            "sweat_pre_kg", "sweat_post_kg", "sweat_fluid_ml", "sweat_minutes", "sweat_use_measured",
+        )
+        private val FOOD_STORE_NAMES = setOf("off_search_enabled", "off_contribute_enabled")
     }
 
     private val tables by lazy { backupTables(exportDao) }
@@ -85,6 +105,8 @@ class BackupService @Inject constructor(
                 "schemaVersion" to JsonPrimitive(IntakeDatabase.VERSION),
                 "exportedAt" to JsonPrimitive(clock.nowMillis()),
                 "tables" to JsonObject(tableJson),
+                // docs/BACKUP.md "Settings": versioned, user-facing preferences only. Secrets never get here.
+                "settings" to PortableSettings.encode(settings.rawSnapshot() + hydrationPrefs.rawSnapshot() + foodDataPrefs.rawSnapshot()),
             ),
         )
         return json.encodeToString(JsonObject.serializer(), root).toByteArray()
@@ -144,6 +166,7 @@ class BackupService @Inject constructor(
             plans = plans,
             unknownTables = incoming.keys.filter { name -> tables.none { it.name == name } },
             rows = rows,
+            settingsValues = PortableSettings.decode(root["settings"]).values,
         )
     }
 
@@ -161,8 +184,19 @@ class BackupService @Inject constructor(
                 t.write(toWrite)
             }
         }
+        // Preferences go in last, after the rows, so a failed import changes no settings.
+        restoreSettings(preview.settingsValues)
         // Plan weeks from a schema-2 backup have no plan yet.
         com.zeroindex.intake.data.plan.LegacyPlanRepair.run(db, clock.nowMillis(), clock.today().toEpochDay())
+    }
+
+    /** Each value goes back to the store that owns that name; the stores skip anything not portable. */
+    private suspend fun restoreSettings(values: Map<String, PortableSettings.Value>) {
+        if (values.isEmpty()) return
+        val foodNames = FOOD_STORE_NAMES
+        hydrationPrefs.restorePortable(values.filterKeys { it in HYDRATION_STORE_NAMES })
+        foodDataPrefs.restorePortable(values.filterKeys { it in foodNames })
+        settings.restorePortable(values.filterKeys { it !in HYDRATION_STORE_NAMES && it !in foodNames })
     }
 
     // ----- CSV, per domain (SPEC §13) --------------------------------------
