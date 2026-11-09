@@ -110,8 +110,25 @@ internal val MIGRATION_1_2 = object : Migration(1, 2) {
     }
 }
 
+/**
+ * 2 -> 3: Open Food Facts contributions (docs/FOOD-DATA.md). One nullable column on
+ * `food`: when the user last sent this product to Open Food Facts. Purely additive.
+ */
+internal val MIGRATION_2_3_STATEMENTS: List<String> = listOf(
+    "ALTER TABLE `food` ADD COLUMN `offContributedAt` INTEGER",
+)
+
+internal val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        MIGRATION_2_3_STATEMENTS.forEach(db::execSQL)
+    }
+}
+
 /** Every migration, in order. [IntakeDatabase] registers all of them. */
-internal val ALL: Array<Migration> = arrayOf(MIGRATION_1_2)
+internal val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
 
 /** Statement lists by starting version, for `MigrationSchemaTest`. */
-internal val MIGRATION_STATEMENTS: Map<Int, List<String>> = mapOf(1 to MIGRATION_1_2_STATEMENTS)
+internal val MIGRATION_STATEMENTS: Map<Int, List<String>> = mapOf(
+    1 to MIGRATION_1_2_STATEMENTS,
+    2 to MIGRATION_2_3_STATEMENTS,
+)

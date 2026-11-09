@@ -54,6 +54,8 @@ fun SettingsScreen(
     onOpenBackup: () -> Unit,
     modifier: Modifier = Modifier,
     section: String? = null,
+    /** Opens Food database settings: Open Food Facts search, contributing, credits. */
+    onOpenFoodData: (() -> Unit)? = null,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -260,6 +262,24 @@ fun SettingsScreen(
                     latestWeightKg = state.latestWeightKg ?: settings.goalWeightKg,
                     onSet = viewModel::setManualTarget,
                 )
+            }
+        }
+
+        // After "allergens" and "targets" on purpose: those two are scrolled to by index.
+        if (onOpenFoodData != null) {
+            item(key = "food-data") {
+                Section("Food database") {
+                    Text(
+                        "Offline USDA foods, Open Food Facts search and contributing, and data credits.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    OutlinedButton(
+                        onClick = onOpenFoodData,
+                        shape = IntakeShape.Button,
+                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(50.dp),
+                    ) { Text("Food database & credits →") }
+                }
             }
         }
 

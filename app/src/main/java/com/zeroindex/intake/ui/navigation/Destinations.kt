@@ -40,6 +40,12 @@ sealed interface Route {
     @Serializable data object PlanB : Route
     @Serializable data object MenuSources : Route
     @Serializable data object MealTemplates : Route
+    /** Every food on the phone; tap one for [FoodDetail]. */
+    @Serializable data object MyFoods : Route
+    /** Food detail and edit, with "Contribute to Open Food Facts". */
+    @Serializable data class FoodDetail(val foodId: String) : Route
+    /** Open Food Facts search and contribution settings, plus data credits. */
+    @Serializable data object FoodData : Route
 
     // Train tab.
     @Serializable data object Programs : Route

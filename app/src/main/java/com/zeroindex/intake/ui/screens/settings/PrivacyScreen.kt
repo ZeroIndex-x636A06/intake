@@ -75,6 +75,22 @@ fun PrivacyScreen(
             whenSent = "When you scan a barcode this phone has not seen.",
         )
         PathRow(
+            title = "Packaged food search",
+            tag = "Sends your search words to Open Food Facts",
+            pill = "On, can be switched off",
+            sent = "The words you type, and the app name and version. No key, no account. The offline USDA food search sends nothing at all.",
+            where = "search.openfoodfacts.org",
+            whenSent = "While you type in Add food and the phone is online. Switch it off in Food, Food database & credits.",
+        )
+        PathRow(
+            title = "Contribute to Open Food Facts",
+            tag = "Sends a product you made, with your own account",
+            pill = "Off until you turn it on",
+            sent = "The barcode, name, brand, quantity, nutrition per 100 g and ingredients if you entered them, plus your own Open Food Facts username and password in the request body over HTTPS. It becomes public under the ODbL licence.",
+            where = "world.openfoodfacts.org",
+            whenSent = "Only when you press Send in the confirmation that lists exactly what goes. Never automatically.",
+        )
+        PathRow(
             title = "Model list",
             tag = "Public list, nothing of yours",
             pill = "On",

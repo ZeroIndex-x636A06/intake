@@ -96,6 +96,24 @@ class MigrationSchemaTest {
     }
 
     @Test
+    fun migrationTwoToThreeAddsTheContributionTimestampAndKeepsFoods() {
+        val c = createAt(2)
+        c.exec(
+            "INSERT INTO food (id, name, brand, barcode, servingSizeGrams, servingLabel, kcalPer100g, " +
+                "proteinPer100g, carbsPer100g, fatPer100g, fiberPer100g, sugarPer100g, sodiumPer100g, " +
+                "saturatedFatPer100g, source, allergenTags, isVerified, isFavorite, timesLogged, createdAt, updatedAt) " +
+                "VALUES ('f1', 'Oat bar', NULL, '0894700010137', 40, '1 bar', 400, 10, 60, 12, 5, 20, 100, 3, " +
+                "'BARCODE', '', 0, 0, 2, 1, 1)",
+        )
+        MIGRATION_2_3_STATEMENTS.forEach { c.exec(it) }
+        val food = c.rows("SELECT * FROM food WHERE id = 'f1'").single()
+        assertThat(food["name"]).isEqualTo("Oat bar")
+        assertThat(food["timesLogged"]).isEqualTo(2)
+        assertThat(food["offContributedAt"]).isNull()
+        assertMatches(c, 3)
+    }
+
+    @Test
     fun migrationOneToTwoKeepsExistingRowsAndFillsDefaults() {
         val c = createAt(1)
         c.exec(
