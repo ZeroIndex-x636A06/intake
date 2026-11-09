@@ -84,6 +84,7 @@ fun ProgramGeneratorScreen(
         if (result != null) {
             previewItems(
                 result = result,
+                howBuilt = com.zeroindex.intake.domain.goals.TrainingExplainer.howBuilt(state.inputs, result),
                 saving = state.saving,
                 onSave = { activate -> viewModel.save(activate, onSaved) },
                 onChange = viewModel::back,
@@ -293,6 +294,7 @@ private fun RepRangeRow(label: String, current: RepRange?, onChange: (RepRange?)
 
 private fun androidx.compose.foundation.lazy.LazyListScope.previewItems(
     result: GeneratedProgram,
+    howBuilt: com.zeroindex.intake.domain.goals.HowBuilt,
     saving: Boolean,
     onSave: (activate: Boolean) -> Unit,
     onChange: () -> Unit,
@@ -308,6 +310,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.previewItems(
             }
         }
     }
+    item(key = "p-howbuilt") { HowBuiltCard(howBuilt) }
     item(key = "p-volume") {
         IntakeCard {
             Eyebrow("Hard sets per week")
@@ -361,7 +364,16 @@ private fun DayPreview(day: GeneratedDay) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary,
             )
-            Text(e.why, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(e.why, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
+            if (e.prescription.isNotBlank()) {
+                Text(e.prescription, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            e.startWeightKg?.let { kg ->
+                Text(
+                    "Start at about ${weightText(kg)} kg. ${e.startNote.orEmpty()}",
+                    style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary,
+                )
+            }
         }
     }
 }

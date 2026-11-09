@@ -105,7 +105,7 @@ class ProgramGeneratorViewModel @Inject constructor(
     fun generate() = viewModelScope.launch {
         val hidden = repository.hiddenExerciseIds()
         val inputs = _state.value.inputs.copy(hiddenExerciseIds = hidden)
-        _state.update { it.copy(result = generateProgram(inputs)) }
+        _state.update { it.copy(result = repository.finish(generateProgram(inputs))) }
     }
 
     fun save(activate: Boolean, onSaved: (String) -> Unit) = viewModelScope.launch {

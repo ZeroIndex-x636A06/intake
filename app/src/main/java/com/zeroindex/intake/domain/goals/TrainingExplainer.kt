@@ -26,15 +26,15 @@ object TrainingExplainer {
 
     /**
      * @param profile the person's profile when the plan came from it; null from the stand-alone wizard
-     * @param startWeights how many lifts got a starting weight, and how many of those came from history
      */
     fun howBuilt(
         inputs: GeneratorInputs,
         program: GeneratedProgram,
         profile: UserProfile? = null,
-        startWeights: Int = 0,
-        fromHistory: Int = 0,
     ): HowBuilt {
+        val withWeight = program.days.flatMap { it.exercises }.filter { it.startWeightKg != null }
+        val startWeights = withWeight.size
+        val fromHistory = withWeight.count { it.startNote?.contains("Based on your") == true }
         val used = mutableListOf<String>()
         val notUsed = mutableListOf<String>()
 

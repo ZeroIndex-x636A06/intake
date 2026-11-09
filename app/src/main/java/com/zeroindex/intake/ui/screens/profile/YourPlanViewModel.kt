@@ -33,6 +33,7 @@ data class YourPlanUiState(
     val overrides: PlanOverrides = PlanOverrides(),
     val program: GeneratedProgram? = null,
     val training: TrainingSummary? = null,
+    val howBuilt: com.zeroindex.intake.domain.goals.HowBuilt? = null,
     val hasActiveProgram: Boolean = false,
     val includeProgram: Boolean = true,
     val applying: Boolean = false,
@@ -80,7 +81,7 @@ class YourPlanViewModel @Inject constructor(
             return
         }
         inputs = built
-        val program = generateProgram(built.profile.toGeneratorInputs(repository.hiddenExerciseIds()))
+        val program = training.finish(generateProgram(built.profile.toGeneratorInputs(repository.hiddenExerciseIds())))
         val active = training.observeActiveProgram().first() != null
         _state.update {
             it.copy(
@@ -89,6 +90,9 @@ class YourPlanViewModel @Inject constructor(
                 weightUnit = settings.weightUnit,
                 program = program,
                 training = TrainingSummaries.of(program, built.profile),
+                howBuilt = com.zeroindex.intake.domain.goals.TrainingExplainer.howBuilt(
+                    built.profile.toGeneratorInputs(repository.hiddenExerciseIds()), program, built.profile,
+                ),
                 hasActiveProgram = active,
                 includeProgram = !active,
             )
