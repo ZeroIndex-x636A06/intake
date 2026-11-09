@@ -42,6 +42,13 @@ Branch `worktree-agent-acbf47c924ce706e7`. None of this has been seen on a devic
 7. **Clean up formatting artifacts.** WP Recipe Maker's notes render as "(, cut into cubes)" and "(, minced)". Turn these into "(cut into cubes)".
 8. **Simpler recipe screen.** Make "Log a serving" the single primary action. Move Open original page, Add to this week, Edit and Delete into a ⋯ menu.
 
+**AI benchmark fixes.** From the user's run on the phone (screenshot, 2026-11-09).
+1. **A rate limit ends the whole run.** One HTTP 429 ("Too many requests just now") stopped every model. Treat 429 as transient: honour `Retry-After` (or use exponential backoff with jitter), pace requests (for example one at a time with a small gap), retry a few times, and only then skip that one model. A 429 is not an account-level failure; only a bad key, no credit or being offline end the run.
+2. **Privacy-incompatible models are offered and then fail.** Several candidates fail with "No provider for this model meets your privacy setting". Before showing candidates, check each model's providers against the privacy setting (data collection deny / zero-retention), using OpenRouter's per-model endpoints data. Show only compatible models, or mark the others "Not available with your privacy setting" and leave them unselected, so a run never wastes a slot on them.
+3. **Weak and free-tier candidates.** The default candidates include very small or free-tier models. Free tiers have tiny rate limits, which probably caused the 429. Exclude `:free` variants by default, and rank candidates by capability first (structured output support, enough context, and web-search support for Recipe Hunter and Plan B), then by price.
+4. **Too much text.** Collapse the per-model "Not saved" list into one summary line, e.g. "2 saved · 4 skipped (why)", with the reasons behind a tap. Keep the cost line and the cap.
+5. **Layout bugs, which also confirm the top-inset bug.** The "Run benchmark" title and header are drawn under the status bar. At the bottom, the card's last button sits behind the floating pill. Content needs top status-bar padding and bottom padding of the pill height plus the gesture inset, on every scrolling screen, not just the hubs.
+
 ## Open: anyone can claim these
 
 Each task links to the section of `docs/SPEC-v3.md` that defines it.
