@@ -5,6 +5,14 @@ Read this first when picking the work back up. Branch:
 
 ## Done
 
+- Exercise diagrams, custom workouts and a plan creator that uses its answers (branch `worktree-agent-adb67bf9ac0ff4da0`;
+  docs/EXERCISE-IMAGES.md and docs/WORKOUTS.md): bundled photos (85 of 94 catalog exercises, Free Exercise DB pinned
+  commit), a 20-group muscle map with six coarse regions, an exercise sheet from library, picker, builder and active workout,
+  custom exercises with own photo and muscle picker, saved workouts (program with `isStandalone`), profile focus muscles, avoid areas
+  and weekdays reaching the generator, weekday scheduling for Today and the coach, a starting-weight estimator, a one-line
+  reason per exercise and "How this plan was built". Schema: `migrateExercises_2_3` (exercise.photoPath, program.isStandalone,
+  program_day.weekday, program_exercise.notes). Seam left for the weighted `exercise_muscle` table (see EXERCISE-IMAGES.md).
+
 All of SPEC.md's built phases and every amendment feature are implemented:
 
 - Core: Today, food logging with the allergen engine, barcode, adaptive TDEE,
@@ -177,6 +185,11 @@ Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/SPEC-v3.md`, `docs/BACKUP
 - Demo data loader in Settings (`SettingsRepository.demoDataLoaded` exists).
 
 ## NOT verified
+
+- Exercise photos, the muscle map, the exercise sheet, the custom exercise form (camera, gallery, tap-the-body picker),
+  My workouts, the profile focus/avoid/weekday pickers, the Today rest-day card and "How this plan was built" were never
+  seen on a device (no emulator). The map outlines were only checked as a rendered preview, not in Compose. The camera
+  FileProvider and permission flow, the fade animation and reduce-motion behaviour, and thumbnail scrolling performance are untested.
 
 - The motion polish was never seen running (no emulator): sweeps, count-ups, the protein burst, the water wave, stagger,
   check morphs, the rest ring, chart draw-in, shimmer, press scale, haptics, the new Settings layout and the folded hubs.

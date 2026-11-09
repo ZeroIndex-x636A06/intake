@@ -18,6 +18,11 @@ Core, from SPEC.md:
   Open Food Facts search, barcode scan, quick add and
   hand-entered foods. Every path runs the local allergen check first.
 - Adaptive TDEE measured from your own intake and weight trend.
+- Exercise diagrams: every exercise opens a sheet with start and end photos (Free Exercise DB, public domain),
+  a front and back muscle map, how-to steps and your own history. Add your own exercises with a photo, and
+  save single-session workouts ("Arm day") that start any time. The plan creator uses your focus muscles, areas
+  to go easy on and training weekdays, suggests starting weights and says why for every exercise. See
+  [docs/EXERCISE-IMAGES.md](docs/EXERCISE-IMAGES.md) and [docs/WORKOUTS.md](docs/WORKOUTS.md).
 - Profile & goals (More): pick your build and goal, run a 7-day baseline week, and get a plan
   (calories, macros, water, training) where every number says why and can be edited. Works with
   no network and no AI; Advanced adds g/kg macros, carb cycling, refeeds and diet breaks. See

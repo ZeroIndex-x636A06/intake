@@ -16,6 +16,13 @@ Intake keeps everything on the phone. Two ways to get a copy off it:
 Each upload is written as `<name>.partial` and renamed when complete, so an
 interrupted run never leaves a truncated file that looks like a backup.
 
+## Files are not in a backup
+
+Backups, exports and sync carry table rows and settings, never files. The one file the person adds to a
+custom exercise (its photo, `exercise.photoPath`) is therefore **not** backed up: after a restore the exercise
+is back, without the photo. The form says so. Saved workouts (`program.isStandalone`), program-day weekdays and
+exercise notes are ordinary columns and are included.
+
 ## What is stored where
 
 | Item | Where |
