@@ -26,7 +26,23 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import com.zeroindex.intake.ui.motion.AnimatedCheck
+import com.zeroindex.intake.ui.motion.ExpandChevron
+import com.zeroindex.intake.ui.motion.LocalReduceMotion
+import com.zeroindex.intake.ui.motion.Motion
+import com.zeroindex.intake.ui.motion.pressScale
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
@@ -132,6 +148,7 @@ fun PlanScreen(
     var planForm by remember { mutableStateOf<PlanFormTarget?>(null) }
     var editingWeek by remember { mutableStateOf(false) }
     var weekMenu by remember { mutableStateOf(false) }
+    var planMenu by remember { mutableStateOf(false) }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -174,22 +191,22 @@ fun PlanScreen(
                             position?.label() ?: "Make a plan of any length, or import one.",
                         )
                     }
-                    TextButton(onClick = launchImport, modifier = Modifier.heightIn(min = 48.dp)) { Text("Import plan") }
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = { showPlans = true }, modifier = Modifier.heightIn(min = 48.dp)) {
                         Text(if (plans.size > 1) "Plans (${plans.size})" else "Plans")
                     }
-                    TextButton(onClick = { planForm = PlanFormTarget.New }, modifier = Modifier.heightIn(min = 48.dp)) { Text("New plan") }
-                    TextButton(
-                        onClick = { onOpenScriptReference("meal-plan", null) },
-                        modifier = Modifier.heightIn(min = 48.dp),
-                    ) { Text("Script reference") }
-                    if (planned.isNotEmpty()) {
-                        TextButton(
-                            onClick = { exporter.launch("meal-plan.md") },
-                            modifier = Modifier.heightIn(min = 48.dp),
-                        ) { Text("Export plan as script") }
+                    Box {
+                        IconButton(
+                            onClick = { planMenu = true },
+                            modifier = Modifier.size(48.dp),
+                        ) { Icon(Icons.Filled.MoreVert, contentDescription = "Plan options") }
+                        DropdownMenu(expanded = planMenu, onDismissRequest = { planMenu = false }) {
+                            DropdownMenuItem(text = { Text("New plan") }, onClick = { planMenu = false; planForm = PlanFormTarget.New })
+                            DropdownMenuItem(text = { Text("Import a plan file") }, onClick = { planMenu = false; launchImport() })
+                            if (planned.isNotEmpty()) {
+                                DropdownMenuItem(text = { Text("Export plan as script") }, onClick = { planMenu = false; exporter.launch("meal-plan.md") })
+                            }
+                            DropdownMenuItem(text = { Text("Script reference") }, onClick = { planMenu = false; onOpenScriptReference("meal-plan", null) })
+                        }
                     }
                 }
             }
@@ -318,22 +335,30 @@ fun PlanScreen(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (content?.main != null) {
-                Button(
-                    onClick = viewModel::logMeal,
-                    shape = IntakeShape.Button,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
-                ) { Text("Log this meal") }
+            content?.main?.let { main ->
+                // This week's meal: Cook is the one big button, Log is its quieter partner.
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = { onOpenCook(main.recipe.id) },
+                        shape = IntakeShape.Button,
+                        modifier = Modifier.weight(1f).heightIn(min = 54.dp).pressScale(),
+                    ) { Text("Cook this meal") }
+                    OutlinedButton(
+                        onClick = viewModel::logMeal,
+                        shape = IntakeShape.Button,
+                        modifier = Modifier.weight(1f).heightIn(min = 54.dp),
+                    ) { Text("Log this meal") }
+                }
             }
             Surface(
-                color = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 shape = IntakeShape.Banner,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp)
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                     .clickable(role = Role.Button) { parking = true },
             ) {
-                Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                    Text("Can't eat what I cooked?", style = MaterialTheme.typography.titleMedium)
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                    Text("Can't eat what I cooked?", style = MaterialTheme.typography.titleSmall)
                     Text(
                         "Find a safer option nearby · works offline",
                         style = MaterialTheme.typography.labelSmall,
@@ -586,7 +611,8 @@ private fun DishCard(content: WeekContent, onEditProtein: () -> Unit, onChange: 
                     AllergenStatus.CONTAINS -> StatusPill("Contains an allergen", tone = PillTone.Bad)
                     AllergenStatus.MAY_CONTAIN -> StatusPill("Check allergens", tone = PillTone.Wait)
                     AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
-                    AllergenStatus.CLEAR, AllergenStatus.MENTIONED_AVOIDED -> StatusPill("Passed allergen check")
+                    AllergenStatus.CLEAR -> StatusPill("Passed allergen check")
+                    AllergenStatus.MENTIONED_AVOIDED -> StatusPill(MentionedAvoided.PILL)
                     AllergenStatus.UNKNOWN -> StatusPill("Allergens not checked", tone = PillTone.Wait)
                 }
                 if (main.macros.isEmpty) Tag("Macros: no data")
@@ -597,7 +623,10 @@ private fun DishCard(content: WeekContent, onEditProtein: () -> Unit, onChange: 
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            if (main.allergenTerms.isNotEmpty() && main.allergenStatus != AllergenStatus.CLEAR &&
+            if (MentionedAvoided.applies(main.allergenStatus)) {
+                Spacer(Modifier.height(6.dp))
+                SandNote(MentionedAvoided.note(main.allergenTerms))
+            } else if (main.allergenTerms.isNotEmpty() && main.allergenStatus != AllergenStatus.CLEAR &&
                 main.allergenStatus != AllergenStatus.CHECK_LABEL
             ) {
                 Spacer(Modifier.height(6.dp))
@@ -642,9 +671,11 @@ private fun Accordion(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(title, style = if (nested) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                Text(if (open) "⌃" else "⌄", style = MaterialTheme.typography.titleMedium)
+                ExpandChevron(open)
             }
-            AnimatedVisibility(open) { Column(Modifier.padding(bottom = 10.dp)) { body() } }
+            Column(Modifier.animateContentSize()) {
+                if (open) Column(Modifier.padding(bottom = 10.dp)) { body() }
+            }
         }
     }
     if (nested) Column(modifier) { inner() } else IntakeCard(modifier) { inner() }
@@ -691,9 +722,35 @@ private fun ShoppingRow(
     onRemove: (String) -> Unit,
 ) {
     val qty = ShoppingListBuilder.displayQuantity(item.quantity, unit)
+    val haptics = LocalHapticFeedback.current
+    val reduce = LocalReduceMotion.current
+    val toggle = {
+        haptics.performHapticFeedback(if (item.isChecked) HapticFeedbackType.ToggleOff else HapticFeedbackType.ToggleOn)
+        onCheck(item.id, !item.isChecked)
+    }
+    // Checked items fade back: the strike-through and the dimmer text say "done" without a jump.
+    val fade by animateFloatAsState(
+        targetValue = if (item.isChecked) 0.55f else 1f,
+        animationSpec = Motion.standardTween(reduce),
+        label = "shoppingFade",
+    )
     Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
-        Checkbox(checked = item.isChecked, onCheckedChange = { onCheck(item.id, it) })
-        Column(Modifier.weight(1f).clickable { onCheck(item.id, !item.isChecked) }) {
+        Box(
+            Modifier
+                .size(48.dp)
+                .toggleable(value = item.isChecked, role = Role.Checkbox, onValueChange = { toggle() })
+                .semantics { contentDescription = item.name },
+            contentAlignment = Alignment.Center,
+        ) {
+            AnimatedCheck(
+                checked = item.isChecked,
+                size = 24.dp,
+                fill = MaterialTheme.colorScheme.primary,
+                outline = MaterialTheme.colorScheme.onSurfaceVariant,
+                tick = MaterialTheme.colorScheme.onPrimary,
+            )
+        }
+        Column(Modifier.weight(1f).graphicsLayer { alpha = fade }.clickable(onClick = toggle)) {
             Text(
                 listOf(item.name, qty).filter { it.isNotBlank() }.joinToString(" · "),
                 style = MaterialTheme.typography.bodyMedium,
@@ -702,10 +759,10 @@ private fun ShoppingRow(
             // Shopping is where the label gets read, so this is the most useful place for the nudge.
             if (!item.isChecked) checkLabelReasonFor(item.name)?.let { CheckLabelChip(it, Modifier.padding(top = 2.dp)) }
         }
-        TextButton(
+        IconButton(
             onClick = { onRemove(item.id) },
-            modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = "Remove ${item.name}" },
-        ) { Text("×") }
+            modifier = Modifier.size(48.dp),
+        ) { Icon(Icons.Filled.Close, contentDescription = "Remove ${item.name}") }
     }
 }
 

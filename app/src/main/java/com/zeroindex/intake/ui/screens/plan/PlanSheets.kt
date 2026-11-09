@@ -178,7 +178,8 @@ private fun EatOutCard(row: EatOutRow, onLog: () -> Unit) {
                     AllergenStatus.CONTAINS -> StatusPill("Contains an allergen", tone = PillTone.Bad)
                     AllergenStatus.MAY_CONTAIN -> StatusPill("Check: may contain", tone = PillTone.Wait)
                     AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
-                    AllergenStatus.CLEAR, AllergenStatus.MENTIONED_AVOIDED -> StatusPill("No flagged terms")
+                    AllergenStatus.CLEAR -> StatusPill("No flagged terms")
+                    AllergenStatus.MENTIONED_AVOIDED -> StatusPill(MentionedAvoided.PILL)
                     AllergenStatus.UNKNOWN -> StatusPill("Not checked", tone = PillTone.Wait)
                 }
             }

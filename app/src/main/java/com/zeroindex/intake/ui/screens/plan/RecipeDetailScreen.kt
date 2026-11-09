@@ -91,9 +91,13 @@ fun RecipeDetailScreen(
                     AllergenStatus.MAY_CONTAIN -> StatusPill("Check allergens", tone = PillTone.Wait)
                     AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
                     AllergenStatus.CONTAINS -> StatusPill("Contains an allergen", tone = PillTone.Bad)
-                    AllergenStatus.CLEAR, AllergenStatus.MENTIONED_AVOIDED -> StatusPill("Passed allergen check")
+                    AllergenStatus.CLEAR -> StatusPill("Passed allergen check")
+                    AllergenStatus.MENTIONED_AVOIDED -> StatusPill(MentionedAvoided.PILL)
                     else -> StatusPill("Allergens not checked", tone = PillTone.Wait)
                 }
+            }
+            if (MentionedAvoided.applies(recipe.allergenStatus)) {
+                SandNote(MentionedAvoided.note(emptyList()))
             }
             if (recipe.allergenStatus == AllergenStatus.MAY_CONTAIN) {
                 SandNote("When this was saved, an ingredient looked like it might contain something you avoid. Check the labels before cooking.")
