@@ -85,9 +85,17 @@ device. Never claim it has.
 
 **Release builds** need the signing properties `RELEASE_STORE_FILE`,
 `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS` and `RELEASE_KEY_PASSWORD` in
-`local.properties`. The keystore is not in the repo. Updates install over the
-user's app only if they are signed with the same key, so ask the user for it. If
-you don't have the key, build debug APKs only.
+`local.properties`. The keystore is not in the repo. The user has decided not to
+carry the original container key forward, and will generate a new keystore when
+needed. The first release signed with the new key will not install over the
+existing app, so the user must move their data across:
+1. Export a backup.
+2. Uninstall the app.
+3. Install the new release.
+4. Import the backup.
+
+When you hand over that first release, say so. If you don't have a key, build
+debug APKs only.
 
 **In a cloud container:** if Gradle gets HTTP 429 from Maven Central, fetch the
 missing jars with `curl` into `~/.m2/repository`, using the same path layout, and
