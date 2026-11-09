@@ -13,7 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import com.zeroindex.intake.ui.motion.SkeletonLine
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -215,9 +215,13 @@ fun RecipeImportScreen(
 
         when (val s = stage) {
             ImportStage.Idle, is ImportStage.Saved -> Unit
-            ImportStage.Fetching, ImportStage.ReadingWithAi -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                CircularProgressIndicator(Modifier.padding(4.dp))
+            ImportStage.Fetching, ImportStage.ReadingWithAi -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(if (s == ImportStage.Fetching) "Fetching the page…" else "Asking the AI to read the page text…")
+                // A recipe-shaped skeleton: a title, then ingredient lines.
+                SkeletonLine(fraction = 0.7f, height = 18.dp)
+                SkeletonLine(fraction = 1f)
+                SkeletonLine(fraction = 0.9f)
+                SkeletonLine(fraction = 0.8f)
             }
             is ImportStage.Failed -> SandNote(s.message, title = "Could not import")
             is ImportStage.NoRecipe -> {

@@ -1,6 +1,23 @@
 package com.zeroindex.intake.ui.screens.hub
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.unit.dp
+import com.zeroindex.intake.ui.motion.MoreDetail
+import com.zeroindex.intake.ui.motion.pressScale
+import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.components.EmptyState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
@@ -78,38 +95,34 @@ fun FoodHubScreen(
             com.zeroindex.intake.ui.onboarding.TabTip(
                 key = com.zeroindex.intake.domain.onboarding.TipKey.FOOD,
                 body = com.zeroindex.intake.ui.onboarding.TabTipCopy.FOOD,
-                actionLabel = "Log a meal",
+                actionLabel = "Log food",
                 onAction = { scanning = false; logging = true },
             )
         },
+        before = {
+            // The one obvious action on this screen.
+            item(key = "log-food") {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Button(
+                        onClick = { scanning = false; logging = true },
+                        shape = IntakeShape.Button,
+                        modifier = Modifier.fillMaxWidth().height(56.dp).pressScale(),
+                    ) { Text("Log food") }
+                    TextButton(
+                        onClick = { scanning = true; logging = true },
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    ) {
+                        Icon(Icons.Filled.QrCodeScanner, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Scan a barcode instead")
+                    }
+                }
+            }
+        },
         items = listOf(
             HubItem(
-                title = "Log food",
-                description = "Search, scan a barcode, pick from your foods or recents",
-                icon = Icons.Filled.Add,
-                onClick = { scanning = false; logging = true },
-            ),
-            HubItem(
-                title = "Scan a barcode",
-                description = "Point the camera at a package, or type the number",
-                icon = Icons.Filled.QrCodeScanner,
-                onClick = { scanning = true; logging = true },
-            ),
-            HubItem(
-                title = "My foods",
-                description = "Every food on this phone: edit it or share it with Open Food Facts",
-                icon = Icons.Filled.Fastfood,
-                onClick = onOpenMyFoods,
-            ),
-            HubItem(
-                title = "Meal templates",
-                description = "Saved meals that log in one tap, or from an NFC tag",
-                icon = Icons.Filled.Nfc,
-                onClick = onOpenMealTemplates,
-            ),
-            HubItem(
                 title = "Meal plans",
-                description = "Build plans of any length, loop them, shopping lists, import and export",
+                description = "Plans of any length, shopping lists, import and export",
                 icon = Icons.Filled.CalendarMonth,
                 onClick = onOpenMealPlans,
             ),
@@ -118,6 +131,12 @@ fun FoodHubScreen(
                 description = "Your saved recipes and cook mode",
                 icon = Icons.Filled.Restaurant,
                 onClick = onOpenRecipes,
+            ),
+            HubItem(
+                title = "Meal templates",
+                description = "Saved meals that log in one tap, or from an NFC tag",
+                icon = Icons.Filled.Nfc,
+                onClick = onOpenMealTemplates,
             ),
             HubItem(
                 title = "Eating out",
@@ -131,19 +150,36 @@ fun FoodHubScreen(
                 icon = Icons.Filled.Warning,
                 onClick = onOpenAllergens,
             ),
-            HubItem(
-                title = "Food database & credits",
-                description = "Offline USDA foods, Open Food Facts search and contributing, licences",
-                icon = Icons.Filled.Storage,
-                onClick = onOpenFoodData,
-            ),
-            HubItem(
-                title = "Food script help",
-                description = "Write a meal plan by hand, with the full reference",
-                icon = Icons.AutoMirrored.Filled.MenuBook,
-                onClick = onOpenFoodScriptHelp,
-            ),
         ),
+        after = {
+            // Rarely needed, so folded away instead of lengthening the list.
+            item(key = "more-food") {
+                MoreDetail(title = "More food tools") {
+                    HubList(
+                        listOf(
+                            HubItem(
+                                title = "My foods",
+                                description = "Every food on this phone: edit it or share it with Open Food Facts",
+                                icon = Icons.Filled.Fastfood,
+                                onClick = onOpenMyFoods,
+                            ),
+                            HubItem(
+                                title = "Food database & credits",
+                                description = "Offline USDA foods, Open Food Facts search and contributing, licences",
+                                icon = Icons.Filled.Storage,
+                                onClick = onOpenFoodData,
+                            ),
+                            HubItem(
+                                title = "Food script help",
+                                description = "Write a meal plan by hand, with the full reference",
+                                icon = Icons.AutoMirrored.Filled.MenuBook,
+                                onClick = onOpenFoodScriptHelp,
+                            ),
+                        ),
+                    )
+                }
+            }
+        },
     )
     if (logging) {
         val now = remember { System.currentTimeMillis() }
@@ -203,11 +239,12 @@ fun RecipesScreen(
             item(key = "mine-head") { SectionLine("My recipes", note = "${recipes.size} saved") }
             if (recipes.isEmpty()) {
                 item(key = "no-recipes") {
-                    AccentNote(
-                        lead = "No recipes yet",
-                        body = "Add one by hand, import one from a link, or save one from Recipe Hunter. They land here, ready to log a serving.",
-                        container = MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    EmptyState(
+                        title = "No recipes yet",
+                        body = "Add one by hand or import one from a link. Saved recipes log a serving in one tap.",
+                        action = {
+                            Button(onClick = onOpenNew, modifier = Modifier.heightIn(min = 48.dp)) { Text("Add a recipe") }
+                        },
                     )
                 }
             }

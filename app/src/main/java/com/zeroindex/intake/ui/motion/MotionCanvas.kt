@@ -277,3 +277,30 @@ fun RestRing(
         content()
     }
 }
+
+// ---------------------------------------------------------------------------------------------
+// Chart draw-in
+
+/** 0 -> 1 over about 800 ms the first time a chart shows; already 1 with reduce-motion. */
+@Composable
+fun rememberDrawIn(millis: Int = 800): androidx.compose.runtime.State<Float> {
+    val reduce = LocalReduceMotion.current
+    val progress = remember { Animatable(if (reduce) 1f else 0f) }
+    LaunchedEffect(reduce) {
+        if (reduce) progress.snapTo(1f) else progress.animateTo(1f, tween(millis, easing = Motion.EmphasizedDecelerate))
+    }
+    return progress.asState()
+}
+
+/** Strokes the first [fraction] of [path]'s length: the line draws itself in. */
+fun DrawScope.drawPathPartial(path: Path, color: Color, strokeWidthPx: Float, fraction: Float) {
+    if (fraction <= 0f) return
+    if (fraction >= 1f) {
+        drawPath(path, color, style = Stroke(strokeWidthPx, cap = StrokeCap.Round, join = StrokeJoin.Round))
+        return
+    }
+    val measure = PathMeasure().apply { setPath(path, false) }
+    val partial = Path()
+    measure.getSegment(0f, measure.length * fraction, partial, true)
+    drawPath(partial, color, style = Stroke(strokeWidthPx, cap = StrokeCap.Round, join = StrokeJoin.Round))
+}

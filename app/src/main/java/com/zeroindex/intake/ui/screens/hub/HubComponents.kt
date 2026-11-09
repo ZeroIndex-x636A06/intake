@@ -31,6 +31,9 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.ui.components.SubHead
 import com.zeroindex.intake.ui.components.Tag
+import com.zeroindex.intake.ui.motion.pressScale
+import com.zeroindex.intake.ui.motion.rememberStaggerGate
+import com.zeroindex.intake.ui.motion.staggerIn
 import com.zeroindex.intake.ui.theme.IntakeShape
 
 /**
@@ -89,9 +92,10 @@ fun HubList(items: List<HubItem>, modifier: Modifier = Modifier) {
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = modifier.fillMaxWidth(),
     ) {
+        val gate = rememberStaggerGate()
         Column {
             items.forEachIndexed { index, item ->
-                HubRow(item)
+                HubRow(item, Modifier.staggerIn(gate, item.title, index))
                 if (index != items.lastIndex) {
                     HorizontalDivider(
                         color = MaterialTheme.colorScheme.outlineVariant,
@@ -104,10 +108,11 @@ fun HubList(items: List<HubItem>, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun HubRow(item: HubItem) {
+private fun HubRow(item: HubItem, modifier: Modifier = Modifier) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
+            .pressScale()
             .heightIn(min = 76.dp)
             .alpha(if (item.enabled) 1f else 0.55f)
             .clickable(enabled = item.enabled, role = Role.Button, onClick = item.onClick)

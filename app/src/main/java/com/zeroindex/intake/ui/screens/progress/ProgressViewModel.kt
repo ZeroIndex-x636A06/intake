@@ -57,6 +57,8 @@ data class ProgressUiState(
     val isRecalculating: Boolean = false,
     /** Amendment §2: weekly tonnage against best jump, for the overlay card. */
     val performance: List<OverlayWeek> = emptyList(),
+    /** False only for the placeholder before the first database emission; the screen shows skeletons until then. */
+    val loaded: Boolean = false,
 ) {
     val latestWeightKg: Double? get() = metrics.maxByOrNull { it.measuredAt }?.weightKg
     val trendWeightKg: Double? get() = trend.lastOrNull()?.trendKg
@@ -151,6 +153,7 @@ class ProgressViewModel @Inject constructor(
                     photos = extras.photos,
                     isRecalculating = extras.busy,
                     performance = extras.performance,
+                    loaded = true,
                 )
             }
         }

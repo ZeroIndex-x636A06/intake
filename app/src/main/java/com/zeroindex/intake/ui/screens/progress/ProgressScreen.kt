@@ -23,7 +23,12 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.MonitorHeart
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import com.zeroindex.intake.ui.components.EmptyState
+import com.zeroindex.intake.ui.motion.SkeletonList
+import com.zeroindex.intake.ui.motion.pressScale
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -98,7 +103,7 @@ fun ProgressScreen(
             com.zeroindex.intake.ui.onboarding.TabTip(
                 key = com.zeroindex.intake.domain.onboarding.TipKey.PROGRESS,
                 body = com.zeroindex.intake.ui.onboarding.TabTipCopy.PROGRESS,
-                actionLabel = "Weigh in",
+                actionLabel = "Log weight",
                 onAction = onAddMeasurement,
             )
             Row(
@@ -110,9 +115,14 @@ fun ProgressScreen(
                     contentPadding = columnPadding,
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    item(key = "weight") { WeightCard(state, onAddMeasurement) }
-                    item(key = "adherence") { AdherenceCard(state) }
-                    detailItems(state)
+                    item(key = "log-weight") { LogWeightButton(onAddMeasurement) }
+                    if (!state.loaded) {
+                        item(key = "loading") { SkeletonList(rows = 2, rowHeight = 150.dp, label = "Loading your progress") }
+                    } else {
+                        item(key = "weight") { WeightCard(state, onAddMeasurement) }
+                        item(key = "adherence") { AdherenceCard(state) }
+                        detailItems(state)
+                    }
                 }
                 LazyColumn(
                     modifier = Modifier.weight(1f).fillMaxHeight(),
@@ -148,19 +158,26 @@ fun ProgressScreen(
                 com.zeroindex.intake.ui.onboarding.TabTip(
                     key = com.zeroindex.intake.domain.onboarding.TipKey.PROGRESS,
                     body = com.zeroindex.intake.ui.onboarding.TabTipCopy.PROGRESS,
-                    actionLabel = "Weigh in",
+                    actionLabel = "Log weight",
                     onAction = onAddMeasurement,
                 )
             }
+            // The one obvious action on this screen.
+            item(key = "log-weight") { LogWeightButton(onAddMeasurement) }
             item(key = "ranges") { RangeSelector(state.range, viewModel::selectRange) }
-            item(key = "weight") { WeightCard(state, onAddMeasurement) }
-            item(key = "summary") { WeeklySummaryCard(state, viewModel) }
-            item(key = "adherence") { AdherenceCard(state) }
-            item(key = "calories") { CaloriesCard(state) }
-            item(key = "performance") {
-                PerformanceCard(state = state, onAddJump = onAddJumpTest)
+            if (!state.loaded) {
+                // Shimmer placeholders while the charts' data loads, instead of empty cards.
+                item(key = "loading") { SkeletonList(rows = 3, rowHeight = 150.dp, label = "Loading your progress") }
+            } else {
+                item(key = "weight") { WeightCard(state, onAddMeasurement) }
+                item(key = "summary") { WeeklySummaryCard(state, viewModel) }
+                item(key = "adherence") { AdherenceCard(state) }
+                item(key = "calories") { CaloriesCard(state) }
+                item(key = "performance") {
+                    PerformanceCard(state = state, onAddJump = onAddJumpTest)
+                }
+                detailItems(state)
             }
-            detailItems(state)
             item(key = "reports") {
                 ProgressLinks(onOpenTrainingStats, onOpenWeeklyReport, onOpenHealthConnect, onOpenCoach)
             }
@@ -252,6 +269,12 @@ private fun WeightCard(state: ProgressUiState, onAddMeasurement: () -> Unit) {
         }
         // SPEC §8: the trend line is what is shown, with raw points
         // behind it rather than instead of it.
+        if (state.metrics.isEmpty()) {
+            EmptyState(
+                body = "No weigh-ins in this range yet. Log your weight and the trend line appears here.",
+                action = { Button(onClick = onAddMeasurement, modifier = Modifier.heightIn(min = 48.dp)) { Text("Log weight") } },
+            )
+        }
         TrendLineChart(
             raw = state.metrics.map {
                 ChartPoint(it.measuredAt.toDouble(), unit.fromKg(it.weightKg))
@@ -278,13 +301,17 @@ private fun WeightCard(state: ProgressUiState, onAddMeasurement: () -> Unit) {
                 ),
             ),
         )
-        Spacer(Modifier.height(10.dp))
-        OutlinedButton(
-            onClick = onAddMeasurement,
-            shape = IntakeShape.Button,
-            modifier = Modifier.fillMaxWidth().height(50.dp),
-        ) { Text("Add a weigh-in") }
     }
+}
+
+/** Progress's primary action. Everything else on the screen is something to read. */
+@Composable
+private fun LogWeightButton(onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        shape = IntakeShape.Button,
+        modifier = Modifier.fillMaxWidth().height(52.dp).pressScale(),
+    ) { Text("Log weight") }
 }
 
 @Composable

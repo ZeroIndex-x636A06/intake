@@ -27,7 +27,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import com.zeroindex.intake.ui.motion.SkeletonList
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -539,14 +539,17 @@ private fun SearchTab(
                 OffUiState.Loading -> item(key = "off-loading") {
                     Column {
                         SourceHeader("Packaged foods (Open Food Facts)")
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.size(10.dp))
-                            Text("Searching Open Food Facts...", style = MaterialTheme.typography.bodySmall)
-                        }
+                        Text(
+                            "Searching Open Food Facts...",
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                        )
+                        SkeletonList(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            rows = 3,
+                            rowHeight = 52.dp,
+                            label = "Searching Open Food Facts",
+                        )
                     }
                 }
                 is OffUiState.Results -> if (offResults.isNotEmpty()) {
@@ -571,13 +574,10 @@ private fun SearchTab(
                             onClick = onSearchRemote,
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).height(52.dp),
                         ) { Text("Also search USDA online (your key)") }
-                        SearchState.Loading -> Row(
-                            modifier = Modifier.fillMaxWidth().padding(20.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                            Spacer(Modifier.size(12.dp))
+                        SearchState.Loading -> Column(Modifier.fillMaxWidth().padding(16.dp)) {
                             Text("Searching USDA...", style = MaterialTheme.typography.bodyMedium)
+                            Spacer(Modifier.size(8.dp))
+                            SkeletonList(rows = 3, rowHeight = 52.dp, label = "Searching USDA")
                         }
                         is SearchState.Remote -> Unit
                         SearchState.NeedsKey -> Unit
@@ -707,13 +707,10 @@ private fun BarcodeTab(
             )
         }
 
-        BarcodeState.LookingUp -> Row(
-            modifier = Modifier.fillMaxWidth().padding(28.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            CircularProgressIndicator(modifier = Modifier.size(20.dp))
-            Spacer(Modifier.size(12.dp))
+        BarcodeState.LookingUp -> Column(Modifier.fillMaxWidth().padding(28.dp)) {
             Text("Looking that barcode up...")
+            Spacer(Modifier.size(12.dp))
+            SkeletonList(rows = 2, rowHeight = 56.dp, label = "Looking that barcode up")
         }
 
         is BarcodeState.Found -> Column(Modifier.padding(20.dp)) {

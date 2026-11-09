@@ -21,6 +21,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.zeroindex.intake.ui.motion.SkeletonLine
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -119,14 +120,11 @@ fun LoadingState(steps: List<String>, modifier: Modifier = Modifier) {
         shape = RoundedCornerShape(17.dp),
         modifier = modifier.fillMaxWidth().padding(vertical = 9.dp),
     ) {
-        Row(Modifier.padding(15.dp), verticalAlignment = Alignment.Top) {
-            CircularProgressIndicator(
-                strokeWidth = 2.dp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(14.dp).padding(top = 1.dp),
-            )
-            Spacer(Modifier.width(8.dp))
+        Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(steps.joinToString(" · "), style = MaterialTheme.typography.bodySmall)
+            // A shimmering placeholder says "something is on its way" without a spinner.
+            SkeletonLine(fraction = 0.9f, height = 10.dp)
+            SkeletonLine(fraction = 0.6f, height = 10.dp)
         }
     }
 }

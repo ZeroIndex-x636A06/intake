@@ -31,6 +31,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
+import com.zeroindex.intake.ui.motion.drawPathPartial
+import com.zeroindex.intake.ui.motion.rememberDrawIn
 import com.zeroindex.intake.ui.theme.HeatFull
 import com.zeroindex.intake.ui.theme.HeatPartial
 import com.zeroindex.intake.ui.theme.IntakeShape
@@ -81,6 +83,8 @@ fun TrendLineChart(
 
     val gridColor = MaterialTheme.colorScheme.outlineVariant
     val ringColor = MaterialTheme.colorScheme.surface
+    // The trend line draws itself in on first show; the dots pop in as it passes them.
+    val drawIn = rememberDrawIn()
 
     Canvas(
         modifier = modifier
@@ -117,18 +121,17 @@ fun TrendLineChart(
                 val o = px(point)
                 if (index == 0) path.moveTo(o.x, o.y) else path.lineTo(o.x, o.y)
             }
-            drawPath(
-                path = path,
-                color = trendColor,
-                style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round),
-            )
+            drawPathPartial(path, trendColor, 3.dp.toPx(), drawIn.value)
         }
 
         // Dots last so they sit above the trend line, each with a surface ring.
         raw.forEach { point ->
             val centre = px(point)
-            drawCircle(color = ringColor, radius = 5.5.dp.toPx(), center = centre)
-            drawCircle(color = rawColor, radius = 3.5.dp.toPx(), center = centre)
+            val reached = centre.x <= size.width * drawIn.value + 1f
+            if (reached) {
+                drawCircle(color = ringColor, radius = 5.5.dp.toPx(), center = centre)
+                drawCircle(color = rawColor, radius = 3.5.dp.toPx(), center = centre)
+            }
         }
     }
 }
@@ -154,6 +157,7 @@ fun TargetBarChart(
 
     val maxValue = max(values.max(), target ?: 0.0) * 1.1
     val referenceColor = MaterialTheme.colorScheme.tertiary
+    val grow = rememberDrawIn(600)
 
     Column(modifier.fillMaxWidth()) {
         Canvas(
@@ -169,7 +173,7 @@ fun TargetBarChart(
 
             values.forEachIndexed { index, value ->
                 if (value <= 0.0) return@forEachIndexed
-                val height = (value / maxValue * size.height).toFloat()
+                val height = (value / maxValue * size.height).toFloat() * grow.value
                 val left = slot * index + (slot - barWidth) / 2f
                 val color = if (target != null && value > target) overColor else barColor
                 // The mockup rounds only the top of each bar: draw it fully
@@ -299,6 +303,7 @@ fun OverlayChart(
     val minLine = points.minOrNull() ?: 0.0
     val maxLine = points.maxOrNull() ?: 1.0
     val pad = max((maxLine - minLine) * 0.2, 1.0)
+    val drawIn = rememberDrawIn()
 
     Canvas(
         modifier = modifier
@@ -311,7 +316,7 @@ fun OverlayChart(
         val barWidth = min(slot * 0.6f, 18.dp.toPx())
         bars.forEachIndexed { i, v ->
             if (v <= 0) return@forEachIndexed
-            val h = (v / maxBar * size.height * 0.85).toFloat()
+            val h = (v / maxBar * size.height * 0.85).toFloat() * drawIn.value
             drawRoundRect(
                 color = barColor,
                 topLeft = Offset(slot * i + (slot - barWidth) / 2f, size.height - h),
@@ -324,11 +329,13 @@ fun OverlayChart(
         if (centres.size >= 2) {
             val path = Path()
             centres.forEachIndexed { i, o -> if (i == 0) path.moveTo(o.x, o.y) else path.lineTo(o.x, o.y) }
-            drawPath(path, lineColor, style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round))
+            drawPathPartial(path, lineColor, 2.5.dp.toPx(), drawIn.value)
         }
         centres.forEach { o ->
-            drawCircle(ringColor, radius = 5.5.dp.toPx(), center = o)
-            drawCircle(lineColor, radius = 3.5.dp.toPx(), center = o)
+            if (o.x <= size.width * drawIn.value + 1f) {
+                drawCircle(ringColor, radius = 5.5.dp.toPx(), center = o)
+                drawCircle(lineColor, radius = 3.5.dp.toPx(), center = o)
+            }
         }
     }
 }

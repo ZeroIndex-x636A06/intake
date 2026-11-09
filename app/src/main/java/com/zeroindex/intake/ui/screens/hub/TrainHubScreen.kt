@@ -16,7 +16,9 @@ import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Height
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
+import com.zeroindex.intake.ui.motion.MoreDetail
+import com.zeroindex.intake.ui.motion.pressScale
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -58,7 +60,7 @@ fun TrainHubScreen(
             com.zeroindex.intake.ui.onboarding.TabTip(
                 key = com.zeroindex.intake.domain.onboarding.TipKey.TRAIN,
                 body = com.zeroindex.intake.ui.onboarding.TabTipCopy.TRAIN,
-                actionLabel = "Make a program",
+                actionLabel = "Make me a program",
                 onAction = onOpenGenerator,
             )
         },
@@ -101,23 +103,22 @@ fun TrainHubScreen(
                                 },
                                 enabled = !state.isWorking && (inProgress != null || nextDay != null),
                                 shape = IntakeShape.Button,
-                                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).pressScale(),
                             ) {
                                 Text(
                                     when {
                                         inProgress != null -> "Carry on"
-                                        nextDay != null -> "Start ${nextDay.name}"
+                                        nextDay != null -> "Start today's workout"
                                         else -> "Add a day first"
                                     },
                                 )
                             }
                             if (inProgress == null) {
-                                OutlinedButton(
+                                TextButton(
                                     onClick = { viewModel.startFreestyle(onOpenSession) },
                                     enabled = !state.isWorking,
-                                    shape = IntakeShape.Button,
-                                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-                                ) { Text("Start an empty workout") }
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                                ) { Text("Or start an empty workout") }
                             }
                         }
                     }
@@ -138,29 +139,40 @@ fun TrainHubScreen(
                 onClick = onOpenGenerator,
             ),
             HubItem(
-                title = "Templates",
-                description = "Copy a ready-made program and make it yours",
-                icon = Icons.Filled.ContentCopy,
-                onClick = onOpenTemplates,
-            ),
-            HubItem(
                 title = "Exercises",
                 description = "Browse and search the library, add your own",
                 icon = Icons.Filled.FitnessCenter,
                 onClick = onOpenExercises,
             ),
-            HubItem(
+        ),
+        after = {
+            // Rarely needed, so folded away instead of lengthening the list.
+            item(key = "more-train") {
+                MoreDetail(title = "More training tools") {
+                    HubList(
+                        listOf(
+                            HubItem(
+                title = "Templates",
+                description = "Copy a ready-made program and make it yours",
+                icon = Icons.Filled.ContentCopy,
+                onClick = onOpenTemplates,
+            ),
+                            HubItem(
                 title = "Performance",
                 description = "Jump tests: vertical, standing reach, total reach",
                 icon = Icons.Filled.Height,
                 onClick = onOpenPerformance,
             ),
-            HubItem(
+                            HubItem(
                 title = "Program script help",
                 description = "Write a program and its progression rules by hand",
                 icon = Icons.AutoMirrored.Filled.MenuBook,
                 onClick = onOpenProgramScriptHelp,
             ),
-        ),
+                        ),
+                    )
+                }
+            }
+        },
     )
 }
