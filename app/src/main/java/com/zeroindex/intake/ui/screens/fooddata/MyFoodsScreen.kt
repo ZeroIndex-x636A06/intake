@@ -70,11 +70,9 @@ fun MyFoodsScreen(
             modifier = Modifier.fillMaxWidth(),
         )
         if (shown.isEmpty()) {
-            Text(
-                "Nothing here yet. Foods you add, scan or choose from search are kept here.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 16.dp),
+            com.zeroindex.intake.ui.components.EmptyState(
+                title = "No foods saved yet",
+                body = "Open the Food tab and tap Log food. Every food you search for, scan or create is kept here.",
             )
         }
         LazyColumn(

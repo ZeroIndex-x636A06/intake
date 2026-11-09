@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import com.zeroindex.intake.ui.motion.flashOn
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -127,11 +128,17 @@ fun WorkoutHistoryScreen(
                         )
                         state.personalRecord?.let { pr ->
                             Spacer(Modifier.height(8.dp))
+                            // A brief highlight when the record first shows (and when the chosen lift changes).
+                            var flash by androidx.compose.runtime.remember(state.selectedExercise?.id) { androidx.compose.runtime.mutableIntStateOf(0) }
+                            androidx.compose.runtime.LaunchedEffect(state.selectedExercise?.id, pr) { flash += 1 }
                             Text(
                                 text = "Best estimated max: " +
                                     "${unit.fromKg(pr).roundToInt()} ${unit.label}",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Medium,
+                                modifier = Modifier
+                                    .flashOn(flash, MaterialTheme.colorScheme.tertiaryContainer)
+                                    .padding(vertical = 4.dp),
                             )
                         }
                     }
@@ -145,10 +152,9 @@ fun WorkoutHistoryScreen(
 
         if (state.sessions.isEmpty()) {
             item(key = "empty") {
-                Text(
-                    text = "No sessions logged yet.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                com.zeroindex.intake.ui.components.EmptyState(
+                    title = "No sessions yet",
+                    body = "Open the Train tab and tap Start today's workout. Finished sessions show up here.",
                 )
             }
         }

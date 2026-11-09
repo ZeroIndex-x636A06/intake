@@ -55,7 +55,7 @@ fun BodyMetricsScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        ScreenHeading("Add a weigh-in")
+        ScreenHeading("Log weight")
         Text(
             // SPEC §3.5: entered in the display unit, stored in kilograms.
             text = "Entered in ${weightUnit.label} and ${lengthUnit.label}; stored in " +
@@ -106,7 +106,7 @@ fun BodyMetricsScreen(
             },
             enabled = weight.toDoubleOrNull()?.let { it > 0 } == true,
             modifier = Modifier.fillMaxWidth().height(52.dp),
-        ) { Text("Save") }
+        ) { Text("Log weight") }
 
         Spacer(Modifier.height(24.dp))
     }

@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.data.db.entity.FoodLogEntity
+import com.zeroindex.intake.ui.motion.pressScale
 import com.zeroindex.intake.ui.screens.today.MealSlotUi
 import com.zeroindex.intake.ui.screens.today.displayName
 import com.zeroindex.intake.ui.theme.IntakeShape
@@ -114,8 +115,9 @@ private fun AddFoodRow(slotName: String, isEmpty: Boolean, onAdd: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .pressScale()
             .heightIn(min = 48.dp)
-            .clickable(onClickLabel = "Add food to ${slotName.lowercase()}", onClick = onAdd),
+            .clickable(onClickLabel = "Log food in ${slotName.lowercase()}", onClick = onAdd),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (isEmpty) {
@@ -136,7 +138,7 @@ private fun AddFoodRow(slotName: String, isEmpty: Boolean, onAdd: () -> Unit) {
         )
         Spacer(Modifier.width(5.dp))
         Text(
-            text = "Add food",
+            text = "Log food",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.primary,
         )

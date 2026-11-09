@@ -106,7 +106,7 @@ fun FoodDataScreen(
             SectionCard("Searching packaged foods") {
                 SwitchRow(
                     title = "Search Open Food Facts",
-                    subtitle = "While you type in Add food. Sends only the words you typed, " +
+                    subtitle = "While you type in Log food. Sends only the words you typed, " +
                         "and only when you are online.",
                     on = state.settings.offSearch,
                     onToggle = { viewModel.setOffSearch(!state.settings.offSearch) },

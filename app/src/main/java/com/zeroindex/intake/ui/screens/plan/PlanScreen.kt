@@ -858,8 +858,8 @@ private fun EveryWeekAccordion(meta: PlanMeta) {
 }
 
 @Composable
-internal fun RecipeRow(recipe: RecipeEntity, onClick: () -> Unit) {
-    IntakeCard(modifier = Modifier.clickable(onClick = onClick)) {
+internal fun RecipeRow(recipe: RecipeEntity, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    IntakeCard(modifier = modifier.pressScale().clickable(onClick = onClick)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(recipe.name, style = MaterialTheme.typography.titleSmall)

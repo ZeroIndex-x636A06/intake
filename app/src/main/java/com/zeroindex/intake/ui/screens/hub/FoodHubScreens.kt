@@ -18,7 +18,9 @@ import com.zeroindex.intake.ui.motion.MoreDetail
 import com.zeroindex.intake.ui.motion.pressScale
 import com.zeroindex.intake.ui.theme.IntakeShape
 import com.zeroindex.intake.ui.components.EmptyState
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import com.zeroindex.intake.ui.motion.rememberStaggerGate
+import com.zeroindex.intake.ui.motion.staggerIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Add
@@ -209,6 +211,7 @@ fun RecipesScreen(
     viewModel: RecipeLibraryViewModel = hiltViewModel(),
 ) {
     val recipes by viewModel.recipes.collectAsStateWithLifecycle()
+    val gate = rememberStaggerGate()
     HubScreen(
         title = "Recipes",
         subtitle = "Saved recipes log a serving in one tap.",
@@ -248,7 +251,9 @@ fun RecipesScreen(
                     )
                 }
             }
-            items(recipes, key = { it.id }) { recipe -> RecipeRow(recipe, onClick = { onOpenRecipe(recipe.id) }) }
+            itemsIndexed(recipes, key = { _, r -> r.id }) { index, recipe ->
+                RecipeRow(recipe, onClick = { onOpenRecipe(recipe.id) }, modifier = Modifier.staggerIn(gate, recipe.id, index))
+            }
         },
     )
 }

@@ -605,6 +605,6 @@ private fun PerformanceCard(state: ProgressUiState, onAddJump: () -> Unit) {
             onClick = onAddJump,
             shape = IntakeShape.Button,
             modifier = Modifier.fillMaxWidth().height(50.dp),
-        ) { Text("Add a jump test") }
+        ) { Text("Log a jump test") }
     }
 }

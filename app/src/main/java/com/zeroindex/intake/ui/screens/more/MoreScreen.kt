@@ -61,7 +61,7 @@ fun MoreScreen(
             ),
             HubItem(
                 title = "Settings",
-                description = "Units, theme, training and API keys",
+                description = "Units, theme, reduce motion, targets and advanced options",
                 icon = Icons.Filled.Settings,
                 onClick = { onNavigate(Route.Settings()) },
             ),

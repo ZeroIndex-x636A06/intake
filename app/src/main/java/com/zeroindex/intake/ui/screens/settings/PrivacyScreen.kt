@@ -80,7 +80,7 @@ fun PrivacyScreen(
             pill = "On, can be switched off",
             sent = "The words you type, and the app name and version. No key, no account. The offline USDA food search sends nothing at all.",
             where = "search.openfoodfacts.org",
-            whenSent = "While you type in Add food and the phone is online. Switch it off in Food, Food database & credits.",
+            whenSent = "While you type in Log food and the phone is online. Switch it off in Food, Food database & credits.",
         )
         PathRow(
             title = "Contribute to Open Food Facts",

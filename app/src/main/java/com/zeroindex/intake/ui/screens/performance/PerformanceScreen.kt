@@ -128,7 +128,7 @@ fun PerformanceScreen(
                             (preview.verticalJumpCm != null || preview.totalReachCm != null),
                         shape = IntakeShape.Button,
                         modifier = Modifier.fillMaxWidth().height(52.dp),
-                    ) { Text("Save jump test") }
+                    ) { Text("Log jump test") }
                 }
             }
         }
@@ -140,7 +140,7 @@ fun PerformanceScreen(
             )
         }
         if (state.history.isEmpty()) {
-            item(key = "empty") { EmptyState(body = "No jump tests yet. Log a baseline to start your trend.") }
+            item(key = "empty") { EmptyState(title = "No jump tests yet", body = "Fill in the boxes above and tap Log jump test. The first one is your baseline.") }
         } else {
             item(key = "history-head") { SectionLine("History", note = "Trend is on Progress") }
             items(state.history, key = { it.id }) { m ->

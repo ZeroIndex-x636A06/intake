@@ -26,6 +26,9 @@ import com.zeroindex.intake.ui.components.InfoTip
 import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.PillTone
 import com.zeroindex.intake.ui.components.StatusPill
+import com.zeroindex.intake.ui.components.rememberSweepFraction
+import androidx.compose.runtime.getValue
+import com.zeroindex.intake.ui.motion.pressScale
 import com.zeroindex.intake.ui.screens.today.WorkoutCardState
 
 /**
@@ -55,8 +58,9 @@ fun BaselineCard(
             )
         }
         val fraction = (p.dayNumber / BaselineReadiness.MIN_DAYS.toFloat()).coerceIn(0f, 1f)
+        val shownFraction by rememberSweepFraction(fraction)
         LinearProgressIndicator(
-            progress = { fraction },
+            progress = { shownFraction },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 8.dp)
@@ -68,7 +72,7 @@ fun BaselineCard(
                 style = MaterialTheme.typography.bodySmall,
             )
             Spacer(Modifier.height(8.dp))
-            Button(onClick = onBuildPlan, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Build my plan") }
+            Button(onClick = onBuildPlan, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).pressScale()) { Text("Build my plan") }
         } else {
             p.missing.take(2).forEach { m ->
                 Text("Still needed: ${m.what}", style = MaterialTheme.typography.labelMedium)
@@ -109,7 +113,7 @@ fun WorkoutCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    Button(onClick = onStart, modifier = Modifier.heightIn(min = 48.dp)) { Text("Start") }
+                    Button(onClick = onStart, modifier = Modifier.heightIn(min = 48.dp).pressScale()) { Text("Start") }
                 }
             }
             is WorkoutCardState.InProgress -> {
@@ -120,7 +124,7 @@ fun WorkoutCard(
                             Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
-                    Button(onClick = { onResume(state.sessionId) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Resume") }
+                    Button(onClick = { onResume(state.sessionId) }, modifier = Modifier.heightIn(min = 48.dp).pressScale()) { Text("Resume") }
                 }
             }
             WorkoutCardState.NoProgram -> {
@@ -167,7 +171,7 @@ fun FocusCard(
         Text(focus.line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (focus.buttonLabel != null) {
             Spacer(Modifier.height(8.dp))
-            Button(onClick = onAction, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(focus.buttonLabel) }
+            Button(onClick = onAction, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).pressScale()) { Text(focus.buttonLabel) }
         }
     }
 }
