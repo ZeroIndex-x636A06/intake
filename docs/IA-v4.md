@@ -450,3 +450,18 @@ person asks, soft deletes, allergen checks local and deterministic.
 14. **Export passphrase.** Should the JSON or CSV export keep an optional passphrase (an encrypted file), or be plain only? Plain is simpler, and the file is yours to protect.
 15. **Sync-less people.** Without a server, the export file is the only off-device copy. Should the app remind you to export now and then (a quiet monthly nudge), or never nag?
 16. **Old backups.** Anyone who set up the nightly remote backup would lose it. Is there anyone but you? If not, we can drop it with no migration. A remote backup already on a server can be read once by the restore path, then removed.
+
+## 8. User feedback after the mockup (2026-11-09)
+
+These decisions are firm, so build them into the v4 implementation.
+
+- **One canonical home per feature, and no extra links.** "Settings has links to stuff that already exists elsewhere. There doesn't need to be links all over the app."
+  - Remove every cross-link row whose target already has a home. For example, Settings links to My allergens, Food database, Replay the tour and AI tools.
+  - Settings holds only settings.
+  - A feature's own options live on that feature, behind its gear icon.
+- **Weekly check-in lives in one place.** Today it appears in both More and Reports. It belongs in Progress, with the Next-up card on Today linking to it on check-in day. Remove the entry in More/You.
+- **Profile gets progress photos.**
+  - Add photos to the profile, front/side/back optionally, with a date. They are stored privately in app files, never synced or uploaded, and the export includes them only if the user opts in.
+  - Show the photos as a timeline next to the weight and body-measurement trend: a side-by-side compare of two dates and a slider.
+  - A gentle reminder to take a photo every 2–4 weeks is optional.
+- **The pill gets a blur.** A frosted backdrop on Android 12+, with a translucent fallback on older versions. This is being done in the current bug-fix round.
