@@ -129,7 +129,7 @@ object PlanImportBuilder {
         file: PlanFile,
         now: Long,
         check: AllergenCheck,
-        planId: String,
+        planId: String = LEGACY_PLAN_ID,
         existingWeekIds: Map<Int, String> = emptyMap(),
     ): PlanImportBatch {
         fun weekId(n: Int) = existingWeekIds[n] ?: weekId(planId, n)

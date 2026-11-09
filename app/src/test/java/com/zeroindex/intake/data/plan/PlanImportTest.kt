@@ -74,7 +74,8 @@ class PlanImportTest {
 
     @Test fun `plan wide content and week extras are stored without schema changes`() {
         val b = PlanImportBuilder.build(example(), 1000L, dairyCheck)
-        val meta = PlanMeta.decode(b.weeks.first { it.weekNumber == 0 }.notes)
+        assertThat(b.weeks.none { it.weekNumber == 0 }).isTrue()
+        val meta = PlanMeta.of(example())
         assertThat(meta.standingBreakfasts).containsExactly("Two boiled eggs and a banana")
         assertThat(meta.hiddenDairyChecklist).hasSize(2)
         val extras = PlanWeekExtras.decode(b.weeks.first { it.weekNumber == 1 }.notes)
@@ -234,7 +235,7 @@ class PlanImportTest {
         assertThat(a.recipes.map { it.id }).isEqualTo(b.recipes.map { it.id })
         assertThat(a.shoppingItems.map { it.id }.toSet()).isEqualTo(b.shoppingItems.map { it.id }.toSet())
         assertThat(a.eatOutOptions.map { it.id }).isEqualTo(b.eatOutOptions.map { it.id })
-        assertThat(a.recipes.single().id).isEqualTo(PlanImportBuilder.recipeId(1, "Example chicken and rice bowls"))
+        assertThat(a.recipes.single().id).isEqualTo(PlanImportBuilder.recipeId(PlanImportBuilder.LEGACY_PLAN_ID, 1, "Example chicken and rice bowls"))
     }
 
     @Test fun `the same food in two weeks is one row but different nutrition is two`() {
