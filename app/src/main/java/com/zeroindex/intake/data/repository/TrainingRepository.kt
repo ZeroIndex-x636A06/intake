@@ -7,6 +7,7 @@ import com.zeroindex.intake.data.training.ExistingProgramState
 import com.zeroindex.intake.data.training.ProgramExportRows
 import com.zeroindex.intake.data.training.FreestyleDayBuilder
 import com.zeroindex.intake.data.training.ProgramBlueprintBuilder
+import com.zeroindex.intake.data.training.ProgramEdits
 import com.zeroindex.intake.data.training.toEntity
 import com.zeroindex.intake.domain.training.ProgressionLabels
 import com.zeroindex.intake.domain.training.generator.ExerciseCatalog
@@ -329,18 +330,14 @@ class TrainingRepository @Inject constructor(
     suspend fun moveDay(dayId: String, delta: Int) {
         db.withTransaction {
             val d = programDao.findDay(dayId) ?: return@withTransaction
-            val days = programDao.daysOf(d.programId).toMutableList()
-            val from = days.indexOfFirst { it.id == dayId }
-            val to = (from + delta).coerceIn(0, days.lastIndex)
-            if (from < 0 || from == to) return@withTransaction
-            days.add(to, days.removeAt(from))
-            renumberDays(days)
+            val moved = ProgramEdits.moveDay(programDao.daysOf(d.programId), dayId, delta, clock.nowMillis())
+                ?: return@withTransaction
+            programDao.upsertDays(moved)
         }
     }
 
     private suspend fun renumberDays(days: List<ProgramDayEntity>) {
-        val now = clock.nowMillis()
-        programDao.upsertDays(days.mapIndexed { i, d -> if (d.dayIndex == i) d else d.copy(dayIndex = i, updatedAt = now) })
+        programDao.upsertDays(ProgramEdits.renumberDays(days, clock.nowMillis()))
     }
 
     suspend fun addDayTo(programId: String, name: String): ProgramDayEntity {
@@ -351,17 +348,17 @@ class TrainingRepository @Inject constructor(
     /** Copies a day and its exercises right after the original. */
     suspend fun duplicateDay(dayId: String): ProgramDayEntity? = db.withTransaction {
         val d = programDao.findDay(dayId) ?: return@withTransaction null
-        val now = clock.nowMillis()
-        val siblings = programDao.daysOf(d.programId)
-        val copy = d.copy(id = newId(), name = nextCopyName(d.name, siblings.map { it.name }), createdAt = now, updatedAt = now)
-        val days = siblings.toMutableList()
-        days.add(days.indexOfFirst { it.id == dayId } + 1, copy)
-        programDao.upsertDay(copy)
-        renumberDays(days)
-        programDao.upsertExercises(
-            programDao.exercisesOf(dayId).map { it.copy(id = newId(), programDayId = copy.id, createdAt = now, updatedAt = now) },
+        val rows = ProgramEdits.duplicateDay(
+            source = d,
+            siblings = programDao.daysOf(d.programId),
+            exercises = programDao.exercisesOf(dayId),
+            now = clock.nowMillis(),
+            nextId = ::newId,
         )
-        copy
+        programDao.upsertDay(rows.copy)
+        programDao.upsertDays(rows.daysInOrder)
+        programDao.upsertExercises(rows.exercises)
+        rows.copy
     }
 
     suspend fun deleteDay(dayId: String) {
@@ -399,8 +396,7 @@ class TrainingRepository @Inject constructor(
     }
 
     private suspend fun renumberExercises(list: List<ProgramExerciseEntity>) {
-        val now = clock.nowMillis()
-        programDao.upsertExercises(list.mapIndexed { i, e -> if (e.displayOrder == i) e else e.copy(displayOrder = i, updatedAt = now) })
+        programDao.upsertExercises(ProgramEdits.renumberExercises(list, clock.nowMillis()))
     }
 
     suspend fun moveProgramExercise(id: String, delta: Int) {
@@ -423,21 +419,8 @@ class TrainingRepository @Inject constructor(
         val source = programDao.allProgramExercises().firstOrNull { it.id == sourceId } ?: return@withTransaction 0
         val day = programDao.findDay(source.programDayId) ?: return@withTransaction 0
         val dayIds = if (wholeProgram) programDao.daysOf(day.programId).map { it.id } else listOf(day.id)
-        val now = clock.nowMillis()
         val targets = dayIds.flatMap { programDao.exercisesOf(it) }.filter { it.id != sourceId }
-        programDao.upsertExercises(
-            targets.map {
-                it.copy(
-                    targetSets = source.targetSets,
-                    targetRepsMin = source.targetRepsMin,
-                    targetRepsMax = source.targetRepsMax,
-                    targetRpe = source.targetRpe,
-                    restSec = source.restSec,
-                    progressionRuleId = source.progressionRuleId,
-                    updatedAt = now,
-                )
-            },
-        )
+        programDao.upsertExercises(ProgramEdits.copySettings(source, targets, clock.nowMillis()))
         targets.size
     }
 
@@ -489,16 +472,7 @@ class TrainingRepository @Inject constructor(
         copy
     }
 
-    private fun nextCopyName(name: String, existing: List<String>): String {
-        val base = name.removeSuffix(" (copy)")
-        var candidate = "$base (copy)"
-        var n = 2
-        while (existing.any { it.equals(candidate, ignoreCase = true) }) {
-            candidate = "$base (copy $n)"
-            n++
-        }
-        return candidate
-    }
+    private fun nextCopyName(name: String, existing: List<String>): String = ProgramEdits.nextCopyName(name, existing)
 
     /**
      * Creates a normal, editable program from a generator result or a template. Exercises the

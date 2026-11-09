@@ -15,6 +15,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.foundation.layout.Column
+import com.zeroindex.intake.ui.motion.MoreDetail
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -121,17 +123,22 @@ fun CoachCheckInScreen(
                 SuggestionCard(row, enabled = !state.working, onApply = { viewModel.apply(row) }, onDismiss = { viewModel.dismiss(row) })
             }
             item(key = "now") {
-                OutlinedButton(onClick = viewModel::checkInNow, enabled = !state.working, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                TextButton(onClick = viewModel::checkInNow, enabled = !state.working, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                     Text("Check in now")
                 }
             }
         }
 
-        item(key = "settings") { CheckInSettings(state, viewModel) }
+        // Set once and forgotten, so folded away.
+        item(key = "settings") {
+            MoreDetail(title = "Check-in settings") { CheckInSettings(state, viewModel) }
+        }
 
         if (state.past.isNotEmpty()) {
-            item(key = "past-head") { Eyebrow("Past check-ins", modifier = Modifier.padding(top = 6.dp)) }
-            items(state.past, key = { "past-${it.record.day}" }) { past ->
+            item(key = "past") {
+              MoreDetail(title = "Past check-ins (${state.past.size})") {
+               Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                state.past.forEach { past ->
                 IntakeCard {
                     Text(dayLabel(past.record.day), style = MaterialTheme.typography.titleSmall)
                     if (past.rows.isEmpty()) {
@@ -154,6 +161,9 @@ fun CoachCheckInScreen(
                         }
                     }
                 }
+                }
+               }
+              }
             }
         }
     }
