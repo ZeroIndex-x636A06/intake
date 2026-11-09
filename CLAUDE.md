@@ -105,8 +105,10 @@ run two Gradle builds at once, because it can run out of memory.
 
 ## How to work alongside other agents
 
-- **Shared integration branch:** `claude/app-build-k2ag1d`. `main` only has the
-  initial commit.
+- **Shared integration branch:** `claude/app-build-k2ag1d`. `main` is
+  fast-forwarded to it after every verified push, so `main` is always a tested
+  snapshot. Start new work from either one; merge back into
+  `claude/app-build-k2ag1d`.
 - **Your branch:** create one from that branch, named `agent/<short-task-name>`.
   Merge the integration branch into yours often. Use plain merges; don't rebase
   shared history.
