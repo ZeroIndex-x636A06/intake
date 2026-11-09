@@ -407,7 +407,7 @@ class CoachRepository @Inject constructor(
         val zone = clock.zone()
         val s = settings.settings.first()
         val profile = s.profile
-        val now = java.time.LocalTime.ofInstant(java.time.Instant.ofEpochMilli(clock.nowMillis()), zone)
+        val now = java.time.Instant.ofEpochMilli(clock.nowMillis()).atZone(zone).toLocalTime()
 
         val pending = coachDao.since(idx - PENDING_DAYS).count { it.status == SuggestionStatus.PENDING }
 

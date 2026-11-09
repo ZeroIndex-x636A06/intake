@@ -249,7 +249,7 @@ private fun CheckInSettings(state: CheckInUiState, viewModel: CoachCheckInViewMo
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
             (1..7).forEach { d ->
                 ChoiceChip(
-                    label = DayOfWeek.of(d).getDisplayName(TextStyle.SHORT, Locale.getDefault()),
+                    label = DayOfWeek.of(d).getDisplayName(TextStyle.SHORT, androidx.compose.ui.text.intl.Locale.current.platformLocale),
                     selected = state.weekday == d,
                     onClick = { viewModel.setWeekday(d) },
                 )
