@@ -16,8 +16,15 @@ interface ProgramDao {
     @Upsert suspend fun upsertExercise(exercise: ProgramExerciseEntity)
     @Upsert suspend fun upsertExercises(exercises: List<ProgramExerciseEntity>)
 
-    @Query("SELECT * FROM program WHERE deletedAt IS NULL ORDER BY name")
+    /** The program list: saved single-session workouts are not programs and live in [observeWorkouts]. */
+    @Query("SELECT * FROM program WHERE deletedAt IS NULL AND isStandalone = 0 ORDER BY name")
     fun observeAll(): Flow<List<ProgramEntity>>
+
+    @Query("SELECT * FROM program WHERE deletedAt IS NULL AND isStandalone = 1 ORDER BY name")
+    fun observeWorkouts(): Flow<List<ProgramEntity>>
+
+    @Query("SELECT * FROM program WHERE deletedAt IS NULL AND isStandalone = 1 ORDER BY name")
+    suspend fun workouts(): List<ProgramEntity>
 
     @Query("SELECT * FROM program WHERE deletedAt IS NULL ORDER BY name")
     suspend fun all(): List<ProgramEntity>

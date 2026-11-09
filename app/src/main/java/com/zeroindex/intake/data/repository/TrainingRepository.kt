@@ -45,6 +45,11 @@ import com.zeroindex.intake.domain.training.ProgressionOutcome
 import com.zeroindex.intake.domain.training.RuleParams
 import com.zeroindex.intake.domain.training.SetResult
 import com.zeroindex.intake.domain.training.StartingWeight
+import com.zeroindex.intake.domain.training.PastSet
+import com.zeroindex.intake.domain.training.StartingWeightContext
+import com.zeroindex.intake.domain.training.StartingWeightEstimate
+import com.zeroindex.intake.domain.training.StartingWeightEstimator
+import com.zeroindex.intake.domain.training.WorkoutSchedule
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -489,12 +494,40 @@ class TrainingRepository @Inject constructor(
         val hidden = exerciseDao.hiddenIds().toSet()
         blueprint.days.flatMap { d -> d.exercises.map { it.exerciseId } }.distinct()
             .filter { it in hidden }.forEach { exerciseDao.restore(it, now) }
-        val rows = ProgramBlueprintBuilder.build(blueprint, rules, now, activate = activate, name = name)
+        val rows = ProgramBlueprintBuilder.build(finish(blueprint), rules, now, activate = activate, name = name)
         if (activate) programDao.clearActive(now)
         programDao.upsertProgram(rows.program)
         programDao.upsertDays(rows.days)
         programDao.upsertExercises(rows.exercises)
         rows.program
+    }
+
+    /**
+     * What every new program gets, whichever route made it: its days on the weekdays the person chose
+     * (or spread out if they chose none), and a starting weight for each lift that has a rule for one
+     * (see [StartingWeightEstimator]). Anything the blueprint already carries is kept.
+     */
+    suspend fun finish(blueprint: GeneratedProgram): GeneratedProgram {
+        val settings = settingsRepository.settings.first()
+        val profile = settings.profile
+        val scheduled = if (blueprint.days.any { it.weekday != null }) {
+            blueprint
+        } else {
+            WorkoutSchedule.schedule(blueprint, profile.trainingWeekdays)
+        }
+        val context = StartingWeightContext(
+            experience = profile.experience,
+            bodyweightKg = bodyRepository.latest()?.weightKg,
+            sex = profile.sex,
+            barWeightKg = settings.barWeightKg,
+            platesKg = settings.platesKgList.ifEmpty { listOf(25.0, 20.0, 15.0, 10.0, 5.0, 2.5, 1.25) },
+        )
+        val ids = scheduled.days.flatMap { d -> d.exercises.map { it.exerciseId } }.distinct()
+            .flatMap { StartingWeightEstimator.relevantIds(it) }.distinct()
+        val history = ids.associateWith { id ->
+            workoutDao.lastWorkingSetsFor(id, null).map { PastSet(it.weightKg, it.reps) }
+        }
+        return StartingWeightEstimator.apply(scheduled, context) { id -> history[id].orEmpty() }
     }
 
     // ------------------------------------------------------------ freestyle
@@ -797,7 +830,10 @@ class TrainingRepository @Inject constructor(
 
             // No history yet and the program names a starting weight: that is the first prescription.
             if (lastSets.isEmpty()) {
-                StartingWeight.prescription(pe.startWeightKg, target)?.let { start ->
+                StartingWeight.prescription(
+                    pe.startWeightKg, target,
+                    estimated = pe.notes?.contains(StartingWeightEstimate.LABEL) == true,
+                )?.let { start ->
                     return@mapNotNull ExercisePrescription(
                         programExercise = pe,
                         exercise = exercise,

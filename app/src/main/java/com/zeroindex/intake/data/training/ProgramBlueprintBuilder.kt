@@ -26,6 +26,9 @@ data class ProgramRows(
  */
 object ProgramBlueprintBuilder {
 
+    /** The placeholder reason a freestyle day carries; not worth storing as a note. */
+    const val FREESTYLE_WHY = "Copied from a freestyle workout."
+
     fun build(
         blueprint: GeneratedProgram,
         ruleIds: Map<ProgressionType, String>,
@@ -65,6 +68,7 @@ object ProgramBlueprintBuilder {
             programId = programId,
             dayIndex = dayIndex,
             name = day.name,
+            weekday = day.weekday,
             createdAt = now,
             updatedAt = now,
         )
@@ -80,6 +84,9 @@ object ProgramBlueprintBuilder {
                 targetRpe = e.rpe,
                 progressionRuleId = e.progression?.let { ruleIds[it] },
                 restSec = e.restSec,
+                startWeightKg = e.startWeightKg,
+                notes = listOfNotNull(e.why.takeIf { it.isNotBlank() && it != FREESTYLE_WHY }, e.startNote)
+                    .joinToString(" ").ifBlank { null },
                 createdAt = now,
                 updatedAt = now,
             )
@@ -116,7 +123,7 @@ object FreestyleDayBuilder {
                 rpe = null,
                 restSec = exercise.defaultRestSec,
                 progression = ProgressionType.DOUBLE_PROGRESSION,
-                why = "Copied from a freestyle workout.",
+                why = ProgramBlueprintBuilder.FREESTYLE_WHY,
             )
         }
         return GeneratedDay(dayName.trim().ifBlank { "Freestyle day" }, rows, estimatedMinutes = 0, why = "Saved from a freestyle workout.")

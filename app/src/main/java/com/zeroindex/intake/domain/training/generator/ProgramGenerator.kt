@@ -125,6 +125,9 @@ private class ProgramGenerator(raw: GeneratorInputs) {
     private val goal = inputs.goal
     private val warnings = mutableListOf<String>()
 
+    /** How many of the training days include each muscle; filled once the days are laid out. */
+    private var trainedDays: Map<String, Int> = emptyMap()
+
     /** True when nothing needs weights, so reps run higher. */
     private val bodyweightOnly = inputs.equipment.all { it == Equipment.BODYWEIGHT }
     private val strengthLike = goal == TrainingGoal.GET_STRONGER || goal == TrainingGoal.ATHLETIC
@@ -182,6 +185,9 @@ private class ProgramGenerator(raw: GeneratorInputs) {
                 (if (missing.size == 1) "it was" else "they were") + " left out."
         }
 
+        trainedDays = Muscles.PROGRAMMED.associateWith { m ->
+            dayLists.count { slots -> slots.any { it.muscle == m && !it.exercise.explosive } }
+        }
         val days = dayTypes.mapIndexed { index, type ->
             val sameType = dayTypes.count { it == type }
             val nth = dayTypes.take(index + 1).count { it == type }
@@ -462,9 +468,36 @@ private class ProgramGenerator(raw: GeneratorInputs) {
             rpe = s.rpe,
             restSec = s.rest,
             progression = progression,
-            why = "$lead $reps$effort$how",
+            why = whyThis(slot),
+            prescription = "$lead $reps$effort$how",
             explosive = slot.role == Role.EXPLOSIVE,
         )
+    }
+
+    /** One line naming the answers that put this exercise here. */
+    private fun whyThis(slot: Slot): String {
+        val ex = slot.exercise
+        val muscle = slot.muscle
+        val parts = mutableListOf<String>()
+        if (slot.role == Role.EXPLOSIVE) {
+            parts += "power work for your athletic goal"
+        } else {
+            if (slot.focus) parts += "$muscle is a focus"
+            val k = trainedDays[muscle] ?: 0
+            if (k > 0) parts += "$k of your ${inputs.daysPerWeek} days train $muscle"
+            if (slot.role == Role.MAIN) parts += "a main lift for ${goal.label.lowercase()}"
+        }
+        parts += when (ex.equipment) {
+            Equipment.BODYWEIGHT -> "needs no equipment"
+            Equipment.CABLE -> "cable machine available"
+            Equipment.MACHINE -> "machine available"
+            Equipment.DUMBBELL -> "dumbbells available"
+            else -> "${ex.equipment} available"
+        }
+        if (inputs.avoid.isNotEmpty() && slot.role != Role.EXPLOSIVE) {
+            parts += "does not load your " + inputs.avoid.sortedBy { it.ordinal }.joinToString(" or ") { it.label.lowercase() }
+        }
+        return "${ex.name}: ${parts.joinToString(", ")}."
     }
 
     private fun programWhys(splitWhy: String, weekly: Map<String, Int>, deload: Int): List<String> {
