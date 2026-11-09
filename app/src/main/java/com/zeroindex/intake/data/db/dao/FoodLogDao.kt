@@ -14,6 +14,10 @@ import kotlinx.coroutines.flow.Flow
 interface FoodLogDao {
 
     @Upsert suspend fun upsert(log: FoodLogEntity)
+
+    /** True when the table holds any row at all, deleted or not. Used once, to spot an install with data. */
+    @Query("SELECT EXISTS(SELECT 1 FROM food_log)")
+    suspend fun hasAnyRow(): Boolean
     @Upsert suspend fun upsertAll(logs: List<FoodLogEntity>)
 
     @Query("SELECT * FROM food_log WHERE id = :id AND deletedAt IS NULL")

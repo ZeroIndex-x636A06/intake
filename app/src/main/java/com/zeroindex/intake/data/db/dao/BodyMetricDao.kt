@@ -9,6 +9,10 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface BodyMetricDao {
     @Upsert suspend fun upsert(metric: BodyMetricEntity)
+
+    /** True when the table holds any row at all, deleted or not. Used once, to spot an install with data. */
+    @Query("SELECT EXISTS(SELECT 1 FROM body_metric)")
+    suspend fun hasAnyRow(): Boolean
     @Upsert suspend fun upsertAll(metrics: List<BodyMetricEntity>)
 
     @Query("SELECT * FROM body_metric WHERE id = :id AND deletedAt IS NULL")

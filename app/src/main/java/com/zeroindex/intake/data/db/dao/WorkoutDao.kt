@@ -16,6 +16,10 @@ interface WorkoutDao {
     @Upsert suspend fun upsertSet(set: SetLogEntity)
     @Upsert suspend fun upsertSets(sets: List<SetLogEntity>)
 
+    /** True when the table holds any row at all, deleted or not. Used once, to spot an install with data. */
+    @Query("SELECT EXISTS(SELECT 1 FROM workout_session)")
+    suspend fun hasAnySession(): Boolean
+
     @Query("SELECT * FROM workout_session WHERE id = :id AND deletedAt IS NULL")
     suspend fun findSession(id: String): WorkoutSessionEntity?
 
