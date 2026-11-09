@@ -62,6 +62,8 @@ sealed interface Route {
     // Progress tab.
     @Serializable data object WorkoutHistory : Route
     @Serializable data object WeeklyReport : Route
+    /** The weekly coach check-in: the week at a glance and the suggestions to apply or dismiss. */
+    @Serializable data object CoachCheckIn : Route
     @Serializable data object HealthConnect : Route
     @Serializable data object BodyMetrics : Route
 

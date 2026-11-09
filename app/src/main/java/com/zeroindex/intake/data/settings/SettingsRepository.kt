@@ -16,6 +16,7 @@ import com.zeroindex.intake.domain.ai.AiTask
 import com.zeroindex.intake.domain.units.LengthUnit
 import com.zeroindex.intake.domain.backup.BackupDestination
 import com.zeroindex.intake.domain.backup.BackupSchedule
+import com.zeroindex.intake.domain.coach.CoachState
 import com.zeroindex.intake.domain.goals.AppliedPlan
 import com.zeroindex.intake.domain.goals.BaselineState
 import com.zeroindex.intake.domain.goals.UserProfile
@@ -91,6 +92,13 @@ data class AppSettings(
      * calorie target still equals [WeekPattern.baseKcal], so a later change to the target wins.
      */
     val weekPattern: WeekPattern? = null,
+    /** Coach: ISO weekday (1 = Monday) of the weekly check-in; null = the day the baseline started, else Monday. */
+    val coachWeekday: Int? = null,
+    /** Coach: send the "Your weekly check-in is ready" notification. */
+    val coachNotify: Boolean = true,
+    /** Coach: reword suggestion text with AI. Off by default; needs an OpenRouter key. */
+    val coachAiReword: Boolean = false,
+    val coachState: CoachState = CoachState(),
 ) {
     val platesKgList: List<Double>
         get() = availablePlatesKg.split(',')
@@ -170,6 +178,10 @@ class SettingsRepository @Inject constructor(
         val baseline = stringPreferencesKey("baseline_json")
         val planHistory = stringPreferencesKey("plan_history_json")
         val weekPattern = stringPreferencesKey("week_pattern_json")
+        val coachWeekday = intPreferencesKey("coach_weekday")
+        val coachNotify = booleanPreferencesKey("coach_notify")
+        val coachAiReword = booleanPreferencesKey("coach_ai_reword")
+        val coachState = stringPreferencesKey("coach_state_json")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -226,6 +238,11 @@ class SettingsRepository @Inject constructor(
                 ?.let { runCatching { settingsJson.decodeFromString<List<AppliedPlan>>(it) }.getOrNull() }
                 ?: emptyList(),
             weekPattern = p[Keys.weekPattern]?.let { runCatching { settingsJson.decodeFromString<WeekPattern>(it) }.getOrNull() },
+            coachWeekday = p[Keys.coachWeekday]?.takeIf { it in 1..7 },
+            coachNotify = p[Keys.coachNotify] ?: true,
+            coachAiReword = p[Keys.coachAiReword] ?: false,
+            coachState = p[Keys.coachState]?.let { runCatching { settingsJson.decodeFromString<CoachState>(it) }.getOrNull() }
+                ?: CoachState(),
         )
     }
 
@@ -266,6 +283,19 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setWeekPattern(pattern: WeekPattern?) = put {
         if (pattern == null) it.remove(Keys.weekPattern) else it[Keys.weekPattern] = settingsJson.encodeToString(pattern)
+    }
+
+    suspend fun setCoachWeekday(isoWeekday: Int?) = put {
+        if (isoWeekday == null) it.remove(Keys.coachWeekday) else it[Keys.coachWeekday] = isoWeekday.coerceIn(1, 7)
+    }
+    suspend fun setCoachNotify(enabled: Boolean) = put { it[Keys.coachNotify] = enabled }
+    suspend fun setCoachAiReword(enabled: Boolean) = put { it[Keys.coachAiReword] = enabled }
+
+    /** Reads, changes and writes the coach state in one DataStore edit, so two writers cannot lose an update. */
+    suspend fun updateCoachState(block: (CoachState) -> CoachState) = put { p ->
+        val current = p[Keys.coachState]?.let { runCatching { settingsJson.decodeFromString<CoachState>(it) }.getOrNull() }
+            ?: CoachState()
+        p[Keys.coachState] = settingsJson.encodeToString(block(current))
     }
 
     suspend fun setBaseline(state: BaselineState) = put { it[Keys.baseline] = settingsJson.encodeToString(state) }
@@ -313,6 +343,12 @@ class SettingsRepository @Inject constructor(
         listOf(Keys.syncPulledSeq, Keys.syncPushedUpTo, Keys.syncLastAt).forEach { p.remove(it) }
         p.remove(Keys.syncSchema)
     }
+
+    /** Raw preferences for the settings backup section; filtered by [com.zeroindex.intake.domain.backup.PortableSettings]. */
+    suspend fun rawSnapshot(): Map<String, Any?> = context.dataStore.rawSnapshot()
+
+    suspend fun restorePortable(values: Map<String, com.zeroindex.intake.domain.backup.PortableSettings.Value>) =
+        context.dataStore.restore(values)
 
     private companion object {
         const val PLAN_HISTORY_LIMIT = 12

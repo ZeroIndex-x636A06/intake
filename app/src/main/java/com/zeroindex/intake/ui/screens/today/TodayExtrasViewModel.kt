@@ -2,7 +2,15 @@ package com.zeroindex.intake.ui.screens.today
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zeroindex.intake.data.coach.CoachRepository
 import com.zeroindex.intake.data.profile.BaselineSnapshot
+import com.zeroindex.intake.data.repository.BodyRepository
+import com.zeroindex.intake.data.repository.FoodLogRepository
+import com.zeroindex.intake.data.repository.HydrationRepository
+import com.zeroindex.intake.domain.coach.DailyFocus
+import com.zeroindex.intake.domain.time.Clock
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.launch
 import com.zeroindex.intake.data.profile.ProfileRepository
 import com.zeroindex.intake.data.repository.TrainingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -31,6 +39,8 @@ sealed interface WorkoutCardState {
 data class TodayExtras(
     val workout: WorkoutCardState = WorkoutCardState.Loading,
     val baseline: BaselineSnapshot? = null,
+    /** "One thing to do today"; null until the first calculation. */
+    val focus: DailyFocus? = null,
 )
 
 /**
@@ -41,7 +51,17 @@ data class TodayExtras(
 class TodayExtrasViewModel @Inject constructor(
     private val training: TrainingRepository,
     profile: ProfileRepository,
+    private val coach: CoachRepository,
+    foodLog: FoodLogRepository,
+    body: BodyRepository,
+    hydration: HydrationRepository,
+    clock: Clock,
 ) : ViewModel() {
+
+    init {
+        // The nightly job may not have run yet (a phone that was off); make the check-in if it is due.
+        viewModelScope.launch { runCatching { coach.generateIfDue() } }
+    }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private val workout = training.observeActiveProgram().flatMapLatest { program ->
@@ -59,7 +79,18 @@ class TodayExtrasViewModel @Inject constructor(
         }
     }
 
-    val extras: StateFlow<TodayExtras> = combine(workout, profile.observeBaseline()) { w, b ->
-        TodayExtras(workout = w, baseline = b)
+    /** Recomputed whenever anything it reads changes: food, weigh-ins, water, workouts, the baseline or a pending check-in. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val focus = listOf<kotlinx.coroutines.flow.Flow<Any?>>(
+        coach.observePendingCount(),
+        foodLog.observeDayTotals(clock.today()),
+        body.observeLatest(),
+        hydration.observeDay(clock.today()),
+        training.observeSessions(),
+        profile.observeBaseline(),
+    ).let { fs -> combine(fs) { Unit } }.mapLatest { runCatching { coach.dailyFocus() }.getOrNull() }
+
+    val extras: StateFlow<TodayExtras> = combine(workout, profile.observeBaseline(), focus) { w, b, f ->
+        TodayExtras(workout = w, baseline = b, focus = f)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TodayExtras())
 }

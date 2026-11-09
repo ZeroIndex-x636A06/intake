@@ -13,6 +13,7 @@ import com.zeroindex.intake.data.db.dao.ExportDao
 import com.zeroindex.intake.data.db.dao.SyncConflictDao
 import com.zeroindex.intake.data.db.dao.FoodDao
 import com.zeroindex.intake.data.db.dao.FoodLogDao
+import com.zeroindex.intake.data.db.dao.CoachDao
 import com.zeroindex.intake.data.db.dao.HealthSummaryDao
 import com.zeroindex.intake.data.db.dao.HydrationDao
 import com.zeroindex.intake.data.db.dao.MealTemplateDao
@@ -67,6 +68,7 @@ object DatabaseModule {
     @Provides fun providePerformanceDao(db: IntakeDatabase): PerformanceDao = db.performanceDao()
     @Provides fun provideMenuDao(db: IntakeDatabase): MenuDao = db.menuDao()
     @Provides fun provideAiInsightDao(db: IntakeDatabase): AiInsightDao = db.aiInsightDao()
+    @Provides fun provideCoachDao(db: IntakeDatabase): CoachDao = db.coachDao()
     @Provides fun provideHealthSummaryDao(db: IntakeDatabase): HealthSummaryDao = db.healthSummaryDao()
     @Provides fun provideExportDao(db: IntakeDatabase): ExportDao = db.exportDao()
     @Provides fun provideSyncConflictDao(db: IntakeDatabase): SyncConflictDao = db.syncConflictDao()

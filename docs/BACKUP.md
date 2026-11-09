@@ -58,6 +58,32 @@ backup cannot be restored after the phone is lost.
 - Host, share name, path inside the share, username, password, optional domain.
 - SMB 2 or 3 with message signing required. SMB 1 is not supported.
 
+## Settings travel with exports and backups
+
+The JSON export and the encrypted backup carry a `settings` section (`"settings": {"version": 1, "values": {...}}`),
+so a reinstall (export, uninstall, install, import) keeps your preferences. Each value is stored with its type.
+The format version is unchanged: an older app ignores the extra key, and a backup without the section imports as
+before. The import preview shows a line such as "Settings: units, targets, profile, water, coach".
+
+**Included:** units (weight, length, volume), theme, rest timer and plates, goal weight and rate, protein and fat
+per kg, auto-target and add-active-calories switches, the plan week, the profile, the baseline marker, plan
+history and week pattern (carb cycling), hydration settings (including the Hydration v2 weather opt-in, chosen
+place name, drink edits and measured sweat rate), the coach settings and state (weekday, notification, AI reword
+choice, check-in list, deload state), AI privacy and per-task model choices, the daily-insight switch, the food
+database switches and the backup schedule.
+
+**Never included:** API keys and the Open Food Facts login (encrypted preferences, not in DataStore at all), sync
+server, device id and cursors, the backup destination and its credentials, pinned SFTP host keys, "seen" tips and
+tour flags, the Health Connect watermarks, last export time, and from Hydration v2 the coordinates, cached forecast
+and retry time (a restore with weather on asks for the location again).
+
+The rule lives in `domain/backup/PortableSettings.kt`: an allow-list plus a deny-list that refuses any name
+containing key, token, secret, password, device, sync_ and similar, even under an allowed prefix. A test reads every
+preference name in the three stores and fails if a new one has not been deliberately included or excluded. On
+import, unknown or malformed entries are ignored; values are written after the tables, in the same step as the
+import. **Settings are not part of device sync**; they travel only with exports and backups. The new
+`coach_suggestion` table (the coach's history) is an ordinary table and does sync.
+
 ## Restoring
 
 More → Backup & sync → Import, pick the `.intake` (or `.json`) file, enter the

@@ -139,3 +139,35 @@ fun WorkoutCard(
         }
     }
 }
+
+/**
+ * "One thing to do today": a short title, one line with a real number, and at most one button.
+ * The on-track version has no button and sits quietly in the sand colour.
+ */
+@Composable
+fun FocusCard(
+    focus: com.zeroindex.intake.domain.coach.DailyFocus,
+    onAction: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    IntakeCard(modifier) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Eyebrow("One thing to do today")
+                Text(focus.title, style = MaterialTheme.typography.titleSmall)
+            }
+            StatusPill(if (focus.onTrack) "On track" else "Next", tone = if (focus.onTrack) PillTone.Ok else PillTone.Wait)
+            InfoTip(
+                text = "Intake picks one thing from fixed rules, in this order: a waiting check-in, a missing weigh-in, " +
+                    "protein far behind in the evening, today's workout, water behind, then your baseline week. No AI is used.",
+                label = "One thing to do today",
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(focus.line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (focus.buttonLabel != null) {
+            Spacer(Modifier.height(8.dp))
+            Button(onClick = onAction, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(focus.buttonLabel) }
+        }
+    }
+}

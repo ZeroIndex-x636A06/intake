@@ -136,12 +136,21 @@ internal fun migrateHydration_2_3(): List<String> = listOf(
     "ALTER TABLE `hydration_preset` ADD COLUMN `drinkType` TEXT NOT NULL DEFAULT 'WATER'",
 )
 
+internal fun migrateCoach_2_3(): List<String> = listOf(
+    // Coach engine: every weekly suggestion and what the person did with it. Purely additive.
+    "CREATE TABLE IF NOT EXISTS `coach_suggestion` (`id` TEXT NOT NULL, `checkInDay` INTEGER NOT NULL, `suggestionKey` TEXT NOT NULL, `kind` TEXT NOT NULL, `title` TEXT NOT NULL, `why` TEXT NOT NULL, `details` TEXT, `actionJson` TEXT NOT NULL, `priority` INTEGER NOT NULL, `status` TEXT NOT NULL, `decidedAt` INTEGER, `aiTitle` TEXT, `aiWhy` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+    "CREATE INDEX IF NOT EXISTS `index_coach_suggestion_checkInDay` ON `coach_suggestion` (`checkInDay`)",
+    "CREATE INDEX IF NOT EXISTS `index_coach_suggestion_status` ON `coach_suggestion` (`status`)",
+    "CREATE INDEX IF NOT EXISTS `index_coach_suggestion_deletedAt` ON `coach_suggestion` (`deletedAt`)",
+)
+
 // Add new 2 -> 3 steps to the list below, after the existing ones.
 internal val MIGRATION_2_3_STATEMENTS: List<String> =
     migrateFoodOff_2_3() +
         migrateAllergens_2_3() +
         migrateMealPlans_2_3() +
-        migrateHydration_2_3()
+        migrateHydration_2_3() +
+        migrateCoach_2_3()
 
 internal val MIGRATION_2_3 = object : Migration(2, 3) {
     override fun migrate(db: SupportSQLiteDatabase) {

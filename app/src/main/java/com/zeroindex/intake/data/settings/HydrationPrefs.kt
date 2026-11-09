@@ -193,4 +193,9 @@ class HydrationPrefs @Inject constructor(
     suspend fun setUseMeasuredSweat(use: Boolean) {
         context.hydrationStore.edit { it[Keys.sweatUse] = use }
     }
+
+    suspend fun rawSnapshot(): Map<String, Any?> = context.hydrationStore.rawSnapshot()
+
+    suspend fun restorePortable(values: Map<String, com.zeroindex.intake.domain.backup.PortableSettings.Value>) =
+        context.hydrationStore.restore(values)
 }

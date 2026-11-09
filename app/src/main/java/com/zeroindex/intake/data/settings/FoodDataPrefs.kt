@@ -52,4 +52,9 @@ class FoodDataPrefs @Inject constructor(
     suspend fun setOffContribute(enabled: Boolean) {
         context.foodDataStore.edit { it[Keys.offContribute] = enabled }
     }
+
+    suspend fun rawSnapshot(): Map<String, Any?> = context.foodDataStore.rawSnapshot()
+
+    suspend fun restorePortable(values: Map<String, com.zeroindex.intake.domain.backup.PortableSettings.Value>) =
+        context.foodDataStore.restore(values)
 }

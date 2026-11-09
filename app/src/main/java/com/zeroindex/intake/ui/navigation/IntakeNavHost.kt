@@ -23,6 +23,7 @@ import com.zeroindex.intake.ui.screens.allergen.AllergenReferenceScreen
 import com.zeroindex.intake.ui.screens.allergen.MyAllergensScreen
 import com.zeroindex.intake.ui.screens.backup.BackupScreen
 import com.zeroindex.intake.ui.screens.body.BodyMetricsScreen
+import com.zeroindex.intake.ui.screens.coach.CoachCheckInScreen
 import com.zeroindex.intake.ui.screens.health.HealthConnectScreen
 import com.zeroindex.intake.ui.screens.hub.AllergensScreen
 import com.zeroindex.intake.ui.screens.hub.EatingOutScreen
@@ -127,6 +128,8 @@ fun IntakeNavHost(
                     onMakeProgram = { navController.navigate(Route.ProgramGenerator) },
                     onOpenProfile = { navController.navigate(Route.Profile) },
                     onBuildPlan = { navController.navigate(Route.YourPlan) },
+                    onOpenCheckIn = { navController.navigate(Route.CoachCheckIn) },
+                    onOpenBodyMetrics = { navController.navigate(Route.BodyMetrics) },
                 )
             }
             aiSettings(contentPadding)
@@ -313,6 +316,7 @@ fun IntakeNavHost(
                     onOpenTrainingStats = { navController.navigate(Route.WorkoutHistory) },
                     onOpenWeeklyReport = { navController.navigate(Route.WeeklyReport) },
                     onOpenHealthConnect = { navController.navigate(Route.HealthConnect) },
+                    onOpenCoach = { navController.navigate(Route.CoachCheckIn) },
                 )
             }
             composable<Route.BodyMetrics> {
@@ -322,6 +326,9 @@ fun IntakeNavHost(
             composable<Route.WorkoutHistory> { WorkoutHistoryScreen(contentPadding) }
             composable<Route.WeeklyReport> { WeeklyReportScreen(contentPadding) }
             composable<Route.HealthConnect> { HealthConnectScreen(contentPadding) }
+            composable<Route.CoachCheckIn> {
+                CoachCheckInScreen(contentPadding = contentPadding)
+            }
             // Add new Progress routes above this line.
         }
 
