@@ -5,6 +5,13 @@ SO much going on that it feels complicated. I like that the app does so much, bu
 navigation needs to be streamlined a little better." This audit counts what "so much" is. The proposal that
 answers it is `docs/IA-v4.md`, with a clickable mockup in `design/intake-mockup-v3.html`.
 
+**More from the user, after trying the build.** On the Food hub: "I feel like the features on the food page could be
+combined rather than so separated." On Today: "The today section isn't bad but I feel like it is a little
+jumbled." They also asked for much more specific equipment and exercise selection, deeper training insight (which
+muscle groups get targeted, at the level of Liftosaur), and a diagram for every exercise and every piece of
+equipment. The Food and Today findings are folded in below. The training ask is being researched separately; v4
+only reserves room for it.
+
 **Method and limits.** Everything below was read from the code at `f5e6089`: `Destinations.kt`,
 `IntakeNavHost.kt`, `ui/screens/**`, `addfood/`, `onboarding/`. Nothing was run, and no UI was seen on a device
 (there is no emulator in the cloud containers). Control counts are approximate: they count buttons, rows, switches
@@ -21,6 +28,8 @@ and the last tap is the one that reaches the control or screen that does the job
 | Reachable surfaces in all | **90** (44 + 21 + 25) |
 | Top-level tabs | 5 (Today, Food, Train, Progress, More) |
 | Cards and blocks on Today, at most | **13** (10 cards, 1 button, 2 notes) |
+| Destination rows on the Food hub | **8** in two lists (5 + 3 behind a drawer), plus 2 buttons. The user's screenshot shows the drawer open |
+| Bugs seen on a device | **1**: no top inset on the hubs (see 2j) |
 | Duplicate entry points (same feature, two or more rows) | **16** pairs, listed below |
 | Features reachable from 3 or more places | **12** |
 | Screens doing two or more jobs | **14** |
@@ -227,7 +236,25 @@ concepts**, then a coach-mark tour and a tip on each tab visit. "Baseline week" 
 person has not asked for yet. The Food tab opens with 5 rows plus 3 hidden, Train with a workout card plus 6, and
 More with 7. Allergens, the one feature with a safety job, sits as row 5 of 5 on Food, not on the surface.
 
-### 2i. Other things worth knowing
+### 2i. Food is eight separate places
+
+The screenshot shows it: Meal plans, Recipes, Meal templates, Eating out, Allergens, My foods, Food database &
+credits, Food script help. Four of them are one job seen from different sides: **decide what to eat, make it, log
+it.** Meal plans hold recipes, recipes log a serving, templates log a saved meal, and Eating out is the fallback
+when the plan does not apply. The Meal plan screen already has its own "Can't eat what I cooked?" sheet that
+opens Plan B, so the split is already leaking. My foods is part of logging (the Add food sheet has a "My foods"
+tab). The database credits and script help are reference material, not food features. v4 combines them (see
+`docs/IA-v4.md` section 2d).
+
+### 2j. Bugs seen on a device
+
+* **No top inset on the hubs.** In the screenshot of the Food hub, the "Log food" button is drawn under the status
+  bar and the clock and battery sit on top of it. The "Food" title and its subtitle are not visible at all. The
+  hub list screens (`HubScreen` and the Food, Train and More hubs built on it) are not applying the status-bar
+  inset to their scrolling content. Today pads with `contentPadding.calculateTopPadding()`, so it is probably
+  specific to the hub layout. Not fixed here (design-only task); it should be fixed first in v4 step 1.
+
+### 2k. Other things worth knowing
 
 * **Today does not show the planned meal.** SPEC-v3 says it should. Logging the plan means Food > Meal plans >
   Log this meal (3 taps).
@@ -257,12 +284,12 @@ stopwatch on a phone.
 | 6 | Start an empty workout | Train > Or start an empty workout | 2 | Train > Empty workout | 2 |
 | 7 | See the weight trend | Progress | 1 | Progress | 1 |
 | 8 | Weekly check-in | More > Weekly check-in | 2 | Progress > check-in card | 2 |
-| 9 | Log the planned meal | Food > Meal plans > Log this meal | 3 | Today > Meals > planned meal > Log | 1 |
-| 10 | See this week's plan | Food > Meal plans | 2 | Food > Meal plan | 2 |
-| 11 | See the shopping list | Food > Meal plans > scroll > Shopping list | 3 | Food > Meal plan > Shopping tab | 3 |
-| 12 | Cook a recipe | Food > Recipes > recipe > Cook | 4 | Food > Recipes > Cook button on the row | 3 |
-| 13 | Add a recipe by hand | Food > Recipes > Add a recipe | 3 | Food > Recipes > New recipe | 3 |
-| 14 | Import a recipe from a link | Food > Recipes > Import from a link | 3 | Food > Recipes > Import from link | 3 |
+| 9 | Log the planned meal | Food > Meal plans > Log this meal | 3 | Today > Next up > Log | 1 |
+| 10 | See this week's plan | Food > Meal plans | 2 | Food (opens on this week) | 1 |
+| 11 | See the shopping list | Food > Meal plans > scroll > Shopping list | 3 | Food > Shopping list | 2 |
+| 12 | Cook a recipe | Food > Recipes > recipe > Cook | 4 | Food > Recipes > Cook | 3 |
+| 13 | Add a recipe by hand | Food > Recipes > Add a recipe | 3 | Food > Recipes > New | 3 |
+| 14 | Import a recipe from a link | Food > Recipes > Import from a link | 3 | Food > Recipes > Import | 3 |
 | 15 | Find a safe place to eat | Food > Eating out > Plan B | 3 | Food > Eating out | 2 |
 | 16 | Add a restaurant menu | Food > Eating out > Menu import > Add source | 4 | Food > Eating out > Add a menu | 3 |
 | 17 | Edit my allergens | Food > Allergens > My allergens | 3 | Food > allergen strip | 2 |
@@ -284,9 +311,9 @@ stopwatch on a phone.
 | 33 | Replay the tour | More > Help > Replay the tour | 3 | You > Help and tour | 2 |
 | 34 | Read the script docs | More > Help > All script docs | 3 | You > Help and tour > Scripts (1 from an editor's ? icon) | 3 |
 | 35 | Export the weekly report PDF | Progress > Weekly report | 2 | Progress > menu > Weekly report | 2 |
-| 36 | Write a meal to an NFC tag | Food > Meal templates > meal > Write | 4 | Food > My foods and meals > meal > Write | 4 |
-| 37 | Import a meal plan | Food > Meal plans > menu > Import | 4 | Food > Meal plan > menu > Import (3 from the empty state) | 4 |
+| 36 | Write a meal to an NFC tag | Food > Meal templates > meal > Write | 4 | Food > Meals > meal > Write | 4 |
+| 37 | Import a meal plan | Food > Meal plans > menu > Import | 4 | Food > menu > Import a plan | 3 |
 
-Total taps over the 37 tasks: **102 now, 87 in v4**. Tasks at 4 or more taps: **10 now, 3 in v4**, none of them
+Total taps over the 37 tasks: **102 now, 84 in v4**. Tasks at 4 or more taps: **10 now, 2 in v4**, none of them
 everyday. One task gets worse (making a program when you already have one goes from 2 to 3) and is called out in
 the risks.

@@ -8,28 +8,32 @@ Nothing here has been built, and the mockup has not been seen on a real phone.
 
 1. **Four tabs, not five: Today, Food, Train, Progress.** "More" goes away. Your profile, goals, settings and
    help sit behind your avatar at the top right, under the name **You**. The floating pill and slide-to-switch stay.
-2. **Today is five cards, always in the same order, and you can hide any of them.** A new person starts with three.
-   Logging food, water, a weigh-in or starting a workout is one tap from Today.
-3. **Every feature has one home.** The "More food tools" and "More training tools" drawers are gone. Every other
-   place that mentions a feature is only a shortcut to it.
+2. **Today is four cards in a fixed order, read top to bottom: what is left, what is next, quick log, what I ate.**
+   You can hide any of them, and a new person starts with three. Logging food, water, a weigh-in or starting a
+   workout is one tap from Today.
+3. **Food is one screen, not eight.** Plan, Recipes, Saved meals and Eating out become four sections of the Food
+   tab, with Log food on top. My foods moves inside Log food. Database credits and script help move to Settings and
+   Help. The "More tools" drawers are gone, and every other mention of a feature is only a shortcut to its home.
 4. **One Settings, in six clear groups.** Each feature keeps a single gear or "⋯" for its own options, and nothing
    about water, targets or AI is spread over three screens any more.
 5. **A search icon, "Find anything", on every tab.** It finds screens, settings, foods, recipes, exercises and
    actions, so rarely used things can sit deeper without being lost. **Allergen warnings do not move**: a strip at
    the top of Food shows what you avoid, and the block-before-saving sheet is unchanged.
 
-Nothing is removed. Every screen in the audit has a place in the table below.
+Nothing is removed. Every screen in the audit has a place in the table below. Room is reserved in Train for a
+weekly muscle map, an exercise page with a photo and a diagram, and an equipment picker with icons (section 4).
 
 ## 1. The new map
 
 ```
 Pill (4)                         Top bar on each tab root: title · search icon · avatar
-├─ Today     5 cards, hideable   avatar -> You
-│    Focus · Calories (+Log food, scan) · Water | Weight · Workout · Meals
-├─ Food      Log food · Scan · allergen strip
-│    Meal plan · Recipes · Eating out · My foods and meals
-├─ Train     Start card (next workout / carry on / empty)
-│    Programs · Exercises
+├─ Today     4 cards, hideable   avatar -> You
+│    Calories (+Log food, scan) · Next up · Water | Weight · Meals
+├─ Food      ONE screen: allergen strip · Log food · scan
+│    sections: Plan · Recipes · Meals · Eating out
+│    (My foods is a tab inside Log food)
+├─ Train     Start card · This week muscle map
+│    Programs · Exercises (photo, diagram, equipment picker)
 └─ Progress  Check-in card · Weight and body · Nutrition · Training
      menu: Weekly report PDF
 
@@ -44,11 +48,13 @@ Where things went that used to live in a drawer or a hub:
 
 | Was | Now |
 | --- | --- |
-| Food > More food tools > My foods | Food > **My foods and meals** (one row, a Foods / Meals switch) |
-| Food > Meal templates | Same screen as My foods (the Meals side) and the **Mine** tab of Add food |
-| Food > More food tools > Food database | You > Settings > Backup and data > Food database |
-| Food > More food tools > Food script help | "?" in the Meal plan menu, and You > Help and tour > Scripts |
-| Food > Eating out (a hub of two) > Plan B, Menu import | **Eating out** is one screen: find a place, saved options, saved menus |
+| Food > Meal plans | Food > **Plan** section (the Food tab opens on it) |
+| Food > Recipes | Food > **Recipes** section |
+| Food > Meal templates | Food > **Meals** section (saved meals, NFC), and the **Mine** tab of Log food |
+| Food > More food tools > My foods | **Mine** tab inside Log food (foods, saved meals, recipes). Editing and sharing a food opens from there |
+| Food > More food tools > Food database & credits | You > Settings > Backup and data > Food database (credits line included) |
+| Food > More food tools > Food script help | "?" in the Plan menu, and You > Help and tour > Scripts |
+| Food > Eating out (a hub of two) > Plan B, Menu import | Food > **Eating out** section: find a place, saved options, saved menus |
 | Food > Allergens (a hub of two) | **Allergen strip** on Food opens one Allergens screen (my list, strictness, a link to the hidden-ingredient guide) |
 | Train > More training tools > Templates | Inside **New program** on the Programs screen |
 | Train > More training tools > Performance | Progress > Weight and body > **Jump tests** |
@@ -72,8 +78,8 @@ From Today, the pill switch counts as one tap. The full 37-task table is in the 
 | 5 | Start today's workout | 2 | **1** | Today > Start, straight into the session |
 | 6 | See how I'm doing | 1 | 1 | Progress |
 | 7 | Weekly check-in | 2 | 2 | Progress > check-in card (1 from Today when it is due) |
-| 8 | Log the planned meal | 3 | **1** | Today > Meals > planned meal > Log |
-| 9 | See this week's plan | 2 | 2 | Food > Meal plan |
+| 8 | Log the planned meal | 3 | **1** | Today > Next up > Log |
+| 9 | See this week's plan | 2 | **1** | Food (opens on the Plan section) |
 | 10 | Find a safe place to eat | 3 | **2** | Food > Eating out |
 | 11 | Edit my allergens | 3 | **2** | Food > allergen strip |
 | 12 | Change an exercise in my program | 4 | **3** | Train > active program > exercise |
@@ -81,8 +87,8 @@ From Today, the pill switch counts as one tap. The full 37-task table is in the 
 | 14 | Change units or theme | 2 | 2 | You > Look and units |
 | 15 | Change my calorie or protein target | 4 | **3** | You > Goals and plan > Edit |
 
-Over all 37 audited tasks: taps added up go from **102 to 87**, and tasks at 4 or more taps go from **10 to 3**
-(import a meal plan, write an NFC tag, pick an AI model: all rare). One task gets longer: "Make me a program"
+Over all 37 audited tasks: taps added up go from **102 to 84**, and tasks at 4 or more taps go from **10 to 2**
+(write an NFC tag, pick an AI model: both rare). One task gets longer: "Make me a program"
 when you already have a program goes from 2 to 3 taps, because the four entry points collapse into one list
 (a person with no program still sees the choices on Train, at 2).
 
@@ -105,24 +111,31 @@ own back arrow, not a fifth tab.
 
 If the user disagrees, A is a one-line change to the pill (a fifth item opening the same screen).
 
-### 2b. Today: five cards, fixed order, all hideable
+### 2b. Today: four cards, one reading order
 
-| # | Card | Contents | Notes |
+The user said Today "isn't bad" but is "a little jumbled". The jumble is real: up to 13 blocks, three of them
+(focus, baseline, insight) saying "here is something to do", a workout card far from the planned meal, and four
+separate meal cards. v4 gives the page one reading order, **what is left, what is next, quick log, what I ate**,
+and one card per question.
+
+| # | Card | Answers | Contents |
 | --- | --- | --- | --- |
-| 1 | **Focus** | The one thing to do today (coach rule). Also carries the first-week baseline progress and the optional AI insight as a second line | Replaces three cards: focus, baseline, insight |
-| 2 | **Calories** | Ring with 3 macros, "400 kcal left", **Log food** button and a scan icon | The hero. Date arrows stay |
-| 3 | **Water and weight** (two tiles side by side) | Water: +250 / +500 chips and a gear. Weight: last weigh-in and a **Weigh in** button | Counts as one card slot. Gear opens You > Nutrition and water |
-| 4 | **Workout** | Next workout with **Start** (goes straight into the session), or **Carry on**, or "Make a program" | |
-| 5 | **Meals** | One card, four compact rows (Breakfast, Lunch, Dinner, Snacks) with entries and "+". The planned meal shows on its slot with **Log** and **Cook** | Replaces four separate slot cards |
+| 1 | **Calories** | What is left today? | Ring with 3 macros, "400 kcal left", **Log food** and a scan icon. Date arrows stay |
+| 2 | **Next up** | What should I do next? | One list, at most three rows, in the order they happen: the coach's one thing (with the first-week progress and the optional AI insight as its second line), the planned meal (**Log** and **Cook**), today's workout (**Start**, straight into the session) |
+| 3 | **Water and weight** (two tiles) | Quick log | Water: +250 / +500 and a gear. Weight: last weigh-in and **Weigh in** |
+| 4 | **Meals** | What did I eat? | One card, four compact rows with entries and "+" |
 
 Rules:
-* The order never changes, and a hidden card leaves no gap. **Edit Today** at the bottom opens a sheet of five
-  switches. It is the only place that setting lives.
-* **Defaults depend on the welcome answers.** "I don't train" hides Workout. Weight stays hidden until the first
-  weigh-in. A new person sees three cards: Calories, Water, Meals. The Focus card appears once there is something
-  to say.
+* Replaces up to nine old blocks (focus, baseline, insight, workout, 4 slot cards, notes) with the same
+  information in fewer containers. "Next up" is the only new idea: it merges three cards that all meant "do this".
+* The order never changes, and a hidden card leaves no gap. **Edit Today** at the bottom opens four switches and is
+  the only place that setting lives.
+* **Defaults depend on the welcome answers.** "I don't train" removes the workout row from Next up. Weight stays
+  hidden until the first weigh-in. A new person sees three cards: Calories, Water, Meals. Next up appears only
+  when it has something to say.
 * If everything is hidden, Today shows one line, "Nothing here. Edit Today", and the pill still works.
-* The tour and tips shrink with it: one coach mark per visible card.
+* One coach mark per visible card. Every tab root uses the same top bar and the status-bar inset (see the bug in
+  the audit, 2j).
 
 ### 2c. One home per feature, and what "deep-link" means
 
@@ -137,27 +150,57 @@ Rule: a feature has one screen that owns its data and options. Every other row t
 | Water settings | You > Settings > Nutrition and water | Today water gear, "How the target adds up" |
 | Targets and goals | You > Goals and plan | Settings > Nutrition and water (a single link row), Today Focus card |
 | Allergens | Food > allergen strip > Allergens | Add food footer, plan import preview, Search |
-| Food database and keys | You > Settings > Backup and data | Food detail "Contribute" link |
+| Food database and keys | You > Settings > Backup and data | Food detail "Contribute" link, credits line |
+| My foods | Log food > Mine | Search |
+| Saved meals | Food > Meals | Log food > Mine, Today "save as meal prep" |
 | Health Connect | You > Settings > Backup and data | Progress shows its data |
 | Jump tests | Progress > Weight and body | Search |
 | Programs and generator | Train > Programs > New program | Today workout card "Make a program" |
 | Exercises | Train > Exercises | Pickers in the builder and the workout, Search |
-| Script docs | You > Help and tour > Scripts | A "?" in the editors (Meal plan, program editor, recipe import) |
+| Script docs | You > Help and tour > Scripts | A "?" in the editors (Plan menu, program editor, recipe import) |
 | AI settings | You > Settings > AI | Contextual "Turn on AI" prompts |
 | Replay the tour | You > Help and tour | none |
 
-### 2d. Short hubs
+### 2d. Food: one screen, four sections
+
+The user, looking at the Food hub: "the features on the food page could be combined rather than so separated."
+Eight rows become one screen, because four of them are one job (decide, make, log) and three are not food
+features at all.
+
+```
+Food
+  [ Avoiding milk, peanuts, sesame    Edit ]        allergen strip
+  [ Log food ]  [ scan ]
+  Plan | Recipes | Meals | Eating out               section switch (opens on Plan)
+  ... the chosen section's content ...
+```
+
+| Section | Holds (was) |
+| --- | --- |
+| **Plan** | This week and the shopping list (Meal plans). Menu: new, import, export, "?" |
+| **Recipes** | Library, New recipe, Import from a link, Cook. Find recipes (AI) in the menu (Recipe Hunter) |
+| **Meals** | Saved meals and NFC tags (Meal templates) |
+| **Eating out** | Find a safer place, saved options (Plan B) and saved menus (Menu import) |
+
+What moved out of Food: **My foods** is the **Mine** tab inside Log food, because that is where a person wants
+it; a food's edit and "Contribute to Open Food Facts" open from there. **Food database & credits** goes to
+Settings > Backup and data. **Food script help** goes to the "?" in the Plan menu and to Help. **Allergens** is
+the strip.
+
+This is a real merge, so it carries a risk: the Plan section is the longest screen in the app today (about 32
+controls). It keeps its own menu and sub-headings and is the only section that scrolls long.
+
+### 2d-2. The other hubs
 
 | Hub | Primary items | "Everything else" |
 | --- | --- | --- |
-| Food | Meal plan, Recipes, Eating out, My foods and meals (4) + Log food, scan, allergen strip | None needed. The drawer is gone because nothing is left to put in it |
-| Train | Programs, Exercises (2) + the Start card | None needed |
+| Food | One screen with four sections (above) | None. The drawer is gone because nothing is left to put in it |
+| Train | Start card, This week (muscle map), Programs, Exercises | None needed |
 | Progress | Check-in, Weight and body, Nutrition, Training (4 cards) | Menu: Weekly report |
 | You | Goals and plan, Settings (6 groups), Help and tour | Each settings group has its own **Advanced** disclosure |
 
-A hub needs an "All …" list only when it has more than about four things. None of the four does, which is the
-point: the long tail went into the right owner screen (Allergens, Eating out, My foods and meals, Programs) instead
-of into a drawer.
+A hub needs an "All ..." list only when it has more than about four things. None of these does: the long tail went
+into the right owner screen instead of into a drawer.
 
 ### 2e. One Settings
 
@@ -239,23 +282,23 @@ last two blocks.
 
 | Old route | Verdict | New home and notes |
 | --- | --- | --- |
-| `Today` | **Rebuilt** | Five cards (section 2b) |
-| `Food` | **Slimmed** | Log food, scan, allergen strip, 4 rows. Drawer removed |
-| `Train` | **Slimmed** | Start card, 2 rows |
+| `Today` | **Rebuilt** | Four cards (section 2b) |
+| `Food` | **Becomes the one Food screen** | Allergen strip, Log food, scan, four sections: Plan, Recipes, Meals, Eating out |
+| `Train` | **Slimmed, with room for insight** | Start card, This week muscle map, 2 rows |
 | `Progress` | **Regrouped** | Check-in, Weight and body, Nutrition, Training. Report links become a menu |
 | `More` | **Becomes You** | Avatar, not a tab |
 | `Onboarding` | **Stays**, copy updated | Four tabs, avatar, Edit Today. Sets Today defaults |
-| `MealPlans` | **Stays**, Week / Shopping switch | Food > Meal plan. Menu holds new, import, export, "?" |
-| `Recipes` | **Stays** | List with New recipe and Import from link; Recipe Hunter in the menu |
+| `MealPlans` | **Becomes the Plan section** | Food > Plan. Week / Shopping switch. Menu holds new, import, export, "?" |
+| `Recipes` | **Becomes the Recipes section** | List with New recipe and Import from a link; Recipe Hunter in the menu |
 | `RecipeHunter` | **Demoted** | Recipes menu, "Find recipes (AI, optional)" |
 | `RecipeImport`, `RecipeEditor`, `RecipeDetail` | **Stay** | Recipes. Detail and list rows get a Cook button |
 | `CookMode` | **Stays** | Cook button from the Meals card, the plan, and recipe rows |
-| `EatingOut` | **Becomes the screen** | One screen: find a place (was `PlanB`), saved options, saved menus (was `MenuSources`) |
-| `PlanB` | **Merged** into Eating out | Section at the top of Eating out |
-| `MenuSources` | **Merged** into Eating out | "Saved menus" section with Add a menu |
-| `MealTemplates` | **Merged** | My foods and meals > Meals; Mine tab in Add food |
-| `MyFoods` | **Merged and promoted** | Food > My foods and meals > Foods |
-| `FoodDetail` | **Stays** | From My foods and meals and from Add food |
+| `EatingOut` | **Becomes the Eating out section** | Find a place (was `PlanB`), saved options, saved menus (was `MenuSources`) |
+| `PlanB` | **Merged** into the Eating out section | Top of the section |
+| `MenuSources` | **Merged** into the Eating out section | "Saved menus" with Add a menu |
+| `MealTemplates` | **Becomes the Meals section** | Food > Meals; also the Mine tab in Log food |
+| `MyFoods` | **Moved into Log food** | The Mine tab, Foods list. Opens as a full list from there |
+| `FoodDetail` | **Stays** | From the Mine tab in Log food |
 | `FoodData` | **Moved** | You > Settings > Backup and data > Food database |
 | `Allergens` (hub of two) | **Removed** | The allergen strip opens the Allergens screen |
 | `MyAllergens` | **Renamed** Allergens | The list, strictness gear, guide row |
@@ -264,7 +307,7 @@ last two blocks.
 | `Programs` | **Slimmed** | Active program first, list below, New program (Build, Make me one, From a template, Import) |
 | `ProgramBuilder` | **Stays** | From the active program row |
 | `ProgramTemplates`, `ProgramGenerator` | **Stay**, one entry | Choices in New program. The Today workout card keeps one "Make a program" link |
-| `ExerciseLibrary` | **Stays**, detail becomes a page | Photo, muscle map, history (section 4) |
+| `ExerciseLibrary` | **Stays**, detail becomes a page, equipment picker | Photo, diagram, muscle map, history (section 4) |
 | `Performance` | **Moved** | Progress > Weight and body > Jump tests |
 | `ActiveWorkout` | **Stays** | Info button per exercise opens the detail page. Rest ring, plates unchanged |
 | `WorkoutHistory` | **Renamed**, moved | Progress > Training ("Training log") |
@@ -284,7 +327,7 @@ last two blocks.
 
 | Sheet | Verdict |
 | --- | --- |
-| Add food | **Four tabs, not six**: Find (recents and search together), Scan, Mine (foods, saved meals, recipes), Quick add. Photo estimate becomes an icon inside Find, only when AI is on |
+| Add food (called Log food) | **Four tabs, not six**: Find (recents and search together), Scan, Mine (my foods, saved meals, recipes), Quick add.
 | Allergen warning | **Stays exactly as is** |
 | Water and drinks | **Slimmed** to add, entries, how it adds up, gear (settings move to You) |
 | Slot picker, Log entry actions | Stay |
@@ -298,16 +341,28 @@ last two blocks.
 All stay. They are confirmations and number inputs. None creates a navigation problem, and several lose a
 parent screen with the merges above (your-plan overrides, allergen keywords, backup identity).
 
-## 4. The new screens in the mockup
+## 4. The new screens in the mockup, and room for training insight
 
-* **Exercise detail** (photo and muscle map). Today the detail is a sheet with text. The page puts a photo (or a
-  placeholder when there is none) on top, a front and back muscle map highlighting primary and secondary muscles,
-  then equipment and rest, last results, and Edit. The muscle map can be drawn from `primaryMuscle` and
-  `secondaryMuscles`, which already exist. A photo needs a new `photoUri` (in `MIGRATION_2_3`, while v3 is
-  unreleased) and a source for built-in exercises; **there is no bundled image set**, and licensing and APK size
-  need a decision (see open questions). The mockup shows labelled placeholders.
-* **Meal plan week.** Week strip, today's meal first, a Week / Shopping switch, one menu.
-* **Active workout.** Unchanged in behaviour. The visible change is the info button per exercise, the "?" for how
+The user wants much more specific equipment and exercise choice, deeper insight "at the level of Liftosaur"
+(for example which muscle groups get targeted), and a diagram for every exercise and every piece of equipment.
+Another agent is researching the content. This design only reserves the places, so that work does not have to
+change the structure.
+
+| Slot | Where | What goes there |
+| --- | --- | --- |
+| **This week** card | Train tab, under the Start card | A body map with **sets per muscle** this week, shaded by volume against a target. Tap opens Progress > Training for the detail (per muscle, per week, per exercise). Home of the analysis stays in Progress; Train only shows the summary |
+| **Exercise page** | Exercises > an exercise, and the info button in the active workout | Photo on top, then a **diagram** (movement), the muscle map (main and secondary), the equipment with its own diagram, last results, history, Edit |
+| **Equipment picker** | Exercise form, Exercises filter, and Settings > Training > My equipment | A grid of equipment with icons (barbell, dumbbell, cable, machine, kettlebell, band, bodyweight, and more). "My equipment" filters the library and the builder to what the person has |
+| **Muscle filter** | Exercises | The same body map, tap a muscle to filter |
+
+Data notes: the muscle map and "sets per muscle" can be drawn from `primaryMuscle`, `secondaryMuscles` and logged
+sets, all of which exist. Photos, diagrams and equipment icons are **new content**: they need a source, a
+licence and an APK-size decision, and a `photoUri` field (in `MIGRATION_2_3`, while v3 is unreleased). **There is
+no bundled image set today.** The mockup shows labelled placeholders only.
+
+Other new screens in the mockup:
+* **Food** as one screen with four sections, and **Meal plan** inside it (Week or Shopping list, one menu).
+* **Active workout**: unchanged in behaviour. The visible change is the info button per exercise, the "?" for how
   the weight is chosen, and one overflow for plates and notes.
 
 ## 5. How to build it (for a later task, not done here)
@@ -318,7 +373,7 @@ Order that keeps each step small and reviewable:
    destinations instead of registering them in several graphs.
 2. **Today cards and Edit Today.** Visibility flags go in DataStore (and the portable settings allow-list, so a
    backup carries them).
-3. **Merges** (Eating out, My foods and meals, Allergens, Goals and plan).
+3. **Merges** (the four Food sections, Allergens, Goals and plan).
 4. **Find anything** (`domain/search`, unit-tested, with a "every route has an entry" test).
 5. **Exercise detail page**, then the photo field.
 
@@ -334,7 +389,8 @@ person asks, soft deletes, allergen checks local and deterministic.
 | "Fewer places" can feel like "features removed" | The user said, "I like that the app does so much" | The old to new table above is shipped with the change as a "what moved" note in Help; search finds old names (synonyms for "Meal templates", "Plan B", "Performance") |
 | Search index drifts | A new screen without an entry is invisible to search | Unit test that fails when a route has no index entry |
 | Merged screens get long | Eating out and Goals and plan each absorb two screens | Sections with headings, collapsed "Advanced", and a sticky first action |
-| Hiding Today cards by default | A new person may not know Workout exists | The Train tab is always there; Focus card suggests it; Edit Today is a visible text button |
+| Hiding Today cards by default | A new person may not know Workout exists | The Train tab is always there; Next up suggests it; Edit Today is a visible text button |
+| Food becomes one screen | The Plan section is long, and four sections behind a switch hide two of them from first glance | Section switch is always visible and sticky; Plan opens first; search finds any section |
 | "Make me a program" gets one tap longer for people who already have a program | Honest regression | Newcomers (no program) still see the choices on Train; Today's workout card keeps a link |
 | Progress becomes a summary that people tap into | Three or four charts may be too little for a bodybuilder | Every card opens to the full detail that exists today (training stats, volume per muscle, PRs); nothing is dropped |
 | Cross-graph navigation | You and shared screens must work from every tab without moving the pill | Make them root-level destinations (step 1) |
@@ -345,18 +401,25 @@ person asks, soft deletes, allergen checks local and deterministic.
 ## 7. Open questions for the user
 
 1. **Four tabs with You behind the avatar, or five with a You tab?** I recommend four. Does Settings behind the
-   avatar sound right, or do you want a visible tab?
-2. **Is "You" the right name?** Alternatives: "Me", "Profile", or just a gear.
-3. **Should Find anything ship in the first version, or later?** It is the one piece that adds a new thing rather
-   than removing one.
-4. **Today defaults.** Is three cards for a new person (Calories, Water, Meals) right, and should Weight sit on
-   Today at all, given you can weigh in from Progress?
-5. **Is Progress right for jump tests?** They are an athlete's measurement. We could hide them until switched on.
-6. **Exercise photos.** Where should they come from: ones you add yourself (needs no licence, empty at first), a
-   free licensed set bundled in the APK (adds size, needs a licence check), or none? The muscle map needs no photos.
-7. **Make-a-program placement.** Are you happy that it moves into one New program list, one tap longer for
-   someone who already has a program?
-8. **Allergen strip.** Do you want it on Food only, or also as a thin line on Today?
-9. **How much of the old names to keep?** "Plan B" and "Recipe Hunter" are yours. Rename them as proposed, or keep
-   the names and add a plain-words subtitle?
-10. **The weekly check-in's home.** Progress (proposed) or Today only, as the Focus card on check-in day?
+   avatar sound right, or do you want a visible tab? Is "You" the right name ("Me", "Profile", a gear)?
+2. **Is one Food screen with four sections (Plan, Recipes, Meals, Eating out) what you meant by combining?** Or do
+   you want Plan and Recipes merged even further, into one list?
+3. **Should My foods live only inside Log food (the Mine tab)?** It means one fewer place, but no standalone
+   "all my foods" list on Food.
+4. **Today: is "Next up" the right way to calm it?** It merges the one thing to do, the planned meal and the
+   workout. Is four cards right, and should Weight sit on Today at all?
+5. **Find anything.** Ship it in the first version, or later? It is the one piece that adds a new thing.
+6. **Training insight.** Which views matter most: sets per muscle per week, volume trends per exercise,
+   frequency, balance (push against pull), strength standards? Liftosaur is the bar; which three of its views do
+   you actually use?
+7. **Exercise photos and diagrams.** Where should they come from: ones you add yourself (no licence needed, empty at
+   first), a free licensed set bundled in the APK (adds size, needs a licence check), or drawn diagrams made for
+   the app? The muscle map needs no photos.
+8. **Equipment.** Should "My equipment" be one list for the whole app, or a profile per gym (home, work)?
+9. **Jump tests under Progress.** They are an athlete's measurement. Hide them until switched on?
+10. **Make-a-program placement.** Are you happy that it moves into one New program list, one tap longer for
+    someone who already has a program?
+11. **Allergen strip.** On Food only, or also a thin line on Today?
+12. **Old names.** "Plan B" and "Recipe Hunter" are yours. Rename them as proposed, or keep the names and add a
+    plain-words subtitle?
+13. **The weekly check-in's home.** Progress (proposed), or only the Next up row on check-in day?
