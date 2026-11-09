@@ -44,13 +44,6 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
    - **One-time tips** on each tab.
    - **Settings:** add "Replay the tour". The Help screen already has a
      placeholder for it.
-3. **Hydration v2.** See "Additions → Hydration v2".
-   - Opt-in Open-Meteo weather (rounded location or a typed city).
-   - Drink hydration factors.
-   - Caffeine in mg, plus an alcohol top-up.
-   - Sweat loss from workouts, with an optional measured sweat rate.
-   - Wording must be honest: tea and coffee are not dehydrating at normal
-     amounts.
 4. **Coach engine.** See "Additions → Coach engine".
    - Weekly check-in suggestions from deterministic rules, each with a "why",
      covering weight trend vs pace, adherence, strength stalls, recovery
@@ -94,6 +87,10 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
 
 ## Done (v3)
 
+- Hydration v2: drink types and hydration factors, caffeine and alcohol tracking and top-ups, opt-in Open-Meteo
+  weather, sweat loss from logged workouts with a measured sweat rate, and a target breakdown in the water sheet
+  (branch `worktree-agent-a18b02fa9b8eab30d`; see `docs/HYDRATION.md`). Schema change: `migrateHydration_2_3`.
+  Not seen on a device.
 - Navigation: floating pill, Food/Train/Progress/More hubs, split script docs
   (4485a76).
 - Allergens v2: 15 built-in allergens, custom allergens and keywords,
