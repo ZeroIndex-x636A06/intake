@@ -99,6 +99,8 @@ data class AppSettings(
     /** Coach: reword suggestion text with AI. Off by default; needs an OpenRouter key. */
     val coachAiReword: Boolean = false,
     val coachState: CoachState = CoachState(),
+    /** In-app "Reduce motion": on top of the system animation scale (see MotionRules.reduceMotion). */
+    val reduceMotion: Boolean = false,
 ) {
     val platesKgList: List<Double>
         get() = availablePlatesKg.split(',')
@@ -182,6 +184,8 @@ class SettingsRepository @Inject constructor(
         val coachNotify = booleanPreferencesKey("coach_notify")
         val coachAiReword = booleanPreferencesKey("coach_ai_reword")
         val coachState = stringPreferencesKey("coach_state_json")
+        val reduceMotion = booleanPreferencesKey("reduce_motion")
+        val celebratedProteinDay = longPreferencesKey("last_celebration_day")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -243,6 +247,7 @@ class SettingsRepository @Inject constructor(
             coachAiReword = p[Keys.coachAiReword] ?: false,
             coachState = p[Keys.coachState]?.let { runCatching { settingsJson.decodeFromString<CoachState>(it) }.getOrNull() }
                 ?: CoachState(),
+            reduceMotion = p[Keys.reduceMotion] ?: false,
         )
     }
 
@@ -288,6 +293,9 @@ class SettingsRepository @Inject constructor(
     suspend fun setCoachWeekday(isoWeekday: Int?) = put {
         if (isoWeekday == null) it.remove(Keys.coachWeekday) else it[Keys.coachWeekday] = isoWeekday.coerceIn(1, 7)
     }
+    suspend fun setReduceMotion(enabled: Boolean) = put { it[Keys.reduceMotion] = enabled }
+    suspend fun setCelebratedProteinDay(epochDay: Long) = put { it[Keys.celebratedProteinDay] = epochDay }
+    val celebratedProteinDay: Flow<Long?> = context.dataStore.data.map { it[Keys.celebratedProteinDay] }
     suspend fun setCoachNotify(enabled: Boolean) = put { it[Keys.coachNotify] = enabled }
     suspend fun setCoachAiReword(enabled: Boolean) = put { it[Keys.coachAiReword] = enabled }
 

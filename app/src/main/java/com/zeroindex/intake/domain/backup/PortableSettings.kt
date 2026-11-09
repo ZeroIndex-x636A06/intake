@@ -19,7 +19,7 @@ import kotlinx.serialization.json.longOrNull
  * pairs back, so the whole rule, including "no secret ever leaves the phone", is unit-tested on the JVM.
  *
  * What is IN: units, theme, rest timer, plates, targets settings, the profile and plan history,
- * baseline marker, week pattern, hydration settings, coach settings, AI privacy choices and model
+ * baseline marker, reduce motion, week pattern, hydration settings, coach settings, AI privacy choices and model
  * choices, food-database switches.
  *
  * What is OUT, always: API keys (they live in EncryptedSharedPreferences and are not in DataStore at
@@ -34,7 +34,7 @@ object PortableSettings {
 
     /** The exact preference names that are portable. */
     private val exact: Set<String> = setOf(
-        "weight_unit", "length_unit", "theme_mode", "dynamic_color",
+        "weight_unit", "length_unit", "theme_mode", "dynamic_color", "reduce_motion",
         "default_rest_sec", "rest_vibrate", "bar_weight_kg", "available_plates_kg",
         "goal_weight_kg", "goal_rate_kg_per_week", "protein_g_per_kg", "fat_g_per_kg",
         "auto_targets", "add_active_kcal", "current_plan_week",
@@ -148,7 +148,7 @@ object PortableSettings {
         if (names.isEmpty()) return "Settings: none in this backup"
         val groups = listOf(
             "units" to setOf("weight_unit", "length_unit", "volume_unit"),
-            "look and feel" to setOf("theme_mode", "dynamic_color"),
+            "look and feel" to setOf("theme_mode", "dynamic_color", "reduce_motion"),
             "workout timer and plates" to setOf("default_rest_sec", "rest_vibrate", "bar_weight_kg", "available_plates_kg"),
             "targets" to setOf(
                 "goal_weight_kg", "goal_rate_kg_per_week", "protein_g_per_kg", "fat_g_per_kg", "auto_targets",

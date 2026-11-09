@@ -37,6 +37,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import com.zeroindex.intake.domain.motion.MotionRules
+import com.zeroindex.intake.ui.motion.StaggerGate
+import com.zeroindex.intake.ui.motion.pressScale
+import com.zeroindex.intake.ui.motion.rememberStaggerGate
+import com.zeroindex.intake.ui.motion.staggerIn
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
@@ -104,6 +114,8 @@ fun TodayScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val extras by extrasViewModel.extras.collectAsStateWithLifecycle()
+    val lastCelebrated by viewModel.lastCelebration.collectAsStateWithLifecycle()
+    val ringEvents = rememberRingEvents(state, lastCelebrated, viewModel::markCelebrated)
 
     var addToSlot by remember { mutableStateOf<MealSlot?>(null) }
     var showWater by remember { mutableStateOf(false) }
@@ -124,6 +136,7 @@ fun TodayScreen(
             state = state,
             extras = extras,
             cardActions = cards,
+            ringEvents = ringEvents,
             contentPadding = contentPadding,
             onPreviousDay = viewModel::showPreviousDay,
             onNextDay = viewModel::showNextDay,
@@ -227,6 +240,7 @@ private fun TodayContent(
     state: TodayUiState,
     extras: TodayExtras,
     cardActions: TodayCardActions,
+    ringEvents: RingEvents,
     contentPadding: PaddingValues,
     onPreviousDay: () -> Unit,
     onNextDay: () -> Unit,
@@ -249,6 +263,7 @@ private fun TodayContent(
             if (state.isToday && (extras.baseline != null || extras.workout !is WorkoutCardState.Loading)) add(TourIds.WORKOUT)
         },
     )
+    val gate = rememberStaggerGate()
     val swipeThreshold = with(LocalDensity.current) { 64.dp.toPx() }
     var dragged by remember { mutableStateOf(0f) }
     // SPEC §5: swipe left and right to change days.
@@ -289,7 +304,7 @@ private fun TodayContent(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     item(key = "nutrition-heading") { SectionLine(title = "Nutrition") }
-                    nutritionItems(state, extras, cardActions, onWaterPreset, onOpenWater, onDismissInsight)
+                    nutritionItems(state, extras, cardActions, ringEvents, gate, onWaterPreset, onOpenWater, onDismissInsight)
                 }
                 LazyColumn(
                     modifier = Modifier.weight(1f).fillMaxHeight(),
@@ -297,7 +312,7 @@ private fun TodayContent(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     mealItems(
-                        state, onAddToSlot, onEntryLongPress, onEntrySwipedToCopy, onSaveTemplate,
+                        state, gate, onAddToSlot, onEntryLongPress, onEntrySwipedToCopy, onSaveTemplate,
                     )
                 }
             }
@@ -319,8 +334,8 @@ private fun TodayContent(
             item(key = "header") {
                 DayHeader(state.date, state.isToday, onPreviousDay, onNextDay, onShowToday)
             }
-            nutritionItems(state, extras, cardActions, onWaterPreset, onOpenWater, onDismissInsight)
-            mealItems(state, onAddToSlot, onEntryLongPress, onEntrySwipedToCopy, onSaveTemplate)
+            nutritionItems(state, extras, cardActions, ringEvents, gate, onWaterPreset, onOpenWater, onDismissInsight)
+            mealItems(state, gate, onAddToSlot, onEntryLongPress, onEntrySwipedToCopy, onSaveTemplate)
         }
     }
 }
@@ -330,17 +345,21 @@ private fun LazyListScope.nutritionItems(
     state: TodayUiState,
     extras: TodayExtras,
     cardActions: TodayCardActions,
+    ringEvents: RingEvents,
+    gate: StaggerGate,
     onWaterPreset: (HydrationPresetEntity) -> Unit,
     onOpenWater: () -> Unit,
     onDismissInsight: (AiInsightEntity) -> Unit,
 ) {
+    var order = 0
     // "One thing to do today": exactly one item, picked by fixed rules (domain/coach/DailyFocus.kt).
     if (state.isToday) {
         extras.focus?.let { focus ->
+            val at = order++
             item(key = "focus") {
                 FocusCard(
                     focus = focus,
-                    modifier = Modifier.tourTarget(TourIds.COACH),
+                    modifier = Modifier.staggerIn(gate, "focus", at).tourTarget(TourIds.COACH),
                     onAction = {
                         when (focus.target) {
                             FocusTarget.CHECK_IN -> cardActions.onOpenCheckIn()
@@ -359,18 +378,39 @@ private fun LazyListScope.nutritionItems(
     // The baseline week sits above the ring while it runs, so it is seen and then gone.
     if (state.isToday) {
         extras.baseline?.let { baseline ->
+            val at = order++
             item(key = "baseline") {
                 BaselineCard(
                     baseline,
                     onOpenProfile = cardActions.onOpenProfile,
                     onBuildPlan = cardActions.onBuildPlan,
-                    modifier = Modifier.tourTarget(TourIds.WORKOUT),
+                    modifier = Modifier.staggerIn(gate, "baseline", at).tourTarget(TourIds.WORKOUT),
                 )
             }
         }
     }
+    val ringAt = order++
     item(key = "ring") {
-        IntakeCard(Modifier.tourTarget(TourIds.RING)) { MacroRing(progress = state.progress) }
+        IntakeCard(Modifier.staggerIn(gate, "ring", ringAt).tourTarget(TourIds.RING)) {
+            MacroRing(
+                progress = state.progress,
+                pulseTrigger = ringEvents.pulse,
+                burstTrigger = ringEvents.burst,
+            )
+        }
+    }
+    // The one obvious action on this screen.
+    val logAt = order++
+    item(key = "log") {
+        Button(
+            onClick = cardActions.onLogFood,
+            modifier = Modifier
+                .staggerIn(gate, "log", logAt)
+                .fillMaxWidth()
+                .height(52.dp)
+                .pressScale()
+                .tourTarget(TourIds.ADD_FOOD),
+        ) { Text("Log food") }
     }
     if (state.activityBonusKcal > 0) {
         item(key = "activity") {
@@ -384,6 +424,7 @@ private fun LazyListScope.nutritionItems(
     }
     item(key = "remaining") { RemainingNote(state) }
     state.hydration?.let { day ->
+        val at = order++
         item(key = "water") {
             HydrationCard(
                 day = day,
@@ -391,18 +432,21 @@ private fun LazyListScope.nutritionItems(
                 unit = state.settings.volumeUnit,
                 onPreset = onWaterPreset,
                 onOpen = onOpenWater,
-                modifier = Modifier.tourTarget(TourIds.WATER),
+                modifier = Modifier.staggerIn(gate, "water", at).tourTarget(TourIds.WATER),
             )
         }
     }
     if (state.isToday && extras.workout !is WorkoutCardState.Loading) {
+        val at = order++
         item(key = "workout") {
             WorkoutCard(
                 state = extras.workout,
                 onStart = cardActions.onOpenTrain,
                 onResume = cardActions.onResumeWorkout,
                 onMakeProgram = cardActions.onMakeProgram,
-                modifier = if (state.isToday && extras.baseline != null) Modifier else Modifier.tourTarget(TourIds.WORKOUT),
+                modifier = Modifier.staggerIn(gate, "workout", at).then(
+                    if (state.isToday && extras.baseline != null) Modifier else Modifier.tourTarget(TourIds.WORKOUT),
+                ),
             )
         }
     }
@@ -411,9 +455,10 @@ private fun LazyListScope.nutritionItems(
     }
 }
 
-/** The meal slot cards and the add button: the "Meals" column on a tablet. */
+/** The meal slot cards: the "Meals" column on a tablet. Logging is the Log food button under the ring. */
 private fun LazyListScope.mealItems(
     state: TodayUiState,
+    gate: StaggerGate,
     onAddToSlot: (MealSlot) -> Unit,
     onEntryLongPress: (FoodLogEntity) -> Unit,
     onEntrySwipedToCopy: (FoodLogEntity) -> Unit,
@@ -425,19 +470,13 @@ private fun LazyListScope.mealItems(
 
     items(items = state.slots, key = { it.slot.name }) { slotUi ->
         MealSlotCard(
+            modifier = Modifier.staggerIn(gate, "slot-${slotUi.slot.name}", slotUi.slot.ordinal),
             slotUi = slotUi,
             onAdd = { onAddToSlot(slotUi.slot) },
             onEntryLongPress = onEntryLongPress,
             onEntrySwipedToCopy = onEntrySwipedToCopy,
             onSaveAsTemplate = { onSaveTemplate(slotUi.slot) },
         )
-    }
-
-    item(key = "add") {
-        Button(
-            onClick = { onAddToSlot(defaultSlotForNow()) },
-            modifier = Modifier.fillMaxWidth().height(52.dp).tourTarget(TourIds.ADD_FOOD),
-        ) { Text("Add food") }
     }
 }
 
@@ -499,10 +538,51 @@ private fun DayHeader(
     }
 }
 
+/** Counters the ring watches: each increase plays the pulse or the protein burst once. */
+private data class RingEvents(val pulse: Int = 0, val burst: Int = 0)
+
 /**
- * SPEC §5: remaining calories *and* remaining protein, because "120 g of
- * protein left with 400 kcal" is the framing you can act on. Rendered as the
- * mockup's accent block: the number as the lead, the encouragement beneath.
+ * Watches today's totals and decides, with the pure rules in [MotionRules], when the ring pulses after a
+ * log and when the protein burst plays (once per day). Nothing fires for the first emission, for other
+ * days, or for deletes. The confirm haptic goes with the pulse.
+ */
+@Composable
+private fun rememberRingEvents(
+    state: TodayUiState,
+    lastCelebrated: Long?,
+    onCelebrated: (Long) -> Unit,
+): RingEvents {
+    var pulse by remember { mutableIntStateOf(0) }
+    var burst by remember { mutableIntStateOf(0) }
+    val previous = remember(state.date) { arrayOfNulls<Double>(2) }
+    val playedToday = remember { longArrayOf(Long.MIN_VALUE) }
+    val haptics = LocalHapticFeedback.current
+    val kcal = state.progress.consumed.kcal
+    val protein = state.progress.consumed.protein
+    LaunchedEffect(state.date, state.loaded, kcal, protein) {
+        if (!state.loaded) return@LaunchedEffect
+        val before = previous.copyOf()
+        previous[0] = kcal
+        previous[1] = protein
+        val day = state.date.toEpochDay()
+        if (MotionRules.shouldPulseAfterLog(state.isToday, before[0], kcal)) {
+            pulse++
+            haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+        }
+        val already = if (playedToday[0] == day) day else lastCelebrated
+        if (MotionRules.shouldCelebrateProtein(state.isToday, state.progress.target?.proteinG, before[1], protein, already, day)) {
+            burst++
+            playedToday[0] = day
+            onCelebrated(day)
+        }
+    }
+    return RingEvents(pulse, burst)
+}
+
+/**
+ * SPEC §5: remaining calories *and* remaining protein. The ring and the protein bar above already show
+ * both numbers, so with a target this is one quiet sentence of encouragement, not a third copy of the
+ * figures. Without a target it says how to set one.
  */
 @Composable
 private fun RemainingNote(state: TodayUiState) {
@@ -511,8 +591,8 @@ private fun RemainingNote(state: TodayUiState) {
 
     if (kcalLeft == null || proteinLeft == null) {
         AccentNote(
-            lead = "No calorie target set yet",
-            body = "Set one in More, or let the app work it out from two weeks of weigh-ins.",
+            lead = "No calorie target yet",
+            body = "Open More, then Profile & goals, to set one. Or log two weeks of weigh-ins and Intake works it out.",
             container = MaterialTheme.colorScheme.surfaceVariant,
             contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -520,32 +600,17 @@ private fun RemainingNote(state: TodayUiState) {
     }
 
     val over = kcalLeft < 0
-    val lead = when {
-        !over && proteinLeft > 0 -> "$proteinLeft g protein left · $kcalLeft kcal to spend"
-        !over -> "Protein target met · $kcalLeft kcal left"
-        proteinLeft > 0 -> "$proteinLeft g protein to go · ${abs(kcalLeft)} kcal over"
-        else -> "Protein met · ${abs(kcalLeft)} kcal over target"
-    }
     val body = when {
         !over && proteinLeft > 0 -> "One meal at a time. There is room to finish strong."
-        !over -> "Comfortably placed for the rest of the day."
+        !over -> "Protein is done. Comfortably placed for the rest of the day."
         proteinLeft > 0 -> "Worth a lean, high-protein choice from here."
         else -> "Nothing to fix today; tomorrow is a fresh target."
     }
-
-    AccentNote(
-        lead = lead,
-        body = body,
-        container = if (over) {
-            MaterialTheme.colorScheme.tertiaryContainer
-        } else {
-            MaterialTheme.colorScheme.primaryContainer
-        },
-        contentColor = if (over) {
-            MaterialTheme.colorScheme.onTertiaryContainer
-        } else {
-            MaterialTheme.colorScheme.onPrimaryContainer
-        },
+    Text(
+        text = body,
+        style = MaterialTheme.typography.bodySmall,
+        color = if (over) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 4.dp),
     )
 }
 

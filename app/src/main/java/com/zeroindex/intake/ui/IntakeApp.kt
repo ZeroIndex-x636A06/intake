@@ -68,8 +68,11 @@ import com.zeroindex.intake.ui.navigation.tabOf
 
 @Composable
 fun IntakeApp(messages: AppMessages? = null) {
-    CompositionLocalProvider(LocalReduceMotion provides rememberSystemReduceMotion()) {
-        val flow: AppFlowViewModel = hiltViewModel()
+    val flow: AppFlowViewModel = hiltViewModel()
+    val userReduce by flow.reduceMotionSetting.collectAsStateWithLifecycle()
+    // System animator scale 0 OR the in-app switch (MotionRules.reduceMotion).
+    val reduce = rememberSystemReduceMotion() || userReduce
+    CompositionLocalProvider(LocalReduceMotion provides reduce) {
         val gate by flow.gate.collectAsStateWithLifecycle()
         val decision = gate
         if (decision == null) {

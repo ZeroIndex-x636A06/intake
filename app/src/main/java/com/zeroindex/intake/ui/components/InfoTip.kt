@@ -30,7 +30,7 @@ fun InfoTip(
     label: String = "More information",
 ) {
     var open by remember { mutableStateOf(false) }
-    IconButton(onClick = { open = true }, modifier = modifier.size(40.dp)) {
+    IconButton(onClick = { open = true }, modifier = modifier.size(48.dp)) {
         Icon(
             imageVector = Icons.Outlined.Info,
             contentDescription = "$label: $text",
@@ -50,6 +50,10 @@ fun InfoTip(
 
 /** The one-sentence explanations shared by every screen that uses these words. */
 object Glossary {
+    const val MACROS = "Macros are the three nutrients that make up your calories: protein (builds and repairs muscle), carbs (quick energy) and fat (steady energy). Protein is the one to watch most."
+    const val DAILY_BURN = "Daily calorie burn: roughly how many calories your body uses in a normal day, including movement."
+    const val RESTING_BURN = "Calories at rest: what your body burns just keeping you alive, before any movement."
+    const val AMRAP_LABEL = "As many as you can"
     const val EFFORT = "How hard a set felt, from 1 (very easy) to 10 (no reps left). 8 means about two more reps were possible."
     const val ESTIMATED_MAX = "The most you could lift once, worked out from your sets using the Epley formula. It is an estimate, not a test."
     const val AS_MANY_AS_YOU_CAN = "Keep going until you cannot do another clean rep, then log how many you did."

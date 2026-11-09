@@ -161,6 +161,8 @@ class PortableSettingsTest {
             "backup_destination_json", "sync_server_url", "sync_device_id", "sync_device_name", "sync_pulled_seq",
             "sync_pushed_up_to", "sync_schema_version", "sync_last_at", "sync_last_error", "last_export_at",
             "demo_data_loaded", "health_last_write_at", "health_last_sync_at",
+            // Motion polish: the day the protein burst last played is per device, never exported.
+            "last_celebration_day",
             // Hydration v2: precise location, forecast cache and retry time.
             "weather_lat", "weather_lon", "weather_cache_date", "weather_cache_lat", "weather_cache_lon",
             "weather_cache_temp_max_c", "weather_cache_humidity_pct", "weather_cache_fetched_at", "weather_last_attempt_at",

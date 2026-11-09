@@ -24,6 +24,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -34,7 +35,13 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class AppFlowViewModel @Inject constructor(
     private val repository: OnboardingRepository,
+    settingsRepository: SettingsRepository,
 ) : ViewModel() {
+
+    /** The in-app "Reduce motion" switch; combined with the system animation scale in IntakeApp. */
+    val reduceMotionSetting: StateFlow<Boolean> = settingsRepository.settings
+        .map { it.reduceMotion }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     /** Null while it is being worked out (a few milliseconds), then fixed for the rest of the launch. */
     val gate = MutableStateFlow<GateDecision?>(null)

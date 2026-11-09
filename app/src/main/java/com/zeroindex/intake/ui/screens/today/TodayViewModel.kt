@@ -47,6 +47,8 @@ data class TodayUiState(
     val activityBonusKcal: Int = 0,
     /** Amendment §3: today's insight, if enabled, generated and not dismissed. */
     val insight: AiInsightEntity? = null,
+    /** False only for the placeholder before the first database emission, so motion never fires on it. */
+    val loaded: Boolean = false,
 ) {
     val totalEntries: Int get() = slots.sumOf { it.entries.size }
 }
@@ -115,6 +117,7 @@ class TodayViewModel @Inject constructor(
                     settings = presetsAndSettings.settings,
                     activityBonusKcal = presetsAndSettings.bonus,
                     insight = presetsAndSettings.insight?.takeIf { date == today && it.dismissedAt == null },
+                    loaded = true,
                 )
             }
         }
@@ -130,6 +133,12 @@ class TodayViewModel @Inject constructor(
         val bonus: Int,
         val insight: AiInsightEntity?,
     )
+
+    /** The epoch day the protein burst last played; it plays once per day. */
+    val lastCelebration: StateFlow<Long?> = settingsRepository.celebratedProteinDay
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun markCelebrated(epochDay: Long) { viewModelScope.launch { settingsRepository.setCelebratedProteinDay(epochDay) } }
 
     fun dismissInsight(insight: AiInsightEntity) = viewModelScope.launch { insights.dismiss(insight.id) }
 

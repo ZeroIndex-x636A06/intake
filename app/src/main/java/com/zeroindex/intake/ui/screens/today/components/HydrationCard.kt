@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import com.zeroindex.intake.ui.motion.WaterWave
+import com.zeroindex.intake.ui.motion.pressScale
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -169,19 +171,13 @@ private fun weatherLine(status: WeatherStatus): String? = when (status) {
 
 @Composable
 private fun WaterBar(fraction: Float) {
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(10.dp)
-            .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
-    ) {
-        Box(
-            Modifier
-                .fillMaxHeight()
-                .fillMaxWidth(fraction.coerceIn(0f, 1f))
-                .background(WaterAccent, CircleShape),
-        )
-    }
+    // A sine-wave fill that rises on first show; the wave pauses off-screen and with reduce-motion.
+    WaterWave(
+        fraction = fraction,
+        water = WaterAccent,
+        track = MaterialTheme.colorScheme.surfaceVariant,
+        height = 20.dp,
+    )
 }
 
 @Composable

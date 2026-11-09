@@ -45,6 +45,9 @@ object Motion {
     const val DurationMedium = 250
     const val DurationLong = 350
 
+    /** Pressed buttons and tappable cards shrink to this scale. */
+    const val PressScale = 0.97f
+
     /** Fade-through: the outgoing screen leaves quickly, the incoming one arrives after it. */
     const val FadeThroughOut = 90
     const val FadeThroughIn = 210
@@ -99,7 +102,8 @@ object Motion {
 }
 
 /** Pure so a unit test can pin the rule: only an animator scale of exactly 0 turns motion off. */
-fun isMotionReduced(animatorDurationScale: Float): Boolean = animatorDurationScale == 0f
+fun isMotionReduced(animatorDurationScale: Float, userSetting: Boolean = false): Boolean =
+    com.zeroindex.intake.domain.motion.MotionRules.reduceMotion(animatorDurationScale, userSetting)
 
 /** Reads Settings.Global.ANIMATOR_DURATION_SCALE; a missing setting means the default of 1. */
 fun readReduceMotion(context: Context): Boolean = isMotionReduced(
