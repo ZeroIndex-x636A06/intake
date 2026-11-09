@@ -102,6 +102,17 @@ All of SPEC.md's built phases and every amendment feature are implemented:
   microdata, then an optional "Try with AI"; `domain/recipe/`, `data/recipe/`). Ingredient pickers use
   `FoodRepository.search`. Not built: a per-day meal choice (the model is one main dish per week).
 
+- **Coach engine (agent/coach-engine).** `domain/coach/`: `CoachEngine.review` (weight trend vs pace, data gate,
+  diet break, recovery, strength stall, protein, volume, water; all thresholds in `CoachConfig`), `DailyFocusPicker`,
+  `CoachAdjustments` (deload and easier-day applied to prescriptions in `TrainingRepository.prescriptionsFor`),
+  `CoachSchedule`, `SuggestionHistory`, `ProteinIdeas`, `CoachReword`. `data/coach/CoachRepository` builds the
+  inputs from the tables and runs Apply; `CoachReworder` is the optional AI wording (reuses the daily-insight model
+  choice). `work/CoachWorker` is a daily job plus one notification. Screen: `ui/screens/coach/` (route
+  `CoachCheckIn`, linked from the Today card, More and Progress). Schema: new `coach_suggestion` table in
+  `migrateCoach_2_3` (backup, export and sync). Settings: `coach_*` DataStore keys. Rules and thresholds:
+  `docs/COACH.md`. Settings in backup/export: `domain/backup/PortableSettings.kt`, `data/settings/PortableStore.kt`,
+  `BackupService` (`settings` section, preview line); see `docs/BACKUP.md`.
+
 Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/SPEC-v3.md`, `docs/BACKUP.md`,
 `docs/BENCHMARK.md`, `docs/PRIVACY.md`, `server/README.md`.
 
@@ -124,6 +135,12 @@ Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/SPEC-v3.md`, `docs/BACKUP
 - Demo data loader in Settings (`SettingsRepository.demoDataLoaded` exists).
 
 ## NOT verified
+
+- Coach: no device run. Not seen: the check-in screen and Today card layout, the weekly notification and its tap
+  to open the screen, the Health Connect signals (sleep, resting HR) feeding the recovery rule, and Apply against a
+  real program. HRV is not captured by the app yet. The pure rules, schedule, reword guard, settings export and the
+  migration are unit-tested.
+- Settings restore: the DataStore write path is not exercised by a JVM test (the encode/decode rules are).
 
 - Hydration v2 on a device: the coarse location prompt and fix, the live Open-Meteo calls from the app (the URLs
   and response shapes were checked with curl from the build container, and the parsers are unit-tested against

@@ -58,6 +58,10 @@ to its root.
 
 Amendment features:
 
+- **Coach.** A weekly check-in that reads your last week and suggests a few small changes (calories from your
+  weight trend, protein, strength stalls, recovery, volume, water), each with its numbers and an Apply or Dismiss
+  button, plus a "One thing to do today" card on Today. Plain rules, no AI needed: [docs/COACH.md](docs/COACH.md).
+  Settings and the profile now travel with exports and backups: [docs/BACKUP.md](docs/BACKUP.md).
 - **Hydration.** Water card on Today with one-tap drink chips and a daily target that
   shows its working. Every drink has a type and an "adds to hydration" factor (tea and
   coffee count like water), caffeine and alcohol are tracked, workouts add sweat water,

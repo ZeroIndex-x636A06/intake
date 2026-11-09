@@ -8,7 +8,6 @@ with its merge commit. Read `CLAUDE.md` before you claim anything.
 
 **Claimed by the coordinating session**
 
-- **Coach engine** (open task 2 below), plus putting settings and the profile into backup/export.
 
 ## Open: anyone can claim these
 
@@ -30,13 +29,6 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
    - **One-time tips** on each tab.
    - **Settings:** add "Replay the tour". The Help screen already has a
      placeholder for it.
-2. **Coach engine.** See "Additions → Coach engine".
-   - Weekly check-in suggestions from deterministic rules, each with a "why",
-     covering weight trend vs pace, adherence, strength stalls, recovery
-     signals, protein/water gaps and volume per muscle. The user taps Apply or
-     Dismiss.
-   - A daily "one thing to do today" card on Today.
-   - AI narrative is optional and only rewords the suggestions.
 3. **Motion and clarity polish.** See SPEC-v3 point 5.
    - Motion tokens already exist in `ui/motion/Motion.kt`.
    - Animate the calorie ring sweep and count-ups, the water wave, protein-goal
@@ -72,6 +64,10 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
   and run the benchmark, and set a backup destination.
 
 ## Done (v3)
+
+- Coach engine, "One thing to do today" card, and settings/profile in backup and export (branch `agent/coach-engine`).
+  Rules and thresholds in `docs/COACH.md`; backup keys in `docs/BACKUP.md`. New table `coach_suggestion` in
+  `migrateCoach_2_3`. Not seen on a device.
 
 - Hydration v2: drink types and hydration factors, caffeine and alcohol tracking and top-ups, opt-in Open-Meteo
   weather, sweat loss from logged workouts with a measured sweat rate, and a target breakdown in the water sheet
