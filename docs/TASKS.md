@@ -30,6 +30,18 @@ Branch `worktree-agent-acbf47c924ce706e7`. None of this has been seen on a devic
 - Floating pill: frosted-glass backdrop blur on Android 12 and up, translucent fill below.
 - Schema: `food.imageUrl` in `migrateFoodUi_2_3`, with a `MigrationSchemaTest` case.
 
+## Next up (claimed by the coordinating session)
+
+**Recipe import improvements.** From the user's side-by-side test against two real recipe pages, urbanblisslife.com (dairy-free mac and cheese) and bellyfull.net (chicken Alfredo). Core fidelity was 100%: the title, servings, total time, every ingredient, every step and the four headline macros matched. The gaps are:
+1. **Notes.** Import the recipe's Notes section, for example the vegan option, storage and reheating.
+2. **Full nutrition.** Keep fibre, sugar, sodium and saturated fat from the page, not just kcal, protein, carbs and fat.
+3. **Photo.** Save the recipe image URL from the JSON-LD and show it, using the existing OFF-style image loader. Allow any https host for this, but only when the user imported the page.
+4. **Allergen tags per line.** Tag each ingredient line, e.g. "vegan butter: check the label" or "heavy whipping cream: contains dairy", instead of one general chip for the whole recipe.
+5. **Times.** Keep prep time and cook time separately, as well as the total.
+6. **Ingredient groups.** Keep group headers like "For the Noodles", "For the Chicken" and "For the Sauce". JSON-LD flattens them, so read them from WP Recipe Maker HTML (`wprm-recipe-group-name`) and Tasty Recipes' equivalent when present. Without the headers, "1 tablespoon butter" and "1/2 cup butter" are ambiguous.
+7. **Clean up formatting artifacts.** WP Recipe Maker's notes render as "(, cut into cubes)" and "(, minced)". Turn these into "(cut into cubes)".
+8. **Simpler recipe screen.** Make "Log a serving" the single primary action. Move Open original page, Add to this week, Edit and Delete into a ⋯ menu.
+
 ## Open: anyone can claim these
 
 Each task links to the section of `docs/SPEC-v3.md` that defines it.
