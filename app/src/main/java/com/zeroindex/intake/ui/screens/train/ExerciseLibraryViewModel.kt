@@ -3,7 +3,7 @@ package com.zeroindex.intake.ui.screens.train
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import android.net.Uri
-import com.zeroindex.intake.data.ai.vision.PhotoPreparer
+import com.zeroindex.intake.data.training.ExercisePhotoStore
 import com.zeroindex.intake.data.db.entity.ExerciseEntity
 import com.zeroindex.intake.data.repository.TrainingRepository
 import com.zeroindex.intake.data.settings.SettingsRepository
@@ -41,7 +41,7 @@ data class ExerciseBrowseState(
 class ExerciseLibraryViewModel @Inject constructor(
     private val repository: TrainingRepository,
     settingsRepository: SettingsRepository,
-    private val photoPreparer: PhotoPreparer,
+    private val photoStore: ExercisePhotoStore,
 ) : ViewModel() {
 
     private val query = MutableStateFlow("")
@@ -123,10 +123,10 @@ class ExerciseLibraryViewModel @Inject constructor(
      * or null if it could not be read. Photos are not part of backup or sync (docs/PRIVACY.md).
      */
     suspend fun importPhoto(uri: Uri): String? =
-        runCatching { java.io.File(photoPreparer.prepare(uri).savedPath).name }.getOrNull()
+        photoStore.import(uri)
 
     /** A new empty file in the app cache for the camera to write to. */
-    fun captureFile(): java.io.File = photoPreparer.newCaptureFile()
+    fun captureFile(): java.io.File = photoStore.newCaptureFile()
 
     fun save(exercise: ExerciseEntity) = viewModelScope.launch { repository.updateExercise(exercise) }
     fun hide(id: String) = viewModelScope.launch { repository.hideExercise(id) }

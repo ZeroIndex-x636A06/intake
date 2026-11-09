@@ -189,4 +189,12 @@ class PortableSettingsTest {
         ).first { it.isFile }
 
     private fun entry(type: String, value: JsonPrimitive) = JsonObject(mapOf("type" to JsonPrimitive(type), "value" to value))
+
+    @Test fun trainingAnswersTravelInsideTheProfileValue() {
+        val profile = """{"focusMuscles":["back"],"avoidAreas":["KNEE"],"trainingWeekdays":[1,3,5]}"""
+        val section = PortableSettings.encode(mapOf("profile_json" to profile))
+        val back = PortableSettings.decode(section)
+        assertThat(back.values["profile_json"]).isEqualTo(PortableSettings.Value.Str(profile))
+        assertThat(back.ignored).isEmpty()
+    }
 }
