@@ -318,7 +318,28 @@ fun ProfileScreen(
                 Spacer(Modifier.height(8.dp))
                 Text("Days a week", style = MaterialTheme.typography.labelMedium)
                 ChipGroup((2..6).toList(), profile.trainingDaysPerWeek.coerceIn(2, 6), { "$it" },
-                    { d -> viewModel.update { it.copy(trainingDaysPerWeek = d) } }, Modifier.padding(top = 6.dp, bottom = 10.dp))
+                    { d -> viewModel.update { it.copy(trainingDaysPerWeek = d, trainingWeekdays = if (it.trainingWeekdays.size == d) it.trainingWeekdays else emptySet()) } }, Modifier.padding(top = 6.dp, bottom = 10.dp))
+                Text("Which days? (optional)", style = MaterialTheme.typography.labelMedium)
+                Text(
+                    "Pick the weekdays you train and your program's days are set to them, so Today and the coach follow your week. Leave empty and they are spread out for you.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                MultiChipGroup(
+                    options = (1..7).toList(),
+                    selected = profile.trainingWeekdays,
+                    label = { WEEKDAY_NAMES[it - 1] },
+                    onToggle = { d ->
+                        viewModel.update {
+                            val next = if (d in it.trainingWeekdays) it.trainingWeekdays - d else it.trainingWeekdays + d
+                            it.copy(
+                                trainingWeekdays = next,
+                                trainingDaysPerWeek = if (next.size in 2..6) next.size else it.trainingDaysPerWeek,
+                            )
+                        }
+                    },
+                    modifier = Modifier.padding(top = 6.dp, bottom = 10.dp),
+                )
                 Text("Minutes per session", style = MaterialTheme.typography.labelMedium)
                 ChipGroup(listOf(30, 45, 60, 75, 90), profile.sessionMinutes, { "$it" },
                     { m -> viewModel.update { it.copy(sessionMinutes = m) } }, Modifier.padding(top = 6.dp, bottom = 10.dp))
@@ -331,7 +352,35 @@ fun ProfileScreen(
                 Text("Training goal", style = MaterialTheme.typography.labelMedium)
                 val goals: List<TrainingGoal?> = listOf(null) + TrainingGoal.entries
                 ChipGroup(goals, profile.trainingGoal, { it?.label ?: "Match my goal above" },
-                    { g -> viewModel.update { it.copy(trainingGoal = g) } }, Modifier.padding(top = 6.dp))
+                    { g -> viewModel.update { it.copy(trainingGoal = g) } }, Modifier.padding(top = 6.dp, bottom = 10.dp))
+                Text("Focus muscles (optional)", style = MaterialTheme.typography.labelMedium)
+                Text(
+                    "Tap the body or the chips. Chosen muscles get about 25% more weekly sets, early in each session.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                com.zeroindex.intake.ui.components.FocusMusclePicker(
+                    selected = profile.focusMuscles,
+                    onToggle = { m ->
+                        viewModel.update { it.copy(focusMuscles = if (m in it.focusMuscles) it.focusMuscles - m else it.focusMuscles + m) }
+                    },
+                    modifier = Modifier.padding(top = 6.dp, bottom = 10.dp),
+                )
+                Text("Anything to go easy on? (optional)", style = MaterialTheme.typography.labelMedium)
+                Text(
+                    "Lifts that load these areas are left out of a made plan.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                MultiChipGroup(
+                    options = com.zeroindex.intake.domain.training.generator.BodyArea.entries,
+                    selected = profile.avoidAreas,
+                    label = { it.label },
+                    onToggle = { a ->
+                        viewModel.update { it.copy(avoidAreas = if (a in it.avoidAreas) it.avoidAreas - a else it.avoidAreas + a) }
+                    },
+                    modifier = Modifier.padding(top = 6.dp),
+                )
             }
         }
 
@@ -488,15 +537,10 @@ private fun AdvancedSection(profile: UserProfile, update: ((UserProfile) -> User
         }
         if (profile.carbCycling || profile.refeedDaysPerWeek > 0) {
             Spacer(Modifier.height(6.dp))
-            Text("Training days (leave empty to spread them out)", style = MaterialTheme.typography.labelMedium)
-            MultiChipGroup(
-                options = (1..7).toList(),
-                selected = profile.trainingWeekdays,
-                label = { WEEKDAY_NAMES[it - 1] },
-                onToggle = { d ->
-                    update { it.copy(trainingWeekdays = if (d in it.trainingWeekdays) it.trainingWeekdays - d else it.trainingWeekdays + d) }
-                },
-                modifier = Modifier.padding(top = 6.dp),
+            Text(
+                "Carb cycling and refeeds use the training weekdays you pick under Training you can do.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         SwitchRow(

@@ -8,7 +8,7 @@ package com.zeroindex.intake.domain.training
 object StartingWeight {
     const val REASON = "Starting weight from your program"
 
-    fun prescription(startWeightKg: Double?, target: ExerciseTarget): Prescription? {
+    fun prescription(startWeightKg: Double?, target: ExerciseTarget, estimated: Boolean = false): Prescription? {
         val kg = startWeightKg?.takeIf { it > 0.0 } ?: return null
         return Prescription(
             weightKg = kg,
@@ -16,7 +16,11 @@ object StartingWeight {
             repsMin = target.repsMin,
             repsMax = target.repsMax,
             targetRpe = target.targetRpe,
-            reason = "$REASON: ${ProgressionEvaluator.fmt(kg)} kg. It moves on from your first session.",
+            reason = if (estimated) {
+                "${StartingWeightEstimate.LABEL}: about ${ProgressionEvaluator.fmt(kg)} kg."
+            } else {
+                "$REASON: ${ProgressionEvaluator.fmt(kg)} kg. It moves on from your first session."
+            },
         )
     }
 }

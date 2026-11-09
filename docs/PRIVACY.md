@@ -55,6 +55,7 @@ Findings that hold for every path:
 | --- | --- |
 | Allergen decisions | Made by the local matcher (`AllergenRepository.scan`, `domain/allergen/`). `ModelAllergenPolicy` merges an AI claim in as a warning only; it cannot clear a local match. The names of avoided allergens are sent in some AI prompts (below) so the model can avoid them, but no verdict is sent. |
 | Food log, weight, measurements, workouts, plan, templates, settings | Room database and DataStore in app-private storage. They leave only by the paths in this document. |
+| Your own exercise photos | A photo you add to a custom exercise is scaled, stripped of EXIF and kept in the app-private `photos` folder; the exercise row holds only the file name (`exercise.photoPath`). The image is not in backups, exports or sync, and never sent anywhere. Bundled exercise photos are assets from the Free Exercise DB (public domain). The camera permission is asked only when you tap "Take a photo". |
 | Photos | Stored as files in app storage. Rows hold a URI string only (`sourcePhotoUri`, `photoUri`), so backup and sync move the path, never the image. The one exception is the photo estimate, which sends a resized copy (below). |
 | API keys | Encrypted at rest; sent only to their own host (OpenRouter key to openrouter.ai, USDA key to api.nal.usda.gov). Not in exports, backups or sync (`BackupTables.kt` has no key table). |
 | TDEE and trend math, charts, insights history | Computed locally (`work/TdeeWorker.kt` is local only). |

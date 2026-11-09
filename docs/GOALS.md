@@ -193,6 +193,28 @@ recomp: build muscle; maintain and reverse: general fitness). The builder runs `
 shows a summary and links to the existing generator screen, which opens with the same answers.
 Nothing is saved until Apply, and "Create this program" can be switched off.
 
+### Generator inputs
+
+`UserProfile.toGeneratorInputs` now passes everything the profile asks about training:
+
+| Profile answer | Generator input | Effect |
+| --- | --- | --- |
+| Training goal (or the phase's default) | `goal` | rep ranges, effort, progression |
+| Experience | `experience` | weekly set range, progression |
+| Chosen weekdays, else "days a week" | `daysPerWeek` | the split. Chosen weekdays set the day count |
+| Minutes per session | `sessionMinutes` | trims sets until each day fits |
+| Equipment | `equipment` | only lifts you can do |
+| Focus muscles (optional) | `focusMuscles` | about 25% more sets, early in the session |
+| Anything to go easy on (optional) | `avoid` | lifts that load those areas are left out |
+| Hidden exercises | `hiddenExerciseIds` | never picked |
+
+Chosen weekdays also **schedule the program's days** (Today and the coach follow them) and the
+starting weights are filled in when a program is created. Build, age, sex, height, body fat, activity,
+phase (apart from the default goal) and pace do **not** change exercise choice. Every exercise carries a
+one-line reason and the plan shows "How this plan was built". Details in `docs/WORKOUTS.md`. Focus muscles,
+areas to go easy on and weekdays live inside the profile JSON (`profile_json`), which is already in the
+portable settings allow-list, so they travel with exports and backups.
+
 ## 10. What Apply writes
 
 - a new dated `nutrition_target` row (history kept, never overwritten);

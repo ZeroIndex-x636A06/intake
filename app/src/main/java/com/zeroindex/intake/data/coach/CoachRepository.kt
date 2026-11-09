@@ -429,8 +429,19 @@ class CoachRepository @Inject constructor(
             it.finishedAt != null && localDateOf(it.startedAt, zone) == today
         }
         val program = programDao.active()
-        val dayName = program?.let { p ->
-            programDao.daysOf(p.id).let { days -> days.getOrNull(p.currentDayIndex.coerceIn(0, (days.size - 1).coerceAtLeast(0)))?.name }
+        val plan = program?.let { p ->
+            val days = programDao.daysOf(p.id)
+            com.zeroindex.intake.domain.training.WorkoutSchedule.planFor(
+                days.map { com.zeroindex.intake.domain.training.ScheduleDay(it.dayIndex, it.name, it.weekday) },
+                p.currentDayIndex, isoDay,
+            )
+        }
+        // A program with weekdays set follows them; one without keeps the rotation and the profile's weekdays.
+        val dayName = (plan as? com.zeroindex.intake.domain.training.TodayPlan.Train)?.day?.name
+        val scheduledToday = when (plan) {
+            is com.zeroindex.intake.domain.training.TodayPlan.Train ->
+                if (plan.byWeekday) true else isoDay in profile.effectiveTrainingWeekdays
+            else -> false
         }
         val weekStart = idx - 6
         val workoutsThisWeek = workoutDao.allSessions().count {
@@ -444,7 +455,7 @@ class CoachRepository @Inject constructor(
                 hourOfDay = now.hour,
                 proteinSoFarG = todayLogs.sumOf { it.protein },
                 proteinTargetG = target?.proteinG ?: 0,
-                workoutScheduledToday = program != null && isoDay in profile.effectiveTrainingWeekdays,
+                workoutScheduledToday = program != null && scheduledToday,
                 workoutName = dayName,
                 workoutDoneToday = sessionsToday.isNotEmpty(),
                 waterSoFarMl = day?.consumedMl ?: 0.0,

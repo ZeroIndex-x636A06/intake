@@ -2,6 +2,8 @@ package com.zeroindex.intake.ui.screens.train
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.net.Uri
+import com.zeroindex.intake.data.training.ExercisePhotoStore
 import com.zeroindex.intake.data.db.entity.ExerciseEntity
 import com.zeroindex.intake.data.repository.TrainingRepository
 import com.zeroindex.intake.data.settings.SettingsRepository
@@ -39,6 +41,7 @@ data class ExerciseBrowseState(
 class ExerciseLibraryViewModel @Inject constructor(
     private val repository: TrainingRepository,
     settingsRepository: SettingsRepository,
+    private val photoStore: ExercisePhotoStore,
 ) : ViewModel() {
 
     private val query = MutableStateFlow("")
@@ -83,24 +86,47 @@ class ExerciseLibraryViewModel @Inject constructor(
     fun setEquipment(value: String?) { equipment.value = value }
     fun setShowHidden(value: Boolean) { showHidden.value = value }
 
-    fun add(
-        name: String,
-        primaryMuscle: String,
-        equipment: String,
-        isBodyweight: Boolean,
-        defaultRestSec: Int,
-        onAdded: (ExerciseEntity) -> Unit = {},
-    ) = viewModelScope.launch {
+    /** Adds a custom exercise from the form. */
+    fun add(form: ExerciseForm, onAdded: (ExerciseEntity) -> Unit = {}) = viewModelScope.launch {
         onAdded(
             repository.createExercise(
-                name = name.trim(),
-                primaryMuscle = primaryMuscle.trim().lowercase(),
-                equipment = equipment.trim().lowercase(),
-                isBodyweight = isBodyweight,
-                defaultRestSec = defaultRestSec,
+                name = form.name.trim(),
+                primaryMuscle = form.primaryMuscle.trim().lowercase(),
+                equipment = form.equipment.trim().lowercase(),
+                isBodyweight = form.isBodyweight,
+                defaultRestSec = form.defaultRestSec,
+                secondaryMuscles = form.secondaryMuscles.joinToString(","),
+                howTo = form.howTo,
+                photoPath = form.photoPath,
             ),
         )
     }
+
+    /** Applies the form to an existing custom exercise. */
+    fun update(existing: ExerciseEntity, form: ExerciseForm) = viewModelScope.launch {
+        repository.updateExercise(
+            existing.copy(
+                name = form.name.trim(),
+                primaryMuscle = form.primaryMuscle.trim().lowercase(),
+                secondaryMuscles = form.secondaryMuscles.joinToString(","),
+                equipment = form.equipment.trim().lowercase(),
+                isBodyweight = form.isBodyweight,
+                defaultRestSec = form.defaultRestSec,
+                notes = form.howTo?.trim()?.ifBlank { null },
+                photoPath = form.photoPath,
+            ),
+        )
+    }
+
+    /**
+     * Stores a picked or captured photo as a small, EXIF-free JPEG in app storage and returns its file name,
+     * or null if it could not be read. Photos are not part of backup or sync (docs/PRIVACY.md).
+     */
+    suspend fun importPhoto(uri: Uri): String? =
+        photoStore.import(uri)
+
+    /** A new empty file in the app cache for the camera to write to. */
+    fun captureFile(): java.io.File = photoStore.newCaptureFile()
 
     fun save(exercise: ExerciseEntity) = viewModelScope.launch { repository.updateExercise(exercise) }
     fun hide(id: String) = viewModelScope.launch { repository.hideExercise(id) }

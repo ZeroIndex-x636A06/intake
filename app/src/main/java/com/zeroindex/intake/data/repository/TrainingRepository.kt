@@ -8,6 +8,8 @@ import com.zeroindex.intake.data.training.ProgramExportRows
 import com.zeroindex.intake.data.training.FreestyleDayBuilder
 import com.zeroindex.intake.data.training.ProgramBlueprintBuilder
 import com.zeroindex.intake.data.training.ProgramEdits
+import com.zeroindex.intake.data.training.WorkoutBuilder
+import com.zeroindex.intake.data.db.projection.WorkoutSummary
 import com.zeroindex.intake.data.training.toEntity
 import com.zeroindex.intake.domain.training.ProgressionLabels
 import com.zeroindex.intake.domain.training.generator.ExerciseCatalog
@@ -45,6 +47,11 @@ import com.zeroindex.intake.domain.training.ProgressionOutcome
 import com.zeroindex.intake.domain.training.RuleParams
 import com.zeroindex.intake.domain.training.SetResult
 import com.zeroindex.intake.domain.training.StartingWeight
+import com.zeroindex.intake.domain.training.PastSet
+import com.zeroindex.intake.domain.training.StartingWeightContext
+import com.zeroindex.intake.domain.training.StartingWeightEstimate
+import com.zeroindex.intake.domain.training.StartingWeightEstimator
+import com.zeroindex.intake.domain.training.WorkoutSchedule
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -98,6 +105,8 @@ class TrainingRepository @Inject constructor(
         isBodyweight: Boolean = false,
         defaultRestSec: Int = 120,
         secondaryMuscles: String = "",
+        howTo: String? = null,
+        photoPath: String? = null,
     ): ExerciseEntity {
         val now = clock.nowMillis()
         val exercise = ExerciseEntity(
@@ -108,6 +117,8 @@ class TrainingRepository @Inject constructor(
             isBodyweight = isBodyweight,
             defaultRestSec = defaultRestSec,
             secondaryMuscles = secondaryMuscles,
+            notes = howTo?.trim()?.ifBlank { null },
+            photoPath = photoPath,
             createdAt = now,
             updatedAt = now,
         )
@@ -322,6 +333,12 @@ class TrainingRepository @Inject constructor(
         programDao.softDeleteProgram(id, clock.nowMillis())
     }
 
+    /** Schedules a program day on an ISO weekday (1 Monday to 7 Sunday), or null to leave it in the rotation. */
+    suspend fun setDayWeekday(dayId: String, weekday: Int?) {
+        val d = programDao.findDay(dayId) ?: return
+        programDao.upsertDay(d.copy(weekday = weekday?.takeIf { it in 1..7 }, updatedAt = clock.nowMillis()))
+    }
+
     suspend fun renameDay(dayId: String, name: String) {
         val d = programDao.findDay(dayId) ?: return
         programDao.upsertDay(d.copy(name = name.trim().ifBlank { d.name }, updatedAt = clock.nowMillis()))
@@ -489,12 +506,106 @@ class TrainingRepository @Inject constructor(
         val hidden = exerciseDao.hiddenIds().toSet()
         blueprint.days.flatMap { d -> d.exercises.map { it.exerciseId } }.distinct()
             .filter { it in hidden }.forEach { exerciseDao.restore(it, now) }
-        val rows = ProgramBlueprintBuilder.build(blueprint, rules, now, activate = activate, name = name)
+        val rows = ProgramBlueprintBuilder.build(finish(blueprint), rules, now, activate = activate, name = name)
         if (activate) programDao.clearActive(now)
         programDao.upsertProgram(rows.program)
         programDao.upsertDays(rows.days)
         programDao.upsertExercises(rows.exercises)
         rows.program
+    }
+
+    /**
+     * What every new program gets, whichever route made it: its days on the weekdays the person chose
+     * (or spread out if they chose none), and a starting weight for each lift that has a rule for one
+     * (see [StartingWeightEstimator]). Anything the blueprint already carries is kept.
+     */
+    suspend fun finish(blueprint: GeneratedProgram): GeneratedProgram {
+        val settings = settingsRepository.settings.first()
+        val profile = settings.profile
+        val scheduled = if (blueprint.days.any { it.weekday != null }) {
+            blueprint
+        } else {
+            WorkoutSchedule.schedule(blueprint, profile.trainingWeekdays)
+        }
+        val context = StartingWeightContext(
+            experience = profile.experience,
+            bodyweightKg = bodyRepository.latest()?.weightKg,
+            sex = profile.sex,
+            barWeightKg = settings.barWeightKg,
+            platesKg = settings.platesKgList.ifEmpty { listOf(25.0, 20.0, 15.0, 10.0, 5.0, 2.5, 1.25) },
+        )
+        val ids = scheduled.days.flatMap { d -> d.exercises.map { it.exerciseId } }.distinct()
+            .flatMap { StartingWeightEstimator.relevantIds(it) }.distinct()
+        val history = ids.associateWith { id ->
+            workoutDao.lastWorkingSetsFor(id, null).map { PastSet(it.weightKg, it.reps) }
+        }
+        return StartingWeightEstimator.apply(scheduled, context) { id -> history[id].orEmpty() }
+    }
+
+    // -------------------------------------------------------- saved workouts
+
+    fun observeWorkouts(): Flow<List<WorkoutSummary>> = programDao.observeWorkoutSummaries()
+
+    private suspend fun insertRows(rows: com.zeroindex.intake.data.training.ProgramRows) {
+        programDao.upsertProgram(rows.program)
+        programDao.upsertDays(rows.days)
+        programDao.upsertExercises(rows.exercises)
+    }
+
+    /** An empty saved workout, ready for exercises (the builder opens on it). */
+    suspend fun createWorkout(name: String): ProgramEntity = db.withTransaction {
+        val rows = WorkoutBuilder.blank(name, clock.nowMillis())
+        insertRows(rows)
+        rows.program
+    }
+
+    /** "Copy to my workouts" on a program day: the day and its exercises become a workout of their own. */
+    suspend fun copyDayAsWorkout(dayId: String, name: String? = null): ProgramEntity? = db.withTransaction {
+        val day = programDao.findDay(dayId) ?: return@withTransaction null
+        val taken = programDao.all().map { it.name }
+        val wanted = name?.takeIf { it.isNotBlank() } ?: day.name
+        val rows = WorkoutBuilder.copyOfDay(
+            name = if (wanted in taken) WorkoutBuilder.duplicateName(wanted, taken) else wanted,
+            sourceDay = day,
+            sourceExercises = programDao.exercisesOf(dayId),
+            now = clock.nowMillis(),
+        )
+        insertRows(rows)
+        rows.program
+    }
+
+    /** "Save as workout" after a session (usually a freestyle one). Null if it had no working sets. */
+    suspend fun saveSessionAsWorkout(sessionId: String, name: String): ProgramEntity? = db.withTransaction {
+        val sets = workoutDao.setsOf(sessionId)
+        if (sets.none { !it.isWarmup }) return@withTransaction null
+        val exercises = sets.map { it.exerciseId }.distinct().mapNotNull { exerciseDao.findAnyById(it) }.associateBy { it.id }
+        val day = FreestyleDayBuilder.toDay(name, sets, exercises)
+        if (day.exercises.isEmpty()) return@withTransaction null
+        val rules = ensureDefaultRules().mapValues { it.value.id }
+        val rows = WorkoutBuilder.fromGeneratedDay(name, day, rules, clock.nowMillis())
+        insertRows(rows)
+        rows.program
+    }
+
+    suspend fun duplicateWorkout(programId: String): ProgramEntity? = duplicateProgram(programId)
+
+    /** Soft delete: the workout leaves "My workouts"; sessions logged on it stay in your history. */
+    suspend fun deleteWorkout(programId: String) = db.withTransaction {
+        val now = clock.nowMillis()
+        programDao.daysOf(programId).forEach { d ->
+            programDao.exercisesOf(d.id).forEach { programDao.softDeleteExercise(it.id, now) }
+            programDao.softDeleteDay(d.id, now)
+        }
+        programDao.softDeleteProgram(programId, now)
+    }
+
+    /** Renames the workout and its one day together. */
+    suspend fun renameWorkout(programId: String, name: String) = db.withTransaction {
+        val p = programDao.findById(programId) ?: return@withTransaction
+        val clean = name.trim().ifBlank { return@withTransaction }
+        val now = clock.nowMillis()
+        programDao.upsertProgram(p.copy(name = clean, updatedAt = now))
+        programDao.daysOf(programId).forEach { programDao.upsertDay(it.copy(name = clean, updatedAt = now)) }
     }
 
     // ------------------------------------------------------------ freestyle
@@ -659,6 +770,7 @@ class TrainingRepository @Inject constructor(
         val dayId = session.programDayId ?: return
         val day = programDao.findDay(dayId) ?: return
         val program = programDao.findById(day.programId) ?: return
+        if (program.isStandalone) return // a saved workout has no rotation to advance
         val days = programDao.daysOf(program.id)
         if (days.isEmpty()) return
         val nextIndex = (days.indexOfFirst { it.id == dayId } + 1) % days.size
@@ -797,7 +909,10 @@ class TrainingRepository @Inject constructor(
 
             // No history yet and the program names a starting weight: that is the first prescription.
             if (lastSets.isEmpty()) {
-                StartingWeight.prescription(pe.startWeightKg, target)?.let { start ->
+                StartingWeight.prescription(
+                    pe.startWeightKg, target,
+                    estimated = pe.notes?.contains(StartingWeightEstimate.LABEL) == true,
+                )?.let { start ->
                     return@mapNotNull ExercisePrescription(
                         programExercise = pe,
                         exercise = exercise,

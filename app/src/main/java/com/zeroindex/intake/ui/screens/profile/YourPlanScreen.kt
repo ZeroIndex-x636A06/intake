@@ -163,6 +163,9 @@ fun YourPlanScreen(
                 item(key = "water") {
                     PlanCardView(plan.waterCard, onEdit = { editing = Editing.Water }, edited = state.overrides.waterMl != null)
                 }
+                state.howBuilt?.let { hb ->
+                    item(key = "how-built") { com.zeroindex.intake.ui.screens.train.HowBuiltCard(hb) }
+                }
                 item(key = "training") {
                     val training = state.training
                     IntakeCard {

@@ -1,5 +1,6 @@
 package com.zeroindex.intake.data.db.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -21,8 +22,14 @@ data class ExerciseEntity(
     val equipment: String = "",
     val isBodyweight: Boolean = false,
     val defaultRestSec: Int = 120,
+    /** The person's own how-to text for a custom exercise (shown under "How to"). */
     val notes: String? = null,
     val videoUri: String? = null,
+    /**
+     * Name of the person's own photo for a custom exercise, a file in the app's `exercise-photos`
+     * folder (never a path outside it). Null for the built-in photos, which are bundled assets.
+     */
+    val photoPath: String? = null,
     override val createdAt: Long,
     override val updatedAt: Long,
     override val deletedAt: Long? = null,
@@ -38,6 +45,11 @@ data class ProgramEntity(
     val isActive: Boolean = false,
     val currentWeek: Int = 1,
     val currentDayIndex: Int = 0,
+    /**
+     * True for a saved single-session routine ("Arm day", "Hotel gym"): a program with exactly one day
+     * that is never active, never in the program list and can be started any time. See docs/WORKOUTS.md.
+     */
+    @ColumnInfo(defaultValue = "0") val isStandalone: Boolean = false,
     override val createdAt: Long,
     override val updatedAt: Long,
     override val deletedAt: Long? = null,
@@ -56,6 +68,8 @@ data class ProgramDayEntity(
     val programId: String,
     val dayIndex: Int,
     val name: String,
+    /** ISO weekday 1 (Mon) to 7 (Sun) this day is scheduled on, or null for "next in the rotation". */
+    val weekday: Int? = null,
     override val createdAt: Long,
     override val updatedAt: Long,
     override val deletedAt: Long? = null,
@@ -106,6 +120,8 @@ data class ProgramExerciseEntity(
      * the added load). Set by a program script's `weight:` line; null means "pick a weight".
      */
     val startWeightKg: Double? = null,
+    /** A note for this exercise in this routine ("slow negatives", "seat 4"). */
+    val notes: String? = null,
     override val createdAt: Long,
     override val updatedAt: Long,
     override val deletedAt: Long? = null,

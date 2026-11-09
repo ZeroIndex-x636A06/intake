@@ -57,6 +57,10 @@ import com.zeroindex.intake.data.training.ProgramExporter
 import com.zeroindex.intake.domain.model.ProgressionType
 import com.zeroindex.intake.domain.training.ProgressionLabels
 import com.zeroindex.intake.domain.units.WeightUnit
+import com.zeroindex.intake.domain.training.WorkoutSchedule
+import com.zeroindex.intake.ui.components.ChoiceChip
+import com.zeroindex.intake.ui.components.ExerciseThumb
+import androidx.compose.material.icons.outlined.Info
 import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.domain.training.RepTarget
 import com.zeroindex.intake.ui.components.Glossary
@@ -95,6 +99,7 @@ fun ProgramBuilderScreen(
     var pickerForDay by remember { mutableStateOf<String?>(null) }
     var editingId by remember { mutableStateOf<String?>(null) }
     var renameProgram by remember { mutableStateOf(false) }
+    var infoFor by remember { mutableStateOf<String?>(null) }
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
@@ -110,7 +115,11 @@ fun ProgramBuilderScreen(
         item(key = "heading") {
             SubHead(
                 title = program?.name ?: "New program",
-                subcopy = if (program == null) "Give it a name, then add days and exercises." else "Add days, then exercises. Everything saves as you go.",
+                subcopy = when {
+                    program == null -> "Give it a name, then add days and exercises."
+                    program.isStandalone -> "A saved workout: add exercises and set sets and reps. Start it any time from Train."
+                    else -> "Add days, then exercises. Everything saves as you go."
+                },
             )
         }
         state.message?.let { m ->
@@ -140,7 +149,7 @@ fun ProgramBuilderScreen(
                     }
                     Spacer(Modifier.height(10.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (!program.isActive) {
+                        if (!program.isActive && !program.isStandalone) {
                             Button(
                                 onClick = viewModel::activate,
                                 enabled = state.days.any { it.rows.isNotEmpty() },
@@ -173,9 +182,13 @@ fun ProgramBuilderScreen(
                     viewModel = viewModel,
                     onAddExercise = { pickerForDay = d.day.id },
                     onEdit = { editingId = it },
+                    onInfo = { infoFor = it },
+                    standalone = program.isStandalone,
                 )
             }
-            item(key = "add-day") { AddDayCard(nextNumber = state.days.size + 1, onAdd = viewModel::addDay) }
+            if (!(state.program?.isStandalone ?: false)) {
+                item(key = "add-day") { AddDayCard(nextNumber = state.days.size + 1, onAdd = viewModel::addDay) }
+            }
 
             item(key = "tools") {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -193,6 +206,7 @@ fun ProgramBuilderScreen(
         }
     }
 
+    infoFor?.let { id -> ExerciseDetailSheet(exerciseId = id, onDismiss = { infoFor = null }) }
     pickerForDay?.let { dayId ->
         ExercisePickerSheet(
             title = "Add to ${state.days.firstOrNull { it.day.id == dayId }?.day?.name ?: "this day"}",
@@ -301,25 +315,43 @@ private fun DayCard(
     viewModel: ProgramBuilderViewModel,
     onAddExercise: () -> Unit,
     onEdit: (String) -> Unit,
+    onInfo: (String) -> Unit,
+    standalone: Boolean,
 ) {
     var menu by remember { mutableStateOf(false) }
+    var weekdayDialog by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     IntakeCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(day.day.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-            IconButton(onClick = { viewModel.moveDay(day.day.id, -1) }, enabled = !isFirst) {
-                Icon(Icons.Filled.ArrowUpward, contentDescription = "Move ${day.day.name} up")
+            Column(Modifier.weight(1f)) {
+                Text(day.day.name, style = MaterialTheme.typography.titleMedium)
+                if (!standalone) {
+                    Text(
+                        text = day.day.weekday?.let { "Scheduled on ${WorkoutSchedule.weekdayName(it)}" } ?: "Next in the rotation",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
-            IconButton(onClick = { viewModel.moveDay(day.day.id, 1) }, enabled = !isLast) {
-                Icon(Icons.Filled.ArrowDownward, contentDescription = "Move ${day.day.name} down")
+            if (!standalone) {
+                IconButton(onClick = { viewModel.moveDay(day.day.id, -1) }, enabled = !isFirst) {
+                    Icon(Icons.Filled.ArrowUpward, contentDescription = "Move ${day.day.name} up")
+                }
+                IconButton(onClick = { viewModel.moveDay(day.day.id, 1) }, enabled = !isLast) {
+                    Icon(Icons.Filled.ArrowDownward, contentDescription = "Move ${day.day.name} down")
+                }
             }
             IconButton(onClick = { menu = true }) {
                 Icon(Icons.Filled.MoreVert, contentDescription = "More for ${day.day.name}")
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(text = { Text("Rename") }, onClick = { menu = false; renaming = true })
-                    DropdownMenuItem(text = { Text("Duplicate this day") }, onClick = { menu = false; viewModel.duplicateDay(day.day.id) })
-                    DropdownMenuItem(text = { Text("Delete this day") }, onClick = { menu = false; confirmDelete = true })
+                    if (!standalone) {
+                        DropdownMenuItem(text = { Text("Set weekday") }, onClick = { menu = false; weekdayDialog = true })
+                        DropdownMenuItem(text = { Text("Copy to My workouts") }, onClick = { menu = false; viewModel.copyDayAsWorkout(day.day.id) })
+                        DropdownMenuItem(text = { Text("Duplicate this day") }, onClick = { menu = false; viewModel.duplicateDay(day.day.id) })
+                        DropdownMenuItem(text = { Text("Delete this day") }, onClick = { menu = false; confirmDelete = true })
+                    }
                 }
             }
         }
@@ -339,6 +371,7 @@ private fun DayCard(
                 isLast = index == day.rows.lastIndex,
                 onEdit = { onEdit(item.row.id) },
                 onMove = { delta -> viewModel.moveExercise(item.row.id, delta) },
+                onInfo = { item.exercise?.let { onInfo(it.id) } },
             )
         }
         Spacer(Modifier.height(8.dp))
@@ -347,6 +380,30 @@ private fun DayCard(
             shape = IntakeShape.Button,
             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
         ) { Text("Add exercise") }
+    }
+    if (weekdayDialog) {
+        AlertDialog(
+            onDismissRequest = { weekdayDialog = false },
+            title = { Text("When is ${day.day.name}?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Today and the coach follow the weekdays you set. Leave it on the rotation to do days in order, whenever you train.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                        ChoiceChip("Rotation", selected = day.day.weekday == null, onClick = { viewModel.setDayWeekday(day.day.id, null); weekdayDialog = false })
+                        (1..7).forEach { d ->
+                            ChoiceChip(
+                                WorkoutSchedule.weekdayName(d, short = true), selected = day.day.weekday == d,
+                                onClick = { viewModel.setDayWeekday(day.day.id, d); weekdayDialog = false },
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { weekdayDialog = false }) { Text("Close") } },
+        )
     }
     if (renaming) {
         var text by remember { mutableStateOf(day.day.name) }
@@ -376,9 +433,11 @@ private fun ExerciseSummaryRow(
     isLast: Boolean,
     onEdit: () -> Unit,
     onMove: (Int) -> Unit,
+    onInfo: () -> Unit,
 ) {
     val pe = item.row
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        item.exercise?.let { ExerciseThumb(it.id, it.photoPath, size = 44.dp) }
         Column(
             Modifier.weight(1f).heightIn(min = 56.dp)
                 .padding(vertical = 8.dp),
@@ -396,8 +455,18 @@ private fun ExerciseSummaryRow(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                     )
+                    pe.notes?.takeIf { it.isNotBlank() }?.let { note ->
+                        Text(
+                            text = note,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
+        }
+        IconButton(onClick = onInfo, modifier = Modifier.size(44.dp)) {
+            Icon(Icons.Outlined.Info, contentDescription = "About ${item.exercise?.name ?: "this exercise"}: photos, muscles and how to")
         }
         IconButton(onClick = { onMove(-1) }, enabled = !isFirst, modifier = Modifier.size(44.dp)) {
             Icon(Icons.Filled.ArrowUpward, contentDescription = "Move up")

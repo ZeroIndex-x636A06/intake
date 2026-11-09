@@ -153,6 +153,17 @@ internal fun migrateAiUsage_2_3(): List<String> = listOf(
     "CREATE INDEX IF NOT EXISTS `index_ai_usage_deletedAt` ON `ai_usage` (`deletedAt`)",
 )
 
+internal fun migrateExercises_2_3(): List<String> = listOf(
+    // Exercise diagrams, custom exercises and custom workouts (docs/EXERCISE-IMAGES.md, docs/WORKOUTS.md).
+    // The person's own exercise photo (a file name in app storage), a saved single-session workout is a
+    // program with isStandalone = 1, an optional scheduled weekday on a program day, and a note per
+    // exercise in a routine. Purely additive: every existing row keeps its meaning.
+    "ALTER TABLE `exercise` ADD COLUMN `photoPath` TEXT",
+    "ALTER TABLE `program` ADD COLUMN `isStandalone` INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE `program_day` ADD COLUMN `weekday` INTEGER",
+    "ALTER TABLE `program_exercise` ADD COLUMN `notes` TEXT",
+)
+
 // Add new 2 -> 3 steps to the list below, after the existing ones.
 internal val MIGRATION_2_3_STATEMENTS: List<String> =
     migrateFoodOff_2_3() +
@@ -160,7 +171,8 @@ internal val MIGRATION_2_3_STATEMENTS: List<String> =
         migrateMealPlans_2_3() +
         migrateHydration_2_3() +
         migrateCoach_2_3() +
-        migrateAiUsage_2_3()
+        migrateAiUsage_2_3() +
+        migrateExercises_2_3()
 
 internal val MIGRATION_2_3 = object : Migration(2, 3) {
     override fun migrate(db: SupportSQLiteDatabase) {

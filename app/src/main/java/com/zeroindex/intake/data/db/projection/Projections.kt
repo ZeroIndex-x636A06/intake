@@ -40,3 +40,12 @@ data class SetPoint(
     val weightKg: Double,
     val reps: Int,
 )
+
+/** One saved workout for the "My workouts" list: its program, its one day and how many exercises it has. */
+data class WorkoutSummary(
+    val programId: String,
+    val name: String,
+    val dayId: String?,
+    val exerciseCount: Int,
+    val updatedAt: Long,
+)

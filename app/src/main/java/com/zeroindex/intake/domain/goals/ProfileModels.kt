@@ -1,9 +1,11 @@
 package com.zeroindex.intake.domain.goals
 
+import com.zeroindex.intake.domain.training.generator.BodyArea
 import com.zeroindex.intake.domain.training.generator.Equipment
 import com.zeroindex.intake.domain.training.generator.EquipmentPreset
 import com.zeroindex.intake.domain.training.generator.Experience
 import com.zeroindex.intake.domain.training.generator.GeneratorInputs
+import com.zeroindex.intake.domain.training.generator.Muscles
 import com.zeroindex.intake.domain.training.generator.TrainingGoal
 import kotlinx.serialization.Serializable
 
@@ -145,6 +147,10 @@ data class UserProfile(
     val experience: Experience = Experience.SOME,
     /** Null means "pick one that fits the phase". */
     val trainingGoal: TrainingGoal? = null,
+    /** Optional. Muscles to give about 25% more weekly sets (the generator's focus). Library names, programmed muscles only. */
+    val focusMuscles: Set<String> = emptySet(),
+    /** Optional. Body areas to go easy on: the generator leaves out lifts that load them. */
+    val avoidAreas: Set<BodyArea> = emptySet(),
 
     val mode: ProfileMode = ProfileMode.SIMPLE,
 
@@ -178,13 +184,26 @@ data class UserProfile(
     val effectiveTrainingWeekdays: Set<Int>
         get() = trainingWeekdays.takeIf { it.isNotEmpty() } ?: GoalDefaults.spreadWeekdays(trainingDaysPerWeek)
 
-    /** The inputs for the existing program generator, so one set of answers feeds both screens. */
+    /**
+     * Training days to plan for: when weekdays are chosen, exactly those (2 to 6), otherwise the
+     * "days a week" answer. The weekday picker and the day count therefore never disagree.
+     */
+    val effectiveTrainingDays: Int
+        get() = (if (trainingWeekdays.isNotEmpty()) trainingWeekdays.size else trainingDaysPerWeek).coerceIn(2, 6)
+
+    /**
+     * The inputs for the existing program generator, so one set of answers feeds both screens.
+     * Everything the profile asks about training goes through: goal, experience, days, session
+     * length, equipment, focus muscles, areas to go easy on, and hidden exercises.
+     */
     fun toGeneratorInputs(hiddenExerciseIds: Set<String> = emptySet()): GeneratorInputs = GeneratorInputs(
         goal = effectiveTrainingGoal,
         experience = experience,
-        daysPerWeek = trainingDaysPerWeek.coerceIn(2, 6),
+        daysPerWeek = effectiveTrainingDays,
         sessionMinutes = sessionMinutes,
         equipment = equipment,
+        focusMuscles = focusMuscles.filter { it in Muscles.PROGRAMMED }.toSet(),
+        avoid = avoidAreas,
         hiddenExerciseIds = hiddenExerciseIds,
     )
 }

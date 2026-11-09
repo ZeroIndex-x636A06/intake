@@ -61,9 +61,18 @@ data class GeneratedExercise(
     val restSec: Int,
     /** Null means no progression rule is attached. */
     val progression: ProgressionType?,
-    /** One plain sentence on why this exercise and this prescription. */
+    /**
+     * One line on why this exercise is in the plan, built from the answers that picked it, for example
+     * "Lat pulldown: back is a focus, 2 of your 4 days train back, cable machine available."
+     */
     val why: String,
+    /** What the numbers mean: the role, reps, effort and how it progresses. */
+    val prescription: String = "",
     val explosive: Boolean = false,
+    /** First prescription when there is no history for the lift (kg); null means "pick a weight". */
+    val startWeightKg: Double? = null,
+    /** Why that starting weight, shown with it. */
+    val startNote: String? = null,
 )
 
 data class GeneratedDay(
@@ -71,6 +80,8 @@ data class GeneratedDay(
     val exercises: List<GeneratedExercise>,
     val estimatedMinutes: Int,
     val why: String,
+    /** ISO weekday 1 (Mon) to 7 (Sun) this day is scheduled on, or null for "next in the rotation". */
+    val weekday: Int? = null,
 )
 
 data class GeneratedProgram(

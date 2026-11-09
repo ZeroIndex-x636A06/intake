@@ -12,12 +12,17 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -48,7 +53,9 @@ import com.zeroindex.intake.data.training.ExerciseHistory
 import com.zeroindex.intake.domain.training.generator.Equipment
 import com.zeroindex.intake.domain.training.generator.Muscles
 import com.zeroindex.intake.domain.units.WeightUnit
+import com.zeroindex.intake.domain.training.ExerciseGuideIndex
 import com.zeroindex.intake.ui.components.ChoiceChip
+import com.zeroindex.intake.ui.components.ExerciseThumb
 import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.ui.components.Glossary
 import com.zeroindex.intake.ui.components.InfoTip
@@ -89,7 +96,7 @@ fun ExerciseLibraryScreen(
                 onClick = { form = FormTarget.New },
                 shape = IntakeShape.Button,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-            ) { Text("Add an exercise") }
+            ) { Text("Add your own exercise") }
         }
         item(key = "filters") { ExerciseFilterBar(state, viewModel) }
         if (state.shown.isEmpty()) {
@@ -118,25 +125,35 @@ fun ExerciseLibraryScreen(
                 }
             }
         }
+        item(key = "credit") {
+            Text(
+                ExerciseGuideIndex.CREDIT,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
     }
 
     detail?.let { selected ->
         ExerciseDetailSheet(
-            exercise = selected,
-            unit = state.weightUnit,
-            viewModel = viewModel,
-            onEdit = { detail = null; form = FormTarget.Edit(selected) },
+            exerciseId = selected.id,
             onDismiss = { detail = null },
+            onEdit = { detail = null; form = FormTarget.Edit(selected) },
+            onHideToggle = {
+                if (selected.deletedAt != null) viewModel.restore(selected.id) else viewModel.hide(selected.id)
+                detail = null
+            },
         )
     }
     form?.let { target ->
         ExerciseFormSheet(
             existing = (target as? FormTarget.Edit)?.exercise,
+            viewModel = viewModel,
             onDismiss = { form = null },
-            onSave = { name, muscle, equipment, bodyweight, rest ->
+            onSave = { f ->
                 val e = (target as? FormTarget.Edit)?.exercise
-                if (e == null) viewModel.add(name, muscle, equipment, bodyweight, rest)
-                else viewModel.save(e.copy(name = name.trim(), primaryMuscle = muscle, equipment = equipment, isBodyweight = bodyweight, defaultRestSec = rest))
+                if (e == null) viewModel.add(f) else viewModel.update(e, f)
                 form = null
             },
         )
@@ -183,7 +200,7 @@ fun ExerciseFilterBar(state: ExerciseBrowseState, viewModel: ExerciseLibraryView
 }
 
 @Composable
-fun ExerciseRow(exercise: ExerciseEntity, onClick: () -> Unit, trailing: String? = null) {
+fun ExerciseRow(exercise: ExerciseEntity, onClick: () -> Unit, trailing: String? = null, onInfo: (() -> Unit)? = null) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -191,7 +208,9 @@ fun ExerciseRow(exercise: ExerciseEntity, onClick: () -> Unit, trailing: String?
             .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        ExerciseThumb(exercise.id, exercise.photoPath)
         Column(Modifier.weight(1f)) {
             Text(exercise.name, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
             Text(
@@ -206,142 +225,10 @@ fun ExerciseRow(exercise: ExerciseEntity, onClick: () -> Unit, trailing: String?
         }
         if (ExerciseFilter.isCustom(exercise)) Tag("Custom")
         if (trailing != null) Text(trailing, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-@Composable
-private fun ExerciseDetailSheet(
-    exercise: ExerciseEntity,
-    unit: WeightUnit,
-    viewModel: ExerciseLibraryViewModel,
-    onEdit: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val history by remember(exercise.id) { viewModel.history(exercise.id) }
-        .collectAsState(initial = ExerciseHistory(emptyList(), null, null, 0))
-    val custom = ExerciseFilter.isCustom(exercise)
-    val hidden = exercise.deletedAt != null
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(
-            modifier = Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text(exercise.name, style = MaterialTheme.typography.headlineSmall)
-            Text(
-                text = buildString {
-                    append(Muscles.label(exercise.primaryMuscle))
-                    if (exercise.secondaryMuscles.isNotBlank()) append(" (also ${exercise.secondaryMuscles.replace(",", ", ")})")
-                    if (exercise.equipment.isNotBlank()) append(" · ").append(Equipment.label(exercise.equipment))
-                    append(" · rest ${exercise.defaultRestSec}s")
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Eyebrow("Estimated max")
-                        InfoTip(Glossary.ESTIMATED_MAX)
-                    }
-                    Text(
-                        text = history.bestEstimatedMaxKg?.let { "${weightText(unit.fromKg(it))} ${unit.label}" } ?: "Not enough data yet",
-                        style = MaterialTheme.typography.titleLarge,
-                    )
-                }
-                Column(Modifier.weight(1f)) {
-                    Eyebrow("Sets logged")
-                    Text("${history.totalSets}", style = MaterialTheme.typography.titleLarge)
-                }
+        if (onInfo != null) {
+            IconButton(onClick = onInfo, modifier = Modifier.size(48.dp)) {
+                Icon(Icons.Outlined.Info, contentDescription = "About ${exercise.name}: photos, muscles and how to")
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Eyebrow("History")
-            if (history.days.isEmpty()) {
-                Text("You have not logged this exercise yet.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            } else {
-                history.days.take(8).forEach { day ->
-                    Column {
-                        Text(dateText(day.startedAt), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
-                        Text(
-                            day.sets.joinToString("  ·  ") { "${weightText(unit.fromKg(it.weightKg))} × ${it.reps}" },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
-                if (custom && !hidden) {
-                    OutlinedButton(onClick = onEdit, shape = IntakeShape.Button, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) { Text("Edit") }
-                }
-                OutlinedButton(
-                    onClick = { if (hidden) viewModel.restore(exercise.id) else viewModel.hide(exercise.id); onDismiss() },
-                    shape = IntakeShape.Button,
-                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                ) { Text(if (hidden) "Show again" else "Hide") }
-            }
-            if (!hidden) {
-                Text(
-                    text = "Hiding keeps your history and any program that uses it. It only stops it showing in pickers.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
-}
-
-/** Add a custom exercise, or edit one. */
-@Composable
-fun ExerciseFormSheet(
-    existing: ExerciseEntity?,
-    onDismiss: () -> Unit,
-    onSave: (name: String, muscle: String, equipment: String, bodyweight: Boolean, restSec: Int) -> Unit,
-    initialName: String = "",
-) {
-    var name by remember { mutableStateOf(existing?.name ?: initialName) }
-    var muscle by remember { mutableStateOf(existing?.primaryMuscle) }
-    var equipment by remember { mutableStateOf(existing?.equipment.orEmpty()) }
-    var bodyweight by remember { mutableStateOf(existing?.isBodyweight ?: false) }
-    var rest by remember { mutableStateOf((existing?.defaultRestSec ?: 90).toString()) }
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(
-            modifier = Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text(if (existing == null) "Add an exercise" else "Edit exercise", style = MaterialTheme.typography.headlineSmall)
-            OutlinedTextField(
-                value = name, onValueChange = { name = it }, label = { Text("Name") },
-                singleLine = true, modifier = Modifier.fillMaxWidth(),
-            )
-            Eyebrow("Main muscle")
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                Muscles.ALL.forEach { m -> ChoiceChip(Muscles.label(m), selected = muscle == m, onClick = { muscle = m }) }
-            }
-            Eyebrow("Equipment")
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                Equipment.ALL.forEach { e ->
-                    ChoiceChip(Equipment.label(e), selected = equipment == e, onClick = { equipment = if (equipment == e) "" else e })
-                }
-            }
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Text("Bodyweight exercise", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                Switch(checked = bodyweight, onCheckedChange = { bodyweight = it })
-            }
-            OutlinedTextField(
-                value = rest,
-                onValueChange = { rest = it.filter(Char::isDigit).take(3) },
-                label = { Text("Usual rest between sets (seconds)") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Button(
-                onClick = { onSave(name.trim(), muscle ?: "", equipment, bodyweight, (rest.toIntOrNull() ?: 90).coerceIn(15, 600)) },
-                enabled = name.isNotBlank() && muscle != null,
-                shape = IntakeShape.Button,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-            ) { Text("Save") }
-            TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Cancel") }
         }
     }
 }
@@ -349,5 +236,3 @@ fun ExerciseFormSheet(
 internal fun weightText(value: Double): String =
     if (value % 1.0 == 0.0) value.toInt().toString() else ((value * 10).roundToInt() / 10.0).toString()
 
-private fun dateText(millis: Long): String =
-    DateTimeFormatter.ofPattern("EEE d MMM yyyy").format(Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()))

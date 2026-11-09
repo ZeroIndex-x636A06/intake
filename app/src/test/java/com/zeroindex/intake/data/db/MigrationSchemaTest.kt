@@ -233,6 +233,45 @@ class MigrationSchemaTest {
         assertThat(v3).containsAtLeast("drinkType", "hydrationFactor", "caffeineMg", "alcoholMl")
     }
 
+    @Test
+    fun migrationTwoToThreeAddsExerciseColumnsAndKeepsEveryExistingRow() {
+        val c = createAt(2)
+        c.exec("INSERT INTO exercise (id, name, primaryMuscle, secondaryMuscles, equipment, isBodyweight, defaultRestSec, notes, createdAt, updatedAt) VALUES ('e1', 'Arm circles', 'shoulders', '', '', 1, 60, 'mine', 1, 1)")
+        c.exec("INSERT INTO program (id, name, description, isActive, currentWeek, currentDayIndex, createdAt, updatedAt) VALUES ('p1', 'Old plan', '', 1, 3, 1, 1, 1)")
+        c.exec("INSERT INTO program_day (id, programId, dayIndex, name, createdAt, updatedAt) VALUES ('d1', 'p1', 0, 'Day 1', 1, 1)")
+        c.exec("INSERT INTO progression_rule (id, name, type, params, createdAt, updatedAt) VALUES ('r1', 'DP', 'DOUBLE_PROGRESSION', '{}', 1, 1)")
+        c.exec("INSERT INTO program_exercise (id, programDayId, exerciseId, displayOrder, targetSets, targetRepsMin, targetRepsMax, progressionRuleId, restSec, createdAt, updatedAt) VALUES ('x1', 'd1', 'e1', 0, 3, 8, 12, 'r1', 60, 1, 1)")
+        assertThat(entities(2).getValue("exercise")["fields"]!!.jsonArray.map { it.jsonObject["columnName"]!!.jsonPrimitive.content }).doesNotContain("photoPath")
+
+        MIGRATION_2_3_STATEMENTS.forEach { c.exec(it) }
+
+        val e = c.rows("SELECT * FROM exercise WHERE id = 'e1'").single()
+        assertThat(e["photoPath"]).isNull()
+        assertThat(e["notes"]).isEqualTo("mine")
+        val p = c.rows("SELECT * FROM program WHERE id = 'p1'").single()
+        assertThat(p["isStandalone"]).isEqualTo(0)
+        assertThat(p["isActive"]).isEqualTo(1)
+        assertThat(c.rows("SELECT weekday FROM program_day WHERE id = 'd1'").single()["weekday"]).isNull()
+        assertThat(c.rows("SELECT notes FROM program_exercise WHERE id = 'x1'").single()["notes"]).isNull()
+        // A saved workout is a standalone program with one day; the program list query leaves it out.
+        c.exec("INSERT INTO program (id, name, description, isActive, currentWeek, currentDayIndex, isStandalone, createdAt, updatedAt) VALUES ('w1', 'Arm day', '', 0, 1, 0, 1, 1, 1)")
+        assertThat(c.rows("SELECT id FROM program WHERE deletedAt IS NULL AND isStandalone = 0").map { it["id"] }).containsExactly("p1")
+        assertMatches(c, 3)
+        c.close()
+    }
+
+    @Test
+    fun exerciseColumnsAreOnlyInVersionThree() {
+        fun cols(v: Int, table: String) = entities(v).getValue(table)["fields"]!!.jsonArray.map { it.jsonObject["columnName"]!!.jsonPrimitive.content }
+        assertThat(cols(2, "program")).doesNotContain("isStandalone")
+        assertThat(cols(2, "program_day")).doesNotContain("weekday")
+        assertThat(cols(2, "program_exercise")).doesNotContain("notes")
+        assertThat(cols(3, "program")).contains("isStandalone")
+        assertThat(cols(3, "program_day")).contains("weekday")
+        assertThat(cols(3, "program_exercise")).contains("notes")
+        assertThat(cols(3, "exercise")).contains("photoPath")
+    }
+
     private fun planWeek(c: Connection, id: String, number: Int, dish: String, notes: String = "", deleted: String = "NULL") =
         c.exec(
             "INSERT INTO plan_week (id, weekNumber, mainDishName, proteinType, notes, createdAt, updatedAt, deletedAt) " +

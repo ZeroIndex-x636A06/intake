@@ -92,4 +92,31 @@ class LegacyRowsTest {
         val log = json.decodeFromJsonElement(com.zeroindex.intake.data.db.entity.HydrationLogEntity.serializer(), row)
         assertThat(log.effectiveMl).isWithin(1e-9).of(-17.6)
     }
+
+    @Test
+    fun v2TrainingRowsDecodeWithTheNewColumnsAtTheirDefaults() {
+        fun <T> decode(table: String, ser: kotlinx.serialization.KSerializer<T>, raw: String): T =
+            json.decodeFromJsonElement(ser, LegacyRows.upgrade(table, json.parseToJsonElement(raw)))
+        val ex = decode("exercise", com.zeroindex.intake.data.db.entity.ExerciseEntity.serializer(),
+            """{"id":"e","name":"X","primaryMuscle":"chest","createdAt":1,"updatedAt":1}""")
+        assertThat(ex.photoPath).isNull()
+        val program = decode("program", com.zeroindex.intake.data.db.entity.ProgramEntity.serializer(),
+            """{"id":"p","name":"P","createdAt":1,"updatedAt":1}""")
+        assertThat(program.isStandalone).isFalse()
+        val day = decode("program_day", com.zeroindex.intake.data.db.entity.ProgramDayEntity.serializer(),
+            """{"id":"d","programId":"p","dayIndex":0,"name":"D","createdAt":1,"updatedAt":1}""")
+        assertThat(day.weekday).isNull()
+        val row = decode("program_exercise", com.zeroindex.intake.data.db.entity.ProgramExerciseEntity.serializer(),
+            """{"id":"x","programDayId":"d","exerciseId":"e","displayOrder":0,"targetSets":3,"targetRepsMin":8,"targetRepsMax":12,"createdAt":1,"updatedAt":1}""")
+        assertThat(row.notes).isNull()
+    }
+
+    @Test
+    fun savedWorkoutsAndPhotoNamesRoundTripThroughTheBackupJson() {
+        val p = com.zeroindex.intake.data.db.entity.ProgramEntity(id = "w", name = "Arm day", isStandalone = true, createdAt = 1, updatedAt = 1)
+        val back = json.decodeFromString(com.zeroindex.intake.data.db.entity.ProgramEntity.serializer(), json.encodeToString(com.zeroindex.intake.data.db.entity.ProgramEntity.serializer(), p))
+        assertThat(back).isEqualTo(p)
+        val e = com.zeroindex.intake.data.db.entity.ExerciseEntity(id = "e", name = "X", primaryMuscle = "biceps", photoPath = "abc.jpg", createdAt = 1, updatedAt = 1)
+        assertThat(json.decodeFromString(com.zeroindex.intake.data.db.entity.ExerciseEntity.serializer(), json.encodeToString(com.zeroindex.intake.data.db.entity.ExerciseEntity.serializer(), e))).isEqualTo(e)
+    }
 }

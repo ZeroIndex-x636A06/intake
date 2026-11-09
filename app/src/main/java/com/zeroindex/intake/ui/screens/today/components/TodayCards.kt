@@ -108,12 +108,28 @@ fun WorkoutCard(
                     Column(Modifier.weight(1f)) {
                         Text(state.dayName, style = MaterialTheme.typography.titleMedium)
                         Text(
-                            "${state.programName} · day ${state.dayNumber} of ${state.daysInProgram}",
+                            "${state.programName} · day ${state.dayNumber} of ${state.daysInProgram}" +
+                                (state.weekday?.let { " · ${com.zeroindex.intake.domain.training.WorkoutSchedule.weekdayName(it)}" } ?: ""),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     Button(onClick = onStart, modifier = Modifier.heightIn(min = 48.dp).pressScale()) { Text("Start") }
+                }
+            }
+            is WorkoutCardState.Rest -> {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Rest day", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "Next: ${state.nextDayName}, " +
+                                (if (state.daysAway == 1) "tomorrow" else com.zeroindex.intake.domain.training.WorkoutSchedule.weekdayName(state.nextWeekday)) +
+                                " · ${state.programName}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    OutlinedButton(onClick = onStart, modifier = Modifier.heightIn(min = 48.dp)) { Text("Train anyway") }
                 }
             }
             is WorkoutCardState.InProgress -> {

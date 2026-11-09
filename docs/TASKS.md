@@ -34,6 +34,11 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
 
 ## Done (v3)
 
+- Exercise diagrams, custom exercises and workouts, and the plan creator's answers (branch `worktree-agent-adb67bf9ac0ff4da0`; see
+  `docs/EXERCISE-IMAGES.md`, `docs/WORKOUTS.md`, `docs/GOALS.md`). Schema change: `migrateExercises_2_3`. Not seen on a device.
+  Follow-ups from `docs/research/LIFTOSAUR-NOTES.md`: the weighted `exercise_muscle` table (seam in `MuscleMap.highlightFor`),
+  the equipment taxonomy and "what I own" setting, weekly volume per muscle group.
+
 - Motion and clarity polish and the small follow-ups (branch `worktree-agent-ac43c051116cef0e9`; see `docs/DESIGN-MOTION.md`):
   reduce-motion setting, ring sweep and count-up, protein burst, water wave, stagger, check morphs, rest ring, chart
   draw-in, shimmer, press feedback, per-screen declutter, Settings regrouped (duplicate Allergens removed, Replay the tour added),

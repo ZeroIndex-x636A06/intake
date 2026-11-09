@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 3,
-    "identityHash": "84cb9588598f0327c37e8d54ea7d6240",
+    "identityHash": "76ede2535d4592925e9aab8483a1776e",
     "entities": [
       {
         "tableName": "food",
@@ -1098,7 +1098,7 @@
       },
       {
         "tableName": "exercise",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `primaryMuscle` TEXT NOT NULL, `secondaryMuscles` TEXT NOT NULL, `equipment` TEXT NOT NULL, `isBodyweight` INTEGER NOT NULL, `defaultRestSec` INTEGER NOT NULL, `notes` TEXT, `videoUri` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `primaryMuscle` TEXT NOT NULL, `secondaryMuscles` TEXT NOT NULL, `equipment` TEXT NOT NULL, `isBodyweight` INTEGER NOT NULL, `defaultRestSec` INTEGER NOT NULL, `notes` TEXT, `videoUri` TEXT, `photoPath` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -1150,6 +1150,11 @@
           {
             "fieldPath": "videoUri",
             "columnName": "videoUri",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "photoPath",
+            "columnName": "photoPath",
             "affinity": "TEXT"
           },
           {
@@ -1208,7 +1213,7 @@
       },
       {
         "tableName": "program",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `isActive` INTEGER NOT NULL, `currentWeek` INTEGER NOT NULL, `currentDayIndex` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `isActive` INTEGER NOT NULL, `currentWeek` INTEGER NOT NULL, `currentDayIndex` INTEGER NOT NULL, `isStandalone` INTEGER NOT NULL DEFAULT 0, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -1245,6 +1250,13 @@
             "columnName": "currentDayIndex",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "isStandalone",
+            "columnName": "isStandalone",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
           },
           {
             "fieldPath": "createdAt",
@@ -1293,7 +1305,7 @@
       },
       {
         "tableName": "program_day",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `programId` TEXT NOT NULL, `dayIndex` INTEGER NOT NULL, `name` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`programId`) REFERENCES `program`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `programId` TEXT NOT NULL, `dayIndex` INTEGER NOT NULL, `name` TEXT NOT NULL, `weekday` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`programId`) REFERENCES `program`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
         "fields": [
           {
             "fieldPath": "id",
@@ -1318,6 +1330,11 @@
             "columnName": "name",
             "affinity": "TEXT",
             "notNull": true
+          },
+          {
+            "fieldPath": "weekday",
+            "columnName": "weekday",
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "createdAt",
@@ -1379,7 +1396,7 @@
       },
       {
         "tableName": "program_exercise",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `programDayId` TEXT NOT NULL, `exerciseId` TEXT NOT NULL, `displayOrder` INTEGER NOT NULL, `targetSets` INTEGER NOT NULL, `targetRepsMin` INTEGER NOT NULL, `targetRepsMax` INTEGER NOT NULL, `targetRpe` REAL, `progressionRuleId` TEXT, `restSec` INTEGER NOT NULL, `startWeightKg` REAL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`programDayId`) REFERENCES `program_day`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION , FOREIGN KEY(`exerciseId`) REFERENCES `exercise`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION , FOREIGN KEY(`progressionRuleId`) REFERENCES `progression_rule`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `programDayId` TEXT NOT NULL, `exerciseId` TEXT NOT NULL, `displayOrder` INTEGER NOT NULL, `targetSets` INTEGER NOT NULL, `targetRepsMin` INTEGER NOT NULL, `targetRepsMax` INTEGER NOT NULL, `targetRpe` REAL, `progressionRuleId` TEXT, `restSec` INTEGER NOT NULL, `startWeightKg` REAL, `notes` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`programDayId`) REFERENCES `program_day`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION , FOREIGN KEY(`exerciseId`) REFERENCES `exercise`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION , FOREIGN KEY(`progressionRuleId`) REFERENCES `progression_rule`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
         "fields": [
           {
             "fieldPath": "id",
@@ -1443,6 +1460,11 @@
             "fieldPath": "startWeightKg",
             "columnName": "startWeightKg",
             "affinity": "REAL"
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "createdAt",
@@ -4003,7 +4025,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '84cb9588598f0327c37e8d54ea7d6240')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '76ede2535d4592925e9aab8483a1776e')"
     ]
   }
 }
