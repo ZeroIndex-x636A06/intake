@@ -5,6 +5,7 @@ import com.zeroindex.intake.data.db.dao.NutritionTargetDao
 import com.zeroindex.intake.data.db.entity.NutritionTargetEntity
 import com.zeroindex.intake.data.db.entity.newId
 import com.zeroindex.intake.data.settings.SettingsRepository
+import com.zeroindex.intake.domain.goals.WeekPattern
 import com.zeroindex.intake.domain.nutrition.MacroTarget
 import com.zeroindex.intake.domain.time.Clock
 import java.time.LocalDate
@@ -13,7 +14,9 @@ import javax.inject.Singleton
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
 @Singleton
 class TargetRepository @Inject constructor(
@@ -32,11 +35,24 @@ class TargetRepository @Inject constructor(
     fun observeTargetFor(date: LocalDate): Flow<MacroTarget?> = combine(
         dao.observeEffectiveAt(clock.rangeFor(date).endExclusive - 1),
         observeActivityBonus(date),
-    ) { base, bonus -> base?.toDomain()?.plusActivity(bonus) }
+        settings.settings.map { it.weekPattern }.distinctUntilChanged(),
+    ) { base, bonus, pattern -> base?.toDomain()?.withWeekPattern(pattern, date)?.plusActivity(bonus) }
 
     suspend fun targetFor(date: LocalDate): MacroTarget? {
         val base = dao.effectiveAt(clock.rangeFor(date).endExclusive - 1)?.toDomain() ?: return null
-        return base.plusActivity(activityBonusFor(date))
+        val pattern = settings.settings.first().weekPattern
+        return base.withWeekPattern(pattern, date).plusActivity(activityBonusFor(date))
+    }
+
+    /**
+     * Advanced carb cycling and refeeds (goal builder): the day's own macros replace the base,
+     * but only while the stored target is still the one the pattern was built from. If the target
+     * has since been edited or recalculated, the plain target wins and nothing is applied silently.
+     */
+    private fun MacroTarget.withWeekPattern(pattern: WeekPattern?, date: LocalDate): MacroTarget {
+        if (pattern == null || pattern.baseKcal != kcal) return this
+        val day = pattern.days.firstOrNull { it.weekday == date.dayOfWeek.value } ?: return this
+        return MacroTarget(kcal = day.kcal, proteinG = day.proteinG, carbsG = day.carbsG, fatG = day.fatG)
     }
 
     /** Net activity kcal added to [date]'s target, 0 when the option is off. */

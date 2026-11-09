@@ -57,23 +57,42 @@ import com.zeroindex.intake.ui.components.MacroRing
 import com.zeroindex.intake.ui.adaptive.LocalWindowSizeClass
 import com.zeroindex.intake.ui.adaptive.isExpanded
 import com.zeroindex.intake.ui.components.SectionLine
+import com.zeroindex.intake.ui.screens.today.components.BaselineCard
 import com.zeroindex.intake.ui.screens.today.components.HydrationCard
 import com.zeroindex.intake.ui.screens.today.components.InsightCard
 import com.zeroindex.intake.ui.screens.today.components.MealSlotCard
+import com.zeroindex.intake.ui.screens.today.components.WorkoutCard
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.abs
 import kotlinx.coroutines.launch
 
+/** Where the small Today cards (baseline week, today's workout) send the person. */
+private data class TodayCardActions(
+    val onOpenTrain: () -> Unit,
+    val onResumeWorkout: (sessionId: String) -> Unit,
+    val onMakeProgram: () -> Unit,
+    val onOpenProfile: () -> Unit,
+    val onBuildPlan: () -> Unit,
+)
+
 @Composable
 fun TodayScreen(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
     onOpenAiSettings: () -> Unit = {},
+    onOpenTrain: () -> Unit = {},
+    onResumeWorkout: (sessionId: String) -> Unit = {},
+    onMakeProgram: () -> Unit = {},
+    onOpenProfile: () -> Unit = {},
+    onBuildPlan: () -> Unit = {},
     viewModel: TodayViewModel = hiltViewModel(),
+    extrasViewModel: TodayExtrasViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val extras by extrasViewModel.extras.collectAsStateWithLifecycle()
+    val cards = TodayCardActions(onOpenTrain, onResumeWorkout, onMakeProgram, onOpenProfile, onBuildPlan)
 
     var addToSlot by remember { mutableStateOf<MealSlot?>(null) }
     var showWater by remember { mutableStateOf(false) }
@@ -86,6 +105,8 @@ fun TodayScreen(
     Box(modifier.fillMaxSize()) {
         TodayContent(
             state = state,
+            extras = extras,
+            cardActions = cards,
             contentPadding = contentPadding,
             onPreviousDay = viewModel::showPreviousDay,
             onNextDay = viewModel::showNextDay,
@@ -186,6 +207,8 @@ fun TodayScreen(
 @Composable
 private fun TodayContent(
     state: TodayUiState,
+    extras: TodayExtras,
+    cardActions: TodayCardActions,
     contentPadding: PaddingValues,
     onPreviousDay: () -> Unit,
     onNextDay: () -> Unit,
@@ -238,7 +261,7 @@ private fun TodayContent(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     item(key = "nutrition-heading") { SectionLine(title = "Nutrition") }
-                    nutritionItems(state, onWaterPreset, onOpenWater, onDismissInsight)
+                    nutritionItems(state, extras, cardActions, onWaterPreset, onOpenWater, onDismissInsight)
                 }
                 LazyColumn(
                     modifier = Modifier.weight(1f).fillMaxHeight(),
@@ -265,7 +288,7 @@ private fun TodayContent(
             item(key = "header") {
                 DayHeader(state.date, state.isToday, onPreviousDay, onNextDay, onShowToday)
             }
-            nutritionItems(state, onWaterPreset, onOpenWater, onDismissInsight)
+            nutritionItems(state, extras, cardActions, onWaterPreset, onOpenWater, onDismissInsight)
             mealItems(state, onAddToSlot, onEntryLongPress, onEntrySwipedToCopy, onSaveTemplate)
         }
     }
@@ -274,10 +297,20 @@ private fun TodayContent(
 /** The macro ring, its notes, water and the daily insight: the "Nutrition" column on a tablet. */
 private fun LazyListScope.nutritionItems(
     state: TodayUiState,
+    extras: TodayExtras,
+    cardActions: TodayCardActions,
     onWaterPreset: (HydrationPresetEntity) -> Unit,
     onOpenWater: () -> Unit,
     onDismissInsight: (AiInsightEntity) -> Unit,
 ) {
+    // The baseline week sits above the ring while it runs, so it is seen and then gone.
+    if (state.isToday) {
+        extras.baseline?.let { baseline ->
+            item(key = "baseline") {
+                BaselineCard(baseline, onOpenProfile = cardActions.onOpenProfile, onBuildPlan = cardActions.onBuildPlan)
+            }
+        }
+    }
     item(key = "ring") {
         IntakeCard { MacroRing(progress = state.progress) }
     }
@@ -300,6 +333,16 @@ private fun LazyListScope.nutritionItems(
                 unit = state.settings.volumeUnit,
                 onPreset = onWaterPreset,
                 onOpen = onOpenWater,
+            )
+        }
+    }
+    if (state.isToday && extras.workout !is WorkoutCardState.Loading) {
+        item(key = "workout") {
+            WorkoutCard(
+                state = extras.workout,
+                onStart = cardActions.onOpenTrain,
+                onResume = cardActions.onResumeWorkout,
+                onMakeProgram = cardActions.onMakeProgram,
             )
         }
     }

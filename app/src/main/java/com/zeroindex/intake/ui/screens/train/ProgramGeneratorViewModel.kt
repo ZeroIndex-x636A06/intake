@@ -3,6 +3,7 @@ package com.zeroindex.intake.ui.screens.train
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroindex.intake.data.repository.TrainingRepository
+import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.training.generator.BodyArea
 import com.zeroindex.intake.domain.training.generator.EquipmentPreset
 import com.zeroindex.intake.domain.training.generator.Experience
@@ -18,6 +19,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -46,10 +48,22 @@ data class GeneratorUiState(
 @HiltViewModel
 class ProgramGeneratorViewModel @Inject constructor(
     private val repository: TrainingRepository,
+    private val settings: SettingsRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(GeneratorUiState())
     val state: StateFlow<GeneratorUiState> = _state.asStateFlow()
+
+    init {
+        // Profile & goals already asked these questions: start from those answers when they exist.
+        viewModelScope.launch {
+            val profile = settings.settings.first().profile
+            if (!profile.hasBasics) return@launch
+            _state.update {
+                it.copy(inputs = profile.toGeneratorInputs(), preset = profile.equipmentPreset)
+            }
+        }
+    }
 
     private fun edit(block: (GeneratorInputs) -> GeneratorInputs) = _state.update { it.copy(inputs = block(it.inputs)) }
 

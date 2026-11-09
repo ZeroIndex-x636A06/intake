@@ -19,6 +19,7 @@ import com.zeroindex.intake.domain.backup.BackupSchedule
 import com.zeroindex.intake.domain.goals.AppliedPlan
 import com.zeroindex.intake.domain.goals.BaselineState
 import com.zeroindex.intake.domain.goals.UserProfile
+import com.zeroindex.intake.domain.goals.WeekPattern
 import com.zeroindex.intake.domain.hydration.HydrationTarget
 import kotlinx.serialization.json.Json
 import com.zeroindex.intake.domain.units.VolumeUnit
@@ -85,6 +86,11 @@ data class AppSettings(
     val baseline: BaselineState = BaselineState(),
     /** The last few plans the person applied, newest first. */
     val planHistory: List<AppliedPlan> = emptyList(),
+    /**
+     * Advanced carb cycling / refeeds from the last applied plan. Only used while the stored
+     * calorie target still equals [WeekPattern.baseKcal], so a later change to the target wins.
+     */
+    val weekPattern: WeekPattern? = null,
 ) {
     val platesKgList: List<Double>
         get() = availablePlatesKg.split(',')
@@ -163,6 +169,7 @@ class SettingsRepository @Inject constructor(
         val profile = stringPreferencesKey("profile_json")
         val baseline = stringPreferencesKey("baseline_json")
         val planHistory = stringPreferencesKey("plan_history_json")
+        val weekPattern = stringPreferencesKey("week_pattern_json")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -218,6 +225,7 @@ class SettingsRepository @Inject constructor(
             planHistory = p[Keys.planHistory]
                 ?.let { runCatching { settingsJson.decodeFromString<List<AppliedPlan>>(it) }.getOrNull() }
                 ?: emptyList(),
+            weekPattern = p[Keys.weekPattern]?.let { runCatching { settingsJson.decodeFromString<WeekPattern>(it) }.getOrNull() },
         )
     }
 
@@ -255,6 +263,10 @@ class SettingsRepository @Inject constructor(
     }
 
     suspend fun setProfile(profile: UserProfile) = put { it[Keys.profile] = settingsJson.encodeToString(profile) }
+
+    suspend fun setWeekPattern(pattern: WeekPattern?) = put {
+        if (pattern == null) it.remove(Keys.weekPattern) else it[Keys.weekPattern] = settingsJson.encodeToString(pattern)
+    }
 
     suspend fun setBaseline(state: BaselineState) = put { it[Keys.baseline] = settingsJson.encodeToString(state) }
 

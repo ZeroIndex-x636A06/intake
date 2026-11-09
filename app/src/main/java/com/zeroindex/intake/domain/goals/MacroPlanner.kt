@@ -1,5 +1,6 @@
 package com.zeroindex.intake.domain.goals
 
+import kotlinx.serialization.Serializable
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -133,12 +134,14 @@ object MacroPlanner {
     }
 }
 
+@Serializable
 enum class DayKind(val label: String) {
     TRAINING("Training day"),
     REST("Rest day"),
     REFEED("Refeed day"),
 }
 
+@Serializable
 data class DayMacros(
     /** ISO weekday: 1 = Monday ... 7 = Sunday. */
     val weekday: Int,
@@ -151,6 +154,7 @@ data class DayMacros(
 }
 
 /** A seven-day pattern. Always seven entries, Monday first. */
+@Serializable
 data class WeekPattern(val baseKcal: Int, val days: List<DayMacros>) {
     val weeklyKcal: Int get() = days.sumOf { it.kcal }
     val weeklyCarbsG: Int get() = days.sumOf { it.carbsG }
