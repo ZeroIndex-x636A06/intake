@@ -1,7 +1,7 @@
 # Meal plans
 
-A meal plan file describes up to twelve weeks of meals: one main dish per week with its ingredients and steps,
-the breakfasts, snacks and pantry that stay the same all quarter, shopping lists, and what to order when you
+A meal plan file describes a plan of any length, from one week to 104: one main dish per week with its ingredients and steps,
+the breakfasts, snacks and pantry that stay the same all plan long, shopping lists, and what to order when you
 can't eat what you cooked. Read [README.md](README.md) first for the conventions that apply everywhere.
 
 **One thing per line, labeled. Order and spacing do not matter.** Ingredients are the exception that proves the
@@ -15,6 +15,8 @@ A full two-week sample is in [examples/meal-plan-sample.md](examples/meal-plan-s
 ```
 # Meal plan: 12-Week Dairy-Free
 avoid: dairy
+starts: 2026-11-09
+repeat: no
 About:
 How this works, in your own words. As many paragraphs as you like.
 ```
@@ -24,6 +26,12 @@ How this works, in your own words. As many paragraphs as you like.
   engine and never clears a warning; your allergens are set in the app (Food, Allergens, My allergens). Wording in
   the plan such as "no cheese" or "dairy-free provolone" is read by the engine, but it can only soften a hit to
   *mentioned as avoided* or *check the label*. See [Allergens](README.md#allergens).
+- `starts: 2026-11-09` is optional. It is the first day of week 1, as year-month-day. The app works out the current
+  week from it, so "Week 3 of 8" moves on by itself. Leave it out and the plan starts the day you import it (or keeps
+  its date if you are updating a plan).
+- `repeat:` is optional: `no` stops after the last week (the default), `yes` starts over forever, and `3 times` goes
+  through the whole plan three times. A plan that repeats shows "Week 3 of 8 · repeats".
+- A file with the same name as a plan you already have **updates that plan**; a new name makes a new plan.
 - `About:` is free text for the "How this works" content. It runs until the next label or heading. You can also
   put it under its own `## About` heading.
 
@@ -34,7 +42,7 @@ After the header come the `##` sections, in any order:
 | Heading | Contents |
 |---|---|
 | `## Every week` | Things that stay the same all quarter |
-| `## Week 1: Taco bowls` | One week's main dish (1 to 12) |
+| `## Week 1: Taco bowls` | One week's main dish (1 to 104) |
 | `## Eat out` | What to order when you can't eat what you cooked |
 | `## About` | Free text, same as `About:` in the header |
 
@@ -80,7 +88,7 @@ continues the bullet above it.
 ## Week 1: Taco bowls
 ```
 
-`Week N` with N from 1 to 12, then a colon (or a dash) and the main dish. Each number can appear once
+`Week N` with N from 1 to 104, then a colon (or a dash) and the main dish. Each number can appear once
 (`duplicate-week`; out of range is `bad-week-number`), and the dish must not be empty (`bad-week-heading`). Weeks
 can be in any order. At least one week is required (`no-weeks`).
 
@@ -307,7 +315,7 @@ Optional labeled lines under an order bullet:
 
 `estimate:` uses the same parts as [nutrition](#nutrition) (without `/100g`). Leave out what you do not know; an
 order with no estimate is shown as "no estimate" and asks you for macros when you log it. `weeks:` takes numbers
-and ranges from 1 to 12, or `all`. An order with `weeks: 1, 3-5` is stored once for each of those weeks.
+and ranges from 1 to 104, or `all`. An order with `weeks: 1, 3-5` is stored once for each of those weeks.
 
 A `caution:` placed before the first order of a venue (unindented, on its own line) is the venue note.
 

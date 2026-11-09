@@ -55,7 +55,7 @@ class PlanImportTest {
         assertThat(b.foods).hasSize(3)
         assertThat(b.links.single().role).isEqualTo(PlanRecipeRole.MAIN)
         assertThat(b.eatOutOptions).hasSize(2)
-        assertThat(b.weeks.map { it.weekNumber }).containsExactly(0, 1)
+        assertThat(b.weeks.map { it.weekNumber }).containsExactly(1)
     }
 
     @Test fun `an ingredient with no nutrition stays text and the recipe has no stored macros`() {
@@ -105,11 +105,11 @@ class PlanImportTest {
     }
 
     @Test fun `validation reports every problem`() {
-        val bad = """{"format":"other","version":2,"weeks":[{"weekNumber":13,"mainDishName":""},{"weekNumber":1,"mainDishName":"A"},{"weekNumber":1,"mainDishName":"B"}]}"""
+        val bad = """{"format":"other","version":2,"weeks":[{"weekNumber":105,"mainDishName":""},{"weekNumber":1,"mainDishName":"A"},{"weekNumber":1,"mainDishName":"B"}]}"""
         val errors = (PlanFileParser.parse(bad) as PlanFileParse.Invalid).errors
         assertThat(errors.joinToString("\n")).contains("format should be")
         assertThat(errors.joinToString("\n")).contains("version 2")
-        assertThat(errors.joinToString("\n")).contains("outside 1-12")
+        assertThat(errors.joinToString("\n")).contains("outside 1-104")
         assertThat(errors.joinToString("\n")).contains("no mainDishName")
         assertThat(errors.joinToString("\n")).contains("more than once")
     }

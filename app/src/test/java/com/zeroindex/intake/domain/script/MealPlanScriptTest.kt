@@ -350,7 +350,7 @@ class MealPlanScriptTest {
         assertEquals(DiagnosticCode.NO_WEEKS, firstError("# Meal plan: T").code)
         assertEquals(DiagnosticCode.MISSING_PLAN_NAME, firstError("# Meal plan:\n## Week 1: D").code)
         assertEquals(DiagnosticCode.UNKNOWN_SECTION, firstError("# Meal plan: T\n## Month 1\n## Week 1: D").code)
-        assertEquals(DiagnosticCode.BAD_WEEK_NUMBER, firstError("# Meal plan: T\n## Week 13: D").code)
+        assertEquals(DiagnosticCode.BAD_WEEK_NUMBER, firstError("# Meal plan: T\n## Week 105: D").code)
         assertEquals(DiagnosticCode.DUPLICATE_WEEK, firstError("# Meal plan: T\n## Week 1: D\n## Week 1: E").code)
         assertEquals(DiagnosticCode.BAD_WEEK_HEADING, firstError("# Meal plan: T\n## Week 1").code)
         assertEquals(DiagnosticCode.DUPLICATE_KEY, firstError("# Meal plan: T\n## Week 1: D\nProtein: a\nProtein: b").code)
@@ -360,7 +360,7 @@ class MealPlanScriptTest {
         assertEquals(DiagnosticCode.BAD_INGREDIENT_WEIGHT, firstError("# Meal plan: T\n## Week 1: D\nIngredients:\n- beef\n  weight: heavy").code)
         assertEquals(DiagnosticCode.BAD_NUTRITION, firstError("# Meal plan: T\n## Week 1: D\nIngredients:\n- beef\n  per 100g: lots of it").code)
         assertEquals(DiagnosticCode.NUTRITION_IMPLAUSIBLE, firstError("# Meal plan: T\n## Week 1: D\nIngredients:\n- beef\n  per 100g: 2000 kcal, 1 g protein, 1 g carbs, 1 g fat").code)
-        assertEquals(DiagnosticCode.BAD_WEEKS_LIST, firstError("# Meal plan: T\n## Week 1: D\n## Eat out\n### V\n- order\n  weeks: 14").code)
+        assertEquals(DiagnosticCode.BAD_WEEKS_LIST, firstError("# Meal plan: T\n## Week 1: D\n## Eat out\n### V\n- order\n  weeks: 105").code)
         assertEquals(DiagnosticCode.BAD_ESTIMATE, firstError("# Meal plan: T\n## Week 1: D\n## Eat out\n### V\n- order\n  estimate: yes").code)
         assertEquals(DiagnosticCode.VENUE_NO_ORDERS, firstError("# Meal plan: T\n## Week 1: D\n## Eat out\n### V\nSome text").code)
         assertEquals(DiagnosticCode.UNEXPECTED_HEADING, firstError("# Meal plan: T\n## Week 1: D\n### Subway").code)
@@ -393,6 +393,9 @@ class MealPlanScriptTest {
         val file = PlanFile(
             format = PlanFileParser.FORMAT,
             version = 1,
+            name = "Round Trip",
+            startsOn = "2026-11-09",
+            repeat = "3 times",
             intro = "Intro one.\n\nIntro two.",
             standingBreakfasts = listOf("Eggs, toast"),
             standingSnacks = listOf("Nuts"),

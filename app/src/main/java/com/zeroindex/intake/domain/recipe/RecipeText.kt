@@ -88,7 +88,7 @@ object IngredientLineParser {
 
 /** Plain-text helpers for page content. */
 internal object HtmlText {
-    private val ENTITY = Regex("""&(#x[0-9a-fA-F]{1,6}|#\d{1,7}|[a-zA-Z]{2,8});""")
+    private val ENTITY = Regex("""&(#x[0-9a-fA-F]{1,6}|#\d{1,7}|[a-zA-Z][a-zA-Z0-9]{1,8});""")
     private val NAMED = mapOf(
         "amp" to "&", "lt" to "<", "gt" to ">", "quot" to "\"", "apos" to "'", "nbsp" to " ",
         "ndash" to "-", "mdash" to "-", "hellip" to "...", "deg" to "°", "frac12" to "½",

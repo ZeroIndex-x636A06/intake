@@ -276,7 +276,23 @@ Fix: give the exercise a rep range, or a different rule. See [double progression
 
 Error. `# Meal plan:` with no name.
 
-Fix: `# Meal plan: 12-Week Plan`. See [header](meal-plan.md#header).
+Fix: `# Meal plan: Winter plan`. See [header](meal-plan.md#header).
+
+### bad-start-date
+
+Error. A `starts:` line in the header whose value is not a date.
+
+Example: `starts: next Monday`.
+
+Fix: write the first day of week 1 as year-month-day, for example `starts: 2026-11-09`. Leave the line out to start on the day you import. See [header](meal-plan.md#header).
+
+### bad-repeat
+
+Error. A `repeat:` line in the header whose value is not `no`, `yes` or a count.
+
+Example: `repeat: sometimes`.
+
+Fix: use `repeat: no` (stop after the last week), `repeat: yes` (start over forever) or `repeat: 3 times` (go through the whole plan three times). See [header](meal-plan.md#header).
 
 ### unknown-section
 
@@ -302,11 +318,11 @@ Fix: `## Week 1: Tacos`.
 
 ### bad-week-number
 
-Error. A week number outside 1 to 12.
+Error. A week number outside 1 to 104.
 
 Example: `## Week 13: Tacos`.
 
-Fix: use a number from 1 to 12.
+Fix: use a number from 1 to 104 (two years of weeks).
 
 ### duplicate-week
 
@@ -409,7 +425,7 @@ Fix: add an order such as `- Grilled chicken sandwich, no ranch` and keep the pa
 
 ### bad-weeks-list
 
-Error. `weeks:` that is not a list of weeks from 1 to 12.
+Error. `weeks:` that is not a list of weeks from 1 to 104.
 
 Example: `weeks: 14`.
 

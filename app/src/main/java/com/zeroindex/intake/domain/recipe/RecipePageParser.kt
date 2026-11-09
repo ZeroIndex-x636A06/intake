@@ -100,7 +100,7 @@ object RecipePageParser {
         var text = raw.trim()
         text = text.removePrefix("<!--").removeSuffix("-->").trim()
         text = text.removePrefix("//<![CDATA[").removeSuffix("//]]>").removePrefix("/*<![CDATA[*/").removeSuffix("/*]]>*/").trim()
-        text = text.removePrefix("﻿")
+        text = text.dropWhile { it.code == 0xFEFF }
         if (text.isEmpty()) return null
         return runCatching { json.parseToJsonElement(text) }.getOrNull()
             // Raw line breaks and tabs inside strings are common and invalid; as spaces they are harmless.

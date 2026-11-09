@@ -82,7 +82,7 @@ Steps:
   caution: say "no cheese" before they start
 ```
 
-`## Week N: <main dish>` starts a week (1 to 12). Ingredients are plain bullets written the way you would say
+`## Week N: <main dish>` starts a week (1 to 104). Ingredients are plain bullets written the way you would say
 them. See [meal-plan.md](meal-plan.md).
 
 The app's script import reads the first line to decide which kind of file it has been given, then shows a

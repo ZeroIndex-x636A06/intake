@@ -69,7 +69,7 @@ Structure: "# Meal plan: <name>" first. Optional "avoid: dairy, soy" (informatio
 "## Every week" may contain these labels, each followed by "- " bullets: "Breakfasts:", "Snacks:", "Pantry:",
 "Watch for:".
 
-Each week is "## Week N: <main dish>" with N from 1 to 12. Inside a week, labeled lines in any order:
+Each week is "## Week N: <main dish>" with N from 1 to 104. The header may also have "starts: 2026-11-09" (first day of week 1) and "repeat: no", "repeat: yes" or "repeat: 3 times". Inside a week, labeled lines in any order:
 "Protein: <text>", "Servings: <number>", "Time: <e.g. 45 min>". Then sections, each a label on its own line:
 - "Ingredients:" then bullets like "- 3 lb ground beef", "- 2 cups rice", "- 4 avocados", "- salt and pepper".
   Units allowed: g, kg, oz, lb, cup, tbsp, tsp, can, packet, clove, bunch, pinch, or a plain count. Fractions

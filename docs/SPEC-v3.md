@@ -243,3 +243,24 @@ decides numbers on its own.
   `uses per day (user-editable defaults per feature) × average tokens per call
   (measured from benchmark runs) × the model's price`.
   The same calculation goes in docs/AI-COSTS.md.
+
+## Implemented: meal plans of any length, recipes by hand and from a link
+
+- **Plans (item 8).** `meal_plan` entity (schema 3): name, notes, `startDate` (epoch day), loop mode
+  NONE / REPEAT / REPEAT_N, `isActive` (exactly one), plan-wide content. `plan_week.planId`; weeks 1..N,
+  N up to 104. Several plans, switch the active one, archive (soft delete).
+- **Current week** is computed, not stored: `week = floor((today - start) / 7) mod N + 1` while the plan
+  runs. NONE stops on the last week ("finished"), REPEAT loops forever, REPEAT_N stops after N runs.
+  The header reads "Week 3 of 8 · repeats". Jumping to a week moves the start date; shopping checks reset
+  when the week changes, by a jump or by the calendar.
+- **By hand (item 2).** New plan with a name, a length and a repeat setting; per week a main recipe, a
+  protein, notes, one-line variations and shopping items; add, duplicate, move and remove (soft) weeks.
+  One main meal per week still. A per-day meal would need a `dayOfWeek` on `plan_week_recipe` and a day
+  picker; it was not built.
+- **Formats.** Script header keys `starts:` and `repeat:` (`no`, `yes`, `N times`); JSON `name`, `startsOn`,
+  `repeat`. Week numbers up to 104. A file with the name of an existing plan updates that plan.
+- **Recipes (items 3, 4).** Editor with picked or free-text ingredients, live per-serving macros, the list
+  of ingredients that are not counted, and the allergen engine over every ingredient with the normal
+  rules (no free-text negation). Link import: HTTPS fetch on tap, JSON-LD then microdata, an editable
+  preview with the page's nutrition shown as "From the recipe page", the source address kept; "Try with
+  AI" appears only when a key exists and a page has no recipe data. Deterministic otherwise.
