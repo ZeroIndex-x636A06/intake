@@ -122,6 +122,22 @@ cheese. They should be check-the-label, with a reason.
     contest prep, reverse diet.
   - Protein is set in g/kg. Fat has a floor. Carbs take the rest.
   - Advanced options: carb cycling, refeeds, diet breaks and custom g/kg.
+  - **Implemented** (`domain/goals/`, pure and deterministic; the formulas and sources are in
+    `docs/GOALS.md`):
+    - Profile & goals (More): basics, build picker, phase, pace in plain words, activity outside
+      training, training availability (feeds `GeneratorInputs`), Simple / Advanced.
+    - Baseline week: 7 days; ready when 7+ days have passed, 5+ days are logged (one entry and
+      about 800 kcal or more) and 4+ days have a weigh-in; extended gently after day 10. A daily
+      WorkManager check sends one "Your plan is ready to build" notification. Today shows
+      "Baseline: day N of 7".
+    - Goal builder: Mifflin-St Jeor or Katch-McArdle times an activity factor, blended toward the
+      measured burn by data quality; phase offsets; protein g/kg (lean mass when body fat is known),
+      a fat floor, carbs take the rest; carb cycling, refeeds and diet breaks in Advanced; water via
+      `HydrationTarget`; training via `generateProgram`. "Your plan" shows a number, a one-line why,
+      an (i) and an Edit on every card, and writes nothing until Apply.
+    - Safety rails: calories at least 1.1 x calories at rest unless Advanced allows lower, a warning
+      above 1% of body weight a week, no deficit under 18, pregnancy out of scope.
+    - Today gains a compact "Today's workout" card. No schema change: the profile lives in DataStore.
 - **Water.** Body weight × ml/kg, plus a training bonus, plus a climate
   setting.
 - **Training generator.**

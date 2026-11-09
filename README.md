@@ -18,6 +18,10 @@ Core, from SPEC.md:
   Open Food Facts search, barcode scan, quick add and
   hand-entered foods. Every path runs the local allergen check first.
 - Adaptive TDEE measured from your own intake and weight trend.
+- Profile & goals (More): pick your build and goal, run a 7-day baseline week, and get a plan
+  (calories, macros, water, training) where every number says why and can be edited. Works with
+  no network and no AI; Advanced adds g/kg macros, carb cycling, refeeds and diet breaks. See
+  [docs/GOALS.md](docs/GOALS.md).
 - Training: progression rules, active workout, rest timer, plate calculator,
   program builder, history. A new install has **no program**: build one by hand,
   let the generator make one ("Make one for me": a short wizard, a preview with a
@@ -89,7 +93,7 @@ app/           Android phone app (com.zeroindex.intake)
 wear/          Wear OS companion
 wearprotocol/  Data Layer message types shared by app and wear
 server/        Sync server (intake_sync.py), Dockerfile, compose file, tests
-docs/          SPEC, SPEC-amendments, BACKUP, BENCHMARK, PRIVACY, FOOD-DATA
+docs/          SPEC, SPEC-amendments, BACKUP, BENCHMARK, PRIVACY, FOOD-DATA, GOALS
 tools/         build_food_db.py: rebuilds the bundled USDA food database
 design/        HTML mockups used as the design reference
 schemas/       Exported Room schema JSON (committed)
