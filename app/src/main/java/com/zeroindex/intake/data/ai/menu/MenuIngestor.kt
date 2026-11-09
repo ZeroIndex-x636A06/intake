@@ -14,8 +14,11 @@ import com.zeroindex.intake.data.db.entity.MenuRunStatus
 import com.zeroindex.intake.data.db.entity.MenuSourceEntity
 import com.zeroindex.intake.data.db.entity.MenuSourceKind
 import com.zeroindex.intake.data.repository.AllergenRepository
-import com.zeroindex.intake.domain.ai.AiTask
+import com.zeroindex.intake.domain.ai.AiFeature
+import com.zeroindex.intake.domain.ai.AiTrigger
+import com.zeroindex.intake.domain.ai.MenuStructured
 import com.zeroindex.intake.domain.ai.MenuText
+import com.zeroindex.intake.domain.ai.StructuredMenuItem
 import com.zeroindex.intake.domain.allergen.ModelAllergenClaim
 import com.zeroindex.intake.domain.allergen.ModelAllergenPolicy
 import com.zeroindex.intake.domain.time.Clock
@@ -53,8 +56,13 @@ data class StagedItem(val entity: MenuItemEntity, val accepted: Boolean = entity
 class MenuImportException(message: String) : Exception(message)
 
 /**
- * Amendment §1 menu ingestion: fetch, extract, parse with a large-context
- * model, then judge every item locally before it can reach Plan B.
+ * Amendment §1 menu ingestion: fetch, extract, parse, then judge every item
+ * locally before it can reach Plan B.
+ *
+ * Rules before models (SPEC-v3 "AI policy"): a page that publishes its menu
+ * as schema.org `MenuItem` data is read directly with no model call. Only
+ * unstructured text - a pasted menu, a PDF, a page without that data - goes
+ * to a large-context model, and the gateway guards that call.
  *
  * Fetching is an ordinary request with an honest user agent. Pages built
  * entirely in JavaScript (Square Online, most ordering sites) come back
@@ -77,8 +85,12 @@ class MenuIngestor @Inject constructor(
         const val USER_AGENT = "Intake/1.0 (personal menu import; one request per menu per week)"
     }
 
-    /** Fetches and parses one source into staged items. Writes nothing. */
-    suspend fun stage(source: MenuSourceEntity): List<StagedItem> {
+    /**
+     * Fetches and parses one source into staged items. Writes nothing. [trigger] says why a model may be
+     * called: a person tapping Import, or the weekly refresh they switched on.
+     */
+    suspend fun stage(source: MenuSourceEntity, trigger: AiTrigger): List<StagedItem> {
+        val avoided = allergens.avoidedAllergens()
         val parts: List<AiPart>
         val tools: List<ServerTool>
         when (source.kind) {
@@ -94,7 +106,13 @@ class MenuIngestor @Inject constructor(
                 tools = emptyList()
             }
             MenuSourceKind.URL -> {
-                val text = fetchText(source.location)
+                val page = fetchPage(source.location)
+                // The deterministic path: structured menu data on the page needs no model.
+                val structured = page.html?.let(MenuStructured::parse).orEmpty()
+                if (structured.isNotEmpty()) {
+                    return stageItems(source, structured.map(::toParsed), avoided, structured = true)
+                }
+                val text = page.text
                 if (text != null && !MenuText.looksBlocked(text)) {
                     parts = listOf(AiPart.Text("Menu page text from ${source.location}:\n\n$text"))
                     tools = emptyList()
@@ -110,9 +128,9 @@ class MenuIngestor @Inject constructor(
             }
         }
 
-        val avoided = allergens.avoidedAllergens()
         val parsed = gateway.structured(
-            task = AiTask.MENU_INGESTION,
+            feature = AiFeature.MENU_IMPORT,
+            trigger = trigger,
             serializer = ParsedMenu.serializer(),
             schema = MenuPrompts.schema,
             system = MenuPrompts.system(source.restaurantName, avoided),
@@ -120,9 +138,37 @@ class MenuIngestor @Inject constructor(
             tools = tools,
         ).value
 
-        if (parsed.items.isEmpty()) throw MenuImportException("No menu items were found on that page.")
+        return stageItems(source, parsed.items, avoided, structured = false)
+    }
+
+    private fun toParsed(item: StructuredMenuItem) = ParsedItem(
+        name = item.name,
+        description = item.description,
+        ingredients = "",
+        kcal = item.kcal,
+        protein = item.protein,
+        carbs = item.carbs,
+        fat = item.fat,
+        macrosPublished = item.kcal != null,
+        priceCents = item.priceCents,
+        containsAllergens = emptyList(),
+        allergenNotes = "",
+    )
+
+    /**
+     * Judges each parsed dish with the local allergen engine. Dishes read straight from structured data have
+     * no ingredient panel and no model second opinion, so they are never marked clear: at best "check the
+     * label", which keeps them out of Plan B's offers until the person has looked.
+     */
+    private suspend fun stageItems(
+        source: MenuSourceEntity,
+        items: List<ParsedItem>,
+        avoided: Set<String>,
+        structured: Boolean,
+    ): List<StagedItem> {
+        if (items.isEmpty()) throw MenuImportException("No menu items were found on that page.")
         val now = clock.nowMillis()
-        return parsed.items.map { item ->
+        return items.map { item ->
             val local = allergens.scan(
                 name = item.name,
                 ingredients = listOf(item.description, item.ingredients).filter { it.isNotBlank() }.joinToString("\n"),
@@ -148,7 +194,7 @@ class MenuIngestor @Inject constructor(
                     allergenStatus = when {
                         verdict.blocks -> AllergenStatus.CONTAINS
                         verdict.mayContain.isNotEmpty() -> AllergenStatus.MAY_CONTAIN
-                        verdict.checkLabel.isNotEmpty() -> AllergenStatus.CHECK_LABEL
+                        verdict.checkLabel.isNotEmpty() || (structured && item.ingredients.isBlank()) -> AllergenStatus.CHECK_LABEL
                         else -> AllergenStatus.CLEAR
                     },
                     allergenMatches = verdict.matches.map { it.matchedTerm }.distinct().joinToString(", "),
@@ -184,25 +230,32 @@ class MenuIngestor @Inject constructor(
     suspend fun runScheduled(): Int {
         var ok = 0
         menuDao.sources().filter { it.enabled && it.kind != MenuSourceKind.TEXT }.forEach { source ->
-            runCatching { stage(source) }
+            runCatching { stage(source, AiTrigger.OPT_IN_SCHEDULE) }
                 .onSuccess { staged -> commit(source, staged.map { it.entity }); ok++ }
                 .onFailure { markFailed(source, (it as? AiError)?.message ?: it.message ?: "Import failed") }
         }
         return ok
     }
 
-    private suspend fun fetchText(url: String): String? = withContext(Dispatchers.IO) {
+    /** The raw page (for structured data) and its plain text (for a model), or nothing when it could not be fetched. */
+    private class Page(val html: String?, val text: String?)
+
+    private suspend fun fetchPage(url: String): Page = withContext(Dispatchers.IO) {
         val request = runCatching { Request.Builder().url(url).header("User-Agent", USER_AGENT).get().build() }
             .getOrElse { throw MenuImportException("That does not look like a web address.") }
         try {
             http.newCall(request).execute().use { r ->
-                if (!r.isSuccessful) return@withContext null
+                if (!r.isSuccessful) return@withContext Page(null, null)
                 val type = r.header("Content-Type").orEmpty()
                 val body = r.body.string()
-                if ("html" in type || body.trimStart().startsWith("<")) MenuText.fromHtml(body) else body.take(MenuText.MAX_CHARS)
+                val isHtml = "html" in type || body.trimStart().startsWith("<")
+                Page(
+                    html = body.takeIf { isHtml },
+                    text = if (isHtml) MenuText.fromHtml(body) else body.take(MenuText.MAX_CHARS),
+                )
             }
         } catch (_: IOException) {
-            null
+            Page(null, null)
         }
     }
 }

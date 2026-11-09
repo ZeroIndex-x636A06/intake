@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.ai
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroindex.intake.data.ai.AiError
@@ -11,23 +12,46 @@ import com.zeroindex.intake.data.ai.benchmark.BenchmarkProgress
 import com.zeroindex.intake.data.ai.benchmark.BenchmarkReport
 import com.zeroindex.intake.data.ai.benchmark.BenchmarkRunner
 import com.zeroindex.intake.data.ai.benchmark.BenchmarkSelection
+import androidx.work.WorkManager
+import com.zeroindex.intake.data.db.dao.AiUsageDao
+import com.zeroindex.intake.data.db.entity.AiUsageEntity
 import com.zeroindex.intake.data.keys.ApiKeyStore
+import com.zeroindex.intake.work.MenuIngestionWorker
 import com.zeroindex.intake.data.settings.AppSettings
 import com.zeroindex.intake.data.settings.SettingsRepository
+import com.zeroindex.intake.domain.ai.AiFeature
 import com.zeroindex.intake.domain.ai.AiTask
+import com.zeroindex.intake.domain.ai.AiTrigger
+import com.zeroindex.intake.domain.ai.cost.AiBudget
+import com.zeroindex.intake.domain.ai.cost.AiCostModel
+import com.zeroindex.intake.domain.ai.cost.AiRecommendation
+import com.zeroindex.intake.domain.ai.cost.AiUsageRecord
+import com.zeroindex.intake.domain.ai.cost.BudgetStatus
+import com.zeroindex.intake.domain.ai.cost.CostSummary
+import com.zeroindex.intake.domain.ai.cost.FeatureCost
+import com.zeroindex.intake.domain.ai.cost.FeatureCostInput
+import com.zeroindex.intake.domain.ai.cost.PeriodTotals
+import com.zeroindex.intake.domain.ai.cost.Recommendation
+import com.zeroindex.intake.domain.ai.cost.UsagePeriods
+import com.zeroindex.intake.domain.ai.cost.UsageSummarizer
+import com.zeroindex.intake.domain.ai.cost.UsageSummary
+import com.zeroindex.intake.domain.time.Clock
 import com.zeroindex.intake.domain.ai.BenchmarkScore
 import com.zeroindex.intake.domain.ai.ModelSuggester
 import com.zeroindex.intake.domain.ai.RankedModel
 import com.zeroindex.intake.domain.ai.Suggestion
 import com.zeroindex.intake.domain.ai.benchmark.BenchmarkSuite
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -51,6 +75,27 @@ data class TaskRow(
     val overrideMissing: Boolean,
 )
 
+/** The usage meter and the budget, worked out from the local usage log. */
+data class AiMeterState(
+    val budget: BudgetStatus = BudgetStatus(AiBudget.DEFAULT_CAP_USD, 0.0),
+    val usage: UsageSummary = UsageSummary(emptyList(), PeriodTotals.ZERO, PeriodTotals.ZERO, PeriodTotals.ZERO),
+    /** When "Reset counters" was last pressed; 0 if never. */
+    val resetAt: Long = 0L,
+    /** The start of next month, when the budget starts again. */
+    val nextMonthStart: Long = 0L,
+)
+
+/** One line of the "Estimated cost" card. */
+data class CostRowUi(
+    val cost: FeatureCost,
+    val recommendation: Recommendation?,
+    /** The uses per day shown, and whether it is still the built-in default. */
+    val usesPerDay: Double,
+    val usesIsDefault: Boolean,
+    /** Why the feature counts as zero, for opt-in features that are switched off. */
+    val offNote: String?,
+)
+
 data class AiSettingsUiState(
     val hasKey: Boolean = false,
     val keyCheck: KeyCheck = KeyCheck.Idle,
@@ -58,6 +103,9 @@ data class AiSettingsUiState(
     val catalog: CatalogState = CatalogState(),
     val rows: List<TaskRow> = emptyList(),
     val benchmarks: List<BenchmarkScore> = emptyList(),
+    val meter: AiMeterState = AiMeterState(),
+    val costRows: List<CostRowUi> = emptyList(),
+    val costSummary: CostSummary = CostSummary(emptyList(), 0.0, 0.0, emptyList()),
 )
 
 sealed interface BenchmarkPhase {
@@ -85,6 +133,9 @@ data class BenchmarkUiState(
 
 @HiltViewModel
 class AiSettingsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val usageDao: AiUsageDao,
+    private val clock: Clock,
     private val keys: ApiKeyStore,
     private val gateway: AiGateway,
     private val catalog: ModelCatalogRepository,
@@ -94,7 +145,8 @@ class AiSettingsViewModel @Inject constructor(
 
     private val keyCheck = MutableStateFlow<KeyCheck>(KeyCheck.Idle)
 
-    val uiState: StateFlow<AiSettingsUiState> = combine(
+    /** The base state: key, settings, catalog, benchmarks and the per-task model rows. */
+    private val baseState: kotlinx.coroutines.flow.Flow<AiSettingsUiState> = combine(
         keys.state,
         keyCheck,
         settingsRepository.settings,
@@ -122,7 +174,76 @@ class AiSettingsViewModel @Inject constructor(
                 )
             },
         )
+    }
+
+    /** Ticks so "today" and "this month" roll over while the screen stays open. */
+    private val ticks = flow {
+        while (true) {
+            emit(clock.nowMillis())
+            delay(60_000)
+        }
+    }
+
+    val uiState: StateFlow<AiSettingsUiState> = combine(
+        baseState,
+        usageDao.observeSince(clock.nowMillis() - USAGE_HISTORY_MS),
+        ticks,
+    ) { base, entities, now ->
+        val records = entities.mapNotNull(::toRecord)
+        val zone = clock.zone()
+        val settings = base.settings
+        val meter = AiMeterState(
+            budget = AiBudget.status(settings.aiMonthlyBudgetUsd, UsageSummarizer.monthSpend(records, now, zone)),
+            usage = UsageSummarizer.summarize(records, now, zone, settings.aiUsageResetAt),
+            resetAt = settings.aiUsageResetAt,
+            nextMonthStart = UsagePeriods.nextMonthStart(now, zone),
+        )
+        val inputs = AiFeature.entries.filter { it.inEstimate }.map { f ->
+            val model = base.rows.firstOrNull { it.task == f.task }?.active?.model
+            val enabled = when (f) {
+                AiFeature.DAILY_INSIGHT -> settings.dailyInsightEnabled
+                AiFeature.COACH_REWORD -> settings.coachAiReword
+                else -> true
+            }
+            FeatureCostInput(
+                feature = f,
+                enabled = enabled,
+                usesPerDay = settings.aiUsesPerDay[f] ?: f.defaultUsesPerDay,
+                model = model,
+                measured = UsageSummarizer.measured(records, f),
+                benchmarkUsdPerCall = if (f.benchmarkRepresentative && model != null) {
+                    base.benchmarks.firstOrNull { it.task == f.task && it.modelId == model.id }?.costUsdPerRequest
+                } else {
+                    null
+                },
+            )
+        }
+        val summary = AiCostModel.estimate(inputs)
+        val costRows = summary.rows.map { c ->
+            val f = c.feature
+            val row = base.rows.firstOrNull { it.task == f.task }
+            CostRowUi(
+                cost = c,
+                recommendation = row?.let { AiRecommendation.forTask(it.task, it.suggestion) },
+                usesPerDay = settings.aiUsesPerDay[f] ?: f.defaultUsesPerDay,
+                usesIsDefault = settings.aiUsesPerDay[f] == null,
+                offNote = when {
+                    f == AiFeature.DAILY_INSIGHT && !settings.dailyInsightEnabled -> "Off, so it counts as zero"
+                    f == AiFeature.COACH_REWORD && !settings.coachAiReword -> "Off, so it counts as zero"
+                    else -> null
+                },
+            )
+        }
+        base.copy(meter = meter, costRows = costRows, costSummary = summary)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AiSettingsUiState())
+
+    private fun toRecord(e: AiUsageEntity): AiUsageRecord? {
+        val feature = AiFeature.parse(e.feature) ?: return null
+        val trigger = runCatching { AiTrigger.valueOf(e.triggerKind) }.getOrNull() ?: return null
+        return AiUsageRecord(
+            feature, e.model, trigger, e.promptTokens, e.completionTokens, e.costUsd, e.costReported, e.success, e.at,
+        )
+    }
 
     private val benchmarkTasks = MutableStateFlow(BenchmarkSuite.tasks.toSet())
     private val benchmarkCapText = MutableStateFlow("%.2f".format(BenchmarkSuite.DEFAULT_CAP_USD))
@@ -150,7 +271,15 @@ class AiSettingsViewModel @Inject constructor(
         refreshCatalog(force = false)
     }
 
-    fun refreshCatalog(force: Boolean = true) = viewModelScope.launch { catalog.ensureLoaded(force) }
+    private companion object {
+        /** Ninety days of calls feed the measured averages; the meter itself only looks at this month. */
+        const val USAGE_HISTORY_MS = 90L * 24 * 60 * 60 * 1000
+    }
+
+    /** The public model list needs no key, but with AI switched off no request leaves the phone at all. */
+    fun refreshCatalog(force: Boolean = true) = viewModelScope.launch {
+        if (settingsRepository.settings.first().aiEnabled) catalog.ensureLoaded(force)
+    }
 
     fun saveKey(key: String?) {
         keys.setOpenRouterKey(key)
@@ -176,6 +305,34 @@ class AiSettingsViewModel @Inject constructor(
     fun setPrivacy(privacy: AiPrivacy) = viewModelScope.launch { settingsRepository.setAiPrivacy(privacy) }
     fun setAllowRetaining(allow: Boolean) = viewModelScope.launch { settingsRepository.setAiAllowRetaining(allow) }
     fun setDailyInsight(enabled: Boolean) = viewModelScope.launch { settingsRepository.setDailyInsightEnabled(enabled) }
+    fun setCoachReword(enabled: Boolean) = viewModelScope.launch { settingsRepository.setCoachAiReword(enabled) }
+
+    /** The weekly menu refresh: registering the job and the setting move together, so off means no job. */
+    fun setMenuAutoRefresh(enabled: Boolean) = viewModelScope.launch {
+        settingsRepository.setMenuAutoRefresh(enabled)
+        MenuIngestionWorker.apply(WorkManager.getInstance(context), enabled)
+    }
+
+    fun setAiEnabled(enabled: Boolean) = viewModelScope.launch {
+        settingsRepository.setAiEnabled(enabled)
+        if (enabled) catalog.ensureLoaded(false)
+    }
+
+    /** Returns false (and changes nothing) when [text] is not a positive amount. */
+    fun setBudget(text: String): Boolean {
+        val cap = AiBudget.parseCap(text) ?: return false
+        viewModelScope.launch { settingsRepository.setAiMonthlyBudget(cap) }
+        return true
+    }
+
+    /** An invalid or negative number puts the feature back on its default. */
+    fun setUsesPerDay(feature: AiFeature, text: String) {
+        val uses = text.trim().toDoubleOrNull()?.takeIf { it >= 0 && it.isFinite() }
+        viewModelScope.launch { settingsRepository.setAiUsesPerDay(feature, uses) }
+    }
+
+    /** A soft reset: the meter counts from now on, and every logged call stays on the phone. */
+    fun resetCounters() = viewModelScope.launch { settingsRepository.setAiUsageResetAt(clock.nowMillis()) }
     fun pickModel(task: AiTask, modelId: String?) = viewModelScope.launch { settingsRepository.setAiModel(task, modelId) }
 
     fun toggleBenchmarkTask(task: AiTask) = benchmarkTasks.update { if (task in it) it - task else it + task }
@@ -197,7 +354,6 @@ class AiSettingsViewModel @Inject constructor(
                     runner.run(
                         selections = state.plan,
                         capUsd = cap,
-                        apiKey = key,
                         privacy = settingsRepository.settings.first().aiPrivacy,
                         onProgress = { benchmarkPhase.value = BenchmarkPhase.Running(it) },
                     ),

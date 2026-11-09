@@ -144,13 +144,23 @@ internal fun migrateCoach_2_3(): List<String> = listOf(
     "CREATE INDEX IF NOT EXISTS `index_coach_suggestion_deletedAt` ON `coach_suggestion` (`deletedAt`)",
 )
 
+internal fun migrateAiUsage_2_3(): List<String> = listOf(
+    // AI usage meter and monthly budget: one row per model call (feature, model, tokens, cost). Per device,
+    // so it is not in backups or sync. Purely additive.
+    "CREATE TABLE IF NOT EXISTS `ai_usage` (`id` TEXT NOT NULL, `feature` TEXT NOT NULL, `model` TEXT NOT NULL, `triggerKind` TEXT NOT NULL, `promptTokens` INTEGER, `completionTokens` INTEGER, `costUsd` REAL NOT NULL, `costReported` INTEGER NOT NULL, `success` INTEGER NOT NULL, `at` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+    "CREATE INDEX IF NOT EXISTS `index_ai_usage_at` ON `ai_usage` (`at`)",
+    "CREATE INDEX IF NOT EXISTS `index_ai_usage_feature` ON `ai_usage` (`feature`)",
+    "CREATE INDEX IF NOT EXISTS `index_ai_usage_deletedAt` ON `ai_usage` (`deletedAt`)",
+)
+
 // Add new 2 -> 3 steps to the list below, after the existing ones.
 internal val MIGRATION_2_3_STATEMENTS: List<String> =
     migrateFoodOff_2_3() +
         migrateAllergens_2_3() +
         migrateMealPlans_2_3() +
         migrateHydration_2_3() +
-        migrateCoach_2_3()
+        migrateCoach_2_3() +
+        migrateAiUsage_2_3()
 
 internal val MIGRATION_2_3 = object : Migration(2, 3) {
     override fun migrate(db: SupportSQLiteDatabase) {

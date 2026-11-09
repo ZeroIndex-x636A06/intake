@@ -175,7 +175,7 @@ private fun SearchCard(
     if (!state.hasKey) {
         EmptyState(
             title = "Saved options work with no signal",
-            body = "Searching nearby uses the web and needs an OpenRouter key.",
+            body = "Searching nearby uses the web and needs “Use AI features” on and an OpenRouter key.",
         ) {
             OutlinedButton(onClick = onOpenAiSettings, shape = IntakeShape.Button, modifier = Modifier.heightIn(min = target)) {
                 Text("Set up AI tools")

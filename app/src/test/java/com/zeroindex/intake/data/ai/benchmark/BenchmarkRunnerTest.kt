@@ -1,7 +1,9 @@
 package com.zeroindex.intake.data.ai.benchmark
 
 import com.google.common.truth.Truth.assertThat
+import com.zeroindex.intake.data.ai.AiGateway
 import com.zeroindex.intake.data.ai.AiPrivacy
+import com.zeroindex.intake.data.ai.FakeAiEnvironment
 import com.zeroindex.intake.data.ai.OpenRouterClient
 import com.zeroindex.intake.data.db.dao.AiInsightDao
 import com.zeroindex.intake.data.db.entity.AiInsightEntity
@@ -122,7 +124,7 @@ class BenchmarkRunnerTest {
                 .body(body.toResponseBody("application/json".toMediaType())).build()
         }).build()
         val client = OpenRouterClient(http, json, baseUrl = "https://test.invalid/api/v1")
-        return BenchmarkRunner(client, BenchmarkCases(fixtures, json), dao, clock)
+        return BenchmarkRunner(AiGateway(client, FakeAiEnvironment(key), json, clock), BenchmarkCases(fixtures, json), dao, clock)
     }
 
     // --- Replies a model could give, built from the fixtures' published answers -------------------
@@ -211,7 +213,7 @@ class BenchmarkRunnerTest {
         cap: Double = 1.0,
         privacy: AiPrivacy = AiPrivacy.NO_TRAINING,
         progress: MutableList<BenchmarkProgress> = mutableListOf(),
-    ) = run(selections, cap, key, privacy) { progress += it }
+    ) = run(selections, cap, privacy) { progress += it }
 
     // --- Tests ---------------------------------------------------------------------------------
 
@@ -368,7 +370,7 @@ class BenchmarkRunnerTest {
     fun `the key never appears in a network failure`() = runTest {
         val dao = FakeDao()
         val http = OkHttpClient.Builder().addInterceptor(Interceptor { throw IOException("connect failed, sent Authorization: Bearer $key") }).build()
-        val runner = BenchmarkRunner(OpenRouterClient(http, json, baseUrl = "https://test.invalid/api/v1"), BenchmarkCases(fixtures, json), dao, clock)
+        val runner = BenchmarkRunner(AiGateway(OpenRouterClient(http, json, baseUrl = "https://test.invalid/api/v1"), FakeAiEnvironment(key), json, clock), BenchmarkCases(fixtures, json), dao, clock)
         val report = runner.runWith(listOf(selection(AiTask.MENU_INGESTION, "a/b")))
 
         assertThat(report.abortReason).isNotNull()

@@ -16,7 +16,8 @@ import com.zeroindex.intake.data.repository.HydrationRepository
 import com.zeroindex.intake.data.repository.TargetRepository
 import com.zeroindex.intake.data.repository.TdeeRepository
 import com.zeroindex.intake.data.settings.SettingsRepository
-import com.zeroindex.intake.domain.ai.AiTask
+import com.zeroindex.intake.domain.ai.AiFeature
+import com.zeroindex.intake.domain.ai.AiTrigger
 import com.zeroindex.intake.domain.ai.InsightDigest
 import com.zeroindex.intake.domain.ai.InsightInputs
 import com.zeroindex.intake.domain.tdee.WeightTrend
@@ -100,7 +101,9 @@ class DailyInsights @Inject constructor(
     private suspend fun ask(digest: List<String>, avoided: Set<String>, feedback: String?): Pair<InsightReply, String>? =
         try {
             val outcome = gateway.structured(
-                task = AiTask.DAILY_INSIGHT,
+                feature = AiFeature.DAILY_INSIGHT,
+                // Opt-in: ensureToday returns first unless the daily-insight switch is on.
+                trigger = AiTrigger.OPT_IN_SCHEDULE,
                 serializer = InsightReply.serializer(),
                 schema = InsightPrompts.schema,
                 system = InsightPrompts.system(avoided),

@@ -6,7 +6,7 @@ import com.zeroindex.intake.data.ai.AiError
 import com.zeroindex.intake.data.ai.planb.PlanBFinder
 import com.zeroindex.intake.data.ai.planb.PlanBOption
 import com.zeroindex.intake.data.ai.planb.SearchArea
-import com.zeroindex.intake.data.keys.ApiKeyStore
+import com.zeroindex.intake.data.ai.AiGateway
 import com.zeroindex.intake.domain.model.MealSlot
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -36,7 +36,7 @@ data class PlanBUiState(
 @HiltViewModel
 class PlanBViewModel @Inject constructor(
     private val finder: PlanBFinder,
-    private val keys: ApiKeyStore,
+    private val gateway: AiGateway,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PlanBUiState())
@@ -51,7 +51,7 @@ class PlanBViewModel @Inject constructor(
     }
 
     fun refreshPermissions() = _state.update {
-        it.copy(hasKey = keys.openRouterKey() != null, hasLocation = finder.hasLocationPermission())
+        it.copy(hasKey = gateway.isConfigured(), hasLocation = finder.hasLocationPermission())
     }
 
     fun searchNearby() {

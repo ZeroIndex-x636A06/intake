@@ -9,7 +9,7 @@ import com.zeroindex.intake.data.ai.recipes.HuntedRecipe
 import com.zeroindex.intake.data.ai.recipes.RecipeHunter
 import com.zeroindex.intake.data.db.dao.RecipeDao
 import com.zeroindex.intake.data.db.entity.RecipeEntity
-import com.zeroindex.intake.data.keys.ApiKeyStore
+import com.zeroindex.intake.data.ai.AiGateway
 import com.zeroindex.intake.data.repository.AllergenRepository
 import com.zeroindex.intake.data.repository.FoodLogRepository
 import com.zeroindex.intake.data.repository.MealPlanRepository
@@ -83,11 +83,11 @@ data class HuntUiState(
 class RecipeHunterViewModel @Inject constructor(
     private val hunter: RecipeHunter,
     private val allergens: AllergenRepository,
-    keys: ApiKeyStore,
+    gateway: AiGateway,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
-        HuntUiState(stage = if (keys.openRouterKey() == null) HuntStage.NeedsKey else HuntStage.Form),
+        HuntUiState(stage = if (!gateway.isConfigured()) HuntStage.NeedsKey else HuntStage.Form),
     )
     val state: StateFlow<HuntUiState> = _state.asStateFlow()
 

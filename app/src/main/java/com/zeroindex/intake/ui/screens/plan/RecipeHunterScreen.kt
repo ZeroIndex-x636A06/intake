@@ -85,7 +85,7 @@ fun RecipeHunterScreen(
 
     when (val stage = state.stage) {
         HuntStage.NeedsKey -> Column(modifier.padding(pad)) {
-            SubHead("Recipe Hunter", "Searches the web, so it needs an OpenRouter key.")
+            SubHead("Recipe Hunter", "Searches the web with AI, so it needs “Use AI features” on and an OpenRouter key (Settings → AI).")
             OutlinedButton(onClick = onOpenImport, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(52.dp)) {
                 Text("Have a link? Import it with no AI")
             }

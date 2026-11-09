@@ -1,5 +1,6 @@
 package com.zeroindex.intake.data.ai
 
+import com.zeroindex.intake.domain.ai.cost.AiMoney
 import java.io.IOException
 import java.util.Base64
 import kotlin.coroutines.resume
@@ -294,6 +295,15 @@ data class AiResponse(
 /** Failures, each with a message fit to show the user as-is. */
 sealed class AiError(override val message: String) : Exception(message) {
     data object NoKey : AiError("Add an OpenRouter key in Settings → AI to use this.")
+    /** The master switch is off: nothing was sent. */
+    data object Off : AiError("AI is off. Turn on “Use AI features” in Settings → AI to use this.")
+    /** The month's budget is used up: nothing was sent. */
+    data class BudgetReached(val capUsd: Double, val spentUsd: Double) : AiError(
+        "This month's AI budget (${AiMoney.format(capUsd)}) is used up, so nothing was sent. " +
+            "It starts again next month, or you can raise it in Settings → AI.",
+    )
+    /** The call did not say why it was happening, or that reason is not allowed for it: nothing was sent. */
+    data class NotAllowed(val detail: String) : AiError("This action is not allowed to use AI, so nothing was sent.")
     data object Unauthorized : AiError("OpenRouter rejected the key. Check it in Settings → AI.")
     data object InsufficientCredits : AiError("The OpenRouter account is out of credit.")
     data object RateLimited : AiError("Too many requests just now. Try again in a minute.")

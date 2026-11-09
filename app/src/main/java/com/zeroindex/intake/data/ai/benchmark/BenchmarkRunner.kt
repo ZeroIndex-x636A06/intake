@@ -4,11 +4,13 @@ import com.zeroindex.intake.data.ai.AiError
 import com.zeroindex.intake.data.ai.AiPart
 import com.zeroindex.intake.data.ai.AiPrivacy
 import com.zeroindex.intake.data.ai.AiRequest
-import com.zeroindex.intake.data.ai.OpenRouterClient
+import com.zeroindex.intake.data.ai.AiGateway
 import com.zeroindex.intake.data.db.dao.AiInsightDao
 import com.zeroindex.intake.data.db.entity.ModelBenchmarkEntity
 import com.zeroindex.intake.data.db.entity.seedId
+import com.zeroindex.intake.domain.ai.AiFeature
 import com.zeroindex.intake.domain.ai.AiTask
+import com.zeroindex.intake.domain.ai.AiTrigger
 import com.zeroindex.intake.domain.ai.BenchmarkScore
 import com.zeroindex.intake.domain.ai.ModelInfo
 import com.zeroindex.intake.domain.ai.benchmark.BenchmarkCost
@@ -62,19 +64,20 @@ data class BenchmarkReport(
  * OpenRouter key, so the "not benchmarked" labels can be replaced with
  * measured numbers.
  *
- * It goes through [OpenRouterClient] with the same system prompts, schemas and
+ * It goes through [AiGateway] with the same system prompts, schemas and
  * privacy setting the features use, one request at a time, so the latency it
  * records is not inflated by the run's own parallelism and the spend cap is
- * checked between every pair of requests.
+ * checked between every pair of requests. The gateway's guard applies: the
+ * master switch, the monthly budget and the usage log (feature Benchmark).
  *
- * The key is handed in per run and only reaches the client, which puts it in
- * the Authorization header. Nothing here formats an error from anything but
+ * The key never leaves the gateway and client, which put it in the
+ * Authorization header. Nothing here formats an error from anything but
  * [AiError.message], which is fixed text, so the key cannot end up in a
  * message even if a server echoes it back.
  */
 @Singleton
 class BenchmarkRunner @Inject constructor(
-    private val client: OpenRouterClient,
+    private val gateway: AiGateway,
     private val cases: BenchmarkCases,
     private val dao: AiInsightDao,
     private val clock: Clock,
@@ -95,7 +98,6 @@ class BenchmarkRunner @Inject constructor(
     suspend fun run(
         selections: List<BenchmarkSelection>,
         capUsd: Double,
-        apiKey: String,
         privacy: AiPrivacy,
         onProgress: (BenchmarkProgress) -> Unit,
     ): BenchmarkReport {
@@ -122,7 +124,7 @@ class BenchmarkRunner @Inject constructor(
                     }
                     onProgress(BenchmarkProgress(selection.task, model.id, outcomes.size, requests.size, spent))
                     val response = try {
-                        client.complete(apiKey, request(selection.task, model, case, privacy))
+                        gateway.complete(AiFeature.BENCHMARK, AiTrigger.USER_ACTION, request(selection.task, model, case, privacy))
                     } catch (e: AiError) {
                         if (e.endsRun()) abortReason = e.message else skipReason = e.message
                         break
@@ -177,7 +179,8 @@ class BenchmarkRunner @Inject constructor(
 
     /** Problems with the account or the connection hit every model alike; model-specific ones do not. */
     private fun AiError.endsRun(): Boolean = when (this) {
-        AiError.NoKey, AiError.Unauthorized, AiError.InsufficientCredits, AiError.RateLimited, is AiError.Network -> true
+        AiError.NoKey, AiError.Off, is AiError.BudgetReached, is AiError.NotAllowed,
+            AiError.Unauthorized, AiError.InsufficientCredits, AiError.RateLimited, is AiError.Network -> true
         AiError.NoEndpointForPrivacy, is AiError.Server, is AiError.BadResponse -> false
     }
 

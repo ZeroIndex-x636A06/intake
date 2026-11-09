@@ -18,6 +18,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.zeroindex.intake.R
 import com.zeroindex.intake.data.coach.CoachReworder
+import com.zeroindex.intake.domain.ai.AiTrigger
 import com.zeroindex.intake.data.coach.CoachRepository
 import com.zeroindex.intake.data.settings.SettingsRepository
 import dagger.assisted.Assisted
@@ -100,7 +101,7 @@ class CoachWorker @AssistedInject constructor(
         if (review != null) {
             val day = settings.settings.first().coachState.lastCheckInDay
             // Wording only; any failure leaves the rule's own text.
-            if (day != null) runCatching { reworder.rewordCheckIn(day) }
+            if (day != null) runCatching { reworder.rewordCheckIn(day, AiTrigger.OPT_IN_SCHEDULE) }
             if (settings.settings.first().coachNotify) notifier.notifyReady(review.suggestions.size)
         }
         Result.success()
