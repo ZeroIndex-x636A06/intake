@@ -115,6 +115,7 @@ fun ExerciseDetailSheet(
     val exercise = state.exercise
     val context = LocalContext.current
     var sideBySide by remember { mutableStateOf(false) }
+    var fineMuscles by remember { mutableStateOf(false) }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         if (exercise == null) {
@@ -169,7 +170,11 @@ fun ExerciseDetailSheet(
             }
 
             Eyebrow("Muscles worked")
-            MuscleMapView(highlight, Modifier.fillMaxWidth(0.9f).align(Alignment.CenterHorizontally))
+            MuscleMapView(highlight, Modifier.fillMaxWidth(0.9f).align(Alignment.CenterHorizontally), detail = fineMuscles)
+            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                ChoiceChip("Six regions", selected = !fineMuscles, onClick = { fineMuscles = false })
+                ChoiceChip("Show detail", selected = fineMuscles, onClick = { fineMuscles = true })
+            }
             if (!highlight.isEmpty) {
                 Text(
                     text = buildString {

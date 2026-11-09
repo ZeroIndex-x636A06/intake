@@ -40,7 +40,10 @@ import uuid
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-RAW = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main"
+# Pinned: the exact commit the bundled photos and steps were taken from (checked 2026-11-09, its LICENSE.md
+# is the Unlicense). To refresh, review the upstream diff and the licence, then change this hash.
+SOURCE_COMMIT = "f00c92c7dcf1216a928a52c3706c7ce8e2f71ed5"
+RAW = f"https://raw.githubusercontent.com/yuhonas/free-exercise-db/{SOURCE_COMMIT}"
 CATALOG_KT = os.path.join(
     ROOT, "app/src/main/java/com/zeroindex/intake/domain/training/generator/ExerciseCatalog.kt"
 )
@@ -178,7 +181,7 @@ def main():
         items[cid] = {"name": name, "source": source_id, "steps": short_steps(src.get("instructions", []))}
 
     meta = {
-        "source": "Free Exercise DB, https://github.com/yuhonas/free-exercise-db",
+        "source": "Free Exercise DB, https://github.com/yuhonas/free-exercise-db at commit " + SOURCE_COMMIT,
         "licence": "Unlicense (public domain)",
         "items": dict(sorted(items.items(), key=lambda kv: kv[1]["name"])),
     }

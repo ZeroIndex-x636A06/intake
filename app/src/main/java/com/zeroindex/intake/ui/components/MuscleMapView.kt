@@ -55,6 +55,8 @@ fun MuscleMapView(
     modifier: Modifier = Modifier,
     onRegionTap: ((MuscleRegion) -> Unit)? = null,
     showLabels: Boolean = true,
+    /** False lights whole body regions (chest, back, shoulders, arms, legs, core); true lights the fine groups. */
+    detail: Boolean = true,
 ) {
     val scheme = MaterialTheme.colorScheme
     val paths = remember { MapPaths() }
@@ -63,6 +65,9 @@ fun MuscleMapView(
     val idle = scheme.onSurface.copy(alpha = 0.07f)
     val body = scheme.surfaceVariant
     val edge = scheme.outline.copy(alpha = 0.55f)
+
+    val coarsePrimary = highlight.primary.map { it.body }.toSet()
+    val coarseSecondary = highlight.secondary.map { it.body }.toSet() - coarsePrimary
 
     val description = buildString {
         append("Muscle map. ")
@@ -103,10 +108,18 @@ fun MuscleMapView(
                 }) {
                     paths.silhouette.forEach { drawPath(it, color = body) }
                     regions.forEach { (region, path) ->
-                        val fill = when (region) {
-                            in highlight.primary -> primary
-                            in highlight.secondary -> secondary
-                            else -> idle
+                        val fill = if (detail) {
+                            when (region) {
+                                in highlight.primary -> primary
+                                in highlight.secondary -> secondary
+                                else -> idle
+                            }
+                        } else {
+                            when (region.body) {
+                                in coarsePrimary -> primary
+                                in coarseSecondary -> secondary
+                                else -> idle
+                            }
                         }
                         drawPath(path, color = fill)
                         drawPath(path, color = edge, style = Stroke(width = 0.45f))
