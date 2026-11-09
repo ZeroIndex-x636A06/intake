@@ -30,3 +30,7 @@ output.json
 # --- OS ---
 .DS_Store
 release/
+
+# --- Python bytecode ---
+__pycache__/
+*.pyc
