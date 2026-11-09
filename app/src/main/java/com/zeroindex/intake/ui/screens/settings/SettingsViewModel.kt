@@ -104,6 +104,7 @@ class SettingsViewModel @Inject constructor(
     fun setLengthUnit(unit: LengthUnit) = launchSetting { setLengthUnit(unit) }
     fun setThemeMode(mode: ThemeMode) = launchSetting { setThemeMode(mode) }
     fun setDynamicColor(enabled: Boolean) = launchSetting { setDynamicColor(enabled) }
+    fun setReduceMotion(enabled: Boolean) = launchSetting { setReduceMotion(enabled) }
     fun setRestSeconds(seconds: Int) = launchSetting { setDefaultRestSec(seconds) }
     fun setRestVibrate(enabled: Boolean) = launchSetting { setRestVibrate(enabled) }
     fun setBarWeightKg(kg: Double) = launchSetting { setBarWeightKg(kg) }

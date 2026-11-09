@@ -61,7 +61,7 @@ class TimerService : Service() {
 
     private fun start(seconds: Int, label: String, vibrate: Boolean) {
         countdown?.cancel()
-        _state.value = TimerState(label = label, remainingSeconds = seconds, running = true)
+        _state.value = TimerState(label = label, remainingSeconds = seconds, running = true, totalSeconds = seconds)
         startForeground(NOTIFICATION_ID, buildNotification(label, seconds))
 
         countdown = scope.launch {
@@ -69,7 +69,7 @@ class TimerService : Service() {
             while (isActive && remaining > 0) {
                 delay(1_000)
                 remaining -= 1
-                _state.value = TimerState(label, remaining, running = remaining > 0)
+                _state.value = TimerState(label, remaining, running = remaining > 0, totalSeconds = seconds)
                 if (remaining > 0) {
                     notificationManager().notify(
                         NOTIFICATION_ID,
@@ -80,7 +80,7 @@ class TimerService : Service() {
             if (isActive) {
                 if (vibrate) vibrate()
                 notificationManager().notify(NOTIFICATION_ID, buildDoneNotification(label))
-                _state.value = TimerState(label, 0, running = false)
+                _state.value = TimerState(label, 0, running = false, totalSeconds = seconds)
                 // Leave the "done" notification up but drop the foreground
                 // state, so the service is not holding resources needlessly.
                 stopForeground(STOP_FOREGROUND_DETACH)
@@ -206,4 +206,6 @@ data class TimerState(
     val label: String = "",
     val remainingSeconds: Int = 0,
     val running: Boolean = false,
+    /** The length of this rest, for the countdown ring. 0 when unknown. */
+    val totalSeconds: Int = 0,
 )

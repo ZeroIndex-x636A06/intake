@@ -1,7 +1,6 @@
 package com.zeroindex.intake.ui.screens.settings
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -33,18 +32,18 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.settings.ThemeMode
-import com.zeroindex.intake.domain.model.AllergenSeverity
 import com.zeroindex.intake.domain.units.LengthUnit
 import com.zeroindex.intake.domain.units.UnitConverter
 import com.zeroindex.intake.domain.units.WeightUnit
-import com.zeroindex.intake.ui.components.ChoiceChip
 import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.ui.components.SandNote
 import com.zeroindex.intake.ui.components.SectionCard
 import com.zeroindex.intake.ui.components.Segmented
 import com.zeroindex.intake.ui.components.SettingRow
 import com.zeroindex.intake.ui.components.SubHead
-import com.zeroindex.intake.ui.components.Tag
+import com.zeroindex.intake.ui.motion.MoreDetail
+import com.zeroindex.intake.ui.motion.pressScale
+import com.zeroindex.intake.ui.onboarding.HelpFlowViewModel
 import com.zeroindex.intake.ui.theme.IntakeShape
 
 @Composable
@@ -56,7 +55,12 @@ fun SettingsScreen(
     section: String? = null,
     /** Opens Food database settings: Open Food Facts search, contributing, credits. */
     onOpenFoodData: (() -> Unit)? = null,
+    /** My allergens replaced the old Allergens section here; this is its link row. */
+    onOpenMyAllergens: (() -> Unit)? = null,
+    /** Replay the Today tour, then land on Today. */
+    onGoToToday: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
+    helpFlow: HelpFlowViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val settings = state.settings
@@ -68,10 +72,8 @@ fun SettingsScreen(
     val showExportPrompt = lastExportAt == null || System.currentTimeMillis() - lastExportAt > 30L * 86_400_000L
     val leadingItems = 1 + (if (state.message != null) 1 else 0) + (if (showExportPrompt) 1 else 0)
     LaunchedEffect(section) {
-        when (section) {
-            "allergens" -> listState.scrollToItem(leadingItems + 2)
-            "targets" -> listState.scrollToItem(leadingItems + 3)
-        }
+        // Items after the leading ones: Look and units (0), Targets (1).
+        if (section == "targets") listState.scrollToItem(leadingItems + 1)
     }
 
     LazyColumn(
@@ -127,7 +129,7 @@ fun SettingsScreen(
         // The mockup puts units and theme in segmented controls: with two or
         // three options each, showing them all is one tap and no guessing.
         item(key = "preferences") {
-            Section("Preferences") {
+            Section("Look and units") {
                 SettingRow(title = "Weight", subtitle = "Display unit") {
                     Segmented(
                         options = WeightUnit.entries.map { it.label },
@@ -152,6 +154,12 @@ fun SettingsScreen(
                     )
                 }
                 SwitchRow(
+                    label = "Reduce motion",
+                    subtitle = "Turns off sweeps, count-ups and bursts. Also on when your phone has animations off.",
+                    checked = settings.reduceMotion,
+                    onChange = viewModel::setReduceMotion,
+                )
+                SwitchRow(
                     label = "Use wallpaper colours",
                     subtitle = "Overrides the designed palette",
                     checked = settings.dynamicColor,
@@ -168,52 +176,6 @@ fun SettingsScreen(
             }
         }
 
-        item(key = "keys") {
-            Section("API keys") {
-                Text(
-                    text = "Yours, entered here, stored encrypted on this device. The app works " +
-                        "without them - you lose remote search and photo estimates, nothing else.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                if (!state.keys.storeAvailable) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = "This device's keystore is unavailable, so keys cannot be saved. " +
-                            "Everything else still works.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-                Spacer(Modifier.height(10.dp))
-                KeyField(
-                    label = "USDA FoodData Central",
-                    hasKey = state.keys.hasUsdaKey,
-                    onSave = viewModel::setUsdaKey,
-                    onTest = viewModel::testUsdaKey,
-                    testResult = state.usdaTest,
-                )
-                Spacer(Modifier.height(12.dp))
-                OutlinedButton(
-                    onClick = onOpenAi,
-                    shape = IntakeShape.Button,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                ) { Text("AI tools and models (OpenRouter) →") }
-            }
-        }
-
-        item(key = "allergens") {
-            Section("Allergens") {
-                AllergenEditor(
-                    avoided = state.avoidedAllergens,
-                    severity = state.allergenSeverity,
-                    knownTerms = state.knownAllergenTerms,
-                    onChange = viewModel::setAvoidedAllergens,
-                    onAddAlias = viewModel::addAlias,
-                )
-            }
-        }
-
         item(key = "targets") {
             Section("Targets") {
                 SwitchRow(
@@ -222,8 +184,8 @@ fun SettingsScreen(
                     onChange = viewModel::setAutoTargets,
                 )
                 Text(
-                    text = "With this on, the target comes from measured maintenance and your " +
-                        "rate goal, recalculated nightly - never from a formula.",
+                    text = "With this on, the target comes from what you actually eat and weigh, " +
+                        "recalculated nightly - never from a formula.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -241,31 +203,70 @@ fun SettingsScreen(
                     allowNegative = true,
                     onSet = { viewModel.setGoalRate(unit.toKg(it ?: 0.0)) },
                 )
-                NumberSetting(
-                    label = "Protein g per kg of goal weight (1.6 to 2.2)",
-                    value = settings.proteinGramsPerKg,
-                    onSet = { it?.let(viewModel::setProteinPerKg) },
-                )
-                NumberSetting(
-                    label = "Fat g per kg (0.6 minimum)",
-                    value = settings.fatGramsPerKg,
-                    onSet = { it?.let(viewModel::setFatPerKg) },
-                )
 
                 Spacer(Modifier.height(8.dp))
                 Button(
                     onClick = viewModel::recalculateTargetFromTdee,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    modifier = Modifier.fillMaxWidth().height(50.dp).pressScale(),
                 ) { Text("Recalculate from my data") }
 
-                ManualTargetRow(
-                    latestWeightKg = state.latestWeightKg ?: settings.goalWeightKg,
-                    onSet = viewModel::setManualTarget,
+                MoreDetail(title = "Fine-tune protein, fat and calories") {
+                    NumberSetting(
+                        label = "Protein (g per kg of goal weight, 1.6 to 2.2)",
+                        value = settings.proteinGramsPerKg,
+                        onSet = { it?.let(viewModel::setProteinPerKg) },
+                    )
+                    NumberSetting(
+                        label = "Fat (g per kg, 0.6 minimum)",
+                        value = settings.fatGramsPerKg,
+                        onSet = { it?.let(viewModel::setFatPerKg) },
+                    )
+                    ManualTargetRow(
+                        latestWeightKg = state.latestWeightKg ?: settings.goalWeightKg,
+                        onSet = viewModel::setManualTarget,
+                    )
+                }
+            }
+        }
+
+        item(key = "training") {
+            Section("Training") {
+                NumberSetting(
+                    label = "Default rest (seconds)",
+                    value = settings.defaultRestSec.toDouble(),
+                    onSet = { it?.let { v -> viewModel.setRestSeconds(v.toInt()) } },
+                )
+                SwitchRow(
+                    label = "Vibrate when rest ends",
+                    checked = settings.restTimerVibrate,
+                    onChange = viewModel::setRestVibrate,
+                    showDivider = false,
                 )
             }
         }
 
-        // After "allergens" and "targets" on purpose: those two are scrolled to by index.
+        item(key = "water-weather") {
+            Section("Water") { WeatherSettingsSection() }
+        }
+
+        // My allergens replaced the old editor that lived here; this row is the way in.
+        if (onOpenMyAllergens != null) {
+            item(key = "allergens") {
+                Section("Allergens") {
+                    Text(
+                        "Choose what to avoid, add your own allergens and keywords. Every food is checked against them.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    OutlinedButton(
+                        onClick = onOpenMyAllergens,
+                        shape = IntakeShape.Button,
+                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(50.dp),
+                    ) { Text("My allergens →") }
+                }
+            }
+        }
+
         if (onOpenFoodData != null) {
             item(key = "food-data") {
                 Section("Food database") {
@@ -283,49 +284,81 @@ fun SettingsScreen(
             }
         }
 
-        item(key = "training") {
-            Section("Training") {
-                NumberSetting(
-                    label = "Default rest (seconds)",
-                    value = settings.defaultRestSec.toDouble(),
-                    onSet = { it?.let { v -> viewModel.setRestSeconds(v.toInt()) } },
-                )
-                SwitchRow(
-                    label = "Vibrate when rest ends",
-                    checked = settings.restTimerVibrate,
-                    onChange = viewModel::setRestVibrate,
-                )
-                val unit = settings.weightUnit
-                NumberSetting(
-                    label = "Bar weight (${unit.label})",
-                    value = unit.fromKg(settings.barWeightKg),
-                    onSet = { it?.let { v -> viewModel.setBarWeightKg(unit.toKg(v)) } },
-                )
-                TextSetting(
-                    label = "Plates available per side (kg, comma separated)",
-                    value = settings.availablePlatesKg,
-                    onSet = viewModel::setPlates,
-                )
-            }
-        }
-
-        item(key = "water-weather") {
-            Section("Water") { WeatherSettingsSection() }
-        }
-
-        item(key = "health") {
-            Section("Health Connect") {
-                SwitchRow(
-                    label = "Add active calories to my target",
-                    checked = settings.addActiveCaloriesToTarget,
-                    onChange = viewModel::setAddActiveCalories,
-                )
+        item(key = "help") {
+            Section("Help") {
                 Text(
-                    text = "Off by default on purpose: wearable burn estimates are unreliable, " +
-                        "and double-counting them is the most common way a cut quietly stalls.",
+                    "A quick look around Today, one step at a time. Nothing is changed or deleted.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                OutlinedButton(
+                    onClick = { helpFlow.replayTour(then = onGoToToday) },
+                    shape = IntakeShape.Button,
+                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(50.dp),
+                ) { Text("Replay the tour") }
+            }
+        }
+
+        // Rarely used, so folded away: keys, AI, wearable calories, barbell maths.
+        item(key = "advanced") {
+            Section("Advanced") {
+                MoreDetail(title = "Show advanced settings") {
+                    val unit = settings.weightUnit
+                    NumberSetting(
+                        label = "Bar weight (${unit.label})",
+                        value = unit.fromKg(settings.barWeightKg),
+                        onSet = { it?.let { v -> viewModel.setBarWeightKg(unit.toKg(v)) } },
+                    )
+                    TextSetting(
+                        label = "Plates available per side (kg, comma separated)",
+                        value = settings.availablePlatesKg,
+                        onSet = viewModel::setPlates,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    SwitchRow(
+                        label = "Add active calories to my target",
+                        checked = settings.addActiveCaloriesToTarget,
+                        onChange = viewModel::setAddActiveCalories,
+                        showDivider = false,
+                    )
+                    Text(
+                        text = "Off by default on purpose: wearable burn estimates are unreliable, " +
+                            "and double-counting them is the most common way a cut quietly stalls.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(14.dp))
+                    Eyebrow("API keys")
+                    Text(
+                        text = "Optional. Entered here, stored encrypted on this device. The app works " +
+                            "without them: you only lose remote search and photo estimates.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (!state.keys.storeAvailable) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = "This phone's keystore is unavailable, so keys cannot be saved. " +
+                                "Everything else still works.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    KeyField(
+                        label = "USDA FoodData Central",
+                        hasKey = state.keys.hasUsdaKey,
+                        onSave = viewModel::setUsdaKey,
+                        onTest = viewModel::testUsdaKey,
+                        testResult = state.usdaTest,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = onOpenAi,
+                        shape = IntakeShape.Button,
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                    ) { Text("AI tools and models (OpenRouter) →") }
+                }
             }
         }
     }
@@ -334,23 +367,6 @@ fun SettingsScreen(
 @Composable
 private fun Section(title: String, content: @Composable () -> Unit) {
     SectionCard(title = title) { content() }
-}
-
-@Composable
-private fun <T> ChipRow(
-    options: List<Pair<T, String>>,
-    selected: T,
-    onSelect: (T) -> Unit,
-) {
-    Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-        options.forEach { (value, label) ->
-            ChoiceChip(
-                label = label,
-                selected = value == selected,
-                onClick = { onSelect(value) },
-            )
-        }
-    }
 }
 
 @Composable
@@ -517,118 +533,5 @@ private fun KeyField(
                 color = MaterialTheme.colorScheme.error,
             )
         }
-    }
-}
-
-@Composable
-private fun AllergenEditor(
-    avoided: Set<String>,
-    severity: AllergenSeverity,
-    knownTerms: List<String>,
-    onChange: (Set<String>, AllergenSeverity) -> Unit,
-    onAddAlias: (String, String) -> Unit,
-) {
-    val common = listOf("dairy", "gluten", "nuts", "peanuts", "soy", "egg", "shellfish", "fish")
-    var aliasAllergen by remember { mutableStateOf("") }
-    var aliasTerm by remember { mutableStateOf("") }
-
-    Column {
-        // The mockup gives the active profile its own clay block, so what is
-        // being blocked is visible before any of the controls that change it.
-        if (avoided.isNotEmpty()) {
-            Surface(
-                color = MaterialTheme.colorScheme.tertiaryContainer,
-                shape = IntakeShape.Banner,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Column(Modifier.padding(12.dp)) {
-                    Text(
-                        text = avoided.joinToString(", ") {
-                            it.replaceFirstChar(Char::uppercase)
-                        } + " · " + severity.name.lowercase(),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = "Confirmed ingredients block saving. Possible traces are shown " +
-                            "as an amber review you have to answer.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    if (knownTerms.isNotEmpty()) {
-                        Spacer(Modifier.height(8.dp))
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                            knownTerms.forEach { term -> Tag(term) }
-                        }
-                    }
-                }
-            }
-            Spacer(Modifier.height(10.dp))
-        }
-
-        Text(
-            text = "Every food entering the app is checked against these, from any path.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(8.dp))
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            common.forEach { name ->
-                ChoiceChip(
-                    label = name,
-                    selected = name in avoided,
-                    onClick = {
-                        val next = if (name in avoided) avoided - name else avoided + name
-                        onChange(next, severity)
-                    },
-                )
-            }
-        }
-
-        Spacer(Modifier.height(10.dp))
-        ChipRow(
-            options = AllergenSeverity.entries.map {
-                it to it.name.lowercase().replaceFirstChar(Char::uppercase)
-            },
-            selected = severity,
-            onSelect = { onChange(avoided, it) },
-        )
-
-        Spacer(Modifier.height(12.dp))
-        Eyebrow("Add a term the engine should catch")
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            OutlinedTextField(
-                value = aliasAllergen,
-                onValueChange = { aliasAllergen = it },
-                label = { Text("Allergen") },
-                singleLine = true,
-                modifier = Modifier.weight(1f),
-            )
-            OutlinedTextField(
-                value = aliasTerm,
-                onValueChange = { aliasTerm = it },
-                label = { Text("Term") },
-                singleLine = true,
-                modifier = Modifier.weight(1f),
-            )
-        }
-        OutlinedButton(
-            onClick = {
-                onAddAlias(aliasAllergen, aliasTerm)
-                aliasAllergen = ""
-                aliasTerm = ""
-            },
-            enabled = aliasAllergen.isNotBlank() && aliasTerm.isNotBlank(),
-            modifier = Modifier.padding(top = 6.dp),
-        ) { Text("Add term") }
     }
 }

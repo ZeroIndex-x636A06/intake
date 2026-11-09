@@ -58,6 +58,7 @@ import com.zeroindex.intake.domain.model.ProgressionType
 import com.zeroindex.intake.domain.training.ProgressionLabels
 import com.zeroindex.intake.domain.units.WeightUnit
 import com.zeroindex.intake.ui.components.Eyebrow
+import com.zeroindex.intake.domain.training.RepTarget
 import com.zeroindex.intake.ui.components.Glossary
 import com.zeroindex.intake.ui.components.InfoTip
 import com.zeroindex.intake.ui.components.IntakeCard
@@ -408,8 +409,7 @@ private fun ExerciseSummaryRow(
 }
 
 internal fun summaryLine(sets: Int, repsMin: Int, repsMax: Int, rpe: Double?, restSec: Int): String = buildString {
-    append(sets).append(" × ").append(repsMin)
-    if (repsMax > repsMin) append("–").append(repsMax)
+    append(sets).append(" × ").append(if (RepTarget.isAmrap(repsMin, repsMax)) "as many as you can" else RepTarget.label(repsMin, repsMax))
     if (rpe != null) append(" · effort ").append(weightText(rpe))
     append(" · rest ").append(restSec / 60).append(':').append((restSec % 60).toString().padStart(2, '0'))
 }
@@ -451,6 +451,13 @@ private fun ExerciseEditSheet(
                 NumberField(sets, { sets = it }, "Sets", Modifier.weight(1f))
                 NumberField(repsMin, { repsMin = it }, "Reps from", Modifier.weight(1f))
                 NumberField(repsMax, { repsMax = it }, "Reps to", Modifier.weight(1f))
+            }
+            if (RepTarget.isAmrap(repsMin.toIntOrNull() ?: 0, repsMax.toIntOrNull() ?: 0)) {
+                // 1 to 99 is how "as many as you can" is stored.
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(RepTarget.AMRAP_LABEL, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.secondary)
+                    InfoTip(Glossary.AS_MANY_AS_YOU_CAN, label = RepTarget.AMRAP_LABEL)
+                }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Effort 1–10, optional", style = MaterialTheme.typography.labelLarge)

@@ -249,7 +249,7 @@ fun IntakeNavHost(
             composable<Route.AllergenReference> { AllergenReferenceScreen(contentPadding) }
             scriptReference(contentPadding)
             aiSettings(contentPadding)
-            settings(navController, contentPadding)
+            settings(navController, contentPadding, onGoToToday = { openTab(TopLevelDestination.TODAY) })
             composable<Route.Backup> { BackupScreen(contentPadding) }
             composable<Route.MyAllergens> {
                 MyAllergensScreen(
@@ -357,7 +357,7 @@ fun IntakeNavHost(
             composable<Route.More> {
                 MoreScreen(contentPadding = contentPadding, onNavigate = { route -> navController.navigate(route) })
             }
-            settings(navController, contentPadding)
+            settings(navController, contentPadding, onGoToToday = { openTab(TopLevelDestination.TODAY) })
             composable<Route.Backup> { BackupScreen(contentPadding) }
             aiSettings(contentPadding)
             composable<Route.Privacy> { PrivacyScreen(contentPadding) }
@@ -401,13 +401,15 @@ private fun NavGraphBuilder.aiSettings(contentPadding: PaddingValues) {
     composable<Route.AiSettings> { AiSettingsScreen(contentPadding) }
 }
 
-private fun NavGraphBuilder.settings(navController: NavHostController, contentPadding: PaddingValues) {
+private fun NavGraphBuilder.settings(navController: NavHostController, contentPadding: PaddingValues, onGoToToday: () -> Unit) {
     composable<Route.Settings> { entry ->
         SettingsScreen(
             contentPadding,
             onOpenAi = { navController.navigate(Route.AiSettings) },
             onOpenBackup = { navController.navigate(Route.Backup) },
             onOpenFoodData = { navController.navigate(Route.FoodData) },
+            onOpenMyAllergens = { navController.navigate(Route.MyAllergens) },
+            onGoToToday = onGoToToday,
             section = entry.toRoute<Route.Settings>().section,
         )
     }

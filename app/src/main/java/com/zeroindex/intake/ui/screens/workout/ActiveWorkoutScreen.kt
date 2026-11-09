@@ -67,6 +67,21 @@ import com.zeroindex.intake.ui.components.SandStrip
 import com.zeroindex.intake.ui.components.SectionLine
 import com.zeroindex.intake.ui.theme.IntakeShape
 import com.zeroindex.intake.timer.TimerService
+import com.zeroindex.intake.domain.motion.MotionRules
+import com.zeroindex.intake.domain.training.NewBest
+import com.zeroindex.intake.domain.training.RepTarget
+import com.zeroindex.intake.ui.components.Glossary
+import com.zeroindex.intake.ui.components.InfoTip
+import com.zeroindex.intake.ui.motion.AnimatedCheck
+import com.zeroindex.intake.ui.motion.RestRing
+import com.zeroindex.intake.ui.motion.flashOn
+import com.zeroindex.intake.ui.motion.pressScale
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.draw.alpha
 import kotlin.math.roundToInt
 
 @Composable
@@ -109,19 +124,28 @@ fun ActiveWorkoutScreen(
         if (timer.running || timer.remainingSeconds > 0) {
             item(key = "restbar") {
                 SandStrip {
-                    Column(Modifier.weight(1f)) {
+                    RestRing(
+                        remainingFraction = MotionRules.restRemainingFraction(timer.remainingSeconds, timer.totalSeconds),
+                        size = 56.dp,
+                        stroke = 5.dp,
+                        color = MaterialTheme.colorScheme.primary,
+                        track = MaterialTheme.colorScheme.surfaceVariant,
+                        description = "Rest, ${TimerService.format(timer.remainingSeconds)} left",
+                    ) {
                         Text(
-                            text = timer.label.ifBlank { "Rest timer" },
-                            style = MaterialTheme.typography.labelSmall,
+                            text = TimerService.format(timer.remainingSeconds),
+                            style = MaterialTheme.typography.labelLarge,
                         )
                     }
-                    Text(
-                        text = TimerService.format(timer.remainingSeconds),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    TextButton(onClick = { TimerService.stop(context) }) {
-                        Text("Stop", style = MaterialTheme.typography.labelSmall)
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = timer.label.ifBlank { "Rest" },
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
+                    TextButton(onClick = { TimerService.stop(context) }, modifier = Modifier.heightIn(min = 48.dp)) {
+                        Text("Skip rest", style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
@@ -167,7 +191,7 @@ fun ActiveWorkoutScreen(
                 }
 
                 item(key = "sets-heading") {
-                    SectionLine("Log your sets", note = "Tap ✓ when done")
+                    SectionLine("Log your sets", note = "Tap the circle to log a set")
                 }
 
                 item(key = "grid-${current.exercise.id}") {
@@ -378,12 +402,8 @@ private fun ExerciseCard(item: ExercisePrescription, state: ActiveWorkoutUiState
             )
         } else if (prescription != null) {
             Spacer(Modifier.height(5.dp))
-            val reps = buildString {
-                append(prescription.sets)
-                append(" × ")
-                append(prescription.repsMin)
-                if (prescription.repsMax > prescription.repsMin) append("–${prescription.repsMax}")
-            }
+            val amrap = RepTarget.isAmrap(prescription.repsMin, prescription.repsMax)
+            val reps = "${prescription.sets} × ${RepTarget.short(prescription.repsMin, prescription.repsMax)}"
             Text(
                 text = if (prescription.weightKg > 0) {
                     "$reps · ${fmt(unit.fromKg(prescription.weightKg))} ${unit.label}"
@@ -393,6 +413,16 @@ private fun ExerciseCard(item: ExercisePrescription, state: ActiveWorkoutUiState
                 style = MaterialTheme.typography.displaySmall,
                 color = MaterialTheme.colorScheme.primary,
             )
+            if (amrap) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = RepTarget.AMRAP_LABEL,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.secondary,
+                    )
+                    InfoTip(Glossary.AS_MANY_AS_YOU_CAN, label = RepTarget.AMRAP_LABEL)
+                }
+            }
             Spacer(Modifier.height(3.dp))
             Text(
                 text = prescription.reason,
@@ -467,13 +497,19 @@ private fun SetGrid(
         ?.takeIf { it > 0 }
         ?.let { fmt(unit.fromKg(it)) }
         .orEmpty()
-    val prescribedReps = prescription?.repsMin?.toString().orEmpty()
+    // As many as you can has no number to pre-fill: the person types what they managed.
+    val prescribedReps = prescription
+        ?.takeUnless { RepTarget.isAmrap(it.repsMin, it.repsMax) }
+        ?.repsMin?.toString().orEmpty()
 
     // One row per prescribed set, plus a spare so an extra set is always
     // available; freestyle work gets three to start with.
     val rowCount = maxOf(prescription?.sets ?: 3, logged.size + 1)
 
     val edits = remember(item.exercise.id) { mutableStateMapOf<Int, Pair<String, String>>() }
+    // Sets that beat last session and earlier sets today: they flash once and wear a "New best" tag.
+    val bests = remember(item.exercise.id) { mutableStateMapOf<Int, Int>() }
+    var bestTick by remember { mutableIntStateOf(0) }
 
     Column(Modifier.fillMaxWidth()) {
         Row(
@@ -483,7 +519,7 @@ private fun SetGrid(
             GridCell(Modifier.width(34.dp)) { Eyebrow("Set") }
             GridCell(Modifier.weight(1f)) { Eyebrow(unit.label) }
             GridCell(Modifier.weight(1f)) { Eyebrow("Reps") }
-            GridCell(Modifier.width(38.dp)) { Eyebrow("Done") }
+            GridCell(Modifier.width(48.dp)) { Eyebrow("Done") }
         }
 
         repeat(rowCount) { index ->
@@ -502,12 +538,20 @@ private fun SetGrid(
                 onRepsChange = { next ->
                     edits[index] = (edits[index]?.first ?: prescribedWeight) to next
                 },
+                bestTrigger = bests[index] ?: 0,
+                isBest = bests.containsKey(index),
                 onLog = { weight, reps ->
+                    val prior = item.lastSession.map { SetResult(it.weightKg, it.reps) } +
+                        logged.filter { it.setIndex != index }.map { SetResult(it.weightKg, it.reps) }
+                    if (NewBest.isNewBest(unit.toKg(weight), reps, prior)) {
+                        bestTick += 1
+                        bests[index] = bestTick
+                    }
                     onLogSet(
                         index,
                         weight,
                         reps,
-                        prescription != null && reps < prescription.repsMin,
+                        prescription != null && reps < prescription.repsMin && !RepTarget.isAmrap(prescription.repsMin, prescription.repsMax),
                     )
                 },
                 onUndo = { existing?.let { onDeleteSet(it.id) } },
@@ -531,12 +575,16 @@ private fun SetRow(
     displayWeight: (Double) -> String,
     onWeightChange: (String) -> Unit,
     onRepsChange: (String) -> Unit,
+    bestTrigger: Int,
+    isBest: Boolean,
     onLog: (Double, Int) -> Unit,
     onUndo: () -> Unit,
 ) {
     val setNumber = index + 1
+    val haptics = LocalHapticFeedback.current
     Row(
-        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
+            .flashOn(bestTrigger, MaterialTheme.colorScheme.tertiaryContainer),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         GridCell(Modifier.width(34.dp)) {
@@ -556,11 +604,20 @@ private fun SetRow(
                 )
             }
             GridCell(Modifier.weight(1f)) {
-                Text(
-                    text = "${existing.reps}",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "${existing.reps}",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    if (isBest) {
+                        Text(
+                            text = "New best",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.tertiary,
+                        )
+                    }
+                }
             }
         } else {
             GridCell(Modifier.weight(1f)) {
@@ -579,45 +636,43 @@ private fun SetRow(
             }
         }
 
-        GridCell(Modifier.width(38.dp)) {
+        GridCell(Modifier.width(48.dp)) {
             val done = existing != null
             val enabled = done ||
                 (weight.toDoubleOrNull() != null && reps.toIntOrNull() != null)
-            Surface(
-                color = if (done) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.primaryContainer
-                },
-                contentColor = if (done) {
-                    MaterialTheme.colorScheme.onPrimary
-                } else {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                },
-                shape = IntakeShape.ExtraSmall,
-                modifier = Modifier.size(34.dp),
-                enabled = enabled,
-                onClick = {
-                    if (done) {
-                        onUndo()
-                    } else {
-                        val w = weight.toDoubleOrNull()
-                        val r = reps.toIntOrNull()
-                        if (w != null && r != null) onLog(w, r)
-                    }
-                },
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Filled.Check,
-                        contentDescription = if (done) {
-                            "Undo set $setNumber"
-                        } else {
-                            "Complete set $setNumber"
+            // A 48 dp target around a 28 dp picture: the tick morphs from an empty circle and a haptic confirms.
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .alpha(if (enabled) 1f else 0.4f)
+                    .toggleable(
+                        value = done,
+                        enabled = enabled,
+                        role = Role.Checkbox,
+                        onValueChange = {
+                            if (done) {
+                                haptics.performHapticFeedback(HapticFeedbackType.ToggleOff)
+                                onUndo()
+                            } else {
+                                val w = weight.toDoubleOrNull()
+                                val r = reps.toIntOrNull()
+                                if (w != null && r != null) {
+                                    haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                                    onLog(w, r)
+                                }
+                            }
                         },
-                        modifier = Modifier.size(17.dp),
                     )
-                }
+                    .semantics { contentDescription = "Set $setNumber done" },
+                contentAlignment = Alignment.Center,
+            ) {
+                AnimatedCheck(
+                    checked = done,
+                    size = 28.dp,
+                    fill = MaterialTheme.colorScheme.primary,
+                    outline = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tick = MaterialTheme.colorScheme.onPrimary,
+                )
             }
         }
     }
