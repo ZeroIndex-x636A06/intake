@@ -145,6 +145,19 @@ class AiCostModelTest {
     }
 
     @Test
+    fun `a router with a variable negative price is never priced or suggested`() {
+        val router = model(-1_000_000.0, -1_000_000.0)
+        assertThat(router.hasKnownPrice).isFalse()
+        assertThat(AiTask.PLAN_B.canRun(router)).isFalse()
+        val c = AiCostModel.feature(input(AiFeature.PLAN_B, model = router))
+        assertThat(c.perCallUsd).isNull()
+        assertThat(c.perDayUsd).isEqualTo(0.0)
+        val spend = AiSpend.resolve(null, 100, 100, router, AiFeature.PLAN_B.profile)
+        assertThat(spend.usd).isEqualTo(0.0)
+        assertThat(AiSpend.resolve(0.01, 100, 100, router, AiFeature.PLAN_B.profile).usd).isEqualTo(0.01)
+    }
+
+    @Test
     fun `money is shown with enough places to read small amounts`() {
         assertThat(AiMoney.format(0.0)).isEqualTo("\$0.00")
         assertThat(AiMoney.format(0.00004)).isEqualTo("<\$0.0001")

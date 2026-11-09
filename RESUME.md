@@ -124,7 +124,31 @@ All of SPEC.md's built phases and every amendment feature are implemented:
   `docs/COACH.md`. Settings in backup/export: `domain/backup/PortableSettings.kt`, `data/settings/PortableStore.kt`,
   `BackupService` (`settings` section, preview line); see `docs/BACKUP.md`.
 
-Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/SPEC-v3.md`, `docs/BACKUP.md`,
+- **AI policy audit, usage meter and cost analysis (agent branch `worktree-agent-a9ca96cc2a21aa1d3`).** Full
+  write-up with the audit table, the cost formula and a priced example: `docs/AI-COSTS.md`.
+  - Gateway guard (`AiGateway.authorize`, pure rule in `domain/ai/AiGuard.kt`): every call carries an
+    `AiFeature` and an `AiTrigger` (`USER_ACTION` or `OPT_IN_SCHEDULE`); refused with nothing sent when the
+    trigger is missing or not allowed for the feature (debug build throws), "Use AI features" is off, a
+    schedule's own switch is off, there is no key, or the calendar month's spend has reached the cap. The
+    gateway talks to the app through `AiEnvironment` (Hilt-bound `DefaultAiEnvironment`; a fake in tests).
+    The benchmark now goes through the gateway too (`AiFeature.BENCHMARK`).
+  - Settings: `ai_master_enabled` (default on), `ai_monthly_budget_usd` (default 2.00), `ai_uses_<FEATURE>`,
+    `ai_menu_auto_refresh` (default off) are portable; `ai_usage_reset_at` is device-local.
+  - Usage log: table `ai_usage` (`AiUsageEntity`/`AiUsageDao`), added in `migrateAiUsage_2_3` (v3, no v4). Per
+    device: not in `BackupTables`, so not backed up or synced. Cost is the reported `usage.cost`, else catalog
+    price x tokens (`domain/ai/cost/AiSpend`). Settings -> AI shows the master switch, budget with 80% notice
+    and 100% block, the per-feature meter (today/week/month) with a soft "Reset counters", the estimated
+    cost screen (editable uses a day, measured tokens beat the benchmark cost beat the built-in sizes) and a
+    "Scheduled AI" card (daily insight, coach reword, weekly menu refresh, all off). UI is in
+    `ui/screens/ai/AiUsageCards.kt`; maths in `domain/ai/cost/`.
+  - Fixed: the weekly menu job is no longer registered for everyone (opt-in, `MenuIngestionWorker.apply`);
+    structured menu pages (schema.org `MenuItem`) are read with no model (`domain/ai/MenuStructured.kt`) and
+    never marked clear; router entries with a negative price are never suggested or priced.
+  - Entry points (photo, Recipe Hunter, Plan B, menu import, coach reword, recipe "Try with AI") hide or say
+    why through `AiGateway.isConfigured()` / `unavailableReason()`.
+  - `AiAuditTest` fails if a new file calls the gateway without being added to the audit table.
+
+Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/SPEC-v3.md`, `docs/BACKUP.md`, `docs/AI-COSTS.md`,
 `docs/BENCHMARK.md`, `docs/PRIVACY.md`, `server/README.md`.
 
 ## Verified
@@ -181,7 +205,10 @@ Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/SPEC-v3.md`, `docs/BACKUP
   back-gesture rule, TalkBack, and the nested-graph tab back stacks (save/restore, pop to
   root, duplicated shared destinations) are compiled and unit-tested for their pure logic only.
 - No real OpenRouter calls. The client, prompts and parsing are tested only
-  against fakes and fixtures.
+  against fakes and fixtures. That includes the new gateway guard, usage log, budget and cost model
+  (fake HTTP layer); the Settings -> AI switch, budget, meter and cost cards have not been seen on a
+  screen, and structured menu parsing has only been run on hand-written JSON-LD, not real restaurant pages.
+  PDF menus still go to the model (no PDF text extractor without a new dependency).
 - No real watch and phone pairing. The Data Layer path has not run on devices.
 - No NFC hardware. Tag writing and reading are untested on a device.
 - Health Connect has not run on a device.

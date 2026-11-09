@@ -104,7 +104,7 @@ fun PrivacyScreen(
             pill = "On",
             sent = "An empty request: no key, no personal data.",
             where = "openrouter.ai",
-            whenSent = "When you open Settings, AI, or run an AI task, if the saved list is over a day old.",
+            whenSent = "When you open Settings, AI, or run an AI task, if the saved list is over a day old. Not at all while Use AI features is off.",
         )
         PathRow(
             title = "AI photo estimate",
@@ -136,7 +136,7 @@ fun PrivacyScreen(
             pill = "Needs your OpenRouter key",
             sent = "The pasted text, the PDF file, or the page text this phone fetched from the web address you gave (for pages that need scripts, just the address, which OpenRouter reads itself), plus the allergens you avoid.",
             where = "The menu address you entered (an ordinary page request from this phone), then openrouter.ai",
-            whenSent = "When you import a menu, and once a week on Wi-Fi for each web address or PDF you left enabled. Pasted text is not re-sent.",
+            whenSent = "When you import a menu. Pages that publish their menu as structured data are read on this phone with no AI. Once a week on Wi-Fi for each web address or PDF you left enabled, but only if you switched on Refresh saved menus weekly in Settings, AI. Pasted text is not re-sent.",
         )
         PathRow(
             title = "Daily insight",

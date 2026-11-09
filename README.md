@@ -76,6 +76,10 @@ Amendment features:
   - Plan B: nearby places that fit your remaining macros.
   - Menu import: from a URL, PDF or pasted text, weekly refresh optional.
   - Daily insight: one suggestion from a numbers-only digest. Off by default.
+  - A master "Use AI features" switch, a monthly budget cap (default $2, a notice at 80%, calls
+    pause at 100%), a usage meter per feature and an estimated-cost screen in Settings, AI.
+    AI runs only when you tap something or on a schedule you switch on, and never for targets,
+    water, programs, allergens or lookups: [docs/AI-COSTS.md](docs/AI-COSTS.md).
   - Model picker with a benchmark you run on your own key:
     [docs/BENCHMARK.md](docs/BENCHMARK.md).
   - A model can raise an allergen warning but never clear one. The local

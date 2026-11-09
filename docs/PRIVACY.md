@@ -94,9 +94,15 @@ non-commercial use; its data is CC BY 4.0 and is credited in Settings and in Foo
 
 ### OpenRouter (the user's own key; `data/ai/OpenRouterClient.kt`)
 
-Every AI call goes through `AiGateway.structured` (`data/ai/AiGateway.kt:56-65`),
-which refuses to run without a key (`AiError.NoKey`) and applies the privacy
-setting to the request. The request body is built in
+Every AI call goes through `AiGateway` (`data/ai/AiGateway.kt`). Its guard refuses to
+send anything unless the call names why it is happening (a tap, or a schedule the user
+switched on), "Use AI features" is on, a key exists and this month's budget is not used
+up; it also applies the privacy setting to the request. The full audit of call sites,
+the master switch, the budget and the usage meter are in [AI-COSTS.md](AI-COSTS.md).
+**Nothing new is sent by the usage meter, the budget or the cost screen**: they work only
+from numbers already on the phone, and the usage log (`ai_usage`: feature, model, tokens,
+cost, success, time; never a prompt, a reply or a key) stays on the device. It is not in
+backups, exports or sync. The request body is built in
 `OpenRouterClient.buildPayload` (line 94 on). `provider.data_collection = "deny"`
 is set for the default `NO_TRAINING` and for `ZERO_RETENTION` (which adds
 `zdr: true`); only the user choosing "Any provider" omits it (lines 137-145).
@@ -105,15 +111,15 @@ Every request also sends the header `X-Title: Intake`.
 
 | Feature | Trigger | Sent | Not sent | Default | Code |
 | --- | --- | --- | --- | --- | --- |
-| Model list | Opening Settings, AI (`AiSettingsViewModel.kt:94`) or any AI task (`AiGateway.modelFor` line 38) when the cached list is over 24 h old | `GET openrouter.ai/api/v1/models`, no key, no body | Anything of the user's. Public; works with no key. | On (refreshes while the AI screen is open or an AI task runs) | `data/ai/ModelCatalogRepository.kt:73,82`, `OpenRouterClient.kt:53` |
+| Model list | Opening Settings, AI or any AI task, when the cached list is over 24 h old | `GET openrouter.ai/api/v1/models`, no key, no body | Anything of the user's. Public; works with no key. | On, **but not requested while "Use AI features" is off** | `data/ai/ModelCatalogRepository.kt:73,82`, `OpenRouterClient.kt:53` |
 | Key check | Saving or testing the key | `GET /api/v1/key` with the key in `Authorization` | Nothing else | Only with a key | `AiSettingsViewModel.kt:105`, `AiGateway.kt:94` |
 | Photo estimate | User takes or picks a photo and asks for an estimate | The resized JPEG (`PhotoPreparer`), "Estimate this meal.", and the names of avoided allergens in the system prompt (`VisionModels.kt:89`) | The allergen verdict, name, weight, other log entries | Only with a key; per photo | `data/ai/vision/VisionTracker.kt:57-70` |
 | Recipe Hunter | User presses Find recipes | Macro, time and cuisine limits, free-text notes, avoided allergens, source URLs of recipes already found. Tools: `openrouter:web_search` and `openrouter:web_fetch`, run **by OpenRouter**, not the phone | Anything from the log or body | Only with a key; per search | `data/ai/recipes/RecipeHunter.kt:106-112,180-215` |
 | Plan B | User searches for a place | Coordinates rounded to two decimals (about 1.1 km) from the coarse permission, or the typed zip code; kcal and protein left today; avoided allergens. Same web tools, run by OpenRouter | Exact location, the log, names of foods eaten | Only with a key; location is read only on that search and only with the permission | `data/ai/planb/PlanBFinder.kt:139-148,229-247`, `domain/ai/PlanBFit.kt:56` |
 | Menu import (manual) | User adds or refreshes a menu source | Pasted text (up to `MenuText.MAX_CHARS`), or the PDF bytes (also base64 in a `file` part), or text this phone fetched from the entered URL, or just the URL when OpenRouter should read it with `web_fetch`; restaurant name; avoided allergens | Anything else | Only with a key; per import | `data/ai/menu/MenuIngestor.kt:81-125` |
-| Menu import (weekly) | WorkManager, every 7 days, unmetered network, battery not low. **Scheduled unconditionally** at launch but a no-op without a key | Same as above for each **enabled URL or PDF** source. Pasted-text sources are skipped | Same | Runs only if a key exists and a source exists (sources default `enabled = true` once added) | `IntakeApplication.kt:36`, `work/MenuIngestionWorker.kt:34-37,49`, `MenuIngestor.runScheduled` line 183 |
+| Menu import (weekly) | WorkManager, every 7 days, unmetered network, battery not low. **Registered only when "Refresh saved menus weekly" is switched on** (Settings, AI), and cancelled when it is switched off | Same as above for each **enabled URL or PDF** source. Pasted-text sources are skipped. A page with structured menu data is read on the phone with no AI call | Same | **Off.** Does nothing unless that switch, "Use AI features" and a key are all on | `work/MenuIngestionWorker.kt`, `MenuIngestor.runScheduled`, `domain/ai/MenuStructured.kt` |
 | Direct page fetch for menus | Part of the two rows above, for URL sources | `GET <the URL the user entered>` from the phone, with `User-Agent: Intake/1.0 (...)` | No key, no user data. The destination is whatever site the user named. | Per import | `MenuIngestor.fetchText` line 193 |
-| Daily insight | `TodayViewModel.kt:83` calls `ensureToday()` on opening Today; at most one per day | The digest from `domain/ai/InsightDigest.kt`: averages, targets, weight trend, TDEE, body fat and lean mass, session counts, RPE trend, sleep, resting HR, steps, water. Plus avoided allergens in the system prompt (`DailyInsights.kt:180`). The digest is shown to the user in the card | Food names, notes, dates, places | **Off** (`dailyInsightEnabled = false`, `SettingsRepository.kt:75`); needs a key as well | `data/ai/insight/DailyInsights.kt:69-112` |
+| Daily insight | `TodayViewModel` calls `ensureToday()` on opening Today; at most one per day, and the gateway treats it as an opt-in schedule | The digest from `domain/ai/InsightDigest.kt`: averages, targets, weight trend, TDEE, body fat and lean mass, session counts, RPE trend, sleep, resting HR, steps, water. Plus avoided allergens in the system prompt (`DailyInsights.kt:180`). The digest is shown to the user in the card | Food names, notes, dates, places | **Off** (`dailyInsightEnabled = false`, `SettingsRepository.kt:75`); needs a key as well | `data/ai/insight/DailyInsights.kt:69-112` |
 | Coach reword | The "Reword my check-in with AI" switch (Weekly check-in screen), then each new check-in | Only each suggestion's title and one-line reason (they contain your numbers, such as "120 g of protein; the target is 170 g"). No food names, dates, notes or raw data. Allergen names are not sent; replies are checked by the local allergen engine | The log, body data, profile, the rule's action | **Off**; needs a key as well. The coach itself (docs/COACH.md) never uses AI | `data/coach/CoachReworder.kt`, `domain/coach/CoachSupport.kt` |
 | Benchmark | User starts it in Settings, AI, Run benchmark. Never automatic | The bundled fixture texts (menu, recipe, plan B and insight samples, no personal data) and the app's own system prompts, sent to OpenRouter with the same privacy settings as other AI calls (`data_collection: deny`). Needs the user's OpenRouter key | Anything from the log, body or profile | Only with a key, only when started; a user-set spend cap (default $0.25) stops the run. Results are stored locally in `model_benchmark` and are synced like other tables | `data/ai/benchmark/BenchmarkRunner.kt`, `docs/BENCHMARK.md`, `ModelCatalogRepository.benchmarks` |
 
@@ -166,10 +172,10 @@ that this audit was limited to, or are design choices to confirm.
    system prompt is not. The Privacy screen now says so.
 3. **Sync is plaintext on the server** by design. The Privacy screen says so. Plain
    HTTP is allowed to local addresses.
-4. **The weekly menu re-import worker is scheduled for everyone** at launch and
-   relies on `gateway.isConfigured()` and the sources list to do nothing. No
-   network call happens without a key and an enabled source, but the work request
-   exists on every install.
+4. **The weekly menu re-import worker was scheduled for everyone** at launch and
+   relied on the key and the sources list to do nothing. Fixed: it is now an opt-in
+   (Settings, AI, "Refresh saved menus weekly", off by default), registered only
+   while that is on. A request left by an older install exits at once while it is off.
 5. **Menu import fetches the entered URL directly from the phone**, not only via
    OpenRouter, so that site sees the phone's IP address. Delivery marketplaces
    that forbid scraping are refused (`MenuText.forbidsScraping`).

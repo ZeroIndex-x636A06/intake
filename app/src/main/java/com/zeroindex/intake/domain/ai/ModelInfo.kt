@@ -22,6 +22,13 @@ data class ModelInfo(
     /** Unix seconds; used to resolve "latest" in a shortlist. */
     val createdAt: Long = 0,
 ) {
+    /**
+     * Router entries such as `openrouter/auto` list a negative price, meaning "whatever the model it picks
+     * charges". No estimate can be made for them, so they are never suggested and never priced.
+     */
+    val hasKnownPrice: Boolean
+        get() = promptPerMillion >= 0 && completionPerMillion >= 0 && perImage >= 0 && perRequest >= 0
+
     val isFree: Boolean get() = id.endsWith(":free") || (promptPerMillion == 0.0 && completionPerMillion == 0.0)
 
     /**

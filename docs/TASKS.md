@@ -21,13 +21,6 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
    - Add a "Reduce motion" setting.
    - Rewrite jargon as InfoTips (`ui/components/InfoTip.kt` exists). Give each
      screen one primary action, and make every empty state say what to do next.
-4. **AI policy audit, usage meter and cost analysis.** See "Additions → AI
-   policy and cost". Do this last, once the AI features are final.
-   - Audit every OpenRouter call site.
-   - Show calls and spend per feature.
-   - Add a monthly budget cap.
-   - Estimate daily and monthly cost from the chosen models, and write
-     `docs/AI-COSTS.md`.
 5. **Small follow-ups.**
    - Remove the duplicate Allergens section from Settings. My allergens
      replaces it.
@@ -49,6 +42,11 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
 
 ## Done (v3)
 
+- AI policy audit, usage meter and cost analysis (branch `worktree-agent-a9ca96cc2a21aa1d3`; see `docs/AI-COSTS.md`).
+  Every OpenRouter call site audited and gated by one guard in `AiGateway` (trigger, master switch, key, monthly
+  budget); weekly menu job made opt-in; structured menu pages read without a model; usage meter, budget cap and
+  estimated-cost screen in Settings -> AI. Schema change: `ai_usage` in `migrateAiUsage_2_3` (per device, not in
+  backup or sync). Not seen on a device; no live OpenRouter calls.
 - Onboarding and Today tour: nine-step welcome flow, auto-skip for installs with data, Today coach marks, first-visit
   tips per tab, Help replay rows (branch `agent/onboarding-tour`; see `RESUME.md`). No schema change. Not seen on a device.
 - Coach engine, "One thing to do today" card, and settings/profile in backup and export (branch `agent/coach-engine`).

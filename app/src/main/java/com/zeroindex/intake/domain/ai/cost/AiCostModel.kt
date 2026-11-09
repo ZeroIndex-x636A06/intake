@@ -78,7 +78,8 @@ object AiCostModel {
 
     fun feature(input: FeatureCostInput): FeatureCost {
         val profile = input.feature.profile
-        val model = input.model
+        // A model with a variable price (a router) cannot be priced, same as no model.
+        val model = input.model?.takeIf { it.hasKnownPrice }
         val measured = input.measured?.takeIf { it.calls >= MIN_MEASURED_CALLS }
         val benchmark = input.benchmarkUsdPerCall?.takeIf { it >= 0 }
 
@@ -101,7 +102,7 @@ object AiCostModel {
         val perDay = AiMoney.round((perCall ?: 0.0) * uses)
         return FeatureCost(
             feature = input.feature,
-            model = model,
+            model = input.model,
             source = source,
             inputTokens = inTokens,
             outputTokens = outTokens,

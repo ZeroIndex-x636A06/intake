@@ -94,6 +94,7 @@ enum class AiTask(
 
     fun canRun(model: ModelInfo): Boolean =
         model.isInteractive &&
+            model.hasKnownPrice &&
             model.outputsText &&
             model.structuredOutputs &&
             model.contextLength >= minContext &&

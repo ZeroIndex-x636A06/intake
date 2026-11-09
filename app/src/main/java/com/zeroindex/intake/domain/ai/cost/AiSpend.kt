@@ -18,8 +18,9 @@ object AiSpend {
         if (reportedUsd != null && reportedUsd >= 0.0 && reportedUsd.isFinite()) {
             return ResolvedCost(AiMoney.round(reportedUsd), reported = true)
         }
-        // No price known and no reported cost: nothing can be said, so it counts as zero and is marked estimated.
-        if (model == null) return ResolvedCost(0.0, reported = false)
+        // No price known (or a router with a variable one) and no reported cost: nothing can be said, so it
+        // counts as zero and is marked estimated.
+        if (model == null || !model.hasKnownPrice) return ResolvedCost(0.0, reported = false)
         val input = promptTokens ?: profile.inputTokens
         val output = completionTokens ?: profile.outputTokens
         return ResolvedCost(AiMoney.round(callUsd(model, input, output, profile)), reported = false)
