@@ -40,6 +40,9 @@ object PortableSettings {
         "auto_targets", "add_active_kcal", "current_plan_week",
         "volume_unit",
         "ai_privacy", "ai_allow_retaining", "daily_insight_enabled",
+        // AI master switch, monthly budget and the weekly menu refresh opt-in. NOT ai_usage_reset_at: that
+        // marker belongs to this device's own usage log.
+        "ai_master_enabled", "ai_monthly_budget_usd", "ai_menu_auto_refresh",
         "profile_json", "baseline_json", "plan_history_json", "week_pattern_json",
         "backup_schedule",
         "off_search_enabled", "off_contribute_enabled",
@@ -50,7 +53,7 @@ object PortableSettings {
     )
 
     /** Families of names: every hydration setting, every coach setting, one model choice per AI task. */
-    private val prefixes: List<String> = listOf("hydration_", "coach_", "ai_model_", "water_")
+    private val prefixes: List<String> = listOf("hydration_", "coach_", "ai_model_", "ai_uses_", "water_")
 
     /** Never portable, whatever else matches. Checked against the lower-cased name. */
     private val forbiddenFragments: List<String> = listOf(
@@ -158,7 +161,10 @@ object PortableSettings {
             "baseline and plan history" to setOf("baseline_json", "plan_history_json"),
             "water" to emptySet(),
             "coach" to emptySet(),
-            "AI choices" to setOf("ai_privacy", "ai_allow_retaining", "daily_insight_enabled"),
+            "AI choices" to setOf(
+                "ai_privacy", "ai_allow_retaining", "daily_insight_enabled",
+                "ai_master_enabled", "ai_monthly_budget_usd", "ai_menu_auto_refresh",
+            ),
             "food database" to setOf("off_search_enabled", "off_contribute_enabled"),
             "backup schedule" to setOf("backup_schedule"),
         )
@@ -166,7 +172,7 @@ object PortableSettings {
             when (label) {
                 "water" -> names.any { it.startsWith("hydration_") || it.startsWith("water_") }
                 "coach" -> names.any { it.startsWith("coach_") }
-                "AI choices" -> names.any { it in keys || it.startsWith("ai_model_") }
+                "AI choices" -> names.any { it in keys || it.startsWith("ai_model_") || it.startsWith("ai_uses_") }
                 else -> names.any { it in keys }
             }
         }.map { it.first }

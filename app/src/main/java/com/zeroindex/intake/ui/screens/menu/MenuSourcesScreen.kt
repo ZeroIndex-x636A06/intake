@@ -93,8 +93,8 @@ fun MenuSourcesScreen(
         if (!state.hasKey) {
             item(key = "nokey") {
                 EmptyState(
-                    title = "Needs an OpenRouter key",
-                    body = "Menus are read by an AI model. Add a key in More → AI model picker. Saved menus keep working without one.",
+                    title = "AI is off or has no key",
+                    body = "Menus are read by an AI model. Turn on “Use AI features” and add a key in Settings → AI. Saved menus keep working without one.",
                 )
             }
         }

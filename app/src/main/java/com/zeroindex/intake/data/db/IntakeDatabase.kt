@@ -5,6 +5,7 @@ import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.zeroindex.intake.data.db.dao.AiCorrectionDao
 import com.zeroindex.intake.data.db.dao.AiInsightDao
+import com.zeroindex.intake.data.db.dao.AiUsageDao
 import com.zeroindex.intake.data.db.dao.AllergenDao
 import com.zeroindex.intake.data.db.dao.BodyMetricDao
 import com.zeroindex.intake.data.db.dao.ExerciseDao
@@ -28,6 +29,7 @@ import com.zeroindex.intake.data.db.dao.TdeeEstimateDao
 import com.zeroindex.intake.data.db.dao.WorkoutDao
 import com.zeroindex.intake.data.db.entity.AiCorrectionEntity
 import com.zeroindex.intake.data.db.entity.AiInsightEntity
+import com.zeroindex.intake.data.db.entity.AiUsageEntity
 import com.zeroindex.intake.data.db.entity.AllergenAliasEntity
 import com.zeroindex.intake.data.db.entity.AllergenDefinitionEntity
 import com.zeroindex.intake.data.db.entity.AllergenProfileEntity
@@ -110,6 +112,7 @@ import com.zeroindex.intake.data.db.entity.WorkoutSessionEntity
         SyncConflictEntity::class,
         // Version 3.
         CoachSuggestionEntity::class,
+        AiUsageEntity::class,
     ],
 )
 abstract class IntakeDatabase : RoomDatabase() {
@@ -137,6 +140,7 @@ abstract class IntakeDatabase : RoomDatabase() {
     abstract fun exportDao(): ExportDao
     abstract fun syncConflictDao(): SyncConflictDao
     abstract fun coachDao(): CoachDao
+    abstract fun aiUsageDao(): AiUsageDao
 
     companion object {
         const val VERSION = 3

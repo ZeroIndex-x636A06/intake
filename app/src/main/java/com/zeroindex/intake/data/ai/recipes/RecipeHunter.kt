@@ -9,7 +9,8 @@ import com.zeroindex.intake.data.db.entity.AllergenStatus
 import com.zeroindex.intake.data.db.entity.RecipeEntity
 import com.zeroindex.intake.data.db.entity.RecipeOrigin
 import com.zeroindex.intake.data.repository.AllergenRepository
-import com.zeroindex.intake.domain.ai.AiTask
+import com.zeroindex.intake.domain.ai.AiFeature
+import com.zeroindex.intake.domain.ai.AiTrigger
 import com.zeroindex.intake.domain.ai.RecipeCandidate
 import com.zeroindex.intake.domain.ai.RecipeFilter
 import com.zeroindex.intake.domain.ai.RecipeQuery
@@ -104,7 +105,8 @@ class RecipeHunter @Inject constructor(
                 ),
             )
             val outcome = gateway.structured(
-                task = AiTask.RECIPE_HUNTER,
+                feature = AiFeature.RECIPE_HUNTER,
+                trigger = AiTrigger.USER_ACTION,
                 serializer = FoundRecipes.serializer(),
                 schema = RecipePrompts.schema,
                 system = RecipePrompts.system(avoided),

@@ -12,7 +12,9 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.zeroindex.intake.data.ai.AiPrivacy
+import com.zeroindex.intake.domain.ai.AiFeature
 import com.zeroindex.intake.domain.ai.AiTask
+import com.zeroindex.intake.domain.ai.cost.AiBudget
 import com.zeroindex.intake.domain.units.LengthUnit
 import com.zeroindex.intake.domain.backup.BackupDestination
 import com.zeroindex.intake.domain.backup.BackupSchedule
@@ -101,6 +103,19 @@ data class AppSettings(
     val coachState: CoachState = CoachState(),
     /** In-app "Reduce motion": on top of the system animation scale (see MotionRules.reduceMotion). */
     val reduceMotion: Boolean = false,
+    /**
+     * The master switch for every AI feature ("Use AI features"). A key is already an opt-in, so this is the
+     * kill switch: off, no AI entry point is offered and nothing is sent. Defaults on so an existing key works.
+     */
+    val aiEnabled: Boolean = true,
+    /** The monthly budget cap in USD; calls stop at it until the next month or until it is raised. */
+    val aiMonthlyBudgetUsd: Double = AiBudget.DEFAULT_CAP_USD,
+    /** The person's own uses-per-day for the cost estimate; absent means the feature's default. */
+    val aiUsesPerDay: Map<AiFeature, Double> = emptyMap(),
+    /** "Reset counters" marker: the usage meter shows calls from this instant on. History is kept. */
+    val aiUsageResetAt: Long = 0L,
+    /** The weekly menu re-import. Off by default; the job does nothing until this is on. */
+    val menuAutoRefresh: Boolean = false,
 ) {
     val platesKgList: List<Double>
         get() = availablePlatesKg.split(',')
@@ -186,6 +201,11 @@ class SettingsRepository @Inject constructor(
         val coachState = stringPreferencesKey("coach_state_json")
         val reduceMotion = booleanPreferencesKey("reduce_motion")
         val celebratedProteinDay = longPreferencesKey("last_celebration_day")
+        val aiEnabled = booleanPreferencesKey("ai_master_enabled")
+        val aiBudget = doublePreferencesKey("ai_monthly_budget_usd")
+        fun aiUses(feature: AiFeature) = doublePreferencesKey("ai_uses_${feature.name}")
+        val aiUsageResetAt = longPreferencesKey("ai_usage_reset_at")
+        val menuAutoRefresh = booleanPreferencesKey("ai_menu_auto_refresh")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -248,6 +268,11 @@ class SettingsRepository @Inject constructor(
             coachState = p[Keys.coachState]?.let { runCatching { settingsJson.decodeFromString<CoachState>(it) }.getOrNull() }
                 ?: CoachState(),
             reduceMotion = p[Keys.reduceMotion] ?: false,
+            aiEnabled = p[Keys.aiEnabled] ?: true,
+            aiMonthlyBudgetUsd = p[Keys.aiBudget]?.takeIf { it > 0 && it.isFinite() } ?: AiBudget.DEFAULT_CAP_USD,
+            aiUsesPerDay = AiFeature.entries.mapNotNull { f -> p[Keys.aiUses(f)]?.takeIf { it >= 0 }?.let { f to it } }.toMap(),
+            aiUsageResetAt = p[Keys.aiUsageResetAt] ?: 0L,
+            menuAutoRefresh = p[Keys.menuAutoRefresh] ?: false,
         )
     }
 
@@ -298,6 +323,13 @@ class SettingsRepository @Inject constructor(
     val celebratedProteinDay: Flow<Long?> = context.dataStore.data.map { it[Keys.celebratedProteinDay] }
     suspend fun setCoachNotify(enabled: Boolean) = put { it[Keys.coachNotify] = enabled }
     suspend fun setCoachAiReword(enabled: Boolean) = put { it[Keys.coachAiReword] = enabled }
+    suspend fun setAiEnabled(enabled: Boolean) = put { it[Keys.aiEnabled] = enabled }
+    suspend fun setAiMonthlyBudget(usd: Double) = put { if (usd > 0 && usd.isFinite()) it[Keys.aiBudget] = usd }
+    suspend fun setAiUsesPerDay(feature: AiFeature, uses: Double?) = put {
+        if (uses == null || uses < 0 || !uses.isFinite()) it.remove(Keys.aiUses(feature)) else it[Keys.aiUses(feature)] = uses
+    }
+    suspend fun setAiUsageResetAt(at: Long) = put { it[Keys.aiUsageResetAt] = at }
+    suspend fun setMenuAutoRefresh(enabled: Boolean) = put { it[Keys.menuAutoRefresh] = enabled }
 
     /** Reads, changes and writes the coach state in one DataStore edit, so two writers cannot lose an update. */
     suspend fun updateCoachState(block: (CoachState) -> CoachState) = put { p ->

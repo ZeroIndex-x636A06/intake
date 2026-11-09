@@ -6,6 +6,11 @@ benchmark you run yourself, on your own OpenRouter key, from
 Settings → AI → Run benchmark. Nothing is measured until you run it, and until
 then every suggestion is labelled "not benchmarked".
 
+The benchmark goes through the same `AiGateway` as every feature: it needs "Use AI features" on, counts in
+the usage meter under "Benchmark", and stops when the monthly budget is used up (its own spend cap still
+applies on top). Its measured cost per request also feeds the estimated-cost screen. See
+[AI-COSTS.md](AI-COSTS.md).
+
 ## What is measured
 
 Each text task has five hand-written fixtures in

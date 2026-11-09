@@ -285,7 +285,7 @@ private fun CheckInSettings(state: CheckInUiState, viewModel: CoachCheckInViewMo
             subtitle = if (state.aiConfigured) {
                 "Off by default. Sends only the suggestion texts and their numbers to OpenRouter. The numbers and actions never change."
             } else {
-                "Needs an OpenRouter key in Settings → AI. Everything else works without one."
+                "Needs “Use AI features” on and an OpenRouter key in Settings → AI. Everything else works without them."
             },
             on = state.aiReword && state.aiConfigured,
             onToggle = { viewModel.setAiReword(!state.aiReword) },

@@ -6,6 +6,7 @@ import com.zeroindex.intake.data.db.ALL
 import com.zeroindex.intake.data.db.IntakeDatabase
 import com.zeroindex.intake.data.db.dao.AiCorrectionDao
 import com.zeroindex.intake.data.db.dao.AiInsightDao
+import com.zeroindex.intake.data.db.dao.AiUsageDao
 import com.zeroindex.intake.data.db.dao.AllergenDao
 import com.zeroindex.intake.data.db.dao.BodyMetricDao
 import com.zeroindex.intake.data.db.dao.ExerciseDao
@@ -68,6 +69,7 @@ object DatabaseModule {
     @Provides fun providePerformanceDao(db: IntakeDatabase): PerformanceDao = db.performanceDao()
     @Provides fun provideMenuDao(db: IntakeDatabase): MenuDao = db.menuDao()
     @Provides fun provideAiInsightDao(db: IntakeDatabase): AiInsightDao = db.aiInsightDao()
+    @Provides fun provideAiUsageDao(db: IntakeDatabase): AiUsageDao = db.aiUsageDao()
     @Provides fun provideCoachDao(db: IntakeDatabase): CoachDao = db.coachDao()
     @Provides fun provideHealthSummaryDao(db: IntakeDatabase): HealthSummaryDao = db.healthSummaryDao()
     @Provides fun provideExportDao(db: IntakeDatabase): ExportDao = db.exportDao()

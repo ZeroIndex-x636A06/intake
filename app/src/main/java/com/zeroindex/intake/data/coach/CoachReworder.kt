@@ -7,7 +7,8 @@ import com.zeroindex.intake.data.ai.S
 import com.zeroindex.intake.data.db.dao.CoachDao
 import com.zeroindex.intake.data.repository.AllergenRepository
 import com.zeroindex.intake.data.settings.SettingsRepository
-import com.zeroindex.intake.domain.ai.AiTask
+import com.zeroindex.intake.domain.ai.AiFeature
+import com.zeroindex.intake.domain.ai.AiTrigger
 import com.zeroindex.intake.domain.coach.CoachReword
 import com.zeroindex.intake.domain.coach.SuggestionStatus
 import com.zeroindex.intake.domain.time.Clock
@@ -43,13 +44,14 @@ class CoachReworder @Inject constructor(
     suspend fun isEnabled(): Boolean = settings.settings.first().coachAiReword && gateway.isConfigured()
 
     /** Rewords this check-in's pending suggestions. Returns how many were reworded; any failure leaves the originals. */
-    suspend fun rewordCheckIn(day: Long): Int {
+    suspend fun rewordCheckIn(day: Long, trigger: AiTrigger): Int {
         if (!isEnabled()) return 0
         val rows = dao.forCheckIn(day).filter { it.status == SuggestionStatus.PENDING && it.aiTitle == null }
         if (rows.isEmpty()) return 0
         val reply = try {
             gateway.structured(
-                task = AiTask.DAILY_INSIGHT,
+                feature = AiFeature.COACH_REWORD,
+                trigger = trigger,
                 serializer = RewordReply.serializer(),
                 schema = schema,
                 system = SYSTEM,

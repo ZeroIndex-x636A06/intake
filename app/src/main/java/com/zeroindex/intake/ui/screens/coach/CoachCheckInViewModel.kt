@@ -3,6 +3,7 @@ package com.zeroindex.intake.ui.screens.coach
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroindex.intake.data.ai.AiGateway
+import com.zeroindex.intake.domain.ai.AiTrigger
 import com.zeroindex.intake.data.coach.CoachReworder
 import com.zeroindex.intake.data.coach.CoachRepository
 import com.zeroindex.intake.data.db.entity.CoachSuggestionEntity
@@ -89,7 +90,7 @@ class CoachCheckInViewModel @Inject constructor(
             working.value = true
             runCatching {
                 coach.generate()
-                settings.settings.first().coachState.lastCheckInDay?.let { reworder.rewordCheckIn(it) }
+                settings.settings.first().coachState.lastCheckInDay?.let { reworder.rewordCheckIn(it, AiTrigger.USER_ACTION) }
                 summary.value = coach.currentSummary()
             }.onFailure { message.value = "Could not make the check-in. Nothing was changed." }
             working.value = false
@@ -130,7 +131,7 @@ class CoachCheckInViewModel @Inject constructor(
             settings.setCoachAiReword(on)
             if (on) {
                 val day = state.value.latest?.record?.day
-                if (day != null) runCatching { reworder.rewordCheckIn(day) }
+                if (day != null) runCatching { reworder.rewordCheckIn(day, AiTrigger.USER_ACTION) }
             }
         }
     }

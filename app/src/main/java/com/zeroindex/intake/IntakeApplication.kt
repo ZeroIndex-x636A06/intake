@@ -8,7 +8,6 @@ import com.zeroindex.intake.data.health.HealthSync
 import com.zeroindex.intake.wear.WearBridge
 import com.zeroindex.intake.work.BackupScheduler
 import com.zeroindex.intake.work.BaselineWorker
-import com.zeroindex.intake.work.MenuIngestionWorker
 import com.zeroindex.intake.work.SyncScheduler
 import com.zeroindex.intake.work.TdeeWorker
 import dagger.hilt.android.HiltAndroidApp
@@ -34,7 +33,9 @@ class IntakeApplication : Application(), Configuration.Provider {
         // SPEC §8: nightly recalculation. KEEP, so an existing schedule is not
         // reset on every launch.
         TdeeWorker.schedule(WorkManager.getInstance(this))
-        MenuIngestionWorker.schedule(WorkManager.getInstance(this))
+        // The weekly menu refresh is NOT scheduled here: it is an opt-in AI schedule, registered only when the
+        // person turns on "Refresh saved menus weekly" in Settings → AI (MenuIngestionWorker.apply). A job
+        // queued by an older version finds the switch off and does nothing.
         // Goal builder: a daily look at the baseline week; it does nothing unless one is running.
         BaselineWorker.schedule(WorkManager.getInstance(this))
         // Coach: a daily look at whether the weekly check-in is due.

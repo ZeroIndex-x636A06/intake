@@ -130,6 +130,26 @@ class MigrationSchemaTest {
     }
 
     @Test
+    fun migrationTwoToThreeCreatesTheAiUsageLogEmptyAndUsable() {
+        val v2 = createAt(2)
+        assertThat(entities(2)).doesNotContainKey("ai_usage")
+        MIGRATION_2_3_STATEMENTS.forEach { v2.exec(it) }
+        assertThat(v2.rows("SELECT COUNT(*) AS n FROM ai_usage").single()["n"]).isEqualTo(0)
+        v2.exec(
+            "INSERT INTO ai_usage (id, feature, model, triggerKind, promptTokens, completionTokens, costUsd, costReported, " +
+                "success, at, createdAt, updatedAt, deletedAt) VALUES ('u1', 'PLAN_B', 'a/b', 'USER_ACTION', 1200, 300, 0.0042, 1, " +
+                "1, 1700000000000, 1, 1, NULL)",
+        )
+        v2.exec(
+            "INSERT INTO ai_usage (id, feature, model, triggerKind, promptTokens, completionTokens, costUsd, costReported, " +
+                "success, at, createdAt, updatedAt) VALUES ('u2', 'PLAN_B', 'a/b', 'USER_ACTION', NULL, NULL, 0.0, 0, 0, 1700000001000, 1, 1)",
+        )
+        assertThat(v2.rows("SELECT SUM(costUsd) AS s FROM ai_usage WHERE deletedAt IS NULL").single()["s"]).isEqualTo(0.0042)
+        assertMatches(v2, 3)
+        v2.close()
+    }
+
+    @Test
     fun releasedVersionTwoSchemaIsFrozen() {
         // 2.json is the schema of the installed APK (built at 4952404). Nothing later may touch it.
         val v2 = entities(2)

@@ -7,7 +7,8 @@ import com.zeroindex.intake.data.db.dao.AiCorrectionDao
 import com.zeroindex.intake.data.db.entity.AiCorrectionEntity
 import com.zeroindex.intake.data.repository.AllergenRepository
 import com.zeroindex.intake.data.repository.FoodLogRepository
-import com.zeroindex.intake.domain.ai.AiTask
+import com.zeroindex.intake.domain.ai.AiFeature
+import com.zeroindex.intake.domain.ai.AiTrigger
 import com.zeroindex.intake.domain.ai.EstimateLine
 import com.zeroindex.intake.domain.ai.VisionMath
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
@@ -58,7 +59,8 @@ class VisionTracker @Inject constructor(
         val avoided = allergens.avoidedAllergens()
         val outcome = try {
             gateway.structured(
-                task = AiTask.VISION_TRACKER,
+                feature = AiFeature.PHOTO_ESTIMATE,
+                trigger = AiTrigger.USER_ACTION,
                 serializer = VisionEstimate.serializer(),
                 schema = VisionSchema.schema,
                 system = VisionSchema.systemPrompt(avoided),

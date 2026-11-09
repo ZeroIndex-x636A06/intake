@@ -4,7 +4,8 @@ import com.zeroindex.intake.data.ai.AiGateway
 import com.zeroindex.intake.data.ai.AiPart
 import com.zeroindex.intake.data.ai.recipes.FoundRecipes
 import com.zeroindex.intake.data.ai.recipes.RecipePrompts
-import com.zeroindex.intake.domain.ai.AiTask
+import com.zeroindex.intake.domain.ai.AiFeature
+import com.zeroindex.intake.domain.ai.AiTrigger
 import com.zeroindex.intake.domain.recipe.PageNutrition
 import com.zeroindex.intake.domain.recipe.RecipeDraft
 import com.zeroindex.intake.domain.recipe.RecipeSource
@@ -24,7 +25,8 @@ class RecipeAiExtractor @Inject constructor(private val gateway: AiGateway) {
 
     suspend fun extract(pageText: String, pageUrl: String): RecipeDraft? {
         val outcome = gateway.structured(
-            task = AiTask.RECIPE_HUNTER,
+            feature = AiFeature.RECIPE_TRY_AI,
+            trigger = AiTrigger.USER_ACTION,
             serializer = FoundRecipes.serializer(),
             schema = RecipePrompts.schema,
             system = SYSTEM,

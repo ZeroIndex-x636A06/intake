@@ -163,6 +163,8 @@ class PortableSettingsTest {
             "demo_data_loaded", "health_last_write_at", "health_last_sync_at",
             // Motion polish: the day the protein burst last played is per device, never exported.
             "last_celebration_day",
+            // AI usage meter: where this device's counters were last reset.
+            "ai_usage_reset_at",
             // Hydration v2: precise location, forecast cache and retry time.
             "weather_lat", "weather_lon", "weather_cache_date", "weather_cache_lat", "weather_cache_lon",
             "weather_cache_temp_max_c", "weather_cache_humidity_pct", "weather_cache_fetched_at", "weather_last_attempt_at",

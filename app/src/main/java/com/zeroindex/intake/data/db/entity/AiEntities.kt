@@ -52,3 +52,33 @@ data class ModelBenchmarkEntity(
     override val updatedAt: Long,
     override val deletedAt: Long? = null,
 ) : Audited
+
+/**
+ * One model call, for the AI usage meter and the budget (SPEC-v3 "AI policy and cost"). It records which
+ * feature called which model and what it cost, never the prompt, the reply or a key. It is per device and
+ * is deliberately not in backups or sync: usage on one phone says nothing about another's bill.
+ * "Reset counters" moves a marker in settings; no row is ever removed.
+ */
+@Entity(
+    tableName = "ai_usage",
+    indices = [Index("at"), Index("feature"), Index("deletedAt")],
+)
+data class AiUsageEntity(
+    @PrimaryKey override val id: String = newId(),
+    /** An [com.zeroindex.intake.domain.ai.AiFeature] name. */
+    val feature: String,
+    val model: String,
+    /** An [com.zeroindex.intake.domain.ai.AiTrigger] name. */
+    val triggerKind: String,
+    val promptTokens: Int? = null,
+    val completionTokens: Int? = null,
+    val costUsd: Double,
+    /** True when OpenRouter reported [costUsd]; false when it was worked out from catalog prices. */
+    val costReported: Boolean,
+    val success: Boolean,
+    /** UTC epoch millis of the call. */
+    val at: Long,
+    override val createdAt: Long,
+    override val updatedAt: Long,
+    override val deletedAt: Long? = null,
+) : Audited

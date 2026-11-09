@@ -75,8 +75,8 @@ fun PhotoEstimateFlow(
         PhotoStage.NeedsKey -> Column(Modifier.padding(16.dp)) {
             AccentNote(
                 lead = "Photo estimates are optional",
-                body = "They use an AI model through your own OpenRouter key. Add one in Settings → AI; " +
-                    "everything else in the app works without it.",
+                body = "They use an AI model through your own OpenRouter key and need “Use AI features” on. " +
+                    "Set both in Settings → AI; everything else in the app works without it.",
             )
             Spacer(Modifier.height(12.dp))
             Button(onClick = onOpenAiSettings, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(52.dp)) {

@@ -20,7 +20,8 @@ import com.zeroindex.intake.data.db.entity.EatOutOrigin
 import com.zeroindex.intake.data.repository.AllergenRepository
 import com.zeroindex.intake.data.repository.FoodLogRepository
 import com.zeroindex.intake.data.repository.TargetRepository
-import com.zeroindex.intake.domain.ai.AiTask
+import com.zeroindex.intake.domain.ai.AiFeature
+import com.zeroindex.intake.domain.ai.AiTrigger
 import com.zeroindex.intake.domain.ai.PlanBFit
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
 import com.zeroindex.intake.domain.allergen.ModelAllergenClaim
@@ -140,7 +141,8 @@ class PlanBFinder @Inject constructor(
         val left = remaining()
         val avoided = allergens.avoidedAllergens()
         val outcome = gateway.structured(
-            task = AiTask.PLAN_B,
+            feature = AiFeature.PLAN_B,
+            trigger = AiTrigger.USER_ACTION,
             serializer = FoundOptions.serializer(),
             schema = PlanBPrompts.schema,
             system = PlanBPrompts.system(avoided),

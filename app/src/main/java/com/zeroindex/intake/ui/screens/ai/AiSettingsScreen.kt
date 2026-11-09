@@ -91,7 +91,12 @@ fun AiSettingsScreen(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item(key = "head") {
-            SubHead("AI model picker", "Choose a model for each optional task. Models run only when you request them.")
+            SubHead("AI settings", "Everything AI is optional. It runs only when you tap something, or on a schedule you switch on.")
+        }
+        item(key = "master") { AiMasterCard(enabled = state.settings.aiEnabled, onToggle = viewModel::setAiEnabled) }
+        if (state.settings.aiEnabled) {
+            item(key = "budget") { AiBudgetCard(meter = state.meter, onSetCap = viewModel::setBudget) }
+            item(key = "usage") { AiUsageMeterCard(meter = state.meter, onReset = viewModel::resetCounters) }
         }
         item(key = "privacy") {
             IntakeCard {
@@ -159,23 +164,22 @@ fun AiSettingsScreen(
             ) { Text(if (state.catalog.refreshing) "Refreshing…" else "Refresh model list and prices") }
         }
 
-        item(key = "insight") {
-            IntakeCard {
-                SettingRow(
-                    title = "Daily insight",
-                    subtitle = "One suggestion a day on Today. Sends a summary of the last two weeks of " +
-                        "food, training and body data to the chosen model.",
-                    showDivider = false,
-                ) {
-                    Switch(checked = state.settings.dailyInsightEnabled, onCheckedChange = viewModel::setDailyInsight)
-                }
-            }
+        item(key = "cost-head") { SectionLine("Estimated cost", note = "Not a bill") }
+        item(key = "cost") { AiCostCard(state, onUsesChange = viewModel::setUsesPerDay) }
+
+        item(key = "automatic") {
+            AutomaticAiCard(
+                settings = state.settings,
+                onInsight = viewModel::setDailyInsight,
+                onReword = viewModel::setCoachReword,
+                onMenuRefresh = viewModel::setMenuAutoRefresh,
+            )
         }
 
         item(key = "bench-run-head") { SectionLine("Run benchmark", note = "On your key · you set the cap") }
         item(key = "bench-run") {
             BenchmarkRunCard(
-                hasKey = state.hasKey,
+                hasKey = state.hasKey && state.settings.aiEnabled,
                 state = benchmark,
                 onToggleTask = viewModel::toggleBenchmarkTask,
                 onCapChange = viewModel::setBenchmarkCap,
@@ -301,7 +305,7 @@ private fun ModelRow(row: TaskRow, onChange: () -> Unit) {
 }
 
 /** "OpenAI: GPT-6 Luna" reads as "OpenAI · GPT-6 Luna", matching the mockup. */
-private fun displayName(model: com.zeroindex.intake.domain.ai.ModelInfo): String =
+internal fun displayName(model: com.zeroindex.intake.domain.ai.ModelInfo): String =
     model.name.replaceFirst(": ", " · ")
 
 private fun requirements(task: AiTask): String = buildList {

@@ -8,18 +8,19 @@ with its merge commit. Read `CLAUDE.md` before you claim anything.
 
 **Claimed by the coordinating session**
 
+- Debug APK build for device testing.
 
 ## Open: anyone can claim these
 
 Each task links to the section of `docs/SPEC-v3.md` that defines it.
 
-4. **AI policy audit, usage meter and cost analysis.** See "Additions → AI
-   policy and cost". Do this last, once the AI features are final.
-   - Audit every OpenRouter call site.
-   - Show calls and spend per feature.
-   - Add a monthly budget cap.
-   - Estimate daily and monthly cost from the chosen models, and write
-     `docs/AI-COSTS.md`.
+- Nothing open right now. Feedback from device testing will land here.
+- Known gaps worth picking up:
+  - shared-element transition from recipe card to detail;
+  - watch rest ring;
+  - Health Connect HRV for the coach;
+  - reading PDF menu text without AI, which needs a dependency check first;
+  - scroll-to-target for the tour on the two-column layout.
 
 ## Needs the user
 
@@ -38,6 +39,11 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
   draw-in, shimmer, press feedback, per-screen declutter, Settings regrouped (duplicate Allergens removed, Replay the tour added),
   AMRAP label, mentioned-as-avoided notes, `ProgramEdits` tests. No schema change. Not seen on a device. Skipped: shared-element
   transition and the watch rest ring.
+- AI policy audit, usage meter and cost analysis (branch `worktree-agent-a9ca96cc2a21aa1d3`; see `docs/AI-COSTS.md`).
+  Every OpenRouter call site audited and gated by one guard in `AiGateway` (trigger, master switch, key, monthly
+  budget); weekly menu job made opt-in; structured menu pages read without a model; usage meter, budget cap and
+  estimated-cost screen in Settings -> AI. Schema change: `ai_usage` in `migrateAiUsage_2_3` (per device, not in
+  backup or sync). Not seen on a device; no live OpenRouter calls.
 - Onboarding and Today tour: nine-step welcome flow, auto-skip for installs with data, Today coach marks, first-visit
   tips per tab, Help replay rows (branch `agent/onboarding-tour`; see `RESUME.md`). No schema change. Not seen on a device.
 - Coach engine, "One thing to do today" card, and settings/profile in backup and export (branch `agent/coach-engine`).

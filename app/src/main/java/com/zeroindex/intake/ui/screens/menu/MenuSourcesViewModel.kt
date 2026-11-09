@@ -13,7 +13,8 @@ import com.zeroindex.intake.data.db.entity.MenuItemEntity
 import com.zeroindex.intake.data.db.entity.MenuRunStatus
 import com.zeroindex.intake.data.db.entity.MenuSourceEntity
 import com.zeroindex.intake.data.db.entity.MenuSourceKind
-import com.zeroindex.intake.data.keys.ApiKeyStore
+import com.zeroindex.intake.data.ai.AiGateway
+import com.zeroindex.intake.domain.ai.AiTrigger
 import com.zeroindex.intake.domain.time.Clock
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -44,14 +45,14 @@ class MenuSourcesViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val menuDao: MenuDao,
     private val ingestor: MenuIngestor,
-    private val keys: ApiKeyStore,
+    private val gateway: AiGateway,
     private val clock: Clock,
 ) : ViewModel() {
 
     val sources: StateFlow<List<MenuSourceEntity>> =
         menuDao.observeSources().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    private val _state = MutableStateFlow(MenuUiState(hasKey = keys.openRouterKey() != null))
+    private val _state = MutableStateFlow(MenuUiState(hasKey = gateway.isConfigured()))
     val state: StateFlow<MenuUiState> = _state.asStateFlow()
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -81,14 +82,14 @@ class MenuSourcesViewModel @Inject constructor(
     }
 
     fun run(source: MenuSourceEntity) {
-        if (keys.openRouterKey() == null) {
-            _state.update { it.copy(error = AiError.NoKey.message) }
+        gateway.unavailableReason()?.let { reason ->
+            _state.update { it.copy(error = reason.message) }
             return
         }
         _state.update { it.copy(running = "Reading ${source.restaurantName}'s menu…", error = null) }
         viewModelScope.launch {
             menuDao.upsertSource(source.copy(lastStatus = MenuRunStatus.RUNNING, updatedAt = clock.nowMillis()))
-            runCatching { ingestor.stage(source) }
+            runCatching { ingestor.stage(source, AiTrigger.USER_ACTION) }
                 .onSuccess { items -> _state.update { it.copy(running = null, review = Review(source, items)) } }
                 .onFailure { e ->
                     val reason = (e as? AiError)?.message ?: e.message ?: "Import failed."
