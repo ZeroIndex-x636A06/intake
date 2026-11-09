@@ -61,7 +61,8 @@ file before you change anything, then read `docs/TASKS.md` to pick up work.
 8. **Dependencies and source files:**
    - No new Maven dependencies unless you've checked they resolve.
    - No literal U+FEFF in source, because lint fails on it. Use `"﻿"`.
-9. Keep model identifiers out of code, docs and commit messages.
+9. Keep model identifiers out of code, docs and commit message bodies. The
+   attribution trailers your tool adds, such as `Co-Authored-By`, are fine; keep them.
 
 ## Build, test, verify
 
