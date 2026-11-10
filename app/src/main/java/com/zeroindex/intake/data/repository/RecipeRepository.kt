@@ -15,6 +15,9 @@ import com.zeroindex.intake.domain.allergen.AllergenScanResult
 import com.zeroindex.intake.domain.model.FoodSource
 import com.zeroindex.intake.domain.plan.CookSteps
 import com.zeroindex.intake.domain.recipe.IngredientDraft
+import com.zeroindex.intake.domain.recipe.IngredientGroupsCodec
+import com.zeroindex.intake.domain.recipe.LineAllergenTag
+import com.zeroindex.intake.domain.recipe.LineAllergens
 import com.zeroindex.intake.domain.recipe.PageNutrition
 import com.zeroindex.intake.domain.recipe.RecipeEditing
 import com.zeroindex.intake.domain.time.Clock
@@ -37,6 +40,23 @@ data class RecipeSaveRequest(
      * published nutrition for a link import, or the values a recipe already had.
      */
     val fallbackNutrition: PageNutrition? = null,
+    /** The Notes section. Always replaces what was stored: the editor shows it, so blank means cleared. */
+    val notes: String? = null,
+    /** Prep and cook time apart. Null keeps what a recipe had, unless its total changed. */
+    val prepMinutes: Int? = null,
+    val cookMinutes: Int? = null,
+    /** The photo's address from the imported page. Null keeps what a recipe had. */
+    val imageUrl: String? = null,
+)
+
+/** One ingredient line as the recipe screen shows it. */
+data class IngredientView(val key: String, val text: String, val group: String?, val tag: LineAllergenTag?)
+
+/** A recipe ready to show: its ingredients in order with their group and allergen tag. */
+data class RecipeView(
+    val recipe: RecipeEntity,
+    val ingredients: List<IngredientView>,
+    val steps: List<String>,
 )
 
 /** A recipe loaded for editing. */
@@ -77,12 +97,27 @@ class RecipeRepository @Inject constructor(
                     key = "f${n++}", name = f.name, foodId = f.id, grams = row.quantityGrams,
                     kcalPer100g = f.kcalPer100g, proteinPer100g = f.proteinPer100g,
                     carbsPer100g = f.carbsPer100g, fatPer100g = f.fatPer100g, allergenTags = f.allergenTags,
+                    group = row.groupLabel,
                 )
             }
         }
-        val fromText = recipe.ingredientsText.lines().map { it.trim() }.filter { it.isNotEmpty() }
-            .map { RecipeEditing.draftFromLine("t${n++}", it).copy(grams = null) }
+        // Group labels are stored by line, so they are read against the raw lines before blanks are dropped.
+        val rawLines = recipe.ingredientsText.lines()
+        val rawGroups = IngredientGroupsCodec.decode(recipe.ingredientGroups, rawLines.size)
+        val fromText = rawLines.indices.filter { rawLines[it].isNotBlank() }
+            .map { i -> RecipeEditing.draftFromLine("t${n++}", rawLines[i].trim(), rawGroups[i]).copy(grams = null) }
         return EditableRecipe(recipe, fromFoods + fromText, CookSteps.split(recipe.instructions))
+    }
+
+    /** A recipe for the detail screen: every ingredient (picked foods and text lines), its group, and its own allergen tag. */
+    suspend fun view(id: String): RecipeView? {
+        val e = load(id) ?: return null
+        val scan = allergens.lineScanner()
+        val lines = e.ingredients.filter { it.name.isNotBlank() }.map { d ->
+            val tag = LineAllergens.tagOf(scan(listOf(d.line, d.allergenTags).filter(String::isNotBlank).joinToString(" ")))
+            IngredientView(d.key, d.line, d.group, tag)
+        }
+        return RecipeView(e.recipe, lines, e.steps)
     }
 
     suspend fun save(req: RecipeSaveRequest): RecipeEntity {
@@ -98,6 +133,7 @@ class RecipeRepository @Inject constructor(
         val rows = ArrayList<RecipeIngredientEntity>()
         val rid = existing?.id ?: com.zeroindex.intake.data.db.entity.newId()
         val textLines = ArrayList<String>()
+        val textGroups = ArrayList<String?>()
         named.forEachIndexed { index, d ->
             if (d.hasNutrition) {
                 val foodId = d.foodId ?: seedId("recipe-food", "${d.name.trim().lowercase()}|${d.kcalPer100g}|${d.proteinPer100g}|${d.carbsPer100g}|${d.fatPer100g}").also {
@@ -110,10 +146,12 @@ class RecipeRepository @Inject constructor(
                 }
                 rows += RecipeIngredientEntity(
                     recipeId = rid, foodId = foodId, quantityGrams = d.grams!!, displayOrder = index,
+                    groupLabel = d.group?.trim()?.takeIf { it.isNotEmpty() },
                     createdAt = now, updatedAt = now,
                 )
             } else {
                 textLines += d.line
+                textGroups += d.group
             }
         }
 
@@ -130,6 +168,16 @@ class RecipeRepository @Inject constructor(
             origin = if (existing != null) existing.origin else req.origin,
             sourceUrl = req.sourceUrl ?: existing?.sourceUrl,
             ingredientsText = textLines.joinToString("\n"),
+            ingredientGroups = IngredientGroupsCodec.encode(textGroups),
+            notes = req.notes?.trim()?.takeIf { it.isNotEmpty() },
+            imageUrl = req.imageUrl ?: existing?.imageUrl,
+            // Prep and cook belong to the total they were read with: a changed total makes them stale.
+            prepMinutes = req.prepMinutes ?: existing?.prepMinutes?.takeIf { existing.totalTimeMinutes == req.totalMinutes },
+            cookMinutes = req.cookMinutes ?: existing?.cookMinutes?.takeIf { existing.totalTimeMinutes == req.totalMinutes },
+            fiberPerServing = req.fallbackNutrition?.fiberG ?: existing?.fiberPerServing,
+            sugarPerServing = req.fallbackNutrition?.sugarG ?: existing?.sugarPerServing,
+            sodiumMgPerServing = req.fallbackNutrition?.sodiumMg ?: existing?.sodiumMgPerServing,
+            saturatedFatPerServing = req.fallbackNutrition?.saturatedFatG ?: existing?.saturatedFatPerServing,
             kcalPerServing = perServing?.kcal ?: if (usePage) req.fallbackNutrition?.kcal else null,
             proteinPerServing = perServing?.protein ?: if (usePage) req.fallbackNutrition?.proteinG else null,
             carbsPerServing = perServing?.carbs ?: if (usePage) req.fallbackNutrition?.carbsG else null,

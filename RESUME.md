@@ -5,6 +5,10 @@ Read this first when picking the work back up. Branch:
 
 ## Done
 
+- Health Connect sync and recipe import (branch `worktree-agent-ac631d26a40887bae`; `docs/RECIPE-IMPORT.md`).
+  Health Connect: reads go through `HealthDataSource` (real: `HealthConnectSource`; tests use a fake). `HealthReader` does the reading with no database: first sync 30 days, later 14 days or the gap since the last sync (max 30), every page followed, each type read only if its own permission is granted, one failing type reported and the rest still read, aggregates that fail fall back to summing records. The screen shows "Last synced", a per-type line ("Steps: 12 of 30 days · Weight: 6 records · Sleep: none (no permission)"), today's steps and sleep, and any failure in words. The line is kept in settings (`healthLastReport`). Records from our own package are skipped only for the types we write (weight, exercise).
+  Recipes: notes, prep/cook/total, fibre/sugar/saturated fat/sodium, photo address, ingredient groups, per-line allergen tags, clean-up, and a single primary button. Schema v3 `migrateRecipes_2_3`: `recipe` gains `notes`, `prepMinutes`, `cookMinutes`, `imageUrl`, `fiberPerServing`, `sugarPerServing`, `sodiumMgPerServing`, `saturatedFatPerServing`, `ingredientGroups`; `recipe_ingredient.groupLabel`; `shopping_list_item.note`. New `domain/recipe/RecipeHtmlExtras.kt` (WPRM and Tasty notes and groups), `RecipeDisplay.kt` (times, groups, line tags), `ui/images/RecipePhoto.kt`.
+
 - Exercise diagrams, custom workouts and a plan creator that uses its answers (branch `worktree-agent-adb67bf9ac0ff4da0`;
   docs/EXERCISE-IMAGES.md and docs/WORKOUTS.md): bundled photos (85 of 94 catalog exercises, Free Exercise DB pinned
   commit), a 20-group muscle map with six coarse regions, an exercise sheet from library, picker, builder and active workout,
@@ -198,6 +202,8 @@ Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/SPEC-v3.md`, `docs/BACKUP
 
 ## NOT verified
 
+- Health Connect sync and the Health Connect screen have never run on a device. The fake-client tests prove the reading, paging, permission and mapping logic; they cannot prove what a real Health Connect returns or whether the permission dialog grants what the screen shows. READ_HEALTH_DATA_HISTORY (data older than 30 days before the first grant) and READ_HEALTH_DATA_IN_BACKGROUND are not requested: foreground reads of the last 30 days do not need them.
+- Recipe screens (photo, menu, line tags, highlight and scroll, groups in cook mode, editor group field, shopping note) have not been seen on a device, and photos have not been fetched over a real network. Parsing is tested on small hand-written fixtures plus a manual read of the structure of two real pages; the two real pages were not committed.
 - Exercise photos, the muscle map, the exercise sheet, the custom exercise form (camera, gallery, tap-the-body picker),
   My workouts, the profile focus/avoid/weekday pickers, the Today rest-day card and "How this plan was built" were never
   seen on a device (no emulator). The map outlines were only checked as a rendered preview, not in Compose. The camera

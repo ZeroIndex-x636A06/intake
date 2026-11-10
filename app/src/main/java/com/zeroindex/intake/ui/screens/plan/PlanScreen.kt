@@ -756,6 +756,9 @@ private fun ShoppingRow(
                 style = MaterialTheme.typography.bodyMedium,
                 textDecoration = if (item.isChecked) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
             )
+            item.note?.let {
+                Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             // Shopping is where the label gets read, so this is the most useful place for the nudge.
             if (!item.isChecked) checkLabelReasonFor(item.name)?.let { CheckLabelChip(it, Modifier.padding(top = 2.dp)) }
         }
@@ -861,6 +864,12 @@ private fun EveryWeekAccordion(meta: PlanMeta) {
 internal fun RecipeRow(recipe: RecipeEntity, onClick: () -> Unit, modifier: Modifier = Modifier) {
     IntakeCard(modifier = modifier.pressScale().clickable(onClick = onClick)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            if (recipe.imageUrl != null) {
+                com.zeroindex.intake.ui.images.ThumbTile(
+                    name = recipe.name, imageUrl = recipe.imageUrl, size = 52.dp, fromRecipePage = true,
+                )
+                Spacer(Modifier.size(10.dp))
+            }
             Column(Modifier.weight(1f)) {
                 Text(recipe.name, style = MaterialTheme.typography.titleSmall)
                 Text(

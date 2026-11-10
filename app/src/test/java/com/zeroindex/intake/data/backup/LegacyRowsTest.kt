@@ -112,6 +112,49 @@ class LegacyRowsTest {
     }
 
     @Test
+    fun v2RecipeRowsDecodeWithTheImportColumnsEmpty() {
+        fun <T> decode(table: String, ser: kotlinx.serialization.KSerializer<T>, raw: String): T =
+            json.decodeFromJsonElement(ser, LegacyRows.upgrade(table, json.parseToJsonElement(raw)))
+        val r = decode(
+            "recipe", com.zeroindex.intake.data.db.entity.RecipeEntity.serializer(),
+            """{"id":"r1","name":"Pasta","servings":4,"instructions":"Boil.","totalTimeMinutes":30,"origin":"LINK","ingredientsText":"1 egg","createdAt":1,"updatedAt":1}""",
+        )
+        assertThat(r.notes).isNull()
+        assertThat(r.imageUrl).isNull()
+        assertThat(r.prepMinutes).isNull()
+        assertThat(r.fiberPerServing).isNull()
+        assertThat(r.sodiumMgPerServing).isNull()
+        assertThat(r.ingredientGroups).isNull()
+        val i = decode(
+            "recipe_ingredient", com.zeroindex.intake.data.db.entity.RecipeIngredientEntity.serializer(),
+            """{"id":"i1","recipeId":"r1","foodId":"f1","quantityGrams":100.0,"displayOrder":0,"createdAt":1,"updatedAt":1}""",
+        )
+        assertThat(i.groupLabel).isNull()
+        val s = decode(
+            "shopping_list_item", com.zeroindex.intake.data.db.entity.ShoppingListItemEntity.serializer(),
+            """{"id":"s1","planWeekId":"w1","name":"Rice","createdAt":1,"updatedAt":1}""",
+        )
+        assertThat(s.note).isNull()
+    }
+
+    @Test
+    fun v3RecipeImportFieldsRoundTripThroughBackupJson() {
+        val r = com.zeroindex.intake.data.db.entity.RecipeEntity(
+            id = "r", name = "Pasta", servings = 4, instructions = "Boil.", totalTimeMinutes = 33,
+            notes = "Store 3 days.", prepMinutes = 15, cookMinutes = 18, imageUrl = "https://example.test/a.jpg",
+            fiberPerServing = 2.0, sugarPerServing = 2.0, sodiumMgPerServing = 1179.0, saturatedFatPerServing = 37.0,
+            ingredientsText = "1 egg\n2 cups milk", ingredientGroups = "Batter\nBatter", createdAt = 1, updatedAt = 1,
+        )
+        val ser = com.zeroindex.intake.data.db.entity.RecipeEntity.serializer()
+        assertThat(json.decodeFromString(ser, json.encodeToString(ser, r))).isEqualTo(r)
+        val row = com.zeroindex.intake.data.db.entity.RecipeIngredientEntity(
+            id = "i", recipeId = "r", foodId = "f", quantityGrams = 1.0, displayOrder = 0, groupLabel = "For the Sauce", createdAt = 1, updatedAt = 1,
+        )
+        val rser = com.zeroindex.intake.data.db.entity.RecipeIngredientEntity.serializer()
+        assertThat(json.decodeFromString(rser, json.encodeToString(rser, row))).isEqualTo(row)
+    }
+
+    @Test
     fun savedWorkoutsAndPhotoNamesRoundTripThroughTheBackupJson() {
         val p = com.zeroindex.intake.data.db.entity.ProgramEntity(id = "w", name = "Arm day", isStandalone = true, createdAt = 1, updatedAt = 1)
         val back = json.decodeFromString(com.zeroindex.intake.data.db.entity.ProgramEntity.serializer(), json.encodeToString(com.zeroindex.intake.data.db.entity.ProgramEntity.serializer(), p))

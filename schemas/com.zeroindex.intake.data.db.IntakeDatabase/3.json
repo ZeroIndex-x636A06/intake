@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 3,
-    "identityHash": "32d6fa040912aaba6ca30d61f9f0909e",
+    "identityHash": "7820ad8494234cb5b56189e5ea5b168e",
     "entities": [
       {
         "tableName": "food",
@@ -378,7 +378,7 @@
       },
       {
         "tableName": "recipe",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `servings` INTEGER NOT NULL, `instructions` TEXT NOT NULL, `totalTimeMinutes` INTEGER NOT NULL, `sourceWeekNumber` INTEGER, `origin` TEXT NOT NULL DEFAULT 'USER', `sourceUrl` TEXT, `ingredientsText` TEXT NOT NULL DEFAULT '', `kcalPerServing` REAL, `proteinPerServing` REAL, `carbsPerServing` REAL, `fatPerServing` REAL, `allergenStatus` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `servings` INTEGER NOT NULL, `instructions` TEXT NOT NULL, `totalTimeMinutes` INTEGER NOT NULL, `sourceWeekNumber` INTEGER, `origin` TEXT NOT NULL DEFAULT 'USER', `sourceUrl` TEXT, `ingredientsText` TEXT NOT NULL DEFAULT '', `kcalPerServing` REAL, `proteinPerServing` REAL, `carbsPerServing` REAL, `fatPerServing` REAL, `allergenStatus` TEXT, `notes` TEXT, `prepMinutes` INTEGER, `cookMinutes` INTEGER, `imageUrl` TEXT, `fiberPerServing` REAL, `sugarPerServing` REAL, `sodiumMgPerServing` REAL, `saturatedFatPerServing` REAL, `ingredientGroups` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -460,6 +460,51 @@
             "affinity": "TEXT"
           },
           {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "prepMinutes",
+            "columnName": "prepMinutes",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "cookMinutes",
+            "columnName": "cookMinutes",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "imageUrl",
+            "columnName": "imageUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "fiberPerServing",
+            "columnName": "fiberPerServing",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "sugarPerServing",
+            "columnName": "sugarPerServing",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "sodiumMgPerServing",
+            "columnName": "sodiumMgPerServing",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "saturatedFatPerServing",
+            "columnName": "saturatedFatPerServing",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "ingredientGroups",
+            "columnName": "ingredientGroups",
+            "affinity": "TEXT"
+          },
+          {
             "fieldPath": "createdAt",
             "columnName": "createdAt",
             "affinity": "INTEGER",
@@ -506,7 +551,7 @@
       },
       {
         "tableName": "recipe_ingredient",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `recipeId` TEXT NOT NULL, `foodId` TEXT NOT NULL, `quantityGrams` REAL NOT NULL, `displayOrder` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`recipeId`) REFERENCES `recipe`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION , FOREIGN KEY(`foodId`) REFERENCES `food`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `recipeId` TEXT NOT NULL, `foodId` TEXT NOT NULL, `quantityGrams` REAL NOT NULL, `displayOrder` INTEGER NOT NULL, `groupLabel` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`recipeId`) REFERENCES `recipe`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION , FOREIGN KEY(`foodId`) REFERENCES `food`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
         "fields": [
           {
             "fieldPath": "id",
@@ -537,6 +582,11 @@
             "columnName": "displayOrder",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "groupLabel",
+            "columnName": "groupLabel",
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "createdAt",
@@ -2340,7 +2390,7 @@
       },
       {
         "tableName": "shopping_list_item",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `planWeekId` TEXT NOT NULL, `name` TEXT NOT NULL, `quantity` TEXT NOT NULL, `category` TEXT NOT NULL, `isChecked` INTEGER NOT NULL, `isPantryStaple` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`planWeekId`) REFERENCES `plan_week`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `planWeekId` TEXT NOT NULL, `name` TEXT NOT NULL, `quantity` TEXT NOT NULL, `category` TEXT NOT NULL, `isChecked` INTEGER NOT NULL, `isPantryStaple` INTEGER NOT NULL, `note` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`planWeekId`) REFERENCES `plan_week`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
         "fields": [
           {
             "fieldPath": "id",
@@ -2383,6 +2433,11 @@
             "columnName": "isPantryStaple",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "note",
+            "columnName": "note",
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "createdAt",
@@ -4030,7 +4085,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '32d6fa040912aaba6ca30d61f9f0909e')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '7820ad8494234cb5b56189e5ea5b168e')"
     ]
   }
 }

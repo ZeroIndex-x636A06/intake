@@ -93,10 +93,28 @@ internal object HtmlText {
         "amp" to "&", "lt" to "<", "gt" to ">", "quot" to "\"", "apos" to "'", "nbsp" to " ",
         "ndash" to "-", "mdash" to "-", "hellip" to "...", "deg" to "°", "frac12" to "½",
         "frac14" to "¼", "frac34" to "¾", "rsquo" to "'", "lsquo" to "'", "rdquo" to "\"", "ldquo" to "\"",
-        "times" to "x", "eacute" to "é", "egrave" to "è",
+        "times" to "x", "eacute" to "é", "egrave" to "è", "frac13" to "⅓", "frac23" to "⅔", "frac18" to "⅛",
+        "trade" to "™", "reg" to "®", "copy" to "©", "bull" to "•", "middot" to "·", "ntilde" to "ñ", "ccedil" to "ç",
+        "agrave" to "à", "aacute" to "á", "acirc" to "â", "iacute" to "í", "oacute" to "ó", "uacute" to "ú",
+        "ouml" to "ö", "uuml" to "ü", "auml" to "ä", "ecirc" to "ê", "icirc" to "î", "ocirc" to "ô",
+        "ensp" to " ", "emsp" to " ", "thinsp" to " ", "laquo" to "«", "raquo" to "»",
     )
 
-    fun decode(text: String): String = ENTITY.replace(text) { m ->
+    /**
+     * Entities decoded. Run twice, so a double-escaped "&amp;#8217;" (common in recipe plugins' JSON)
+     * becomes the apostrophe it meant rather than the text "&#8217;".
+     */
+    fun decode(text: String): String {
+        var t = text
+        repeat(2) {
+            val next = decodeOnce(t)
+            if (next == t) return t
+            t = next
+        }
+        return t
+    }
+
+    private fun decodeOnce(text: String): String = ENTITY.replace(text) { m ->
         val body = m.groupValues[1]
         when {
             body.startsWith("#x") || body.startsWith("#X") -> codePoint(body.substring(2).toIntOrNull(16))
@@ -120,4 +138,29 @@ internal object HtmlText {
             t.replace(Regex("""\s+"""), " ").trim()
         }
     }
+}
+
+/**
+ * Tidies an ingredient line as a recipe plugin wrote it. WP Recipe Maker puts a comma at the front of
+ * an ingredient's note, which its data export then wraps in brackets: "1 clove garlic (, minced)" becomes
+ * "1 clove garlic (minced)". Also: entities decoded (twice, for double-escaped text), double spaces and
+ * stray commas fixed, and brackets left empty by a missing note dropped. Pure and total.
+ */
+object IngredientCleaner {
+    fun clean(raw: String): String {
+        var t = HtmlText.decode(raw).replace(' ', ' ').replace("​", "")
+        t = t.replace(Regex("""\(\s*,\s*"""), "(")
+        t = t.replace(Regex("""\s+,"""), ",")
+        t = t.replace(Regex(""",(?:\s*,)+"""), ",")
+        t = t.replace(Regex(""",(?=\p{L})"""), ", ")
+        t = t.replace(Regex("""\(\s+"""), "(").replace(Regex("""\s+\)"""), ")")
+        t = t.replace(Regex(""",\s*\)"""), ")")
+        t = t.replace(Regex("""\(\s*\)"""), "")
+        t = t.replace(Regex("""\s{2,}"""), " ")
+        return t.trim().trim(',').trim()
+    }
+
+    /** A group header such as "For the Sauce:" without markup, entities or a trailing colon. */
+    fun cleanLabel(raw: String): String? =
+        HtmlText.plain(raw).trim().trimEnd(':').trim().takeIf { it.isNotEmpty() }
 }

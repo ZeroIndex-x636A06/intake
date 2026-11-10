@@ -51,6 +51,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.zeroindex.intake.data.db.dao.RecipeDao
 import com.zeroindex.intake.data.db.entity.RecipeEntity
+import com.zeroindex.intake.data.repository.IngredientView
+import com.zeroindex.intake.data.repository.RecipeRepository
+import com.zeroindex.intake.domain.recipe.IngredientSections
 import com.zeroindex.intake.domain.plan.CookSteps
 import com.zeroindex.intake.domain.plan.StepTimer
 import com.zeroindex.intake.timer.CookTimer
@@ -67,7 +70,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 @HiltViewModel
-class CookModeViewModel @Inject constructor(private val recipeDao: RecipeDao) : ViewModel() {
+class CookModeViewModel @Inject constructor(
+    private val recipeDao: RecipeDao,
+    private val recipes: RecipeRepository,
+) : ViewModel() {
+    private val _ingredients = MutableStateFlow<List<IngredientView>>(emptyList())
+    val ingredients: StateFlow<List<IngredientView>> = _ingredients.asStateFlow()
     private val _recipe = MutableStateFlow<RecipeEntity?>(null)
     val recipe: StateFlow<RecipeEntity?> = _recipe.asStateFlow()
     private val _loaded = MutableStateFlow(false)
@@ -76,6 +84,7 @@ class CookModeViewModel @Inject constructor(private val recipeDao: RecipeDao) : 
     fun load(recipeId: String) {
         viewModelScope.launch {
             _recipe.value = recipeDao.findById(recipeId)
+            _ingredients.value = runCatching { recipes.view(recipeId)?.ingredients.orEmpty() }.getOrDefault(emptyList())
             _loaded.value = true
         }
     }
@@ -96,6 +105,7 @@ fun CookModeScreen(
     LaunchedEffect(recipeId) { viewModel.load(recipeId) }
     val recipe by viewModel.recipe.collectAsStateWithLifecycle()
     val loaded by viewModel.loaded.collectAsStateWithLifecycle()
+    val ingredients by viewModel.ingredients.collectAsStateWithLifecycle()
 
     // The screen stays on only while cook mode is showing.
     val view = LocalView.current
@@ -116,14 +126,15 @@ fun CookModeScreen(
                 BigButton("Close", onClose, Modifier.fillMaxWidth(), primary = true)
             }
         } else {
-            CookPager(recipe!!, steps, onClose)
+            CookPager(recipe!!, steps, ingredients, onClose)
         }
     }
 }
 
 @Composable
-private fun CookPager(recipe: RecipeEntity, steps: List<String>, onClose: () -> Unit) {
+private fun CookPager(recipe: RecipeEntity, steps: List<String>, ingredients: List<IngredientView>, onClose: () -> Unit) {
     val context = LocalContext.current
+    var showIngredients by remember { mutableStateOf(false) }
     val pager = rememberPagerState(pageCount = { steps.size })
     val scope = rememberCoroutineScope()
     val timers by CookTimerService.timers.collectAsStateWithLifecycle()
@@ -171,6 +182,14 @@ private fun CookPager(recipe: RecipeEntity, steps: List<String>, onClose: () -> 
                 shape = IntakeShape.Button,
                 modifier = Modifier.size(72.dp).semantics { contentDescription = "Close cook mode" },
             ) { Text("×", fontSize = 28.sp) }
+            if (ingredients.isNotEmpty()) {
+                Spacer(Modifier.size(10.dp))
+                OutlinedButton(
+                    onClick = { showIngredients = !showIngredients },
+                    shape = IntakeShape.Button,
+                    modifier = Modifier.heightIn(min = 72.dp),
+                ) { Text(if (showIngredients) "Steps" else "Ingredients", fontSize = 20.sp, fontWeight = FontWeight.Bold) }
+            }
             Spacer(Modifier.weight(1f))
             Column(horizontalAlignment = Alignment.End) {
                 Eyebrow("Step ${pager.currentPage + 1} of ${steps.size}")
@@ -185,7 +204,18 @@ private fun CookPager(recipe: RecipeEntity, steps: List<String>, onClose: () -> 
             SandNote("Notifications are off, so timers only show here and will not chime when you leave the app.")
         }
 
-        HorizontalPager(state = pager, modifier = Modifier.weight(1f).fillMaxWidth()) { page ->
+        if (showIngredients) {
+            // Group headers stay, so "butter" under the chicken and "butter" under the sauce are not confused.
+            Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Eyebrow(recipe.name)
+                IngredientSections.of(ingredients) { it.group }.forEach { section ->
+                    section.label?.let {
+                        Text(it, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 10.dp))
+                    }
+                    section.items.forEach { Text(it.text, fontSize = 22.sp, lineHeight = 30.sp) }
+                }
+            }
+        } else HorizontalPager(state = pager, modifier = Modifier.weight(1f).fillMaxWidth()) { page ->
             val text = steps[page]
             val durations = remember(text) { CookSteps.durations(text) }
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {

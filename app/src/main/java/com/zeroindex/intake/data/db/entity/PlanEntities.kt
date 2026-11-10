@@ -127,6 +127,8 @@ data class ShoppingListItemEntity(
     val category: StoreCategory = StoreCategory.OTHER,
     val isChecked: Boolean = false,
     val isPantryStaple: Boolean = false,
+    /** Where the item is used when a recipe groups its ingredients: "For the Sauce, For the Chicken". */
+    val note: String? = null,
     override val createdAt: Long,
     override val updatedAt: Long,
     override val deletedAt: Long? = null,

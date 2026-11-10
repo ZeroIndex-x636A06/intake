@@ -175,6 +175,17 @@ fun HealthConnectScreen(
                         Spacer(Modifier.height(6.dp))
                         Text(summary, style = MaterialTheme.typography.bodySmall)
                     }
+                    state.today?.let { t ->
+                        val bits = listOfNotNull(
+                            t.steps?.let { "%,d steps".format(it) },
+                            t.sleepMinutes?.let { "slept ${it / 60}h ${it % 60}m" },
+                            t.restingHeartRate?.let { "resting ${it.roundToInt()} bpm" },
+                        )
+                        if (bits.isNotEmpty()) {
+                            Spacer(Modifier.height(6.dp))
+                            Text("Today so far: ${bits.joinToString(" · ")}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+                        }
+                    }
                 }
                 sync.lastError?.let { ErrorState(title = "Could not read everything", body = "$it Your local data is unchanged.") }
             }
