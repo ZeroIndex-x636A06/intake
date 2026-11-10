@@ -1,0 +1,332 @@
+{
+ "a": [
+  {
+   "id": "today",
+   "label": "1 Today"
+  },
+  {
+   "id": "nutrition",
+   "label": "2 Nutrition"
+  },
+  {
+   "id": "log",
+   "label": "3 Log food"
+  },
+  {
+   "id": "photo",
+   "label": "4 Photo estimate"
+  },
+  {
+   "id": "swap",
+   "label": "5 Swap"
+  },
+  {
+   "id": "drinks",
+   "label": "6 Drinks"
+  },
+  {
+   "id": "food",
+   "label": "7 Food detail"
+  },
+  {
+   "id": "allergens",
+   "label": "8 Allergens"
+  },
+  {
+   "id": "train",
+   "label": "9 Train"
+  },
+  {
+   "id": "workout",
+   "label": "10 Workout"
+  },
+  {
+   "id": "summary",
+   "label": "11 Summary"
+  },
+  {
+   "id": "videos",
+   "label": "12 Videos"
+  },
+  {
+   "id": "progress",
+   "label": "13 Progress"
+  },
+  {
+   "id": "you",
+   "label": "14 You"
+  },
+  {
+   "id": "settings",
+   "label": "15 Settings"
+  },
+  {
+   "id": "set-appearance",
+   "label": "16.1 Appearance and units"
+  },
+  {
+   "id": "set-nutrition",
+   "label": "16.2 Nutrition"
+  },
+  {
+   "id": "set-water",
+   "label": "16.3 Water and drinks"
+  },
+  {
+   "id": "set-training",
+   "label": "16.4 Training"
+  },
+  {
+   "id": "set-health",
+   "label": "16.5 Health Connect"
+  },
+  {
+   "id": "set-fooddb",
+   "label": "16.6 Food database"
+  },
+  {
+   "id": "set-videos",
+   "label": "16.7 Videos"
+  },
+  {
+   "id": "set-reminders",
+   "label": "16.8 Reminders"
+  },
+  {
+   "id": "set-sync",
+   "label": "16.9 Sync and export"
+  },
+  {
+   "id": "set-ai",
+   "label": "16.10 AI (optional)"
+  },
+  {
+   "id": "set-keys",
+   "label": "16.11 API keys"
+  },
+  {
+   "id": "set-about",
+   "label": "16.12 About and help"
+  }
+ ],
+ "b": [
+  {
+   "id": "today",
+   "label": "1 Today"
+  },
+  {
+   "id": "nutrition",
+   "label": "2 Nutrition"
+  },
+  {
+   "id": "log",
+   "label": "3 Log food"
+  },
+  {
+   "id": "photo",
+   "label": "4 Photo estimate"
+  },
+  {
+   "id": "swap",
+   "label": "5 Swap"
+  },
+  {
+   "id": "drinks",
+   "label": "6 Drinks"
+  },
+  {
+   "id": "food",
+   "label": "7 Food detail"
+  },
+  {
+   "id": "allergens",
+   "label": "8 Allergens"
+  },
+  {
+   "id": "train",
+   "label": "9 Train"
+  },
+  {
+   "id": "workout",
+   "label": "10 Workout"
+  },
+  {
+   "id": "summary",
+   "label": "11 Summary"
+  },
+  {
+   "id": "videos",
+   "label": "12 Videos"
+  },
+  {
+   "id": "progress",
+   "label": "13 Progress"
+  },
+  {
+   "id": "you",
+   "label": "14 You"
+  },
+  {
+   "id": "settings",
+   "label": "15 Settings"
+  },
+  {
+   "id": "set-appearance",
+   "label": "16.1 Appearance and units"
+  },
+  {
+   "id": "set-nutrition",
+   "label": "16.2 Nutrition"
+  },
+  {
+   "id": "set-water",
+   "label": "16.3 Water and drinks"
+  },
+  {
+   "id": "set-training",
+   "label": "16.4 Training"
+  },
+  {
+   "id": "set-health",
+   "label": "16.5 Health Connect"
+  },
+  {
+   "id": "set-fooddb",
+   "label": "16.6 Food database"
+  },
+  {
+   "id": "set-videos",
+   "label": "16.7 Videos"
+  },
+  {
+   "id": "set-reminders",
+   "label": "16.8 Reminders"
+  },
+  {
+   "id": "set-sync",
+   "label": "16.9 Sync and export"
+  },
+  {
+   "id": "set-ai",
+   "label": "16.10 AI (optional)"
+  },
+  {
+   "id": "set-keys",
+   "label": "16.11 API keys"
+  },
+  {
+   "id": "set-about",
+   "label": "16.12 About and help"
+  }
+ ],
+ "c": [
+  {
+   "id": "today",
+   "label": "1 Today"
+  },
+  {
+   "id": "nutrition",
+   "label": "2 Eat"
+  },
+  {
+   "id": "log",
+   "label": "3 Log food"
+  },
+  {
+   "id": "photo",
+   "label": "4 Photo estimate"
+  },
+  {
+   "id": "swap",
+   "label": "5 Swap"
+  },
+  {
+   "id": "drinks",
+   "label": "6 Drinks"
+  },
+  {
+   "id": "food",
+   "label": "7 Food detail"
+  },
+  {
+   "id": "allergens",
+   "label": "8 Allergens"
+  },
+  {
+   "id": "train",
+   "label": "9 Train"
+  },
+  {
+   "id": "workout",
+   "label": "10 Workout"
+  },
+  {
+   "id": "summary",
+   "label": "11 Summary"
+  },
+  {
+   "id": "videos",
+   "label": "12 Videos"
+  },
+  {
+   "id": "progress",
+   "label": "13 Progress"
+  },
+  {
+   "id": "you",
+   "label": "14 You"
+  },
+  {
+   "id": "settings",
+   "label": "15 Settings"
+  },
+  {
+   "id": "set-appearance",
+   "label": "16.1 Appearance and units"
+  },
+  {
+   "id": "set-nutrition",
+   "label": "16.2 Eating targets"
+  },
+  {
+   "id": "set-water",
+   "label": "16.3 Water and drinks"
+  },
+  {
+   "id": "set-training",
+   "label": "16.4 Training"
+  },
+  {
+   "id": "set-health",
+   "label": "16.5 Health Connect"
+  },
+  {
+   "id": "set-fooddb",
+   "label": "16.6 Food database"
+  },
+  {
+   "id": "set-videos",
+   "label": "16.7 Videos"
+  },
+  {
+   "id": "set-reminders",
+   "label": "16.8 Reminders"
+  },
+  {
+   "id": "set-sync",
+   "label": "16.9 Sync and export"
+  },
+  {
+   "id": "set-ai",
+   "label": "16.10 AI (optional)"
+  },
+  {
+   "id": "set-keys",
+   "label": "16.11 API keys"
+  },
+  {
+   "id": "set-about",
+   "label": "16.12 About and help"
+  }
+ ]
+}
