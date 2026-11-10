@@ -42,6 +42,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -165,7 +166,7 @@ class AddFoodViewModel @Inject constructor(
     private val offSearchRepository: OffSearchRepository,
     private val drinkRepository: DrinkRepository,
     private val messages: AppMessages,
-    settingsRepository: SettingsRepository,
+    private val settingsRepository: SettingsRepository,
     foodDataPrefs: FoodDataPrefs,
 ) : ViewModel() {
 
@@ -433,7 +434,7 @@ class AddFoodViewModel @Inject constructor(
     private suspend fun logOne(food: FoodEntity, amount: Double, slot: MealSlot, at: Long) {
         if (food.drinkCategory != null) {
             val logged = drinkRepository.log(food, amount, at, slot)
-            messages.post(AppMessage("Added ${amount.toInt()} ml ${food.name}", "Undo") { drinkRepository.delete(logged.hydration.id) })
+            messages.post(AppMessage("Added ${settingsRepository.settings.first().volumeUnit.format(amount)} ${food.name}", "Undo") { drinkRepository.delete(logged.hydration.id) })
         } else {
             val entry = foodLogRepository.logFood(food, amount, slot, at)
             messages.post(AppMessage("Logged ${food.name} to ${slot.name.lowercase()}", "Undo") { foodLogRepository.softDelete(entry.id) })

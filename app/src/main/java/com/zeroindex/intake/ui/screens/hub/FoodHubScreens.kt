@@ -35,9 +35,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.zeroindex.intake.data.repository.MealPlanRepository
-import com.zeroindex.intake.data.repository.SwapEntry
-import com.zeroindex.intake.data.repository.SwapRepository
-import com.zeroindex.intake.data.repository.SwapSource
+import com.zeroindex.intake.data.swap.SwapEntry
+import com.zeroindex.intake.data.swap.SwapRepository
+import com.zeroindex.intake.data.swap.SwapSource
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.ui.allergen.AllergenChip
 import com.zeroindex.intake.ui.components.EmptyState

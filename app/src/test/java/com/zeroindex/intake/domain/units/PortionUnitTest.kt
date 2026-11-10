@@ -14,7 +14,7 @@ class PortionUnitTest {
 
     @Test
     fun `typed ounces convert back to stored grams`() {
-        assertThat(PortionUnit.OUNCES.toGrams(6.0)).isWithin(1e-6).of(170.097)
+        assertThat(PortionUnit.OUNCES.toGrams(6.0)).isWithin(1e-9).of(6.0 * 28.349523125)
         assertThat(PortionUnit.OUNCES.parseToGrams("6")).isWithin(1e-3).of(170.097)
         assertThat(PortionUnit.OUNCES.parseToGrams("1,5")).isWithin(1e-3).of(42.524)
         assertThat(PortionUnit.GRAMS.parseToGrams(" 85 ")).isEqualTo(85.0)

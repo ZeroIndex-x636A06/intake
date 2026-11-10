@@ -407,11 +407,11 @@ fun IntakeNavHost(
             }
         }
         composable<Route.LogFood> { entry ->
-            val args = entry.toRoute<Route.LogFood>()
-            val slot = args.slot?.let { n -> MealSlot.entries.firstOrNull { it.name == n } } ?: defaultMealSlot(java.time.LocalTime.now().hour)
-            // The time to log at: the one the caller passed (Today's selected day), else now, fixed for this visit.
-            val at = remember(entry) { if (args.atMillis > 0) args.atMillis else System.currentTimeMillis() }
             PushedScreen("Log food", back) { pad ->
+                val args = entry.toRoute<Route.LogFood>()
+                val slot = args.slot?.let { n -> MealSlot.entries.firstOrNull { it.name == n } } ?: defaultMealSlot(java.time.LocalTime.now().hour)
+                // The time to log at: the one the caller passed (Today's selected day), else now, fixed for this visit.
+                val at = remember(entry) { if (args.atMillis > 0) args.atMillis else System.currentTimeMillis() }
                 LogFoodScreen(
                     slot = slot,
                     loggedAtMillis = at,

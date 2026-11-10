@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.mapLatest
@@ -59,7 +60,7 @@ class FoodDetailViewModel @Inject constructor(
     private val clock: Clock,
     prefs: FoodDataPrefs,
     keys: ApiKeyStore,
-    settingsRepository: SettingsRepository,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     private val foodId = MutableStateFlow<String?>(null)
@@ -112,7 +113,7 @@ class FoodDetailViewModel @Inject constructor(
                 val logged = drinks.log(food, amount, at, slot)
                 messages.post(
                     AppMessage(
-                        text = "Added ${amount.toInt()} ml ${food.name}",
+                        text = "Added ${settingsRepository.settings.first().volumeUnit.format(amount)} ${food.name}",
                         actionLabel = "Undo",
                         onAction = { drinks.delete(logged.hydration.id) },
                     ),

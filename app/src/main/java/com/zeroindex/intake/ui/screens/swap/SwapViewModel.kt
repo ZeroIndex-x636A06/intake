@@ -6,11 +6,11 @@ import com.zeroindex.intake.data.ai.AiError
 import com.zeroindex.intake.data.ai.AiGateway
 import com.zeroindex.intake.data.ai.planb.PlanBFinder
 import com.zeroindex.intake.data.ai.planb.SearchArea
-import com.zeroindex.intake.data.repository.PlannedMeal
-import com.zeroindex.intake.data.repository.SwapEntry
-import com.zeroindex.intake.data.repository.SwapLogResult
-import com.zeroindex.intake.data.repository.SwapRepository
-import com.zeroindex.intake.data.repository.SwapSource
+import com.zeroindex.intake.data.swap.PlannedMeal
+import com.zeroindex.intake.data.swap.SwapEntry
+import com.zeroindex.intake.data.swap.SwapLogResult
+import com.zeroindex.intake.data.swap.SwapRepository
+import com.zeroindex.intake.data.swap.SwapSource
 import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nfc.TemplateLink

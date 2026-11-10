@@ -1,8 +1,14 @@
-package com.zeroindex.intake.data.repository
+package com.zeroindex.intake.data.swap
 
 import com.zeroindex.intake.data.ai.planb.PlanBFinder
 import com.zeroindex.intake.data.ai.planb.PlanBOption
 import com.zeroindex.intake.data.db.entity.AllergenStatus
+import com.zeroindex.intake.data.repository.AllergenRepository
+import com.zeroindex.intake.data.repository.MealLogResult
+import com.zeroindex.intake.data.repository.MealPlanRepository
+import com.zeroindex.intake.data.repository.MealTemplateRepository
+import com.zeroindex.intake.data.repository.RecipeContent
+import com.zeroindex.intake.data.repository.TemplateLogResult
 import com.zeroindex.intake.data.db.entity.EatOutOptionEntity
 import com.zeroindex.intake.data.db.entity.FoodLogEntity
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
