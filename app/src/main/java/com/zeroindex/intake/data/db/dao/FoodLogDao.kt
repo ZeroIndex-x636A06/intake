@@ -110,6 +110,10 @@ interface FoodLogDao {
     @Query("UPDATE food_log SET deletedAt = :now, updatedAt = :now WHERE id = :id")
     suspend fun softDelete(id: String, now: Long)
 
+    /** The row whether or not it was deleted: Undo on a drink brings its food row back too. */
+    @Query("SELECT * FROM food_log WHERE id = :id")
+    suspend fun findAny(id: String): FoodLogEntity?
+
     /** How many distinct days have any entry, for "18 of the last 21 days" (SPEC §11). */
     @Query(
         """

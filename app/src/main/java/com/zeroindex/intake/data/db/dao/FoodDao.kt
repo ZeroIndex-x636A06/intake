@@ -68,4 +68,29 @@ interface FoodDao {
 
     @Query("SELECT COUNT(*) FROM food WHERE deletedAt IS NULL")
     fun observeCount(): Flow<Int>
+
+    /** True if the id exists at all, deleted or not: a seeded drink the user removed must not come back. */
+    @Query("SELECT COUNT(*) FROM food WHERE id = :id")
+    suspend fun idCount(id: String): Int
+
+    /** Every drink, or one category's, most-used first. */
+    @Query(
+        """
+        SELECT * FROM food
+        WHERE deletedAt IS NULL AND drinkCategory IS NOT NULL AND (:category IS NULL OR drinkCategory = :category)
+        ORDER BY timesLogged DESC, name
+        """,
+    )
+    fun observeDrinks(category: String?): Flow<List<FoodEntity>>
+
+    @Query(
+        """
+        SELECT * FROM food
+        WHERE deletedAt IS NULL AND drinkCategory IS NOT NULL
+          AND (name LIKE '%' || :query || '%' OR brand LIKE '%' || :query || '%')
+        ORDER BY timesLogged DESC, name
+        LIMIT :limit
+        """,
+    )
+    fun searchDrinks(query: String, limit: Int = 50): Flow<List<FoodEntity>>
 }

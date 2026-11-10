@@ -23,6 +23,8 @@ import com.zeroindex.intake.domain.allergen.CheckLabelTerm
 import com.zeroindex.intake.domain.model.FoodSource
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nutrition.Macros
+import com.zeroindex.intake.domain.nutrition.NutrientKey
+import com.zeroindex.intake.domain.nutrition.Unlisted
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -388,6 +390,8 @@ class AddFoodViewModel @Inject constructor(
             carbsPer100g = carbs * per100,
             fatPer100g = fat * per100,
             source = if (barcode.isNullOrBlank()) FoodSource.MANUAL else FoodSource.BARCODE,
+            // The form asks for energy and the three macros only: the rest is not listed, not zero.
+            unlistedNutrients = Unlisted.encode(NutrientKey.entries.toSet()),
         )
         onCreated(food)
     }

@@ -6,7 +6,10 @@ import com.zeroindex.intake.data.keys.ApiKeyStore
 import com.zeroindex.intake.data.remote.usda.UsdaFood
 import com.zeroindex.intake.data.remote.usda.UsdaNutrientIds
 import com.zeroindex.intake.data.remote.usda.UsdaService
+import com.zeroindex.intake.domain.drinks.DrinkCategorizer
 import com.zeroindex.intake.domain.model.FoodSource
+import com.zeroindex.intake.domain.nutrition.NutrientKey
+import com.zeroindex.intake.domain.nutrition.Unlisted
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -51,6 +54,7 @@ class FoodSearchRepository @Inject constructor(
         val name = description.trim()
         if (name.isBlank()) return null
         fun nutrient(id: Int): Double = foodNutrients.firstOrNull { it.nutrientId == id }?.value ?: 0.0
+        fun missing(id: Int): Boolean = foodNutrients.none { it.nutrientId == id && it.value != null }
 
         val kcal = nutrient(UsdaNutrientIds.ENERGY_KCAL)
         // A record with no energy value is not usable for logging.
@@ -76,6 +80,15 @@ class FoodSearchRepository @Inject constructor(
             sodiumPer100g = nutrient(UsdaNutrientIds.SODIUM),
             saturatedFatPer100g = nutrient(UsdaNutrientIds.SATURATED_FAT),
             source = FoodSource.SEARCH,
+            unlistedNutrients = Unlisted.encode(
+                buildSet {
+                    if (missing(UsdaNutrientIds.FIBER)) add(NutrientKey.FIBER)
+                    if (missing(UsdaNutrientIds.SUGAR)) add(NutrientKey.SUGAR)
+                    if (missing(UsdaNutrientIds.SODIUM)) add(NutrientKey.SODIUM)
+                    if (missing(UsdaNutrientIds.SATURATED_FAT)) add(NutrientKey.SATURATED_FAT)
+                },
+            ),
+            drinkCategory = DrinkCategorizer.categorize(name, foodCategory.orEmpty())?.name,
             // Ingredient text is what the allergen engine scans later.
             allergenTags = ingredients?.trim().orEmpty(),
             isVerified = dataType == "Foundation" || dataType == "SR Legacy",
