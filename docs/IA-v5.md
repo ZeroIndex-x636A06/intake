@@ -753,3 +753,12 @@ sheet is deleted (Settings G, I). All other sheets and the 25 dialogs stay.
 4. **Videos Recommended: personalised from this phone's data?** Default: on, strictly local; the Settings switch turns it off.
 5. **Allergens as the single exception to "all configuring in Settings".** Default: yes, it stays on the Allergens
    screen from the Food strip.
+
+## 12. What was checked
+
+`design/intake-mockup-v4.html` was loaded in headless Chromium (Playwright) at a 390 px viewport. All 21 frames were
+opened through the frame chips: no horizontal overflow on the page or in any frame, and no console errors. The pill, a
+push with the back arrow, the water steppers, the Drinks size buttons, the unit switch and the Settings group pages were
+clicked and behave. It has **not** been seen on a real phone, the slide timing is a CSS approximation of the rule in 2b, the
+fonts are loaded from Google Fonts as in the earlier mockups (the check ran with them blocked and the system font
+fallback), and all photos, diagrams and video thumbnails are labelled placeholders.
