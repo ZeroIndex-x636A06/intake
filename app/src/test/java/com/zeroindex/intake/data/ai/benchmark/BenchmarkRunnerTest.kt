@@ -8,6 +8,7 @@ import com.zeroindex.intake.data.ai.OpenRouterClient
 import com.zeroindex.intake.data.db.dao.AiInsightDao
 import com.zeroindex.intake.data.db.entity.AiInsightEntity
 import com.zeroindex.intake.data.db.entity.ModelBenchmarkEntity
+import com.zeroindex.intake.domain.ai.AiFailureKind
 import com.zeroindex.intake.domain.ai.AiTask
 import com.zeroindex.intake.domain.ai.BenchmarkScore
 import com.zeroindex.intake.domain.ai.ModelInfo
@@ -95,7 +96,13 @@ class BenchmarkRunnerTest {
     }
 
     /** What the fake OpenRouter sends back for one request. */
-    private class Reply(val content: String = "", val cost: Double? = 0.001, val code: Int = 200, val body: String? = null)
+    private class Reply(
+        val content: String = "",
+        val cost: Double? = 0.001,
+        val code: Int = 200,
+        val body: String? = null,
+        val headers: Map<String, String> = emptyMap(),
+    )
 
     private class Seen(val request: Request, val body: JsonObject) {
         val model: String get() = body["model"]!!.jsonPrimitive.content
@@ -121,6 +128,7 @@ class BenchmarkRunnerTest {
                 put("usage", buildJsonObject { put("cost", reply.cost?.let(::JsonPrimitive) ?: JsonNull) })
             }.toString()
             Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(reply.code).message("x")
+                .apply { reply.headers.forEach { (k, v) -> header(k, v) } }
                 .body(body.toResponseBody("application/json".toMediaType())).build()
         }).build()
         val client = OpenRouterClient(http, json, baseUrl = "https://test.invalid/api/v1", pause = {})
@@ -491,5 +499,87 @@ class BenchmarkRunnerTest {
     fun `fixtures still carry the allergen the benchmark tests for`() {
         assertThat(BenchmarkScoring.AVOIDED_ALLERGEN).isEqualTo("dairy")
         assertThat(menus.all { fixture -> fixture.items.any { it.dairy } }).isTrue()
+    }
+
+    // --- B7.1: a rate limit is transient and belongs to one model ------------------------------------
+
+    private val tooMany = """{"error":{"code":429,"message":"Too many requests"}}"""
+
+    @Test
+    fun `a model that stays rate limited is skipped and the run carries on to the next one`() = runTest {
+        val dao = FakeDao()
+        val report = runner(dao) { if (it.model == "a/limited") Reply(code = 429, body = tooMany) else perfect(it) }
+            .runWith(listOf(selection(AiTask.DAILY_INSIGHT, "a/limited", "b/fine")))
+
+        assertThat(report.abortReason).isNull()
+        val skipped = report.results.filterIsInstance<ModelResult.Skipped>().single()
+        assertThat(skipped.modelId).isEqualTo("a/limited")
+        assertThat(skipped.kind).isEqualTo(AiFailureKind.RATE_LIMITED)
+        assertThat(skipped.reason).contains("Rate limited")
+        assertThat(report.results.filterIsInstance<ModelResult.Saved>().single().modelId).isEqualTo("b/fine")
+        assertThat(dao.saved.map { it.modelId }).containsExactly("b/fine")
+    }
+
+    @Test
+    fun `a rate limit is waited out a few times before the model is given up on`() = runTest {
+        val waits = mutableListOf<Long>()
+        val pacing = BenchmarkPacing(gapMs = 0, rateLimitWaitsMs = listOf(5, 15, 45), cooldownAfterSkipMs = 0, sleep = { waits += it })
+        runner(FakeDao()) { Reply(code = 429, body = tooMany) }
+            .run(listOf(selection(AiTask.DAILY_INSIGHT, "a/b")), 1.0, AiPrivacy.NO_TRAINING, {}, pacing)
+        assertThat(waits.filter { it > 0 }).containsExactly(5L, 15L, 45L).inOrder()
+    }
+
+    @Test
+    fun `a rate limit that clears lets the model finish and be saved`() = runTest {
+        var limited = 0
+        val dao = FakeDao()
+        val report = runner(dao) {
+            if (limited < 6) { limited++; Reply(code = 429, body = tooMany) } else perfect(it)
+        }.runWith(listOf(selection(AiTask.DAILY_INSIGHT, "a/b")))
+
+        assertThat(report.results.single()).isInstanceOf(ModelResult.Saved::class.java)
+        assertThat(report.abortReason).isNull()
+    }
+
+    @Test
+    fun `the providers own retry-after sets the wait`() = runTest {
+        val waits = mutableListOf<Long>()
+        val pacing = BenchmarkPacing(gapMs = 0, rateLimitWaitsMs = listOf(1), cooldownAfterSkipMs = 0, sleep = { waits += it })
+        var n = 0
+        runner(FakeDao()) {
+            // A Retry-After past the client's own cap is handed to the runner, which waits it out.
+            if (n++ < 1) Reply(code = 429, body = tooMany, headers = mapOf("Retry-After" to "40")) else perfect(it)
+        }.run(listOf(selection(AiTask.DAILY_INSIGHT, "a/b")), 1.0, AiPrivacy.NO_TRAINING, {}, pacing)
+        assertThat(waits).contains(40_000L)
+    }
+
+    @Test
+    fun `requests are paced with a gap between them`() = runTest {
+        val waits = mutableListOf<Long>()
+        val pacing = BenchmarkPacing(gapMs = 750, rateLimitWaitsMs = listOf(0), cooldownAfterSkipMs = 0, sleep = { waits += it })
+        runner(FakeDao()) { perfect(it) }
+            .run(listOf(selection(AiTask.DAILY_INSIGHT, "a/b")), 1.0, AiPrivacy.NO_TRAINING, {}, pacing)
+        // Five fixtures: a gap before every request but the very first.
+        assertThat(waits.count { it == 750L }).isEqualTo(4)
+    }
+
+    @Test
+    fun `a refusal skips that model only`() = runTest {
+        val report = runner(FakeDao()) {
+            when (it.model) {
+                "a/refused" -> Reply(code = 403, body = """{"error":{"code":403,"message":"no"}}""")
+                else -> perfect(it)
+            }
+        }.runWith(listOf(selection(AiTask.DAILY_INSIGHT, "a/refused", "b/fine")))
+        assertThat(report.abortReason).isNull()
+        assertThat(report.results.filterIsInstance<ModelResult.Skipped>().single().kind).isEqualTo(AiFailureKind.REFUSED)
+        assertThat(report.results.filterIsInstance<ModelResult.Saved>()).hasSize(1)
+    }
+
+    @Test
+    fun `no credit still ends the whole run`() = runTest {
+        val credit = runner(FakeDao()) { Reply(code = 402, body = """{"error":{"code":402,"message":"credit"}}""") }
+            .runWith(listOf(selection(AiTask.DAILY_INSIGHT, "a/b", "c/d")))
+        assertThat(credit.abortReason).contains("out of credit")
     }
 }

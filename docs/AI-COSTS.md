@@ -229,6 +229,29 @@ default $2.00 monthly budget; scenario D, the priciest, uses about 65% of it at 
 Using Recipe Hunter and Plan B ten times as often (3 and 2 a day) would move scenario A from
 about $0.41 to about $4 a month, which the cap would stop at $2.00.
 
+## Reliability, retries and the spend they cause (B1)
+
+- **Retries count toward spend.** When a reply does not fit the schema the gateway sends one repair request in the
+  same action ("Your previous reply did not match the schema: ... Reply with JSON only."). It goes through the
+  same guard, so a spent budget stops it, and it is logged as its own row. The failed first attempt keeps its cost.
+  The repair carries the model's earlier reply back as input (up to 12,000 characters) and never repeats a web search.
+- **Transport retries are not extra rows.** A 429 or 5xx is retried inside one call, up to three tries, waiting for the
+  provider's `Retry-After` (cap 30 s; a longer wait is reported as rate limited, not waited out) or 1 s then 2 s with
+  jitter. A rate-limited request is not billed. A timeout or a dropped connection is never retried, because the
+  provider may already have done and billed the work.
+- **Timeouts per feature.** Photos, Recipe Hunter, Plan B and menu import: 120 s read, 150 s call. Recipe "Try with AI"
+  and the benchmark: 90 s. Daily insight and coach reword: 45 s. An image, a PDF or a web tool raises a request to 120 s.
+- **Why a call failed** is on every failed usage row (`ai_usage.failureKind`: timed out, unreadable answer, provider
+  refused, rate limited, no connection, key rejected, out of credit, privacy setting, provider error, cancelled) and
+  Settings -> AI lists this month's failures per feature. Schema: `migrateAiFailureKind_2_3()`.
+- **Menu PDFs.** A PDF is read by OpenRouter's `file-parser` plugin with the free text engine (`cloudflare-ai`; the old
+  name `pdf-text` is redirected to it), so the parsing has no per-page fee. The model still reads the parsed text, so
+  its input tokens are billed. A PDF is cut into 1 to 2 pages per request (`PdfChunkPlanner`), so a 10-page
+  nutrition table is five requests, each an ordinary small one, and each is logged and guarded. Scanned PDFs with no
+  text layer would need the paid OCR engine ($2 per 1,000 pages), which the app does not use.
+- **Benchmark.** Requests are paced one at a time with a 1 s gap. A 429 is waited out (5, 15, 45 s or `Retry-After`) and
+  only then is that one model skipped. `:free` and zero-priced models are never candidates.
+
 ## What is not verified
 
 - No OpenRouter key was available, so **no live call was made**. The gateway, guard, usage

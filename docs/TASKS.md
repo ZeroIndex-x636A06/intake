@@ -39,6 +39,12 @@ Branch `worktree-agent-acbf47c924ce706e7`. None of this has been seen on a devic
 4. **Too much text.** Collapse the per-model "Not saved" list into one summary line, e.g. "2 saved · 4 skipped (why)", with the reasons behind a tap. Keep the cost line and the cap.
 5. **Layout bugs, which also confirm the top-inset bug.** The "Run benchmark" title and header are drawn under the status bar. At the bottom, the card's last button sits behind the floating pill. Content needs top status-bar padding and bottom padding of the pill height plus the gesture inset, on every scrolling screen, not just the hubs.
 
+## AI reliability and benchmark fixes: done on branch `worktree-agent-a9f053dada012173b` (not pushed, not seen on a device)
+
+B1 timeouts, structured output, repair, backoff, failure logging; B2 photo units and layout; B3 camera owner; B4 PDF import;
+B7 all five benchmark items (429 per model, privacy-compatible candidates, no free tier and capability ranking, compact
+summary, top and bottom insets). The remaining device check is listed in `RESUME.md`.
+
 ## Open: anyone can claim these
 
 Each task links to the section of `docs/SPEC-v3.md` that defines it.

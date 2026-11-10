@@ -20,7 +20,9 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -260,6 +262,15 @@ private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, sta
             )
         }
     }
+    // Content scrolls under the status bar (edge to edge); this keeps its text from being drawn over the clock and
+    // icons on every screen, instead of each screen having to remember (B7: the benchmark title sat under it).
+    Box(
+        Modifier
+            .align(Alignment.TopCenter)
+            .fillMaxWidth()
+            .windowInsetsTopHeight(WindowInsets.statusBars)
+            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.92f)),
+    )
     TourOverlay(tour)
     }
     }

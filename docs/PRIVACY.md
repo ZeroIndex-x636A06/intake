@@ -125,6 +125,21 @@ Every request also sends the header `X-Title: Intake`.
 | Coach reword | The "Reword my check-in with AI" switch (Weekly check-in screen), then each new check-in | Only each suggestion's title and one-line reason (they contain your numbers, such as "120 g of protein; the target is 170 g"). No food names, dates, notes or raw data. Allergen names are not sent; replies are checked by the local allergen engine | The log, body data, profile, the rule's action | **Off**; needs a key as well. The coach itself (docs/COACH.md) never uses AI | `data/coach/CoachReworder.kt`, `domain/coach/CoachSupport.kt` |
 | Benchmark | User starts it in Settings, AI, Run benchmark. Never automatic | The bundled fixture texts (menu, recipe, plan B and insight samples, no personal data) and the app's own system prompts, sent to OpenRouter with the same privacy settings as other AI calls (`data_collection: deny`). Needs the user's OpenRouter key | Anything from the log, body or profile | Only with a key, only when started; a user-set spend cap (default $0.25) stops the run. Results are stored locally in `model_benchmark` and are synced like other tables | `data/ai/benchmark/BenchmarkRunner.kt`, `docs/BENCHMARK.md`, `ModelCatalogRepository.benchmarks` |
 
+#### Added by the AI reliability work (B1, B4, B7)
+
+- **The "Anything we can't see?" note** on the photo screen (up to 300 characters, optional) is sent to OpenRouter in the
+  same request as the photo. It is not stored beyond the screen and is not part of the usage log.
+- **PDFs are sent to OpenRouter for parsing.** A menu PDF, from a link or a picked file, is sent as page-sized pieces in
+  `file` parts with the `file-parser` plugin (free text engine). The privacy setting applies, but note that
+  OpenRouter's own documentation says plugin processing is not covered by ZDR routing. A link is downloaded by the
+  phone first (15 MB cap, honest User-Agent, cancellable). Allergen text in a PDF only ever raises a warning.
+- **Endpoint lookups for the benchmark.** Choosing benchmark candidates fetches `GET /api/v1/endpoints/zdr` (cached a day)
+  and `GET /api/v1/models/<id>/endpoints` for up to 8 models per task. Both are public, carry no key and no user
+  data.
+- **Zero-retention check.** OpenRouter publishes no per-endpoint "does not train" flag; the only public data policy is
+  the zero-retention list. "No data collection" and "Zero retention" candidates are therefore limited to models with a
+  zero-retention endpoint, which can hide a model that would in fact route. "Any provider" is not filtered.
+
 ### Servers the user runs
 
 | Feature | Trigger | Destination | Sent | Not sent | Default | Code |

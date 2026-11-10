@@ -119,7 +119,7 @@ object BenchmarkCandidates {
         val own = knowledge.perModel[model.id]
 
         // Candidate endpoints: the model's own list when we have it, else what the zero-retention list says.
-        val endpoints = own ?: zdrTags
+        val endpoints = own ?: if (requireZdr) zdrTags else null
         if (requireZdr && zdrTags != null && zdrTags.isEmpty()) return ExclusionReason.PRIVACY
         if (endpoints == null) return null // nothing known: do not guess a model out.
 

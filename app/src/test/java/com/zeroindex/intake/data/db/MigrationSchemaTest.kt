@@ -169,6 +169,24 @@ class MigrationSchemaTest {
     }
 
     @Test
+    fun migrationTwoToThreeAddsTheAiFailureKindColumnAndOldRowsKeepNull() {
+        val v2 = createAt(2)
+        MIGRATION_2_3_STATEMENTS.forEach { v2.exec(it) }
+        v2.exec(
+            "INSERT INTO ai_usage (id, feature, model, triggerKind, costUsd, costReported, success, failureKind, at, createdAt, updatedAt) " +
+                "VALUES ('f1', 'PHOTO_ESTIMATE', 'a/b', 'USER_ACTION', 0.0, 0, 0, 'TIMEOUT', 1700000000000, 1, 1)",
+        )
+        v2.exec(
+            "INSERT INTO ai_usage (id, feature, model, triggerKind, costUsd, costReported, success, at, createdAt, updatedAt) " +
+                "VALUES ('f2', 'PLAN_B', 'a/b', 'USER_ACTION', 0.001, 1, 1, 1700000001000, 1, 1)",
+        )
+        assertThat(v2.rows("SELECT failureKind AS k FROM ai_usage WHERE id = 'f1'").single()["k"]).isEqualTo("TIMEOUT")
+        assertThat(v2.rows("SELECT failureKind AS k FROM ai_usage WHERE id = 'f2'").single()["k"]).isNull()
+        assertMatches(v2, 3)
+        v2.close()
+    }
+
+    @Test
     fun releasedVersionTwoSchemaIsFrozen() {
         // 2.json is the schema of the installed APK (built at 4952404). Nothing later may touch it.
         val v2 = entities(2)

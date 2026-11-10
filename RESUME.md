@@ -170,6 +170,19 @@ All of SPEC.md's built phases and every amendment feature are implemented:
 Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/SPEC-v3.md`, `docs/BACKUP.md`, `docs/AI-COSTS.md`,
 `docs/BENCHMARK.md`, `docs/PRIVACY.md`, `server/README.md`.
 
+## AI reliability and the photo estimator (branch `worktree-agent-a9f053dada012173b`)
+
+Done: per-feature timeouts, 429/5xx backoff with Retry-After, lenient reply repair plus one repair retry, plain errors with no
+model text, failure kinds on `ai_usage` (schema step `migrateAiFailureKind_2_3`, after `migrateRecipes_2_3`), photo estimator as a
+list of foods (untick, rename, resize, one tap to log, units from the weight setting, context note, Cancel), shared
+`CameraOwner` (B3), PDF menu import in bounded chunks off the main thread with a size cap and Cancel (B4), benchmark rate-limit
+handling, privacy-checked ranked candidates, compact results and a status-bar scrim (B7). See `docs/AI-COSTS.md` and `docs/PRIVACY.md`.
+
+Not verified: no OpenRouter key and no device. No live call was made, the repair prompt and JSON-mode fallback have not been tried
+on a real model, the PDF splitter was checked only on the Arby's PDF (classic xref) and synthetic files (including a compressed
+object stream), the camera fix and every new screen are unseen, and OpenRouter's real 429 and endpoint payloads are only as the
+docs describe them. A phone already on an earlier v3 debug build must be reinstalled (v3 schema gained a column).
+
 ## Verified
 
 - JVM unit tests pass.

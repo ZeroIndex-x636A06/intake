@@ -8,7 +8,7 @@ object VisionContext {
 
     /** Trimmed, on one line, capped; null when there is nothing left to send. */
     fun clean(text: String?): String? =
-        text?.filterNot { it.isISOControl() && it != ' ' }
+        text?.map { if (it.isISOControl()) ' ' else it }?.joinToString("")
             ?.replace(Regex("\\s+"), " ")
             ?.trim()
             ?.take(MAX_CHARS)
