@@ -121,7 +121,10 @@ fun ExercisePicture(
 @Composable
 fun ExerciseThumb(exerciseId: String, photoPath: String?, modifier: Modifier = Modifier, size: Dp = 48.dp) {
     val context = LocalContext.current
-    val has = remember(exerciseId, photoPath) { ExerciseImages.count(context, exerciseId, photoPath) > 0 }
+    // Reading the photo index parses a bundled file, so it stays off the main thread; a list of rows must not wait on it.
+    val has by produceState(false, exerciseId, photoPath) {
+        value = withContext(Dispatchers.IO) { ExerciseImages.count(context, exerciseId, photoPath) > 0 }
+    }
     Box(
         modifier = modifier
             .size(size)

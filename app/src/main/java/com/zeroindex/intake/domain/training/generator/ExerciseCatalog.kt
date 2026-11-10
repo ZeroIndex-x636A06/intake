@@ -31,7 +31,8 @@ data class CatalogExercise(
     val minExperience: Experience = Experience.NEW,
     val defaultRestSec: Int = if (compound) 150 else 75,
 ) {
-    val id: String get() = idOf(name)
+    /** Hashed from the name once; lists and filters read it for every row. */
+    val id: String by lazy(LazyThreadSafetyMode.PUBLICATION) { idOf(name) }
 
     companion object {
         fun idOf(name: String): String = seedId("exercise", name)

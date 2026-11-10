@@ -29,6 +29,9 @@ class IntakeApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        // Warm the exercise photo index in the background, so the first exercise list or sheet does not parse it on
+        // the main thread.
+        Thread({ com.zeroindex.intake.ui.components.ExerciseImages.index(this) }, "exercise-index").start()
         // SPEC §8: nightly recalculation. KEEP, so an existing schedule is not
         // reset on every launch.
         TdeeWorker.schedule(WorkManager.getInstance(this))

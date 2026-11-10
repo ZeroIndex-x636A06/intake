@@ -162,21 +162,7 @@ fun ExercisesSection(
                 )
             }
         } else {
-            item(key = "list") {
-                Surface(
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = IntakeShape.Card,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column {
-                        state.shown.forEachIndexed { i, exercise ->
-                            ExerciseRow(exercise, onClick = { detail = exercise })
-                            if (i != state.shown.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        }
-                    }
-                }
-            }
+            exerciseRows(state.shown) { exercise -> ExerciseRow(exercise, onClick = { detail = exercise }) }
         }
         item(key = "credit") {
             Text(
@@ -249,6 +235,26 @@ fun ExerciseFilterBar(state: ExerciseBrowseState, viewModel: ExerciseLibraryView
                 Switch(checked = state.showHidden, onCheckedChange = viewModel::setShowHidden)
             }
         }
+    }
+}
+
+/**
+ * The exercise list as lazy rows that together look like one outlined card. The catalog has a few hundred lifts, each
+ * with a thumbnail, so they must not all be composed at once inside a single list item.
+ */
+fun androidx.compose.foundation.lazy.LazyListScope.exerciseRows(
+    exercises: List<ExerciseEntity>,
+    row: @Composable (ExerciseEntity) -> Unit,
+) {
+    items(count = exercises.size, key = { "exercise-${exercises[it].id}" }) { i ->
+        val top = if (i == 0) 22.dp else 0.dp
+        val bottom = if (i == exercises.lastIndex) 22.dp else 0.dp
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            modifier = Modifier.fillMaxWidth(),
+        ) { row(exercises[i]) }
     }
 }
 
