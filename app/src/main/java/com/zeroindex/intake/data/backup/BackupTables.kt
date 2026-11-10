@@ -69,6 +69,8 @@ fun backupTables(dao: ExportDao): List<BackupTable<out Audited>> = listOf(
     BackupTable("coach_suggestion", CoachSuggestionEntity.serializer(), dao::coachSuggestion, dao::upsertCoachSuggestion),
     // Metadata only: the image files never leave the phone (docs/SYNC-EXPORT.md).
     BackupTable("progress_photo", ProgressPhotoEntity.serializer(), dao::progressPhoto, dao::upsertProgressPhoto),
+    // The person's saved videos (the ids and their snapshot). The cached API data (video_cache, video_search) is never exported.
+    BackupTable("saved_video", com.zeroindex.intake.data.db.entity.SavedVideoEntity.serializer(), dao::savedVideo, dao::upsertSavedVideo),
     BackupTable("body_metric", BodyMetricEntity.serializer(), dao::bodyMetric, dao::upsertBodyMetric),
     BackupTable("meal_plan", MealPlanEntity.serializer(), dao::mealPlan, dao::upsertMealPlan),
     BackupTable("plan_week", PlanWeekEntity.serializer(), dao::planWeek, dao::upsertPlanWeek),

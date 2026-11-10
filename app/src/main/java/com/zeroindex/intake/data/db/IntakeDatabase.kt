@@ -116,6 +116,10 @@ import com.zeroindex.intake.data.db.entity.WorkoutSessionEntity
         CoachSuggestionEntity::class,
         AiUsageEntity::class,
         ProgressPhotoEntity::class,
+        // Train and Videos.
+        com.zeroindex.intake.data.db.entity.VideoCacheEntity::class,
+        com.zeroindex.intake.data.db.entity.VideoSearchEntity::class,
+        com.zeroindex.intake.data.db.entity.SavedVideoEntity::class,
     ],
 )
 abstract class IntakeDatabase : RoomDatabase() {
@@ -145,6 +149,7 @@ abstract class IntakeDatabase : RoomDatabase() {
     abstract fun coachDao(): CoachDao
     abstract fun aiUsageDao(): AiUsageDao
     abstract fun progressPhotoDao(): ProgressPhotoDao
+    abstract fun videoDao(): com.zeroindex.intake.data.db.dao.VideoDao
 
     companion object {
         const val VERSION = 3

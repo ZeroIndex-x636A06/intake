@@ -222,6 +222,19 @@ internal fun migrateNutrientsListed_2_3(): List<String> = listOf(
     "ALTER TABLE `food_log` ADD COLUMN `unlistedNutrients` TEXT NOT NULL DEFAULT ''",
 )
 
+internal fun migrateTraining_2_3(): List<String> = listOf(
+    // Train and Videos. A workout can remember the YouTube video it was made from.
+    "ALTER TABLE `program` ADD COLUMN `videoId` TEXT",
+    // Cache of YouTube API data (deleted after 30 days, never backed up) and the person's saved videos.
+    "CREATE TABLE IF NOT EXISTS `video_cache` (`videoId` TEXT NOT NULL, `title` TEXT NOT NULL, `description` TEXT NOT NULL, `channelTitle` TEXT NOT NULL, `categoryId` TEXT NOT NULL, `durationSec` INTEGER NOT NULL, `thumbnailUrl` TEXT, `publishedAt` TEXT NOT NULL, `viewCount` INTEGER, `fetchedAt` INTEGER NOT NULL, PRIMARY KEY(`videoId`))",
+    "CREATE INDEX IF NOT EXISTS `index_video_cache_fetchedAt` ON `video_cache` (`fetchedAt`)",
+    "CREATE TABLE IF NOT EXISTS `video_search` (`searchKey` TEXT NOT NULL, `videoIds` TEXT NOT NULL, `fetchedAt` INTEGER NOT NULL, PRIMARY KEY(`searchKey`))",
+    "CREATE INDEX IF NOT EXISTS `index_video_search_fetchedAt` ON `video_search` (`fetchedAt`)",
+    "CREATE TABLE IF NOT EXISTS `saved_video` (`id` TEXT NOT NULL, `videoId` TEXT NOT NULL, `title` TEXT, `channelTitle` TEXT, `categoryId` TEXT, `durationSec` INTEGER, `thumbnailUrl` TEXT, `metaFetchedAt` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+    "CREATE INDEX IF NOT EXISTS `index_saved_video_videoId` ON `saved_video` (`videoId`)",
+    "CREATE INDEX IF NOT EXISTS `index_saved_video_deletedAt` ON `saved_video` (`deletedAt`)",
+)
+
 // Add new 2 -> 3 steps to the list below, after the existing ones.
 internal val MIGRATION_2_3_STATEMENTS: List<String> =
     migrateFoodOff_2_3() +
@@ -236,7 +249,8 @@ internal val MIGRATION_2_3_STATEMENTS: List<String> =
         migrateAiFailureKind_2_3() +
         migrateProgressPhotos_2_3() +
         migrateDrinks_2_3() +
-        migrateNutrientsListed_2_3()
+        migrateNutrientsListed_2_3() +
+        migrateTraining_2_3()
 
 internal val MIGRATION_2_3 = object : Migration(2, 3) {
     override fun migrate(db: SupportSQLiteDatabase) {
