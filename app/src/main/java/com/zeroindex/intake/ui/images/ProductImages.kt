@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.data.db.entity.FoodEntity
 import com.zeroindex.intake.data.di.OffHttp
+import com.zeroindex.intake.data.recipe.RecipeFetcher
 import com.zeroindex.intake.data.remote.Connectivity
 import com.zeroindex.intake.data.settings.FoodDataPrefs
 import com.zeroindex.intake.domain.food.FoodCategory
@@ -72,29 +73,37 @@ import okhttp3.Request
 class ProductImageLoader @Inject constructor(
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: Context,
     @OffHttp private val http: OkHttpClient,
+    /** For recipe photos: the plain client, so a recipe site never sees an Open Food Facts User-Agent. */
+    private val plainHttp: OkHttpClient,
     private val prefs: FoodDataPrefs,
     private val connectivity: Connectivity,
 ) {
     private val memory = object : LruCache<String, Bitmap>(
-        minOf(Runtime.getRuntime().maxMemory() / 16, 6L * 1024 * 1024).toInt(),
+        minOf(Runtime.getRuntime().maxMemory() / 16, 12L * 1024 * 1024).toInt(),
     ) {
         override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount
     }
     private val dir: File by lazy { File(context.cacheDir, "product-images").apply { mkdirs() } }
 
-    suspend fun load(url: String?, targetPx: Int): Bitmap? {
+    suspend fun load(
+        url: String?,
+        targetPx: Int,
+        source: ProductImagePolicy.Source = ProductImagePolicy.Source.OPEN_FOOD_FACTS,
+    ): Bitmap? {
         val offEnabled = runCatching { prefs.settings.first().offSearch }.getOrDefault(false)
-        val decision = ProductImagePolicy.decide(url, offEnabled, connectivity.isOnline())
+        val decision = ProductImagePolicy.decide(url, offEnabled, connectivity.isOnline(), source)
         if (url == null || decision == ProductImagePolicy.Decision.SKIP) return null
-        memory.get(url)?.let { return it }
+        // The same address may be wanted at two sizes (a thumbnail and the top of the recipe).
+        val memoryKey = "$targetPx|$url"
+        memory.get(memoryKey)?.let { return it }
         return withContext(Dispatchers.IO) {
             try {
                 val file = File(dir, ProductImagePolicy.cacheName(url))
                 var bytes: ByteArray? = file.takeIf { it.isFile }?.readBytes()
                 if (bytes == null && decision == ProductImagePolicy.Decision.FETCH_OK) {
-                    bytes = fetch(url)?.also { runCatching { file.writeBytes(it); trimDisk() } }
+                    bytes = fetch(url, source)?.also { runCatching { file.writeBytes(it); trimDisk() } }
                 }
-                bytes?.let { decode(targetPx, it) }?.also { memory.put(url, it) }
+                bytes?.let { decode(targetPx, it) }?.also { memory.put(memoryKey, it) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -104,14 +113,20 @@ class ProductImageLoader @Inject constructor(
         }
     }
 
-    private fun fetch(url: String): ByteArray? {
-        http.newCall(Request.Builder().url(url).get().build()).execute().use { r ->
+    private fun fetch(url: String, kind: ProductImagePolicy.Source): ByteArray? {
+        val cap = ProductImagePolicy.maxBytes(kind)
+        val recipe = kind == ProductImagePolicy.Source.RECIPE_PAGE
+        val client = if (recipe) plainHttp.newBuilder().followSslRedirects(false).build() else http
+        val request = Request.Builder().url(url).get()
+            .apply { if (recipe) header("User-Agent", RecipeFetcher.USER_AGENT) }
+            .build()
+        client.newCall(request).execute().use { r ->
             if (!r.isSuccessful) return null
             val body = r.body
-            if (body.contentLength() > ProductImagePolicy.MAX_BYTES) return null
+            if (body.contentLength() > cap) return null
             val source = body.source()
-            source.request(ProductImagePolicy.MAX_BYTES + 1L)
-            if (source.buffer.size > ProductImagePolicy.MAX_BYTES) return null
+            source.request(cap + 1L)
+            if (source.buffer.size > cap) return null
             return source.buffer.readByteArray()
         }
     }
@@ -149,7 +164,7 @@ interface ProductImageEntryPoint {
 }
 
 @Composable
-private fun rememberProductImageLoader(): ProductImageLoader {
+internal fun rememberProductImageLoader(): ProductImageLoader {
     val context = LocalContext.current.applicationContext
     return remember(context) { EntryPointAccessors.fromApplication(context, ProductImageEntryPoint::class.java).loader() }
 }
@@ -172,11 +187,14 @@ fun ThumbTile(
     modifier: Modifier = Modifier,
     size: Dp = 44.dp,
     category: String = "",
+    /** True for a recipe's photo: it comes from the page the user imported, not from Open Food Facts. */
+    fromRecipePage: Boolean = false,
 ) {
     val loader = rememberProductImageLoader()
     val px = with(androidx.compose.ui.platform.LocalDensity.current) { size.roundToPx() }
-    val image: ImageBitmap? by produceState<ImageBitmap?>(null, imageUrl, px) {
-        value = if (imageUrl == null) null else loader.load(imageUrl, px)?.asImageBitmap()
+    val source = if (fromRecipePage) ProductImagePolicy.Source.RECIPE_PAGE else ProductImagePolicy.Source.OPEN_FOOD_FACTS
+    val image: ImageBitmap? by produceState<ImageBitmap?>(null, imageUrl, px, source) {
+        value = if (imageUrl == null) null else loader.load(imageUrl, px, source)?.asImageBitmap()
     }
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
@@ -190,7 +208,8 @@ fun ThumbTile(
                 Image(
                     bitmap = shown,
                     contentDescription = null,
-                    contentScale = ContentScale.Fit,
+                    // A recipe photo fills its tile; a product shot keeps its whole pack in view.
+                    contentScale = if (fromRecipePage) ContentScale.Crop else ContentScale.Fit,
                     modifier = Modifier.size(size),
                 )
             } else {

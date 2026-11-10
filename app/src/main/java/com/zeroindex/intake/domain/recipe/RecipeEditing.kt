@@ -24,6 +24,8 @@ data class IngredientDraft(
     val fatPer100g: Double? = null,
     /** Allergen words of a picked food, scanned together with the name. */
     val allergenTags: String = "",
+    /** The group header this ingredient sits under ("For the Sauce"), or null. */
+    val group: String? = null,
 ) {
     val hasNutrition: Boolean
         get() = (grams ?: 0.0) > 0.0 && kcalPer100g != null && proteinPer100g != null &&
@@ -64,8 +66,12 @@ object RecipeEditing {
     fun ingredientLines(text: String): List<String> = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
 
     /** A draft from a line of text: "2 cups milk" keeps its words, and a weight (g, kg, oz, lb) gives grams. */
-    fun draftFromLine(key: String, line: String): IngredientDraft {
+    fun draftFromLine(key: String, line: String, group: String? = null): IngredientDraft {
         val p = IngredientLineParser.parse(line)
-        return IngredientDraft(key = key, name = p.name, quantityText = p.quantityText, grams = p.grams)
+        return IngredientDraft(key = key, name = p.name, quantityText = p.quantityText, grams = p.grams, group = group)
     }
+
+    /** Drafts from pasted text where "## For the Sauce" lines start a group; [defaultGroup] covers lines before any header. */
+    fun draftsFromText(text: String, newKey: () -> String, defaultGroup: String? = null): List<IngredientDraft> =
+        IngredientSections.parseWithHeaders(text, defaultGroup).map { (group, line) -> draftFromLine(newKey(), line, group) }
 }

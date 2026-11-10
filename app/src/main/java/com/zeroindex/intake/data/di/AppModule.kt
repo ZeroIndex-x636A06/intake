@@ -5,6 +5,8 @@ import com.zeroindex.intake.data.ai.benchmark.FixtureReader
 import com.zeroindex.intake.domain.time.Clock
 import com.zeroindex.intake.domain.time.HybridClock
 import com.zeroindex.intake.domain.time.SystemClock
+import com.zeroindex.intake.data.health.HealthConnectSource
+import com.zeroindex.intake.data.health.HealthDataSource
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -38,4 +40,8 @@ object AppModule {
     @Provides
     @Singleton
     fun provideFixtureReader(reader: AssetFixtureReader): FixtureReader = reader
+
+    @Provides
+    @Singleton
+    fun provideHealthDataSource(source: HealthConnectSource): HealthDataSource = source
 }

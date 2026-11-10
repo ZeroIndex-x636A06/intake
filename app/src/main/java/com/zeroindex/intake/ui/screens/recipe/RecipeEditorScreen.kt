@@ -51,6 +51,7 @@ import com.zeroindex.intake.data.repository.RecipeRepository
 import com.zeroindex.intake.data.repository.RecipeSaveRequest
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
 import com.zeroindex.intake.domain.recipe.IngredientDraft
+import com.zeroindex.intake.domain.recipe.IngredientSections
 import com.zeroindex.intake.domain.recipe.PageNutrition
 import com.zeroindex.intake.domain.recipe.RecipeEditing
 import com.zeroindex.intake.ui.allergen.CheckLabelChip
@@ -83,6 +84,7 @@ data class EditorState(
     /** Per-serving numbers the recipe already carried (a page's, or typed before); kept when the ingredients cannot compute a total. */
     val carried: PageNutrition? = null,
     val sourceUrl: String? = null,
+    val notes: String = "",
     val savedId: String? = null,
     val error: String? = null,
 )
@@ -118,8 +120,15 @@ class RecipeEditorViewModel @Inject constructor(
                     minutes = r.totalTimeMinutes.takeIf { m -> m > 0 }?.toString().orEmpty(),
                     stepsText = e.steps.joinToString("\n"),
                     ingredients = e.ingredients.also { list -> nextKey = list.size + 1 },
-                    carried = r.kcalPerServing?.let { k -> PageNutrition(k, r.proteinPerServing, r.carbsPerServing, r.fatPerServing) },
+                    carried = r.kcalPerServing?.let { k ->
+                        PageNutrition(
+                            k, r.proteinPerServing, r.carbsPerServing, r.fatPerServing,
+                            fiberG = r.fiberPerServing, sugarG = r.sugarPerServing,
+                            sodiumMg = r.sodiumMgPerServing, saturatedFatG = r.saturatedFatPerServing,
+                        )
+                    },
                     sourceUrl = r.sourceUrl,
+                    notes = r.notes.orEmpty(),
                 )
             }
             rescan()
@@ -130,6 +139,7 @@ class RecipeEditorViewModel @Inject constructor(
     fun setServings(v: String) = _state.update { it.copy(servings = v.filter(Char::isDigit).take(3)) }
     fun setMinutes(v: String) = _state.update { it.copy(minutes = v.filter(Char::isDigit).take(4)) }
     fun setSteps(v: String) = _state.update { it.copy(stepsText = v) }
+    fun setNotes(v: String) = _state.update { it.copy(notes = v) }
 
     fun newKey() = "n${nextKey++}"
 
@@ -141,8 +151,9 @@ class RecipeEditorViewModel @Inject constructor(
         rescan()
     }
 
-    fun addLines(text: String) {
-        val drafts = RecipeEditing.ingredientLines(text).map { RecipeEditing.draftFromLine(newKey(), it) }
+    /** Pasted lines; a "## For the Sauce" line starts a group, and [group] covers lines before any heading. */
+    fun addLines(text: String, group: String? = null) {
+        val drafts = RecipeEditing.draftsFromText(text, ::newKey, group)
         _state.update { it.copy(ingredients = it.ingredients + drafts) }
         rescan()
     }
@@ -177,6 +188,7 @@ class RecipeEditorViewModel @Inject constructor(
                     totalMinutes = s.minutes.toIntOrNull() ?: 0,
                     steps = RecipeEditing.stepsFromText(s.stepsText),
                     ingredients = s.ingredients, sourceUrl = s.sourceUrl, fallbackNutrition = s.carried,
+                    notes = s.notes,
                 ),
             )
             _state.update { it.copy(savedId = saved.id, error = null) }
@@ -227,9 +239,15 @@ fun RecipeEditorScreen(
             if (state.ingredients.isEmpty()) {
                 Text("None yet.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            state.ingredients.forEach { d ->
-                IngredientRow(d, onEdit = { sheetFor = d }, onRemove = { viewModel.removeIngredient(d.key) })
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            // Group headings stay between the rows, as they will read on the recipe screen.
+            IngredientSections.of(state.ingredients) { it.group }.forEach { section ->
+                section.label?.let {
+                    Text(it, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp))
+                }
+                section.items.forEach { d ->
+                    IngredientRow(d, onEdit = { sheetFor = d }, onRemove = { viewModel.removeIngredient(d.key) })
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                }
             }
             Spacer(Modifier.height(8.dp))
             OutlinedButton(
@@ -244,6 +262,10 @@ fun RecipeEditorScreen(
         OutlinedTextField(
             state.stepsText, viewModel::setSteps,
             label = { Text("Steps, one per line") }, minLines = 4, modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            state.notes, viewModel::setNotes,
+            label = { Text("Notes (storage, swaps, tips)") }, minLines = 2, modifier = Modifier.fillMaxWidth(),
         )
 
         state.error?.let { SandNote(it) }
@@ -261,7 +283,7 @@ fun RecipeEditorScreen(
             search = viewModel::searchFoods,
             onDismiss = { adding = false; sheetFor = null },
             onSave = { viewModel.upsertIngredient(it); adding = false; sheetFor = null },
-            onPasteLines = { viewModel.addLines(it); adding = false; sheetFor = null },
+            onPasteLines = { text, group -> viewModel.addLines(text, group); adding = false; sheetFor = null },
         )
     }
 }
@@ -353,9 +375,12 @@ private fun IngredientSheet(
     search: suspend (String) -> List<FoodEntity>,
     onDismiss: () -> Unit,
     onSave: (IngredientDraft) -> Unit,
-    onPasteLines: (String) -> Unit,
+    onPasteLines: (String, String?) -> Unit,
 ) {
     var tab by remember { mutableIntStateOf(if (initial != null && initial.foodId == null) 1 else 0) }
+    // One group for whatever this sheet adds or saves; blank is no group.
+    var group by remember { mutableStateOf(initial?.group.orEmpty()) }
+    val groupOrNull = group.trim().takeIf { it.isNotEmpty() }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp).verticalScroll(rememberScrollState())) {
             Text(if (initial == null) "Add ingredients" else "Edit ingredient", style = MaterialTheme.typography.titleMedium)
@@ -365,18 +390,24 @@ private fun IngredientSheet(
                 }
             }
             Spacer(Modifier.height(10.dp))
+            OutlinedTextField(
+                group, { group = it }, label = { Text("Group (optional)") }, singleLine = true,
+                supportingText = { Text("For example \"For the Sauce\". Ingredients with the same group sit together.") },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(6.dp))
             when (tab) {
-                0 -> PickFood(initial, newKey, search, onSave)
-                1 -> TypedIngredient(initial, newKey, onSave)
+                0 -> PickFood(initial, newKey, search) { onSave(it.copy(group = groupOrNull)) }
+                1 -> TypedIngredient(initial, newKey) { onSave(it.copy(group = groupOrNull)) }
                 else -> {
                     var text by remember { mutableStateOf("") }
                     Text(
-                        "One ingredient per line, like \"1 ½ cups milk\" or \"200 g chicken breast\". Weights give grams; add macros afterwards to count them.",
+                        "One ingredient per line, like \"1 ½ cups milk\" or \"200 g chicken breast\". Weights give grams; add macros afterwards to count them. A line starting with ## is a group heading.",
                         style = MaterialTheme.typography.bodySmall,
                     )
                     OutlinedTextField(text, { text = it }, minLines = 5, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
                     Button(
-                        onClick = { onPasteLines(text) }, enabled = text.isNotBlank(), shape = IntakeShape.Button,
+                        onClick = { onPasteLines(text, groupOrNull) }, enabled = text.isNotBlank(), shape = IntakeShape.Button,
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp).heightIn(min = 48.dp),
                     ) { Text("Add these") }
                 }

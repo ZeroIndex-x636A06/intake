@@ -32,16 +32,6 @@ Branch `worktree-agent-acbf47c924ce706e7`. None of this has been seen on a devic
 
 ## Next up (claimed by the coordinating session)
 
-**Recipe import improvements.** From the user's side-by-side test against two real recipe pages, urbanblisslife.com (dairy-free mac and cheese) and bellyfull.net (chicken Alfredo). Core fidelity was 100%: the title, servings, total time, every ingredient, every step and the four headline macros matched. The gaps are:
-1. **Notes.** Import the recipe's Notes section, for example the vegan option, storage and reheating.
-2. **Full nutrition.** Keep fibre, sugar, sodium and saturated fat from the page, not just kcal, protein, carbs and fat.
-3. **Photo.** Save the recipe image URL from the JSON-LD and show it, using the existing OFF-style image loader. Allow any https host for this, but only when the user imported the page.
-4. **Allergen tags per line.** Tag each ingredient line, e.g. "vegan butter: check the label" or "heavy whipping cream: contains dairy", instead of one general chip for the whole recipe.
-5. **Times.** Keep prep time and cook time separately, as well as the total.
-6. **Ingredient groups.** Keep group headers like "For the Noodles", "For the Chicken" and "For the Sauce". JSON-LD flattens them, so read them from WP Recipe Maker HTML (`wprm-recipe-group-name`) and Tasty Recipes' equivalent when present. Without the headers, "1 tablespoon butter" and "1/2 cup butter" are ambiguous.
-7. **Clean up formatting artifacts.** WP Recipe Maker's notes render as "(, cut into cubes)" and "(, minced)". Turn these into "(cut into cubes)".
-8. **Simpler recipe screen.** Make "Log a serving" the single primary action. Move Open original page, Add to this week, Edit and Delete into a ⋯ menu.
-
 **AI benchmark fixes.** From the user's run on the phone (screenshot, 2026-11-09).
 1. **A rate limit ends the whole run.** One HTTP 429 ("Too many requests just now") stopped every model. Treat 429 as transient: honour `Retry-After` (or use exponential backoff with jitter), pace requests (for example one at a time with a small gap), retry a few times, and only then skip that one model. A 429 is not an account-level failure; only a bad key, no credit or being offline end the run.
 2. **Privacy-incompatible models are offered and then fail.** Several candidates fail with "No provider for this model meets your privacy setting". Before showing candidates, check each model's providers against the privacy setting (data collection deny / zero-retention), using OpenRouter's per-model endpoints data. Show only compatible models, or mark the others "Not available with your privacy setting" and leave them unselected, so a run never wastes a slot on them.
@@ -73,6 +63,8 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
 
 ## Done (v3)
 
+- Recipe import improvements (branch `worktree-agent-ac631d26a40887bae`; see `docs/RECIPE-IMPORT.md`): notes, full nutrition (fibre, sugar, saturated fat, sodium in mg), photo (recipe-page image policy beside the Open Food Facts one), per-line allergen tags with the summary chip scrolling to them, prep/cook/total times, ingredient groups (a label per ingredient; recipe screen, cook mode, editor, shopping list), clean-up of WPRM artifacts and entities, and one primary action on the recipe screen with Open original, Add to this week, Edit and Delete (confirmed, soft) in a menu. Schema change: `migrateRecipes_2_3`. Tested on hand-written WPRM and Tasty fixtures. Not seen on a device.
+- Health Connect sync (FEEDBACK-R2 B6): first sync reads 30 days, later syncs 14 or the gap, a per-type result line and last sync time on the Health Connect screen, failures in plain words, and a fake-client test seam (`HealthDataSource`). Not run on a device; see `RESUME.md`.
 - Exercise diagrams, custom exercises and workouts, and the plan creator's answers (branch `worktree-agent-adb67bf9ac0ff4da0`; see
   `docs/EXERCISE-IMAGES.md`, `docs/WORKOUTS.md`, `docs/GOALS.md`). Schema change: `migrateExercises_2_3`. Not seen on a device.
   Follow-ups from `docs/research/LIFTOSAUR-NOTES.md`: the weighted `exercise_muscle` table (seam in `MuscleMap.highlightFor`),

@@ -6,7 +6,12 @@ import com.zeroindex.intake.domain.units.WeightUnit
 import java.util.Locale
 
 /** An ingredient as the shopping list sees it. [grams] is null when the recipe gives no amount. */
-data class ShoppingIngredient(val name: String, val grams: Double?)
+data class ShoppingIngredient(
+    val name: String,
+    val grams: Double?,
+    /** The recipe's group header for this line ("For the Sauce"), when the recipe has groups. */
+    val group: String? = null,
+)
 
 /** A generated shopping line before it becomes a row. [key] is the normalised name, the basis of its id. */
 data class GeneratedShoppingLine(
@@ -16,6 +21,8 @@ data class GeneratedShoppingLine(
     val quantity: String,
     val category: StoreCategory,
     val isPantryStaple: Boolean,
+    /** Which recipe groups use it: "For the Sauce, For the Chicken". Null when none are grouped. */
+    val note: String? = null,
 )
 
 data class ShoppingSections(
@@ -50,6 +57,8 @@ object ShoppingListBuilder {
                     quantity = if (grams > 0) "${formatNumber(grams)} g" else "",
                     category = categoryOf(key),
                     isPantryStaple = staple,
+                    note = group.mapNotNull { it.group?.takeIf { g -> g.isNotBlank() } }.distinct()
+                        .joinToString(", ").takeIf { it.isNotEmpty() },
                 )
             }
             .sortedBy { it.key }
@@ -132,7 +141,7 @@ object ShoppingListBuilder {
         appendLine(title)
         fun line(i: ShoppingListItemEntity) {
             val q = displayQuantity(i.quantity, unit)
-            appendLine("${if (i.isChecked) "[x]" else "[ ]"} ${i.name}${if (q.isNotBlank()) " - $q" else ""}")
+            appendLine("${if (i.isChecked) "[x]" else "[ ]"} ${i.name}${if (q.isNotBlank()) " - $q" else ""}${i.note?.let { " ($it)" }.orEmpty()}")
         }
         sections.sections.forEach { (category, items) ->
             appendLine()

@@ -129,6 +129,24 @@ data class RecipeEntity(
     val fatPerServing: Double? = null,
     /** The local allergen engine's verdict when the recipe was saved. */
     val allergenStatus: AllergenStatus? = null,
+    /** The recipe's Notes section (storage, reheating, a vegan option). Plain text, lines separated by newlines. */
+    val notes: String? = null,
+    /** Prep and cook time apart; [totalTimeMinutes] stays the total. Null when the page gave only a total. */
+    val prepMinutes: Int? = null,
+    val cookMinutes: Int? = null,
+    /** The recipe photo's address on the page the user imported. Nothing is stored on the phone but the address. */
+    val imageUrl: String? = null,
+    /** Per serving, as the page published them (grams; sodium in milligrams, the unit the app uses everywhere). */
+    val fiberPerServing: Double? = null,
+    val sugarPerServing: Double? = null,
+    val sodiumMgPerServing: Double? = null,
+    val saturatedFatPerServing: Double? = null,
+    /**
+     * The group header ("For the Sauce") of each line of [ingredientsText], one label per line in the same
+     * order, a blank line meaning no group. Null when no ingredient is grouped. Food-backed ingredients keep
+     * theirs in [RecipeIngredientEntity.groupLabel].
+     */
+    val ingredientGroups: String? = null,
     override val createdAt: Long,
     override val updatedAt: Long,
     override val deletedAt: Long? = null,
@@ -149,6 +167,8 @@ data class RecipeIngredientEntity(
     val foodId: String,
     val quantityGrams: Double,
     val displayOrder: Int,
+    /** The ingredient's group header ("For the Sauce"), or null. */
+    val groupLabel: String? = null,
     override val createdAt: Long,
     override val updatedAt: Long,
     override val deletedAt: Long? = null,

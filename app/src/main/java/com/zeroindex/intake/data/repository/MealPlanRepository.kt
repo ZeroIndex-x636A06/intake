@@ -38,6 +38,7 @@ import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.model.PlanLoopMode
 import com.zeroindex.intake.domain.model.PlanRecipeRole
 import com.zeroindex.intake.domain.plan.PlanPosition
+import com.zeroindex.intake.domain.recipe.IngredientGroupsCodec
 import com.zeroindex.intake.domain.recipe.IngredientLineParser
 import com.zeroindex.intake.domain.plan.PlanSchedule
 import java.time.LocalDate
@@ -535,14 +536,18 @@ class MealPlanRepository @Inject constructor(
         val now = clock.nowMillis()
         val ingredients = recipes.flatMap { r ->
             val rows = recipeDao.ingredientsOf(r.id).mapNotNull { row ->
-                foodDao.findById(row.foodId)?.let { ShoppingIngredient(it.name, row.quantityGrams) }
+                foodDao.findById(row.foodId)?.let { ShoppingIngredient(it.name, row.quantityGrams, row.groupLabel) }
             }
-            val lines = r.ingredientsText.lines().map { it.trim() }.filter { it.isNotEmpty() }.map { line ->
+            // Group labels are stored per line of the raw text, so they are read before blanks are dropped.
+            val rawLines = r.ingredientsText.lines()
+            val rawGroups = IngredientGroupsCodec.decode(r.ingredientGroups, rawLines.size)
+            val lines = rawLines.indices.filter { rawLines[it].isNotBlank() }.map { i ->
+                val line = rawLines[i].trim()
                 // Plan-imported text lines carry a "250 g " prefix the import did not use in the item's name.
                 when (r.origin) {
-                    RecipeOrigin.PLAN -> ShoppingIngredient(line.replace(Regex("^\\d+(\\.\\d+)? g "), ""), null)
+                    RecipeOrigin.PLAN -> ShoppingIngredient(line.replace(Regex("^\\d+(\\.\\d+)? g "), ""), null, rawGroups[i])
                     // Typed or imported lines are "1 1/2 cups milk": shop for the item, with grams when the unit is a weight.
-                    else -> IngredientLineParser.parse(line).let { ShoppingIngredient(it.name, it.grams) }
+                    else -> IngredientLineParser.parse(line).let { ShoppingIngredient(it.name, it.grams, rawGroups[i]) }
                 }
             }
             rows + lines
@@ -553,7 +558,7 @@ class MealPlanRepository @Inject constructor(
             if (id in have) null
             else ShoppingListItemEntity(
                 id = id, planWeekId = weekId, name = g.name, quantity = g.quantity, category = g.category,
-                isPantryStaple = g.isPantryStaple, createdAt = now, updatedAt = now,
+                isPantryStaple = g.isPantryStaple, note = g.note, createdAt = now, updatedAt = now,
             )
         }
         if (fresh.isNotEmpty()) shoppingDao.upsertAll(fresh)

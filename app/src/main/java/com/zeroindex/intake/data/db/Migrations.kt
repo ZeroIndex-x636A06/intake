@@ -175,6 +175,25 @@ internal fun migrateExercises_2_3(): List<String> = listOf(
     "ALTER TABLE `program_exercise` ADD COLUMN `notes` TEXT",
 )
 
+internal fun migrateRecipes_2_3(): List<String> = listOf(
+    // Recipe import (docs/RECIPE-IMPORT.md): the Notes section, prep and cook time, the photo's address, the
+    // page's fibre, sugar, sodium (mg) and saturated fat per serving, and ingredient groups ("For the Sauce").
+    // A food-backed ingredient keeps its group on its own row; text lines keep theirs in recipe.ingredientGroups
+    // (one label per line of ingredientsText). A shopping item can say which group it is used in.
+    // All nullable, so every existing row keeps its meaning.
+    "ALTER TABLE `recipe` ADD COLUMN `notes` TEXT",
+    "ALTER TABLE `recipe` ADD COLUMN `prepMinutes` INTEGER",
+    "ALTER TABLE `recipe` ADD COLUMN `cookMinutes` INTEGER",
+    "ALTER TABLE `recipe` ADD COLUMN `imageUrl` TEXT",
+    "ALTER TABLE `recipe` ADD COLUMN `fiberPerServing` REAL",
+    "ALTER TABLE `recipe` ADD COLUMN `sugarPerServing` REAL",
+    "ALTER TABLE `recipe` ADD COLUMN `sodiumMgPerServing` REAL",
+    "ALTER TABLE `recipe` ADD COLUMN `saturatedFatPerServing` REAL",
+    "ALTER TABLE `recipe` ADD COLUMN `ingredientGroups` TEXT",
+    "ALTER TABLE `recipe_ingredient` ADD COLUMN `groupLabel` TEXT",
+    "ALTER TABLE `shopping_list_item` ADD COLUMN `note` TEXT",
+)
+
 // Add new 2 -> 3 steps to the list below, after the existing ones.
 internal val MIGRATION_2_3_STATEMENTS: List<String> =
     migrateFoodOff_2_3() +
@@ -185,6 +204,7 @@ internal val MIGRATION_2_3_STATEMENTS: List<String> =
         migrateAiUsage_2_3() +
         migrateExercises_2_3() +
         migrateFoodUi_2_3() +
+        migrateRecipes_2_3() +
         migrateAiFailureKind_2_3()
 
 internal val MIGRATION_2_3 = object : Migration(2, 3) {
