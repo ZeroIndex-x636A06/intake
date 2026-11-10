@@ -5,6 +5,8 @@ import com.zeroindex.intake.data.db.dao.AiInsightDao
 import com.zeroindex.intake.domain.ai.AiTask
 import com.zeroindex.intake.domain.ai.BenchmarkScore
 import com.zeroindex.intake.domain.ai.ModelInfo
+import com.zeroindex.intake.domain.ai.benchmark.EndpointInfo
+import com.zeroindex.intake.domain.ai.benchmark.EndpointKnowledge
 import com.zeroindex.intake.domain.time.Clock
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -50,6 +52,12 @@ class ModelCatalogRepository @Inject constructor(
     }
 
     private val file: File get() = File(context.filesDir, "ai/openrouter-models.json")
+    private val zdrFile: File get() = File(context.filesDir, "ai/openrouter-zdr.json")
+    private val endpointMutex = Mutex()
+    private val _endpoints = MutableStateFlow(EndpointKnowledge())
+
+    /** Where models can be served, as far as it has been looked up. See [ensureEndpoints]. */
+    val endpoints: StateFlow<EndpointKnowledge> = _endpoints.asStateFlow()
     private val mutex = Mutex()
     private val _state = MutableStateFlow(CatalogState())
     val state: StateFlow<CatalogState> = _state.asStateFlow()
@@ -73,6 +81,47 @@ class ModelCatalogRepository @Inject constructor(
         if (force || age == null || age > MAX_AGE_MS) fetch()
         _state.value
     }
+
+    /**
+     * Looks up where [modelIds] can be served, so a benchmark never spends a slot on a model that has no provider
+     * meeting the privacy setting. Two public, key-free OpenRouter lists: each model's own endpoints (which
+     * parameters it accepts, whether it is up) and, when [needZdr], the zero-data-retention list (the only public
+     * per-endpoint data policy). The zero-retention list is cached a day. A failed lookup leaves that part
+     * unknown, and unknown never excludes a model.
+     */
+    suspend fun ensureEndpoints(modelIds: Collection<String>, needZdr: Boolean) = endpointMutex.withLock {
+        if (needZdr && _endpoints.value.zdr == null) {
+            val zdr = loadZdr()
+            if (zdr != null) _endpoints.update { it.copy(zdr = zdr) }
+        }
+        val missing = modelIds.filter { it !in _endpoints.value.perModel }
+        for (id in missing) {
+            val found = runCatching { client.endpointsOf(id) }.getOrNull() ?: continue
+            val infos = found.map { it.toInfo(id) }
+            _endpoints.update { it.copy(perModel = it.perModel + (id to infos)) }
+        }
+    }
+
+    private suspend fun loadZdr(): List<EndpointInfo>? {
+        val now = clock.nowMillis()
+        val cached = withContext(Dispatchers.IO) {
+            runCatching { json.decodeFromString(ZdrCache.serializer(), zdrFile.readText()) }.getOrNull()
+        }
+        if (cached != null && now - cached.fetchedAt < MAX_AGE_MS) return cached.data.map { it.toInfo(it.modelId) }
+        val fresh = runCatching { client.zdrEndpoints() }.getOrNull()
+            ?: return cached?.data?.map { it.toInfo(it.modelId) }
+        val trimmed = fresh.map { OrEndpoint(it.modelId, it.providerName, it.tag, it.supportedParameters, it.status) }
+        withContext(Dispatchers.IO) {
+            runCatching {
+                zdrFile.parentFile?.mkdirs()
+                zdrFile.writeText(json.encodeToString(ZdrCache.serializer(), ZdrCache(now, trimmed)))
+            }
+        }
+        return trimmed.map { it.toInfo(it.modelId) }
+    }
+
+    private fun OrEndpoint.toInfo(model: String) =
+        EndpointInfo(modelId = model, tag = tag, supportedParameters = supportedParameters.toSet(), status = status)
 
     private suspend fun loadCache() = withContext(Dispatchers.IO) {
         runCatching { json.decodeFromString(CatalogCache.serializer(), file.readText()) }

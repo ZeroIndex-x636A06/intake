@@ -34,6 +34,9 @@ import com.zeroindex.intake.data.ai.benchmark.BenchmarkReport
 import com.zeroindex.intake.data.ai.benchmark.ModelResult
 import com.zeroindex.intake.domain.ai.AiTask
 import com.zeroindex.intake.domain.ai.benchmark.BenchmarkSuite
+import com.zeroindex.intake.domain.ai.benchmark.BenchmarkSummary
+import com.zeroindex.intake.domain.ai.benchmark.ExcludedModel
+import com.zeroindex.intake.domain.ai.benchmark.SkippedEntry
 import com.zeroindex.intake.ui.components.EmptyState
 import com.zeroindex.intake.ui.components.ErrorState
 import com.zeroindex.intake.ui.components.IntakeCard
@@ -105,11 +108,14 @@ internal fun BenchmarkRunCard(
         state.plan.forEach { selection ->
             Text(
                 "${selection.task.label}: " +
-                    selection.models.joinToString { it.id.substringAfter('/') }.ifEmpty { "no capable model in the list yet" },
+                    selection.models.joinToString { it.id.substringAfter('/') }.ifEmpty {
+                        if (state.checkingProviders) "checking providers…" else "no model fits your privacy setting yet"
+                    },
                 style = MaterialTheme.typography.labelSmall,
                 modifier = Modifier.padding(top = 6.dp),
             )
         }
+        LeftOut(state.excluded, state.checkingProviders)
 
         LabeledField(
             label = "Spend cap (USD)",
@@ -133,6 +139,9 @@ internal fun BenchmarkRunCard(
         when (val phase = state.phase) {
             is BenchmarkPhase.Running -> {
                 LoadingState(progressLines(phase.progress))
+                phase.progress?.note?.let {
+                    Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
+                }
                 OutlinedButton(
                     onClick = onCancel,
                     shape = IntakeShape.Button,
@@ -194,30 +203,65 @@ private fun progressLines(progress: BenchmarkProgress?): List<String> =
         )
     }
 
+/** One line: "2 saved · 4 skipped (3 rate limited, 1 timed out)", with the reasons behind a tap. */
 @Composable
 private fun ReportSummary(report: BenchmarkReport) {
     val saved = report.results.count { it is ModelResult.Saved }
+    val skipped = report.results.filterIsInstance<ModelResult.Skipped>().map {
+        SkippedEntry(it.task.label, it.modelId, it.reason, it.kind)
+    }
+    var showWhy by remember { mutableStateOf(false) }
     Column(Modifier.padding(top = 9.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             StatusPill(
-                "$saved saved",
+                BenchmarkSummary.headline(saved, skipped),
                 tone = if (saved > 0) PillTone.Ok else PillTone.Wait,
             )
-            Text(
-                "${usd(report.spentUsd)} spent of ${usd(report.capUsd)} cap",
-                style = MaterialTheme.typography.labelSmall,
-            )
         }
-        if (report.stoppedByCap) {
-            Text("Stopped at the spend cap.", style = MaterialTheme.typography.labelSmall)
+        Text(
+            "${usd(report.spentUsd)} spent of ${usd(report.capUsd)} cap" + if (report.stoppedByCap) " · stopped at the cap" else "",
+            style = MaterialTheme.typography.labelSmall,
+        )
+        if (skipped.isNotEmpty()) {
+            TextButton(onClick = { showWhy = !showWhy }, modifier = Modifier.heightIn(min = 44.dp)) {
+                Text(if (showWhy) "Hide why" else "Why were they skipped?")
+            }
+            if (showWhy) {
+                BenchmarkSummary.groups(skipped).forEach { (reason, models) ->
+                    Text(
+                        "$reason: ${models.joinToString()}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
-        report.results.filterIsInstance<ModelResult.Skipped>().forEach {
+        report.abortReason?.let { ErrorState(title = "The run ended early", body = it) }
+    }
+}
+
+/** The models left out of the plan, as one line with the detail behind a tap. */
+@Composable
+private fun LeftOut(excluded: List<ExcludedModel>, checking: Boolean) {
+    if (excluded.isEmpty()) return
+    var open by remember { mutableStateOf(false) }
+    val counts = excluded.groupingBy { it.reason }.eachCount()
+    val line = counts.entries.joinToString(", ") { "${it.value} ${it.key.label}" }
+    TextButton(onClick = { open = !open }, modifier = Modifier.heightIn(min = 44.dp)) {
+        Text(
+            (if (open) "Hide" else "Left out") + ": " + line + if (checking) " · still checking" else "",
+            style = MaterialTheme.typography.labelSmall,
+        )
+    }
+    if (open) {
+        excluded.groupBy { it.reason }.forEach { (reason, rows) ->
             Text(
-                "Not saved: ${it.modelId.substringAfter('/')} (${it.task.label}) - ${it.reason}",
+                "${reason.label.replaceFirstChar { it.uppercase() }}: " +
+                    rows.map { it.model.id.substringAfter('/') }.distinct().take(12).joinToString() +
+                    if (rows.map { it.model.id }.distinct().size > 12) " and more" else "",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        report.abortReason?.let { ErrorState(title = "The run ended early", body = it) }
     }
 }

@@ -42,7 +42,9 @@ import com.zeroindex.intake.domain.ai.BenchmarkScore
 import com.zeroindex.intake.domain.ai.ModelSuggester
 import com.zeroindex.intake.domain.ai.RankedModel
 import com.zeroindex.intake.domain.ai.Suggestion
+import com.zeroindex.intake.domain.ai.benchmark.BenchmarkCandidates
 import com.zeroindex.intake.domain.ai.benchmark.BenchmarkSuite
+import com.zeroindex.intake.domain.ai.benchmark.ExcludedModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -128,6 +130,10 @@ data class BenchmarkUiState(
     /** Null while the text is not a positive amount. */
     val capUsd: Double? = BenchmarkSuite.DEFAULT_CAP_USD,
     val plan: List<BenchmarkSelection> = emptyList(),
+    /** Models left out of the plan, with why: free tier, or no provider meeting the privacy setting. */
+    val excluded: List<ExcludedModel> = emptyList(),
+    /** True while the providers of the likely candidates are being looked up. */
+    val checkingProviders: Boolean = false,
     val estimateUsd: Double = 0.0,
     val phase: BenchmarkPhase = BenchmarkPhase.Idle,
 ) {
@@ -256,25 +262,53 @@ class AiSettingsViewModel @Inject constructor(
     private val benchmarkPhase = MutableStateFlow<BenchmarkPhase>(BenchmarkPhase.Idle)
     private var benchmarkJob: Job? = null
 
+    private val checkingProviders = MutableStateFlow(false)
+
     val benchmarkState: StateFlow<BenchmarkUiState> = combine(
-        benchmarkTasks,
-        benchmarkCapText,
-        benchmarkPhase,
+        combine(benchmarkTasks, benchmarkCapText, benchmarkPhase, ::Triple),
         catalog.state,
-        combine(catalog.observeBenchmarks(), settingsRepository.settings, ::Pair),
-    ) { tasks, capText, phase, catalogState, (benchmarks, settings) ->
-        val plan = BenchmarkSuite.tasks.filter { it in tasks }.map { task ->
-            BenchmarkSelection(
-                task,
-                BenchmarkSuite.defaultCandidates(task, catalogState.models, benchmarks, settings.aiAllowRetainingModels),
-            )
+        catalog.endpoints,
+        combine(catalog.observeBenchmarks(), settingsRepository.settings, checkingProviders, ::Triple),
+    ) { (tasks, capText, phase), catalogState, endpoints, (benchmarks, settings, checking) ->
+        // "No data collection" and "Zero retention" are both checked against the zero-retention endpoint list.
+        val requireZdr = settings.aiPrivacy != AiPrivacy.ANY
+        val plans = BenchmarkSuite.tasks.filter { it in tasks }.map { task ->
+            BenchmarkCandidates.plan(task, catalogState.models, benchmarks, requireZdr, endpoints)
         }
-        BenchmarkUiState(tasks, capText, capText.toDoubleOrNull()?.takeIf { it > 0 }, plan, phase = phase)
+        BenchmarkUiState(
+            tasks = tasks,
+            capText = capText,
+            capUsd = capText.toDoubleOrNull()?.takeIf { it > 0 },
+            plan = plans.map { BenchmarkSelection(it.task, it.selected) },
+            excluded = plans.flatMap { it.excluded },
+            checkingProviders = checking,
+            phase = phase,
+        )
     }.map { it.copy(estimateUsd = runner.estimateUsd(it.plan)) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BenchmarkUiState())
 
+    /**
+     * Looks up the providers of the likely candidates whenever the catalog, the privacy setting or the chosen
+     * tasks change, so the plan above is already privacy-checked when the person sees it.
+     */
+    private fun trackProviders() = viewModelScope.launch {
+        combine(catalog.state, benchmarkTasks, settingsRepository.settings) { c, tasks, settings -> Triple(c.models, tasks, settings) }
+            .collect { (models, tasks, settings) ->
+                if (models.isEmpty() || !settings.aiEnabled) return@collect
+                val ids = BenchmarkSuite.tasks.filter { it in tasks }
+                    .flatMap { BenchmarkCandidates.lookahead(it, models, emptyList()) }.map { it.id }.distinct()
+                checkingProviders.value = true
+                try {
+                    catalog.ensureEndpoints(ids, needZdr = settings.aiPrivacy != AiPrivacy.ANY)
+                } finally {
+                    checkingProviders.value = false
+                }
+            }
+    }
+
     init {
         refreshCatalog(force = false)
+        trackProviders()
     }
 
     private companion object {

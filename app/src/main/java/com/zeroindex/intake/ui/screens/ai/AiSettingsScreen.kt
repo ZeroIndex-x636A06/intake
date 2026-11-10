@@ -381,7 +381,7 @@ private fun ModelPickerSheet(row: TaskRow, onPick: (String?) -> Unit, onDismiss:
                 IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, contentDescription = "Close") }
             }
             Text(
-                "${requirements(row.task)} ${row.suggestion.candidates.size} match, cheapest first.",
+                "${requirements(row.task)} ${row.suggestion.candidates.size} match, most capable first, then cheapest.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
