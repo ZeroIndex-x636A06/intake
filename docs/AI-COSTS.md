@@ -56,6 +56,7 @@ row here.
 | 6 | `data/ai/insight/DailyInsights.kt` via `TodayViewModel` | `DAILY_INSIGHT` | **Opt-in schedule**: once a day when Today opens, only if "Daily insight" is on. **Off by default** | The digest is computed locally (`InsightDigest`); the model only words one suggestion. The coach engine's check-in is rules, no AI | Numbers-only digest of two weeks, avoided allergens | Daily insight | Guard (`OPT_IN_SCHEDULE`, `dailyInsightEnabled`) |
 | 7 | `data/coach/CoachReworder.kt` via `CoachWorker` and `CoachCheckInViewModel` | `COACH_REWORD` | **Opt-in schedule** (after the weekly check-in) or **user action** (Check in now, or switching the reword on). **Off by default** | Every suggestion, number and action comes from `CoachEngine` rules; a reword is accepted only if the numbers are unchanged and the allergen engine allows it | Each suggestion's title and one-line reason | Daily insight model | Guard (`coachAiReword`); the switch is disabled when AI is off |
 | 8 | `data/recipe/RecipeAiExtractor.kt` via `RecipeImportScreen` | `RECIPE_TRY_AI` | **User action**: the "Try with AI" button | JSON-LD, then microdata, then page text are read first (`RecipePageParser`); the button appears only when none found a recipe | Up to 20,000 characters of the page text and its address | Recipe Hunter model, no search | Guard; the button is hidden when AI is off or there is no key |
+| 10 | `data/ai/video/VideoWorkoutAi.kt` via `VideoToWorkoutViewModel` | `VIDEO_TO_WORKOUT` | **User action**: the "Improve with AI" button on Make this a workout | Chapters and description lines are read on the phone first (`VideoWorkoutDrafter`) and matched to the exercise library; the button is an optional second step the person taps after seeing that draft, or when nothing was found | The video's title, length, chapters and a trimmed description (up to 4,000 characters), no personal data | Daily insight model (text) | Guard; the button is hidden when AI is off or there is no key. The reply must fit a strict schema (one repair attempt); it only fills the review list, nothing is saved unseen |
 | 9 | `data/ai/benchmark/BenchmarkRunner.kt` | `BENCHMARK` | **User action**: Run benchmark, after the cost ceiling is shown and confirmed | n/a (it measures models) | The bundled fixtures, no personal data | per task | Guard (switch, budget); also has its own spend cap |
 
 Two OpenRouter requests are not model calls and never send anything about you:
@@ -165,6 +166,7 @@ amounts ($0.0004, not $0.00).
 | Daily insight (`DAILY_INSIGHT`) | 4,000 | 400 | | **1**, but **0 while the switch is off** |
 | Coach reword (`COACH_REWORD`) | 700 | 500 | | **1/7**, but **0 while the switch is off** |
 | Recipe "Try with AI" (`RECIPE_TRY_AI`) | 6,700 | 1,500 | | **0.05** |
+| Video to workout (`VIDEO_TO_WORKOUT`) | 2,500 | 800 | | **0.05** |
 
 The benchmark is counted in the meter but is not part of the estimate (it is a one-off you start).
 
@@ -204,6 +206,7 @@ Cost of **one call** of each feature:
 | DAILY_INSIGHT | 4,000 / 400 | $0.0006 | $0.0006 | $0.0004 | $0.0050 | $0.0027 | `inclusionai/ling-3.0-tiny` <$0.0001 |
 | COACH_REWORD | 700 / 500 | $0.0003 | $0.0003 | $0.0003 | $0.0026 | $0.0008 | `inclusionai/ling-3.0-tiny` <$0.0001 |
 | RECIPE_TRY_AI | 6,700 / 1,500 | $0.0014 | $0.0014 | $0.0012 | $0.012 | $0.0051 | `inclusionai/ling-3.0-tiny` $0.0002 |
+| VIDEO_TO_WORKOUT | 2,500 / 800 | $0.0007 | $0.0007 | $0.0006 | $0.0060 | $0.0030 | `inclusionai/ling-3.0-tiny` <$0.0001 |
 
 Two things stand out. For the two search features **the search fee is most of the bill**: three
 searches at $0.007 are $0.021 of a $0.023 call, so a cheaper model barely helps. And a pricier

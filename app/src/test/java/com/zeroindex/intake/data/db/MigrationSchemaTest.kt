@@ -164,6 +164,35 @@ class MigrationSchemaTest {
     }
 
     @Test
+    fun migrationTwoToThreeAddsTheVideoTablesAndTheWorkoutVideoLinkAndKeepsEveryProgram() {
+        val v2 = createAt(2)
+        fun programColumns(v: Int) = entities(v).getValue("program")["fields"]!!.jsonArray.map { it.jsonObject["columnName"]!!.jsonPrimitive.content }
+        assertThat(programColumns(2)).doesNotContain("videoId")
+        assertThat(entities(2)).doesNotContainKey("saved_video")
+        v2.exec(
+            "INSERT INTO program (id, name, description, isActive, currentWeek, currentDayIndex, isStandalone, createdAt, updatedAt, deletedAt) " +
+                "VALUES ('p1', 'Upper lower', '', 1, 2, 1, 0, 1, 1, NULL)",
+        )
+        MIGRATION_2_3_STATEMENTS.forEach { v2.exec(it) }
+        // The old program is untouched and has no video.
+        val row = v2.rows("SELECT name, isActive, currentWeek, videoId FROM program").single()
+        assertThat(row["name"]).isEqualTo("Upper lower")
+        assertThat(row["currentWeek"]).isEqualTo(2)
+        assertThat(row["videoId"]).isNull()
+        // The new tables are empty and usable.
+        assertThat(v2.rows("SELECT COUNT(*) AS n FROM video_cache").single()["n"]).isEqualTo(0)
+        assertThat(v2.rows("SELECT COUNT(*) AS n FROM video_search").single()["n"]).isEqualTo(0)
+        v2.exec(
+            "INSERT INTO saved_video (id, videoId, title, createdAt, updatedAt, deletedAt) VALUES ('s1', 'dQw4w9WgXcQ', 'Leg day', 5, 5, NULL)",
+        )
+        v2.exec("UPDATE program SET videoId = 'dQw4w9WgXcQ' WHERE id = 'p1'")
+        assertThat(v2.rows("SELECT videoId FROM program").single()["videoId"]).isEqualTo("dQw4w9WgXcQ")
+        assertThat(v2.rows("SELECT title FROM saved_video").single()["title"]).isEqualTo("Leg day")
+        assertMatches(v2, 3)
+        v2.close()
+    }
+
+    @Test
     fun migrationTwoToThreeCreatesTheAiUsageLogEmptyAndUsable() {
         val v2 = createAt(2)
         assertThat(entities(2)).doesNotContainKey("ai_usage")
