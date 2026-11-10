@@ -6,6 +6,17 @@ with its merge commit. Read `CLAUDE.md` before you claim anything.
 
 ## In progress
 
+**Option A part 1: shell, Today, You, Settings** (branch `worktree-agent-ad4c01822a3a47d62`, built from `docs/IA-v5.md` and
+`design/mockup-v5/option-a.html`). Four tabs (Today, Nutrition, Train, Progress), the avatar and You, one `IntakeTopBar`, no pill on
+pushed screens, the new transitions, Today, You with progress photos, Settings in 12 groups, the remote backup removed, one weekly
+check-in, one Allergens screen. Details and what is not verified: RESUME.md, "Option A part 1".
+
+**Next agents.** *Nutrition* (rebuild `Route.Nutrition`, which still holds the old Food hub; fill the stub `SwapSheet`; replace the stub
+`DrinksScreen`; finish the allergen strip; Log food as a screen; nutrition label). *Train* (rebuild `Route.Train`: sections, Programs menu,
+Videos). Both: **do not add settings to use screens.** Add the control to `docs/SETTINGS-INVENTORY.md`, `domain/settings/SettingsRegistry.kt`
+and `ui/screens/settings/SettingsControls.kt` (the test `SettingsRegistryTest` fails otherwise). Register a screen only one tab opens inside
+that tab's graph; a screen two tabs open goes once at the root of `IntakeNavHost`.
+
 **Claimed by the coordinating session**
 
 - Debug APK build for device testing.

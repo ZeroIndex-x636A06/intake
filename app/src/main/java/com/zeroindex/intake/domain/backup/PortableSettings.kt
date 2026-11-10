@@ -13,7 +13,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.longOrNull
 
 /**
- * The preferences that travel with an export and an encrypted backup (docs/BACKUP.md "Settings").
+ * The preferences that travel with an export and an encrypted backup (docs/SYNC-EXPORT.md "Settings").
  *
  * Pure Kotlin, no Android: the DataStore side hands in plain `name -> value` pairs and gets plain
  * pairs back, so the whole rule, including "no secret ever leaves the phone", is unit-tested on the JVM.

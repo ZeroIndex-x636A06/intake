@@ -97,7 +97,7 @@ class MainActivity : ComponentActivity() {
                     AppMessage("Not logged: ${result.foods.joinToString()} now matches your allergen profile"),
                 )
                 TemplateLogResult.NotFound -> messages.post(
-                    AppMessage("That tag's meal no longer exists. Write the tag again from More → Meal prep tags."),
+                    AppMessage("That tag's meal no longer exists. Write the tag again from Nutrition, Meal templates."),
                 )
             }
         }

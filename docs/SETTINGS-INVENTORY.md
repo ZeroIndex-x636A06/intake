@@ -249,3 +249,23 @@ Remote backup destination (protocol, host, port, user, password, private key), b
 * Added the per-feature "uses a day" fields (7), the per-task model pickers (5), the AI privacy radio (zero retention, no data collection, any provider), and the three scheduled helpers, all from `AiSettingsScreen` and `AiUsageCards`.
 * Added **Food portions (g / oz)** (fixes B2: photo estimate always used grams) and **Eat out nearby: search radius** (Swap).
 * Goal weight and rate leave Settings, as IA v5 decided; Settings > Nutrition keeps the target controls.
+
+## Build status (Option A part 1)
+
+All 113 controls are built (`domain/settings/SettingsRegistry.kt`, drawn by `ui/screens/settings/SettingsControls.kt`). Per item marked "new":
+
+| Item | Built now | Consumer |
+| --- | --- | --- |
+| Food portions (`portionUnit`) | storage and control | Nutrition agent: the photo estimate and food detail must read `AppSettings.portionUnit` (today they follow the weight unit) |
+| Today card switches | yes, live | Today |
+| Show salt or sodium (`showSodium`) | storage and control | Nutrition dashboard |
+| Eat out nearby radius (`eatOutRadius`) | storage and control | Swap sheet |
+| Show jump tests (`jumpTests`) | yes, gates the Progress jump card | Progress |
+| Weekly sets per region (`weeklySets`) | storage and control (`WeeklySets`) | Train > Muscle volume |
+| Videos switches, YouTube key | storage, controls, key Save/Test/Remove (`videos.list` test) | Train > Videos |
+| Photo reminder | storage, control and an in-app line on You | none yet; no notification |
+| Export reminder | yes, a card on Today | Today |
+| Include progress photos in the export | yes, a zip of the files | Sync and export |
+| Export passphrase | asked per export, never stored | Sync and export |
+
+"About and help" holds the tour, welcome, tips, scripts, privacy, credits and version. You shows one Help row that opens that group.

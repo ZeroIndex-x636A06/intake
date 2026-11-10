@@ -3,6 +3,37 @@
 Read this first when picking the work back up. Branch:
 `claude/app-build-k2ag1d`.
 
+## Option A part 1 (branch `worktree-agent-ad4c01822a3a47d62`)
+
+Built from `docs/IA-v5.md` (section 9 wins), `docs/SETTINGS-INVENTORY.md` and `design/mockup-v5/option-a.html`.
+
+- **Shell.** Pill has four tabs (Today, Nutrition, Train, Progress); More is gone. `ShellPolicy` (pure) decides pill and avatar
+  visibility, the avatar target (`Route.You`) and back on a root. Every tab root is `TabRootScreen` (top bar with title and avatar,
+  bottom padding = `PillHeight` + navigation inset); every pushed screen is `PushedScreen` (`IntakeTopBar` with back arrow, no pill);
+  cook mode, active workout and the welcome flow are `FullScreenTask`. The pill hides on pushed screens (`Motion.pillExit`, instant
+  with reduce motion). Pushes slide horizontally (300 ms, 250 ms back, underneath screen moves a quarter, no scale, no fade); tabs
+  cross-fade 150 ms; reduce motion is a 100 ms cross-fade. The status-bar scrim is gone: the top bar owns the top inset.
+  Shared screens are registered once at the root of `IntakeNavHost`; `NavGraphGuardTest` enforces that.
+- **Today.** Calorie ring with kcal left, eaten and target; protein, fat and carbs always visible; Log food, Scan and Photo; Next up
+  (the active plan's main recipe for this week with Swap and Log it, the coach's one thing, the next workout); Water (drinks with a
+  minus and a plus, "Log a different drink"); Weight tile; Meals; the monthly export reminder. Card switches are in Settings.
+- **You.** Header (name from `profile_display_name`), read-only Goals and plan with Change per row, Progress photos (timeline, add from
+  camera or gallery, Compare with a draggable divider), Help (opens Settings > About and help). Gear opens Settings.
+- **Settings.** Home with search plus 12 group pages. The registry (`SettingsRegistry`) holds the 113 inventory controls; `SettingControl`
+  renders each by id. Old option UIs were removed from Today, the hydration sheet, Profile, Your plan, the coach gear, the AI screen, Food
+  database and Health Connect.
+- **Sync and export.** The remote WebDAV, SFTP and SMB backup, its worker, scheduler, transports, UI, jsch and smbj and their ProGuard rules are
+  removed; `BackupCredentialStore.clearDestinationSecrets` runs on launch and `nightly-backup` is cancelled. See `docs/SYNC-EXPORT.md`.
+- **Merged.** `WeeklyCheckInScreen` (summary, chips, suggestions, Export or Print PDF) replaces the weekly report and the check-in.
+  `AllergensScreen` replaces Allergens hub, My allergens and Allergen reference.
+- **Schema v3 only.** `migrateProgressPhotos_2_3` adds `progress_photo` (metadata; synced and exported as metadata only, files never).
+  `MigrationSchemaTest` has a case. v2 and `MIGRATION_1_2` are untouched.
+- **Settings left as storage only (consumer comes later).** `portionUnit` (existing food screens still follow the weight unit),
+  `showSodium`, `eatOutRadius`, `onlyWorkouts`, `personalise`, the YouTube key (saved and tested) and `weeklySets` (the Muscle volume view
+  is Train's). Jump tests really gate the Progress card.
+- **Not verified on a device (no emulator):** every screen, the transitions and predictive back, the pill hide animation, the insets, the
+  compare slider, camera and gallery, the Swap dialog, Health Connect switches, key tests, the keyboard on Settings fields.
+
 ## Done
 
 - Health Connect sync and recipe import (branch `worktree-agent-ac631d26a40887bae`; `docs/RECIPE-IMPORT.md`).
@@ -134,7 +165,7 @@ All of SPEC.md's built phases and every amendment feature are implemented:
   `CoachCheckIn`, linked from the Today card, More and Progress). Schema: new `coach_suggestion` table in
   `migrateCoach_2_3` (backup, export and sync). Settings: `coach_*` DataStore keys. Rules and thresholds:
   `docs/COACH.md`. Settings in backup/export: `domain/backup/PortableSettings.kt`, `data/settings/PortableStore.kt`,
-  `BackupService` (`settings` section, preview line); see `docs/BACKUP.md`.
+  `BackupService` (`settings` section, preview line); see `docs/SYNC-EXPORT.md`.
 
 - **Motion and clarity polish (this pass).** `domain/motion/MotionRules.kt` (reduce-motion rule, stagger schedule, once-a-day
   protein rule, pulse rule, count-up text, rest fraction), `ui/motion/MotionKit.kt` and `MotionCanvas.kt` (press scale, shimmer,
@@ -167,7 +198,7 @@ All of SPEC.md's built phases and every amendment feature are implemented:
     why through `AiGateway.isConfigured()` / `unavailableReason()`.
   - `AiAuditTest` fails if a new file calls the gateway without being added to the audit table.
 
-Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/SPEC-v3.md`, `docs/BACKUP.md`, `docs/AI-COSTS.md`,
+Docs: `docs/SPEC.md`, `docs/SPEC-amendments.md`, `docs/SPEC-v3.md`, `docs/SYNC-EXPORT.md`, `docs/AI-COSTS.md`,
 `docs/BENCHMARK.md`, `docs/PRIVACY.md`, `server/README.md`.
 
 ## AI reliability and the photo estimator (branch `worktree-agent-a9f053dada012173b`)

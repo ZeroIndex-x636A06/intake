@@ -619,7 +619,7 @@ private fun HowToStartStep(viewModel: OnboardingViewModel, onNeedAbout: () -> Un
     when (val result = estimate) {
         is EstimateResult.Applied -> AccentNote(
             lead = "Plan applied",
-            body = "${"%,d".format(result.kcal)} kcal and ${result.proteinG} g protein a day. See and edit it any time in More, Profile & goals.",
+            body = "${"%,d".format(result.kcal)} kcal and ${result.proteinG} g protein a day. See it any time on You, the circle at the top right.",
         )
         EstimateResult.NeedsBasics -> {
             SandNote("An estimate needs your sex, birth year, height and weight. You can add them on the About you step.")
@@ -688,7 +688,7 @@ private fun ExtraRow(icon: ImageVector, title: String, description: String) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
                 Text(description, style = MaterialTheme.typography.bodyMedium)
                 Text(
-                    "You can set this up later in More.",
+                    "You can set this up later on You, the circle at the top right.",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

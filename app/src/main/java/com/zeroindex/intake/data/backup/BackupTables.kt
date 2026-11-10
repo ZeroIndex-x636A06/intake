@@ -67,7 +67,7 @@ fun backupTables(dao: ExportDao): List<BackupTable<out Audited>> = listOf(
     BackupTable("allergen_profile", AllergenProfileEntity.serializer(), dao::allergenProfile, dao::upsertAllergenProfile),
     BackupTable("backup_run", BackupRunEntity.serializer(), dao::backupRun, dao::upsertBackupRun),
     BackupTable("coach_suggestion", CoachSuggestionEntity.serializer(), dao::coachSuggestion, dao::upsertCoachSuggestion),
-    // Metadata only: the image files never leave the phone (docs/BACKUP.md).
+    // Metadata only: the image files never leave the phone (docs/SYNC-EXPORT.md).
     BackupTable("progress_photo", ProgressPhotoEntity.serializer(), dao::progressPhoto, dao::upsertProgressPhoto),
     BackupTable("body_metric", BodyMetricEntity.serializer(), dao::bodyMetric, dao::upsertBodyMetric),
     BackupTable("meal_plan", MealPlanEntity.serializer(), dao::mealPlan, dao::upsertMealPlan),

@@ -56,7 +56,7 @@ to its root.
   (search, filter, add your own, history and estimated max), Performance (jump
   tests), Program script help.
 - **Progress**: charts, plus Training stats, Weekly report and Health Connect.
-- **More**: Profile and goals, Settings, Backup and sync, AI (optional),
+- **You** (the avatar at the top right of every tab): profile, goals and plan, progress photos, help. Its gear opens Settings (12 groups, including Sync and export and AI (optional)),
   Privacy, Help (every script doc).
 - Script docs follow the topic: food screens open the meal-plan pages, training
   screens the program and progression-rule pages, and More, Help the full set.
@@ -66,7 +66,7 @@ Amendment features:
 - **Coach.** A weekly check-in that reads your last week and suggests a few small changes (calories from your
   weight trend, protein, strength stalls, recovery, volume, water), each with its numbers and an Apply or Dismiss
   button, plus a "One thing to do today" card on Today. Plain rules, no AI needed: [docs/COACH.md](docs/COACH.md).
-  Settings and the profile now travel with exports and backups: [docs/BACKUP.md](docs/BACKUP.md).
+  Settings and the profile now travel with exports and backups: [docs/SYNC-EXPORT.md](docs/SYNC-EXPORT.md).
 - **Hydration.** Water card on Today with one-tap drink chips and a daily target that
   shows its working. Every drink has a type and an "adds to hydration" factor (tea and
   coffee count like water), caffeine and alcohol are tracked, workouts add sweat water,
@@ -95,8 +95,7 @@ Amendment features:
   workouts have BMR for the same window subtracted, so they are not
   double-counted.
 - **Weekly PDF report.** Made on the phone, saved or printed.
-- **Export and backup.** JSON and CSV export. Encrypted nightly backups to
-  WebDAV, SFTP or SMB: [docs/BACKUP.md](docs/BACKUP.md).
+- **Export and backup.** JSON and CSV export, optionally encrypted with a passphrase, and optional self-hosted sync (the remote WebDAV, SFTP and SMB backup was removed): [docs/SYNC-EXPORT.md](docs/SYNC-EXPORT.md).
 - **Self-hosted sync server.** Last-writer-wins CRDT with a hybrid logical
   clock, one Python file: [server/README.md](server/README.md).
 - **Wear OS companion.** Log sets, enter RPE and run the rest timer from the
@@ -112,7 +111,7 @@ app/           Android phone app (com.zeroindex.intake)
 wear/          Wear OS companion
 wearprotocol/  Data Layer message types shared by app and wear
 server/        Sync server (intake_sync.py), Dockerfile, compose file, tests
-docs/          SPEC, SPEC-amendments, BACKUP, BENCHMARK, PRIVACY, FOOD-DATA, GOALS
+docs/          SPEC, SPEC-amendments, SYNC-EXPORT, BENCHMARK, PRIVACY, FOOD-DATA, GOALS
 tools/         build_food_db.py: rebuilds the bundled USDA food database
 design/        HTML mockups used as the design reference
 schemas/       Exported Room schema JSON (committed)
@@ -188,10 +187,6 @@ cd server && python3 -m unittest test_intake_sync.py
 
 Two integration suites are skipped unless you opt in:
 
-- `INTAKE_REMOTE_IT=1`: `RemoteStoreIntegrationTest` runs the WebDAV, SFTP and
-  SMB transports against real servers. It expects WebDAV on
-  `127.0.0.1:8099/dav`, sshd on `127.0.0.1:2222` and smbd on `127.0.0.1:445`
-  with a share named `backup`. Setup is in [docs/BACKUP.md](docs/BACKUP.md).
 
   ```bash
   INTAKE_REMOTE_IT=1 ./gradlew :app:testDebugUnitTest --tests '*RemoteStoreIntegrationTest*'
@@ -241,9 +236,9 @@ app offline.
    search. See [docs/PRIVACY.md](docs/PRIVACY.md).
 3. **Health Connect.** Progress, Health Connect: grant the read and write types you
    want. Nothing is read until you do.
-4. **Backups.** More, Backup & sync: choose WebDAV, SFTP or SMB and set a
-   passphrase. Backups are never sent without one. Keep the passphrase
-   somewhere other than the phone. See [docs/BACKUP.md](docs/BACKUP.md).
+4. **Backups.** Settings > Sync and export: export a file now and then (a monthly reminder
+   appears on Today if sync is off), or pair your own sync server. Keep an encrypted export's passphrase
+   somewhere other than the phone. See [docs/SYNC-EXPORT.md](docs/SYNC-EXPORT.md).
 5. **Sync server.** Deploy `server/`, give it an https address, and pair each
    device with a code. See [server/README.md](server/README.md).
 

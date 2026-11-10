@@ -18,7 +18,7 @@ file before you change anything, then read `docs/TASKS.md` to pick up work.
 | `docs/SPEC-v3.md` | **Current overhaul brief.** It wins where the specs disagree. |
 | `docs/TASKS.md` | **Task board.** Open work, who is on it, what is done. |
 | `docs/scripting/` | The Intake script language wiki, also bundled into the app |
-| `docs/ALLERGENS.md`, `PRIVACY.md`, `BACKUP.md`, `BENCHMARK.md`, `FOOD-DATA.md`, `MEAL-PLAN.md` | Feature docs |
+| `docs/ALLERGENS.md`, `PRIVACY.md`, `SYNC-EXPORT.md`, `BENCHMARK.md`, `FOOD-DATA.md`, `MEAL-PLAN.md` | Feature docs |
 | `RESUME.md` | Detailed state of the code, plus what is and isn't verified |
 | `design/intake-mockup-v2.html` | Visual style reference |
 

@@ -119,7 +119,7 @@ android {
 
     buildFeatures {
         compose = true
-        // Version name and code are shown on the More screen (SPEC §13).
+        // Version name and code are shown in Settings > About and help (SPEC §13).
         buildConfig = true
     }
 
@@ -129,10 +129,6 @@ android {
                 "/META-INF/{AL2.0,LGPL2.1}",
                 "/META-INF/LICENSE.md",
                 "/META-INF/LICENSE-notice.md",
-                // BouncyCastle (via smbj) ships post-quantum test vectors as
-                // resources; SMB's NTLM needs none of them.
-                "/org/bouncycastle/pqc/**",
-                "/org/bouncycastle/x509/**",
             )
         }
     }
@@ -230,12 +226,9 @@ dependencies {
     implementation(libs.retrofit)
     implementation(libs.retrofit.kotlinx.serialization)
     implementation(libs.okhttp)
-    // Backup transports (amendment §2). WebDAV is plain HTTP over OkHttp.
-    implementation(libs.jsch)
     // Wear OS companion (amendment §2): the shared protocol and the Data Layer.
     implementation(project(":wearprotocol"))
     implementation(libs.play.services.wearable)
-    implementation(libs.smbj)
 
     testImplementation(libs.junit)
     testImplementation(libs.truth)

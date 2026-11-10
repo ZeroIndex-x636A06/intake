@@ -14,7 +14,7 @@ the user switched on needs it.
 
 A search of `app/`, `wear/` and `wearprotocol/` for `OkHttpClient`, `Retrofit`,
 `newCall`, `HttpURLConnection`, `URL(`, `Wearable.`, `HealthConnectClient`,
-`NfcAdapter`, `LocationManager`, `JSch`, `SMBClient`, `ACTION_VIEW`,
+`NfcAdapter`, `LocationManager`, `ACTION_VIEW`,
 `PrintManager`, `CreateDocument`, `WorkManager`/`CoroutineWorker`, `AsyncImage`
 and `Log.`, plus the manifest and the dependency list.
 
@@ -22,8 +22,7 @@ Findings that hold for every path:
 
 - **One HTTP stack.** `data/di/NetworkModule.kt:24` provides the only
   `OkHttpClient`. USDA and Open Food Facts use Retrofit on it; OpenRouter, sync,
-  WebDAV and menu page fetches use it directly. SFTP uses JSch and SMB uses SMBJ
-  (their own sockets). There is no `HttpURLConnection` or `URL(...).openStream()`.
+  menu page fetches and the YouTube key test use it directly. There is no `HttpURLConnection` or `URL(...).openStream()`.
 - **No analytics, crash reporting or ads.** `app/build.gradle.kts` and
   `gradle/libs.versions.toml` have no Firebase, Crashlytics, Sentry, AdMob or
   analytics artifact. The only Google dependency is `play-services-wearable`
@@ -36,8 +35,8 @@ Findings that hold for every path:
   and an exception; none logs a key, a prompt, a request or a response. No
   `HttpLoggingInterceptor` exists.
 - **Keys.** OpenRouter and USDA keys live in `EncryptedSharedPreferences`
-  (`data/keys/ApiKeyStore.kt:47`, AES-256-GCM values, AES-256-SIV names). Backup
-  and sync secrets live in `data/backup/remote/BackupCredentialStore.kt:44`. The
+  (`data/keys/ApiKeyStore.kt:47`, AES-256-GCM values, AES-256-SIV names). Sync
+  secrets (the device token) live in `data/backup/remote/BackupCredentialStore.kt:44`. The
   OpenRouter key and the sync token go only in an `Authorization: Bearer` header
   (`OpenRouterClient.kt:59-72`, `SyncApi.kt:67`). The USDA key goes only in an
   `X-Api-Key` header (`UsdaService.kt:61`).
@@ -57,7 +56,8 @@ Findings that hold for every path:
 | Food log, weight, measurements, workouts, plan, templates, settings | Room database and DataStore in app-private storage. They leave only by the paths in this document. |
 | Your own exercise photos | A photo you add to a custom exercise is scaled, stripped of EXIF and kept in the app-private `photos` folder; the exercise row holds only the file name (`exercise.photoPath`). The image is not in backups, exports or sync, and never sent anywhere. Bundled exercise photos are assets from the Free Exercise DB (public domain). The camera permission is asked only when you tap "Take a photo". |
 | Photos | Stored as files in app storage. Rows hold a URI string only (`sourcePhotoUri`, `photoUri`), so backup and sync move the path, never the image. The one exception is the photo estimate, which sends a resized copy (below). |
-| API keys | Encrypted at rest; sent only to their own host (OpenRouter key to openrouter.ai, USDA key to api.nal.usda.gov). Not in exports, backups or sync (`BackupTables.kt` has no key table). |
+| Progress photos | Taken with the camera or chosen from the gallery on You > Progress photos, scaled, stripped of EXIF and kept in the app-private `progress_photos` folder. The `progress_photo` table (date, angle, file name) is exported and synced as metadata only; the images are **never synced or uploaded** and go into a zip only if you switch on "Include progress photos in the export" and tap Save photo files. | 
+| API keys | Encrypted at rest; sent only to their own host (OpenRouter key to openrouter.ai, USDA key to api.nal.usda.gov, YouTube key to googleapis.com, as the `key` parameter the YouTube Data API requires; Videos come later). Not in exports, backups or sync (`BackupTables.kt` has no key table). |
 | TDEE and trend math, charts, insights history | Computed locally (`work/TdeeWorker.kt` is local only). |
 | Barcode scanning and photo capture | CameraX and ML Kit on device. |
 
@@ -144,8 +144,7 @@ Every request also sends the header `X-Title: Intake`.
 
 | Feature | Trigger | Destination | Sent | Not sent | Default | Code |
 | --- | --- | --- | --- | --- | --- | --- |
-| Nightly backup | WorkManager, daily around 02:00, network connected, battery not low; also Back up now | The WebDAV, SFTP (JSch, host key pinned) or SMB (SMBJ, signing required) server the user entered | A file `intake-backup-<time>.intake`: the full JSON of every table, **AES-256-GCM encrypted with the user's passphrase** (PBKDF2-SHA256) on the phone first. `BackupRunner.run` skips if no passphrase is set ("Backups are never sent unencrypted"). | Photo files, API keys, settings, secrets | **Off** until a destination exists and the schedule is not Manual (`BackupWorker.sync` line 54) | `data/backup/remote/BackupRunner.kt:103-125`, `work/BackupWorker.kt`, `BackupScheduler.kt`, `WebDavStore.kt`, `SftpStore.kt`, `SmbStore.kt`, `domain/backup/BackupDestination.kt:93` (plain HTTP only to private/local hosts), `docs/BACKUP.md` |
-| Device sync | While paired: 30 s after a local change (debounced), every 30 minutes, and Sync now | The Intake sync server the user runs (`server/intake_sync.py`), over HTTPS; plain HTTP only to a local address (`WebDavUrlPolicy`) | **Plaintext rows** as JSON (`WireRow.payload`) for every table except `backup_run`, in batches of 400; pairing code and device name at pairing; the token as a Bearer header | Photo files, API keys, backup secrets, settings. The server stores rows unencrypted on its disk by design (`server/README.md`) | **Off** until paired | `data/sync/SyncApi.kt:44-110`, `data/sync/SyncEngine.kt:52,111`, `work/SyncScheduler.kt:44`, `work/SyncWorker.kt:50` |
+| Device sync | While paired: 30 s after a local change (debounced), every 30 minutes, and Sync now | The Intake sync server the user runs (`server/intake_sync.py`), over HTTPS; plain HTTP only to a local address (`SyncUrlPolicy`) | **Plaintext rows** as JSON (`WireRow.payload`) for every table except `backup_run`, in batches of 400; pairing code and device name at pairing; the token as a Bearer header | Photo files, API keys, backup secrets, settings. The server stores rows unencrypted on its disk by design (`server/README.md`) | **Off** until paired | `data/sync/SyncApi.kt:44-110`, `data/sync/SyncEngine.kt:52,111`, `work/SyncScheduler.kt:44`, `work/SyncWorker.kt:50` |
 
 ### Between the user's own devices and apps
 

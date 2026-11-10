@@ -73,7 +73,7 @@ fun MyFoodsScreen(
         if (shown.isEmpty()) {
             com.zeroindex.intake.ui.components.EmptyState(
                 title = "No foods saved yet",
-                body = "Open the Food tab and tap Log food. Every food you search for, scan or create is kept here.",
+                body = "Open the Nutrition tab and tap Log food. Every food you search for, scan or create is kept here.",
             )
         }
         LazyColumn(

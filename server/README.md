@@ -22,7 +22,7 @@ and nothing else.
   others into the future).
 - When both devices edited the same row between syncs, the newer edit wins on
   every device, and the device that syncs second - the one that sees both
-  versions - keeps the losing one under **Backup & sync → Conflicts**, where you
+  versions - keeps the losing one under **Settings > Sync and export → Conflicts**, where you
   can restore it. Nothing is silently thrown away.
 - Health Connect weigh-ins get ids from Health Connect's own record ids, and
   daily health summaries are keyed by day, so two devices reading the same
@@ -71,12 +71,12 @@ Any reverse proxy with a certificate (Caddy, nginx, Traefik) works the same way.
 1. On the server: `docker compose exec intake-sync python3 intake_sync.py pair`
    (or read the code from the logs on first start). Codes look like `QCBQ-8FQS`,
    work once, and expire after ten minutes.
-2. In Intake: More → Backup & sync → Device sync → enter the server address and
+2. In Intake: Settings > Sync and export → enter the server address and
    the code → **Pair this device**.
 3. For each further device, either repeat step 1, or on an already paired
    device tap **Add another device** to get a code.
 
-To remove a lost device: Backup & sync → its row → Remove, or on the server
+To remove a lost device: Settings > Sync and export → its row → Remove, or on the server
 `python3 intake_sync.py revoke <device-id>` (`devices` lists ids). Its token
 stops working immediately.
 
@@ -86,8 +86,15 @@ stops working immediately.
 - Ten wrong pairing codes in ten minutes lock pairing for ten minutes.
 - The server logs requests without headers or bodies.
 - Data on the server is plaintext SQLite, so the (future) MCP server can query
-  it. Keep the machine and the `data/` folder private, and use the encrypted
-  nightly backup for off-site copies.
+  it. Keep the machine and the `data/` folder private.
+
+## Back up your server's database file
+
+The remote backup feature in the app is gone, so the server's copy is worth protecting. Everything lives in one SQLite
+file under `data/` (`intake_sync.db`). Copy it somewhere else on a schedule while the server is idle or use SQLite's
+`.backup` command, for example `sqlite3 data/intake_sync.db ".backup /backups/intake-sync-$(date +%F).db"`, and keep
+the copy off the machine. The file is plaintext, so store it privately. Phones keep their own full copy, and a file export
+(Settings > Sync and export) is a second one.
 
 ## API
 

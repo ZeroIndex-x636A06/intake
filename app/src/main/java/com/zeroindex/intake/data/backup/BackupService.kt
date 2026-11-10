@@ -105,7 +105,7 @@ class BackupService @Inject constructor(
                 "schemaVersion" to JsonPrimitive(IntakeDatabase.VERSION),
                 "exportedAt" to JsonPrimitive(clock.nowMillis()),
                 "tables" to JsonObject(tableJson),
-                // docs/BACKUP.md "Settings": versioned, user-facing preferences only. Secrets never get here.
+                // docs/SYNC-EXPORT.md "Settings": versioned, user-facing preferences only. Secrets never get here.
                 "settings" to PortableSettings.encode(settings.rawSnapshot() + hydrationPrefs.rawSnapshot() + foodDataPrefs.rawSnapshot()),
             ),
         )
