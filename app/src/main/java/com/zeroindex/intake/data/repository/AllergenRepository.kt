@@ -248,6 +248,31 @@ class AllergenRepository @Inject constructor(
         )
     }
 
+    /**
+     * One engine setup for many short texts, so a recipe's ingredient lines do not each reload the profile
+     * and the keyword table. Each line is scanned alone with the normal ingredient rules ([scan]'s
+     * `checkLabelInIngredients`), never read for negation.
+     */
+    suspend fun lineScanner(): (String) -> AllergenScanResult {
+        val avoided = allergenDao.profile().avoidedSet()
+        if (avoided.isEmpty()) return { AllergenScanResult.CLEAN }
+        val aliases = allergenDao.aliases().map {
+            AllergenAlias(allergen = it.allergen, aliasTerm = it.aliasTerm, level = it.level)
+        }
+        val checkTerms = HiddenCarriers.forAllergens(avoided) +
+            PlanWatchTerms.extract(PlanMeta.decode(planDao.activePlan()?.metaJson).hiddenDairyChecklist)
+        return { line ->
+            AllergenMatcher.scan(
+                aliases = aliases,
+                avoidedAllergens = avoided,
+                name = null,
+                ingredients = line,
+                checkLabelTerms = checkTerms,
+                checkLabelInIngredients = true,
+            )
+        }
+    }
+
     suspend fun scan(food: FoodEntity): AllergenScanResult = scan(
         name = food.name,
         brand = food.brand,

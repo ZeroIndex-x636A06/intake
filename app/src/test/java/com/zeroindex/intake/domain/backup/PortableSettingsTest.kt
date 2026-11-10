@@ -162,7 +162,7 @@ class PortableSettingsTest {
         val deviceLocal = setOf(
             "backup_destination_json", "sync_server_url", "sync_device_id", "sync_device_name", "sync_pulled_seq",
             "sync_pushed_up_to", "sync_schema_version", "sync_last_at", "sync_last_error", "last_export_at",
-            "demo_data_loaded", "health_last_write_at", "health_last_sync_at",
+            "demo_data_loaded", "health_last_write_at", "health_last_sync_at", "health_last_report",
             // Motion polish: the day the protein burst last played is per device, never exported.
             "last_celebration_day",
             // AI usage meter: where this device's counters were last reset.

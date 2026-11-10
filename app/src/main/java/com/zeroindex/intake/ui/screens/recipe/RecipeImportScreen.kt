@@ -38,6 +38,10 @@ import com.zeroindex.intake.data.repository.RecipeRepository
 import com.zeroindex.intake.data.repository.RecipeSaveRequest
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
 import com.zeroindex.intake.domain.recipe.IngredientDraft
+import com.zeroindex.intake.domain.recipe.IngredientSections
+import com.zeroindex.intake.domain.recipe.RecipeNutritionLabels
+import com.zeroindex.intake.domain.recipe.RecipeTimes
+import com.zeroindex.intake.ui.images.RecipePhoto
 import com.zeroindex.intake.domain.recipe.PageNutrition
 import com.zeroindex.intake.domain.recipe.PageParse
 import com.zeroindex.intake.domain.recipe.RecipeDraft
@@ -67,6 +71,14 @@ data class ImportForm(
     val nutrition: PageNutrition? = null,
     val sourceUrl: String = "",
     val readByAi: Boolean = false,
+    /** The recipe's Notes section, editable. */
+    val notes: String = "",
+    val prepMinutes: Int? = null,
+    val cookMinutes: Int? = null,
+    /** The total as the page gave it: prep and cook are kept only while the total still matches. */
+    val readMinutes: String = "",
+    /** The photo's address on the page. Shown above the form and saved with the recipe. */
+    val imageUrl: String? = null,
 )
 
 sealed interface ImportStage {
@@ -131,11 +143,17 @@ class RecipeImportViewModel @Inject constructor(
         name = d.name,
         servings = (d.servings ?: 4).toString(),
         minutes = d.totalMinutes?.toString().orEmpty(),
-        ingredientsText = d.ingredients.joinToString("\n"),
+        // A "## For the Sauce" line starts a group for the lines under it; the user can edit them like any text.
+        ingredientsText = IngredientSections.toTextWithHeaders(d.ingredients, d.ingredientGroups),
         stepsText = d.steps.joinToString("\n"),
         nutrition = d.nutrition,
         sourceUrl = d.url?.takeIf { it.startsWith("http") } ?: url,
         readByAi = readByAi,
+        notes = d.notes.orEmpty(),
+        prepMinutes = d.prepMinutes,
+        cookMinutes = d.cookMinutes,
+        readMinutes = d.totalMinutes?.toString().orEmpty(),
+        imageUrl = d.imageUrl,
     )
 
     private fun showPreview(form: ImportForm) {
@@ -150,8 +168,10 @@ class RecipeImportViewModel @Inject constructor(
         rescan(f)
     }
 
-    private fun drafts(f: ImportForm): List<IngredientDraft> =
-        RecipeEditing.ingredientLines(f.ingredientsText).mapIndexed { i, l -> RecipeEditing.draftFromLine("i$i", l).copy(grams = null) }
+    private fun drafts(f: ImportForm): List<IngredientDraft> {
+        var n = 0
+        return RecipeEditing.draftsFromText(f.ingredientsText, { "i${n++}" }).map { it.copy(grams = null) }
+    }
 
     private fun rescan(f: ImportForm) {
         viewModelScope.launch {
@@ -173,6 +193,10 @@ class RecipeImportViewModel @Inject constructor(
                     steps = RecipeEditing.stepsFromText(f.stepsText),
                     ingredients = drafts(f), origin = RecipeOrigin.LINK, sourceUrl = f.sourceUrl.ifBlank { null },
                     fallbackNutrition = f.nutrition,
+                    notes = f.notes,
+                    prepMinutes = f.prepMinutes.takeIf { f.minutes == f.readMinutes },
+                    cookMinutes = f.cookMinutes.takeIf { f.minutes == f.readMinutes },
+                    imageUrl = f.imageUrl,
                 ),
             )
             _stage.value = ImportStage.Saved(saved.id)
@@ -253,7 +277,11 @@ fun RecipeImportScreen(
 private fun Preview(s: ImportStage.Preview, vm: RecipeImportViewModel) {
     val f = s.form
     if (f.readByAi) SandNote("Read from the page text by an AI model. Check every line against the page before you save.", title = "AI draft")
+    RecipePhoto(f.imageUrl, height = 160.dp)
     OutlinedTextField(f.name, { v -> vm.edit { it.copy(name = v) } }, label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+    RecipeTimes.label(f.prepMinutes.takeIf { f.minutes == f.readMinutes }, f.cookMinutes.takeIf { f.minutes == f.readMinutes }, f.minutes.toIntOrNull())
+        ?.takeIf { f.prepMinutes != null || f.cookMinutes != null }
+        ?.let { Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
             f.servings, { v -> vm.edit { it.copy(servings = v.filter(Char::isDigit).take(3)) } }, label = { Text("Servings") }, singleLine = true,
@@ -267,11 +295,16 @@ private fun Preview(s: ImportStage.Preview, vm: RecipeImportViewModel) {
     OutlinedTextField(
         f.ingredientsText, { v -> vm.edit { it.copy(ingredientsText = v) } },
         label = { Text("Ingredients, one per line") }, minLines = 4, modifier = Modifier.fillMaxWidth(),
+        supportingText = { Text("A line starting with ## is a group heading, like \"## For the Sauce\".") },
     )
     AllergenChips(s.scan)
     OutlinedTextField(
         f.stepsText, { v -> vm.edit { it.copy(stepsText = v) } },
         label = { Text("Steps, one per line") }, minLines = 4, modifier = Modifier.fillMaxWidth(),
+    )
+    OutlinedTextField(
+        f.notes, { v -> vm.edit { it.copy(notes = v) } },
+        label = { Text("Notes (storage, swaps, tips)") }, minLines = 2, modifier = Modifier.fillMaxWidth(),
     )
     f.nutrition?.takeIf { it.kcal != null }?.let { n ->
         IntakeCard {
@@ -280,6 +313,12 @@ private fun Preview(s: ImportStage.Preview, vm: RecipeImportViewModel) {
                 "${n.kcal!!.roundToInt()} kcal · ${(n.proteinG ?: 0.0).roundToInt()} g protein · ${(n.carbsG ?: 0.0).roundToInt()} g carbs · ${(n.fatG ?: 0.0).roundToInt()} g fat per serving",
                 style = MaterialTheme.typography.bodyMedium,
             )
+            RecipeNutritionLabels.extras(n.fiberG, n.sugarG, n.saturatedFatG, n.sodiumMg).takeIf { it.isNotEmpty() }?.let { extras ->
+                Text(
+                    extras.joinToString(" · ") { (label, value) -> "$label $value" },
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
             Text(
                 "These are the site's own numbers, not checked by Intake. They are saved with the recipe so a serving can be logged.",
                 style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,

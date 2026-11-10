@@ -13,8 +13,15 @@ data class PageNutrition(
     val proteinG: Double? = null,
     val carbsG: Double? = null,
     val fatG: Double? = null,
+    val fiberG: Double? = null,
+    val sugarG: Double? = null,
+    /** Milligrams, the unit the app stores sodium in. A page's "1.2 g" is converted. */
+    val sodiumMg: Double? = null,
+    val saturatedFatG: Double? = null,
 ) {
-    val isEmpty: Boolean get() = kcal == null && proteinG == null && carbsG == null && fatG == null
+    val isEmpty: Boolean
+        get() = kcal == null && proteinG == null && carbsG == null && fatG == null &&
+            fiberG == null && sugarG == null && sodiumMg == null && saturatedFatG == null
 }
 
 enum class RecipeSource { JSON_LD, MICRODATA }
@@ -24,13 +31,22 @@ data class RecipeDraft(
     val name: String,
     val servings: Int?,
     val totalMinutes: Int?,
-    /** One ingredient per entry, as written on the page. */
+    /** One ingredient per entry, as written on the page and tidied by [IngredientCleaner]. */
     val ingredients: List<String>,
     val steps: List<String>,
     val nutrition: PageNutrition?,
     val imageUrl: String?,
     val url: String?,
     val source: RecipeSource,
+    val prepMinutes: Int? = null,
+    val cookMinutes: Int? = null,
+    /** The recipe card's Notes section (WP Recipe Maker, Tasty Recipes); JSON-LD has no field for it. */
+    val notes: String? = null,
+    /**
+     * The group header of each ingredient ("For the Sauce"), same order as [ingredients], or empty when
+     * the page has no named groups. Read from the page's HTML, since JSON-LD flattens the groups.
+     */
+    val ingredientGroups: List<String?> = emptyList(),
 )
 
 sealed interface PageParse {
@@ -57,7 +73,7 @@ object RecipePageParser {
         val fromLd = jsonLdRecipe(html, pageUrl)
         val found = fromLd ?: Microdata(html, pageUrl).recipe()
         if (found != null && (found.ingredients.isNotEmpty() || found.steps.isNotEmpty())) {
-            PageParse.Found(found)
+            PageParse.Found(enrich(found, html))
         } else {
             PageParse.NoRecipe(pageText(html))
         }
@@ -65,6 +81,21 @@ object RecipePageParser {
         PageParse.NoRecipe("")
     } catch (e: StackOverflowError) {
         PageParse.NoRecipe("")
+    }
+
+    /**
+     * Tidies the ingredient lines and adds what only the page's HTML has: the Notes section and the
+     * ingredient group headers. Never throws; if the HTML pass fails the structured data stands alone.
+     */
+    private fun enrich(found: RecipeDraft, html: String): RecipeDraft {
+        val ingredients = found.ingredients.map(IngredientCleaner::clean).filter { it.isNotEmpty() }
+        val extras = runCatching { RecipeHtmlExtras.read(html) }.getOrDefault(HtmlExtras())
+        val labels = RecipeHtmlExtras.labelsFor(ingredients, extras.groups)
+        return found.copy(
+            ingredients = ingredients,
+            ingredientGroups = if (labels.any { it != null }) labels else emptyList(),
+            notes = found.notes ?: extras.notes,
+        )
     }
 
     // ---- page text for the AI fallback --------------------------------------------------------
@@ -135,15 +166,16 @@ object RecipePageParser {
         val name = text(o["name"]) ?: text(o["headline"]) ?: return null
         val ingredients = strings(o["recipeIngredient"]).ifEmpty { strings(o["ingredients"]) }
         val steps = instructions(o["recipeInstructions"], 0)
+        val prep = IsoDuration.minutes(text(o["prepTime"]))
+        val cook = IsoDuration.minutes(text(o["cookTime"]))
         val total = IsoDuration.minutes(text(o["totalTime"]))
-            ?: run {
-                val parts = listOfNotNull(IsoDuration.minutes(text(o["prepTime"])), IsoDuration.minutes(text(o["cookTime"])))
-                parts.takeIf { it.isNotEmpty() }?.sum()
-            }
+            ?: listOfNotNull(prep, cook).takeIf { it.isNotEmpty() }?.sum()
         return RecipeDraft(
             name = name,
             servings = servings(o["recipeYield"]),
             totalMinutes = total,
+            prepMinutes = prep,
+            cookMinutes = cook,
             ingredients = ingredients,
             steps = steps,
             nutrition = nutrition(o["nutrition"]),
@@ -225,16 +257,58 @@ object RecipePageParser {
         return nutritionOf(
             calories = text(o["calories"]), protein = text(o["proteinContent"]),
             carbs = text(o["carbohydrateContent"]), fat = text(o["fatContent"]),
+            fiber = text(o["fiberContent"]), sugar = text(o["sugarContent"]),
+            sodium = text(o["sodiumContent"]), saturatedFat = text(o["saturatedFatContent"]),
         )
     }
 
-    internal fun nutritionOf(calories: String?, protein: String?, carbs: String?, fat: String?): PageNutrition? {
+    internal fun nutritionOf(
+        calories: String?,
+        protein: String?,
+        carbs: String?,
+        fat: String?,
+        fiber: String? = null,
+        sugar: String? = null,
+        sodium: String? = null,
+        saturatedFat: String? = null,
+    ): PageNutrition? {
         fun num(s: String?): Double? =
             s?.let { Regex("""(\d+(?:[.,]\d+)?)""").find(it)?.groupValues?.get(1)?.replace(',', '.')?.toDoubleOrNull() }
         var kcal = num(calories)
         if (kcal != null && calories != null && Regex("""\bkj\b""", RegexOption.IGNORE_CASE).containsMatchIn(calories)) kcal /= 4.184
-        val result = PageNutrition(kcal, num(protein), num(carbs), num(fat))
+        val result = PageNutrition(
+            kcal, num(protein), num(carbs), num(fat),
+            fiberG = massG(fiber), sugarG = massG(sugar), sodiumMg = massMg(sodium), saturatedFatG = massG(saturatedFat),
+        )
         return result.takeUnless { it.isEmpty }
+    }
+
+    private val MASS = Regex("""(\d+(?:[.,]\d+)?)\s*(mg|kg|g|mcg|\u00b5g)?(?![A-Za-z])""", RegexOption.IGNORE_CASE)
+
+    /** "2 g", "2000 mg", "2" -> grams. A bare number is read as grams. */
+    private fun massG(s: String?): Double? = mass(s)?.let { (v, unit) ->
+        when (unit) {
+            "mg" -> v / 1000.0
+            "kg" -> v * 1000.0
+            "mcg", "\u00b5g" -> v / 1_000_000.0
+            else -> v
+        }
+    }
+
+    /** "1179 mg", "1.2 g", "1179" -> milligrams. A bare number is read as milligrams, which is what pages publish. */
+    private fun massMg(s: String?): Double? = mass(s)?.let { (v, unit) ->
+        when (unit) {
+            "g" -> v * 1000.0
+            "kg" -> v * 1_000_000.0
+            "mcg", "\u00b5g" -> v / 1000.0
+            else -> v
+        }
+    }
+
+    private fun mass(s: String?): Pair<Double, String>? {
+        val m = MASS.find(s ?: return null) ?: return null
+        val v = m.groupValues[1].replace(',', '.').toDoubleOrNull() ?: return null
+        return v to m.groupValues[2].lowercase()
     }
 
     // ---- microdata ---------------------------------------------------------------------------
@@ -300,6 +374,8 @@ object RecipePageParser {
             return RecipeDraft(
                 name = n,
                 servings = servings,
+                prepMinutes = prep,
+                cookMinutes = cook,
                 totalMinutes = total ?: listOfNotNull(prep, cook).takeIf { it.isNotEmpty() }?.sum(),
                 ingredients = ingredients,
                 steps = steps,
@@ -338,7 +414,11 @@ object RecipePageParser {
                 }
                 return null
             }
-            return nutritionOf(prop("calories"), prop("proteinContent"), prop("carbohydrateContent"), prop("fatContent"))
+            return nutritionOf(
+                prop("calories"), prop("proteinContent"), prop("carbohydrateContent"), prop("fatContent"),
+                fiber = prop("fiberContent"), sugar = prop("sugarContent"), sodium = prop("sodiumContent"),
+                saturatedFat = prop("saturatedFatContent"),
+            )
         }
 
         /** Index of the end tag that closes [name], counting nested tags of the same name. */

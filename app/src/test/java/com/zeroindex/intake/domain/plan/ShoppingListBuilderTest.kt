@@ -27,6 +27,27 @@ class ShoppingListBuilderTest {
         assertThat(lines.first().quantity).isEqualTo("1000 g")
     }
 
+    @Test fun `recipe groups become a note on the merged line, and ungrouped lines have none`() {
+        val lines = ShoppingListBuilder.generate(
+            listOf(
+                ShoppingIngredient("butter", 14.0, "For the Chicken"),
+                ShoppingIngredient("butter", 113.0, "For the Sauce"),
+                ShoppingIngredient("butter", 20.0, "For the Sauce"),
+                ShoppingIngredient("Onion", 150.0),
+                ShoppingIngredient("garlic", null, ""),
+            ),
+        )
+        assertThat(lines.first { it.key == "butter" }.note).isEqualTo("For the Chicken, For the Sauce")
+        assertThat(lines.first { it.key == "butter" }.quantity).isEqualTo("147 g")
+        assertThat(lines.first { it.key == "onion" }.note).isNull()
+        assertThat(lines.first { it.key == "garlic" }.note).isNull()
+    }
+
+    @Test fun `the share text carries the group note`() {
+        val sections = ShoppingListBuilder.group(listOf(item("Butter", StoreCategory.OTHER).copy(note = "For the Sauce")))
+        assertThat(ShoppingListBuilder.shareText("List", sections, WeightUnit.KILOGRAMS)).contains("[ ] Butter (For the Sauce)")
+    }
+
     @Test fun `unknown amounts leave the quantity empty`() {
         val l = ShoppingListBuilder.generate(listOf(ShoppingIngredient("Lemon", null))).single()
         assertThat(l.quantity).isEmpty()

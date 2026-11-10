@@ -13,6 +13,8 @@ import com.zeroindex.intake.data.ai.AiGateway
 import com.zeroindex.intake.data.repository.AllergenRepository
 import com.zeroindex.intake.data.repository.FoodLogRepository
 import com.zeroindex.intake.data.repository.MealPlanRepository
+import com.zeroindex.intake.data.repository.RecipeRepository
+import com.zeroindex.intake.data.repository.RecipeView
 import com.zeroindex.intake.domain.ai.RecipeQuery
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nutrition.Macros
@@ -21,7 +23,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -33,6 +38,7 @@ class RecipeLibraryViewModel @Inject constructor(
     private val recipeDao: RecipeDao,
     private val foodLog: FoodLogRepository,
     private val plans: MealPlanRepository,
+    private val recipeRepo: RecipeRepository,
     private val clock: Clock,
 ) : ViewModel() {
     private val _notice = MutableStateFlow<String?>(null)
@@ -46,6 +52,12 @@ class RecipeLibraryViewModel @Inject constructor(
 
     val recipes: StateFlow<List<RecipeEntity>> =
         recipeDao.observeAll().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** One recipe with its ingredients in order, their groups and each line's own allergen tag. Reloads when the recipe changes. */
+    fun viewOf(recipeId: String): Flow<RecipeView?> =
+        recipes.map { list -> list.firstOrNull { it.id == recipeId } }
+            .distinctUntilChanged()
+            .map { if (it == null) null else recipeRepo.view(recipeId) }
 
     fun logServing(recipe: RecipeEntity, slot: MealSlot, onDone: () -> Unit) = viewModelScope.launch {
         foodLog.logPrepared(

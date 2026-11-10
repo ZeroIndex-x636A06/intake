@@ -298,6 +298,45 @@ class MigrationSchemaTest {
         )
 
     @Test
+    fun migrationTwoToThreeAddsRecipeImportColumnsAsNullAndKeepsEveryRecipeIngredientAndShoppingItem() {
+        val c = createAt(2)
+        fun cols(table: String) = entities(2).getValue(table)["fields"]!!.jsonArray.map { it.jsonObject["columnName"]!!.jsonPrimitive.content }
+        assertThat(cols("recipe")).containsNoneOf("notes", "prepMinutes", "cookMinutes", "imageUrl", "fiberPerServing", "ingredientGroups")
+        assertThat(cols("recipe_ingredient")).doesNotContain("groupLabel")
+        assertThat(cols("shopping_list_item")).doesNotContain("note")
+
+        c.exec(
+            "INSERT INTO food (id, name, servingSizeGrams, servingLabel, kcalPer100g, proteinPer100g, carbsPer100g, " +
+                "fatPer100g, fiberPer100g, sugarPer100g, sodiumPer100g, saturatedFatPer100g, source, allergenTags, " +
+                "isVerified, isFavorite, timesLogged, createdAt, updatedAt) " +
+                "VALUES ('f1', 'Rice', 100, '100 g', 130, 2.7, 28, 0.3, 0, 0, 0, 0, 'MANUAL', '', 0, 0, 0, 1, 1)",
+        )
+        c.exec(
+            "INSERT INTO recipe (id, name, servings, instructions, totalTimeMinutes, origin, sourceUrl, ingredientsText, " +
+                "kcalPerServing, createdAt, updatedAt) VALUES ('r1', 'Rice bowl', 2, 'Cook.', 30, 'LINK', 'https://example.test/r', " +
+                "'1 cup rice\n1 egg', 400, 1, 2)",
+        )
+        c.exec("INSERT INTO recipe_ingredient (id, recipeId, foodId, quantityGrams, displayOrder, createdAt, updatedAt) VALUES ('i1', 'r1', 'f1', 200, 0, 1, 1)")
+        planWeek(c, "w1", 1, "Bowls")
+        c.exec("INSERT INTO shopping_list_item (id, planWeekId, name, quantity, category, isChecked, isPantryStaple, createdAt, updatedAt) VALUES ('s1', 'w1', 'Rice', '200 g', 'PANTRY', 0, 1, 1, 1)")
+
+        MIGRATION_2_3_STATEMENTS.forEach { c.exec(it) }
+
+        val r = c.rows("SELECT * FROM recipe WHERE id = 'r1'").single()
+        assertThat(r["name"]).isEqualTo("Rice bowl")
+        assertThat(r["ingredientsText"]).isEqualTo("1 cup rice\n1 egg")
+        assertThat(r["kcalPerServing"]).isEqualTo(400.0)
+        listOf("notes", "prepMinutes", "cookMinutes", "imageUrl", "fiberPerServing", "sugarPerServing", "sodiumMgPerServing", "saturatedFatPerServing", "ingredientGroups")
+            .forEach { assertWithMessage("recipe.$it").that(r[it]).isNull() }
+        assertThat(c.rows("SELECT * FROM recipe_ingredient WHERE id = 'i1'").single()["groupLabel"]).isNull()
+        val shop = c.rows("SELECT * FROM shopping_list_item WHERE id = 's1'").single()
+        assertThat(shop["quantity"]).isEqualTo("200 g")
+        assertThat(shop["note"]).isNull()
+        assertMatches(c, 3)
+        c.close()
+    }
+
+    @Test
     fun migrationTwoToThreeTurnsExistingPlanWeeksIntoMyPlanAndMovesTheWeekZeroData() {
         val c = createAt(2)
         planWeek(c, "w0", 0, "Every week", """{"intro":"Hello","pantry":["rice"]}""")
