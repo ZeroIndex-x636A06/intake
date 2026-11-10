@@ -115,27 +115,6 @@ class CoachCheckInViewModel @Inject constructor(
         message.update { null }
     }
 
-    fun setWeekday(isoDay: Int) {
-        viewModelScope.launch {
-            settings.setCoachWeekday(isoDay)
-            weekday.value = isoDay
-        }
-    }
-
-    fun setNotify(on: Boolean) {
-        viewModelScope.launch { settings.setCoachNotify(on) }
-    }
-
-    fun setAiReword(on: Boolean) {
-        viewModelScope.launch {
-            settings.setCoachAiReword(on)
-            if (on) {
-                val day = state.value.latest?.record?.day
-                if (day != null) runCatching { reworder.rewordCheckIn(day, AiTrigger.USER_ACTION) }
-            }
-        }
-    }
-
     companion object {
         fun describe(action: CoachAction): String = when (action) {
             is CoachAction.SetCalories -> "Calories ${action.fromKcal} to ${action.toKcal} kcal (${if (action.toKcal >= action.fromKcal) "+" else "−"}${kotlin.math.abs(action.toKcal - action.fromKcal)})"

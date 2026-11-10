@@ -44,5 +44,4 @@ class HealthConnectViewModel @Inject constructor(
 
     fun refresh() = viewModelScope.launch { manager.refreshPermissions() }
     fun syncNow() = viewModelScope.launch { manager.sync() }
-    fun setAddActivity(on: Boolean) = viewModelScope.launch { settingsRepository.setAddActiveCalories(on) }
 }

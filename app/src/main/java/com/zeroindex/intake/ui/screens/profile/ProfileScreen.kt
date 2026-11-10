@@ -119,30 +119,18 @@ fun ProfileScreen(
         item(key = "head") {
             SubHead("Profile & goals", "What your plan is built from. It stays on this phone.")
         }
-        item(key = "mode") {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("How much detail?", style = MaterialTheme.typography.titleSmall)
-                    Text(
-                        if (profile.isAdvanced) "Advanced: grams per kg, carb cycling, refeeds, diet breaks."
-                        else "Simple: a handful of choices, sensible numbers.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Segmented(
-                    options = listOf("Simple", "Advanced"),
-                    selectedIndex = if (profile.isAdvanced) 1 else 0,
-                    onSelect = { i -> viewModel.update { it.copy(mode = if (i == 1) ProfileMode.ADVANCED else ProfileMode.SIMPLE) } },
-                )
-            }
-        }
-
         // ---------------------------------------------------------------- Basics
         item(key = "basics") {
             IntakeCard {
                 Eyebrow("About you")
                 Spacer(Modifier.height(8.dp))
+                CommitField(
+                    label = "Name (optional)",
+                    saved = settings.displayName,
+                    keyboardType = KeyboardType.Text,
+                    placeholder = "Shown on You and the avatar",
+                    onCommit = { viewModel.setDisplayName(it) },
+                )
                 Text("Sex (for the energy formulas)", style = MaterialTheme.typography.labelMedium)
                 Spacer(Modifier.height(6.dp))
                 ChipGroup(Sex.entries, profile.sex, { it.label }, { s -> viewModel.update { it.copy(sex = s) } })
@@ -230,7 +218,7 @@ fun ProfileScreen(
         item(key = "phase") {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SectionLine(title = "Your goal")
-                val phases = Phase.entries.filter { profile.isAdvanced || !it.advanced || it == profile.phase }
+                val phases = Phase.entries.toList()
                 phases.forEach { p ->
                     OptionTile(
                         title = p.label,
@@ -241,6 +229,26 @@ fun ProfileScreen(
                         secondary = if (p.advanced) "Advanced" else null,
                     )
                 }
+            }
+        }
+        item(key = "goal-numbers") {
+            IntakeCard {
+                val wu = settings.weightUnit
+                CommitField(
+                    label = "Goal weight (${wu.label})",
+                    saved = settings.goalWeightKg?.let { num(wu.fromKg(it)) } ?: "",
+                    placeholder = "Optional",
+                    onCommit = { t ->
+                        if (t.isBlank()) viewModel.setGoalWeight(null)
+                        else t.toDoubleOrNull()?.takeIf { it > 0 }?.let { viewModel.setGoalWeight(wu.toKg(it)) }
+                    },
+                )
+                CommitField(
+                    label = "Rate (${wu.label} per week, negative to lose)",
+                    saved = if (settings.goalRateKgPerWeek == 0.0) "" else num(wu.fromKg(settings.goalRateKgPerWeek)),
+                    placeholder = "0",
+                    onCommit = { t -> viewModel.setGoalRate(wu.toKg(t.toDoubleOrNull() ?: 0.0)) },
+                )
             }
         }
         if (profile.phase in PACE_PHASES) {
@@ -273,29 +281,6 @@ fun ProfileScreen(
                 }
             }
         }
-        if (profile.isAdvanced && profile.phase == Phase.CONTEST_PREP) {
-            item(key = "contest") {
-                IntakeCard {
-                    TermHeading("Weekly loss rate", "How much body weight to lose each week, as a percent. 0.5 to 1 is the usual contest-prep range.")
-                    ChipGroup(
-                        listOf(0.5, 0.75, 1.0), profile.contestWeeklyLossPct, { "${it}%" },
-                        { v -> viewModel.update { it.copy(contestWeeklyLossPct = v) } },
-                    )
-                }
-            }
-        }
-        if (profile.isAdvanced && profile.phase == Phase.REVERSE_DIET) {
-            item(key = "reverse") {
-                IntakeCard {
-                    TermHeading("Weekly increase", "How many calories to add each week until you reach maintenance. 50 to 100 is typical.")
-                    ChipGroup(
-                        listOf(50, 75, 100), profile.reverseStepKcal, { "+$it kcal" },
-                        { v -> viewModel.update { it.copy(reverseStepKcal = v) } },
-                    )
-                }
-            }
-        }
-
         // ---------------------------------------------------------------- Activity
         item(key = "activity") {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -343,9 +328,6 @@ fun ProfileScreen(
                 Text("Minutes per session", style = MaterialTheme.typography.labelMedium)
                 ChipGroup(listOf(30, 45, 60, 75, 90), profile.sessionMinutes, { "$it" },
                     { m -> viewModel.update { it.copy(sessionMinutes = m) } }, Modifier.padding(top = 6.dp, bottom = 10.dp))
-                Text("Equipment", style = MaterialTheme.typography.labelMedium)
-                ChipGroup(EQUIPMENT_CHOICES, profile.equipmentPreset, { it.label },
-                    { e -> viewModel.update { it.copy(equipmentPreset = e, equipment = e.kinds) } }, Modifier.padding(top = 6.dp, bottom = 10.dp))
                 Text("Experience", style = MaterialTheme.typography.labelMedium)
                 ChipGroup(Experience.entries, profile.experience, { "${it.label} (${it.blurb.lowercase()})" },
                     { e -> viewModel.update { it.copy(experience = e) } }, Modifier.padding(top = 6.dp, bottom = 10.dp))
@@ -384,11 +366,6 @@ fun ProfileScreen(
             }
         }
 
-        // ---------------------------------------------------------------- Advanced
-        if (profile.isAdvanced) {
-            item(key = "advanced") { AdvancedSection(profile, viewModel::update) }
-        }
-
         // ---------------------------------------------------------------- Baseline
         item(key = "baseline") {
             BaselineSection(
@@ -421,9 +398,7 @@ fun ProfileScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                OutlinedButton(onClick = onOpenTargetSettings, modifier = Modifier.fillMaxWidth().height(48.dp)) {
-                    Text("Set targets by hand instead")
-                }
+                
             }
         }
 
@@ -477,80 +452,6 @@ private fun WeightRow(weightKg: Double?, unit: WeightUnit, onLog: (Double) -> Un
             enabled = changed,
             modifier = Modifier.padding(bottom = if (weightKg == null) 22.dp else 0.dp).height(52.dp),
         ) { Text("Log it") }
-    }
-}
-
-@Composable
-private fun AdvancedSection(profile: UserProfile, update: ((UserProfile) -> UserProfile) -> Unit) {
-    IntakeCard {
-        Eyebrow("Advanced")
-        Spacer(Modifier.height(6.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            CommitField(
-                label = "Protein g per kg",
-                saved = profile.proteinPerKg?.let(::num) ?: "",
-                placeholder = "Auto",
-                modifier = Modifier.weight(1f),
-                supporting = "Blank = by goal",
-                onCommit = { t ->
-                    when {
-                        t.isBlank() -> update { it.copy(proteinPerKg = null) }
-                        t.toDoubleOrNull() != null && t.toDouble() in 0.8..3.5 -> update { it.copy(proteinPerKg = t.toDouble()) }
-                    }
-                },
-            )
-            CommitField(
-                label = "Fat g per kg",
-                saved = profile.fatPerKg?.let(::num) ?: "",
-                placeholder = "Auto",
-                modifier = Modifier.weight(1f),
-                supporting = "0.6 minimum",
-                onCommit = { t ->
-                    when {
-                        t.isBlank() -> update { it.copy(fatPerKg = null) }
-                        t.toDoubleOrNull() != null && t.toDouble() in 0.3..2.0 -> update { it.copy(fatPerKg = t.toDouble()) }
-                    }
-                },
-            )
-        }
-        SwitchRow(
-            title = "Carb cycling",
-            subtitle = "More carbs on training days. Weekly total unchanged.",
-            on = profile.carbCycling,
-            onToggle = { update { it.copy(carbCycling = !it.carbCycling) } },
-            onLabel = "On",
-            offLabel = "Off",
-        )
-        if (profile.carbCycling) {
-            Text("Extra carbs on training days", style = MaterialTheme.typography.labelMedium)
-            ChipGroup(listOf(15, 25, 35), profile.carbCycleShiftPct, { "+$it%" },
-                { v -> update { it.copy(carbCycleShiftPct = v) } }, Modifier.padding(top = 6.dp, bottom = 6.dp))
-        }
-        TermHeading("Refeed days per week", GoalGlossary.REFEED)
-        ChipGroup(listOf(0, 1, 2), profile.refeedDaysPerWeek, { if (it == 0) "None" else "$it" },
-            { v -> update { it.copy(refeedDaysPerWeek = v) } })
-        if (DietBreakPlan.appliesTo(profile.phase)) {
-            Spacer(Modifier.height(6.dp))
-            TermHeading("Diet break", GoalGlossary.DIET_BREAK)
-            ChipGroup(listOf(null, 8, 10, 12), profile.dietBreakEveryWeeks, { if (it == null) "Off" else "Every $it weeks" },
-                { v -> update { it.copy(dietBreakEveryWeeks = v) } })
-        }
-        if (profile.carbCycling || profile.refeedDaysPerWeek > 0) {
-            Spacer(Modifier.height(6.dp))
-            Text(
-                "Carb cycling and refeeds use the training weekdays you pick under Training you can do.",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        SwitchRow(
-            title = "Allow calories below the floor",
-            subtitle = "Normally never below 1.1 x calories at rest.",
-            on = profile.allowBelowFloor,
-            onToggle = { update { it.copy(allowBelowFloor = !it.allowBelowFloor) } },
-            onLabel = "Allowed",
-            offLabel = "Not allowed",
-        )
     }
 }
 

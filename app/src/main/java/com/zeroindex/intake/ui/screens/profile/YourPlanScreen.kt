@@ -61,7 +61,6 @@ fun YourPlanScreen(
     viewModel: YourPlanViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    var editing by remember { mutableStateOf<Editing?>(null) }
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
@@ -109,7 +108,7 @@ fun YourPlanScreen(
                 }
 
                 item(key = "calories") {
-                    PlanCardView(plan.calorieCard, onEdit = { editing = Editing.Calories }, edited = state.overrides.kcal != null) {
+                    PlanCardView(plan.calorieCard) {
                         plan.calories.reverseSchedule.takeIf { it.size > 1 }?.let { weeks ->
                             Spacer(Modifier.height(6.dp))
                             Text(
@@ -134,8 +133,6 @@ fun YourPlanScreen(
                 item(key = "macros") {
                     PlanCardView(
                         card = plan.macroCard,
-                        onEdit = { editing = Editing.Macros },
-                        edited = state.overrides.proteinPerKg != null || state.overrides.fatPerKg != null,
                         headline = {
                             MacroTiles(
                                 listOf(
@@ -161,7 +158,7 @@ fun YourPlanScreen(
                     }
                 }
                 item(key = "water") {
-                    PlanCardView(plan.waterCard, onEdit = { editing = Editing.Water }, edited = state.overrides.waterMl != null)
+                    PlanCardView(plan.waterCard)
                 }
                 state.howBuilt?.let { hb ->
                     item(key = "how-built") { com.zeroindex.intake.ui.screens.train.HowBuiltCard(hb) }
@@ -227,51 +224,15 @@ fun YourPlanScreen(
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            if (state.overrides != com.zeroindex.intake.domain.goals.PlanOverrides()) {
-                                TextButton(onClick = viewModel::resetEdits) { Text("Undo my edits") }
-                            }
-                        }
+                                        }
                     }
                 }
             }
         }
     }
 
-    val plan = state.plan
-    when (editing) {
-        Editing.Calories -> plan?.let {
-            NumberDialog(
-                title = "Daily calories",
-                label = "kcal",
-                initial = it.calories.kcal.toString(),
-                hint = "Intake still keeps this at or above 1.1 x your calories at rest unless Advanced allows lower.",
-                onDismiss = { editing = null },
-                onSave = { v -> viewModel.editCalories(v.toIntOrNull()?.coerceIn(800, 8_000)); editing = null },
-            )
-        }
-        Editing.Macros -> plan?.let {
-            MacroDialog(
-                protein = it.macros.proteinPerKg,
-                fat = it.macros.fatPerKg,
-                onDismiss = { editing = null },
-                onSave = { p, f -> viewModel.editMacros(p, f); editing = null },
-            )
-        }
-        Editing.Water -> plan?.let {
-            NumberDialog(
-                title = "Daily water",
-                label = "ml",
-                initial = it.water.baseMl.toString(),
-                hint = "The training-day bonus is added on top.",
-                onDismiss = { editing = null },
-                onSave = { v -> viewModel.editWater(v.toIntOrNull()?.coerceIn(500, 8_000)); editing = null },
-            )
-        }
-        null -> Unit
-    }
 }
 
-private enum class Editing { Calories, Macros, Water }
 
 @Composable
 private fun SourceRow(plan: GoalPlan) {
@@ -296,8 +257,6 @@ private fun SourceRow(plan: GoalPlan) {
 @Composable
 private fun PlanCardView(
     card: PlanCard,
-    onEdit: () -> Unit,
-    edited: Boolean,
     headline: (@Composable () -> Unit)? = null,
     extra: @Composable () -> Unit = {},
 ) {
@@ -306,63 +265,10 @@ private fun PlanCardView(
             Text(card.title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f, fill = false))
             InfoTip(text = card.detail, label = card.title)
             Spacer(Modifier.weight(1f))
-            if (edited) StatusPill("Edited", tone = PillTone.Wait)
-            TextButton(onClick = onEdit) { Text("Edit") }
         }
         if (headline != null) headline() else Text(card.headline, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(4.dp))
         Text(card.why, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         extra()
     }
-}
-
-@Composable
-private fun NumberDialog(
-    title: String,
-    label: String,
-    initial: String,
-    hint: String,
-    onDismiss: () -> Unit,
-    onSave: (String) -> Unit,
-) {
-    var text by remember { mutableStateOf(initial) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column {
-                LabeledField(label = label, value = text, onValueChange = { text = it }, keyboardType = KeyboardType.Number)
-                Text(hint, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        },
-        confirmButton = { TextButton(onClick = { onSave(text.trim()) }, enabled = text.trim().toIntOrNull() != null) { Text("Use this") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
-}
-
-@Composable
-private fun MacroDialog(protein: Double, fat: Double, onDismiss: () -> Unit, onSave: (Double, Double) -> Unit) {
-    var p by remember { mutableStateOf(String.format(Locale.US, "%.1f", protein)) }
-    var f by remember { mutableStateOf(String.format(Locale.US, "%.1f", fat)) }
-    val pv = p.trim().toDoubleOrNull()
-    val fv = f.trim().toDoubleOrNull()
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Protein and fat") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                LabeledField(label = "Protein g per kg", value = p, onValueChange = { p = it }, keyboardType = KeyboardType.Decimal)
-                LabeledField(label = "Fat g per kg", value = f, onValueChange = { f = it }, keyboardType = KeyboardType.Decimal)
-                Text(
-                    "Carbs take whatever is left. Fat stays at least 0.6 g/kg and 20% of calories.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onSave(pv!!, fv!!) }, enabled = pv != null && fv != null && pv in 0.8..3.5 && fv in 0.3..2.0) { Text("Use these") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
 }

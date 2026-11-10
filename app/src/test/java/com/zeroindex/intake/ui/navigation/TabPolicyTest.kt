@@ -12,17 +12,17 @@ import org.junit.Test
 class TabPolicyTest {
 
     @Test fun `choosing another tab switches and restores that tab's stack`() {
-        assertEquals(TabAction.SWITCH, TabPolicy.actionFor("today", "food", currentIsAtRoot = true))
+        assertEquals(TabAction.SWITCH, TabPolicy.actionFor("today", "nutrition", currentIsAtRoot = true))
         // Even from deep inside a tab: the stack is saved, not popped.
-        assertEquals(TabAction.SWITCH, TabPolicy.actionFor("food", "train", currentIsAtRoot = false))
+        assertEquals(TabAction.SWITCH, TabPolicy.actionFor("nutrition", "train", currentIsAtRoot = false))
     }
 
     @Test fun `choosing the current tab below its root pops to the root`() {
-        assertEquals(TabAction.POP_TO_ROOT, TabPolicy.actionFor("food", "food", currentIsAtRoot = false))
+        assertEquals(TabAction.POP_TO_ROOT, TabPolicy.actionFor("nutrition", "nutrition", currentIsAtRoot = false))
     }
 
     @Test fun `choosing the current tab at its root does nothing`() {
-        assertEquals(TabAction.NONE, TabPolicy.actionFor("food", "food", currentIsAtRoot = true))
+        assertEquals(TabAction.NONE, TabPolicy.actionFor("nutrition", "nutrition", currentIsAtRoot = true))
     }
 
     @Test fun `no current tab counts as a switch`() {
@@ -30,19 +30,19 @@ class TabPolicyTest {
     }
 
     @Test fun `fade through is only for moving between two known tabs`() {
-        assertTrue(TabPolicy.isTabSwitch("today", "food"))
-        assertFalse(TabPolicy.isTabSwitch("food", "food"))
-        assertFalse(TabPolicy.isTabSwitch(null, "food"))
-        assertFalse(TabPolicy.isTabSwitch("food", null))
+        assertTrue(TabPolicy.isTabSwitch("today", "nutrition"))
+        assertFalse(TabPolicy.isTabSwitch("nutrition", "nutrition"))
+        assertFalse(TabPolicy.isTabSwitch(null, "nutrition"))
+        assertFalse(TabPolicy.isTabSwitch("nutrition", null))
     }
 
-    @Test fun `the pill has the five destinations in order`() {
+    @Test fun `the pill has the four destinations in order`() {
         assertEquals(
-            listOf("TODAY", "FOOD", "TRAIN", "PROGRESS", "MORE"),
+            listOf("TODAY", "NUTRITION", "TRAIN", "PROGRESS"),
             TopLevelDestination.entries.map { it.name },
         )
         assertEquals(
-            listOf(Route.Today, Route.Food, Route.Train, Route.Progress, Route.More),
+            listOf(Route.Today, Route.Nutrition, Route.Train, Route.Progress),
             TopLevelDestination.entries.map { it.route },
         )
     }

@@ -165,6 +165,8 @@ class PortableSettingsTest {
             "demo_data_loaded", "health_last_write_at", "health_last_sync_at", "health_last_report",
             // Motion polish: the day the protein burst last played is per device, never exported.
             "last_celebration_day",
+            // Round 3: when the app was first used (starts the export reminder clock); per device.
+            "first_use_at_ms",
             // AI usage meter: where this device's counters were last reset.
             "ai_usage_reset_at",
             // Hydration v2: precise location, forecast cache and retry time.

@@ -36,6 +36,7 @@ data class ProfileUiState(
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val repository: ProfileRepository,
+    private val settingsRepository: com.zeroindex.intake.data.settings.SettingsRepository,
     private val clock: Clock,
 ) : ViewModel() {
 
@@ -76,6 +77,10 @@ class ProfileViewModel @Inject constructor(
     fun update(block: (UserProfile) -> UserProfile) {
         viewModelScope.launch { repository.update(block) }
     }
+
+    fun setDisplayName(name: String) { viewModelScope.launch { settingsRepository.setDisplayName(name) } }
+    fun setGoalWeight(kg: Double?) { viewModelScope.launch { settingsRepository.setGoalWeightKg(kg) } }
+    fun setGoalRate(kgPerWeek: Double) { viewModelScope.launch { settingsRepository.setGoalRateKgPerWeek(kgPerWeek) } }
 
     fun logWeighIn(weightKg: Double, bodyFatPercent: Double?) {
         viewModelScope.launch { repository.logWeighIn(weightKg, bodyFatPercent) }
