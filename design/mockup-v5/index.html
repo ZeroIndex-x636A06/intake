@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Intake v5 · three options</title>
+<style>
+:root{--bg:#121318;--s:#1A1B21;--bd:#34353C;--fg:#F1F0F5;--sub:#A6A6AE;--p:#8FD6C4;--pale:#263D37}
+*{box-sizing:border-box}html,body{margin:0;max-width:100%}
+body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"DM Sans",sans-serif;font-size:15px;line-height:1.5}
+.w{max-width:980px;margin:0 auto;padding:20px 16px 48px}
+.eb{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--p)}
+h1{font-size:28px;line-height:1.15;margin:6px 0 8px;letter-spacing:-.03em}h2{font-size:21px;margin:0 0 4px;letter-spacing:-.02em}
+p{margin:0 0 10px;color:#d3d3d9}.sub{color:var(--sub)}
+.opts{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:18px 0}
+.opt{background:var(--s);border:1px solid var(--bd);border-radius:22px;padding:16px;display:flex;flex-direction:column}
+.opt .tag{font-size:12px;font-weight:800;color:var(--p);letter-spacing:.08em;text-transform:uppercase}
+.thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:10px 0}.thumbs img{width:100%;border-radius:10px;display:block;border:1px solid var(--bd)}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:8px}
+a.b{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border-radius:14px;background:var(--p);color:#00201A;font-weight:800;text-decoration:none;font-size:14px}
+a.b.o{background:none;border:1px solid var(--bd);color:var(--fg)}
+.rec{background:var(--pale);border-radius:22px;padding:18px;margin:6px 0 20px}
+table{width:100%;border-collapse:collapse;font-size:13.5px;background:var(--s);border-radius:16px;overflow:hidden}th,td{text-align:left;padding:9px 12px;border-top:1px solid var(--bd);vertical-align:top}th{color:var(--sub);font-size:12px;border-top:0}
+.sheets img{width:100%;border-radius:14px;border:1px solid var(--bd);margin:8px 0}
+@media(max-width:820px){.opts{grid-template-columns:1fr}table{display:block;overflow-x:auto}}
+</style></head><body><div class="w">
+<div class="eb">Intake · round 3 · design only</div>
+<h1>Three ways to combine the current look with the v5 structure</h1>
+<p>Each option is a clickable 390 × 844 phone: the pill switches tabs, rows drill in, arrows go back, and the chips above the phone jump to any of its 27 frames (15 screens plus all 12 Settings group pages). All three carry the same fixes from your feedback: <b>Nutrition</b> instead of Food (option C: <b>Eat</b>), an <b>allergen strip</b> and a rich Allergens screen, <b>Photo</b> as a third primary way to log, <b>Swap</b> on the planned meal with <b>Eat out nearby</b>, and a complete Settings (113 controls, 12 groups). Colours, type scale and shapes are the app's real tokens. Nothing here has been seen on a device.</p>
+
+<div class="opts">
+ <div class="opt"><div class="tag">Option A</div><h2>Familiar</h2>
+  <p>The app you have now, tidied. Big outlined cards, tonal icon squares, large list rows and the labelled frosted pill you know, with v5's structure on top. Search, Scan and Photo are three big tonal tiles; Swap is a tall sheet that lists eat-out options first, then saved ones, then your plan. Settings is one long list of group rows. Least surprise, easiest to build on today's components.</p>
+  <div class="thumbs"><img src="shots/a-today.png" alt="A Today"><img src="shots/a-nutrition.png" alt="A Nutrition"><img src="shots/a-swap.png" alt="A Swap"></div>
+  <div class="btns"><a class="b" href="option-a.html">Open A</a><a class="b o" href="shots/a-sheet.png">Contact sheet</a></div></div>
+ <div class="opt"><div class="tag">Option B</div><h2>Dashboard</h2>
+  <p>Denser and glanceable. Calories and three macro rings up front, an allergen status tile on Today, tiles for weight, training, steps and sleep, a nutrient grid on Nutrition, and sheets with tabs (Log: Search | Scan | Photo; Swap: Plan | Saved | Eat out). A compact, solid-highlight pill. Settings opens on a two-column tile grid with a count per group. For people who want numbers first.</p>
+  <div class="thumbs"><img src="shots/b-today.png" alt="B Today"><img src="shots/b-nutrition.png" alt="B Nutrition"><img src="shots/b-swap.png" alt="B Swap"></div>
+  <div class="btns"><a class="b" href="option-b.html">Open B</a><a class="b o" href="shots/b-sheet.png">Contact sheet</a></div></div>
+ <div class="opt"><div class="tag">Option C</div><h2>Calm</h2>
+  <p>One primary thing per screen. Today is one big "930 calories left" ring and the next meal with Log and Swap; water, workout, weight and meals sit one tap down. The tab is called <b>Eat</b>, with three round hero buttons (Search, Scan, Photo) and a slim allergen pill. Totals, other ways to start and recent sessions hide behind disclosure rows. The pill is icons, with the label only on the active tab. Swap is an accordion. Large type throughout.</p>
+  <div class="thumbs"><img src="shots/c-today.png" alt="C Today"><img src="shots/c-nutrition.png" alt="C Eat"><img src="shots/c-swap.png" alt="C Swap"></div>
+  <div class="btns"><a class="b" href="option-c.html">Open C</a><a class="b o" href="shots/c-sheet.png">Contact sheet</a></div></div>
+</div>
+
+<div class="rec"><div class="eb">Recommendation</div><h2>Build A, borrow three things</h2>
+<p><b>A</b> is the one to build. It is closest to what you have installed, so it is the least work and the least relearning, and it already meets every item in your feedback: the strip, three equal log actions, Swap, a complete Settings. It will also read best next to the existing screens.</p>
+<p>Borrow from <b>B</b> the allergen status tile on Today (so allergens are visible even before you open Nutrition) and the nutrient tile grid on Nutrition. Borrow from <b>C</b> the large "Next: lunch" card with Log and Swap side by side, and the accordion behaviour for Swap if the tall sheet feels long on a small phone. Use <b>Nutrition</b>, not Eat: it is clearer in the Settings groups and the pill, and "Eat" read as too clipped next to Train and Progress.</p>
+<p class="sub">C is the best answer if you find the app busy and would trade density for focus; B if you check numbers many times a day.</p></div>
+
+<h2>What each option does with your feedback</h2>
+<table><tr><th>Your feedback</th><th>A</th><th>B</th><th>C</th></tr>
+<tr><td>Allergens with weight</td><td>Red-tinted strip with chips and "Dairy · strict" on Nutrition</td><td>One-line strip on Nutrition plus a status tile on Today</td><td>Solid red pill on Eat, chips inside</td></tr>
+<tr><td>Photo estimate</td><td>Third of three big tiles</td><td>Third of three compact buttons; Photo tab in Log</td><td>Third of three round hero buttons</td></tr>
+<tr><td>Rename Food</td><td>Nutrition</td><td>Nutrition</td><td>Eat</td></tr>
+<tr><td>Swap + eat out nearby</td><td>Stacked sheet, eat out first</td><td>Tabbed sheet, defaults to Eat out</td><td>Accordion, Eat out open</td></tr>
+<tr><td>Settings complete</td><td>12 group rows in one card</td><td>12 tiles with counts</td><td>12 large text rows</td></tr></table>
+
+<h2 style="margin-top:22px">Contact sheets</h2>
+<div class="sheets"><p class="sub">Every frame at a glance. Tap an image to open it full size.</p>
+<a href="shots/a-sheet.png"><img src="shots/a-sheet.png" alt="Option A frames"></a><a href="shots/b-sheet.png"><img src="shots/b-sheet.png" alt="Option B frames"></a><a href="shots/c-sheet.png"><img src="shots/c-sheet.png" alt="Option C frames"></a></div>
+
+<h2>Notes</h2>
+<p class="sub">Photos, plates and video thumbnails are labelled placeholders. Restaurant names are invented. Slide timing is a CSS approximation of the rule in IA v5 section 2b. Fonts are the app's own Manrope and DM Sans, embedded. Per-frame PNGs are in <code>shots/</code>, with tall versions in <code>shots/full/</code>. Settings content: <code>docs/SETTINGS-INVENTORY.md</code>. Decisions: <code>docs/IA-v5.md</code> section 9.</p>
+</div></body></html>

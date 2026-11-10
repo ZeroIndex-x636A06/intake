@@ -685,7 +685,39 @@ side), with a **slider** to wipe between them; under it the weight and measureme
 export only if you turn that on in Settings > Sync and export." Photos live in the app's private files, a `progress_photo`
 table (date, angle, path, soft delete) added in `MIGRATION_2_3` with a `MigrationSchemaTest` case. Sync never carries them.
 
-## 9. Old to new: every route
+## 9. Round-3 feedback (2026-11-10)
+
+The user looked at the v4 mockup and said: it is better, but settings are missing, some menus now carry too little
+weight (Allergens, Photo estimate), Food should be renamed, and the AI "eat out" suggestion should be an option next to
+the planned meal that says Swap. They asked for the current app style combined with the new structure, as a few real
+options. Where this section and sections 1 to 8 disagree, **this section wins**. The options are in
+`design/mockup-v5/` (index.html compares them; `shots/` has PNGs and a contact sheet per option).
+
+| # | Change | Decision |
+| --- | --- | --- |
+| R3-1 | **Food tab becomes Nutrition** | The tab, the hub title, section 3b and every label say **Nutrition**. Option C offers the one-word variant **Eat**, used the same way everywhere (its Settings group is "Eating targets"). The word is never mixed. |
+| R3-2 | **Swap replaces Plan B as a destination** | Today and Nutrition show the planned or meal-prepped meal with a **Swap** button. Swap is a bottom sheet with: another meal from your plan or recipes; a saved meal or template; **Eat out nearby** (the Plan B finder, AI-assisted, optional, run only when the person taps Search; results show the time found and the cost); and **saved eat-out options**, which work offline. Every option shows macros against the planned meal ("+120 kcal, -4 g protein", marked as an estimate when it comes from the finder) and its allergen status. Choosing one swaps it in the plan. A red option is shown but cannot be chosen. "Eating out" is no longer a Nutrition section: saved options live in Plan (and are reachable from Swap); nearby search exists only in Swap. Radius is a setting (Nutrition: Eat out nearby). |
+| R3-3 | **Allergens get real weight** | A persistent strip at the top of Nutrition (and a status tile on Today in option B): the user's allergen chips and a status line such as "Dairy · strict". Tapping opens the Allergens screen. That screen has seven parts: status banner; **your allergens** (switch and Avoid/Strict per allergen, search or add your own); **keywords** per allergen; **check-the-label** foods; the **hidden-ingredient guide**; **recently flagged** items; and the rule that a model or import can raise a warning but never clear one. Warnings are solid red (contains) and solid amber (may contain) with white text; "check the label" is a quieter sand. One colour language is used in Log food, Food detail, Photo estimate and Swap. |
+| R3-4 | **Photo estimate is a first-class log method** | Search, Scan and Photo are three equal primary actions on Nutrition and in the Log food sheet (Today has Log food plus a camera button). The result screen lists each food found with a portion **in the user's units** (a Settings choice, g or oz, so bug B2 is fixed), macros, confidence, an allergen flag, an untick box and a live "Log 3 items" total, plus an **"Anything we can't see?"** box (oil, butter, sauce, portion size) that asks for a re-estimate. A low-confidence or allergen-flagged item starts unticked, and the screen says it is an AI estimate on the person's key. |
+| R3-5 | **Settings are complete** | The inventory now comes from the code, not only from section 4a: **96 stored settings + 16 action buttons + 1 read-only line = 113 controls in 12 groups** (see `docs/SETTINGS-INVENTORY.md`). New groups: **Health Connect** (all 15 read and write types), **Food database** (Open Food Facts search, other languages, contribute, login), **API keys** (OpenRouter, USDA, YouTube) and **About and help** (replay tour, welcome, tips, scripts help, privacy statement, credits, version). AI now lists zero-retention privacy, free-model suggestions, the three scheduled helpers, a model picker per task and a "uses a day" estimate per feature. New in v5: Food portions (g/oz) and the Swap search radius. |
+| R3-6 | **Kept from v5** | Use screens hold no configuration; drinks live in Nutrition with categories and size buttons; the nutrition label; Today shows protein, fat and carbs; Train is training-first; Videos; one weekly check-in in Progress; progress photos in You; a back arrow on every pushed screen; no pill on pushed screens. |
+
+### 9a. How the frames map to the three options
+
+All three options have the same 15 frames plus every Settings group page (27 per option): Today; Nutrition home; Log
+food sheet; Photo estimate result; Swap sheet with Eat out nearby; Drinks; Food detail with the label; Allergens;
+Train home; Active workout; Post-workout summary; Videos; Progress with the check-in; You with progress photos;
+Settings home; the 12 group pages. They differ in structure, not only in colour: **A Familiar** (big rows and cards,
+labelled pill, stacked Swap sheet), **B Dashboard** (rings and tiles, compact pill, tabbed Log and Swap sheets, a tile-grid
+Settings home), **C Calm** (one primary thing, large type, progressive disclosure, icon pill, accordion Swap, "Eat").
+
+### 9b. Not decided here
+
+Which option to build (the recommendation is in `design/mockup-v5/index.html`); whether a "Find anything" search ships with
+Nutrition; whether Photo estimate asks for the camera in the sheet or on its own page; the exact wording of Strict
+confirmation. The mockups are unverified on a device.
+
+## 9c. Old to new: every route
 
 Verdicts: **moved**, **merged**, **removed**, **kept**, **new**. "Section" means a section of a tab root.
 
