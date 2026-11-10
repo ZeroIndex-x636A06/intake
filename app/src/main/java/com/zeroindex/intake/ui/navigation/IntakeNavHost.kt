@@ -274,8 +274,11 @@ fun IntakeNavHost(
                 PushedScreen("Food", back) { pad ->
                     FoodDetailScreen(
                         foodId = entry.toRoute<Route.FoodDetail>().foodId,
+                        slot = null,
+                        atMillis = System.currentTimeMillis(),
                         contentPadding = pad,
                         onBack = { navController.popBackStack() },
+                        onLogged = { navController.popBackStack() },
                         onOpenFoodData = { openSettings("fooddb", null) },
                     )
                 }

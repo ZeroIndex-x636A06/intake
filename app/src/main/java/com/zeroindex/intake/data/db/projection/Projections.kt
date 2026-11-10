@@ -49,3 +49,25 @@ data class WorkoutSummary(
     val exerciseCount: Int,
     val updatedAt: Long,
 )
+
+/** One logged set with its exercise's name and muscles, for the weekly volume and the post-workout summary. */
+data class SetWithExercise(
+    val exerciseId: String,
+    val exerciseName: String,
+    val primaryMuscle: String,
+    val secondaryMuscles: String,
+    val weightKg: Double,
+    val reps: Int,
+    val completedAt: Long,
+    val isWarmup: Boolean,
+)
+
+/** One finished session with its totals, for the recent sessions list on Train. */
+data class SessionStat(
+    val sessionId: String,
+    val startedAt: Long,
+    val finishedAt: Long?,
+    val dayName: String?,
+    val volumeKg: Double,
+    val workingSets: Int,
+)

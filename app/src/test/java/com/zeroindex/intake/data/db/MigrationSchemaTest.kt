@@ -170,8 +170,8 @@ class MigrationSchemaTest {
         assertThat(programColumns(2)).doesNotContain("videoId")
         assertThat(entities(2)).doesNotContainKey("saved_video")
         v2.exec(
-            "INSERT INTO program (id, name, description, isActive, currentWeek, currentDayIndex, isStandalone, createdAt, updatedAt, deletedAt) " +
-                "VALUES ('p1', 'Upper lower', '', 1, 2, 1, 0, 1, 1, NULL)",
+            "INSERT INTO program (id, name, description, isActive, currentWeek, currentDayIndex, createdAt, updatedAt, deletedAt) " +
+                "VALUES ('p1', 'Upper lower', '', 1, 2, 1, 1, 1, NULL)",
         )
         MIGRATION_2_3_STATEMENTS.forEach { v2.exec(it) }
         // The old program is untouched and has no video.
