@@ -128,6 +128,10 @@ interface WorkoutDao {
     @Query("UPDATE set_log SET deletedAt = :now, updatedAt = :now WHERE id = :id")
     suspend fun softDeleteSet(id: String, now: Long)
 
+    /** "Discard workout": the session's sets are hidden together with it (a soft delete; nothing is removed). */
+    @Query("UPDATE set_log SET deletedAt = :now, updatedAt = :now WHERE sessionId = :sessionId AND deletedAt IS NULL")
+    suspend fun softDeleteSetsOfSession(sessionId: String, now: Long)
+
     /** Every row touched since [since], deleted rows included, for Health Connect sync. */
     @Query("SELECT * FROM workout_session WHERE updatedAt > :since ORDER BY updatedAt")
     suspend fun changedSince(since: Long): List<WorkoutSessionEntity>

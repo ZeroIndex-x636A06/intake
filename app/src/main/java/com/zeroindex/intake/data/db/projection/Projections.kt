@@ -48,6 +48,8 @@ data class WorkoutSummary(
     val dayId: String?,
     val exerciseCount: Int,
     val updatedAt: Long,
+    /** The YouTube video this workout was made from, if any. */
+    val videoId: String? = null,
 )
 
 /** One logged set with its exercise's name and muscles, for the weekly volume and the post-workout summary. */

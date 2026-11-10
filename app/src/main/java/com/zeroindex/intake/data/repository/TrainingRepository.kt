@@ -35,6 +35,12 @@ import com.zeroindex.intake.data.db.entity.SetLogEntity
 import com.zeroindex.intake.data.db.entity.WorkoutSessionEntity
 import com.zeroindex.intake.data.db.entity.newId
 import com.zeroindex.intake.data.db.projection.MuscleSetCount
+import com.zeroindex.intake.data.db.projection.SessionStat
+import com.zeroindex.intake.data.db.projection.SetWithExercise
+import com.zeroindex.intake.domain.training.VolumeSet
+import com.zeroindex.intake.domain.training.generator.GeneratedDay
+import com.zeroindex.intake.domain.training.generator.GeneratedExercise
+import com.zeroindex.intake.domain.videos.DraftItem
 import com.zeroindex.intake.data.db.projection.SetPoint
 import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.model.ProgressionType
@@ -57,6 +63,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -1018,4 +1025,102 @@ class TrainingRepository @Inject constructor(
         if (previous.isEmpty()) return 0
         return if (previous.any { it.reps < targetReps }) 1 else 0
     }
+
+    // ------------------------------------------- Train home, summary, videos
+
+    fun observeArchivedPrograms(): Flow<List<ProgramEntity>> = programDao.observeArchived()
+
+    /** Brings an archived program back (as an inactive program). */
+    suspend fun restoreProgram(id: String) = programDao.restoreProgram(id, clock.nowMillis())
+
+    /** Finished sessions with totals, newest first, for Recent sessions. */
+    fun observeSessionStats(limit: Int): Flow<List<SessionStat>> = workoutDao.observeSessionStats(limit)
+
+    /** Every logged set in [range] (a calendar week) with its muscles: the input of the weekly volume. */
+    fun observeVolumeSets(range: LongRange): Flow<List<VolumeSet>> =
+        workoutDao.observeSetsWithExercise(range.first, range.last + 1).map { rows -> rows.map { it.toVolumeSet() } }
+
+    suspend fun sessionSets(sessionId: String): List<SetWithExercise> = workoutDao.setsWithExerciseOf(sessionId)
+
+    /**
+     * Working sets of earlier sessions for [exerciseIds]: what a record is measured against, and the "Previous" the live PR
+     * flag compares with. Sessions before [sessionId] started; [sessionId] itself never counts.
+     */
+    suspend fun historyBefore(sessionId: String, exerciseIds: Collection<String>): Map<String, List<SetResult>> {
+        if (exerciseIds.isEmpty()) return emptyMap()
+        val before = workoutDao.findSession(sessionId)?.startedAt ?: clock.nowMillis()
+        return workoutDao.historyBefore(sessionId, before, exerciseIds.toList())
+            .groupBy({ it.exerciseId }, { SetResult(it.weightKg, it.reps, it.rpe, it.isFailure) })
+    }
+
+    /** "Discard workout": hides the session and its sets (soft delete), and stops the program rotation from moving. */
+    suspend fun discardSession(sessionId: String) = db.withTransaction {
+        val now = clock.nowMillis()
+        workoutDao.softDeleteSetsOfSession(sessionId, now)
+        workoutDao.softDeleteSession(sessionId, now)
+    }
+
+    suspend fun dayName(dayId: String): String? = programDao.findDay(dayId)?.name
+
+    /** The program a day belongs to (for "Week 3 of ..." lines). */
+    suspend fun programOfDay(dayId: String): ProgramEntity? = programDao.findDay(dayId)?.let { programDao.findById(it.programId) }
+
+    /**
+     * "Make this a workout" > Save: the reviewed draft becomes a My workout linked to the video. Rows the person turned off
+     * are left out; rows that are not in the library are added to it first (a custom exercise they can edit later).
+     * Returns the workout, or null when nothing was included.
+     */
+    suspend fun saveVideoWorkout(name: String, videoId: String, items: List<DraftItem>): ProgramEntity? = db.withTransaction {
+        val included = items.filter { it.include && it.exerciseName.isNotBlank() }
+        if (included.isEmpty()) return@withTransaction null
+        val exercises = included.map { item ->
+            val id = item.exerciseId ?: createExercise(
+                name = item.exerciseName.trim(),
+                primaryMuscle = item.primaryMuscle,
+                defaultRestSec = item.restSec.coerceAtLeast(0),
+            ).id
+            GeneratedExercise(
+                exerciseId = id,
+                name = item.exerciseName,
+                muscle = item.primaryMuscle,
+                sets = item.sets.coerceIn(1, 20),
+                repsMin = item.reps.coerceIn(1, 100),
+                repsMax = item.reps.coerceIn(1, 100),
+                rpe = null,
+                restSec = item.restSec.coerceIn(0, 600),
+                progression = null,
+                why = item.seconds?.let { "Timed: $it seconds per set." }.orEmpty(),
+            )
+        }
+        val taken = programDao.all().map { it.name }
+        val wanted = name.trim().ifBlank { "Video workout" }
+        val finalName = if (wanted in taken) WorkoutBuilder.duplicateName(wanted, taken) else wanted
+        val day = GeneratedDay(name = finalName, exercises = exercises, estimatedMinutes = 0, why = "")
+        val rows = WorkoutBuilder.fromGeneratedDay(finalName, day, emptyMap(), clock.nowMillis())
+        val program = rows.program.copy(videoId = videoId)
+        insertRows(rows.copy(program = program))
+        program
+    }
+
+    /** "Add by hand" on Make this a workout: an empty workout linked to the video, ready for the builder. */
+    suspend fun createVideoWorkout(name: String, videoId: String): ProgramEntity = db.withTransaction {
+        val taken = programDao.all().map { it.name }
+        val wanted = name.trim().ifBlank { "Video workout" }
+        val rows = WorkoutBuilder.blank(if (wanted in taken) WorkoutBuilder.duplicateName(wanted, taken) else wanted, clock.nowMillis())
+        val program = rows.program.copy(videoId = videoId)
+        insertRows(rows.copy(program = program))
+        program
+    }
+
+    /** Links (or unlinks) the video a workout was made from. */
+    suspend fun setWorkoutVideo(programId: String, videoId: String?) = programDao.setVideo(programId, videoId, clock.nowMillis())
 }
+
+private fun SetWithExercise.toVolumeSet() = VolumeSet(
+    exerciseId = exerciseId,
+    exerciseName = exerciseName,
+    primaryMuscle = primaryMuscle,
+    secondaryMuscles = secondaryMuscles.split(',').map { it.trim() }.filter { it.isNotEmpty() },
+    completedAt = completedAt,
+    isWarmup = isWarmup,
+)

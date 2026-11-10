@@ -77,6 +77,10 @@ import com.zeroindex.intake.ui.navigation.ShellActions
 import com.zeroindex.intake.ui.navigation.LocalShellActions
 import com.zeroindex.intake.ui.navigation.LocalPillIsRail
 import com.zeroindex.intake.ui.navigation.PillHeight
+import com.zeroindex.intake.ui.navigation.LocalSessionBarSpace
+import com.zeroindex.intake.ui.screens.workout.SessionBar
+import com.zeroindex.intake.ui.screens.workout.SessionBarHeight
+import com.zeroindex.intake.ui.screens.workout.SessionBarViewModel
 import com.zeroindex.intake.ui.motion.Motion
 
 @Composable
@@ -193,10 +197,16 @@ private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, sta
         ShellActions(avatarInitial) { navController.navigate(ShellPolicy.avatarTarget()) }
     }
 
+    // The minimised workout: a bar above the pill on every tab root while a session is running.
+    val sessionBarModel: SessionBarViewModel = hiltViewModel()
+    val runningSession by sessionBarModel.running.collectAsStateWithLifecycle()
+    val sessionBarShown = pillVisible && runningSession != null
+
     CompositionLocalProvider(
         LocalTourState provides tour,
         LocalShellActions provides shellActions,
         LocalPillIsRail provides showRail,
+        LocalSessionBarSpace provides if (sessionBarShown) SessionBarHeight else 0.dp,
     ) {
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
             Row(Modifier.fillMaxSize()) {
@@ -267,12 +277,35 @@ private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, sta
                     }
                 }
             }
+            runningSession?.let { running ->
+                AnimatedVisibility(
+                    visible = sessionBarShown,
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .windowInsetsPadding(
+                                WindowInsets.systemBars.union(WindowInsets.displayCutout)
+                                    .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
+                            )
+                            .padding(start = 16.dp, end = 16.dp, bottom = if (showRail) 12.dp else PillHeight),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        SessionBar(
+                            session = running,
+                            onResume = { navController.navigate(Route.ActiveWorkout(running.id)) },
+                            modifier = Modifier.widthIn(max = 560.dp),
+                        )
+                    }
+                }
+            }
             SnackbarHost(
                 snackbar,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Bottom))
-                    .padding(bottom = if (pillVisible && !showRail) PillHeight else 0.dp),
+                    .padding(bottom = (if (pillVisible && !showRail) PillHeight else 0.dp) + (if (sessionBarShown) SessionBarHeight else 0.dp)),
             )
             TourOverlay(tour)
         }

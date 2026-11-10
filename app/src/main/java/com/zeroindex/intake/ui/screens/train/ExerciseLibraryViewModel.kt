@@ -10,6 +10,7 @@ import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.data.training.ExerciseFilter
 import com.zeroindex.intake.data.training.ExerciseHistory
 import com.zeroindex.intake.data.training.ExerciseHistoryCalc
+import com.zeroindex.intake.domain.training.SwapRanking
 import com.zeroindex.intake.domain.units.WeightUnit
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -29,6 +30,8 @@ data class ExerciseBrowseState(
     val muscle: String? = null,
     val equipment: String? = null,
     val showHidden: Boolean = false,
+    /** The "My equipment" chip: only exercises you can do with what you own (Settings > Training). */
+    val myEquipment: Boolean = false,
     val equipmentOptions: List<String> = emptyList(),
     val weightUnit: WeightUnit = WeightUnit.KILOGRAMS,
 )
@@ -48,6 +51,7 @@ class ExerciseLibraryViewModel @Inject constructor(
     private val muscle = MutableStateFlow<String?>(null)
     private val equipment = MutableStateFlow<String?>(null)
     private val showHidden = MutableStateFlow(false)
+    private val myEquipment = MutableStateFlow(false)
 
     private val source: Flow<List<ExerciseEntity>> = combine(
         repository.observeExercises(),
@@ -58,14 +62,17 @@ class ExerciseLibraryViewModel @Inject constructor(
     val state: StateFlow<ExerciseBrowseState> = combine(
         source,
         repository.observeExercises(),
-        combine(query, muscle, equipment, showHidden) { q, m, e, h -> arrayOf<Any?>(q, m, e, h) },
+        combine(query, muscle, equipment, showHidden, myEquipment) { q, m, e, h, mine -> arrayOf<Any?>(q, m, e, h, mine) },
         settingsRepository.settings,
     ) { list, visible, filters, settings ->
         val q = filters[0] as String
         val m = filters[1] as String?
         val e = filters[2] as String?
+        val mine = filters[4] as Boolean
+        val owned = settings.profile.equipment
         ExerciseBrowseState(
-            shown = ExerciseFilter.apply(list, q, m, e),
+            shown = ExerciseFilter.apply(list, q, m, e).filter { !mine || SwapRanking.owns(it.equipment, owned) },
+            myEquipment = mine,
             total = visible.size,
             query = q,
             muscle = m,
@@ -85,6 +92,7 @@ class ExerciseLibraryViewModel @Inject constructor(
     fun setMuscle(value: String?) { muscle.value = value }
     fun setEquipment(value: String?) { equipment.value = value }
     fun setShowHidden(value: Boolean) { showHidden.value = value }
+    fun setMyEquipment(value: Boolean) { myEquipment.value = value }
 
     /** Adds a custom exercise from the form. */
     fun add(form: ExerciseForm, onAdded: (ExerciseEntity) -> Unit = {}) = viewModelScope.launch {

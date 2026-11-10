@@ -66,9 +66,14 @@ sealed interface Route {
     @Serializable data class ProgramBuilder(val programId: String? = null) : Route
     @Serializable data object ProgramTemplates : Route
     @Serializable data object ProgramGenerator : Route
-    @Serializable data object ExerciseLibrary : Route
+    /** Train > Videos: one video (the player, chapters, save, Make this a workout). Inside the Train graph. */
+    @Serializable data class VideoDetail(val videoId: String) : Route
+    /** "Make this a workout": review what was read from a video, then save it as a My workout. Inside the Train graph. */
+    @Serializable data class MakeWorkout(val videoId: String) : Route
     @Serializable data object Performance : Route
     @Serializable data class ActiveWorkout(val sessionId: String) : Route
+    /** The post-workout summary, also the read-only view of an older session (opened from Train and from the training log). */
+    @Serializable data class WorkoutSummary(val sessionId: String) : Route
 
     // Progress tab.
     @Serializable data object WorkoutHistory : Route
