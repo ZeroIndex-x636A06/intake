@@ -2,6 +2,7 @@
 
 package com.zeroindex.intake.ui.screens.photos
 
+import com.zeroindex.intake.domain.units.format
 import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.Bitmap

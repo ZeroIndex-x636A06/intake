@@ -54,6 +54,7 @@ data class SettingsUiState(
     val currentKcal: Int? = null,
     val latestWeightKg: Double? = null,
     val usdaTest: KeyTestResult = KeyTestResult.Untested,
+    val youtubeTest: KeyTestResult = KeyTestResult.Untested,
     val message: String? = null,
 ) {
     val profile: UserProfile get() = settings.profile
@@ -72,9 +73,11 @@ class SettingsViewModel @Inject constructor(
     private val hydrationRepository: HydrationRepository,
     private val profileRepository: ProfileRepository,
     private val clock: Clock,
+    private val youtubeTester: com.zeroindex.intake.data.remote.youtube.YoutubeKeyTester,
 ) : ViewModel() {
 
     private val usdaTest = MutableStateFlow<KeyTestResult>(KeyTestResult.Untested)
+    private val youtubeTest = MutableStateFlow<KeyTestResult>(KeyTestResult.Untested)
     private val message = MutableStateFlow<String?>(null)
 
     val uiState: StateFlow<SettingsUiState> = combine(
@@ -87,7 +90,8 @@ class SettingsViewModel @Inject constructor(
             bodyRepository.observeLatest(),
             usdaTest,
             message,
-        ) { target, latest, test, msg -> arrayOf(target?.kcal, latest?.weightKg, test, msg) },
+            youtubeTest,
+        ) { target, latest, test, msg, yt -> arrayOf(target?.kcal, latest?.weightKg, test, msg, yt) },
     ) { settings, food, keys, presets, rest ->
         SettingsUiState(
             settings = settings,
@@ -98,6 +102,7 @@ class SettingsViewModel @Inject constructor(
             latestWeightKg = rest[1] as Double?,
             usdaTest = rest[2] as KeyTestResult,
             message = rest[3] as String?,
+            youtubeTest = rest[4] as KeyTestResult,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
@@ -207,7 +212,14 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun testYoutubeKey() = viewModelScope.launch {
+        youtubeTest.value = KeyTestResult.Testing
+        val (ok, text) = youtubeTester.test()
+        youtubeTest.value = if (ok) KeyTestResult.Ok(text) else KeyTestResult.Failed(text)
+    }
+
     fun setYoutubeKey(key: String?) {
+        youtubeTest.value = KeyTestResult.Untested
         apiKeyStore.setYoutubeKey(key)
         message.value = if (key.isNullOrBlank()) "YouTube key removed." else "YouTube key saved, encrypted on this device."
     }

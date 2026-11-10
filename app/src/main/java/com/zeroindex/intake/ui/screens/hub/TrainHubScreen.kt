@@ -46,7 +46,6 @@ fun TrainHubScreen(
     onOpenGenerator: () -> Unit,
     onOpenTemplates: () -> Unit,
     onOpenExercises: () -> Unit,
-    onOpenPerformance: () -> Unit,
     onOpenProgramScriptHelp: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: TrainViewModel = hiltViewModel(),
@@ -160,12 +159,6 @@ fun TrainHubScreen(
                 description = "Copy a ready-made program and make it yours",
                 icon = Icons.Filled.ContentCopy,
                 onClick = onOpenTemplates,
-            ),
-                            HubItem(
-                title = "Performance",
-                description = "Jump tests: vertical, standing reach, total reach",
-                icon = Icons.Filled.Height,
-                onClick = onOpenPerformance,
             ),
                             HubItem(
                 title = "Program script help",

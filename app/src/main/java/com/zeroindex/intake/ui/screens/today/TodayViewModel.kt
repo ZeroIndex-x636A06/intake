@@ -7,6 +7,7 @@ import com.zeroindex.intake.data.db.entity.AiInsightEntity
 import com.zeroindex.intake.data.db.entity.FoodLogEntity
 import com.zeroindex.intake.data.db.entity.HydrationLogEntity
 import com.zeroindex.intake.data.db.entity.HydrationPresetEntity
+import com.zeroindex.intake.data.repository.BodyRepository
 import com.zeroindex.intake.data.repository.FoodLogRepository
 import com.zeroindex.intake.data.repository.HydrationDay
 import com.zeroindex.intake.domain.hydration.DrinkType
@@ -47,6 +48,9 @@ data class TodayUiState(
     val activityBonusKcal: Int = 0,
     /** Amendment §3: today's insight, if enabled, generated and not dismissed. */
     val insight: AiInsightEntity? = null,
+    /** The latest weigh-in and its change over the last week, for the weight tile. */
+    val latestWeightKg: Double? = null,
+    val weightWeekDeltaKg: Double? = null,
     /** False only for the placeholder before the first database emission, so motion never fires on it. */
     val loaded: Boolean = false,
 ) {
@@ -76,6 +80,7 @@ class TodayViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val templates: MealTemplateRepository,
     private val insights: DailyInsights,
+    private val body: BodyRepository,
     private val clock: Clock,
 ) : ViewModel() {
 
@@ -100,7 +105,8 @@ class TodayViewModel @Inject constructor(
                     settingsRepository.settings,
                     targetRepository.observeActivityBonus(date),
                     insights.observeToday(),
-                ) { presets, settings, bonus, insight -> Extras(presets, settings, bonus, insight) },
+                    body.observeAll(),
+                ) { presets, settings, bonus, insight, metrics -> Extras(presets, settings, bonus, insight, metrics) },
             ) { logs, totals, target, hydration, presetsAndSettings ->
                 val today = clock.today()
                 TodayUiState(
@@ -117,6 +123,8 @@ class TodayViewModel @Inject constructor(
                     settings = presetsAndSettings.settings,
                     activityBonusKcal = presetsAndSettings.bonus,
                     insight = presetsAndSettings.insight?.takeIf { date == today && it.dismissedAt == null },
+                    latestWeightKg = presetsAndSettings.metrics.firstOrNull()?.weightKg,
+                    weightWeekDeltaKg = weekDelta(presetsAndSettings.metrics, clock.nowMillis()),
                     loaded = true,
                 )
             }
@@ -132,7 +140,25 @@ class TodayViewModel @Inject constructor(
         val settings: AppSettings,
         val bonus: Int,
         val insight: AiInsightEntity?,
+        val metrics: List<com.zeroindex.intake.data.db.entity.BodyMetricEntity>,
     )
+
+    /** Newest weigh-in minus the newest one at least six days older; null without both. [metrics] is newest first. */
+    private fun weekDelta(metrics: List<com.zeroindex.intake.data.db.entity.BodyMetricEntity>, now: Long): Double? {
+        val latest = metrics.firstOrNull() ?: return null
+        val older = metrics.firstOrNull { latest.measuredAt - it.measuredAt >= 6 * 86_400_000L } ?: return null
+        return latest.weightKg - older.weightKg
+    }
+
+    /** Water card "+": one more of the same drink and size. */
+    fun addAnother(sample: HydrationLogEntity) {
+        viewModelScope.launch {
+            hydrationRepository.log(sample.volumeMl, timestampForSelectedDay(), sample.presetId, sample.drinkType)
+        }
+    }
+
+    /** Water card "-": removes the newest entry of that drink and size (a soft delete). */
+    fun removeLast(sample: HydrationLogEntity) { deleteWater(sample) }
 
     /** The epoch day the protein burst last played; it plays once per day. */
     val lastCelebration: StateFlow<Long?> = settingsRepository.celebratedProteinDay

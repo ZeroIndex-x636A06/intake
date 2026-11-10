@@ -157,6 +157,7 @@ fun IntakeNavHost(
                     onOpenDrinks = { navController.navigate(Route.Drinks) },
                     onSwap = { slot -> navController.navigate(Route.SwapSheet(slot)) },
                     onOpenPlan = { openTab(TopLevelDestination.NUTRITION) },
+                    onOpenSettings = { g, f -> openSettings(g, f) },
                 )
             }
             // Today has no pushed screens of its own: add new Today routes above this line.

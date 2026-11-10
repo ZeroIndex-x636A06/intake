@@ -72,9 +72,7 @@ fun ProgressScreen(
     onAddMeasurement: () -> Unit,
     onAddJumpTest: () -> Unit,
     onOpenTrainingStats: () -> Unit,
-    onOpenWeeklyReport: () -> Unit,
-    onOpenCoach: () -> Unit = {},
-    onOpenHealthConnect: () -> Unit,
+    onOpenCheckIn: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ProgressViewModel = hiltViewModel(),
 ) {
@@ -132,10 +130,10 @@ fun ProgressScreen(
                     item(key = "calories") { CaloriesCard(state) }
                     item(key = "summary") { WeeklySummaryCard(state, viewModel) }
                     item(key = "performance") {
-                        PerformanceCard(state = state, onAddJump = onAddJumpTest)
+                        if (state.settings.jumpTests) PerformanceCard(state = state, onAddJump = onAddJumpTest)
                     }
                     item(key = "reports") {
-                        ProgressLinks(onOpenTrainingStats, onOpenWeeklyReport, onOpenHealthConnect, onOpenCoach)
+                        ProgressLinks(onOpenTrainingStats, onOpenCheckIn)
                     }
                 }
             }
@@ -174,12 +172,12 @@ fun ProgressScreen(
                 item(key = "adherence") { AdherenceCard(state) }
                 item(key = "calories") { CaloriesCard(state) }
                 item(key = "performance") {
-                    PerformanceCard(state = state, onAddJump = onAddJumpTest)
+                    if (state.settings.jumpTests) PerformanceCard(state = state, onAddJump = onAddJumpTest)
                 }
                 detailItems(state)
             }
             item(key = "reports") {
-                ProgressLinks(onOpenTrainingStats, onOpenWeeklyReport, onOpenHealthConnect, onOpenCoach)
+                ProgressLinks(onOpenTrainingStats, onOpenCheckIn)
             }
         }
     }
@@ -189,35 +187,21 @@ fun ProgressScreen(
 @Composable
 private fun ProgressLinks(
     onOpenTrainingStats: () -> Unit,
-    onOpenWeeklyReport: () -> Unit,
-    onOpenHealthConnect: () -> Unit,
-    onOpenCoach: () -> Unit,
+    onOpenCheckIn: () -> Unit,
 ) {
     HubList(
         listOf(
             HubItem(
                 title = "Weekly check-in",
-                description = "Your coach reviews the week and suggests small changes",
+                description = "The week's summary, suggestions to apply, and a PDF to export or print",
                 icon = Icons.Filled.Checklist,
-                onClick = onOpenCoach,
+                onClick = onOpenCheckIn,
             ),
             HubItem(
                 title = "Training stats",
                 description = "Workout history, volume per muscle and personal records",
                 icon = Icons.Filled.BarChart,
                 onClick = onOpenTrainingStats,
-            ),
-            HubItem(
-                title = "Weekly report",
-                description = "A printable PDF of the week: intake, weight, sleep, training",
-                icon = Icons.Filled.Description,
-                onClick = onOpenWeeklyReport,
-            ),
-            HubItem(
-                title = "Health Connect",
-                description = "Watch and scale data, and how workout calories count",
-                icon = Icons.Filled.MonitorHeart,
-                onClick = onOpenHealthConnect,
             ),
         ),
     )

@@ -212,7 +212,7 @@ fun SettingControl(
 
                 // ---- Videos ----
                 "onlyWorkouts" -> SwitchSetting("Show only workouts by default", "Hides results that do not look like a workout. A one-tap override shows everything for one search.", s.onlyWorkouts, viewModel::setOnlyWorkouts)
-                "personalise" -> SwitchSetting("Personalise Recommended from this phone's data", "Uses your weekly muscle volume, equipment and saved videos. Strictly local.", s.personaliseVideos, viewModel::setPersonalise)
+                "personalise" -> SwitchSetting("Personalise Recommended from this phone's data", "Uses your weekly muscle volume, equipment and saved videos. Strictly local. Videos use about 100 searches a day on the free quota.", s.personaliseVideos, viewModel::setPersonalise)
 
                 // ---- Reminders ----
                 "coachNotify" -> SwitchSetting("Weekly check-in notification", "\"Your weekly check-in is ready\".", s.coachNotify, viewModel::setCoachNotify)
@@ -223,11 +223,10 @@ fun SettingControl(
                         Segmented(options.map { if (it == 0) "Off" else "$it wk" }, options.indexOf(s.photoReminderWeeks).coerceAtLeast(0), { viewModel.setPhotoReminderWeeks(options[it]) })
                     }
                 }
-                "exportReminder" -> SwitchSetting(
+                "exportReminder" -> SettingRow(
                     "Export reminder",
                     if (s.sync.paired) "Off while sync is on: the server keeps a copy." else "Monthly. Without sync this phone holds the only copy.",
-                    s.exportReminder && !s.sync.paired, viewModel::setExportReminder, enabled = !s.sync.paired,
-                )
+                ) { Switch(checked = s.exportReminder && !s.sync.paired, onCheckedChange = viewModel::setExportReminder, enabled = !s.sync.paired) }
 
                 // ---- Sync and export ----
                 "syncServer" -> SyncSection()
@@ -250,8 +249,14 @@ fun SettingControl(
                 )
                 "key.youtube" -> KeyField(
                     title = "YouTube Data API key", has = state.keys.hasYoutubeKey,
-                    hint = "Videos need internet and your own free key. It is sent only to YouTube, in a request header.",
-                    onSave = viewModel::setYoutubeKey, onTest = null, result = null,
+                    hint = "Videos need internet and your own free key. It is sent only to YouTube. The free quota allows about 100 searches a day; results are kept on this phone to save it.",
+                    onSave = viewModel::setYoutubeKey, onTest = viewModel::testYoutubeKey,
+                    result = when (val t = state.youtubeTest) {
+                        is KeyTestResult.Ok -> t.detail
+                        is KeyTestResult.Failed -> t.message
+                        KeyTestResult.Testing -> "Testing…"
+                        KeyTestResult.Untested -> null
+                    },
                 )
 
                 // ---- About and help ----
@@ -281,8 +286,8 @@ fun SettingControl(
 }
 
 @Composable
-private fun SwitchSetting(title: String, subtitle: String?, checked: Boolean, onChange: (Boolean) -> Unit, enabled: Boolean = true) {
-    SettingRow(title, subtitle) { Switch(checked = checked, onCheckedChange = onChange, enabled = enabled) }
+private fun SwitchSetting(title: String, subtitle: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
+    SettingRow(title, subtitle) { Switch(checked = checked, onCheckedChange = onChange) }
 }
 
 /** A numeric field that saves as typed, but only a value inside [range]; a half-typed number never overwrites. */
@@ -556,7 +561,7 @@ private fun KeyField(title: String, has: Boolean, hint: String, onSave: (String?
 }
 
 @Composable
-private fun AboutAction(title: String, subtitle: String, button: String, run: (HelpFlowViewModel) -> Unit, flow: HelpFlowViewModel = hiltViewModel()) {
+private fun AboutAction(title: String, subtitle: String, button: String, flow: HelpFlowViewModel = hiltViewModel(), run: (HelpFlowViewModel) -> Unit) {
     SettingRow(title, subtitle) {
         OutlinedButton(onClick = { run(flow) }, shape = IntakeShape.Chip) { Text(button) }
     }

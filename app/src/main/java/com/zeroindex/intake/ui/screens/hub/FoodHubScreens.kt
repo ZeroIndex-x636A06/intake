@@ -82,14 +82,14 @@ fun FoodHubScreen(
     onOpenAiSettings: () -> Unit,
     onOpenMyFoods: () -> Unit,
     onOpenFood: (String) -> Unit,
-    onOpenFoodData: () -> Unit,
+    onOpenDrinks: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var logging by rememberSaveable { mutableStateOf(false) }
     // Which tab Add food opens on: Search for "Log food", Barcode for "Scan a barcode".
     var scanning by rememberSaveable { mutableStateOf(false) }
     HubScreen(
-        title = "Food",
+        title = "Nutrition",
         subtitle = "Log what you eat, plan your week, eat out safely.",
         contentPadding = contentPadding,
         modifier = modifier,
@@ -148,9 +148,16 @@ fun FoodHubScreen(
             ),
             HubItem(
                 title = "Allergens",
-                description = "What you avoid, and the hidden-ingredient reference",
+                description = "What you avoid, keywords and the hidden-ingredient reference",
                 icon = Icons.Filled.Warning,
                 onClick = onOpenAllergens,
+            ),
+            // PLACEHOLDER: the Nutrition rebuild replaces this row with the allergen strip at the top of the tab.
+            HubItem(
+                title = "Drinks",
+                description = "Log a drink and see today's",
+                icon = Icons.Filled.Restaurant,
+                onClick = onOpenDrinks,
             ),
         ),
         after = {
@@ -164,12 +171,6 @@ fun FoodHubScreen(
                                 description = "Every food on this phone: edit it or share it with Open Food Facts",
                                 icon = Icons.Filled.Fastfood,
                                 onClick = onOpenMyFoods,
-                            ),
-                            HubItem(
-                                title = "Food database & credits",
-                                description = "Offline USDA foods, Open Food Facts search and contributing, licences",
-                                icon = Icons.Filled.Storage,
-                                onClick = onOpenFoodData,
                             ),
                             HubItem(
                                 title = "Food script help",
@@ -288,32 +289,3 @@ fun EatingOutScreen(
     )
 }
 
-/** Food, Allergens: the profile you set and the reference you read. */
-@Composable
-fun AllergensScreen(
-    contentPadding: PaddingValues,
-    onOpenMine: () -> Unit,
-    onOpenReference: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    HubScreen(
-        title = "Allergens",
-        subtitle = "What you avoid, kept on this phone.",
-        contentPadding = contentPadding,
-        modifier = modifier,
-        items = listOf(
-            HubItem(
-                title = "My allergens",
-                description = "Pick what you avoid, add your own, and manage keywords and how strict to be",
-                icon = Icons.Filled.Person,
-                onClick = onOpenMine,
-            ),
-            HubItem(
-                title = "Allergen reference",
-                description = "The hidden-ingredient checklist and eat-out notes, offline",
-                icon = Icons.Filled.Checklist,
-                onClick = onOpenReference,
-            ),
-        ),
-    )
-}

@@ -72,8 +72,8 @@ fun TabRootScreen(
             PaddingValues(
                 top = inner.calculateTopPadding(),
                 bottom = if (rail) nav else nav + PillHeight,
-                start = inner.calculateStartPadding(LocalLayoutDirection.current),
-                end = inner.calculateEndPadding(LocalLayoutDirection.current),
+                start = inner.calculateLeftPadding(LocalLayoutDirection.current),
+                end = inner.calculateRightPadding(LocalLayoutDirection.current),
             ),
         )
     }

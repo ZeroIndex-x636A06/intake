@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.settings
 
+import com.zeroindex.intake.domain.units.format
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
