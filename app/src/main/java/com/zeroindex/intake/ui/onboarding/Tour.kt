@@ -365,7 +365,10 @@ private fun Bubble(
         content = { BubbleCard(tour, ready) },
         modifier = Modifier.fillMaxSize(),
     ) { measurables, constraints ->
-        val placeable = measurables.first().measure(
+        // The card emits nothing once the tour has ended, but the exit animation still measures this layout.
+        val card = measurables.firstOrNull()
+            ?: return@Layout layout(constraints.maxWidth, constraints.maxHeight) {}
+        val placeable = card.measure(
             Constraints(maxWidth = min(maxWidth, constraints.maxWidth - 2 * margin.toInt()).coerceAtLeast(0)),
         )
         val spot = PxRect(target.left - 8f, target.top - 8f, target.right + 8f, target.bottom + 8f)

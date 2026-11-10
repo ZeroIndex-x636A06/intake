@@ -73,12 +73,12 @@ interface FoodDao {
     @Query("SELECT COUNT(*) FROM food WHERE id = :id")
     suspend fun idCount(id: String): Int
 
-    /** Every drink, or one category's, most-used first. */
+    /** Every drink, or one category's, most-used first, then the plainest name (so Water comes before Sparkling water). */
     @Query(
         """
         SELECT * FROM food
         WHERE deletedAt IS NULL AND drinkCategory IS NOT NULL AND (:category IS NULL OR drinkCategory = :category)
-        ORDER BY timesLogged DESC, name
+        ORDER BY timesLogged DESC, LENGTH(name), name
         """,
     )
     fun observeDrinks(category: String?): Flow<List<FoodEntity>>

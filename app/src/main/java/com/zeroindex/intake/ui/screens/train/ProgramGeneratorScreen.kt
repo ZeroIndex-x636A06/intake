@@ -70,17 +70,18 @@ fun ProgramGeneratorScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     BackHandler(enabled = state.step > 0 || state.result != null) { viewModel.back() }
 
+    val result = state.result
+    Column(modifier.fillMaxWidth()) {
     LazyColumn(
-        modifier = modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().weight(1f),
         contentPadding = PaddingValues(
             top = contentPadding.calculateTopPadding(),
-            bottom = contentPadding.calculateBottomPadding() + 32.dp,
+            bottom = if (result != null) 16.dp else contentPadding.calculateBottomPadding() + 32.dp,
             start = 16.dp,
             end = 16.dp,
         ),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        val result = state.result
         if (result != null) {
             previewItems(
                 result = result,
@@ -120,6 +121,21 @@ fun ProgramGeneratorScreen(
                 }
             }
         }
+    }
+    // The plan is long, so the main action stays in reach instead of sitting under the last day.
+    if (result != null) {
+        Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 8.dp, modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = { viewModel.save(true, onSaved) },
+                enabled = !state.saving,
+                shape = IntakeShape.Button,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = contentPadding.calculateBottomPadding() + 12.dp)
+                    .heightIn(min = 52.dp),
+            ) { Text(if (state.saving) "Saving…" else "Save and make it my program") }
+        }
+    }
     }
 }
 
@@ -330,12 +346,6 @@ private fun androidx.compose.foundation.lazy.LazyListScope.previewItems(
     items(items = result.days, key = { "day-${it.name}" }) { DayPreview(it) }
     item(key = "p-actions") {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(
-                onClick = { onSave(true) },
-                enabled = !saving,
-                shape = IntakeShape.Button,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-            ) { Text(if (saving) "Saving…" else "Save and make it my program") }
             OutlinedButton(
                 onClick = { onSave(false) },
                 enabled = !saving,
