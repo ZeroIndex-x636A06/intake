@@ -10,6 +10,10 @@ import com.zeroindex.intake.data.repository.FoodLogRepository
 import com.zeroindex.intake.domain.ai.AiFeature
 import com.zeroindex.intake.domain.ai.AiTrigger
 import com.zeroindex.intake.domain.ai.EstimateLine
+import com.zeroindex.intake.domain.ai.PhotoItem
+import com.zeroindex.intake.domain.ai.PhotoItemInput
+import com.zeroindex.intake.domain.ai.PhotoItems
+import com.zeroindex.intake.domain.ai.VisionContext
 import com.zeroindex.intake.domain.ai.VisionMath
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
 import com.zeroindex.intake.domain.allergen.ModelAllergenClaim
@@ -19,6 +23,7 @@ import com.zeroindex.intake.domain.model.AllergenMatchKind
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nutrition.Macros
 import com.zeroindex.intake.domain.time.Clock
+import com.zeroindex.intake.domain.units.PortionUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -28,6 +33,8 @@ sealed interface VisionResult {
     data class Ready(
         val estimate: VisionEstimate,
         val lines: List<EstimateLine>,
+        /** The foods found, at 1x, ready for the review list (untick, rename, resize). */
+        val items: List<PhotoItem>,
         /** One scan for the whole plate, for the allergen sheet. */
         val allergens: AllergenScanResult,
         /** Flagged lines by index, with the worst kind found on each. */
@@ -55,7 +62,11 @@ class VisionTracker @Inject constructor(
     private val corrections: AiCorrectionDao,
     private val clock: Clock,
 ) {
-    suspend fun estimate(photo: PreparedPhoto): VisionResult {
+    /**
+     * [extraContext] is the person's own note ("cooked in butter, large portion"). It is sent to OpenRouter with
+     * the photo, so the privacy page says so, and it is capped so a pasted essay cannot become a large request.
+     */
+    suspend fun estimate(photo: PreparedPhoto, extraContext: String? = null): VisionResult {
         val avoided = allergens.avoidedAllergens()
         val outcome = try {
             gateway.structured(
@@ -64,13 +75,15 @@ class VisionTracker @Inject constructor(
                 serializer = VisionEstimate.serializer(),
                 schema = VisionSchema.schema,
                 system = VisionSchema.systemPrompt(avoided),
-                parts = listOf(
-                    AiPart.Image(photo.jpeg),
-                    AiPart.Text("Estimate this meal."),
-                ),
+                parts = buildList {
+                    add(AiPart.Image(photo.jpeg))
+                    add(AiPart.Text("Estimate this meal."))
+                    VisionContext.clean(extraContext)?.let { add(AiPart.Text("Note from the user about this photo: $it")) }
+                },
             )
         } catch (e: AiError.BadResponse) {
-            return VisionResult.Unreadable(e.raw, e.message, photo.savedPath)
+            // The model's text is never shown: only the plain message.
+            return VisionResult.Unreadable(null, e.message, photo.savedPath)
         }
 
         val estimate = outcome.value
@@ -79,10 +92,14 @@ class VisionTracker @Inject constructor(
         val lines = estimate.items.map {
             EstimateLine(it.name, it.estimatedGrams, it.kcal, it.protein, it.carbs, it.fat)
         }
+        val items = PhotoItems.of(
+            estimate.items.mapIndexed { i, it -> PhotoItemInput(lines[i], it.gramsLow, it.gramsHigh, it.confidence) },
+        )
         val (scan, flagged) = scanPlate(estimate, avoided)
         return VisionResult.Ready(
             estimate = estimate,
             lines = lines,
+            items = items,
             allergens = scan,
             flaggedLines = flagged,
             model = outcome.response.model,
@@ -107,32 +124,52 @@ class VisionTracker @Inject constructor(
     }
 
     /**
-     * Logs the reviewed lines, one entry each, and records a correction for
-     * every line the user moved by more than 1% - including through the
-     * slider, which is a correction too (SPEC §6.9).
+     * The allergen check at confirm time, over the foods as they stand after the person's edits: the local
+     * engine reads each current name (so a renamed food is re-checked), and the model's claims stay tied to the
+     * item they were made about by id. A rename cannot clear a claim; unticking the item is how it goes away.
+     */
+    suspend fun recheck(estimate: VisionEstimate, shown: List<PhotoItem>): AllergenScanResult {
+        val avoided = allergens.avoidedAllergens()
+        return ModelAllergenPolicy.merge(
+            local = shown.map { allergens.scan(name = it.line.name) },
+            claims = shown.map {
+                val original = estimate.items.getOrNull(it.id)
+                ModelAllergenClaim(it.line.name, original?.containsAllergens.orEmpty(), original?.allergenReasoning.orEmpty())
+            },
+            avoided = avoided,
+            extraLocal = estimate.hiddenCalorieSources.map { allergens.scan(name = null, ingredients = it.source) },
+            source = "The photo model",
+        ).scan
+    }
+
+    /**
+     * Logs every ticked food, one entry each, and records a correction for every one the user moved by more than
+     * 1% - including through the slider, which is a correction too (SPEC 6.9). [shown] is already scaled;
+     * [originals] are the model's own lines by item id.
      */
     suspend fun log(
-        finalLines: List<EstimateLine>,
-        originalLines: List<EstimateLine>,
+        shown: List<PhotoItem>,
+        originals: Map<Int, EstimateLine>,
         confidence: AiConfidence,
         slot: MealSlot,
         at: Long,
         photoPath: String,
+        unit: PortionUnit,
     ) {
         val now = clock.nowMillis()
-        finalLines.forEachIndexed { index, line ->
-            if (line.kcal <= 0 && line.protein <= 0) return@forEachIndexed
+        PhotoItems.loggable(shown).forEach { item ->
+            val line = item.line
             foodLog.logPrepared(
                 name = line.name,
                 macros = Macros(line.kcal, line.protein, line.carbs, line.fat),
                 slot = slot,
-                servingLabel = "${line.grams.toInt()} g · photo estimate",
+                servingLabel = "${unit.format(line.grams)} \u00b7 photo estimate",
                 grams = line.grams.takeIf { it > 0 },
                 photoUri = photoPath,
                 aiConfidence = confidence,
                 at = at,
             )
-            val original = originalLines.getOrNull(index) ?: return@forEachIndexed
+            val original = originals[item.id] ?: return@forEach
             if (VisionMath.isCorrection(original.kcal, line.kcal)) {
                 corrections.upsert(
                     AiCorrectionEntity(

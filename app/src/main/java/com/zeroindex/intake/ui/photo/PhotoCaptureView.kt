@@ -11,7 +11,6 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
-import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -34,6 +33,10 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.zeroindex.intake.ui.camera.CameraOwner
 import com.zeroindex.intake.ui.theme.IntakeShape
 import java.io.File
 
@@ -71,6 +75,7 @@ fun PhotoCaptureView(
         )
     }
     var error by remember { mutableStateOf<String?>(null) }
+    var retry by remember { mutableIntStateOf(0) }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { hasPermission = it }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         uri?.let(onPhoto)
@@ -103,6 +108,16 @@ fun PhotoCaptureView(
                 Button(onClick = pickImage, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(52.dp)) {
                     Text("Choose a photo")
                 }
+                if (hasCamera && hasPermission && error != null) {
+                    OutlinedButton(
+                        onClick = {
+                            error = null
+                            retry++
+                        },
+                        shape = IntakeShape.Button,
+                        modifier = Modifier.fillMaxWidth().height(52.dp).padding(top = 8.dp),
+                    ) { Text("Try again") }
+                }
                 if (hasCamera && !hasPermission) {
                     OutlinedButton(
                         onClick = { permission.launch(Manifest.permission.CAMERA) },
@@ -114,10 +129,10 @@ fun PhotoCaptureView(
             return@Box
         }
 
-        val capture = remember {
+        val capture = remember(retry) {
             ImageCapture.Builder().setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY).build()
         }
-        CameraSurface(capture = capture, onError = { error = it })
+        key(retry) { CameraSurface(capture = capture, onError = { error = it }) }
 
         Surface(
             color = Color.Black.copy(alpha = 0.55f),
@@ -167,26 +182,30 @@ fun PhotoCaptureView(
     }
 }
 
+/**
+ * The preview and the capture use case, bound through [CameraOwner] and released when this leaves the screen. The
+ * old version bound them to the screen's lifecycle and never unbound, which left the camera held after the photo
+ * flow closed and made the barcode scanner fail to start (B3).
+ */
 @Composable
 private fun CameraSurface(capture: ImageCapture, onError: (String) -> Unit) {
+    val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    AndroidView(
-        modifier = Modifier.fillMaxSize(),
-        factory = { ctx ->
-            val view = PreviewView(ctx).apply { scaleType = PreviewView.ScaleType.FILL_CENTER }
-            val future = ProcessCameraProvider.getInstance(ctx)
-            future.addListener({
-                try {
-                    val provider = future.get()
-                    val preview = Preview.Builder().build().also { it.surfaceProvider = view.surfaceProvider }
-                    provider.unbindAll()
-                    provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, capture)
-                } catch (e: Exception) {
-                    Log.w("PhotoCapture", "Camera bind failed", e)
-                    onError("Something else may be using the camera. Choose a photo from the gallery instead.")
-                }
-            }, ContextCompat.getMainExecutor(ctx))
-            view
-        },
-    )
+    val currentOnError by rememberUpdatedState(onError)
+    val view = remember {
+        PreviewView(context).apply { scaleType = PreviewView.ScaleType.FILL_CENTER }
+    }
+    DisposableEffect(lifecycleOwner, capture) {
+        val preview = Preview.Builder().build().also { it.surfaceProvider = view.surfaceProvider }
+        val binding = CameraOwner.bind(
+            context = context,
+            lifecycleOwner = lifecycleOwner,
+            selector = CameraSelector.DEFAULT_BACK_CAMERA,
+            useCases = listOf(preview, capture),
+            onBound = {},
+            onError = { currentOnError("$it Or choose a photo from the gallery instead.") },
+        )
+        onDispose { binding.release() }
+    }
+    AndroidView(modifier = Modifier.fillMaxSize(), factory = { view })
 }

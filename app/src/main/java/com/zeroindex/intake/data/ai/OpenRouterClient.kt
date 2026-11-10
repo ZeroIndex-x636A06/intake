@@ -10,7 +10,9 @@ import java.util.concurrent.TimeUnit
 import java.util.Base64
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -103,7 +105,9 @@ class OpenRouterClient(
      * to support it, so a provider that would silently ignore the schema is
      * never picked.
      */
-    suspend fun complete(apiKey: String, request: AiRequest): AiResponse {
+    suspend fun complete(apiKey: String, request: AiRequest): AiResponse = withContext(Dispatchers.Default) {
+        // Building a request (base64 of a photo or PDF), and reading a large reply, never run on the main thread,
+        // whichever scope the caller launched from.
         val started = System.nanoTime()
         val payload = buildPayload(request)
         val body = execute(
@@ -123,7 +127,7 @@ class OpenRouterClient(
             ?: throw AiError.BadResponse("The reply had no message")
         val content = message["content"].textContent()
         val usage = root["usage"]?.jsonObject
-        return AiResponse(
+        AiResponse(
             content = content,
             model = root["model"]?.jsonPrimitive?.contentOrNull ?: request.model,
             costUsd = usage?.get("cost")?.jsonPrimitive?.doubleOrNull,

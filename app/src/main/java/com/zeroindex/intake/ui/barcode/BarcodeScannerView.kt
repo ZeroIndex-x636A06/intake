@@ -20,7 +20,6 @@ import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
-import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -88,6 +87,7 @@ import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import com.zeroindex.intake.domain.barcode.Barcodes
+import com.zeroindex.intake.ui.camera.CameraOwner
 import com.zeroindex.intake.domain.barcode.ScannedRead
 import java.util.concurrent.Executors
 
@@ -348,55 +348,41 @@ private fun CameraPreview(
                 )
                 .build(),
         )
-        val providerFuture = ProcessCameraProvider.getInstance(context)
-        var disposed = false
-        var provider: ProcessCameraProvider? = null
-        var preview: Preview? = null
-        var analysis: ImageAnalysis? = null
         var stateObserver: Observer<androidx.camera.core.CameraState>? = null
         var boundCamera: Camera? = null
 
-        providerFuture.addListener({
-            if (disposed) return@addListener
-            try {
-                val cameraProvider = providerFuture.get()
-                provider = cameraProvider
-                val newPreview = Preview.Builder().build().also {
-                    it.surfaceProvider = previewView.surfaceProvider
-                }
-                // The 640x480 default is too coarse for the narrow bars of a small EAN
-                // symbol; 1280x720 reads them reliably.
-                val newAnalysis = ImageAnalysis.Builder()
-                    .setResolutionSelector(
-                        ResolutionSelector.Builder()
-                            .setResolutionStrategy(
-                                ResolutionStrategy(
-                                    Size(1280, 720),
-                                    ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER,
-                                ),
-                            )
-                            .build(),
+        val newPreview = Preview.Builder().build().also { it.surfaceProvider = previewView.surfaceProvider }
+        // The 640x480 default is too coarse for the narrow bars of a small EAN
+        // symbol; 1280x720 reads them reliably.
+        val newAnalysis = ImageAnalysis.Builder()
+            .setResolutionSelector(
+                ResolutionSelector.Builder()
+                    .setResolutionStrategy(
+                        ResolutionStrategy(
+                            Size(1280, 720),
+                            ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER,
+                        ),
                     )
-                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                    .build()
-                    .also { it.setAnalyzer(executor, BarcodeAnalyzer(scanner) { code -> currentOnBarcode(code) }) }
+                    .build(),
+            )
+            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+            .build()
+            .also { it.setAnalyzer(executor, BarcodeAnalyzer(scanner) { code -> currentOnBarcode(code) }) }
 
-                cameraProvider.unbind(newPreview, newAnalysis)
-                val camera = cameraProvider.bindToLifecycle(
-                    lifecycleOwner,
-                    CameraSelector.DEFAULT_BACK_CAMERA,
-                    newPreview,
-                    newAnalysis,
-                )
-                preview = newPreview
-                analysis = newAnalysis
+        // CameraOwner releases any other screen's camera first, retries a bind that fails because the camera is
+        // still being freed, and unbinds exactly these use cases on dispose.
+        val binding = CameraOwner.bind(
+            context = context,
+            lifecycleOwner = lifecycleOwner,
+            selector = CameraSelector.DEFAULT_BACK_CAMERA,
+            useCases = listOf(newPreview, newAnalysis),
+            onBound = { camera ->
                 boundCamera = camera
-
                 val observer = Observer<androidx.camera.core.CameraState> { state ->
                     if (state.error != null) {
                         Log.w(TAG, "Camera error ${state.error?.code}")
                         currentOnError(
-                            "Another app may be using the camera. Close it and try again, or " +
+                            "Another app may be using the camera. Close it, then tap Try again, or " +
                                 "type the barcode number instead.",
                         )
                     }
@@ -404,24 +390,17 @@ private fun CameraPreview(
                 stateObserver = observer
                 camera.cameraInfo.cameraState.observe(lifecycleOwner, observer)
                 currentOnCamera(camera)
-            } catch (e: Exception) {
-                Log.w(TAG, "Camera bind failed", e)
-                currentOnError(
-                    "Something else may be using the camera. Try again, or type the barcode " +
-                        "number instead.",
-                )
-            }
-        }, ContextCompat.getMainExecutor(context))
+            },
+            onError = { currentOnError("$it You can also type the barcode number instead.") },
+        )
 
         onDispose {
             // The camera is bound to the screen's lifecycle owner, not to this composable,
             // so it must be released here or it keeps running behind a closed sheet.
-            disposed = true
             currentOnCamera(null)
             stateObserver?.let { observer -> boundCamera?.cameraInfo?.cameraState?.removeObserver(observer) }
-            analysis?.clearAnalyzer()
-            val used = listOfNotNull(preview, analysis).toTypedArray()
-            if (used.isNotEmpty()) runCatching { provider?.unbind(*used) }
+            newAnalysis.clearAnalyzer()
+            binding.release()
             runCatching { scanner.close() }
             executor.shutdown()
         }

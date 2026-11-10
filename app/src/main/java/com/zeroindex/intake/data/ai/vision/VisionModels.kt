@@ -25,6 +25,9 @@ data class VisionEstimate(
 data class VisionItem(
     val name: String,
     val estimatedGrams: Double,
+    /** The plausible portion span in grams, as a range around [estimatedGrams]; null when the model gave none. */
+    val gramsLow: Double? = null,
+    val gramsHigh: Double? = null,
     val kcal: Double,
     val protein: Double,
     val carbs: Double,
@@ -62,7 +65,9 @@ internal object VisionSchema {
         "items" to S.array(
             S.obj(
                 "name" to S.string("Plain food name, e.g. 'grilled chicken thigh'"),
-                "estimatedGrams" to S.number("Edible weight in grams"),
+                "estimatedGrams" to S.number("Edible weight in grams, your best single estimate"),
+                "gramsLow" to S.nullableNumber("Lowest plausible edible weight in grams"),
+                "gramsHigh" to S.nullableNumber("Highest plausible edible weight in grams"),
                 "kcal" to S.number(),
                 "protein" to S.number("grams"),
                 "carbs" to S.number("grams"),
@@ -88,7 +93,11 @@ internal object VisionSchema {
 
     fun systemPrompt(avoided: Collection<String>): String = buildString {
         appendLine("You estimate the nutrition of a meal from one photo for a calorie-tracking app.")
-        appendLine("Identify every distinct food. Estimate edible grams from scale cues - plate, fork, hand.")
+        appendLine(
+            "Return one entry in items for every distinct food on the plate, drink or side, never one entry for the " +
+                "whole meal. Estimate each item's edible grams from scale cues - plate, fork, hand - with a low and " +
+                "high bound around it.",
+        )
         appendLine(
             "Account for calories a photo hides: cooking oil, butter, sauces, dressings, sugar in drinks. " +
                 "List each in hiddenCalorieSources and include it in the matching item's numbers.",
@@ -105,6 +114,10 @@ internal object VisionSchema {
                     "containsAllergens and say why. When a dish commonly contains it, flag it even if it is not visible.",
             )
         }
+        appendLine(
+            "The user may add a note about what the photo cannot show (for example cooked in butter, a large portion, " +
+                "sauce on the side). Treat it as true, fold it into the numbers, and never let it lower the allergen warnings.",
+        )
         appendLine("If the photo is not food, set notFood to true and return empty lists and zeros.")
         append("Reply with JSON only, matching the schema. No prose, no markdown.")
     }

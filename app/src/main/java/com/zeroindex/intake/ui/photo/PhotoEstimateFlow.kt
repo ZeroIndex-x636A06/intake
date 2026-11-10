@@ -1,33 +1,40 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package com.zeroindex.intake.ui.photo
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,17 +47,22 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.zeroindex.intake.domain.ai.EstimateLine
+import com.zeroindex.intake.domain.ai.PhotoItem
+import com.zeroindex.intake.domain.ai.PhotoItems
 import com.zeroindex.intake.domain.ai.VisionMath
 import com.zeroindex.intake.domain.model.AllergenMatchKind
 import com.zeroindex.intake.domain.model.MealSlot
+import com.zeroindex.intake.domain.units.PortionUnit
 import com.zeroindex.intake.ui.allergen.AllergenWarningSheet
 import com.zeroindex.intake.ui.components.AccentNote
+import com.zeroindex.intake.ui.components.AiWaitCard
 import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.ui.components.MathGrid
 import com.zeroindex.intake.ui.theme.AllergenAmber
 import com.zeroindex.intake.ui.theme.AllergenRed
 import com.zeroindex.intake.ui.theme.IntakeShape
 import java.io.File
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -58,6 +70,9 @@ import kotlin.math.roundToInt
  * nothing is written until the user confirms, and every number is editable.
  * Photo estimates are a fast first guess to correct, never a measurement, and
  * the screen says so.
+ *
+ * One photo returns a list of foods. Each can be unticked, renamed and resized, and one tap logs every ticked
+ * food to the meal, each as its own entry. Portions follow the person's unit setting.
  */
 @Composable
 fun PhotoEstimateFlow(
@@ -88,47 +103,54 @@ fun PhotoEstimateFlow(
             state.biasNote?.let {
                 AccentNote(lead = "From your corrections", body = it, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
             }
+            OutlinedTextField(
+                value = state.extraContext,
+                onValueChange = viewModel::setContext,
+                label = { Text("Anything we can't see?") },
+                placeholder = { Text("e.g. cooked in butter, large portion, sauce on the side") },
+                supportingText = { Text("Optional. Sent to OpenRouter with the photo.") },
+                minLines = 2,
+                maxLines = 3,
+                shape = IntakeShape.Field,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+            )
             PhotoCaptureView(newCaptureFile = viewModel::newCaptureFile, onPhoto = viewModel::onPhoto)
         }
 
-        is PhotoStage.Working -> Column(
-            Modifier.fillMaxWidth().padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            CircularProgressIndicator()
-            Spacer(Modifier.height(12.dp))
-            Text(stage.message, style = MaterialTheme.typography.bodySmall)
-        }
+        is PhotoStage.Working -> AiWaitCard(
+            message = stage.message,
+            startedAtMillis = stage.startedAt,
+            onCancel = viewModel::cancel,
+        )
 
         is PhotoStage.Review -> Review(
             stage = stage,
+            unit = state.unit,
             slotLabel = slotLabel,
             biasNote = state.biasNote,
             onScale = viewModel::setScale,
             onCautious = viewModel::useCautious,
-            onEdit = viewModel::editLine,
-            onRemove = viewModel::removeLine,
-            onConfirm = { viewModel.confirm(slot, loggedAtMillis, onDone) },
+            onToggle = viewModel::toggle,
+            onRename = viewModel::rename,
+            onPortion = viewModel::setPortion,
+            onMacro = viewModel::setMacro,
+            onConfirm = { viewModel.confirm(slot, loggedAtMillis, state.unit, onDone) },
             onRetake = viewModel::retake,
         )
 
+        // Never the model's own text: a plain message and a way forward.
         is PhotoStage.Unreadable -> Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("The estimate came back in a form that could not be read", style = MaterialTheme.typography.titleMedium)
+            Text("The estimate could not be read", style = MaterialTheme.typography.titleMedium)
             Text(
-                "Here is what the model said. Use it as a guide and log by hand.",
-                style = MaterialTheme.typography.bodySmall,
+                stage.reason,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            stage.raw?.takeIf { it.isNotBlank() }?.let {
-                Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = IntakeShape.Tile) {
-                    Text(it.take(2_000), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(12.dp))
-                }
+            Button(onClick = viewModel::retake, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+                Text("Try again")
             }
-            Button(onClick = onManualEntry, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+            OutlinedButton(onClick = onManualEntry, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(50.dp)) {
                 Text("Log manually")
-            }
-            OutlinedButton(onClick = viewModel::retake, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(50.dp)) {
-                Text("Try another photo")
             }
         }
 
@@ -151,13 +173,14 @@ fun PhotoEstimateFlow(
         }
     }
 
-    (state.stage as? PhotoStage.Review)?.takeIf { it.confirmingAllergens }?.let { review ->
+    (state.stage as? PhotoStage.Review)?.confirmingAllergens?.let { scan ->
+        val review = state.stage as PhotoStage.Review
         AllergenWarningSheet(
-            foodName = review.shown.joinToString(", ") { it.name },
-            scan = review.result.allergens,
+            foodName = review.shown.joinToString(", ") { it.line.name },
+            scan = scan,
             onDismiss = viewModel::cancelAllergenConfirm,
-            onLogAnyway = { viewModel.logAnyway(slot, loggedAtMillis, onDone) },
-            foodDetail = "Photo estimate · ${VisionMath.total(review.shown).kcal.roundToInt()} kcal",
+            onLogAnyway = { viewModel.logAnyway(slot, loggedAtMillis, state.unit, onDone) },
+            foodDetail = "Photo estimate · ${PhotoItems.total(review.items, review.scale).kcal.roundToInt()} kcal",
             aiReasoning = review.result.estimate.items.mapNotNull { it.allergenReasoning.takeIf(String::isNotBlank) }
                 .joinToString(" ").ifBlank { null },
         )
@@ -167,19 +190,22 @@ fun PhotoEstimateFlow(
 @Composable
 private fun Review(
     stage: PhotoStage.Review,
+    unit: PortionUnit,
     slotLabel: String,
     biasNote: String?,
     onScale: (Double) -> Unit,
     onCautious: () -> Unit,
-    onEdit: (Int, EstimateLine) -> Unit,
-    onRemove: (Int) -> Unit,
+    onToggle: (Int) -> Unit,
+    onRename: (Int, String) -> Unit,
+    onPortion: (Int, String) -> Unit,
+    onMacro: (Int, (EstimateLine) -> EstimateLine) -> Unit,
     onConfirm: () -> Unit,
     onRetake: () -> Unit,
 ) {
     val estimate = stage.result.estimate
     val range = estimate.range
-    val shown = stage.shown
-    val total = VisionMath.total(shown)
+    val total = PhotoItems.total(stage.items, stage.scale)
+    val ticked = stage.ticked
 
     Column(
         Modifier
@@ -208,14 +234,13 @@ private fun Review(
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
             shape = IntakeShape.Banner,
         ) {
-            Column(Modifier.fillMaxWidth().padding(12.dp)) {
+            Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Portion assumption · please check", style = MaterialTheme.typography.titleSmall)
-                Text(estimate.portionAssumption, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+                Text(estimate.portionAssumption, style = MaterialTheme.typography.bodyMedium)
                 Text(
-                    "Likely ${range.kcalLow.roundToInt()}–${range.kcalHigh.roundToInt()} kcal · " +
+                    "Whole plate likely ${range.kcalLow.roundToInt()}–${range.kcalHigh.roundToInt()} kcal, " +
                         "${range.proteinLow.roundToInt()}–${range.proteinHigh.roundToInt()} g protein",
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.padding(top = 6.dp),
+                    style = MaterialTheme.typography.labelLarge,
                 )
             }
         }
@@ -236,29 +261,47 @@ private fun Review(
                 Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        OutlinedButton(onClick = onCautious, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(48.dp)) {
+        OutlinedButton(
+            onClick = onCautious,
+            shape = IntakeShape.Button,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+        ) {
             Text("Use the cautious estimate (${range.kcalHigh.roundToInt()} kcal)")
         }
 
-        biasNote?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary) }
+        biasNote?.let { Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary) }
 
-        Eyebrow("Correct any field")
-        shown.forEachIndexed { index, line ->
-            LineEditor(
-                line = line,
-                flag = stage.result.flaggedLines[index],
-                onChange = { onEdit(index, it) },
-                onRemove = { onRemove(index) },
+        Eyebrow("${stage.items.size} ${if (stage.items.size == 1) "food" else "foods"} found")
+        Text(
+            "Untick anything that is not yours to log. Edit a name or a portion and the numbers follow.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        stage.items.forEach { item ->
+            val modelItem = estimate.items.getOrNull(item.id)
+            FoodItemCard(
+                item = item,
+                shownGrams = item.line.grams * stage.scale,
+                unit = unit,
+                scale = stage.scale,
+                flag = stage.result.flaggedLines[item.id],
+                allergens = modelItem?.containsAllergens.orEmpty(),
+                reasoning = modelItem?.allergenReasoning.orEmpty(),
+                onToggle = { onToggle(item.id) },
+                onRename = { onRename(item.id, it) },
+                onPortion = { onPortion(item.id, it) },
+                onMacro = { change -> onMacro(item.id, change) },
             )
         }
 
         if (estimate.hiddenCalorieSources.isNotEmpty()) {
             Eyebrow("Hidden calories counted")
             estimate.hiddenCalorieSources.forEach {
-                Text("${it.source} · ${it.kcal.roundToInt()} kcal", style = MaterialTheme.typography.bodySmall)
+                Text("${it.source} · ${it.kcal.roundToInt()} kcal", style = MaterialTheme.typography.bodyMedium)
             }
         }
 
+        Eyebrow(if (ticked == stage.items.size) "Total" else "Total of $ticked ticked")
         MathGrid(
             listOf(
                 "${total.kcal.roundToInt()}" to "kcal",
@@ -270,73 +313,170 @@ private fun Review(
         Text(
             "Estimated by ${stage.result.model}" +
                 (stage.result.costUsd?.let { " · cost \$%.4f".format(it) } ?: ""),
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Button(
             onClick = onConfirm,
-            enabled = shown.isNotEmpty() && !stage.saving,
+            enabled = ticked > 0 && !stage.saving,
             shape = IntakeShape.Button,
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-        ) { Text(if (stage.saving) "Saving…" else "Confirm & add to $slotLabel") }
-        OutlinedButton(onClick = onRetake, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(50.dp)) {
+            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+        ) {
+            Text(
+                when {
+                    stage.saving -> "Saving…"
+                    ticked == 1 -> "Log 1 food to $slotLabel"
+                    else -> "Log $ticked foods to $slotLabel"
+                },
+            )
+        }
+        OutlinedButton(onClick = onRetake, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp)) {
             Text("Retake photo")
         }
         Spacer(Modifier.height(12.dp))
     }
 }
 
+/**
+ * One food: a tick, a name that wraps, the portion in the person's unit with the model's range beside it, the
+ * macros as text (editable behind a tap, in a 2 by 2 grid wide enough to read), and any allergen note. Nothing is
+ * set in a fixed-width row of five fields, which is what clipped the old layout.
+ */
 @Composable
-private fun LineEditor(line: EstimateLine, flag: AllergenMatchKind?, onChange: (EstimateLine) -> Unit, onRemove: () -> Unit) {
-    Column {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            // The soft "check the label" tier is not a warning, so it gets no icon here.
-            if (flag != null && flag != AllergenMatchKind.CHECK_LABEL) {
-                Icon(
-                    Icons.Filled.Warning,
-                    contentDescription = if (flag == AllergenMatchKind.CONTAINS) {
-                        "Contains an allergen you avoid"
-                    } else {
-                        "May contain an allergen you avoid"
-                    },
-                    tint = if (flag == AllergenMatchKind.CONTAINS) AllergenRed else AllergenAmber,
-                    modifier = Modifier.padding(end = 6.dp),
-                )
-            }
+private fun FoodItemCard(
+    item: PhotoItem,
+    shownGrams: Double,
+    unit: PortionUnit,
+    scale: Double,
+    flag: AllergenMatchKind?,
+    allergens: List<String>,
+    reasoning: String,
+    onToggle: () -> Unit,
+    onRename: (String) -> Unit,
+    onPortion: (String) -> Unit,
+    onMacro: ((EstimateLine) -> EstimateLine) -> Unit,
+) {
+    var editingMacros by remember { mutableStateOf(false) }
+    val line = item.line.scaled(scale)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(verticalAlignment = Alignment.Top) {
+            Checkbox(
+                checked = item.included,
+                onCheckedChange = { onToggle() },
+                modifier = Modifier.semantics { contentDescription = "Log ${item.line.name}" },
+            )
             OutlinedTextField(
-                value = line.name,
-                onValueChange = { onChange(line.copy(name = it)) },
-                singleLine = true,
+                value = item.line.name,
+                onValueChange = onRename,
+                label = { Text("Food") },
+                minLines = 1,
+                maxLines = 3,
+                enabled = item.included,
                 shape = IntakeShape.Field,
                 modifier = Modifier.weight(1f),
             )
-            IconButton(onClick = onRemove) { Icon(Icons.Filled.Close, contentDescription = "Remove ${line.name}") }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 6.dp)) {
-            NumberField("g", line.grams, Modifier.weight(1f)) { g ->
-                // Changing the weight rescales that item's macros with it.
-                val f = if (line.grams > 0) g / line.grams else 1.0
-                onChange(line.scaled(f).copy(name = line.name, grams = g))
+        if (item.included) {
+            Column(Modifier.padding(start = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    PortionField(shownGrams = shownGrams, unit = unit, onChange = onPortion, modifier = Modifier.width(130.dp))
+                    val low = item.gramsLow
+                    val high = item.gramsHigh
+                    Text(
+                        if (low != null && high != null && high > low) {
+                            "Likely ${unit.formatRange(low * scale, high * scale)}"
+                        } else {
+                            "Confidence: ${item.confidence}"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("${line.kcal.roundToInt()} kcal", style = MaterialTheme.typography.titleSmall)
+                    Text("Protein ${line.protein.roundToInt()} g", style = MaterialTheme.typography.bodyMedium)
+                    Text("Carbs ${line.carbs.roundToInt()} g", style = MaterialTheme.typography.bodyMedium)
+                    Text("Fat ${line.fat.roundToInt()} g", style = MaterialTheme.typography.bodyMedium)
+                }
+                TextButton(onClick = { editingMacros = !editingMacros }, modifier = Modifier.heightIn(min = 44.dp)) {
+                    Text(if (editingMacros) "Done editing numbers" else "Edit calories and macros")
+                }
+                if (editingMacros) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        NumberField("Calories", line.kcal, Modifier.weight(1f)) { v -> onMacro { it.copy(kcal = v) } }
+                        NumberField("Protein (g)", line.protein, Modifier.weight(1f)) { v -> onMacro { it.copy(protein = v) } }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        NumberField("Carbs (g)", line.carbs, Modifier.weight(1f)) { v -> onMacro { it.copy(carbs = v) } }
+                        NumberField("Fat (g)", line.fat, Modifier.weight(1f)) { v -> onMacro { it.copy(fat = v) } }
+                    }
+                }
+                // The soft "check the label" tier is not a warning, so it gets no icon here.
+                if (flag != null && flag != AllergenMatchKind.CHECK_LABEL) {
+                    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(
+                            Icons.Filled.Warning,
+                            contentDescription = null,
+                            tint = if (flag == AllergenMatchKind.CONTAINS) AllergenRed else AllergenAmber,
+                        )
+                        Text(
+                            buildString {
+                                append(
+                                    if (flag == AllergenMatchKind.CONTAINS) "Contains something you avoid" else "May contain something you avoid",
+                                )
+                                if (allergens.isNotEmpty()) append(": ${allergens.joinToString()}")
+                                if (reasoning.isNotBlank()) append(". $reasoning")
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
             }
-            NumberField("kcal", line.kcal, Modifier.weight(1f)) { onChange(line.copy(kcal = it)) }
-            NumberField("P", line.protein, Modifier.weight(1f)) { onChange(line.copy(protein = it)) }
-            NumberField("C", line.carbs, Modifier.weight(1f)) { onChange(line.copy(carbs = it)) }
-            NumberField("F", line.fat, Modifier.weight(1f)) { onChange(line.copy(fat = it)) }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(top = 8.dp))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(top = 4.dp))
     }
+}
+
+/** The portion as typed in the person's unit; the text is kept while typing and re-synced when the slider moves it. */
+@Composable
+private fun PortionField(shownGrams: Double, unit: PortionUnit, onChange: (String) -> Unit, modifier: Modifier) {
+    var text by remember(unit) { mutableStateOf(unit.number(shownGrams)) }
+    LaunchedEffect(shownGrams, unit) {
+        val typed = unit.parseToGrams(text)
+        if (typed == null || abs(typed - shownGrams) > 0.5) text = unit.number(shownGrams)
+    }
+    OutlinedTextField(
+        value = text,
+        onValueChange = {
+            text = it
+            onChange(it)
+        },
+        label = { Text("Portion (${unit.label})") },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        shape = IntakeShape.Field,
+        modifier = modifier,
+    )
 }
 
 @Composable
 private fun NumberField(label: String, value: Double, modifier: Modifier, onValue: (Double) -> Unit) {
+    var text by remember { mutableStateOf(value.roundToInt().toString()) }
+    LaunchedEffect(value) {
+        if ((text.toDoubleOrNull() ?: -1.0).roundToInt() != value.roundToInt()) text = value.roundToInt().toString()
+    }
     OutlinedTextField(
-        value = value.roundToInt().toString(),
-        onValueChange = { text -> onValue(text.filter(Char::isDigit).toDoubleOrNull() ?: 0.0) },
-        label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+        value = text,
+        onValueChange = { next ->
+            text = next.filter { it.isDigit() || it == '.' }
+            onValue(text.toDoubleOrNull() ?: 0.0)
+        },
+        label = { Text(label, maxLines = 1) },
         singleLine = true,
-        textStyle = MaterialTheme.typography.labelMedium,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        shape = IntakeShape.ExtraSmall,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        shape = IntakeShape.Field,
         modifier = modifier,
     )
 }
