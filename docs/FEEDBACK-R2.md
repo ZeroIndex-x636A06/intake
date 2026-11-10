@@ -82,3 +82,15 @@ The user has not answered these individually, so apply the recommended answers:
 - Show 6 regions with detail on tap.
 
 Note that the user's "food and hydration combined" request changes the Food tab layout.
+
+## Decision: Videos use a key (2026-11-10)
+
+- The user chose the key-based approach. Videos uses the **YouTube Data API v3** with a key the user supplies.
+- The key is entered in Settings → API keys. It is stored in EncryptedSharedPreferences like the other keys, and sent only as the request's `key` parameter to googleapis.com. That parameter is what the YouTube API expects. The key is never logged.
+- Without a key, the Videos section explains what the key is for, links to the setup steps in Help, and offers "Paste a YouTube link" so a single video can still be added and played.
+- Search: `search.list` (type=video, with the category and duration hints) followed by `videos.list`, which returns snippet, contentDetails (duration) and the category.
+- Quota is shown in plain words in Settings: about 100 searches a day on the free quota. Results are cached locally to save quota.
+- Workout filter: a deterministic classifier with tests. It uses the category (Sports, Howto & Style, People & Blogs combined with keywords), keywords in the title and description, the duration, and channel signals. A one-tap "Show everything" applies to the current search only.
+- Recommended page: built from local data only (this week's under-trained muscles, equipment, saved videos), turned into search queries. It can be switched off in Settings.
+- "Make this a workout": parse chapters and the description deterministically first, then optionally use AI when the user taps. The user reviews the result before it is saved as a workout.
+- Playback uses the official embedded IFrame player in a WebView. Videos are never downloaded or rehosted. Follow the YouTube API Services Terms: attribution and branding, a privacy disclosure in `docs/PRIVACY.md`, and deleting cached API data within 30 days.
