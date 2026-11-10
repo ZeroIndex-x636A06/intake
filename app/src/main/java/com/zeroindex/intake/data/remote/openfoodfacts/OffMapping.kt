@@ -1,7 +1,10 @@
 package com.zeroindex.intake.data.remote.openfoodfacts
 
 import com.zeroindex.intake.data.db.entity.FoodEntity
+import com.zeroindex.intake.domain.drinks.DrinkCategorizer
 import com.zeroindex.intake.domain.food.OffLanguage
+import com.zeroindex.intake.domain.nutrition.NutrientKey
+import com.zeroindex.intake.domain.nutrition.Unlisted
 import com.zeroindex.intake.domain.model.FoodSource
 
 /**
@@ -22,6 +25,7 @@ object OffMapping {
         allergenTags = product.allergensTags,
         traceTags = product.tracesTags,
         imageUrl = product.imageFrontSmallUrl ?: product.imageFrontUrl,
+        categoryTags = product.categoriesTags,
     )
 
     fun fromHit(hit: OffSearchHit): FoodEntity? = fromHit(hit, language = null)?.food
@@ -47,6 +51,7 @@ object OffMapping {
             allergenTags = hit.allergensTags.orEmpty(),
             traceTags = emptyList(),
             imageUrl = hit.imageFrontSmallUrl ?: hit.imageFrontThumbUrl,
+            categoryTags = hit.categoriesTags.orEmpty(),
         ) ?: return null
         return SearchItem(food, readable = picked?.readable ?: true)
     }
@@ -62,6 +67,7 @@ object OffMapping {
         allergenTags: List<String>,
         traceTags: List<String>,
         imageUrl: String? = null,
+        categoryTags: List<String> = emptyList(),
     ): FoodEntity? {
         val n = nutriments ?: return null
         val kcal = n.energyKcal100g?.takeIf { it > 0.0 } ?: return null
@@ -69,7 +75,15 @@ object OffMapping {
 
         val servingGrams = servingQuantity?.takeIf { it > 0 } ?: 100.0
         // Open Food Facts reports sodium in grams; salt (about 39% sodium) is the fallback.
-        val sodiumMg = (n.sodium100g ?: n.salt100g?.let { it * 0.393 })?.times(1000.0) ?: 0.0
+        val sodiumGrams = n.sodium100g ?: n.salt100g?.let { it * 0.393 }
+        val sodiumMg = sodiumGrams?.times(1000.0) ?: 0.0
+        // What the product did not list stays "not listed" rather than becoming a real zero.
+        val unlisted = buildSet {
+            if (n.fiber100g == null) add(NutrientKey.FIBER)
+            if (n.sugars100g == null) add(NutrientKey.SUGAR)
+            if (sodiumGrams == null) add(NutrientKey.SODIUM)
+            if (n.saturatedFat100g == null) add(NutrientKey.SATURATED_FAT)
+        }
 
         return FoodEntity(
             name = cleanName,
@@ -87,6 +101,8 @@ object OffMapping {
             saturatedFatPer100g = n.saturatedFat100g ?: 0.0,
             source = FoodSource.OPEN_FOOD_FACTS,
             imageUrl = OffImages.safeUrl(imageUrl),
+            unlistedNutrients = Unlisted.encode(unlisted),
+            drinkCategory = DrinkCategorizer.categorize(cleanName, offTags = categoryTags)?.name,
             // Both the structured tags and the panel text are kept: the allergen
             // engine rescans this whenever the food is logged again (SPEC §7.3).
             allergenTags = FoodIngredients.join(allergenTags + traceTags, ingredientsText),

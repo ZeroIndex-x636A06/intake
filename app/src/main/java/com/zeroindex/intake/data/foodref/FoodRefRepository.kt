@@ -3,6 +3,7 @@ package com.zeroindex.intake.data.foodref
 import com.zeroindex.intake.data.db.entity.FoodEntity
 import com.zeroindex.intake.data.foodref.FoodRefSearch.toRefFood
 import com.zeroindex.intake.data.repository.FoodRepository
+import com.zeroindex.intake.domain.drinks.DrinkCategorizer
 import com.zeroindex.intake.domain.model.FoodSource
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -63,6 +64,7 @@ class FoodRefRepository @Inject constructor(
                 saturatedFatPer100g = ref.saturatedFat,
                 source = FoodSource.DATABASE,
                 isVerified = true,
+                drinkCategory = DrinkCategorizer.categorize(ref.name, ref.category)?.name,
                 createdAt = 0,
                 updatedAt = 0,
             )

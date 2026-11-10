@@ -273,6 +273,30 @@ class AllergenRepository @Inject constructor(
         }
     }
 
+    /**
+     * One engine setup for a whole list of foods (search results, a drink category), so a list of fifty rows reads the
+     * profile and keyword table once. Each food is scanned exactly as [scan] does it.
+     */
+    suspend fun foodScanner(): (FoodEntity) -> AllergenScanResult {
+        val avoided = allergenDao.profile().avoidedSet()
+        if (avoided.isEmpty()) return { AllergenScanResult.CLEAN }
+        val aliases = allergenDao.aliases().map {
+            AllergenAlias(allergen = it.allergen, aliasTerm = it.aliasTerm, level = it.level)
+        }
+        val checkTerms = HiddenCarriers.forAllergens(avoided) +
+            PlanWatchTerms.extract(PlanMeta.decode(planDao.activePlan()?.metaJson).hiddenDairyChecklist)
+        return { food ->
+            AllergenMatcher.scan(
+                aliases = aliases,
+                avoidedAllergens = avoided,
+                name = food.name,
+                brand = food.brand,
+                ingredients = food.allergenTags.takeIf { it.isNotBlank() },
+                checkLabelTerms = checkTerms,
+            )
+        }
+    }
+
     suspend fun scan(food: FoodEntity): AllergenScanResult = scan(
         name = food.name,
         brand = food.brand,

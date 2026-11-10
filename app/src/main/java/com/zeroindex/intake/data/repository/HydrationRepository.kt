@@ -69,6 +69,7 @@ class HydrationRepository @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val hydrationPrefs: HydrationPrefs,
     private val weatherRepository: WeatherRepository,
+    private val drinks: DrinkRepository,
     private val clock: Clock,
 ) {
     fun observePresets(): Flow<List<HydrationPresetEntity>> = dao.observePresets()
@@ -129,9 +130,10 @@ class HydrationRepository @Inject constructor(
     }
 
     /**
-     * Logs one drink. With no [drink] given, a tapped preset decides the type, else it is water. The factor,
-     * caffeine and alcohol are worked out now from the user's current Advanced values and stored on the row, so
-     * changing a factor later never rewrites history.
+     * Logs one drink through the one drink flow ([DrinkRepository]): the hydration row, and the food-log row for a drink
+     * that has calories, so Today's water card and the Drinks page write the same thing. With no [drink] given, a tapped
+     * preset decides the type, else it is water. The factor, caffeine and alcohol are worked out now from the user's
+     * current Advanced values and stored on the row, so changing a factor later never rewrites history.
      */
     suspend fun log(
         volumeMl: Double,
@@ -140,30 +142,15 @@ class HydrationRepository @Inject constructor(
         drink: DrinkType? = null,
     ): HydrationLogEntity {
         require(volumeMl > 0) { "volume must be positive" }
-        val now = clock.nowMillis()
         val type = drink ?: presetId?.let { dao.presetById(it)?.drinkType } ?: DrinkType.WATER
-        val profile = Drinks.profile(type, hydrationPrefs.current().drinkOverrides[type])
-        val entry = Drinks.entry(volumeMl, profile)
-        val log = HydrationLogEntity(
-            loggedAt = loggedAt,
-            volumeMl = volumeMl,
-            presetId = presetId,
-            drinkType = type,
-            hydrationFactor = entry.factor,
-            caffeineMg = entry.caffeineMg,
-            alcoholMl = entry.alcoholMl,
-            createdAt = now,
-            updatedAt = now,
-        )
-        dao.upsertLog(log)
-        return log
+        return drinks.logOfType(type, volumeMl, loggedAt, presetId)
     }
 
-    suspend fun delete(id: String) = dao.softDeleteLog(id, clock.nowMillis())
+    /** Soft-deletes the entry and, for a drink with calories, its food-log row too. */
+    suspend fun delete(id: String) = drinks.delete(id)
 
-    /** Brings a soft-deleted entry back, for the snackbar's Undo. */
-    suspend fun restore(log: HydrationLogEntity) =
-        dao.upsertLog(log.copy(deletedAt = null, updatedAt = clock.nowMillis()))
+    /** Brings a soft-deleted entry back (and its food-log row), for the snackbar's Undo. */
+    suspend fun restore(log: HydrationLogEntity) = drinks.restore(log.id)
 
     suspend fun savePreset(
         name: String,

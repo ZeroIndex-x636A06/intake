@@ -29,7 +29,7 @@ interface OffSearchService {
         const val BASE_URL = "https://search.openfoodfacts.org/"
         const val PAGE_SIZE = 20
         const val FIELDS =
-            "code,product_name,brands,quantity,serving_size,serving_quantity,allergens_tags,nutriments"
+            "code,product_name,brands,quantity,serving_size,serving_quantity,allergens_tags,nutriments,categories_tags"
     }
 }
 
@@ -57,6 +57,7 @@ data class OffSearchHit(
     val names: Map<String, String> = emptyMap(),
     @SerialName("image_front_small_url") val imageFrontSmallUrl: String? = null,
     @SerialName("image_front_thumb_url") val imageFrontThumbUrl: String? = null,
+    @SerialName("categories_tags") val categoriesTags: List<String>? = null,
 ) {
     /** The first brand, whichever shape [brands] arrived in. */
     val firstBrand: String?

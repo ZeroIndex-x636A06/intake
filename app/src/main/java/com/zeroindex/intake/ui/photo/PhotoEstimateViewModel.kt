@@ -80,10 +80,10 @@ class PhotoEstimateViewModel @Inject constructor(
 
     init {
         viewModelScope.launch { _state.update { it.copy(biasNote = tracker.biasNote()) } }
-        // Portions follow the weight unit in Settings: pounds show ounces, kilograms show grams.
+        // Portions follow Settings > Appearance and units > Food portions (g or oz), everywhere in Nutrition.
         viewModelScope.launch {
             settings.settings.collect { s ->
-                _state.update { it.copy(unit = PortionUnit.forWeightUnit(s.weightUnit)) }
+                _state.update { it.copy(unit = s.portionUnit) }
             }
         }
     }

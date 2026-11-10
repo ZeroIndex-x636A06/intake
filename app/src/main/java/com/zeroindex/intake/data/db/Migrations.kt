@@ -202,6 +202,26 @@ internal fun migrateProgressPhotos_2_3(): List<String> = listOf(
     "CREATE INDEX IF NOT EXISTS `index_progress_photo_deletedAt` ON `progress_photo` (`deletedAt`)",
 )
 
+internal fun migrateDrinks_2_3(): List<String> = listOf(
+    // Drinks in the food database (Nutrition > Drinks): a drink is a food with a category, caffeine, strength and a
+    // hydration factor per 100 ml, and a drink log writes a hydration row and a food-log row that point at each
+    // other (hydration_log.foodLogId). All nullable, so every existing row keeps its meaning.
+    "ALTER TABLE `food` ADD COLUMN `drinkCategory` TEXT",
+    "ALTER TABLE `food` ADD COLUMN `caffeineMgPer100ml` REAL",
+    "ALTER TABLE `food` ADD COLUMN `abvPercent` REAL",
+    "ALTER TABLE `food` ADD COLUMN `hydrationFactor` REAL",
+    "CREATE INDEX IF NOT EXISTS `index_food_drinkCategory` ON `food` (`drinkCategory`)",
+    "ALTER TABLE `hydration_log` ADD COLUMN `foodLogId` TEXT",
+    "CREATE INDEX IF NOT EXISTS `index_hydration_log_foodLogId` ON `hydration_log` (`foodLogId`)",
+)
+
+internal fun migrateNutrientsListed_2_3(): List<String> = listOf(
+    // Which of fibre, sugar, sodium and saturated fat a food's source did not give, so "not listed" is not shown as 0.
+    // Existing rows get the empty list: their zeros stay zeros, exactly as before.
+    "ALTER TABLE `food` ADD COLUMN `unlistedNutrients` TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE `food_log` ADD COLUMN `unlistedNutrients` TEXT NOT NULL DEFAULT ''",
+)
+
 // Add new 2 -> 3 steps to the list below, after the existing ones.
 internal val MIGRATION_2_3_STATEMENTS: List<String> =
     migrateFoodOff_2_3() +
@@ -214,7 +234,9 @@ internal val MIGRATION_2_3_STATEMENTS: List<String> =
         migrateFoodUi_2_3() +
         migrateRecipes_2_3() +
         migrateAiFailureKind_2_3() +
-        migrateProgressPhotos_2_3()
+        migrateProgressPhotos_2_3() +
+        migrateDrinks_2_3() +
+        migrateNutrientsListed_2_3()
 
 internal val MIGRATION_2_3 = object : Migration(2, 3) {
     override fun migrate(db: SupportSQLiteDatabase) {
