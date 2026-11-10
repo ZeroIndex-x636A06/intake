@@ -123,7 +123,7 @@ class BenchmarkRunnerTest {
             Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(reply.code).message("x")
                 .body(body.toResponseBody("application/json".toMediaType())).build()
         }).build()
-        val client = OpenRouterClient(http, json, baseUrl = "https://test.invalid/api/v1")
+        val client = OpenRouterClient(http, json, baseUrl = "https://test.invalid/api/v1", pause = {})
         return BenchmarkRunner(AiGateway(client, FakeAiEnvironment(key), json, clock), BenchmarkCases(fixtures, json), dao, clock)
     }
 
@@ -213,7 +213,7 @@ class BenchmarkRunnerTest {
         cap: Double = 1.0,
         privacy: AiPrivacy = AiPrivacy.NO_TRAINING,
         progress: MutableList<BenchmarkProgress> = mutableListOf(),
-    ) = run(selections, cap, privacy) { progress += it }
+    ) = run(selections, cap, privacy, onProgress = { progress += it }, pacing = BenchmarkPacing.NONE)
 
     // --- Tests ---------------------------------------------------------------------------------
 
@@ -370,7 +370,7 @@ class BenchmarkRunnerTest {
     fun `the key never appears in a network failure`() = runTest {
         val dao = FakeDao()
         val http = OkHttpClient.Builder().addInterceptor(Interceptor { throw IOException("connect failed, sent Authorization: Bearer $key") }).build()
-        val runner = BenchmarkRunner(AiGateway(OpenRouterClient(http, json, baseUrl = "https://test.invalid/api/v1"), FakeAiEnvironment(key), json, clock), BenchmarkCases(fixtures, json), dao, clock)
+        val runner = BenchmarkRunner(AiGateway(OpenRouterClient(http, json, baseUrl = "https://test.invalid/api/v1", pause = {}), FakeAiEnvironment(key), json, clock), BenchmarkCases(fixtures, json), dao, clock)
         val report = runner.runWith(listOf(selection(AiTask.MENU_INGESTION, "a/b")))
 
         assertThat(report.abortReason).isNotNull()

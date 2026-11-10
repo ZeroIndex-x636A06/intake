@@ -7,6 +7,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroindex.intake.data.ai.AiError
 import com.zeroindex.intake.data.ai.menu.MenuIngestor
+import com.zeroindex.intake.data.ai.menu.MenuProgress
+import com.zeroindex.intake.data.ai.menu.MenuImportException
 import com.zeroindex.intake.data.ai.menu.StagedItem
 import com.zeroindex.intake.data.db.dao.MenuDao
 import com.zeroindex.intake.data.db.entity.MenuItemEntity
@@ -19,7 +21,11 @@ import com.zeroindex.intake.domain.time.Clock
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -30,10 +36,11 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-data class Review(val source: MenuSourceEntity, val items: List<StagedItem>)
+data class Review(val source: MenuSourceEntity, val items: List<StagedItem>, val warnings: List<String> = emptyList())
 
 data class MenuUiState(
-    val running: String? = null,
+    /** Where the import in flight is up to; null when none is running. */
+    val running: MenuProgress? = null,
     val review: Review? = null,
     val error: String? = null,
     val hasKey: Boolean = false,
@@ -81,22 +88,42 @@ class MenuSourcesViewModel @Inject constructor(
         run(source)
     }
 
+    private var importJob: Job? = null
+
+    /**
+     * Imports [source]. The work runs off the main thread (see [MenuIngestor.stage]); progress is shown with a
+     * Cancel that stops the download or the request in flight and puts the source back as it was.
+     */
     fun run(source: MenuSourceEntity) {
         gateway.unavailableReason()?.let { reason ->
             _state.update { it.copy(error = reason.message) }
             return
         }
-        _state.update { it.copy(running = "Reading ${source.restaurantName}'s menu…", error = null) }
-        viewModelScope.launch {
+        if (importJob?.isActive == true) return
+        _state.update { it.copy(running = MenuProgress("Starting…"), error = null) }
+        importJob = viewModelScope.launch {
             menuDao.upsertSource(source.copy(lastStatus = MenuRunStatus.RUNNING, updatedAt = clock.nowMillis()))
-            runCatching { ingestor.stage(source, AiTrigger.USER_ACTION) }
-                .onSuccess { items -> _state.update { it.copy(running = null, review = Review(source, items)) } }
-                .onFailure { e ->
-                    val reason = (e as? AiError)?.message ?: e.message ?: "Import failed."
-                    ingestor.markFailed(source, reason)
-                    _state.update { it.copy(running = null, error = reason) }
+            try {
+                val outcome = ingestor.stage(source, AiTrigger.USER_ACTION) { progress ->
+                    _state.update { s -> if (s.running != null) s.copy(running = progress) else s }
                 }
+                _state.update { it.copy(running = null, review = Review(source, outcome.items, outcome.warnings)) }
+            } catch (e: CancellationException) {
+                // Cancel was pressed: the source goes back to how it was before this run.
+                withContext(NonCancellable) { menuDao.upsertSource(source) }
+                _state.update { it.copy(running = null) }
+                throw e
+            } catch (e: Exception) {
+                val reason = (e as? AiError)?.message ?: (e as? MenuImportException)?.message ?: "The import failed. Try again, or paste the menu text."
+                ingestor.markFailed(source, reason)
+                _state.update { it.copy(running = null, error = reason) }
+            }
         }
+    }
+
+    /** Stops the import in flight; the OkHttp download or model call is cancelled with it. */
+    fun cancelImport() {
+        importJob?.cancel()
     }
 
     fun toggle(index: Int) = _state.update { s ->

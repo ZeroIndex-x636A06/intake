@@ -37,7 +37,7 @@ class OpenRouterClientTest {
                 .body(body.toResponseBody("application/json".toMediaType()))
                 .build()
         }.build()
-        return OpenRouterClient(http, json, baseUrl = "https://test.invalid/api/v1")
+        return OpenRouterClient(http, json, baseUrl = "https://test.invalid/api/v1", pause = {})
     }
 
     private val okBody = """
@@ -115,7 +115,7 @@ class OpenRouterClientTest {
 
         assertThat(failWith(401)).isEqualTo(AiError.Unauthorized)
         assertThat(failWith(402)).isEqualTo(AiError.InsufficientCredits)
-        assertThat(failWith(429)).isEqualTo(AiError.RateLimited)
+        assertThat(failWith(429)).isEqualTo(AiError.RateLimited())
         assertThat(failWith(404, "No endpoints found matching your data policy")).isEqualTo(AiError.NoEndpointForPrivacy)
         assertThat(failWith(503)).isInstanceOf(AiError.Server::class.java)
         // Error messages never echo the key back.

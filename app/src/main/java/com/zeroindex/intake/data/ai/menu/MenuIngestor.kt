@@ -20,17 +20,19 @@ import com.zeroindex.intake.domain.ai.MenuStructured
 import com.zeroindex.intake.domain.ai.MenuText
 import com.zeroindex.intake.domain.ai.StructuredMenuItem
 import com.zeroindex.intake.domain.allergen.ModelAllergenClaim
+import com.zeroindex.intake.domain.pdf.PdfChunkPlanner
+import com.zeroindex.intake.domain.pdf.PdfDocument
+import com.zeroindex.intake.domain.pdf.PdfUnsupportedException
 import com.zeroindex.intake.domain.allergen.ModelAllergenPolicy
 import com.zeroindex.intake.domain.time.Clock
 import dagger.hilt.android.qualifiers.ApplicationContext
-import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
+import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
-import okhttp3.OkHttpClient
-import okhttp3.Request
 
 @Serializable
 data class ParsedMenu(val items: List<ParsedItem>)
@@ -72,24 +74,34 @@ class MenuImportException(message: String) : Exception(message)
  * is refused the import fails with a clear reason and a suggestion to use a
  * PDF or pasted text - it never tries another way in.
  */
+/** What a menu import produced: the staged items, and plain notes about anything that could not be read. */
+data class StageOutcome(val items: List<StagedItem>, val warnings: List<String> = emptyList())
+
+/** Where an import is up to, for the progress line. [fraction] is null when it cannot be told. */
+data class MenuProgress(val message: String, val fraction: Float? = null)
+
 @Singleton
 class MenuIngestor @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val http: OkHttpClient,
+    private val fetcher: MenuFetcher,
     private val gateway: AiGateway,
     private val allergens: AllergenRepository,
     private val menuDao: MenuDao,
     private val clock: Clock,
 ) {
-    private companion object {
-        const val USER_AGENT = "Intake/1.0 (personal menu import; one request per menu per week)"
-    }
-
     /**
      * Fetches and parses one source into staged items. Writes nothing. [trigger] says why a model may be
      * called: a person tapping Import, or the weekly refresh they switched on.
+     *
+     * Everything here runs off the main thread, whichever scope called it: the download and the cap, reading
+     * and splitting a PDF, the allergen check of every item, and the model calls themselves. [onProgress] says
+     * where it is up to, and cancelling the caller cancels the download or the request in flight.
      */
-    suspend fun stage(source: MenuSourceEntity, trigger: AiTrigger): List<StagedItem> {
+    suspend fun stage(
+        source: MenuSourceEntity,
+        trigger: AiTrigger,
+        onProgress: (MenuProgress) -> Unit = {},
+    ): StageOutcome = withContext(Dispatchers.Default) {
         val avoided = allergens.avoidedAllergens()
         val parts: List<AiPart>
         val tools: List<ServerTool>
@@ -99,20 +111,30 @@ class MenuIngestor @Inject constructor(
                 tools = emptyList()
             }
             MenuSourceKind.PDF -> {
+                onProgress(MenuProgress("Opening the PDF…"))
                 val bytes = withContext(Dispatchers.IO) {
-                    context.contentResolver.openInputStream(Uri.parse(source.location))?.use { it.readBytes() }
+                    context.contentResolver.openInputStream(Uri.parse(source.location))?.use { readPdfStream(it) }
                 } ?: throw MenuImportException("The PDF could not be opened. Pick it again.")
-                parts = listOf(AiPart.Pdf(bytes, "${source.restaurantName}.pdf"))
-                tools = emptyList()
+                return@withContext stagePdf(source, bytes, avoided, trigger, onProgress)
             }
             MenuSourceKind.URL -> {
-                val page = fetchPage(source.location)
-                // The deterministic path: structured menu data on the page needs no model.
-                val structured = page.html?.let(MenuStructured::parse).orEmpty()
-                if (structured.isNotEmpty()) {
-                    return stageItems(source, structured.map(::toParsed), avoided, structured = true)
+                onProgress(MenuProgress("Downloading…"))
+                val fetched = fetcher.fetch(source.location) { read, total ->
+                    onProgress(
+                        MenuProgress(
+                            "Downloading… ${read / 1024} KB" + (total?.let { " of ${it / 1024} KB" } ?: ""),
+                            total?.let { (read.toFloat() / it).coerceIn(0f, 1f) },
+                        ),
+                    )
                 }
-                val text = page.text
+                if (fetched is Fetched.Pdf) return@withContext stagePdf(source, fetched.bytes, avoided, trigger, onProgress)
+                val page = fetched as? Fetched.Page
+                // The deterministic path: structured menu data on the page needs no model.
+                val structured = page?.html?.let(MenuStructured::parse).orEmpty()
+                if (structured.isNotEmpty()) {
+                    return@withContext StageOutcome(stageItems(source, structured.map(::toParsed), avoided, structured = true))
+                }
+                val text = page?.text
                 if (text != null && !MenuText.looksBlocked(text)) {
                     parts = listOf(AiPart.Text("Menu page text from ${source.location}:\n\n$text"))
                     tools = emptyList()
@@ -128,6 +150,7 @@ class MenuIngestor @Inject constructor(
             }
         }
 
+        onProgress(MenuProgress("Reading ${source.restaurantName}'s menu…"))
         val parsed = gateway.structured(
             feature = AiFeature.MENU_IMPORT,
             trigger = trigger,
@@ -138,7 +161,87 @@ class MenuIngestor @Inject constructor(
             tools = tools,
         ).value
 
-        return stageItems(source, parsed.items, avoided, structured = false)
+        onProgress(MenuProgress("Checking allergens on this phone…"))
+        StageOutcome(stageItems(source, parsed.items, avoided, structured = false))
+    }
+
+    /**
+     * A PDF, from a link or a picked file. It is split into a few pages per request ([PdfChunkPlanner]) and
+     * each piece goes to OpenRouter's PDF input with the free text engine, so no request is huge and a failure
+     * costs one piece, not the import. The pieces' items are merged ([MenuMerge]) and every item is then judged
+     * by the local allergen engine; a "Contains:" line in the PDF can only raise a warning, never clear one.
+     */
+    private suspend fun stagePdf(
+        source: MenuSourceEntity,
+        bytes: ByteArray,
+        avoided: Set<String>,
+        trigger: AiTrigger,
+        onProgress: (MenuProgress) -> Unit,
+    ): StageOutcome {
+        onProgress(MenuProgress("Reading the PDF's pages…"))
+        val doc = try {
+            PdfDocument.parse(bytes)
+        } catch (e: PdfUnsupportedException) {
+            throw MenuImportException("${e.message} Paste the menu text instead.")
+        }
+        if (doc.pageCount > PdfChunkPlanner.MAX_PAGES) {
+            throw MenuImportException(
+                "This PDF has ${doc.pageCount} pages, and the limit is ${PdfChunkPlanner.MAX_PAGES}. " +
+                    "Use a shorter PDF, or paste the part of the menu you want.",
+            )
+        }
+        val chunks = PdfChunkPlanner.plan((0 until doc.pageCount).map(doc::estimatedBytes))
+        val results = ArrayList<List<ParsedItem>>()
+        val warnings = ArrayList<String>()
+        var stoppedBy: AiError? = null
+
+        for ((i, chunk) in chunks.withIndex()) {
+            coroutineContext.ensureActive()
+            onProgress(
+                MenuProgress(
+                    "Reading ${chunk.label} of ${doc.pageCount} (request ${i + 1} of ${chunks.size})…",
+                    i.toFloat() / chunks.size,
+                ),
+            )
+            val part = doc.extract(chunk.from, chunk.to)
+            try {
+                val parsed = gateway.structured(
+                    feature = AiFeature.MENU_IMPORT,
+                    trigger = trigger,
+                    serializer = ParsedMenu.serializer(),
+                    schema = MenuPrompts.schema,
+                    system = MenuPrompts.system(source.restaurantName, avoided, pdfPages = "${chunk.label} of ${doc.pageCount}"),
+                    parts = listOf(
+                        AiPart.Pdf(part, "menu-p${chunk.from + 1}-${chunk.to + 1}.pdf"),
+                        AiPart.Text("Extract every menu item on ${chunk.label} of this ${doc.pageCount}-page PDF."),
+                    ),
+                    // A page of a nutrition table is dozens of rows; leave room for all of them.
+                    maxTokens = 16_000,
+                ).value
+                results += parsed.items
+            } catch (e: AiError) {
+                if (e.endsImport()) {
+                    stoppedBy = e
+                    break
+                }
+                warnings += "${chunk.label.replaceFirstChar { it.uppercase() }} could not be read (${e.failureKind.label.lowercase()})."
+            }
+        }
+
+        val merged = MenuMerge.merge(results)
+        if (merged.isEmpty()) throw stoppedBy ?: MenuImportException("No menu items were found in that PDF.")
+        stoppedBy?.let {
+            warnings += "Stopped early: ${it.message} The items below are the pages read so far."
+        }
+        onProgress(MenuProgress("Checking allergens on this phone…", 1f))
+        return StageOutcome(stageItems(source, merged, avoided, structured = false), warnings)
+    }
+
+    /** Problems with the account or the connection stop the whole import; a bad page only costs that page. */
+    private fun AiError.endsImport(): Boolean = when (this) {
+        AiError.NoKey, AiError.Off, is AiError.BudgetReached, is AiError.NotAllowed, AiError.Unauthorized,
+            AiError.InsufficientCredits, is AiError.Network, is AiError.RateLimited, is AiError.NoModel -> true
+        AiError.Timeout, is AiError.Refused, AiError.NoEndpointForPrivacy, is AiError.Server, is AiError.BadResponse -> false
     }
 
     private fun toParsed(item: StructuredMenuItem) = ParsedItem(
@@ -169,6 +272,7 @@ class MenuIngestor @Inject constructor(
         if (items.isEmpty()) throw MenuImportException("No menu items were found on that page.")
         val now = clock.nowMillis()
         return items.map { item ->
+            coroutineContext.ensureActive()
             val local = allergens.scan(
                 name = item.name,
                 ingredients = listOf(item.description, item.ingredients).filter { it.isNotBlank() }.joinToString("\n"),
@@ -231,38 +335,16 @@ class MenuIngestor @Inject constructor(
         var ok = 0
         menuDao.sources().filter { it.enabled && it.kind != MenuSourceKind.TEXT }.forEach { source ->
             runCatching { stage(source, AiTrigger.OPT_IN_SCHEDULE) }
-                .onSuccess { staged -> commit(source, staged.map { it.entity }); ok++ }
+                .onSuccess { staged -> commit(source, staged.items.map { it.entity }); ok++ }
                 .onFailure { markFailed(source, (it as? AiError)?.message ?: it.message ?: "Import failed") }
         }
         return ok
-    }
-
-    /** The raw page (for structured data) and its plain text (for a model), or nothing when it could not be fetched. */
-    private class Page(val html: String?, val text: String?)
-
-    private suspend fun fetchPage(url: String): Page = withContext(Dispatchers.IO) {
-        val request = runCatching { Request.Builder().url(url).header("User-Agent", USER_AGENT).get().build() }
-            .getOrElse { throw MenuImportException("That does not look like a web address.") }
-        try {
-            http.newCall(request).execute().use { r ->
-                if (!r.isSuccessful) return@withContext Page(null, null)
-                val type = r.header("Content-Type").orEmpty()
-                val body = r.body.string()
-                val isHtml = "html" in type || body.trimStart().startsWith("<")
-                Page(
-                    html = body.takeIf { isHtml },
-                    text = if (isHtml) MenuText.fromHtml(body) else body.take(MenuText.MAX_CHARS),
-                )
-            }
-        } catch (_: IOException) {
-            Page(null, null)
-        }
     }
 }
 
 /** The menu-import prompt and schema, shared with the in-app benchmark so both measure the same request. */
 internal object MenuPrompts {
-    fun system(restaurant: String, avoided: Set<String>) = buildString {
+    fun system(restaurant: String, avoided: Set<String>, pdfPages: String? = null) = buildString {
         appendLine("You extract a restaurant menu into structured items. The restaurant is $restaurant.")
         appendLine("One entry per orderable dish or drink. Skip section headers, prices-only lines and boilerplate.")
         appendLine("Copy ingredients and descriptions as written. Never invent dishes.")
@@ -270,6 +352,15 @@ internal object MenuPrompts {
             "Use nutrition the menu publishes (macrosPublished true). Otherwise estimate per standard serving from the " +
                 "description, or use null when there is too little to go on.",
         )
+        if (pdfPages != null) {
+            appendLine(
+                "You are reading $pdfPages of a restaurant's nutrition and allergen PDF. Each table row is one menu " +
+                    "item. Take calories, total fat, total carbohydrate and protein from the column the header names, " +
+                    "in kcal and grams, and set macrosPublished to true. If a row says \"Contains: ...\", copy that line " +
+                    "exactly into ingredients and list the same allergens in containsAllergens. Section titles, " +
+                    "footnotes and column headers are not items. Skip a row that is cut off by the page edge.",
+            )
+        }
         if (avoided.isNotEmpty()) {
             appendLine(
                 "The user avoids ${avoided.joinToString()}. For each item list any of these it contains or is likely " +

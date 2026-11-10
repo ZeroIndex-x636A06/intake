@@ -62,7 +62,7 @@ class AiGatewayTest {
                     .body(body.toResponseBody("application/json".toMediaType())).build()
             },
         ).build()
-        return AiGateway(OpenRouterClient(http, json, "https://test.invalid/api/v1"), env, json, clock)
+        return AiGateway(OpenRouterClient(http, json, "https://test.invalid/api/v1", pause = {}), env, json, clock)
     }
 
     private val schema = buildJsonObject { put("type", "object") }

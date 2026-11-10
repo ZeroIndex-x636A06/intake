@@ -24,6 +24,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -98,7 +99,32 @@ fun MenuSourcesScreen(
                 )
             }
         }
-        state.running?.let { item(key = "running") { LoadingState(listOf(it, "Allergens are checked on this phone")) } }
+        state.running?.let { progress ->
+            item(key = "running") {
+                IntakeCard {
+                    Text(progress.message, style = MaterialTheme.typography.bodyMedium)
+                    if (progress.fraction != null) {
+                        LinearProgressIndicator(
+                            progress = { progress.fraction },
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        )
+                    } else {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+                    }
+                    Text(
+                        "Allergens are checked on this phone. Large PDFs are read a few pages at a time.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                    OutlinedButton(
+                        onClick = viewModel::cancelImport,
+                        shape = IntakeShape.Button,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(top = 8.dp),
+                    ) { Text("Cancel") }
+                }
+            }
+        }
         state.error?.let { err ->
             item(key = "error") {
                 ErrorState(title = "Import failed", body = err) {
@@ -256,6 +282,14 @@ private fun ReviewSheet(review: Review, onToggle: (Int) -> Unit, onSave: () -> U
     ModalBottomSheet(onDismissRequest = onDiscard, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.padding(horizontal = 16.dp).navigationBarsPadding()) {
             SubHead("Review imported menu", "Nothing is stored until you accept items.")
+            review.warnings.forEach { w ->
+                Text(
+                    w,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(bottom = 6.dp),
+                )
+            }
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
