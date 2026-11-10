@@ -160,3 +160,22 @@ plain water, so every old total is unchanged, and v2 backup and sync rows withou
 to the same thing. User settings (weather, drink edits, measured sweat) live in their own DataStore,
 `intake_hydration` (`HydrationPrefs`). Volumes are millilitres and times UTC epoch millis. Nothing is
 hard-deleted.
+
+## Drinks are foods (Nutrition > Drinks)
+
+A drink is an ordinary `food` row with `drinkCategory` set (Water, Coffee, Tea, Soda, Juice, Sports & energy, Milk &
+alternatives, Alcohol, Other; added in `migrateDrinks_2_3`). Its nutrition columns are per 100 ml, and it may carry
+caffeine per 100 ml, strength (ABV) and its own hydration factor. About twenty generic drinks are seeded with stable ids
+(`DrinkSeed`); a seeded drink the person removes is never brought back. USDA and Open Food Facts beverages are
+categorised by fixed rules (`DrinkCategorizer`, no AI).
+
+**One flow.** Every way of logging a drink (the Drinks page, a result in Log food, Food detail, Today's water card and its
+quick sizes) goes through `DrinkLogger`. One log writes the hydration row (volume x factor, caffeine, alcohol) and, when
+the drink has calories, macros or sodium, a food-log row, so sugar and calories count in the day. Plain water writes the
+hydration row only. The hydration row keeps the food-log row's id; deleting either soft-deletes both and Undo restores
+both. Factor precedence: the person's own edit (Settings > Water and drinks > Advanced), then the drink's own number,
+then the type's default (so seeded oat milk counts 1.0 where milk counts 1.5).
+
+**Allergens.** Every drink goes through the local allergen engine before it is written (the red sheet on a match), and
+each row on the Drinks page shows its verdict. The quick sizes, the target and the drink values are Settings, not part
+of the Drinks page.
