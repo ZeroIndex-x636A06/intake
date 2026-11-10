@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 3,
-    "identityHash": "dbe4a9a9ea37699ae07d1c5048b525a2",
+    "identityHash": "4801847b4eeed94d71a8bfe6b95fcc07",
     "entities": [
       {
         "tableName": "food",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `brand` TEXT, `barcode` TEXT, `servingSizeGrams` REAL NOT NULL, `servingLabel` TEXT NOT NULL, `kcalPer100g` REAL NOT NULL, `proteinPer100g` REAL NOT NULL, `carbsPer100g` REAL NOT NULL, `fatPer100g` REAL NOT NULL, `fiberPer100g` REAL NOT NULL, `sugarPer100g` REAL NOT NULL, `sodiumPer100g` REAL NOT NULL, `saturatedFatPer100g` REAL NOT NULL, `source` TEXT NOT NULL, `allergenTags` TEXT NOT NULL, `isVerified` INTEGER NOT NULL, `isFavorite` INTEGER NOT NULL, `timesLogged` INTEGER NOT NULL, `offContributedAt` INTEGER, `imageUrl` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `brand` TEXT, `barcode` TEXT, `servingSizeGrams` REAL NOT NULL, `servingLabel` TEXT NOT NULL, `kcalPer100g` REAL NOT NULL, `proteinPer100g` REAL NOT NULL, `carbsPer100g` REAL NOT NULL, `fatPer100g` REAL NOT NULL, `fiberPer100g` REAL NOT NULL, `sugarPer100g` REAL NOT NULL, `sodiumPer100g` REAL NOT NULL, `saturatedFatPer100g` REAL NOT NULL, `source` TEXT NOT NULL, `allergenTags` TEXT NOT NULL, `isVerified` INTEGER NOT NULL, `isFavorite` INTEGER NOT NULL, `timesLogged` INTEGER NOT NULL, `offContributedAt` INTEGER, `imageUrl` TEXT, `unlistedNutrients` TEXT NOT NULL DEFAULT '', `drinkCategory` TEXT, `caffeineMgPer100ml` REAL, `abvPercent` REAL, `hydrationFactor` REAL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -131,6 +131,33 @@
             "affinity": "TEXT"
           },
           {
+            "fieldPath": "unlistedNutrients",
+            "columnName": "unlistedNutrients",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "drinkCategory",
+            "columnName": "drinkCategory",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "caffeineMgPer100ml",
+            "columnName": "caffeineMgPer100ml",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "abvPercent",
+            "columnName": "abvPercent",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "hydrationFactor",
+            "columnName": "hydrationFactor",
+            "affinity": "REAL"
+          },
+          {
             "fieldPath": "createdAt",
             "columnName": "createdAt",
             "affinity": "INTEGER",
@@ -190,12 +217,21 @@
             ],
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_food_timesLogged` ON `${TABLE_NAME}` (`timesLogged`)"
+          },
+          {
+            "name": "index_food_drinkCategory",
+            "unique": false,
+            "columnNames": [
+              "drinkCategory"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_food_drinkCategory` ON `${TABLE_NAME}` (`drinkCategory`)"
           }
         ]
       },
       {
         "tableName": "food_log",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `foodId` TEXT, `loggedAt` INTEGER NOT NULL, `mealSlot` TEXT NOT NULL, `quantityGrams` REAL, `foodNameAtLog` TEXT NOT NULL, `servingLabelAtLog` TEXT, `kcal` REAL NOT NULL, `protein` REAL NOT NULL, `carbs` REAL NOT NULL, `fat` REAL NOT NULL, `fiber` REAL NOT NULL, `sugar` REAL NOT NULL, `sodium` REAL NOT NULL, `saturatedFat` REAL NOT NULL, `sourcePhotoUri` TEXT, `aiConfidence` TEXT, `wasEdited` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`foodId`) REFERENCES `food`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `foodId` TEXT, `loggedAt` INTEGER NOT NULL, `mealSlot` TEXT NOT NULL, `quantityGrams` REAL, `foodNameAtLog` TEXT NOT NULL, `servingLabelAtLog` TEXT, `kcal` REAL NOT NULL, `protein` REAL NOT NULL, `carbs` REAL NOT NULL, `fat` REAL NOT NULL, `fiber` REAL NOT NULL, `sugar` REAL NOT NULL, `sodium` REAL NOT NULL, `saturatedFat` REAL NOT NULL, `sourcePhotoUri` TEXT, `aiConfidence` TEXT, `wasEdited` INTEGER NOT NULL, `unlistedNutrients` TEXT NOT NULL DEFAULT '', `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`foodId`) REFERENCES `food`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
         "fields": [
           {
             "fieldPath": "id",
@@ -299,6 +335,13 @@
             "columnName": "wasEdited",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "unlistedNutrients",
+            "columnName": "unlistedNutrients",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
           },
           {
             "fieldPath": "createdAt",
@@ -2839,7 +2882,7 @@
       },
       {
         "tableName": "hydration_log",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `loggedAt` INTEGER NOT NULL, `volumeMl` REAL NOT NULL, `presetId` TEXT, `drinkType` TEXT NOT NULL DEFAULT 'WATER', `hydrationFactor` REAL NOT NULL DEFAULT 1.0, `caffeineMg` REAL NOT NULL DEFAULT 0.0, `alcoholMl` REAL NOT NULL DEFAULT 0.0, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `loggedAt` INTEGER NOT NULL, `volumeMl` REAL NOT NULL, `presetId` TEXT, `drinkType` TEXT NOT NULL DEFAULT 'WATER', `hydrationFactor` REAL NOT NULL DEFAULT 1.0, `caffeineMg` REAL NOT NULL DEFAULT 0.0, `alcoholMl` REAL NOT NULL DEFAULT 0.0, `foodLogId` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -2893,6 +2936,11 @@
             "defaultValue": "0.0"
           },
           {
+            "fieldPath": "foodLogId",
+            "columnName": "foodLogId",
+            "affinity": "TEXT"
+          },
+          {
             "fieldPath": "createdAt",
             "columnName": "createdAt",
             "affinity": "INTEGER",
@@ -2934,6 +2982,15 @@
             ],
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_hydration_log_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          },
+          {
+            "name": "index_hydration_log_foodLogId",
+            "unique": false,
+            "columnNames": [
+              "foodLogId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_hydration_log_foodLogId` ON `${TABLE_NAME}` (`foodLogId`)"
           }
         ]
       },
@@ -4163,7 +4220,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'dbe4a9a9ea37699ae07d1c5048b525a2')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '4801847b4eeed94d71a8bfe6b95fcc07')"
     ]
   }
 }
