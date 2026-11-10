@@ -89,3 +89,14 @@ Your plan and the generator preview show **How this plan was built** (`TrainingE
 were used (goal, experience, days and weekdays, session length, equipment, focus muscles, areas to go easy
 on, hidden exercises, starting weights) and which were not ("Your build and age do not change exercise choice;
 they affect calories.").
+
+## Train home, the active workout and the summary (Option A part 3)
+
+- **Train > Workout** shows today's session (it follows weekday scheduling; a rest day says "Rest day, next: ..." and offers Train anyway), Other ways to start (Empty workout, From a program, My workouts, From a video, Repeat last), this week's muscle volume on a 6-region body map, and recent sessions. Programs (list, builder, make-one, templates, import, export as a script, archive and restore, My workouts) is one tap away and is the only place a program is edited.
+- **One session at a time.** `TrainingRepository.startSession` returns the running session, so every Start resumes it. The back arrow minimises the workout; a session bar above the pill on every tab root brings it back. Finish asks Finish / Keep going / Discard (a soft delete of the session and its sets), then opens the summary.
+- **Set rows** show Set, Previous (the same set last time; tap to copy), weight, reps and a tick. The tick logs the set, plays the check, buzzes and starts the rest timer; the rest strip has a ring, +15 s and Skip. Barbell lifts get a "Per side" line from the bar and plates in Settings. A set that beats the best estimated max, or the reps at that weight, wears a trophy (`PrDetector`); a first-ever set is never a record.
+- **Swap exercise** ranks alternatives by muscle similarity, then owned equipment (`SwapRanking`); the weight is the new lift's own last weight or a cautious estimate from the one replaced (`SwapWeight`). It changes this session only.
+- **Weekly volume** counts calendar weeks (Monday start) against Settings > Training > Advanced. **Weighted muscles: the fallback was built** (main muscle 1.0, each helper region 0.5, `MuscleWeights`); there is no `exercise_muscle` table and no schema change. The 1.0 / 0.5 / 0.25 table stays on the backlog.
+- **Summary**: records, minutes, volume, sets, PRs, muscles worked against this week's targets, the exercises, next-time changes (latest session of a program day only) and, for an empty workout, Keep this workout. It is also the read-only view of an older session.
+- A workout made from a video keeps the video id on its program row (`program.videoId`); My workouts offers "Watch the video". See `docs/VIDEOS.md`.
+- The watch Data Layer feed (`WearBridge`) is unchanged. A swap or added exercise is phone-only until a set is logged.

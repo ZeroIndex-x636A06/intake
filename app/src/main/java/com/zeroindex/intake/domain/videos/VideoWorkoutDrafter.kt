@@ -83,6 +83,15 @@ object VideoWorkoutDrafter {
         return VideoWorkoutDraft(DraftSource.DESCRIPTION, build(lines, matcher, fromChapters = false))
     }
 
+    /**
+     * A draft from lines that something else already read (the optional AI step): matched to the library the same way, and
+     * marked with [source] so the review list says where it came from. The person still reviews every row.
+     */
+    fun fromLines(lines: List<ParsedExerciseLine>, library: List<ExerciseEntry>, source: DraftSource): VideoWorkoutDraft {
+        val matcher = ExerciseNameMatcher(library)
+        return VideoWorkoutDraft(source, build(lines, matcher, fromChapters = false))
+    }
+
     private fun build(lines: List<ParsedExerciseLine>, matcher: ExerciseNameMatcher, fromChapters: Boolean): List<DraftItem> =
         lines.mapIndexed { i, line -> item(i, line, matcher, fromChapters) }
 

@@ -91,7 +91,7 @@ fun ProgramGeneratorScreen(
             )
         } else {
             item(key = "heading") {
-                SubHead("Make one for me", "Question ${state.step + 1} of ${LAST_STEP + 1}. Every question has a sensible default.")
+                Text("Question ${state.step + 1} of ${LAST_STEP + 1}. Every question has a sensible default.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             item(key = "question-${state.step}") { Question(state, viewModel) }
             item(key = "nav") {

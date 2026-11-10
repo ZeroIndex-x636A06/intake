@@ -21,6 +21,17 @@ interface ProgramDao {
     @Query("SELECT * FROM program WHERE deletedAt IS NULL AND isStandalone = 0 ORDER BY name")
     fun observeAll(): Flow<List<ProgramEntity>>
 
+    /** Archived programs (a soft delete that is not a deleted workout), newest first, for the Programs screen. */
+    @Query("SELECT * FROM program WHERE deletedAt IS NOT NULL AND isStandalone = 0 ORDER BY deletedAt DESC")
+    fun observeArchived(): Flow<List<ProgramEntity>>
+
+    /** Brings an archived program back. It returns as an ordinary, inactive program. */
+    @Query("UPDATE program SET deletedAt = NULL, isActive = 0, updatedAt = :now WHERE id = :id")
+    suspend fun restoreProgram(id: String, now: Long)
+
+    @Query("UPDATE program SET videoId = :videoId, updatedAt = :now WHERE id = :id")
+    suspend fun setVideo(id: String, videoId: String?, now: Long)
+
     @Query("SELECT * FROM program WHERE deletedAt IS NULL AND isStandalone = 1 ORDER BY name")
     fun observeWorkouts(): Flow<List<ProgramEntity>>
 
@@ -29,7 +40,7 @@ interface ProgramDao {
 
     @Query(
         """
-        SELECT p.id AS programId, p.name AS name, MIN(d.id) AS dayId, COUNT(pe.id) AS exerciseCount, p.updatedAt AS updatedAt
+        SELECT p.id AS programId, p.name AS name, MIN(d.id) AS dayId, COUNT(pe.id) AS exerciseCount, p.updatedAt AS updatedAt, p.videoId AS videoId
         FROM program p
         LEFT JOIN program_day d ON d.programId = p.id AND d.deletedAt IS NULL
         LEFT JOIN program_exercise pe ON pe.programDayId = d.id AND pe.deletedAt IS NULL

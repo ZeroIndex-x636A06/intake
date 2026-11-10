@@ -3,6 +3,7 @@ package com.zeroindex.intake.ui.navigation
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -36,7 +37,6 @@ import com.zeroindex.intake.ui.screens.hub.defaultMealSlot
 import com.zeroindex.intake.ui.screens.nutrition.NutritionActions
 import com.zeroindex.intake.ui.screens.nutrition.NutritionHomeScreen
 import com.zeroindex.intake.ui.screens.hub.RecipesScreen
-import com.zeroindex.intake.ui.screens.hub.TrainHubScreen
 import com.zeroindex.intake.ui.screens.menu.MenuSourcesScreen
 import com.zeroindex.intake.ui.screens.more.ScriptReferenceScreen
 import com.zeroindex.intake.ui.screens.performance.PerformanceScreen
@@ -57,12 +57,16 @@ import com.zeroindex.intake.ui.screens.settings.SettingsHomeScreen
 import com.zeroindex.intake.ui.screens.swap.SwapSheet
 import com.zeroindex.intake.ui.screens.templates.MealTemplatesScreen
 import com.zeroindex.intake.ui.screens.today.TodayScreen
-import com.zeroindex.intake.ui.screens.train.ExerciseLibraryScreen
 import com.zeroindex.intake.ui.screens.train.ProgramBuilderScreen
 import com.zeroindex.intake.ui.screens.train.ProgramGeneratorScreen
 import com.zeroindex.intake.ui.screens.train.ProgramTemplatesScreen
-import com.zeroindex.intake.ui.screens.train.TrainScreen
 import com.zeroindex.intake.ui.screens.train.WorkoutHistoryScreen
+import com.zeroindex.intake.ui.screens.train.ProgramsScreen
+import com.zeroindex.intake.ui.screens.train.TrainActions
+import com.zeroindex.intake.ui.screens.train.TrainRootScreen
+import com.zeroindex.intake.ui.screens.videos.MakeWorkoutScreen
+import com.zeroindex.intake.ui.screens.videos.VideoDetailScreen
+import com.zeroindex.intake.ui.screens.workout.WorkoutSummaryScreen
 import com.zeroindex.intake.ui.screens.workout.ActiveWorkoutScreen
 import com.zeroindex.intake.ui.screens.you.YouScreen
 
@@ -274,29 +278,67 @@ fun IntakeNavHost(
         // ---- Train ----
         navigation<TabGraph.Train>(startDestination = Route.Train) {
             composable<Route.Train> {
-                TabRootScreen(TopLevelDestination.TRAIN, "Train", goToToday) { pad ->
-                    TrainHubScreen(
+                TabRootScreen(
+                    TopLevelDestination.TRAIN,
+                    "Train",
+                    goToToday,
+                    actions = {
+                        IconButton(onClick = { navController.navigate(Route.Programs) }) {
+                            Icon(Icons.AutoMirrored.Filled.ListAlt, contentDescription = "Programs")
+                        }
+                    },
+                ) { pad ->
+                    TrainRootScreen(
                         contentPadding = pad,
-                        onOpenSession = { id -> navController.navigate(Route.ActiveWorkout(id)) },
-                        onOpenPrograms = { navController.navigate(Route.Programs) },
-                        onOpenBuilder = { navController.navigate(Route.ProgramBuilder()) },
-                        onEditWorkout = { id -> navController.navigate(Route.ProgramBuilder(id)) },
-                        onOpenGenerator = { navController.navigate(Route.ProgramGenerator) },
-                        onOpenTemplates = { navController.navigate(Route.ProgramTemplates) },
-                        onOpenExercises = { navController.navigate(Route.ExerciseLibrary) },
-                        onOpenProgramScriptHelp = { openScriptReference("program", null) },
+                        actions = TrainActions(
+                            onOpenSession = { id -> navController.navigate(Route.ActiveWorkout(id)) },
+                            onOpenSummary = { id -> navController.navigate(Route.WorkoutSummary(id)) },
+                            onOpenHistory = { navController.navigate(Route.WorkoutHistory) },
+                            onOpenPrograms = { navController.navigate(Route.Programs) },
+                            onOpenGenerator = { navController.navigate(Route.ProgramGenerator) },
+                            onOpenVideo = { id -> navController.navigate(Route.VideoDetail(id)) },
+                            onMakeWorkout = { id -> navController.navigate(Route.MakeWorkout(id)) },
+                            onOpenKeySettings = { openSettings("keys", null) },
+                        ),
                     )
                 }
             }
             composable<Route.Programs> {
                 PushedScreen("Programs", back) { pad ->
-                    TrainScreen(
+                    ProgramsScreen(
                         contentPadding = pad,
                         onOpenSession = { id -> navController.navigate(Route.ActiveWorkout(id)) },
                         onOpenBuilder = { id -> navController.navigate(Route.ProgramBuilder(id)) },
                         onOpenGenerator = { navController.navigate(Route.ProgramGenerator) },
                         onOpenTemplates = { navController.navigate(Route.ProgramTemplates) },
+                        onOpenVideo = { id -> navController.navigate(Route.VideoDetail(id)) },
                         onOpenScriptReference = openScriptReference,
+                    )
+                }
+            }
+            composable<Route.VideoDetail> {
+                PushedScreen("Video", back) { pad ->
+                    VideoDetailScreen(
+                        contentPadding = pad,
+                        onMakeWorkout = { id -> navController.navigate(Route.MakeWorkout(id)) },
+                        onOpenWorkout = { id -> navController.navigate(Route.ProgramBuilder(id)) },
+                    )
+                }
+            }
+            composable<Route.MakeWorkout> {
+                PushedScreen("Make this a workout", back) { pad ->
+                    MakeWorkoutScreen(
+                        contentPadding = pad,
+                        onSaved = { _, sessionId ->
+                            if (sessionId != null) {
+                                navController.navigate(Route.ActiveWorkout(sessionId)) { popUpTo<Route.MakeWorkout> { inclusive = true } }
+                            } else {
+                                navController.popBackStack()
+                            }
+                        },
+                        onAddByHand = { id ->
+                            navController.navigate(Route.ProgramBuilder(id)) { popUpTo<Route.MakeWorkout> { inclusive = true } }
+                        },
                     )
                 }
             }
@@ -310,7 +352,6 @@ fun IntakeNavHost(
                     )
                 }
             }
-            composable<Route.ExerciseLibrary> { PushedScreen("Exercises", back) { pad -> ExerciseLibraryScreen(pad) } }
             // Add new Train routes above this line.
         }
 
@@ -327,7 +368,6 @@ fun IntakeNavHost(
                     )
                 }
             }
-            composable<Route.WorkoutHistory> { PushedScreen("Training log", back) { pad -> WorkoutHistoryScreen(pad) } }
             // Add new Progress routes above this line.
         }
 
@@ -454,7 +494,22 @@ fun IntakeNavHost(
         }
         composable<Route.ActiveWorkout> {
             FullScreenTask {
-                ActiveWorkoutScreen(contentPadding = it, onFinished = { navController.popBackStack() })
+                ActiveWorkoutScreen(
+                    contentPadding = it,
+                    // The back arrow minimises: the session keeps running and the session bar brings it back.
+                    onMinimise = back,
+                    onFinished = { id ->
+                        navController.navigate(Route.WorkoutSummary(id)) { popUpTo<Route.ActiveWorkout> { inclusive = true } }
+                    },
+                )
+            }
+        }
+        composable<Route.WorkoutSummary> {
+            PushedScreen("Workout summary", back) { pad -> WorkoutSummaryScreen(contentPadding = pad, onDone = back) }
+        }
+        composable<Route.WorkoutHistory> {
+            PushedScreen("Training log", back) { pad ->
+                WorkoutHistoryScreen(pad, onOpenSession = { id -> navController.navigate(Route.WorkoutSummary(id)) })
             }
         }
         composable<Route.ProgramGenerator> {

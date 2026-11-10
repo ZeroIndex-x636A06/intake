@@ -4,12 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroindex.intake.data.db.entity.ProgramDayEntity
 import com.zeroindex.intake.data.db.entity.ProgramEntity
-import com.zeroindex.intake.data.db.entity.WorkoutSessionEntity
-import com.zeroindex.intake.data.db.projection.MuscleSetCount
 import com.zeroindex.intake.data.repository.ProgramImportPreview
 import com.zeroindex.intake.data.repository.TrainingRepository
-import com.zeroindex.intake.data.training.ProgramImportBatch
 import com.zeroindex.intake.data.seed.ProgramTemplates
+import com.zeroindex.intake.data.training.ProgramImportBatch
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -23,23 +21,15 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-data class TrainUiState(
+data class ProgramsUiState(
     val activeProgram: ProgramEntity? = null,
     val days: List<ProgramDayEntity> = emptyList(),
-    val nextDay: ProgramDayEntity? = null,
-    val inProgress: WorkoutSessionEntity? = null,
-    val recentSessions: List<WorkoutSessionEntity> = emptyList(),
-    val weeklySets: List<MuscleSetCount> = emptyList(),
+    /** Every live program (not saved workouts), the active one included. */
     val allPrograms: List<ProgramEntity> = emptyList(),
+    val archived: List<ProgramEntity> = emptyList(),
     val isWorking: Boolean = false,
 ) {
-    /** SPEC §10: flag muscle groups under 10 working sets a week. */
-    val underworked: List<MuscleSetCount>
-        get() = weeklySets.filter { it.setCount < WEEKLY_SET_FLOOR }
-
-    companion object {
-        const val WEEKLY_SET_FLOOR = 10
-    }
+    val otherPrograms: List<ProgramEntity> get() = allPrograms.filter { it.id != activeProgram?.id }
 }
 
 data class ProgramImportUi(
@@ -47,8 +37,12 @@ data class ProgramImportUi(
     val preview: ProgramImportPreview? = null,
 )
 
+/**
+ * The Programs area behind Train: the active program and the others, new programs (build, generate, template, import a
+ * script), archive and restore, duplicate and export as a script. Archive is a soft delete: logged sessions stay.
+ */
 @HiltViewModel
-class TrainViewModel @Inject constructor(
+class ProgramsViewModel @Inject constructor(
     private val repository: TrainingRepository,
 ) : ViewModel() {
 
@@ -60,6 +54,7 @@ class TrainViewModel @Inject constructor(
     private val _notice = MutableStateFlow<String?>(null)
     val notice: StateFlow<String?> = _notice.asStateFlow()
     fun clearNotice() { _notice.value = null }
+    fun showNotice(text: String) { _notice.value = text }
 
     fun startReading() { _import.value = ProgramImportUi(reading = true) }
 
@@ -86,50 +81,23 @@ class TrainViewModel @Inject constructor(
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val uiState: StateFlow<TrainUiState> = repository.observeActiveProgram()
+    val uiState: StateFlow<ProgramsUiState> = repository.observeActiveProgram()
         .flatMapLatest { program ->
-            val daysFlow = if (program == null) {
-                flowOf(emptyList())
-            } else {
-                repository.observeDays(program.id)
-            }
+            val daysFlow = if (program == null) flowOf(emptyList()) else repository.observeDays(program.id)
             combine(
                 daysFlow,
-                repository.observeInProgress(),
-                repository.observeSessions(),
-                repository.observeWeeklySetsPerMuscle(),
-                combine(repository.observePrograms(), working) { all, busy -> all to busy },
-            ) { days, inProgress, sessions, weekly, programsAndBusy ->
-                TrainUiState(
-                    activeProgram = program,
-                    days = days,
-                    nextDay = days.getOrNull(program?.currentDayIndex ?: 0) ?: days.firstOrNull(),
-                    inProgress = inProgress,
-                    recentSessions = sessions.take(8),
-                    weeklySets = weekly,
-                    allPrograms = programsAndBusy.first,
-                    isWorking = programsAndBusy.second,
-                )
+                repository.observePrograms(),
+                repository.observeArchivedPrograms(),
+                working,
+            ) { days, all, archived, busy ->
+                ProgramsUiState(activeProgram = program, days = days, allPrograms = all, archived = archived, isWorking = busy)
             }
         }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = TrainUiState(),
-        )
-
-    fun startSession(programDayId: String?, onStarted: (String) -> Unit) = viewModelScope.launch {
-        working.value = true
-        try {
-            val session = repository.startSession(programDayId)
-            onStarted(session.id)
-        } finally {
-            working.value = false
-        }
-    }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ProgramsUiState())
 
     fun activate(programId: String) = viewModelScope.launch {
         repository.activate(programId)
+        _notice.value = "That program is now your active one."
     }
 
     /** Copies a template into a new, ordinary program. It becomes active only if nothing else is. */
@@ -145,16 +113,21 @@ class TrainViewModel @Inject constructor(
         }
     }
 
-    /** Soft delete: the program disappears from the list, its history stays. */
+    /** Soft delete: the program leaves the list and shows under Archived; its history stays. */
     fun archive(programId: String) = viewModelScope.launch {
         repository.archiveProgram(programId)
-        _notice.value = "Program archived. Your logged workouts are kept."
+        _notice.value = "Program archived. Your logged workouts are kept, and you can restore it below."
+    }
+
+    fun restore(programId: String) = viewModelScope.launch {
+        repository.restoreProgram(programId)
+        _notice.value = "Program restored. Make it active to follow it."
     }
 
     fun duplicate(programId: String) = viewModelScope.launch {
         repository.duplicateProgram(programId)?.let { _notice.value = "Made \"${it.name}\"." }
     }
 
-    /** Starts an empty workout: no program day, exercises are picked as you go. */
-    fun startFreestyle(onStarted: (String) -> Unit) = startSession(null, onStarted)
+    /** The program as script text and a file name, or null if it is gone. */
+    suspend fun exportScript(programId: String): Pair<String, String>? = repository.exportProgramScript(programId)
 }

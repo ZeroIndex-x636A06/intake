@@ -1,305 +1,253 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.zeroindex.intake.ui.screens.workout
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import com.zeroindex.intake.ui.screens.train.ExercisePickerSheet
-import com.zeroindex.intake.ui.screens.train.ExerciseDetailSheet
-import com.zeroindex.intake.ui.components.ExerciseThumb
-import androidx.compose.foundation.clickable
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.zeroindex.intake.data.db.entity.SetLogEntity
 import com.zeroindex.intake.data.repository.ExercisePrescription
-import com.zeroindex.intake.domain.training.OneRepMax
-import com.zeroindex.intake.domain.training.PlateCalculator
-import com.zeroindex.intake.domain.training.SetResult
+import com.zeroindex.intake.domain.motion.MotionRules
+import com.zeroindex.intake.domain.training.RankedSwap
+import com.zeroindex.intake.domain.training.RepTarget
+import com.zeroindex.intake.domain.training.TrainText
+import com.zeroindex.intake.timer.TimerService
 import com.zeroindex.intake.ui.components.AccentNote
-import com.zeroindex.intake.ui.components.ChoiceChip
-import com.zeroindex.intake.ui.components.Eyebrow
+import com.zeroindex.intake.ui.components.ExerciseThumb
 import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.PlateVisual
-import com.zeroindex.intake.ui.components.SandStrip
-import com.zeroindex.intake.ui.components.SectionLine
-import com.zeroindex.intake.ui.theme.IntakeShape
-import com.zeroindex.intake.timer.TimerService
-import com.zeroindex.intake.domain.motion.MotionRules
-import com.zeroindex.intake.domain.training.NewBest
-import com.zeroindex.intake.domain.training.RepTarget
-import com.zeroindex.intake.ui.components.Glossary
-import com.zeroindex.intake.ui.components.InfoTip
-import com.zeroindex.intake.ui.motion.AnimatedCheck
+import com.zeroindex.intake.ui.components.Tag
 import com.zeroindex.intake.ui.motion.RestRing
-import com.zeroindex.intake.ui.motion.flashOn
-import com.zeroindex.intake.ui.motion.pressScale
-import androidx.compose.foundation.selection.toggleable
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.draw.alpha
-import kotlin.math.roundToInt
+import com.zeroindex.intake.ui.screens.train.ExerciseDetailSheet
+import com.zeroindex.intake.ui.screens.train.ExercisePickerSheet
+import com.zeroindex.intake.ui.theme.IntakeShape
+import kotlinx.coroutines.delay
 
+/**
+ * The active workout (IA v5 6e, the `a-workout` frame): header with the clock, sets done and Finish; a rest strip with a
+ * countdown ring; the exercise in hand as a card of set rows with a Previous column; Up next below. The back arrow
+ * minimises the session (the session bar on the tab roots brings it back), Finish opens the summary.
+ */
 @Composable
 fun ActiveWorkoutScreen(
     contentPadding: PaddingValues,
-    onFinished: () -> Unit,
+    onMinimise: () -> Unit,
+    onFinished: (sessionId: String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ActiveWorkoutViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val timer by TimerService.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val unit = state.settings.weightUnit
     var picking by remember { mutableStateOf(false) }
     var detailFor by remember { mutableStateOf<String?>(null) }
-    var askSave by remember { mutableStateOf(false) }
+    var swapFor by remember { mutableStateOf<String?>(null) }
+    var plateSheetFor by remember { mutableStateOf<Pair<Double, String>?>(null) }
+    var confirmFinish by remember { mutableStateOf(false) }
+    var confirmDiscard by remember { mutableStateOf(false) }
 
-    LazyColumn(
-        modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(
-            top = contentPadding.calculateTopPadding() + 4.dp,
-            bottom = contentPadding.calculateBottomPadding() + 32.dp,
-            start = 16.dp,
-            end = 16.dp,
-        ),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+    val startedAt = state.session?.startedAt
+    val elapsed by produceState(0L, startedAt) {
+        while (startedAt != null) {
+            value = System.currentTimeMillis() - startedAt
+            delay(1_000)
+        }
+    }
+
+    val finishNow = {
+        TimerService.stop(context)
+        viewModel.finish(onFinished)
+        Unit
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(top = contentPadding.calculateTopPadding()),
     ) {
-        item(key = "top") {
-            WorkoutTopBar(
-                title = state.current?.exercise?.name?.let { _ ->
-                    "Exercise ${state.currentIndex + 1} of ${state.prescriptions.size}"
-                } ?: "Empty workout",
-                elapsed = timer.takeIf { it.running || it.remainingSeconds > 0 }
-                    ?.let { TimerService.format(it.remainingSeconds) },
+        WorkoutHeader(
+            title = state.title,
+            clock = TrainText.clock(elapsed),
+            progress = TrainText.setsProgress(state.doneSets, state.totalSets),
+            onMinimise = onMinimise,
+            onFinish = { confirmFinish = true },
+        )
+        if (timer.running || timer.remainingSeconds > 0) {
+            RestStrip(
+                remaining = timer.remainingSeconds,
+                total = timer.totalSeconds,
+                label = timer.label.ifBlank { "Rest" },
+                onAdd = { TimerService.extend(context, 15, state.settings.restTimerVibrate) },
+                onSkip = { TimerService.stop(context) },
             )
         }
-
-        // SPEC §10: rest runs in a foreground service, so it keeps counting with
-        // the screen off. The strip is sand rather than red: it is active
-        // information, not a warning.
-        if (timer.running || timer.remainingSeconds > 0) {
-            item(key = "restbar") {
-                SandStrip {
-                    RestRing(
-                        remainingFraction = MotionRules.restRemainingFraction(timer.remainingSeconds, timer.totalSeconds),
-                        size = 56.dp,
-                        stroke = 5.dp,
-                        color = MaterialTheme.colorScheme.primary,
-                        track = MaterialTheme.colorScheme.surfaceVariant,
-                        description = "Rest, ${TimerService.format(timer.remainingSeconds)} left",
-                    ) {
-                        Text(
-                            text = TimerService.format(timer.remainingSeconds),
-                            style = MaterialTheme.typography.labelLarge,
-                        )
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            text = timer.label.ifBlank { "Rest" },
-                            style = MaterialTheme.typography.labelLarge,
-                        )
-                    }
-                    TextButton(onClick = { TimerService.stop(context) }, modifier = Modifier.heightIn(min = 48.dp)) {
-                        Text("Skip rest", style = MaterialTheme.typography.labelLarge)
-                    }
-                }
-            }
-        }
-
-        if (state.prescriptions.isEmpty()) {
-            item(key = "freestyle") {
-                AccentNote(
-                    lead = "Empty workout",
-                    body = "Pick the exercises as you go and log your sets. Everything still counts " +
-                        "towards your history and weekly volume.",
-                    container = MaterialTheme.colorScheme.surfaceVariant,
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            item(key = "add-first") {
-                Button(
-                    onClick = { picking = true },
-                    shape = IntakeShape.Button,
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                ) { Text("Add an exercise") }
-            }
+        if (state.loading) {
+            Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         } else {
-            item(key = "picker") {
-                Row(
-                    modifier = Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(7.dp),
-                ) {
-                    state.prescriptions.forEachIndexed { index, item ->
-                        val done = state.setsFor(item.exercise.id).count { !it.isWarmup }
-                        ChoiceChip(
-                            label = "${item.exercise.name} $done/${item.prescription?.sets ?: 0}",
-                            selected = index == state.currentIndex,
-                            onClick = { viewModel.selectExercise(index) },
+            LazyColumn(
+                modifier = Modifier.weight(1f).fillMaxWidth().imePadding(),
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 8.dp,
+                    bottom = contentPadding.calculateBottomPadding() + 32.dp,
+                ),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                val current = state.current
+                if (current == null) {
+                    item(key = "empty") {
+                        AccentNote(
+                            lead = "Empty workout",
+                            body = "Pick the exercises as you go and log your sets. Everything still counts towards your history and weekly volume.",
+                            container = MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                }
-            }
-
-            state.current?.let { current ->
-                item(key = "current-${current.exercise.id}") {
-                    ExerciseCard(item = current, state = state, onOpenDetail = { detailFor = current.exercise.id })
-                }
-
-                item(key = "sets-heading") {
-                    SectionLine("Log your sets", note = "Tap the circle to log a set")
-                }
-
-                item(key = "grid-${current.exercise.id}") {
-                    SetGrid(
-                        item = current,
-                        state = state,
-                        onLogSet = { setIndex, weight, reps, isFailure ->
-                            viewModel.logSet(
-                                exerciseId = current.exercise.id,
-                                setIndex = setIndex,
-                                weightKg = unit.toKg(weight),
-                                reps = reps,
-                                rpe = null,
-                                isWarmup = false,
-                                isFailure = isFailure,
-                                restTakenSec = null,
-                            )
-                            // SPEC §10: rest starts on set completion.
-                            TimerService.start(
-                                context = context,
-                                seconds = current.programExercise?.restSec
-                                    ?: current.exercise.defaultRestSec,
-                                label = "Rest · ${current.exercise.name}",
-                                vibrate = state.settings.restTimerVibrate,
-                            )
-                        },
-                        onDeleteSet = viewModel::deleteSet,
-                    )
-                }
-
-                current.prescription?.takeIf { it.weightKg > 0 }?.let { prescription ->
-                    item(key = "plates-${current.exercise.id}") {
-                        val load = state.plateLoad(prescription.weightKg)
-                        PlateVisual(
-                            title = "Plate calculator · " +
-                                "${fmt(unit.fromKg(prescription.weightKg))} ${unit.label} total",
-                            perSide = load.perSide,
-                            description = "Per side: ${PlateCalculator.describe(load)}",
-                        )
-                    }
-                }
-
-                item(key = "nav") {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        IconButton(
-                            onClick = viewModel::previousExercise,
-                            enabled = state.currentIndex > 0,
-                            modifier = Modifier.size(48.dp),
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Previous exercise",
-                            )
-                        }
-                        OutlinedButton(
-                            onClick = {
-                                viewModel.moveExercise(state.currentIndex, state.currentIndex + 1)
-                            },
-                            enabled = state.currentIndex < state.prescriptions.lastIndex,
+                    item(key = "add-first") {
+                        Button(
+                            onClick = { picking = true },
                             shape = IntakeShape.Button,
-                            modifier = Modifier.weight(1f).height(50.dp),
-                        ) { Text("Move later") }
-                        IconButton(
-                            onClick = viewModel::nextExercise,
-                            enabled = state.currentIndex < state.prescriptions.lastIndex,
-                            modifier = Modifier.size(48.dp),
+                            modifier = Modifier.fillMaxWidth().height(56.dp),
+                        ) { Text("Add an exercise") }
+                    }
+                } else {
+                    item(key = "card-${current.exercise.id}") {
+                        ExerciseSetsCard(
+                            item = current,
+                            state = state,
+                            canMoveUp = state.currentIndex > 0,
+                            canMoveDown = state.currentIndex < state.prescriptions.lastIndex,
+                            onOpenDetail = { detailFor = current.exercise.id },
+                            onSwap = { swapFor = current.exercise.id },
+                            onMove = { delta -> viewModel.move(state.currentIndex, delta) },
+                            onAddSet = { viewModel.addSet(current.exercise.id) },
+                            onShowPlates = { kg, label -> plateSheetFor = kg to label },
+                            onLogSet = { setIndex, weightKg, reps, isFailure ->
+                                viewModel.logSet(
+                                    exerciseId = current.exercise.id,
+                                    setIndex = setIndex,
+                                    weightKg = weightKg,
+                                    reps = reps,
+                                    rpe = null,
+                                    isWarmup = false,
+                                    isFailure = isFailure,
+                                    restTakenSec = null,
+                                )
+                                // SPEC §10: rest starts when a set is done.
+                                TimerService.start(
+                                    context = context,
+                                    seconds = current.programExercise?.restSec ?: current.exercise.defaultRestSec,
+                                    label = "Rest · ${current.exercise.name}",
+                                    vibrate = state.settings.restTimerVibrate,
+                                )
+                            },
+                            onUndoSet = viewModel::deleteSet,
+                        )
+                    }
+                    val others = state.prescriptions.withIndex().filter { it.index != state.currentIndex }
+                    if (others.isNotEmpty()) {
+                        item(key = "next-head") {
+                            Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.Bottom) {
+                                Text("Up next", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                                Text(
+                                    "${others.size} ${if (others.size == 1) "exercise" else "exercises"}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                        item(key = "next-list") {
+                            Surface(
+                                color = MaterialTheme.colorScheme.surface,
+                                shape = IntakeShape.Card,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Column {
+                                    others.forEachIndexed { n, (index, p) ->
+                                        UpNextRow(p, state, onClick = { viewModel.pick(index) })
+                                        if (n != others.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(start = 76.dp))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    item(key = "add-more") {
+                        OutlinedButton(
+                            onClick = { picking = true },
+                            shape = IntakeShape.Button,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                         ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = "Next exercise",
-                            )
+                            Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Add exercise")
+                        }
+                    }
+                    if (state.totalSets > 0 && state.doneSets >= state.totalSets) {
+                        item(key = "all-done") {
+                            Button(
+                                onClick = { confirmFinish = true },
+                                shape = IntakeShape.Button,
+                                modifier = Modifier.fillMaxWidth().height(56.dp),
+                            ) { Text("Finish workout") }
                         }
                     }
                 }
             }
-        }
-
-        if (state.prescriptions.isNotEmpty()) {
-            item(key = "add-more") {
-                OutlinedButton(
-                    onClick = { picking = true },
-                    shape = IntakeShape.Button,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                ) { Text("Add an exercise") }
-            }
-        }
-
-        item(key = "finish") {
-            Button(
-                onClick = {
-                    if (state.isFreestyle && state.hasWorkingSets) {
-                        askSave = true
-                    } else {
-                        TimerService.stop(context)
-                        viewModel.finish(onFinished)
-                    }
-                },
-                shape = IntakeShape.Button,
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-            ) { Text("Finish session") }
         }
     }
 
@@ -311,432 +259,340 @@ fun ActiveWorkoutScreen(
             onDismiss = { picking = false },
         )
     }
-    if (askSave) {
-        var dayName by remember { mutableStateOf(defaultDayName()) }
+    swapFor?.let { id ->
+        SwapSheet(
+            exerciseName = state.prescriptions.firstOrNull { it.exercise.id == id }?.exercise?.name.orEmpty(),
+            load = { viewModel.swapOptions(id) },
+            onPick = { newId -> viewModel.swap(id, newId); swapFor = null },
+            onDismiss = { swapFor = null },
+        )
+    }
+    plateSheetFor?.let { (kg, label) ->
+        val load = state.plateLoad(kg)
+        ModalBottomSheet(onDismissRequest = { plateSheetFor = null }, sheetState = rememberModalBottomSheetState()) {
+            Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp)) {
+                PlateVisual(
+                    title = "Plates · $label total",
+                    perSide = load.perSide,
+                    description = "Per side: ${com.zeroindex.intake.domain.training.PlateCalculator.describe(load)}",
+                )
+            }
+        }
+    }
+    if (confirmFinish) {
+        FinishDialog(
+            doneSets = state.doneSets,
+            hasWorkingSets = state.hasWorkingSets,
+            onFinish = { confirmFinish = false; finishNow() },
+            onKeepGoing = { confirmFinish = false },
+            onDiscard = { confirmFinish = false; confirmDiscard = true },
+        )
+    }
+    if (confirmDiscard) {
         AlertDialog(
-            onDismissRequest = { askSave = false },
-            title = { Text("Keep this workout?") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Keep this workout so you can repeat it, as a day in your program or as a saved workout you can start any time. This is optional.")
-                    OutlinedTextField(value = dayName, onValueChange = { dayName = it }, label = { Text("Name") }, singleLine = true)
-                    TextButton(onClick = {
-                        askSave = false
-                        TimerService.stop(context)
-                        viewModel.saveAsWorkout(dayName) { viewModel.finish(onFinished) }
-                    }) { Text("Save as workout instead") }
-                }
-            },
+            onDismissRequest = { confirmDiscard = false },
+            title = { Text("Discard this workout?") },
+            text = { Text("The sets you logged in it are hidden and will not count towards your history or your weekly volume.") },
             confirmButton = {
                 TextButton(onClick = {
-                    askSave = false
+                    confirmDiscard = false
                     TimerService.stop(context)
-                    viewModel.saveAsProgramDay(dayName) { viewModel.finish(onFinished) }
-                }) { Text("Save as program day") }
+                    viewModel.discard(onMinimise)
+                }) { Text("Discard", color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = {
-                TextButton(onClick = {
-                    askSave = false
-                    TimerService.stop(context)
-                    viewModel.finish(onFinished)
-                }) { Text("Just finish") }
-            },
+            dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text("Keep going") } },
         )
     }
 }
 
-private fun defaultDayName(): String = "Workout " +
-    java.time.format.DateTimeFormatter.ofPattern("d MMM").format(java.time.LocalDate.now())
-
-/** The mockup's `.workout-top`: where you are, and the clock. */
+/** Finish is a choice, not a tap you can regret: finish, keep going, or throw the session away. */
 @Composable
-private fun WorkoutTopBar(title: String, elapsed: String?) {
+private fun FinishDialog(
+    doneSets: Int,
+    hasWorkingSets: Boolean,
+    onFinish: () -> Unit,
+    onKeepGoing: () -> Unit,
+    onDiscard: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onKeepGoing,
+        title = { Text(if (hasWorkingSets) "Finish workout?" else "Nothing logged yet") },
+        text = {
+            Text(
+                if (hasWorkingSets) {
+                    "You logged $doneSets ${if (doneSets == 1) "set" else "sets"}. Finishing opens your summary."
+                } else {
+                    "You have not logged a set. Keep going, or discard this workout."
+                },
+            )
+        },
+        confirmButton = {
+            if (hasWorkingSets) TextButton(onClick = onFinish) { Text("Finish workout") } else TextButton(onClick = onKeepGoing) { Text("Keep going") }
+        },
+        dismissButton = {
+            Row {
+                if (hasWorkingSets) TextButton(onClick = onKeepGoing) { Text("Keep going") }
+                TextButton(onClick = onDiscard) { Text("Discard", color = MaterialTheme.colorScheme.error) }
+            }
+        },
+    )
+}
+
+/** The mockup's `.workout-top`: minimise, the day and the clock, Finish. */
+@Composable
+private fun WorkoutHeader(title: String, clock: String, progress: String, onMinimise: () -> Unit, onFinish: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+        modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.weight(1f),
-        )
-        if (elapsed != null) {
-            Surface(
-                color = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                shape = IntakeShape.Tile,
-            ) {
-                Text(
-                    text = elapsed,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp),
-                )
+        IconButton(onClick = onMinimise, modifier = Modifier.size(48.dp)) {
+            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Minimise the workout. It keeps running.")
+        }
+        Column(Modifier.weight(1f).padding(horizontal = 4.dp)) {
+            Text(title, style = MaterialTheme.typography.titleLarge, maxLines = 1, color = MaterialTheme.colorScheme.onBackground)
+            Text(
+                "$clock · $progress",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.semantics { contentDescription = "Elapsed $clock, $progress" },
+            )
+        }
+        Button(
+            onClick = onFinish,
+            shape = IntakeShape.Button,
+            modifier = Modifier.heightIn(min = 48.dp),
+        ) { Text("Finish") }
+    }
+}
+
+/** Rest under the header while it runs: a ring that empties, the time, +15 s and Skip. */
+@Composable
+private fun RestStrip(remaining: Int, total: Int, label: String, onAdd: () -> Unit, onSkip: () -> Unit) {
+    Surface(
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        shape = IntakeShape.Banner,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            RestRing(
+                remainingFraction = MotionRules.restRemainingFraction(remaining, total),
+                size = 48.dp,
+                stroke = 5.dp,
+                color = MaterialTheme.colorScheme.primary,
+                track = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                description = "$label, ${TimerService.format(remaining)} left",
+            ) {}
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(TimerService.format(remaining), style = MaterialTheme.typography.headlineSmall)
+                Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1)
             }
+            TextButton(onClick = onAdd, modifier = Modifier.heightIn(min = 48.dp)) { Text("+15 s") }
+            TextButton(onClick = onSkip, modifier = Modifier.heightIn(min = 48.dp)) { Text("Skip") }
         }
     }
 }
 
-/**
- * The mockup's `.exercise-card`: the prescription as the largest number on the
- * screen, with SPEC §10's "why this weight" reason directly beneath it and last
- * session's numbers on a rule below.
- */
 @Composable
-private fun ExerciseCard(item: ExercisePrescription, state: ActiveWorkoutUiState, onOpenDetail: () -> Unit) {
-    val unit = state.settings.weightUnit
-    val prescription = item.prescription
-
-    IntakeCard {
-        // Tap the name or the picture for the photos, the muscle map and how to do it.
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(role = androidx.compose.ui.semantics.Role.Button, onClickLabel = "Show how to do ${item.exercise.name}", onClick = onOpenDetail),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Column(Modifier.weight(1f)) {
-                Eyebrow(
-                    text = item.exercise.primaryMuscle +
-                        if (item.exercise.equipment.isNotBlank()) " · ${item.exercise.equipment}" else "",
-                    color = MaterialTheme.colorScheme.secondary,
-                )
-                Spacer(Modifier.height(5.dp))
-                Text(
-                    text = item.exercise.name,
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-            }
-            ExerciseThumb(item.exercise.id, item.exercise.photoPath, size = 64.dp)
-        }
-        item.programExercise?.notes?.takeIf { it.isNotBlank() }?.let { note ->
-            Spacer(Modifier.height(4.dp))
-            Text(note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-
-        if (item.ruleError != null) {
-            // SPEC §10: a malformed rule shows a validation error, and the
-            // session carries on regardless.
-            Spacer(Modifier.height(8.dp))
+private fun UpNextRow(p: ExercisePrescription, state: ActiveWorkoutUiState, onClick: () -> Unit) {
+    val done = state.setsFor(p.exercise.id).count { !it.isWarmup }
+    val planned = (p.prescription?.sets ?: 0) + (state.extraRows[p.exercise.id] ?: 0)
+    val finished = planned > 0 && done >= planned
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 72.dp)
+            .clickable(role = Role.Button, onClickLabel = "Work on ${p.exercise.name}", onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        ExerciseThumb(p.exercise.id, p.exercise.photoPath, size = 48.dp)
+        Column(Modifier.weight(1f)) {
+            Text(p.exercise.name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
             Text(
-                text = "That exercise's progression rule could not run: ${item.ruleError} " +
-                    "Log by hand and fix the rule in the builder.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-            )
-        } else if (prescription != null) {
-            Spacer(Modifier.height(5.dp))
-            val amrap = RepTarget.isAmrap(prescription.repsMin, prescription.repsMax)
-            val reps = "${prescription.sets} × ${RepTarget.short(prescription.repsMin, prescription.repsMax)}"
-            Text(
-                text = if (prescription.weightKg > 0) {
-                    "$reps · ${fmt(unit.fromKg(prescription.weightKg))} ${unit.label}"
-                } else {
-                    reps
+                text = when {
+                    finished -> TrainText.doneLine(done, planned)
+                    done > 0 -> "${TrainText.doneLine(done, planned)} · ${prescriptionText(p)}"
+                    else -> prescriptionText(p)
                 },
-                style = MaterialTheme.typography.displaySmall,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            if (amrap) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = RepTarget.AMRAP_LABEL,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.secondary,
-                    )
-                    InfoTip(Glossary.AS_MANY_AS_YOU_CAN, label = RepTarget.AMRAP_LABEL)
-                }
-            }
-            Spacer(Modifier.height(3.dp))
-            Text(
-                text = prescription.reason,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+        if (finished) {
+            Icon(Icons.Filled.Check, contentDescription = "Done", tint = MaterialTheme.colorScheme.primary)
+        } else {
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
 
-            if (prescription.weightKg > 0) {
-                val warmups = state.warmups(prescription.weightKg)
-                if (warmups.isNotEmpty()) {
-                    Spacer(Modifier.height(6.dp))
+private fun prescriptionText(p: ExercisePrescription): String {
+    val pr = p.prescription ?: return "Pick a weight"
+    return TrainText.prescription(pr.sets, pr.repsMin, pr.repsMax)
+}
+
+/** The sheet behind "Swap exercise": alternatives for the same muscles, ones you can do with your equipment first. */
+@Composable
+private fun SwapSheet(
+    exerciseName: String,
+    load: suspend () -> List<RankedSwap>,
+    onPick: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var options by remember { mutableStateOf<List<RankedSwap>?>(null) }
+    LaunchedEffect(Unit) { options = load() }
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Swap $exerciseName", style = MaterialTheme.typography.headlineSmall)
+            Text(
+                "Same muscles first, then what you own. This workout only: your program is not changed.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(4.dp))
+            val list = options
+            when {
+                list == null -> Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                list.isEmpty() -> Text(
+                    "Nothing else in the library works the same muscles. Add your own exercise from the exercise picker.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(vertical = 12.dp),
+                )
+                else -> LazyColumn(Modifier.heightIn(max = 460.dp)) {
+                    items(list.size) { i ->
+                        val r = list[i]
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 64.dp)
+                                .clickable(role = Role.Button, onClickLabel = "Swap in ${r.candidate.name}", onClick = { onPick(r.candidate.id) })
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Icon(Icons.Filled.SwapHoriz, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Column(Modifier.weight(1f)) {
+                                Text(r.candidate.name, style = MaterialTheme.typography.titleSmall)
+                                Text(
+                                    buildString {
+                                        append(r.candidate.primaryMuscle.replaceFirstChar { it.uppercase() })
+                                        if (r.candidate.equipment.isNotBlank()) append(" · ").append(r.candidate.equipment.replaceFirstChar { it.uppercase() })
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            if (!r.ownsEquipment) Tag("Not in your equipment")
+                        }
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** The card of the exercise in hand: name and thumbnail, the prescription, the set rows, plates, Add set. */
+@Composable
+private fun ExerciseSetsCard(
+    item: ExercisePrescription,
+    state: ActiveWorkoutUiState,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    onOpenDetail: () -> Unit,
+    onSwap: () -> Unit,
+    onMove: (Int) -> Unit,
+    onAddSet: () -> Unit,
+    onShowPlates: (kg: Double, label: String) -> Unit,
+    onLogSet: (setIndex: Int, weightKg: Double, reps: Int, isFailure: Boolean) -> Unit,
+    onUndoSet: (String) -> Unit,
+) {
+    val unit = state.settings.weightUnit
+    val prescription = item.prescription
+    var menu by remember { mutableStateOf(false) }
+
+    IntakeCard {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(role = Role.Button, onClickLabel = "Show how to do ${item.exercise.name}", onClick = onOpenDetail),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                ExerciseThumb(item.exercise.id, item.exercise.photoPath, size = 56.dp)
+                Column(Modifier.weight(1f)) {
+                    Text(item.exercise.name, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
                     Text(
-                        text = "Warmup: " + warmups.joinToString(", ") {
-                            "${fmt(unit.fromKg(it.weightKg))} × ${it.reps}"
+                        buildString {
+                            if (item.exercise.equipment.isNotBlank()) append(item.exercise.equipment.replaceFirstChar { it.uppercase() }).append(" · ")
+                            append(muscleLine(item))
                         },
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
-        }
-
-        // SPEC §10: last session's numbers inline, for comparison.
-        if (item.lastSession.isNotEmpty()) {
-            Spacer(Modifier.height(9.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Spacer(Modifier.height(9.dp))
-            Text(
-                text = buildAnnotatedString {
-                    withStyle(SpanStyle(color = MaterialTheme.colorScheme.onSurfaceVariant)) {
-                        append("Last session   ")
-                    }
-                    withStyle(SpanStyle(color = MaterialTheme.colorScheme.onSurface)) {
-                        append(
-                            item.lastSession.joinToString(" · ") {
-                                "${fmt(unit.fromKg(it.weightKg))} × ${it.reps}"
-                            },
-                        )
-                    }
-                },
-                style = MaterialTheme.typography.labelSmall,
-            )
-            OneRepMax.best(item.lastSession.map { SetResult(it.weightKg, it.reps) })?.let { best ->
-                Text(
-                    text = "Estimated max then: ${fmt(unit.fromKg(best))} ${unit.label}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            OutlinedButton(onClick = onOpenDetail, shape = IntakeShape.Button, modifier = Modifier.heightIn(min = 48.dp)) {
+                Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("Form")
             }
-        }
-    }
-}
-
-/**
- * The mockup's set grid, which is a real improvement on a single shared input
- * row: every prescribed set is visible at once, pre-filled with the prescribed
- * numbers, so a session that goes to plan is one tap per set. Logged rows show
- * what was recorded and a filled tick that undoes it.
- */
-@Composable
-private fun SetGrid(
-    item: ExercisePrescription,
-    state: ActiveWorkoutUiState,
-    onLogSet: (Int, Double, Int, Boolean) -> Unit,
-    onDeleteSet: (String) -> Unit,
-) {
-    val unit = state.settings.weightUnit
-    val prescription = item.prescription
-    val logged = state.setsFor(item.exercise.id).filter { !it.isWarmup }
-
-    val prescribedWeight = prescription?.weightKg
-        ?.takeIf { it > 0 }
-        ?.let { fmt(unit.fromKg(it)) }
-        .orEmpty()
-    // As many as you can has no number to pre-fill: the person types what they managed.
-    val prescribedReps = prescription
-        ?.takeUnless { RepTarget.isAmrap(it.repsMin, it.repsMax) }
-        ?.repsMin?.toString().orEmpty()
-
-    // One row per prescribed set, plus a spare so an extra set is always
-    // available; freestyle work gets three to start with.
-    val rowCount = maxOf(prescription?.sets ?: 3, logged.size + 1)
-
-    val edits = remember(item.exercise.id) { mutableStateMapOf<Int, Pair<String, String>>() }
-    // Sets that beat last session and earlier sets today: they flash once and wear a "New best" tag.
-    val bests = remember(item.exercise.id) { mutableStateMapOf<Int, Int>() }
-    var bestTick by remember { mutableIntStateOf(0) }
-
-    Column(Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            GridCell(Modifier.width(34.dp)) { Eyebrow("Set") }
-            GridCell(Modifier.weight(1f)) { Eyebrow(unit.label) }
-            GridCell(Modifier.weight(1f)) { Eyebrow("Reps") }
-            GridCell(Modifier.width(48.dp)) { Eyebrow("Done") }
-        }
-
-        repeat(rowCount) { index ->
-            val existing = logged.firstOrNull { it.setIndex == index }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            SetRow(
-                index = index,
-                existing = existing,
-                weight = edits[index]?.first ?: prescribedWeight,
-                reps = edits[index]?.second ?: prescribedReps,
-                unitLabel = unit.label,
-                displayWeight = { kg -> fmt(unit.fromKg(kg)) },
-                onWeightChange = { next ->
-                    edits[index] = next to (edits[index]?.second ?: prescribedReps)
-                },
-                onRepsChange = { next ->
-                    edits[index] = (edits[index]?.first ?: prescribedWeight) to next
-                },
-                bestTrigger = bests[index] ?: 0,
-                isBest = bests.containsKey(index),
-                onLog = { weight, reps ->
-                    val prior = item.lastSession.map { SetResult(it.weightKg, it.reps) } +
-                        logged.filter { it.setIndex != index }.map { SetResult(it.weightKg, it.reps) }
-                    if (NewBest.isNewBest(unit.toKg(weight), reps, prior)) {
-                        bestTick += 1
-                        bests[index] = bestTick
-                    }
-                    onLogSet(
-                        index,
-                        weight,
-                        reps,
-                        prescription != null && reps < prescription.repsMin && !RepTarget.isAmrap(prescription.repsMin, prescription.repsMax),
-                    )
-                },
-                onUndo = { existing?.let { onDeleteSet(it.id) } },
-            )
-        }
-    }
-}
-
-@Composable
-private fun GridCell(modifier: Modifier, content: @Composable () -> Unit) {
-    Box(modifier = modifier, contentAlignment = Alignment.Center) { content() }
-}
-
-@Composable
-private fun SetRow(
-    index: Int,
-    existing: SetLogEntity?,
-    weight: String,
-    reps: String,
-    unitLabel: String,
-    displayWeight: (Double) -> String,
-    onWeightChange: (String) -> Unit,
-    onRepsChange: (String) -> Unit,
-    bestTrigger: Int,
-    isBest: Boolean,
-    onLog: (Double, Int) -> Unit,
-    onUndo: () -> Unit,
-) {
-    val setNumber = index + 1
-    val haptics = LocalHapticFeedback.current
-    Row(
-        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
-            .flashOn(bestTrigger, MaterialTheme.colorScheme.tertiaryContainer),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        GridCell(Modifier.width(34.dp)) {
-            Text(
-                text = "$setNumber",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-
-        if (existing != null) {
-            GridCell(Modifier.weight(1f)) {
-                Text(
-                    text = displayWeight(existing.weightKg),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-            }
-            GridCell(Modifier.weight(1f)) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "${existing.reps}",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    if (isBest) {
-                        Text(
-                            text = "New best",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.tertiary,
-                        )
-                    }
+            Box {
+                IconButton(onClick = { menu = true }, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = "More for ${item.exercise.name}")
+                }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(text = { Text("Swap exercise") }, onClick = { menu = false; onSwap() })
+                    if (canMoveUp) DropdownMenuItem(text = { Text("Move earlier") }, onClick = { menu = false; onMove(-1) })
+                    if (canMoveDown) DropdownMenuItem(text = { Text("Move later") }, onClick = { menu = false; onMove(1) })
                 }
             }
-        } else {
-            GridCell(Modifier.weight(1f)) {
-                NumberCell(
-                    value = weight,
-                    onValueChange = onWeightChange,
-                    label = "Set $setNumber weight in $unitLabel",
-                )
-            }
-            GridCell(Modifier.weight(1f)) {
-                NumberCell(
-                    value = reps,
-                    onValueChange = onRepsChange,
-                    label = "Set $setNumber reps",
-                )
-            }
         }
 
-        GridCell(Modifier.width(48.dp)) {
-            val done = existing != null
-            val enabled = done ||
-                (weight.toDoubleOrNull() != null && reps.toIntOrNull() != null)
-            // A 48 dp target around a 28 dp picture: the tick morphs from an empty circle and a haptic confirms.
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .alpha(if (enabled) 1f else 0.4f)
-                    .toggleable(
-                        value = done,
-                        enabled = enabled,
-                        role = Role.Checkbox,
-                        onValueChange = {
-                            if (done) {
-                                haptics.performHapticFeedback(HapticFeedbackType.ToggleOff)
-                                onUndo()
-                            } else {
-                                val w = weight.toDoubleOrNull()
-                                val r = reps.toIntOrNull()
-                                if (w != null && r != null) {
-                                    haptics.performHapticFeedback(HapticFeedbackType.Confirm)
-                                    onLog(w, r)
-                                }
-                            }
-                        },
-                    )
-                    .semantics { contentDescription = "Set $setNumber done" },
-                contentAlignment = Alignment.Center,
-            ) {
-                AnimatedCheck(
-                    checked = done,
-                    size = 28.dp,
-                    fill = MaterialTheme.colorScheme.primary,
-                    outline = MaterialTheme.colorScheme.onSurfaceVariant,
-                    tick = MaterialTheme.colorScheme.onPrimary,
-                )
-            }
+        item.programExercise?.notes?.takeIf { it.isNotBlank() }?.let { note ->
+            Spacer(Modifier.height(6.dp))
+            Text(note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        if (item.ruleError != null) {
+            // SPEC §10: a malformed rule shows a validation error, and the session carries on regardless.
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "That exercise's progression rule could not run: ${item.ruleError} Log by hand and fix the rule in the builder.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        } else if (prescription != null) {
+            Spacer(Modifier.height(8.dp))
+            val amrap = RepTarget.isAmrap(prescription.repsMin, prescription.repsMax)
+            Text(
+                text = buildString {
+                    append(TrainText.prescription(prescription.sets, prescription.repsMin, prescription.repsMax))
+                    if (prescription.weightKg > 0) append(" · ").append(fmt(unit.fromKg(prescription.weightKg))).append(' ').append(unit.label)
+                    if (amrap) append(" · ").append(RepTarget.AMRAP_LABEL)
+                },
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Text(prescription.reason, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+
+        Spacer(Modifier.height(12.dp))
+        SetRowsBlock(item = item, state = state, onLogSet = onLogSet, onUndoSet = onUndoSet, onShowPlates = onShowPlates, onAddSet = onAddSet)
     }
 }
 
-/** The mockup's `.entry`: a compact centred number field inside a grid cell. */
-@Composable
-private fun NumberCell(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-) {
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        shape = IntakeShape.ExtraSmall,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier.fillMaxWidth().height(40.dp).padding(horizontal = 3.dp),
-    ) {
-        BasicTextField(
-            value = value,
-            onValueChange = { next -> onValueChange(next.filter { it.isDigit() || it == '.' }) },
-            singleLine = true,
-            textStyle = MaterialTheme.typography.titleSmall.copy(
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center,
-            ),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 11.dp)
-                .semantics { contentDescription = label },
-        )
-    }
+private fun muscleLine(item: ExercisePrescription): String {
+    val main = item.exercise.primaryMuscle
+    val also = item.exercise.secondaryMuscles.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+    return (listOf(main) + also).joinToString(", ")
 }
 
-private fun fmt(value: Double): String =
-    if (value % 1.0 == 0.0) {
-        value.roundToInt().toString()
-    } else {
-        ((value * 10).roundToInt() / 10.0).toString()
-    }
+internal fun fmt(value: Double): String =
+    if (value % 1.0 == 0.0) Math.round(value).toString() else (Math.round(value * 10) / 10.0).toString()

@@ -45,6 +45,7 @@ import kotlin.math.roundToInt
 @Composable
 fun WorkoutHistoryScreen(
     contentPadding: PaddingValues,
+    onOpenSession: (sessionId: String) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: WorkoutHistoryViewModel = hiltViewModel(),
 ) {
@@ -62,8 +63,6 @@ fun WorkoutHistoryScreen(
         ),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        item(key = "heading") { ScreenHeading("History") }
-
         item(key = "picker") {
             ExposedDropdownMenuBox(
                 expanded = expanded,
@@ -161,6 +160,7 @@ fun WorkoutHistoryScreen(
 
         items(items = state.sessions, key = { it.id }) { session ->
             OutlinedCard(
+                onClick = { onOpenSession(session.id) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = IntakeShape.Card,
                 colors = CardDefaults.outlinedCardColors(

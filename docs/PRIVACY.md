@@ -57,7 +57,7 @@ Findings that hold for every path:
 | Your own exercise photos | A photo you add to a custom exercise is scaled, stripped of EXIF and kept in the app-private `photos` folder; the exercise row holds only the file name (`exercise.photoPath`). The image is not in backups, exports or sync, and never sent anywhere. Bundled exercise photos are assets from the Free Exercise DB (public domain). The camera permission is asked only when you tap "Take a photo". |
 | Photos | Stored as files in app storage. Rows hold a URI string only (`sourcePhotoUri`, `photoUri`), so backup and sync move the path, never the image. The one exception is the photo estimate, which sends a resized copy (below). |
 | Progress photos | Taken with the camera or chosen from the gallery on You > Progress photos, scaled, stripped of EXIF and kept in the app-private `progress_photos` folder. The `progress_photo` table (date, angle, file name) is exported and synced as metadata only; the images are **never synced or uploaded** and go into a zip only if you switch on "Include progress photos in the export" and tap Save photo files. | 
-| API keys | Encrypted at rest; sent only to their own host (OpenRouter key to openrouter.ai, USDA key to api.nal.usda.gov, YouTube key to googleapis.com, as the `key` parameter the YouTube Data API requires; Videos come later). Not in exports, backups or sync (`BackupTables.kt` has no key table). |
+| API keys | Encrypted at rest; sent only to their own host (OpenRouter key to openrouter.ai, USDA key to api.nal.usda.gov, YouTube key to googleapis.com, as the `key` parameter the YouTube Data API requires; see "YouTube" below). Not in exports, backups or sync (`BackupTables.kt` has no key table). |
 | TDEE and trend math, charts, insights history | Computed locally (`work/TdeeWorker.kt` is local only). |
 | Barcode scanning and photo capture | CameraX and ML Kit on device. |
 
@@ -139,6 +139,18 @@ Every request also sends the header `X-Title: Intake`.
 - **Zero-retention check.** OpenRouter publishes no per-endpoint "does not train" flag; the only public data policy is
   the zero-retention list. "No data collection" and "Zero retention" candidates are therefore limited to models with a
   zero-retention endpoint, which can hide a model that would in fact route. "Any provider" is not filtered.
+
+### YouTube (Train > Videos; the user's own key; `data/remote/youtube/YoutubeApi.kt`)
+
+| Feature | Trigger | Destination | Sent | Not sent | Default | Code |
+| --- | --- | --- | --- | --- | --- | --- |
+| Video search | The person submits a search or taps a style chip | `www.googleapis.com/youtube/v3/search` then `videos` | The search words (typed words plus the chip's word), `type=video`, `videoEmbeddable`, `safeSearch=moderate`, and the key as the `key` query parameter the API requires (the one documented exception to "keys never in URLs"; it is never logged, never in an error message and never stored with a result) | Name, profile, body data, history, what is saved | Needs a key; nothing is sent without one | `YoutubeApi.search`, `VideoRepository.search` |
+| Recommended | Opening Videos with a key, at most once per 6 hours (cached) | Same | Up to 3 searches whose words are built on the phone from this week's under-target muscle regions, equipment, the active program's name and saved video titles. With "Personalise Recommended" off, fixed generic words only | Counts, weights, anything not in the words | On with a key | `RecommendedQueries`, `VideosViewModel.loadRecommended` |
+| One video | Opening a video, a pasted link, Make this a workout | `videos` (with a key) or `www.youtube.com/oembed` (no key) | The video id (and the key, with a key) | Everything else | On tap | `VideoRepository.video` |
+| Thumbnails | A result is drawn | `i.ytimg.com` and other YouTube picture hosts, https only | A plain GET | Key, cookies | Kept in memory only, never on disk | `VideoThumbnail.kt` |
+| Playback | Opening a video | `www.youtube-nocookie.com` in a WebView (YouTube's own embed) | What the player sends YouTube itself. JavaScript is on for that one view only; it cannot open files or other sites. Nothing is downloaded | The key | On tap | `YoutubePlayer.kt` |
+
+Caching and the 30-day rule: API results live in `video_cache` and `video_search` (reused for 6 hours / a day), are not part of any backup, export or sync, and are deleted 30 days after they were fetched (when Videos opens, and by "Clear cached video information"). The snapshot columns of a saved video are cleared at the same age; the save itself (a soft-deletable row) is the person's own data and stays. "Improve with AI" is a separate, optional tap through the AI gateway (see `docs/AI-COSTS.md`).
 
 ### Servers the user runs
 
