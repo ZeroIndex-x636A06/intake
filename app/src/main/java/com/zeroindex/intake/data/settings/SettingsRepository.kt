@@ -16,8 +16,8 @@ import com.zeroindex.intake.domain.ai.AiFeature
 import com.zeroindex.intake.domain.ai.AiTask
 import com.zeroindex.intake.domain.ai.cost.AiBudget
 import com.zeroindex.intake.domain.units.LengthUnit
-import com.zeroindex.intake.domain.backup.BackupDestination
-import com.zeroindex.intake.domain.backup.BackupSchedule
+import com.zeroindex.intake.domain.units.PortionUnit
+import com.zeroindex.intake.domain.settings.SodiumDisplay
 import com.zeroindex.intake.domain.coach.CoachState
 import com.zeroindex.intake.domain.goals.AppliedPlan
 import com.zeroindex.intake.domain.goals.BaselineState
@@ -70,9 +70,6 @@ data class AppSettings(
     val aiAllowRetainingModels: Boolean = false,
     /** A model the user chose by hand per task; absent means "use the suggestion". */
     val aiModelOverrides: Map<AiTask, String> = emptyMap(),
-    /** Amendment §2: the server a nightly backup goes to. Null until set up. */
-    val backupDestination: BackupDestination? = null,
-    val backupSchedule: BackupSchedule = BackupSchedule.NIGHTLY,
     /** Amendment §3 device sync. Null server = sync off. */
     val sync: SyncSettings = SyncSettings(),
     /**
@@ -118,6 +115,34 @@ data class AppSettings(
     val aiUsageResetAt: Long = 0L,
     /** The weekly menu re-import. Off by default; the job does nothing until this is on. */
     val menuAutoRefresh: Boolean = false,
+    /** You: the name on the header and the avatar's letter. Optional, never sent anywhere. */
+    val displayName: String = "",
+    /** Settings > Appearance: how food portions are shown in the photo estimate and food detail. */
+    val portionUnit: PortionUnit = PortionUnit.GRAMS,
+    /** Settings > Appearance > Today's cards. Calories is always shown. */
+    val todayCardNext: Boolean = true,
+    val todayCardWater: Boolean = true,
+    val todayCardWeight: Boolean = true,
+    val todayCardMeals: Boolean = true,
+    /** Settings > Nutrition: show salt or sodium on the dashboard (consumed by the Nutrition rebuild). */
+    val showSodium: SodiumDisplay = SodiumDisplay.OFF,
+    /** Settings > Nutrition: Swap > Eat out nearby search radius in miles (consumed by the Swap sheet). */
+    val eatOutRadiusMi: Double = 1.0,
+    /** Settings > Training: show jump tests in Progress. Hidden until enabled. */
+    val jumpTests: Boolean = false,
+    /** Settings > Training > Advanced: weekly sets per region (six numbers, chest..core) or empty = suggested. */
+    val weeklySetsCsv: String = "",
+    /** Settings > Videos (consumed by the Videos feature). */
+    val onlyWorkouts: Boolean = true,
+    val personaliseVideos: Boolean = true,
+    /** Settings > Reminders: progress photo reminder in weeks (0 = off, else 2, 3 or 4). */
+    val photoReminderWeeks: Int = 0,
+    /** Settings > Reminders: a monthly "export now" reminder, only while sync is off. */
+    val exportReminder: Boolean = true,
+    /** Settings > Sync and export: include progress photo files in an export (opt-in). */
+    val exportIncludePhotos: Boolean = false,
+    /** When the app was first used (millis); starts the export reminder clock. Device-local, never exported. */
+    val firstUseAtMillis: Long? = null,
 ) {
     val platesKgList: List<Double>
         get() = availablePlatesKg.split(',')
@@ -171,8 +196,6 @@ class SettingsRepository @Inject constructor(
         val autoTargets = booleanPreferencesKey("auto_targets")
         val addActiveKcal = booleanPreferencesKey("add_active_kcal")
         val planWeek = intPreferencesKey("current_plan_week")
-        val backupDestination = stringPreferencesKey("backup_destination_json")
-        val backupSchedule = stringPreferencesKey("backup_schedule")
         val syncServer = stringPreferencesKey("sync_server_url")
         val syncDeviceId = stringPreferencesKey("sync_device_id")
         val syncDeviceName = stringPreferencesKey("sync_device_name")
@@ -209,6 +232,22 @@ class SettingsRepository @Inject constructor(
         fun aiUses(feature: AiFeature) = doublePreferencesKey("ai_uses_${feature.name}")
         val aiUsageResetAt = longPreferencesKey("ai_usage_reset_at")
         val menuAutoRefresh = booleanPreferencesKey("ai_menu_auto_refresh")
+        val displayName = stringPreferencesKey("profile_display_name")
+        val portionUnit = stringPreferencesKey("portion_unit")
+        val todayNext = booleanPreferencesKey("today_card_next")
+        val todayWater = booleanPreferencesKey("today_card_water")
+        val todayWeight = booleanPreferencesKey("today_card_weight")
+        val todayMeals = booleanPreferencesKey("today_card_meals")
+        val showSodium = stringPreferencesKey("show_sodium")
+        val eatOutRadius = doublePreferencesKey("eat_out_radius_mi")
+        val jumpTests = booleanPreferencesKey("jump_tests")
+        val weeklySets = stringPreferencesKey("weekly_sets_csv")
+        val onlyWorkouts = booleanPreferencesKey("videos_only_workouts")
+        val personalise = booleanPreferencesKey("videos_personalise")
+        val photoReminder = intPreferencesKey("photo_reminder_weeks")
+        val exportReminder = booleanPreferencesKey("export_reminder")
+        val exportPhotos = booleanPreferencesKey("export_include_photos")
+        val firstUseAt = longPreferencesKey("first_use_at_ms")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -242,8 +281,6 @@ class SettingsRepository @Inject constructor(
                 ?: AiPrivacy.NO_TRAINING,
             aiAllowRetainingModels = p[Keys.aiAllowRetaining] ?: false,
             aiModelOverrides = AiTask.entries.mapNotNull { task -> p[Keys.aiModel(task)]?.let { task to it } }.toMap(),
-            backupDestination = p[Keys.backupDestination]?.let { runCatching { settingsJson.decodeFromString<BackupDestination>(it) }.getOrNull() },
-            backupSchedule = p[Keys.backupSchedule]?.let { runCatching { BackupSchedule.valueOf(it) }.getOrNull() } ?: BackupSchedule.NIGHTLY,
             sync = SyncSettings(
                 serverUrl = p[Keys.syncServer],
                 deviceId = p[Keys.syncDeviceId],
@@ -277,6 +314,22 @@ class SettingsRepository @Inject constructor(
             aiUsesPerDay = AiFeature.entries.mapNotNull { f -> p[Keys.aiUses(f)]?.takeIf { it >= 0 }?.let { f to it } }.toMap(),
             aiUsageResetAt = p[Keys.aiUsageResetAt] ?: 0L,
             menuAutoRefresh = p[Keys.menuAutoRefresh] ?: false,
+            displayName = p[Keys.displayName].orEmpty(),
+            portionUnit = p[Keys.portionUnit]?.let { runCatching { PortionUnit.valueOf(it) }.getOrNull() } ?: PortionUnit.GRAMS,
+            todayCardNext = p[Keys.todayNext] ?: true,
+            todayCardWater = p[Keys.todayWater] ?: true,
+            todayCardWeight = p[Keys.todayWeight] ?: true,
+            todayCardMeals = p[Keys.todayMeals] ?: true,
+            showSodium = p[Keys.showSodium]?.let { runCatching { SodiumDisplay.valueOf(it) }.getOrNull() } ?: SodiumDisplay.OFF,
+            eatOutRadiusMi = p[Keys.eatOutRadius]?.takeIf { it > 0 } ?: 1.0,
+            jumpTests = p[Keys.jumpTests] ?: false,
+            weeklySetsCsv = p[Keys.weeklySets].orEmpty(),
+            onlyWorkouts = p[Keys.onlyWorkouts] ?: true,
+            personaliseVideos = p[Keys.personalise] ?: true,
+            photoReminderWeeks = p[Keys.photoReminder]?.takeIf { it in setOf(0, 2, 3, 4) } ?: 0,
+            exportReminder = p[Keys.exportReminder] ?: true,
+            exportIncludePhotos = p[Keys.exportPhotos] ?: false,
+            firstUseAtMillis = p[Keys.firstUseAt],
         )
     }
 
@@ -358,10 +411,28 @@ class SettingsRepository @Inject constructor(
         if (modelId == null) it.remove(Keys.aiModel(task)) else it[Keys.aiModel(task)] = modelId
     }
 
-    suspend fun setBackupDestination(destination: BackupDestination?) = put {
-        if (destination == null) it.remove(Keys.backupDestination) else it[Keys.backupDestination] = settingsJson.encodeToString(destination)
+    suspend fun setDisplayName(name: String) = put { if (name.isBlank()) it.remove(Keys.displayName) else it[Keys.displayName] = name.trim().take(40) }
+    suspend fun setPortionUnit(unit: PortionUnit) = put { it[Keys.portionUnit] = unit.name }
+    suspend fun setTodayCard(card: com.zeroindex.intake.domain.settings.TodayCard, shown: Boolean) = put {
+        val key = when (card) {
+            com.zeroindex.intake.domain.settings.TodayCard.NEXT -> Keys.todayNext
+            com.zeroindex.intake.domain.settings.TodayCard.WATER -> Keys.todayWater
+            com.zeroindex.intake.domain.settings.TodayCard.WEIGHT -> Keys.todayWeight
+            com.zeroindex.intake.domain.settings.TodayCard.MEALS -> Keys.todayMeals
+        }
+        it[key] = shown
     }
-    suspend fun setBackupSchedule(schedule: BackupSchedule) = put { it[Keys.backupSchedule] = schedule.name }
+    suspend fun setShowSodium(mode: SodiumDisplay) = put { it[Keys.showSodium] = mode.name }
+    suspend fun setEatOutRadiusMi(miles: Double) = put { it[Keys.eatOutRadius] = miles }
+    suspend fun setJumpTests(on: Boolean) = put { it[Keys.jumpTests] = on }
+    suspend fun setWeeklySetsCsv(csv: String) = put { if (csv.isBlank()) it.remove(Keys.weeklySets) else it[Keys.weeklySets] = csv }
+    suspend fun setOnlyWorkouts(on: Boolean) = put { it[Keys.onlyWorkouts] = on }
+    suspend fun setPersonaliseVideos(on: Boolean) = put { it[Keys.personalise] = on }
+    suspend fun setPhotoReminderWeeks(weeks: Int) = put { it[Keys.photoReminder] = if (weeks in setOf(2, 3, 4)) weeks else 0 }
+    suspend fun setExportReminder(on: Boolean) = put { it[Keys.exportReminder] = on }
+    suspend fun setExportIncludePhotos(on: Boolean) = put { it[Keys.exportPhotos] = on }
+    /** Records the first use once; later calls change nothing. */
+    suspend fun ensureFirstUse(now: Long) = put { if (it[Keys.firstUseAt] == null) it[Keys.firstUseAt] = now }
 
     suspend fun setSyncPaired(serverUrl: String, deviceId: String, deviceName: String) = put {
         it[Keys.syncServer] = serverUrl

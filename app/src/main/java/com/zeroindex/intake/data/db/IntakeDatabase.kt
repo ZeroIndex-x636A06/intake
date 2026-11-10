@@ -11,6 +11,8 @@ import com.zeroindex.intake.data.db.dao.BodyMetricDao
 import com.zeroindex.intake.data.db.dao.ExerciseDao
 import com.zeroindex.intake.data.db.dao.ExportDao
 import com.zeroindex.intake.data.db.dao.CoachDao
+import com.zeroindex.intake.data.db.dao.ProgressPhotoDao
+import com.zeroindex.intake.data.db.entity.ProgressPhotoEntity
 import com.zeroindex.intake.data.db.dao.SyncConflictDao
 import com.zeroindex.intake.data.db.dao.FoodDao
 import com.zeroindex.intake.data.db.dao.FoodLogDao
@@ -113,6 +115,7 @@ import com.zeroindex.intake.data.db.entity.WorkoutSessionEntity
         // Version 3.
         CoachSuggestionEntity::class,
         AiUsageEntity::class,
+        ProgressPhotoEntity::class,
     ],
 )
 abstract class IntakeDatabase : RoomDatabase() {
@@ -141,6 +144,7 @@ abstract class IntakeDatabase : RoomDatabase() {
     abstract fun syncConflictDao(): SyncConflictDao
     abstract fun coachDao(): CoachDao
     abstract fun aiUsageDao(): AiUsageDao
+    abstract fun progressPhotoDao(): ProgressPhotoDao
 
     companion object {
         const val VERSION = 3

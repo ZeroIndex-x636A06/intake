@@ -2,20 +2,30 @@ package com.zeroindex.intake.ui.screens.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zeroindex.intake.data.db.entity.HydrationPresetEntity
 import com.zeroindex.intake.data.keys.ApiKeyState
 import com.zeroindex.intake.data.keys.ApiKeyStore
-import com.zeroindex.intake.data.repository.AllergenRepository
+import com.zeroindex.intake.data.profile.ProfileRepository
 import com.zeroindex.intake.data.repository.BodyRepository
 import com.zeroindex.intake.data.repository.FoodSearchRepository
+import com.zeroindex.intake.data.repository.HydrationRepository
 import com.zeroindex.intake.data.repository.RemoteResult
 import com.zeroindex.intake.data.repository.TargetRepository
 import com.zeroindex.intake.data.repository.TdeeRepository
 import com.zeroindex.intake.data.settings.AppSettings
+import com.zeroindex.intake.data.settings.FoodDataPrefs
+import com.zeroindex.intake.data.settings.FoodDataSettings
 import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.data.settings.ThemeMode
-import com.zeroindex.intake.domain.model.AllergenSeverity
+import com.zeroindex.intake.domain.goals.UserProfile
+import com.zeroindex.intake.domain.hydration.DrinkType
 import com.zeroindex.intake.domain.nutrition.MacroSplit
+import com.zeroindex.intake.domain.settings.SodiumDisplay
+import com.zeroindex.intake.domain.settings.TodayCard
+import com.zeroindex.intake.domain.time.Clock
 import com.zeroindex.intake.domain.units.LengthUnit
+import com.zeroindex.intake.domain.units.PortionUnit
+import com.zeroindex.intake.domain.units.VolumeUnit
 import com.zeroindex.intake.domain.units.WeightUnit
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -23,6 +33,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -34,31 +45,33 @@ sealed interface KeyTestResult {
     data class Failed(val message: String) : KeyTestResult
 }
 
+/** Everything the Settings pages read, in one object. */
 data class SettingsUiState(
     val settings: AppSettings = AppSettings(),
+    val foodData: FoodDataSettings = FoodDataSettings(),
     val keys: ApiKeyState = ApiKeyState(),
-    val avoidedAllergens: Set<String> = emptySet(),
-    val allergenSeverity: AllergenSeverity = AllergenSeverity.AVOID,
-    /**
-     * Every term the engine will actually catch for the avoided allergens.
-     * Shown so the profile is auditable: "dairy" alone does not tell you that
-     * casein and lactalbumin are covered.
-     */
-    val knownAllergenTerms: List<String> = emptyList(),
-    val usdaTest: KeyTestResult = KeyTestResult.Untested,
+    val presets: List<HydrationPresetEntity> = emptyList(),
+    val currentKcal: Int? = null,
     val latestWeightKg: Double? = null,
+    val usdaTest: KeyTestResult = KeyTestResult.Untested,
     val message: String? = null,
-)
+) {
+    val profile: UserProfile get() = settings.profile
+}
 
+/** The one view model behind the Settings home and every group page except the AI, Sync and Health sections. */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
+    private val foodDataPrefs: FoodDataPrefs,
     private val apiKeyStore: ApiKeyStore,
-    private val allergenRepository: AllergenRepository,
     private val foodSearchRepository: FoodSearchRepository,
     private val targetRepository: TargetRepository,
     private val tdeeRepository: TdeeRepository,
     private val bodyRepository: BodyRepository,
+    private val hydrationRepository: HydrationRepository,
+    private val profileRepository: ProfileRepository,
+    private val clock: Clock,
 ) : ViewModel() {
 
     private val usdaTest = MutableStateFlow<KeyTestResult>(KeyTestResult.Untested)
@@ -66,108 +79,62 @@ class SettingsViewModel @Inject constructor(
 
     val uiState: StateFlow<SettingsUiState> = combine(
         settingsRepository.settings,
+        foodDataPrefs.settings,
         apiKeyStore.state,
-        allergenRepository.observeProfile(),
-        allergenRepository.observeAliasesByAllergen(),
+        hydrationRepository.observePresets(),
         combine(
-            usdaTest,
+            targetRepository.observeTargetFor(clock.today()),
             bodyRepository.observeLatest(),
+            usdaTest,
             message,
-        ) { test, latest, msg -> Triple(test, latest, msg) },
-    ) { settings, keys, profile, aliases, rest ->
-        val avoided = profile?.avoidedAllergens
-            ?.split(',')
-            ?.map { it.trim().lowercase() }
-            ?.filter { it.isNotEmpty() }
-            ?.toSet()
-            .orEmpty()
+        ) { target, latest, test, msg -> arrayOf(target?.kcal, latest?.weightKg, test, msg) },
+    ) { settings, food, keys, presets, rest ->
         SettingsUiState(
             settings = settings,
+            foodData = food,
             keys = keys,
-            avoidedAllergens = avoided,
-            allergenSeverity = profile?.severityLevel ?: AllergenSeverity.AVOID,
-            knownAllergenTerms = avoided
-                .flatMap { allergen -> aliases[allergen].orEmpty() }
-                .distinct()
-                .sorted(),
-            usdaTest = rest.first,
-            latestWeightKg = rest.second?.weightKg,
-            message = rest.third,
+            presets = presets,
+            currentKcal = rest[0] as Int?,
+            latestWeightKg = rest[1] as Double?,
+            usdaTest = rest[2] as KeyTestResult,
+            message = rest[3] as String?,
         )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = SettingsUiState(),
-    )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
+    // ---- Appearance and units ----
     fun setWeightUnit(unit: WeightUnit) = launchSetting { setWeightUnit(unit) }
     fun setLengthUnit(unit: LengthUnit) = launchSetting { setLengthUnit(unit) }
+    fun setVolumeUnit(unit: VolumeUnit) = launchSetting { setVolumeUnit(unit) }
+    fun setPortionUnit(unit: PortionUnit) = launchSetting { setPortionUnit(unit) }
     fun setThemeMode(mode: ThemeMode) = launchSetting { setThemeMode(mode) }
     fun setDynamicColor(enabled: Boolean) = launchSetting { setDynamicColor(enabled) }
     fun setReduceMotion(enabled: Boolean) = launchSetting { setReduceMotion(enabled) }
-    fun setRestSeconds(seconds: Int) = launchSetting { setDefaultRestSec(seconds) }
-    fun setRestVibrate(enabled: Boolean) = launchSetting { setRestVibrate(enabled) }
-    fun setBarWeightKg(kg: Double) = launchSetting { setBarWeightKg(kg) }
-    fun setPlates(csv: String) = launchSetting { setAvailablePlates(csv) }
+    fun setTodayCard(card: TodayCard, shown: Boolean) = launchSetting { setTodayCard(card, shown) }
+
+    // ---- Nutrition ----
     fun setAutoTargets(enabled: Boolean) = launchSetting { setAutoCalculateTargets(enabled) }
     fun setAddActiveCalories(enabled: Boolean) = launchSetting { setAddActiveCalories(enabled) }
-    fun setGoalWeightKg(kg: Double?) = launchSetting { setGoalWeightKg(kg) }
-    fun setGoalRate(kgPerWeek: Double) = launchSetting { setGoalRateKgPerWeek(kgPerWeek) }
     fun setProteinPerKg(value: Double) = launchSetting { setProteinPerKg(value) }
     fun setFatPerKg(value: Double) = launchSetting { setFatPerKg(value) }
+    fun setShowSodium(mode: SodiumDisplay) = launchSetting { setShowSodium(mode) }
+    fun setEatOutRadius(miles: Double) = launchSetting { setEatOutRadiusMi(miles) }
+    fun updateProfile(block: (UserProfile) -> UserProfile) { viewModelScope.launch { profileRepository.update(block) } }
 
-    fun setUsdaKey(key: String?) {
-        apiKeyStore.setUsdaKey(key)
-        usdaTest.value = KeyTestResult.Untested
-        message.value = if (key.isNullOrBlank()) {
-            "USDA key cleared. Search now covers only foods already on this phone."
-        } else {
-            "USDA key saved, encrypted on this device."
-        }
-    }
-
-    /** SPEC §13: a test-connection button on each key. */
-    fun testUsdaKey() = viewModelScope.launch {
-        usdaTest.value = KeyTestResult.Testing
-        usdaTest.value = when (val result = foodSearchRepository.searchRemote("chicken breast")) {
-            is RemoteResult.Success ->
-                KeyTestResult.Ok("Worked: ${result.value.size} results came back.")
-            RemoteResult.NotFound -> KeyTestResult.Ok("Connected, but that test query was empty.")
-            RemoteResult.MissingKey -> KeyTestResult.Failed("No key saved yet.")
-            is RemoteResult.Failed -> KeyTestResult.Failed(result.message)
-        }
-    }
-
-    fun setAvoidedAllergens(avoided: Set<String>, severity: AllergenSeverity) =
-        viewModelScope.launch {
-            allergenRepository.setProfile(avoided, severity, notes = "")
-            message.value = if (avoided.isEmpty()) {
-                "Allergen checks are off. Nothing will be flagged."
-            } else {
-                "Checking every food against: ${avoided.joinToString(", ")}."
-            }
-        }
-
-    fun addAlias(allergen: String, term: String) = viewModelScope.launch {
-        if (allergen.isBlank() || term.isBlank()) return@launch
-        allergenRepository.addAlias(allergen, term)
-        message.value = "Added \"$term\" to $allergen."
-    }
-
-    /** Manual target entry, which switches auto-calculation off (SPEC §13). */
-    fun setManualTarget(kcal: Int, goalWeightKg: Double) = viewModelScope.launch {
-        val settings = uiState.value.settings
+    /** Manual calorie entry, which switches auto-calculation off (SPEC §13). */
+    fun setManualCalories(kcal: Int) = viewModelScope.launch {
+        val s = uiState.value
+        val weight = s.latestWeightKg ?: s.settings.goalWeightKg ?: 70.0
         targetRepository.setTarget(
             MacroSplit.forKcal(
                 kcal = kcal,
-                goalWeightKg = goalWeightKg,
-                proteinPerKg = settings.proteinGramsPerKg,
-                fatPerKg = settings.fatGramsPerKg,
+                goalWeightKg = s.settings.goalWeightKg ?: weight,
+                proteinPerKg = s.settings.proteinGramsPerKg,
+                fatPerKg = s.settings.fatGramsPerKg,
             ),
             isAutoCalculated = false,
         )
         settingsRepository.setAutoCalculateTargets(false)
-        message.value = "Target set to $kcal kcal by hand. Auto-calculation is off."
+        message.value = "Target set to $kcal kcal by hand. Working it out from your data is off."
     }
 
     fun recalculateTargetFromTdee() = viewModelScope.launch {
@@ -184,7 +151,70 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    // ---- Water and drinks ----
+    fun setHydrationBaseMl(ml: Double?) = launchSetting { setHydrationBaseMl(ml) }
+    fun setHydrationDynamic(on: Boolean) = launchSetting { setHydrationDynamic(on) }
+    fun setHydrationTrainingBonusMl(ml: Double) = launchSetting { setHydrationTrainingBonusMl(ml) }
+    fun savePreset(name: String, volumeMl: Double, drink: DrinkType) =
+        viewModelScope.launch { hydrationRepository.savePreset(name, volumeMl, null, drink) }
+    fun deletePreset(preset: HydrationPresetEntity) = viewModelScope.launch { hydrationRepository.deletePreset(preset.id) }
+
+    // ---- Training ----
+    fun setRestSeconds(seconds: Int) = launchSetting { setDefaultRestSec(seconds) }
+    fun setRestVibrate(enabled: Boolean) = launchSetting { setRestVibrate(enabled) }
+    fun setBarWeightKg(kg: Double) = launchSetting { setBarWeightKg(kg) }
+    fun setPlates(csv: String) = launchSetting { setAvailablePlates(csv) }
+    fun setJumpTests(on: Boolean) = launchSetting { setJumpTests(on) }
+    fun setWeeklySets(csv: String) = launchSetting { setWeeklySetsCsv(csv) }
+
+    // ---- Food database ----
+    fun setOffSearch(on: Boolean) { viewModelScope.launch { foodDataPrefs.setOffSearch(on) } }
+    fun setOffOtherLanguages(on: Boolean) { viewModelScope.launch { foodDataPrefs.setOffOtherLanguages(on) } }
+    fun setOffContribute(on: Boolean) { viewModelScope.launch { foodDataPrefs.setOffContribute(on) } }
+    fun saveOffCredentials(username: String?, password: String?) {
+        apiKeyStore.setOffCredentials(username, password)
+        message.value = if (username.isNullOrBlank()) "Open Food Facts login removed." else "Open Food Facts login saved, encrypted on this device."
+    }
+
+    // ---- Videos / reminders / sync and export ----
+    fun setOnlyWorkouts(on: Boolean) = launchSetting { setOnlyWorkouts(on) }
+    fun setPersonalise(on: Boolean) = launchSetting { setPersonaliseVideos(on) }
+    fun setCoachNotify(on: Boolean) = launchSetting { setCoachNotify(on) }
+    fun setCoachWeekday(isoWeekday: Int?) = launchSetting { setCoachWeekday(isoWeekday) }
+    fun setPhotoReminderWeeks(weeks: Int) = launchSetting { setPhotoReminderWeeks(weeks) }
+    fun setExportReminder(on: Boolean) = launchSetting { setExportReminder(on) }
+    fun setExportIncludePhotos(on: Boolean) = launchSetting { setExportIncludePhotos(on) }
+
+    // ---- API keys ----
+    fun setUsdaKey(key: String?) {
+        apiKeyStore.setUsdaKey(key)
+        usdaTest.value = KeyTestResult.Untested
+        message.value = if (key.isNullOrBlank()) {
+            "USDA key cleared. Search now covers only foods already on this phone."
+        } else {
+            "USDA key saved, encrypted on this device."
+        }
+    }
+
+    /** SPEC §13: a test-connection button on each key. */
+    fun testUsdaKey() = viewModelScope.launch {
+        usdaTest.value = KeyTestResult.Testing
+        usdaTest.value = when (val result = foodSearchRepository.searchRemote("chicken breast")) {
+            is RemoteResult.Success -> KeyTestResult.Ok("Worked: ${result.value.size} results came back.")
+            RemoteResult.NotFound -> KeyTestResult.Ok("Connected, but that test query was empty.")
+            RemoteResult.MissingKey -> KeyTestResult.Failed("No key saved yet.")
+            is RemoteResult.Failed -> KeyTestResult.Failed(result.message)
+        }
+    }
+
+    fun setYoutubeKey(key: String?) {
+        apiKeyStore.setYoutubeKey(key)
+        message.value = if (key.isNullOrBlank()) "YouTube key removed." else "YouTube key saved, encrypted on this device."
+    }
+
     fun clearMessage() { message.value = null }
+
+    suspend fun currentSettings(): AppSettings = settingsRepository.settings.first()
 
     private fun launchSetting(block: suspend SettingsRepository.() -> Unit) = viewModelScope.launch {
         settingsRepository.block()

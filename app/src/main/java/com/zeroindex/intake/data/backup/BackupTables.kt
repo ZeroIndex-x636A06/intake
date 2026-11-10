@@ -10,6 +10,7 @@ import com.zeroindex.intake.data.db.entity.AllergenProfileEntity
 import com.zeroindex.intake.data.db.entity.BackupRunEntity
 import com.zeroindex.intake.data.db.entity.BodyMetricEntity
 import com.zeroindex.intake.data.db.entity.CoachSuggestionEntity
+import com.zeroindex.intake.data.db.entity.ProgressPhotoEntity
 import com.zeroindex.intake.data.db.entity.EatOutOptionEntity
 import com.zeroindex.intake.data.db.entity.ExerciseEntity
 import com.zeroindex.intake.data.db.entity.FoodEntity
@@ -66,6 +67,8 @@ fun backupTables(dao: ExportDao): List<BackupTable<out Audited>> = listOf(
     BackupTable("allergen_profile", AllergenProfileEntity.serializer(), dao::allergenProfile, dao::upsertAllergenProfile),
     BackupTable("backup_run", BackupRunEntity.serializer(), dao::backupRun, dao::upsertBackupRun),
     BackupTable("coach_suggestion", CoachSuggestionEntity.serializer(), dao::coachSuggestion, dao::upsertCoachSuggestion),
+    // Metadata only: the image files never leave the phone (docs/BACKUP.md).
+    BackupTable("progress_photo", ProgressPhotoEntity.serializer(), dao::progressPhoto, dao::upsertProgressPhoto),
     BackupTable("body_metric", BodyMetricEntity.serializer(), dao::bodyMetric, dao::upsertBodyMetric),
     BackupTable("meal_plan", MealPlanEntity.serializer(), dao::mealPlan, dao::upsertMealPlan),
     BackupTable("plan_week", PlanWeekEntity.serializer(), dao::planWeek, dao::upsertPlanWeek),

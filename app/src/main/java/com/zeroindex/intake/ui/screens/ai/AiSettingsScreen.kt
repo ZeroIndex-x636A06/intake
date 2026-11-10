@@ -65,155 +65,8 @@ import com.zeroindex.intake.ui.components.SubHead
 import com.zeroindex.intake.ui.theme.IntakeShape
 import java.time.Duration
 
-/**
- * Amendment §1: the model picker. Every AI feature is optional and runs on a
- * key the user supplies; this is where that key, the privacy level, and the
- * model for each task are set.
- */
 @Composable
-fun AiSettingsScreen(
-    contentPadding: PaddingValues,
-    modifier: Modifier = Modifier,
-    viewModel: AiSettingsViewModel = hiltViewModel(),
-) {
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val benchmark by viewModel.benchmarkState.collectAsStateWithLifecycle()
-    var picking by remember { mutableStateOf<TaskRow?>(null) }
-
-    LazyColumn(
-        modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(
-            top = contentPadding.calculateTopPadding(),
-            bottom = contentPadding.calculateBottomPadding() + 24.dp,
-            start = 16.dp,
-            end = 16.dp,
-        ),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        item(key = "head") {
-            SubHead("AI settings", "Everything AI is optional. It runs only when you tap something, or on a schedule you switch on.")
-        }
-        item(key = "master") { AiMasterCard(enabled = state.settings.aiEnabled, onToggle = viewModel::setAiEnabled) }
-        if (state.settings.aiEnabled) {
-            item(key = "budget") { AiBudgetCard(meter = state.meter, onSetCap = viewModel::setBudget) }
-            item(key = "usage") { AiUsageMeterCard(meter = state.meter, onReset = viewModel::resetCounters) }
-        }
-        item(key = "privacy") {
-            IntakeCard {
-                Eyebrow("Privacy for AI requests")
-                Spacer(Modifier.height(6.dp))
-                AiPrivacy.entries.forEach { p ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 56.dp)
-                            .clickable(role = Role.RadioButton) { viewModel.setPrivacy(p) },
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(selected = state.settings.aiPrivacy == p, onClick = null)
-                        Spacer(Modifier.padding(4.dp))
-                        Column {
-                            Text(p.label, style = MaterialTheme.typography.titleSmall)
-                            Text(
-                                p.explanation,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-                SettingRow(
-                    title = "Suggest free models",
-                    subtitle = "Free models are often paid for with your data. Off keeps them out of suggestions.",
-                    showDivider = false,
-                ) {
-                    Switch(checked = state.settings.aiAllowRetainingModels, onCheckedChange = viewModel::setAllowRetaining)
-                }
-            }
-        }
-
-        item(key = "tasks-head") {
-            SectionLine(
-                title = "Model per task",
-                note = state.catalog.fetchedAt?.let { "list updated ${ago(it)}" }
-                    ?: if (state.catalog.refreshing) "loading list…" else null,
-            )
-        }
-        state.catalog.error?.let { error ->
-            item(key = "catalog-error") {
-                ErrorState(
-                    title = "Model list unavailable",
-                    body = "$error Choices below use the last list saved on this phone.",
-                )
-            }
-        }
-        item(key = "tasks") {
-            IntakeCard {
-                state.rows.forEachIndexed { i, row ->
-                    ModelRow(row, onChange = { picking = row })
-                    if (i != state.rows.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                }
-            }
-        }
-        item(key = "refresh") {
-            OutlinedButton(
-                onClick = { viewModel.refreshCatalog() },
-                enabled = !state.catalog.refreshing,
-                shape = IntakeShape.Button,
-                modifier = Modifier.fillMaxWidth().height(50.dp),
-            ) { Text(if (state.catalog.refreshing) "Refreshing…" else "Refresh model list and prices") }
-        }
-
-        item(key = "cost-head") { SectionLine("Estimated cost", note = "Not a bill") }
-        item(key = "cost") { AiCostCard(state, onUsesChange = viewModel::setUsesPerDay) }
-
-        item(key = "automatic") {
-            AutomaticAiCard(
-                settings = state.settings,
-                onInsight = viewModel::setDailyInsight,
-                onReword = viewModel::setCoachReword,
-                onMenuRefresh = viewModel::setMenuAutoRefresh,
-            )
-        }
-
-        item(key = "bench-run-head") { SectionLine("Run benchmark", note = "On your key · you set the cap") }
-        item(key = "bench-run") {
-            BenchmarkRunCard(
-                hasKey = state.hasKey && state.settings.aiEnabled,
-                state = benchmark,
-                onToggleTask = viewModel::toggleBenchmarkTask,
-                onCapChange = viewModel::setBenchmarkCap,
-                onStart = viewModel::startBenchmark,
-                onCancel = viewModel::cancelBenchmark,
-                onDismiss = viewModel::dismissBenchmarkResult,
-            )
-        }
-        item(key = "bench-head") { SectionLine("Benchmark results", note = "Local evaluation set") }
-        item(key = "bench") { BenchmarkTable(state) }
-        item(key = "key") { KeyCard(state, onSave = viewModel::saveKey, onTest = viewModel::testKey) }
-        item(key = "filter-note") {
-            Text(
-                "Only models able to do the selected task are shown in each picker.",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-
-    picking?.let { row ->
-        ModelPickerSheet(
-            row = row,
-            onPick = { id ->
-                viewModel.pickModel(row.task, id)
-                picking = null
-            },
-            onDismiss = { picking = null },
-        )
-    }
-}
-
-@Composable
-private fun KeyCard(state: AiSettingsUiState, onSave: (String?) -> Unit, onTest: () -> Unit) {
+internal fun KeyCard(state: AiSettingsUiState, onSave: (String?) -> Unit, onTest: () -> Unit) {
     var text by remember { mutableStateOf("") }
     IntakeCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -267,7 +120,7 @@ private fun KeyCard(state: AiSettingsUiState, onSave: (String?) -> Unit, onTest:
 
 /** `.model-row`: task and per-use cost on the left, the model and a change button on the right. */
 @Composable
-private fun ModelRow(row: TaskRow, onChange: () -> Unit) {
+internal fun ModelRow(row: TaskRow, onChange: () -> Unit) {
     val active = row.active
     Row(Modifier.fillMaxWidth().padding(vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
@@ -316,7 +169,7 @@ private fun requirements(task: AiTask): String = buildList {
 }.joinToString(", ", prefix = "Filtered to models that can ", postfix = ".")
 
 @Composable
-private fun BenchmarkTable(state: AiSettingsUiState) {
+internal fun BenchmarkTable(state: AiSettingsUiState) {
     if (state.benchmarks.isEmpty()) {
         EmptyState(
             title = "No benchmark results yet",
@@ -368,7 +221,7 @@ private fun BenchmarkTable(state: AiSettingsUiState) {
 }
 
 @Composable
-private fun ModelPickerSheet(row: TaskRow, onPick: (String?) -> Unit, onDismiss: () -> Unit) {
+internal fun ModelPickerSheet(row: TaskRow, onPick: (String?) -> Unit, onDismiss: () -> Unit) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var query by remember { mutableStateOf("") }
     val shown = row.suggestion.candidates.filter {

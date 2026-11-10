@@ -43,6 +43,11 @@ class AppFlowViewModel @Inject constructor(
         .map { it.reduceMotion }
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
+    /** The letter on the avatar: the first letter of the name on You, "Y" until a name is set. */
+    val avatarInitial: StateFlow<String> = settingsRepository.settings
+        .map { it.displayName.trim().take(1).uppercase().ifEmpty { "Y" } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, "Y")
+
     /** Null while it is being worked out (a few milliseconds), then fixed for the rest of the launch. */
     val gate = MutableStateFlow<GateDecision?>(null)
 

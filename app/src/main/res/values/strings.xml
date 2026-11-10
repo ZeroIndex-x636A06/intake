@@ -2,8 +2,7 @@
 <resources>
     <string name="app_name">Intake</string>
     <string name="nav_today">Today</string>
-    <string name="nav_food">Food</string>
+    <string name="nav_nutrition">Nutrition</string>
     <string name="nav_train">Train</string>
     <string name="nav_progress">Progress</string>
-    <string name="nav_more">More</string>
 </resources>

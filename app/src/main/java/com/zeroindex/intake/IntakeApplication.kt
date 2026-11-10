@@ -6,7 +6,6 @@ import androidx.work.Configuration
 import androidx.work.WorkManager
 import com.zeroindex.intake.data.health.HealthSync
 import com.zeroindex.intake.wear.WearBridge
-import com.zeroindex.intake.work.BackupScheduler
 import com.zeroindex.intake.work.BaselineWorker
 import com.zeroindex.intake.work.SyncScheduler
 import com.zeroindex.intake.work.TdeeWorker
@@ -19,7 +18,7 @@ class IntakeApplication : Application(), Configuration.Provider {
     /** WorkManager is initialised through Hilt so workers can inject (SPEC §8). */
     @Inject lateinit var workerFactory: HiltWorkerFactory
     @Inject lateinit var healthSync: HealthSync
-    @Inject lateinit var backupScheduler: BackupScheduler
+    @Inject lateinit var credentials: com.zeroindex.intake.data.backup.remote.BackupCredentialStore
     @Inject lateinit var syncScheduler: SyncScheduler
     @Inject lateinit var wearBridge: WearBridge
 
@@ -42,8 +41,10 @@ class IntakeApplication : Application(), Configuration.Provider {
         com.zeroindex.intake.work.CoachWorker.schedule(WorkManager.getInstance(this))
         // SPEC §12: Health Connect follows local writes, debounced - never a timer.
         healthSync.start()
-        // Amendment §2: nightly backup, scheduled only once a server is set up.
-        backupScheduler.start()
+        // The remote WebDAV / SFTP / SMB backup is gone. An old install may still have its nightly job queued and
+        // its destination secrets stored: cancel the job and clear the secrets (idempotent, cheap).
+        WorkManager.getInstance(this).cancelUniqueWork("nightly-backup")
+        credentials.clearDestinationSecrets()
         // Amendment §3: device sync, only while paired.
         syncScheduler.start()
         // Amendment §2: mirror the session in progress to a paired watch.

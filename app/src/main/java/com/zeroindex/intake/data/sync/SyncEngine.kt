@@ -12,7 +12,7 @@ import com.zeroindex.intake.data.db.entity.Audited
 import com.zeroindex.intake.data.db.entity.SyncConflictEntity
 import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.backup.RowVersion
-import com.zeroindex.intake.domain.backup.WebDavUrlPolicy
+import com.zeroindex.intake.domain.backup.SyncUrlPolicy
 import com.zeroindex.intake.domain.sync.IncomingRow
 import com.zeroindex.intake.domain.sync.LocalRow
 import com.zeroindex.intake.domain.sync.SyncMerge
@@ -77,8 +77,8 @@ class SyncEngine @Inject constructor(
     private fun encode(table: BackupTable<Audited>, row: Audited): String = wire.encodeToString(table.serializer, row)
 
     /** Plain http only to an obviously local address, as for WebDAV backups. */
-    fun problemWith(serverUrl: String): String? = when (val v = WebDavUrlPolicy.check(serverUrl)) {
-        is WebDavUrlPolicy.Verdict.Rejected -> v.reason
+    fun problemWith(serverUrl: String): String? = when (val v = SyncUrlPolicy.check(serverUrl)) {
+        is SyncUrlPolicy.Verdict.Rejected -> v.reason
         else -> null
     }
 

@@ -194,6 +194,14 @@ internal fun migrateRecipes_2_3(): List<String> = listOf(
     "ALTER TABLE `shopping_list_item` ADD COLUMN `note` TEXT",
 )
 
+internal fun migrateProgressPhotos_2_3(): List<String> = listOf(
+    // Progress photos (You > Progress photos): metadata only. The image is a private file named fileName; it is never
+    // synced or uploaded. Purely additive.
+    "CREATE TABLE IF NOT EXISTS `progress_photo` (`id` TEXT NOT NULL, `takenAt` INTEGER NOT NULL, `angle` TEXT NOT NULL, `fileName` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+    "CREATE INDEX IF NOT EXISTS `index_progress_photo_takenAt` ON `progress_photo` (`takenAt`)",
+    "CREATE INDEX IF NOT EXISTS `index_progress_photo_deletedAt` ON `progress_photo` (`deletedAt`)",
+)
+
 // Add new 2 -> 3 steps to the list below, after the existing ones.
 internal val MIGRATION_2_3_STATEMENTS: List<String> =
     migrateFoodOff_2_3() +
@@ -205,7 +213,8 @@ internal val MIGRATION_2_3_STATEMENTS: List<String> =
         migrateExercises_2_3() +
         migrateFoodUi_2_3() +
         migrateRecipes_2_3() +
-        migrateAiFailureKind_2_3()
+        migrateAiFailureKind_2_3() +
+        migrateProgressPhotos_2_3()
 
 internal val MIGRATION_2_3 = object : Migration(2, 3) {
     override fun migrate(db: SupportSQLiteDatabase) {

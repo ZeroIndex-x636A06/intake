@@ -149,6 +149,21 @@ class MigrationSchemaTest {
     }
 
     @Test
+    fun migrationTwoToThreeCreatesTheProgressPhotoTableEmptyAndUsable() {
+        val v2 = createAt(2)
+        assertThat(entities(2)).doesNotContainKey("progress_photo")
+        MIGRATION_2_3_STATEMENTS.forEach { v2.exec(it) }
+        assertThat(v2.rows("SELECT COUNT(*) AS n FROM progress_photo").single()["n"]).isEqualTo(0)
+        v2.exec(
+            "INSERT INTO progress_photo (id, takenAt, angle, fileName, createdAt, updatedAt, deletedAt) " +
+                "VALUES ('p1', 1700000000000, 'FRONT', 'p1.jpg', 1, 1, NULL)",
+        )
+        assertThat(v2.rows("SELECT angle FROM progress_photo").single()["angle"]).isEqualTo("FRONT")
+        assertMatches(v2, 3)
+        v2.close()
+    }
+
+    @Test
     fun migrationTwoToThreeCreatesTheAiUsageLogEmptyAndUsable() {
         val v2 = createAt(2)
         assertThat(entities(2)).doesNotContainKey("ai_usage")

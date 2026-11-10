@@ -1,6 +1,8 @@
 package com.zeroindex.intake.ui
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -69,6 +71,13 @@ import com.zeroindex.intake.ui.navigation.TopLevelDestination
 import com.zeroindex.intake.ui.navigation.pillBackdropSource
 import com.zeroindex.intake.ui.navigation.rememberPillBackdrop
 import com.zeroindex.intake.ui.navigation.tabOf
+import com.zeroindex.intake.ui.navigation.tabRootOf
+import com.zeroindex.intake.ui.navigation.ShellPolicy
+import com.zeroindex.intake.ui.navigation.ShellActions
+import com.zeroindex.intake.ui.navigation.LocalShellActions
+import com.zeroindex.intake.ui.navigation.LocalPillIsRail
+import com.zeroindex.intake.ui.navigation.PillHeight
+import com.zeroindex.intake.ui.motion.Motion
 
 @Composable
 fun IntakeApp(messages: AppMessages? = null) {
@@ -90,7 +99,7 @@ fun IntakeApp(messages: AppMessages? = null) {
 
 /** Where each "Your plans" choice opens: its tab, then the screen. */
 private fun PendingDestination.target(): Pair<TopLevelDestination, Route> = when (this) {
-    PendingDestination.MEAL_PLAN_IMPORT, PendingDestination.MEAL_PLAN_BUILD -> TopLevelDestination.FOOD to Route.MealPlans
+    PendingDestination.MEAL_PLAN_IMPORT, PendingDestination.MEAL_PLAN_BUILD -> TopLevelDestination.NUTRITION to Route.MealPlans
     PendingDestination.PROGRAM_IMPORT -> TopLevelDestination.TRAIN to Route.Programs
     PendingDestination.PROGRAM_GENERATE -> TopLevelDestination.TRAIN to Route.ProgramGenerator
     PendingDestination.PROGRAM_TEMPLATE -> TopLevelDestination.TRAIN to Route.ProgramTemplates
@@ -102,23 +111,20 @@ private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, sta
     val backdrop = rememberPillBackdrop()
     val tour = remember { TourState() }
     val prefs by flow.prefs.collectAsStateWithLifecycle()
+    val avatarInitial by flow.avatarInitial.collectAsStateWithLifecycle()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
-    val currentTab = tabOf(currentDestination)
-
-    // Full-screen flows (cook mode, active workout) hide the navigation: SPEC §9
-    // wants cook mode full-screen with oversized targets and no chrome.
-    val hideNavigation = currentDestination?.hierarchy?.any {
-        it.hasRoute(Route.CookMode::class) || it.hasRoute(Route.ActiveWorkout::class) ||
-            it.hasRoute(Route.Onboarding::class)
-    } == true
+    val currentRoot = tabRootOf(currentDestination)
+    // The pill is shown on tab roots only (ShellPolicy); a pushed screen, a sheet or a full-screen task hides it.
+    val pillVisible = ShellPolicy.pillVisible(currentRoot?.route)
+    val reduce = LocalReduceMotion.current
 
     val snackbar = remember { SnackbarHostState() }
     if (messages != null) {
         val open by messages.openRequest.collectAsState()
         LaunchedEffect(open) {
             if (open == com.zeroindex.intake.work.CoachNotifier.OPEN_COACH) {
-                navController.navigate(Route.CoachCheckIn)
+                navController.navigate(Route.WeeklyCheckIn)
                 messages.openConsumed()
             }
         }
@@ -138,19 +144,19 @@ private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, sta
     }
 
     val destinations = TopLevelDestination.entries
-    val selectedIndex = currentTab?.let(destinations::indexOf) ?: -1
+    val selectedIndex = currentRoot?.let(destinations::indexOf) ?: tabOf(currentDestination)?.let(destinations::indexOf) ?: -1
     val onSelectTab: (Int) -> Unit = { index ->
         selectTab(
             navController = navController,
             target = destinations[index],
-            currentTab = currentTab,
+            currentTab = currentRoot,
             atRoot = currentDestination?.hasRoute(destinations[index].route::class) == true,
         )
     }
 
     // Amendment §3: from Medium width up the destinations move to a vertical pill on the
     // left, which leaves the full height for content on a landscape display.
-    val showRail = LocalWindowSizeClass.current.isAtLeastMedium && !hideNavigation
+    val showRail = LocalWindowSizeClass.current.isAtLeastMedium
 
     // The Today tour starts once, when it is due and Today is showing with its targets laid out.
     val onToday = currentDestination?.hasRoute(Route.Today::class) == true
@@ -183,48 +189,64 @@ private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, sta
         navController.navigate(route)
     }
 
-    CompositionLocalProvider(LocalTourState provides tour) {
-    Box(Modifier.fillMaxSize()) {
-    Row(Modifier.fillMaxSize()) {
-        if (showRail) {
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .windowInsetsPadding(
-                        WindowInsets.systemBars.union(WindowInsets.displayCutout)
-                            .only(WindowInsetsSides.Start + WindowInsetsSides.Vertical),
-                    )
-                    .padding(12.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                FloatingPillBar(
-                    destinations = destinations,
-                    selectedIndex = selectedIndex,
-                    onSelect = onSelectTab,
-                    vertical = true,
-                    backdrop = backdrop,
-                    modifier = Modifier.tourTarget(TourIds.PILL),
+    val shellActions = remember(avatarInitial) {
+        ShellActions(avatarInitial) { navController.navigate(ShellPolicy.avatarTarget()) }
+    }
+
+    CompositionLocalProvider(
+        LocalTourState provides tour,
+        LocalShellActions provides shellActions,
+        LocalPillIsRail provides showRail,
+    ) {
+        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+            Row(Modifier.fillMaxSize()) {
+                if (showRail && pillVisible) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .windowInsetsPadding(
+                                WindowInsets.systemBars.union(WindowInsets.displayCutout)
+                                    .only(WindowInsetsSides.Start + WindowInsetsSides.Vertical),
+                            )
+                            .padding(12.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        FloatingPillBar(
+                            destinations = destinations,
+                            selectedIndex = selectedIndex,
+                            onSelect = onSelectTab,
+                            vertical = true,
+                            backdrop = backdrop,
+                            modifier = Modifier.tourTarget(TourIds.PILL),
+                        )
+                    }
+                }
+                // Today, Progress and Plan B lay themselves out across the full
+                // width; every other screen is a single column and gets capped.
+                val fullWidth = currentDestination?.let { destination ->
+                    destination.hasRoute(Route.Today::class) ||
+                        destination.hasRoute(Route.Progress::class) ||
+                        destination.hierarchy.any { it.hasRoute(Route.PlanB::class) }
+                } == true
+                val capWidth = LocalWindowSizeClass.current.isExpanded && !fullWidth
+                IntakeNavHost(
+                    navController = navController,
+                    contentPadding = PaddingValues(),
+                    modifier = (if (capWidth) Modifier.readableWidth() else Modifier)
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .pillBackdropSource(backdrop),
+                    startOnboarding = startOnboarding,
                 )
             }
-        }
-        Scaffold(
-            modifier = Modifier.weight(1f).fillMaxHeight(),
-            snackbarHost = { SnackbarHost(snackbar) },
-            // The rail already consumes the start-side system insets, so the
-            // content must not pad for them a second time.
-            contentWindowInsets = if (showRail) {
-                ScaffoldDefaults.contentWindowInsets.only(
-                    WindowInsetsSides.End + WindowInsetsSides.Vertical,
-                )
-            } else {
-                ScaffoldDefaults.contentWindowInsets
-            },
-            // The pill floats over the content. Scaffold measures it and reports its height (plus
-            // the gesture-bar inset and margins) as the bottom of `innerPadding`, which is the
-            // contentPadding every screen already honours, so content scrolls behind the pill and
-            // its last row can still be scrolled clear of it.
-            bottomBar = {
-                if (!hideNavigation && !showRail) {
+            // The pill floats over the tab roots (they reserve room for it) and slides away on pushed screens.
+            if (!showRail) {
+                AnimatedVisibility(
+                    visible = pillVisible,
+                    enter = Motion.pillEnter(reduce),
+                    exit = Motion.pillExit(reduce),
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -244,35 +266,16 @@ private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, sta
                         )
                     }
                 }
-            },
-        ) { innerPadding ->
-            // Today, Progress and Plan B lay themselves out across the full
-            // width; every other screen is a single column and gets capped.
-            val fullWidth = currentDestination?.let { destination ->
-                destination.hasRoute(Route.Today::class) ||
-                    destination.hasRoute(Route.Progress::class) ||
-                    destination.hierarchy.any { it.hasRoute(Route.PlanB::class) }
-            } == true
-            val capWidth = LocalWindowSizeClass.current.isExpanded && !fullWidth
-            IntakeNavHost(
-                navController = navController,
-                contentPadding = innerPadding,
-                modifier = (if (capWidth) Modifier.readableWidth() else Modifier).pillBackdropSource(backdrop),
-                startOnboarding = startOnboarding,
+            }
+            SnackbarHost(
+                snackbar,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Bottom))
+                    .padding(bottom = if (pillVisible && !showRail) PillHeight else 0.dp),
             )
+            TourOverlay(tour)
         }
-    }
-    // Content scrolls under the status bar (edge to edge); this keeps its text from being drawn over the clock and
-    // icons on every screen, instead of each screen having to remember (B7: the benchmark title sat under it).
-    Box(
-        Modifier
-            .align(Alignment.TopCenter)
-            .fillMaxWidth()
-            .windowInsetsTopHeight(WindowInsets.statusBars)
-            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.92f)),
-    )
-    TourOverlay(tour)
-    }
     }
 }
 

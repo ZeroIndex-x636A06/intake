@@ -3,7 +3,6 @@ package com.zeroindex.intake.ui.navigation
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -12,30 +11,31 @@ import kotlinx.serialization.Serializable
 
 /**
  * Type-safe routes (Navigation Compose reads these through kotlinx.serialization).
- * SPEC-v3 "Information architecture": the pill is Today, Food, Train, Progress, More, and each of
- * the last four opens a short hub of named sections.
+ * IA v5 (Option A "Familiar"): the pill is Today, Nutrition, Train, Progress. There is no More tab: the
+ * avatar in every tab root's top bar opens [You], and Settings is the gear on You.
  *
- * Feature agents: append new routes inside the group they belong to (Food, Train, Progress, More);
- * register the matching `composable<...>` in the same group's graph in IntakeNavHost.
+ * Feature agents: a screen only one tab uses goes in that tab's graph, above its "add ... above this line"
+ * marker. A screen that several tabs open (Settings, You, Drinks, Allergens, ...) is registered ONCE at the
+ * root of the NavHost, in the "shared screens" block, never in two graphs. Every pushed screen is wrapped in
+ * `PushedScreen(...)` (top bar with back arrow, no pill); tab roots use `TabRootScreen(...)`.
  */
 sealed interface Route {
     // Tab roots.
     @Serializable data object Today : Route
-    @Serializable data object Food : Route
+    /** The Nutrition tab root (was Food). Temporary contents until the Nutrition rebuild. */
+    @Serializable data object Nutrition : Route
     @Serializable data object Train : Route
     @Serializable data object Progress : Route
-    @Serializable data object More : Route
 
     /** The welcome flow, shown before the tabs on a first run and from Help, "Show the welcome again". */
     @Serializable data object Onboarding : Route
 
-    // Food tab. Hubs first, then the screens they open.
+    // Nutrition tab. Hubs first, then the screens they open.
     @Serializable data object MealPlans : Route
     @Serializable data object Recipes : Route
     @Serializable data object EatingOut : Route
+    /** The one Allergens screen (status, your allergens, keywords, check the label, hidden-ingredient guide, flagged). */
     @Serializable data object Allergens : Route
-    @Serializable data object AllergenReference : Route
-    @Serializable data object MyAllergens : Route
     @Serializable data class AllergenKeywords(val allergenKey: String) : Route
     @Serializable data object RecipeHunter : Route
     @Serializable data object RecipeImport : Route
@@ -49,8 +49,16 @@ sealed interface Route {
     @Serializable data object MyFoods : Route
     /** Food detail and edit, with "Contribute to Open Food Facts". */
     @Serializable data class FoodDetail(val foodId: String) : Route
-    /** Open Food Facts search and contribution settings, plus data credits. */
-    @Serializable data object FoodData : Route
+    /**
+     * Temporary Drinks page: log a drink and see today's. Pushed from Today ("Log a drink") and Nutrition. The
+     * Nutrition agent replaces its contents (categories, size buttons); its settings stay in Settings.
+     */
+    @Serializable data object Drinks : Route
+    /**
+     * Swap the planned meal. A sheet (dialog destination). The Nutrition agent builds the full sheet; for now it
+     * lists the three sections: Plan & recipes, Saved, Eat out nearby.
+     */
+    @Serializable data class SwapSheet(val slot: String? = null) : Route
 
     // Train tab.
     @Serializable data object Programs : Route
@@ -64,23 +72,30 @@ sealed interface Route {
 
     // Progress tab.
     @Serializable data object WorkoutHistory : Route
-    @Serializable data object WeeklyReport : Route
-    /** The weekly coach check-in: the week at a glance and the suggestions to apply or dismiss. */
-    @Serializable data object CoachCheckIn : Route
-    @Serializable data object HealthConnect : Route
+    /**
+     * The one weekly check-in (summary, suggestions with Apply / Dismiss, week chips, Export / Print PDF). It
+     * replaces the old WeeklyReport and CoachCheckIn routes.
+     */
+    @Serializable data object WeeklyCheckIn : Route
     @Serializable data object BodyMetrics : Route
 
-    // More tab.
-    /** [section] scrolls the settings list to "targets" or "allergens"; null opens at the top. */
-    @Serializable data class Settings(val section: String? = null) : Route
+    // You (the avatar) and Settings. Shared: registered once at the NavHost root.
+    /** The profile screen behind the avatar: header, goals and plan, progress photos, help. */
+    @Serializable data object You : Route
+    /** Settings home: search and one row per group. Holds only settings. */
+    @Serializable data object Settings : Route
+    /** One Settings group page. [group] is a `SettingsGroup.id`; [focus] a `SettingId.name` to scroll to, or null. */
+    @Serializable data class SettingsGroup(val group: String, val focus: String? = null) : Route
+    /** "What leaves this phone": the privacy statement, opened from Settings > About and help. */
     @Serializable data object Privacy : Route
-    @Serializable data object Backup : Route
-    @Serializable data object AiSettings : Route
-    @Serializable data object Help : Route
-    /** Profile & goals: basics, build, phase, training availability, and the baseline week. */
+    /** About you and goal inputs (sex, birth year, height, build, phase, pace, baseline week). Opened from You. */
     @Serializable data object Profile : Route
-    /** "Your plan": calories, macros, water and training built from the profile, with a why for each. */
+    /** "Your plan": how the plan was worked out, with Apply. Opened from You > Goals and plan. */
     @Serializable data object YourPlan : Route
+    /** Progress photos timeline and add, from You. */
+    @Serializable data object ProgressPhotos : Route
+    /** Compare two progress photo dates side by side with a divider slider. */
+    @Serializable data object PhotoCompare : Route
 
     /**
      * The bundled scripting wiki. [page] is a docs/scripting page such as "README"; [anchor] a
@@ -95,10 +110,9 @@ sealed interface Route {
  */
 sealed interface TabGraph {
     @Serializable data object Today : TabGraph
-    @Serializable data object Food : TabGraph
+    @Serializable data object Nutrition : TabGraph
     @Serializable data object Train : TabGraph
     @Serializable data object Progress : TabGraph
-    @Serializable data object More : TabGraph
 }
 
 /**
@@ -112,8 +126,7 @@ enum class TopLevelDestination(
     val icon: ImageVector,
 ) {
     TODAY(Route.Today, TabGraph.Today, R.string.nav_today, Icons.Filled.Today),
-    FOOD(Route.Food, TabGraph.Food, R.string.nav_food, Icons.Filled.Restaurant),
+    NUTRITION(Route.Nutrition, TabGraph.Nutrition, R.string.nav_nutrition, Icons.Filled.Restaurant),
     TRAIN(Route.Train, TabGraph.Train, R.string.nav_train, Icons.Filled.FitnessCenter),
     PROGRESS(Route.Progress, TabGraph.Progress, R.string.nav_progress, Icons.AutoMirrored.Filled.ShowChart),
-    MORE(Route.More, TabGraph.More, R.string.nav_more, Icons.Filled.MoreHoriz),
 }

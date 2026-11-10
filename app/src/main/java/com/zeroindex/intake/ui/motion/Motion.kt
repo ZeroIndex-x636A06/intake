@@ -8,16 +8,17 @@ import android.provider.Settings
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -70,22 +71,57 @@ object Motion {
     fun <T> standardTween(reduce: Boolean, durationMillis: Int = DurationMedium): FiniteAnimationSpec<T> =
         if (reduce) snap() else tween(durationMillis, easing = Standard)
 
-    // Fade-through, used when switching between the five tabs.
+    // Fade-through, used when switching between the tabs: a plain cross-fade, no movement and no scale (IA v5 2b).
     fun fadeThroughIn(reduce: Boolean): EnterTransition =
-        if (reduce) EnterTransition.None else fadeIn(
-            animationSpec = tween(FadeThroughIn, delayMillis = FadeThroughOut, easing = EmphasizedDecelerate),
-        ) + scaleIn(
-            initialScale = 0.96f,
-            animationSpec = tween(FadeThroughIn, delayMillis = FadeThroughOut, easing = EmphasizedDecelerate),
-        )
+        fadeIn(animationSpec = tween(if (reduce) DurationShort else TabFade, easing = Standard))
 
     fun fadeThroughOut(reduce: Boolean): ExitTransition =
-        if (reduce) ExitTransition.None else fadeOut(
-            animationSpec = tween(FadeThroughOut, easing = EmphasizedAccelerate),
-        ) + scaleOut(
-            targetScale = 0.96f,
-            animationSpec = tween(FadeThroughOut, easing = EmphasizedAccelerate),
+        fadeOut(animationSpec = tween(if (reduce) DurationShort else TabFade, easing = Standard))
+
+    /** A tab switch cross-fades for 150 ms. */
+    const val TabFade = 150
+
+    /** A push slides in 300 ms; a pop (back) takes 250 ms. The screen underneath travels a quarter of its width. */
+    const val PushMillis = 300
+    const val PopMillis = 250
+    const val UnderFraction = 4
+
+    // Push and pop (IA v5 2b): horizontal slide only. No shrink, no fade of the screen underneath.
+    // With reduce motion on, every case is a 100 ms cross-fade.
+    fun pushEnter(reduce: Boolean): EnterTransition =
+        if (reduce) fadeIn(tween(DurationShort)) else slideInHorizontally(
+            animationSpec = tween(PushMillis, easing = FastOutSlowInEasing),
+            initialOffsetX = { full -> full },
         )
+
+    fun pushExit(reduce: Boolean): ExitTransition =
+        if (reduce) fadeOut(tween(DurationShort)) else slideOutHorizontally(
+            animationSpec = tween(PushMillis, easing = FastOutSlowInEasing),
+            targetOffsetX = { full -> -full / UnderFraction },
+        )
+
+    fun popEnter(reduce: Boolean): EnterTransition =
+        if (reduce) fadeIn(tween(DurationShort)) else slideInHorizontally(
+            animationSpec = tween(PopMillis, easing = FastOutSlowInEasing),
+            initialOffsetX = { full -> -full / UnderFraction },
+        )
+
+    fun popExit(reduce: Boolean): ExitTransition =
+        if (reduce) fadeOut(tween(DurationShort)) else slideOutHorizontally(
+            animationSpec = tween(PopMillis, easing = FastOutSlowInEasing),
+            targetOffsetX = { full -> full },
+        )
+
+    /** The pill leaving or arriving as a screen is pushed or popped: quick, and instant with reduce motion. */
+    fun pillEnter(reduce: Boolean): EnterTransition =
+        if (reduce) EnterTransition.None else slideInVertically(tween(DurationMedium, easing = Standard)) { it } +
+            fadeIn(tween(DurationMedium))
+
+    fun pillExit(reduce: Boolean): ExitTransition =
+        if (reduce) ExitTransition.None else slideOutVertically(tween(PillExitMillis, easing = Standard)) { it } +
+            fadeOut(tween(PillExitMillis))
+
+    const val PillExitMillis = 140
 
     // Shared axis X: forward slides in from the end, back slides in from the start.
     fun sharedAxisEnter(forward: Boolean, reduce: Boolean): EnterTransition =

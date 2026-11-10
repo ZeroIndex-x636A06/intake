@@ -11,6 +11,7 @@ import com.zeroindex.intake.data.db.entity.AllergenProfileEntity
 import com.zeroindex.intake.data.db.entity.BackupRunEntity
 import com.zeroindex.intake.data.db.entity.BodyMetricEntity
 import com.zeroindex.intake.data.db.entity.CoachSuggestionEntity
+import com.zeroindex.intake.data.db.entity.ProgressPhotoEntity
 import com.zeroindex.intake.data.db.entity.EatOutOptionEntity
 import com.zeroindex.intake.data.db.entity.ExerciseEntity
 import com.zeroindex.intake.data.db.entity.FoodEntity
@@ -116,4 +117,6 @@ interface ExportDao {
     @Upsert suspend fun upsertTdeeEstimate(rows: List<TdeeEstimateEntity>)
     @Query("SELECT * FROM coach_suggestion") suspend fun coachSuggestion(): List<CoachSuggestionEntity>
     @Upsert suspend fun upsertCoachSuggestion(rows: List<CoachSuggestionEntity>)
+    @Query("SELECT * FROM progress_photo") suspend fun progressPhoto(): List<ProgressPhotoEntity>
+    @Upsert suspend fun upsertProgressPhoto(rows: List<ProgressPhotoEntity>)
 }

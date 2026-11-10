@@ -26,6 +26,7 @@ class ApiKeyStore @Inject constructor(
         const val FILE = "intake_api_keys"
         const val KEY_OPENROUTER = "openrouter_api_key"
         const val KEY_USDA = "usda_api_key"
+        const val KEY_YOUTUBE = "youtube_api_key"
         const val KEY_OFF_USER = "off_username"
         const val KEY_OFF_PASSWORD = "off_password"
 
@@ -63,6 +64,8 @@ class ApiKeyStore @Inject constructor(
 
     fun openRouterKey(): String? = prefs?.getString(KEY_OPENROUTER, null)?.takeIf { it.isNotBlank() }
     fun usdaKey(): String? = prefs?.getString(KEY_USDA, null)?.takeIf { it.isNotBlank() }
+    /** The person's own YouTube Data API key for Videos. Sent only in a request header, never in a URL. */
+    fun youtubeKey(): String? = prefs?.getString(KEY_YOUTUBE, null)?.takeIf { it.isNotBlank() }
 
     /**
      * The user's own Open Food Facts account, used only to contribute a product they
@@ -82,6 +85,7 @@ class ApiKeyStore @Inject constructor(
 
     fun setOpenRouterKey(key: String?) = put(KEY_OPENROUTER, key)
     fun setUsdaKey(key: String?) = put(KEY_USDA, key)
+    fun setYoutubeKey(key: String?) = put(KEY_YOUTUBE, key)
 
     fun refresh() { _state.value = read() }
 
@@ -99,6 +103,7 @@ class ApiKeyStore @Inject constructor(
     private fun read() = ApiKeyState(
         hasOpenRouterKey = openRouterKey() != null,
         hasUsdaKey = usdaKey() != null,
+        hasYoutubeKey = youtubeKey() != null,
         hasOffCredentials = offUsername() != null && offPassword() != null,
         offUsername = offUsername(),
         storeAvailable = prefs != null,
@@ -109,6 +114,7 @@ class ApiKeyStore @Inject constructor(
 data class ApiKeyState(
     val hasOpenRouterKey: Boolean = false,
     val hasUsdaKey: Boolean = false,
+    val hasYoutubeKey: Boolean = false,
     /** Whether an Open Food Facts username and password are saved. The password is never exposed. */
     val hasOffCredentials: Boolean = false,
     /** The username is not a secret and is shown back to the user; the password never is. */

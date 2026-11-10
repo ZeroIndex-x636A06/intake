@@ -44,7 +44,11 @@ object PortableSettings {
         // marker belongs to this device's own usage log.
         "ai_master_enabled", "ai_monthly_budget_usd", "ai_menu_auto_refresh",
         "profile_json", "baseline_json", "plan_history_json", "week_pattern_json",
-        "backup_schedule",
+        // Round 3: You and Settings (all plain preferences; never a secret or a device id).
+        "profile_display_name", "portion_unit", "today_card_next", "today_card_water", "today_card_weight",
+        "today_card_meals", "show_sodium", "eat_out_radius_mi", "jump_tests", "weekly_sets_csv",
+        "videos_only_workouts", "videos_personalise", "photo_reminder_weeks", "export_reminder",
+        "export_include_photos",
         "off_search_enabled", "off_contribute_enabled", "off_other_languages",
         // Hydration v2 (its own store): the opt-in, the chosen place name, drink edits and the measured sweat rate.
         // NOT the coordinates, the cached forecast or the retry time: a restore asks for the location again.
@@ -150,8 +154,15 @@ object PortableSettings {
     fun describe(names: Collection<String>): String {
         if (names.isEmpty()) return "Settings: none in this backup"
         val groups = listOf(
-            "units" to setOf("weight_unit", "length_unit", "volume_unit"),
-            "look and feel" to setOf("theme_mode", "dynamic_color", "reduce_motion"),
+            "units" to setOf("weight_unit", "length_unit", "volume_unit", "portion_unit"),
+            "look and feel" to setOf(
+                "theme_mode", "dynamic_color", "reduce_motion", "today_card_next", "today_card_water",
+                "today_card_weight", "today_card_meals", "profile_display_name",
+            ),
+            "reminders and videos" to setOf(
+                "photo_reminder_weeks", "export_reminder", "export_include_photos", "videos_only_workouts",
+                "videos_personalise", "show_sodium", "eat_out_radius_mi", "jump_tests", "weekly_sets_csv",
+            ),
             "workout timer and plates" to setOf("default_rest_sec", "rest_vibrate", "bar_weight_kg", "available_plates_kg"),
             "targets" to setOf(
                 "goal_weight_kg", "goal_rate_kg_per_week", "protein_g_per_kg", "fat_g_per_kg", "auto_targets",
@@ -166,7 +177,6 @@ object PortableSettings {
                 "ai_master_enabled", "ai_monthly_budget_usd", "ai_menu_auto_refresh",
             ),
             "food database" to setOf("off_search_enabled", "off_contribute_enabled", "off_other_languages"),
-            "backup schedule" to setOf("backup_schedule"),
         )
         val present = groups.filter { (label, keys) ->
             when (label) {
