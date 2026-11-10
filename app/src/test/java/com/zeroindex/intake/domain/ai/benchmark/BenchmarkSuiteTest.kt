@@ -90,12 +90,11 @@ class BenchmarkSuiteTest {
     )
 
     @Test
-    fun `candidates are the suggestion plus the three cheapest others`() {
+    fun `candidates are ranked by capability and then price, never a free variant`() {
         val ids = BenchmarkSuite.defaultCandidates(AiTask.MENU_INGESTION, catalog, emptyList(), allowRetainingModels = false)
             .map { it.id }
-        assertThat(ids).containsExactly(
-            "meta-llama/llama-3.3-70b-instruct", "cheap/a", "cheap/b", "cheap/c",
-        ).inOrder()
+        // Every model here is equally capable, so price decides: the four cheapest paid ones.
+        assertThat(ids).containsExactly("cheap/a", "cheap/b", "cheap/c", "cheap/d").inOrder()
     }
 
     @Test
@@ -103,7 +102,9 @@ class BenchmarkSuiteTest {
         val withheld = BenchmarkSuite.defaultCandidates(AiTask.MENU_INGESTION, catalog, emptyList(), false).map { it.id }
         val allowed = BenchmarkSuite.defaultCandidates(AiTask.MENU_INGESTION, catalog, emptyList(), true).map { it.id }
         assertThat(withheld).containsNoneOf("free/model:free", "keeps/f")
-        assertThat(allowed).containsAtLeast("free/model:free", "keeps/f")
+        assertThat(allowed).contains("keeps/f")
+        // A free tier is excluded either way: its rate limits are what caused the 429s.
+        assertThat(allowed).doesNotContain("free/model:free")
     }
 
     @Test
