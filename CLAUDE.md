@@ -2,7 +2,8 @@
 
 Intake is an offline-first personal Android app for nutrition and training. It
 also has a Wear OS companion and an optional self-hosted sync server. Read this
-file before you change anything, then read `docs/TASKS.md` to pick up work.
+file before you change anything, then **`docs/HANDOFF.md`** (current state and next
+steps) and `docs/TASKS.md`.
 
 ## Where things are
 
@@ -16,17 +17,20 @@ file before you change anything, then read `docs/TASKS.md` to pick up work.
 | `docs/SPEC.md` | Original spec |
 | `docs/SPEC-amendments.md` | First round of changes |
 | `docs/SPEC-v3.md` | **Current overhaul brief.** It wins where the specs disagree. |
+| `docs/HANDOFF.md` | **Start here.** Current state, open branches, next steps. |
+| `docs/briefs/` | Full briefs for in-progress work. |
 | `docs/TASKS.md` | **Task board.** Open work, who is on it, what is done. |
 | `docs/scripting/` | The Intake script language wiki, also bundled into the app |
 | `docs/ALLERGENS.md`, `PRIVACY.md`, `SYNC-EXPORT.md`, `BENCHMARK.md`, `FOOD-DATA.md`, `MEAL-PLAN.md` | Feature docs |
 | `RESUME.md` | Detailed state of the code, plus what is and isn't verified |
-| `design/intake-mockup-v2.html` | Visual style reference |
+| `design/mockup-v5/option-a.html` | **Chosen design (Option A)**; frames in `design/mockup-v5/shots/` |
 
 `app/src/main/java/com/zeroindex/intake/` is organised like this:
 - `domain/` is pure Kotlin with no Android imports. Put logic here and unit-test it.
 - `data/` holds Room, repositories, remote services, sync and backup.
 - `ui/` holds screens and components. Navigation lives in `ui/navigation/`:
-  - a floating pill bar with tabs Today · Food · Train · Progress · More;
+  - a floating pill bar with tabs Today · Nutrition · Train · Progress (You is
+    behind the avatar in every tab root's top bar);
   - each tab has its own nav graph;
   - add new routes inside the right tab graph, above its "Add new … routes above
     this line" marker.

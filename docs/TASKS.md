@@ -1,5 +1,8 @@
 # Task board
 
+> **In progress (pushed WIP branches):** `agent/nutrition-wip` (Option A part 2) and
+> `agent/train-wip` (Option A part 3). See `docs/HANDOFF.md` and `docs/briefs/`.
+
 The brief is `docs/SPEC-v3.md`. To claim a task, put your branch name next to it
 and push that change before you start. When you finish, move the task to Done
 with its merge commit. Read `CLAUDE.md` before you claim anything.
