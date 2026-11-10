@@ -62,7 +62,7 @@ class ReplyRepairTest {
 
     @Test
     fun `a byte order mark and surrounding whitespace are ignored`() {
-        assertThat(ok("﻿  \n{\"items\":[]}\n ").items).isEmpty()
+        assertThat(ok(0xFEFF.toChar() + "  \n{\"items\":[]}\n ").items).isEmpty()
     }
 
     @Test

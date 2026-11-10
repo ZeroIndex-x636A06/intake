@@ -23,12 +23,15 @@ object ReplyRepair {
 
     private const val MAX_ERROR = 300
 
+    /** A byte order mark some models put first; built from its code so no literal U+FEFF is in the source. */
+    private val BOM: String = 0xFEFF.toChar().toString()
+
     /**
      * The outermost JSON object in [content], with fences, surrounding prose and trailing commas removed, or
      * null when there is no complete object (for example a reply cut off by the token limit).
      */
     fun extractJson(content: String): String? {
-        val text = stripFence(content.replace("﻿", "")).trim()
+        val text = stripFence(content.replace(BOM, "")).trim()
         val start = text.indexOf('{')
         if (start < 0) return null
         val end = matchingBrace(text, start) ?: return null
