@@ -388,6 +388,15 @@ class MealPlanRepository @Inject constructor(
         return WeekContent(week, PlanWeekExtras.decode(week.notes), main, variations)
     }
 
+    /**
+     * Every saved recipe with its per-serving macros and its allergen status as of now (the Swap sheet's "Plan & recipes").
+     * Nothing leaves the phone.
+     */
+    suspend fun recipeContents(): List<RecipeContent> {
+        val scanner = scanner()
+        return recipeDao.all().map { contentOf(it, scanner) }
+    }
+
     private suspend fun contentOf(recipe: RecipeEntity, check: AllergenCheck): RecipeContent {
         val rows = recipeDao.ingredientsOf(recipe.id)
         val foods = rows.mapNotNull { row -> foodDao.findById(row.foodId)?.let { it to row.quantityGrams } }
@@ -737,6 +746,9 @@ class MealPlanRepository @Inject constructor(
     suspend fun undoLog(log: FoodLogEntity) = foodLog.softDelete(log.id)
 
     fun observeEatOutOptions(): Flow<List<EatOutOptionEntity>> = plan.observeAllEatOutOptions()
+
+    /** Soft delete: a saved eat-out option is hidden, never removed from the database. */
+    suspend fun deleteEatOutOption(id: String) = planDao.softDeleteEatOutOption(id, clock.nowMillis())
 
     suspend fun weekByNumber(n: Int): PlanWeekEntity? = planDao.activePlan()?.let { planDao.week(it.id, n) }
 }

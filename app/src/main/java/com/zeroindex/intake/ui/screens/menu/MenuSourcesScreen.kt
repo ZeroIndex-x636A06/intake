@@ -141,7 +141,7 @@ fun MenuSourcesScreen(
             item(key = "empty") {
                 EmptyState(
                     title = "No menus yet",
-                    body = "Add a restaurant's nutrition page, PDF or pasted menu text. Plan B can then suggest from it offline.",
+                    body = "Add a restaurant's nutrition page, PDF or pasted menu text. Swap can then suggest from it offline.",
                 )
             }
         } else {

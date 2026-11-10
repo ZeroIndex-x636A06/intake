@@ -3,17 +3,16 @@
 package com.zeroindex.intake.ui.addfood
 
 import androidx.compose.foundation.clickable
-import androidx.compose.material3.TextButton
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -22,202 +21,144 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Button
-import com.zeroindex.intake.ui.motion.SkeletonList
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Tab
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Surface
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.ui.graphics.Color
-import com.zeroindex.intake.ui.components.Eyebrow
-import com.zeroindex.intake.ui.theme.IntakeShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.db.entity.FoodEntity
 import com.zeroindex.intake.data.foodref.RefFood
-import com.zeroindex.intake.data.foodref.RefPortion
-import androidx.compose.runtime.LaunchedEffect
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nutrition.Macros
+import com.zeroindex.intake.domain.units.PortionUnit
+import com.zeroindex.intake.ui.allergen.AllergenChip
 import com.zeroindex.intake.ui.allergen.AllergenWarningSheet
 import com.zeroindex.intake.ui.allergen.CheckLabelChip
 import com.zeroindex.intake.ui.allergen.ProvideCheckLabelTerms
 import com.zeroindex.intake.ui.allergen.checkLabelReasonFor
-import com.zeroindex.intake.ui.photo.PhotoEstimateFlow
 import com.zeroindex.intake.ui.barcode.BarcodeScannerView
+import com.zeroindex.intake.ui.components.ActionTile
+import com.zeroindex.intake.ui.components.ChoiceChip
+import com.zeroindex.intake.ui.components.EmptyState
+import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.ui.images.FoodThumb
 import com.zeroindex.intake.ui.images.ThumbTile
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.statusBarsPadding
+import com.zeroindex.intake.ui.motion.SkeletonList
+import com.zeroindex.intake.ui.photo.PhotoEstimateFlow
+import com.zeroindex.intake.ui.theme.IntakeShape
 import kotlin.math.roundToInt
 
+/** "Breakfast", "Lunch", "Dinner", "Snacks": the slot chip's words. */
+internal fun slotWord(slot: MealSlot): String = when (slot) {
+    MealSlot.BREAKFAST -> "Breakfast"
+    MealSlot.LUNCH -> "Lunch"
+    MealSlot.DINNER -> "Dinner"
+    MealSlot.SNACK -> "Snacks"
+}
+
 /**
- * SPEC §5: one "Add food" button opening a sheet with the add paths as tabs.
- * Recents is the default, because in practice most logging is repetition.
+ * Log food, a full-screen task (IA 5b, Option A): three equal modes, Search, Scan and Photo, plus Mine (your foods,
+ * favourites, a food made by hand) and Quick add (calories and macros typed in). Tapping a result opens Food detail with
+ * the meal and time it was opened for; the "+" on a row logs that food's own serving at once. The allergen check runs
+ * before anything is saved, on every path.
+ *
+ * It is registered once at the root of the nav graph, so Today and Nutrition open the same screen.
  */
 @Composable
-fun AddFoodSheet(
-    mealSlot: MealSlot,
+fun LogFoodScreen(
+    slot: MealSlot,
     loggedAtMillis: Long,
-    onDismiss: () -> Unit,
-    onOpenAiSettings: () -> Unit = {},
-    /** Which tab the sheet opens on. Food > Log can open straight to Search or Barcode. */
-    initialTab: AddFoodTab = AddFoodTab.RECENTS,
-    /** Opens the food's detail and edit screen. Null hides the "Edit this food" action. */
-    onOpenFood: ((String) -> Unit)? = null,
+    initialTab: AddFoodTab,
+    contentPadding: PaddingValues,
+    onBack: () -> Unit,
+    /** Opens Food detail for the id, for the meal chosen here. */
+    onOpenFood: (foodId: String, slot: MealSlot) -> Unit,
+    onOpenDrinks: () -> Unit,
+    onOpenAiSettings: () -> Unit,
+    modifier: Modifier = Modifier,
     viewModel: AddFoodViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var portionFor by remember { mutableStateOf<FoodEntity?>(null) }
-    // Other portions USDA lists for a food chosen from the offline database.
-    var portionOptions by remember { mutableStateOf<List<RefPortion>>(emptyList()) }
-    val choose: (FoodEntity) -> Unit = { food ->
-        portionOptions = emptyList()
-        portionFor = food
-    }
+    var mealSlot by rememberSaveable { mutableStateOf(slot) }
+    var slotMenu by remember { mutableStateOf(false) }
 
-    LaunchedEffect(initialTab) {
-        if (initialTab != AddFoodTab.RECENTS) viewModel.selectTab(initialTab)
-    }
+    LaunchedEffect(initialTab) { viewModel.selectTab(initialTab) }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        ProvideCheckLabelTerms(state.checkLabelTerms) {
-        // Full height: the sheet is the whole screen below the status bar, with the keyboard pushing the
-        // result list up rather than covering it.
-        Column(modifier = Modifier.fillMaxWidth().fillMaxHeight().statusBarsPadding().navigationBarsPadding().imePadding()) {
-            val portioning = portionFor
-            if (portioning != null) {
-                PortionStep(
-                    food = portioning,
-                    extraPortions = portionOptions,
-                    onEditFood = onOpenFood?.let { open -> { open(portioning.id) } },
-                    onCancel = { portionFor = null },
-                    onLog = { grams ->
-                        viewModel.requestLogFood(portioning, grams, mealSlot, loggedAtMillis) {
-                            portionFor = null
-                            onDismiss()
+    // Adopts a USDA or Open Food Facts result into the person's foods, then opens its detail.
+    val openEntity: (FoodEntity) -> Unit = { food -> onOpenFood(food.id, mealSlot) }
+
+    ProvideCheckLabelTerms(state.checkLabelTerms) {
+        Column(
+            modifier
+                .fillMaxSize()
+                .padding(top = contentPadding.calculateTopPadding(), bottom = contentPadding.calculateBottomPadding()),
+        ) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                ActionTile("Search", Icons.Filled.Search, { viewModel.selectTab(AddFoodTab.SEARCH) }, Modifier.weight(1f), selected = state.tab == AddFoodTab.SEARCH)
+                ActionTile("Scan", Icons.Filled.QrCodeScanner, { viewModel.selectTab(AddFoodTab.BARCODE) }, Modifier.weight(1f), selected = state.tab == AddFoodTab.BARCODE)
+                ActionTile("Photo", Icons.Filled.CameraAlt, { viewModel.selectTab(AddFoodTab.PHOTO) }, Modifier.weight(1f), selected = state.tab == AddFoodTab.PHOTO)
+            }
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box {
+                    ChoiceChip("${slotWord(mealSlot)}  ▾", false, { slotMenu = true })
+                    DropdownMenu(expanded = slotMenu, onDismissRequest = { slotMenu = false }) {
+                        MealSlot.entries.forEach { s ->
+                            DropdownMenuItem(text = { Text(slotWord(s)) }, onClick = { mealSlot = s; slotMenu = false })
                         }
-                    },
-                )
-            } else {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, end = 8.dp, bottom = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = "Log food",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.weight(1f),
-                    )
-                    IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
-                        Icon(Icons.Filled.Close, contentDescription = "Close")
                     }
                 }
+                ChoiceChip("Mine", state.tab == AddFoodTab.MY_FOODS, { viewModel.selectTab(AddFoodTab.MY_FOODS) })
+                ChoiceChip("Quick add", state.tab == AddFoodTab.QUICK_ADD, { viewModel.selectTab(AddFoodTab.QUICK_ADD) })
+            }
+            HorizontalDivider(Modifier.padding(top = 10.dp), color = MaterialTheme.colorScheme.outlineVariant)
 
-                ScrollableTabRow(
-                    selectedTabIndex = AddFoodTab.entries.indexOf(state.tab),
-                    edgePadding = 14.dp,
-                    containerColor = Color.Transparent,
-                    divider = {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    },
-                    // The mockup's tab marker is a short rounded bar inset from
-                    // the label, not a full-width underline.
-                    indicator = { tabPositions ->
-                        val position = tabPositions[AddFoodTab.entries.indexOf(state.tab)]
-                        Box(
-                            Modifier
-                                .tabIndicatorOffset(position)
-                                .padding(horizontal = 10.dp)
-                                .height(3.dp)
-                                .background(
-                                    color = MaterialTheme.colorScheme.primary,
-                                    shape = RoundedCornerShape(4.dp),
-                                ),
-                        )
-                    },
-                ) {
-                    AddFoodTab.entries.forEach { tab ->
-                        Tab(
-                            selected = state.tab == tab,
-                            onClick = { viewModel.selectTab(tab) },
-                            selectedContentColor = MaterialTheme.colorScheme.primary,
-                            unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            text = {
-                                Text(tab.label, style = MaterialTheme.typography.labelSmall)
-                            },
-                        )
-                    }
-                }
-
+            Box(Modifier.weight(1f).fillMaxWidth()) {
                 when (state.tab) {
-                    AddFoodTab.RECENTS -> FoodList(
-                        foods = state.recents,
-                        safeIds = state.safeFoodIds,
-                        emptyMessage = "Nothing logged yet. Once you log a few things, your " +
-                            "most-used foods land here.",
-                        onPick = choose,
-                        onToggleFavorite = viewModel::toggleFavorite,
-                    )
-
                     AddFoodTab.SEARCH -> SearchTab(
                         state = state,
                         onQueryChange = viewModel::setQuery,
                         onSearchRemote = viewModel::searchRemote,
-                        onPick = choose,
-                        onChooseRef = { ref ->
-                            viewModel.chooseRef(ref) { food, portions ->
-                                portionOptions = portions
-                                portionFor = food
-                            }
-                        },
-                        onChooseOff = { food -> viewModel.chooseOff(food, choose) },
-                        onToggleFavorite = viewModel::toggleFavorite,
+                        onOpen = openEntity,
+                        onQuickAdd = { food -> viewModel.quickAddDefault(food, mealSlot, loggedAtMillis) },
+                        onChooseRef = { ref -> viewModel.chooseRef(ref) { food, _ -> openEntity(food) } },
+                        onChooseOff = { food -> viewModel.chooseOff(food, openEntity) },
+                        onOpenDrinks = onOpenDrinks,
                         onCreate = { name, brand, grams, label, k, p, c, f ->
-                            viewModel.createFood(
-                                name = name,
-                                brand = brand,
-                                servingGrams = grams,
-                                servingLabel = label,
-                                kcal = k,
-                                protein = p,
-                                carbs = c,
-                                fat = f,
-                            ) { created -> choose(created) }
+                            viewModel.createFood(name, brand, grams, label, k, p, c, f, onCreated = openEntity)
                         },
                     )
 
@@ -226,74 +167,51 @@ fun AddFoodSheet(
                         onBarcode = viewModel::onBarcodeScanned,
                         onRescan = viewModel::rescanBarcode,
                         onRetry = viewModel::retryBarcode,
-                        onPick = choose,
+                        onPick = openEntity,
                         onExit = { viewModel.selectTab(AddFoodTab.SEARCH) },
                         onCreateForBarcode = { barcode, name, brand, grams, label, k, p, c, f ->
-                            viewModel.createFood(
-                                name = name,
-                                brand = brand,
-                                servingGrams = grams,
-                                servingLabel = label,
-                                kcal = k,
-                                protein = p,
-                                carbs = c,
-                                fat = f,
-                                barcode = barcode,
-                            ) { created -> choose(created) }
+                            viewModel.createFood(name, brand, grams, label, k, p, c, f, barcode = barcode, onCreated = openEntity)
                         },
                     )
 
                     AddFoodTab.PHOTO -> PhotoEstimateFlow(
                         slot = mealSlot,
-                        slotLabel = mealSlot.name.lowercase().replaceFirstChar(Char::uppercase),
+                        slotLabel = slotWord(mealSlot),
                         loggedAtMillis = loggedAtMillis,
-                        onOpenAiSettings = {
-                            onDismiss()
-                            onOpenAiSettings()
-                        },
+                        onOpenAiSettings = onOpenAiSettings,
                         onManualEntry = { viewModel.selectTab(AddFoodTab.QUICK_ADD) },
-                        onDone = onDismiss,
+                        onDone = onBack,
                     )
 
                     AddFoodTab.QUICK_ADD -> QuickAddTab(
                         onQuickAdd = { name, kcal, protein, carbs, fat ->
                             viewModel.requestQuickAdd(
                                 name = name,
-                                macros = Macros(
-                                    kcal = kcal,
-                                    protein = protein,
-                                    carbs = carbs,
-                                    fat = fat,
-                                ),
+                                macros = Macros(kcal = kcal, protein = protein, carbs = carbs, fat = fat),
                                 slot = mealSlot,
                                 at = loggedAtMillis,
-                                onLogged = onDismiss,
+                                onLogged = onBack,
                             )
                         },
                     )
 
                     AddFoodTab.MY_FOODS -> MyFoodsTab(
-                        myFoods = state.myFoods,
-                        favorites = state.favorites,
-                        safeIds = state.safeFoodIds,
-                        onPick = choose,
+                        state = state,
+                        onOpen = openEntity,
+                        onQuickAdd = { food -> viewModel.quickAddDefault(food, mealSlot, loggedAtMillis) },
                         onToggleFavorite = viewModel::toggleFavorite,
                         onCreate = { name, brand, grams, label, k, p, c, f ->
-                            viewModel.createFood(
-                                name = name,
-                                brand = brand,
-                                servingGrams = grams,
-                                servingLabel = label,
-                                kcal = k,
-                                protein = p,
-                                carbs = c,
-                                fat = f,
-                            ) { created -> choose(created) }
+                            viewModel.createFood(name, brand, grams, label, k, p, c, f, onCreated = openEntity)
                         },
                     )
                 }
             }
-        }
+            Text(
+                "Allergen check runs before saving.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+            )
         }
     }
 
@@ -302,13 +220,11 @@ fun AddFoodSheet(
         AllergenWarningSheet(
             foodName = pending.name,
             scan = pending.scan,
-            // The stored panel text, so the sheet can show the matched term in
-            // context rather than just naming it.
             ingredientText = pending.food?.allergenTags?.takeIf { it.isNotBlank() },
             foodDetail = pending.grams?.let { grams ->
                 val food = pending.food
                 if (food != null) {
-                    "${grams.roundToInt()} g · " +
+                    "${state.portionUnit.format(grams)} · " +
                         "${(food.kcalPer100g * grams / 100.0).roundToInt()} kcal · " +
                         "${(food.proteinPer100g * grams / 100.0).roundToInt()} g protein"
                 } else {
@@ -316,60 +232,33 @@ fun AddFoodSheet(
                 }
             },
             onDismiss = viewModel::dismissPendingLog,
-            onLogAnyway = {
-                viewModel.confirmPendingLog(mealSlot, loggedAtMillis) {
-                    portionFor = null
-                    onDismiss()
-                }
-            },
+            onLogAnyway = { viewModel.confirmPendingLog(mealSlot, loggedAtMillis) { if (pending.food == null) onBack() } },
         )
-    }
-}
-
-@Composable
-private fun FoodList(
-    foods: List<FoodEntity>,
-    safeIds: Set<String>,
-    emptyMessage: String,
-    onPick: (FoodEntity) -> Unit,
-    onToggleFavorite: (FoodEntity) -> Unit,
-) {
-    if (foods.isEmpty()) {
-        Text(
-            text = emptyMessage,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(24.dp),
-        )
-        return
-    }
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
-        items(items = foods, key = { it.id }) { food ->
-            FoodRow(food, food.id in safeIds, onPick, onToggleFavorite)
-        }
     }
 }
 
 /**
- * The mockup's `.food-row`: an initial tile, the name over its portion and
- * meal, and the energy right-aligned. The initial stands in for the mockup's
- * emoji - it needs no food-to-glyph mapping and never shows the wrong picture.
+ * Result rows. The tile, the name over its portion, the energy, the allergen chip (when the person avoids anything) and
+ * a "+" that logs one serving. Tapping the row opens Food detail.
  */
 @Composable
 private fun FoodRow(
     food: FoodEntity,
     isSafe: Boolean,
-    onPick: (FoodEntity) -> Unit,
-    onToggleFavorite: ((FoodEntity) -> Unit)?,
+    allergen: RowAllergen?,
+    onOpen: (FoodEntity) -> Unit,
+    onQuickAdd: ((FoodEntity) -> Unit)?,
+    onToggleFavorite: ((FoodEntity) -> Unit)? = null,
 ) {
     val perServing = food.servingSizeGrams / 100.0
+    val isDrink = food.drinkCategory != null
     Column {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 65.dp)
-                .clickable(onClickLabel = "Choose a portion of ${food.name}") { onPick(food) }
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .clickable(onClickLabel = "Open ${food.name}") { onOpen(food) }
+                .padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             FoodThumb(food)
@@ -385,7 +274,6 @@ private fun FoodRow(
                     )
                     if (isSafe) {
                         Spacer(Modifier.size(5.dp))
-                        // SPEC §7.5: a check on foods logged 3+ times clean.
                         Icon(
                             imageVector = Icons.Filled.CheckCircle,
                             contentDescription = "Logged before with no allergen flag",
@@ -394,50 +282,40 @@ private fun FoodRow(
                         )
                     }
                 }
-                Spacer(Modifier.size(2.dp))
                 Text(
                     text = buildString {
                         food.brand?.let { append("$it · ") }
                         append(food.servingLabel)
+                        append(" · ${(food.kcalPer100g * perServing).roundToInt()} kcal")
                     },
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                 )
-                // Soft tier: shown beside the safe check too (the check means no
-                // contains/may-contain flag, not "no hidden carrier"). docs/ALLERGENS.md.
-                checkLabelReasonFor(food.name)?.let { reason ->
+                if (allergen != null) {
                     Spacer(Modifier.size(4.dp))
-                    CheckLabelChip(reason)
+                    AllergenChip(allergen.verdict, allergen.detail)
+                } else {
+                    // Soft tier: shown beside the safe check too (docs/ALLERGENS.md).
+                    checkLabelReasonFor(food.name)?.let { reason ->
+                        Spacer(Modifier.size(4.dp))
+                        CheckLabelChip(reason)
+                    }
                 }
             }
-            Spacer(Modifier.size(8.dp))
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = "${(food.kcalPer100g * perServing).roundToInt()}",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = "kcal · ${(food.proteinPer100g * perServing).roundToInt()}g P",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            if (onToggleFavorite != null) {
+                IconButton(onClick = { onToggleFavorite(food) }, modifier = Modifier.size(48.dp)) {
+                    Icon(
+                        imageVector = if (food.isFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                        contentDescription = if (food.isFavorite) "Remove ${food.name} from favourites" else "Add ${food.name} to favourites",
+                        modifier = Modifier.size(19.dp),
+                    )
+                }
             }
-            if (onToggleFavorite != null) IconButton(onClick = { onToggleFavorite(food) }, modifier = Modifier.size(48.dp)) {
-                Icon(
-                    imageVector = if (food.isFavorite) {
-                        Icons.Filled.Star
-                    } else {
-                        Icons.Outlined.StarBorder
-                    },
-                    contentDescription = if (food.isFavorite) {
-                        "Remove ${food.name} from favourites"
-                    } else {
-                        "Add ${food.name} to favourites"
-                    },
-                    modifier = Modifier.size(19.dp),
-                )
+            if (onQuickAdd != null) {
+                IconButton(onClick = { onQuickAdd(food) }, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.Filled.Add, contentDescription = if (isDrink) "Add one ${food.servingLabel} of ${food.name}" else "Log one serving of ${food.name}")
+                }
             }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -449,10 +327,11 @@ private fun SearchTab(
     state: AddFoodUiState,
     onQueryChange: (String) -> Unit,
     onSearchRemote: () -> Unit,
-    onPick: (FoodEntity) -> Unit,
+    onOpen: (FoodEntity) -> Unit,
+    onQuickAdd: (FoodEntity) -> Unit,
     onChooseRef: (RefFood) -> Unit,
     onChooseOff: (FoodEntity) -> Unit,
-    onToggleFavorite: (FoodEntity) -> Unit,
+    onOpenDrinks: () -> Unit,
     onCreate: (String, String?, Double, String, Double, Double, Double, Double) -> Unit,
 ) {
     var creating by remember { mutableStateOf(false) }
@@ -462,6 +341,7 @@ private fun SearchTab(
             note = "Enter the numbers for one serving as they appear on the label. They are " +
                 "stored per 100 g so any portion works later.",
             initialName = state.query.trim(),
+            portionUnit = state.portionUnit,
             onCancel = { creating = false },
             onCreate = { name, brand, grams, label, k, p, c, f ->
                 onCreate(name, brand, grams, label, k, p, c, f)
@@ -475,15 +355,12 @@ private fun SearchTab(
         TextField(
             value = state.query,
             onValueChange = onQueryChange,
-            placeholder = {
-                Text("Search foods", style = MaterialTheme.typography.bodyMedium)
-            },
-            leadingIcon = {
-                Icon(
-                    Icons.Filled.Search,
-                    contentDescription = null,
-                    modifier = Modifier.size(19.dp),
-                )
+            placeholder = { Text("Search foods, recipes, drinks", style = MaterialTheme.typography.bodyMedium) },
+            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, modifier = Modifier.size(19.dp)) },
+            trailingIcon = {
+                if (state.query.isNotEmpty()) {
+                    IconButton(onClick = { onQueryChange("") }) { Icon(Icons.Filled.Close, contentDescription = "Clear the search") }
+                }
             },
             singleLine = true,
             shape = IntakeShape.Field,
@@ -498,13 +375,24 @@ private fun SearchTab(
         )
 
         if (state.query.isBlank()) {
-            Text(
-                text = "Search your foods and the offline USDA database. Both work with no " +
-                    "internet and no key.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(20.dp),
-            )
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                if (state.recents.isEmpty()) {
+                    item(key = "no-recents") {
+                        Column(Modifier.padding(horizontal = 16.dp)) {
+                            EmptyState(
+                                title = "Nothing logged yet",
+                                body = "Search your foods and the offline USDA database. Both work with no internet and no key. Foods you log often land here.",
+                            )
+                        }
+                    }
+                } else {
+                    item(key = "h-recent") { SourceHeader("Recent") }
+                    items(items = state.recents, key = { "recent-${it.id}" }) { food ->
+                        FoodRow(food, food.id in state.safeFoodIds, state.rowAllergens[food.id], onOpen, onQuickAdd)
+                    }
+                }
+                item(key = "drinks-row") { DrinksRow(onOpenDrinks) }
+            }
             return@Column
         }
 
@@ -519,14 +407,14 @@ private fun SearchTab(
             if (state.localResults.isNotEmpty()) {
                 item(key = "h-local") { SourceHeader("My foods and recents") }
                 items(items = state.localResults, key = { "l-${it.id}" }) { food ->
-                    FoodRow(food, food.id in state.safeFoodIds, onPick, onToggleFavorite)
+                    FoodRow(food, food.id in state.safeFoodIds, state.rowAllergens[food.id], onOpen, onQuickAdd)
                 }
             }
 
             if (state.refResults.isNotEmpty()) {
                 item(key = "h-ref") { SourceHeader("Food database (USDA, works offline)") }
                 items(items = state.refResults, key = { "r-${it.id}" }) { ref ->
-                    RefFoodRow(ref, onChooseRef)
+                    RefFoodRow(ref, state.refAllergens[ref.id], state.portionUnit, onChooseRef)
                 }
             }
 
@@ -540,18 +428,13 @@ private fun SearchTab(
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                         )
-                        SkeletonList(
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                            rows = 3,
-                            rowHeight = 52.dp,
-                            label = "Searching Open Food Facts",
-                        )
+                        SkeletonList(modifier = Modifier.padding(horizontal = 16.dp), rows = 3, rowHeight = 52.dp, label = "Searching Open Food Facts")
                     }
                 }
                 is OffUiState.Results -> if (offResults.isNotEmpty()) {
                     item(key = "h-off") { SourceHeader("Packaged foods (Open Food Facts)") }
-                    items(items = offResults, key = { "o-${it.barcode}-${it.name}" }) { food ->
-                        FoodRow(food, false, onChooseOff, null)
+                    items(items = offResults, key = { "o-${it.id}" }) { food ->
+                        FoodRow(food, false, state.rowAllergens[food.id], onChooseOff, null)
                     }
                 }
                 OffUiState.Failed -> item(key = "off-failed") {
@@ -584,7 +467,7 @@ private fun SearchTab(
                 if (usdaApiResults.isNotEmpty()) {
                     item(key = "h-usda") { SourceHeader("USDA online (your key), saved to this phone") }
                     items(items = usdaApiResults, key = { "u-${it.id}" }) { food ->
-                        FoodRow(food, false, onPick, onToggleFavorite)
+                        FoodRow(food, false, state.rowAllergens[food.id], onOpen, onQuickAdd)
                     }
                 }
             }
@@ -597,10 +480,7 @@ private fun SearchTab(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Button(
-                            onClick = { creating = true },
-                            modifier = Modifier.fillMaxWidth().padding(top = 10.dp).height(52.dp),
-                        ) { Text("Create a food") }
+                        Button(onClick = { creating = true }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp).height(52.dp)) { Text("Create a food") }
                     }
                 }
             } else if (!nothingYet) {
@@ -615,6 +495,102 @@ private fun SearchTab(
     }
 }
 
+/** "Log a drink: categories and size buttons", at the foot of Search (the frame's last row). */
+@Composable
+private fun DrinksRow(onOpenDrinks: () -> Unit) {
+    Surface(
+        onClick = onOpenDrinks,
+        color = MaterialTheme.colorScheme.surface,
+        shape = IntakeShape.Card,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
+    ) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = IntakeShape.Tile, modifier = Modifier.size(46.dp)) {
+                Box(contentAlignment = Alignment.Center) { Icon(Icons.Filled.WaterDrop, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer) }
+            }
+            Column(Modifier.weight(1f)) {
+                Text("Log a drink", style = MaterialTheme.typography.titleMedium)
+                Text("Categories and size buttons", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+/** Mine: favourites, the foods entered by hand, and "Add a food by hand". */
+@Composable
+private fun MyFoodsTab(
+    state: AddFoodUiState,
+    onOpen: (FoodEntity) -> Unit,
+    onQuickAdd: (FoodEntity) -> Unit,
+    onToggleFavorite: (FoodEntity) -> Unit,
+    onCreate: (String, String?, Double, String, Double, Double, Double, Double) -> Unit,
+) {
+    var creating by remember { mutableStateOf(false) }
+
+    if (creating) {
+        CreateFoodForm(
+            heading = "New food",
+            note = "Enter the numbers for one serving as they appear on the label. They are " +
+                "stored per 100 g so any portion works later.",
+            portionUnit = state.portionUnit,
+            onCancel = { creating = false },
+            onCreate = { name, brand, grams, label, k, p, c, f ->
+                onCreate(name, brand, grams, label, k, p, c, f)
+                creating = false
+            },
+        )
+        return
+    }
+
+    var filter by rememberSaveable { mutableStateOf("") }
+    val needle = filter.trim().lowercase()
+    fun matches(f: FoodEntity) = needle.isEmpty() || (f.name + " " + f.brand.orEmpty()).lowercase().contains(needle)
+    val favorites = state.favorites.filter(::matches)
+    val mine = state.myFoods.filter { m -> state.favorites.none { it.id == m.id } && matches(m) }
+    LazyColumn(Modifier.fillMaxSize()) {
+        item(key = "add") {
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = filter,
+                    onValueChange = { filter = it },
+                    label = { Text("Filter your foods") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedButton(onClick = { creating = true }, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Add a food by hand") }
+            }
+        }
+        if (favorites.isEmpty() && mine.isEmpty()) {
+            item(key = "empty") {
+                Column(Modifier.padding(horizontal = 16.dp)) {
+                    EmptyState(
+                        title = if (needle.isEmpty()) "Nothing here yet" else "No match",
+                        body = if (needle.isEmpty()) {
+                            "Every food you search for, scan or create is kept here, and the ones you star. Enter your regular 40 or so once and the food database stops being the problem."
+                        } else {
+                            "None of your foods match \"$filter\"."
+                        },
+                    )
+                }
+            }
+        }
+        if (favorites.isNotEmpty()) {
+            item(key = "fav-header") { SourceHeader("Favourites") }
+            items(items = favorites, key = { "fav-${it.id}" }) { food ->
+                FoodRow(food, food.id in state.safeFoodIds, state.rowAllergens[food.id], onOpen, onQuickAdd, onToggleFavorite)
+            }
+        }
+        if (mine.isNotEmpty()) {
+            item(key = "mine-header") { SourceHeader("Saved on this phone") }
+            items(items = mine, key = { "mine-${it.id}" }) { food ->
+                FoodRow(food, food.id in state.safeFoodIds, state.rowAllergens[food.id], onOpen, onQuickAdd, onToggleFavorite)
+            }
+        }
+    }
+}
+
 @Composable
 private fun SourceHeader(text: String) {
     Eyebrow(text = text, modifier = Modifier.padding(start = 16.dp, top = 10.dp, bottom = 4.dp))
@@ -622,7 +598,7 @@ private fun SourceHeader(text: String) {
 
 /** A bundled USDA food: name, category, and the numbers for its first listed portion. */
 @Composable
-private fun RefFoodRow(ref: RefFood, onChoose: (RefFood) -> Unit) {
+private fun RefFoodRow(ref: RefFood, allergen: RowAllergen?, unit: PortionUnit, onChoose: (RefFood) -> Unit) {
     val portion = ref.defaultPortion
     Column {
         Row(
@@ -640,15 +616,20 @@ private fun RefFoodRow(ref: RefFood, onChoose: (RefFood) -> Unit) {
                 Text(ref.name, style = MaterialTheme.typography.titleSmall, maxLines = 2)
                 Spacer(Modifier.size(2.dp))
                 Text(
-                    text = "${portion.label} (${portion.grams.roundToInt()} g)" +
+                    text = "${portion.label} (${unit.format(portion.grams)})" +
                         if (ref.category.isNotBlank()) " · ${ref.category}" else "",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                 )
-                checkLabelReasonFor(ref.name)?.let { reason ->
+                if (allergen != null) {
                     Spacer(Modifier.size(4.dp))
-                    CheckLabelChip(reason)
+                    AllergenChip(allergen.verdict, allergen.detail)
+                } else {
+                    checkLabelReasonFor(ref.name)?.let { reason ->
+                        Spacer(Modifier.size(4.dp))
+                        CheckLabelChip(reason)
+                    }
                 }
             }
             Spacer(Modifier.size(8.dp))
@@ -685,6 +666,7 @@ private fun BarcodeTab(
             heading = "Add this product",
             note = (if (pendingManual.isNotBlank()) "Barcode $pendingManual. " else "") +
                 "The barcode is kept with it, so the next scan of this item resolves instantly.",
+            portionUnit = state.portionUnit,
             onCancel = { manualFor = null },
             onCreate = { name, brand, grams, label, k, p, c, f ->
                 onCreateForBarcode(
@@ -865,96 +847,25 @@ private fun QuickAddTab(onQuickAdd: (String, Double, Double, Double, Double) -> 
 }
 
 @Composable
-private fun MyFoodsTab(
-    myFoods: List<FoodEntity>,
-    favorites: List<FoodEntity>,
-    safeIds: Set<String>,
-    onPick: (FoodEntity) -> Unit,
-    onToggleFavorite: (FoodEntity) -> Unit,
-    onCreate: (String, String?, Double, String, Double, Double, Double, Double) -> Unit,
-) {
-    var creating by remember { mutableStateOf(false) }
-
-    if (creating) {
-        CreateFoodForm(
-            heading = "New food",
-            note = "Enter the numbers for one serving as they appear on the label. They are " +
-                "stored per 100 g so any portion works later.",
-            onCancel = { creating = false },
-            onCreate = { name, brand, grams, label, k, p, c, f ->
-                onCreate(name, brand, grams, label, k, p, c, f)
-                creating = false
-            },
-        )
-        return
-    }
-
-    Column {
-        OutlinedButton(
-            onClick = { creating = true },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
-                .height(52.dp),
-        ) { Text("Add a food by hand") }
-
-        if (favorites.isEmpty() && myFoods.isEmpty()) {
-            Text(
-                text = "Foods you enter by hand show up here. Enter your regular 40 or so once " +
-                    "and the food database stops being the problem.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(24.dp),
-            )
-            return@Column
-        }
-
-        LazyColumn(modifier = Modifier.heightIn(max = 380.dp)) {
-            if (favorites.isNotEmpty()) {
-                item(key = "fav-header") {
-                    Text(
-                        text = "Favourites",
-                        style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.padding(start = 16.dp, top = 8.dp),
-                    )
-                }
-            }
-            items(items = favorites, key = { "fav-${it.id}" }) { food ->
-                FoodRow(food, food.id in safeIds, onPick, onToggleFavorite)
-            }
-            if (myFoods.isNotEmpty()) {
-                item(key = "mine-header") {
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                    Text(
-                        text = "Entered by hand",
-                        style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.padding(start = 16.dp, bottom = 4.dp),
-                    )
-                }
-            }
-            items(items = myFoods, key = { "mine-${it.id}" }) { food ->
-                FoodRow(food, food.id in safeIds, onPick, onToggleFavorite)
-            }
-        }
-    }
-}
-
-@Composable
 private fun CreateFoodForm(
     heading: String,
     note: String,
     onCancel: () -> Unit,
     onCreate: (String, String?, Double, String, Double, Double, Double, Double) -> Unit,
     initialName: String = "",
+    portionUnit: PortionUnit = PortionUnit.GRAMS,
 ) {
     var name by remember { mutableStateOf(initialName) }
     var brand by remember { mutableStateOf("") }
-    var servingGrams by remember { mutableStateOf("100") }
+    // Typed in the person's portion unit (g or oz); stored as grams.
+    var servingGrams by remember { mutableStateOf(portionUnit.number(100.0)) }
     var servingLabel by remember { mutableStateOf("") }
     var kcal by remember { mutableStateOf("") }
     var protein by remember { mutableStateOf("") }
     var carbs by remember { mutableStateOf("") }
     var fat by remember { mutableStateOf("") }
 
-    val grams = servingGrams.toDoubleOrNull()
+    val grams = portionUnit.parseToGrams(servingGrams)
     val valid = name.isNotBlank() && grams != null && grams > 0 && kcal.toDoubleOrNull() != null
 
     Column(
@@ -982,7 +893,7 @@ private fun CreateFoodForm(
             modifier = Modifier.fillMaxWidth(),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            NumberField(servingGrams, { servingGrams = it }, "Serving grams", Modifier.weight(1f))
+            NumberField(servingGrams, { servingGrams = it }, "Serving (${portionUnit.label})", Modifier.weight(1f))
             OutlinedTextField(
                 value = servingLabel,
                 onValueChange = { servingLabel = it },
@@ -1020,85 +931,6 @@ private fun CreateFoodForm(
                 enabled = valid,
                 modifier = Modifier.weight(1f),
             ) { Text("Save") }
-        }
-        Spacer(Modifier.height(8.dp))
-    }
-}
-
-/** Grams and the resulting macros are the only portion controls that matter. */
-@Composable
-private fun PortionStep(
-    food: FoodEntity,
-    extraPortions: List<RefPortion>,
-    onEditFood: (() -> Unit)?,
-    onCancel: () -> Unit,
-    onLog: (Double) -> Unit,
-) {
-    var grams by remember(food.id) {
-        mutableStateOf(food.servingSizeGrams.roundToInt().toString())
-    }
-    val entered = grams.toDoubleOrNull() ?: 0.0
-    val factor = entered / 100.0
-
-    Column(
-        modifier = Modifier.padding(20.dp).verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text(food.name, style = MaterialTheme.typography.titleLarge)
-        food.brand?.let {
-            Text(
-                it,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(
-                food.servingSizeGrams.roundToInt() to food.servingLabel.ifBlank { "1 serving" },
-                100 to "100 g",
-                (food.servingSizeGrams * 2).roundToInt() to "2 servings",
-            ).distinctBy { it.first }.forEach { (value, label) ->
-                OutlinedButton(onClick = { grams = value.toString() }) { Text(label) }
-            }
-        }
-        // Other portions the USDA database lists for this food.
-        if (extraPortions.isNotEmpty()) {
-            Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                extraPortions.forEach { portion ->
-                    OutlinedButton(onClick = { grams = portion.grams.roundToInt().toString() }) {
-                        Text("${portion.label} (${portion.grams.roundToInt()} g)")
-                    }
-                }
-            }
-        }
-
-        checkLabelReasonFor(food.name)?.let { CheckLabelChip(it) }
-
-        NumberField(grams, { grams = it }, "Grams", Modifier.fillMaxWidth())
-
-        Text(
-            text = "${(food.kcalPer100g * factor).roundToInt()} kcal · " +
-                "${(food.proteinPer100g * factor).roundToInt()} g protein · " +
-                "${(food.carbsPer100g * factor).roundToInt()} g carbs · " +
-                "${(food.fatPer100g * factor).roundToInt()} g fat",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-
-        if (onEditFood != null) {
-            TextButton(onClick = onEditFood) { Text("Edit this food") }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("Back") }
-            Button(
-                onClick = { onLog(entered) },
-                enabled = entered > 0,
-                modifier = Modifier.weight(1f),
-            ) { Text("Log it") }
         }
         Spacer(Modifier.height(8.dp))
     }

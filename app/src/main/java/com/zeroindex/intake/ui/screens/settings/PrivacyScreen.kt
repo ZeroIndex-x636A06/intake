@@ -123,12 +123,12 @@ fun PrivacyScreen(
             whenSent = "When you press Find recipes.",
         )
         PathRow(
-            title = "Plan B",
+            title = "Swap: eat out nearby",
             tag = "Sends coarse location to OpenRouter",
             pill = "Needs your OpenRouter key",
-            sent = "Your location rounded to about 1 km, or the zip code you typed; what is left of today's calories and protein; the allergens you avoid. OpenRouter searches for nearby places and reads their menus.",
+            sent = "Your location rounded to about 1 km, or the zip code you typed; the search radius from Settings; what is left of today's calories and protein; the allergens you avoid. OpenRouter searches for nearby places and reads their menus.",
             where = "openrouter.ai, which fetches restaurant sites",
-            whenSent = "When you search for a place. Location needs the approximate-location permission and is read only then.",
+            whenSent = "Only when you tap Search under \"Find healthy options nearby\" in Swap. Location needs the approximate-location permission and is read only then.",
         )
         PathRow(
             title = "Menu import",

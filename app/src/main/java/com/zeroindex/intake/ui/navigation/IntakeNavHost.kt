@@ -7,6 +7,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavDestination
@@ -27,9 +28,13 @@ import com.zeroindex.intake.ui.screens.body.BodyMetricsScreen
 import com.zeroindex.intake.ui.screens.checkin.WeeklyCheckInScreen
 import com.zeroindex.intake.ui.screens.drinks.DrinksScreen
 import com.zeroindex.intake.ui.screens.fooddata.FoodDetailScreen
-import com.zeroindex.intake.ui.screens.fooddata.MyFoodsScreen
+import com.zeroindex.intake.domain.model.MealSlot
+import com.zeroindex.intake.ui.addfood.AddFoodTab
+import com.zeroindex.intake.ui.addfood.LogFoodScreen
 import com.zeroindex.intake.ui.screens.hub.EatingOutScreen
-import com.zeroindex.intake.ui.screens.hub.FoodHubScreen
+import com.zeroindex.intake.ui.screens.hub.defaultMealSlot
+import com.zeroindex.intake.ui.screens.nutrition.NutritionActions
+import com.zeroindex.intake.ui.screens.nutrition.NutritionHomeScreen
 import com.zeroindex.intake.ui.screens.hub.RecipesScreen
 import com.zeroindex.intake.ui.screens.hub.TrainHubScreen
 import com.zeroindex.intake.ui.screens.menu.MenuSourcesScreen
@@ -41,7 +46,6 @@ import com.zeroindex.intake.ui.screens.plan.CookModeScreen
 import com.zeroindex.intake.ui.screens.plan.PlanScreen
 import com.zeroindex.intake.ui.screens.plan.RecipeDetailScreen
 import com.zeroindex.intake.ui.screens.plan.RecipeHunterScreen
-import com.zeroindex.intake.ui.screens.planb.PlanBScreen
 import com.zeroindex.intake.ui.screens.profile.ProfileScreen
 import com.zeroindex.intake.ui.screens.profile.YourPlanScreen
 import com.zeroindex.intake.ui.screens.progress.ProgressScreen
@@ -158,6 +162,7 @@ fun IntakeNavHost(
                     onSwap = { slot -> navController.navigate(Route.SwapSheet(slot)) },
                     onOpenPlan = { openTab(TopLevelDestination.NUTRITION) },
                     onOpenSettings = { g, f -> openSettings(g, f) },
+                    onLogFood = { s, at, mode -> navController.navigate(Route.LogFood(s, at, mode)) },
                 )
             }
             // Today has no pushed screens of its own: add new Today routes above this line.
@@ -167,18 +172,18 @@ fun IntakeNavHost(
         navigation<TabGraph.Nutrition>(startDestination = Route.Nutrition) {
             composable<Route.Nutrition> {
                 TabRootScreen(TopLevelDestination.NUTRITION, "Nutrition", goToToday) { pad ->
-                    FoodHubScreen(
+                    NutritionHomeScreen(
                         contentPadding = pad,
-                        onOpenMealTemplates = { navController.navigate(Route.MealTemplates) },
-                        onOpenMealPlans = { navController.navigate(Route.MealPlans) },
-                        onOpenRecipes = { navController.navigate(Route.Recipes) },
-                        onOpenEatingOut = { navController.navigate(Route.EatingOut) },
-                        onOpenAllergens = { navController.navigate(Route.Allergens) },
-                        onOpenFoodScriptHelp = { openScriptReference("meal-plan", null) },
-                        onOpenAiSettings = openAi,
-                        onOpenMyFoods = { navController.navigate(Route.MyFoods) },
-                        onOpenFood = { id -> navController.navigate(Route.FoodDetail(id)) },
-                        onOpenDrinks = { navController.navigate(Route.Drinks) },
+                        actions = NutritionActions(
+                            onOpenAllergens = { navController.navigate(Route.Allergens) },
+                            onLogFood = { mode, slot -> navController.navigate(Route.LogFood(slot = slot, mode = mode)) },
+                            onSwap = { slot -> navController.navigate(Route.SwapSheet(slot)) },
+                            onOpenDrinks = { navController.navigate(Route.Drinks) },
+                            onOpenMealPlans = { navController.navigate(Route.MealPlans) },
+                            onOpenRecipes = { navController.navigate(Route.Recipes) },
+                            onOpenMealTemplates = { navController.navigate(Route.MealTemplates) },
+                            onOpenEatingOut = { navController.navigate(Route.EatingOut) },
+                        ),
                     )
                 }
             }
@@ -186,7 +191,7 @@ fun IntakeNavHost(
                 PushedScreen("Meal plans", back) { pad ->
                     PlanScreen(
                         contentPadding = pad,
-                        onOpenPlanB = { navController.navigate(Route.PlanB) },
+                        onOpenSwap = { navController.navigate(Route.SwapSheet(null)) },
                         onOpenCook = { id -> navController.navigate(Route.CookMode(id)) },
                         onOpenScriptReference = openScriptReference,
                     )
@@ -257,32 +262,12 @@ fun IntakeNavHost(
                 PushedScreen("Eating out", back) { pad ->
                     EatingOutScreen(
                         contentPadding = pad,
-                        onOpenPlanB = { navController.navigate(Route.PlanB) },
                         onOpenMenuImport = { navController.navigate(Route.MenuSources) },
                     )
                 }
             }
-            composable<Route.PlanB> { PushedScreen("Plan B", back) { pad -> PlanBScreen(pad, onOpenAiSettings = openAi) } }
             composable<Route.MenuSources> { PushedScreen("Menu import", back) { pad -> MenuSourcesScreen(pad) } }
             composable<Route.MealTemplates> { PushedScreen("Meal templates", back) { pad -> MealTemplatesScreen(pad) } }
-            composable<Route.MyFoods> {
-                PushedScreen("My foods", back) { pad ->
-                    MyFoodsScreen(pad, onOpenFood = { id -> navController.navigate(Route.FoodDetail(id)) })
-                }
-            }
-            composable<Route.FoodDetail> { entry ->
-                PushedScreen("Food", back) { pad ->
-                    FoodDetailScreen(
-                        foodId = entry.toRoute<Route.FoodDetail>().foodId,
-                        slot = null,
-                        atMillis = System.currentTimeMillis(),
-                        contentPadding = pad,
-                        onBack = { navController.popBackStack() },
-                        onLogged = { navController.popBackStack() },
-                        onOpenFoodData = { openSettings("fooddb", null) },
-                    )
-                }
-            }
             // Add new Nutrition routes above this line.
         }
 
@@ -421,9 +406,51 @@ fun IntakeNavHost(
                 AllergenKeywordsScreen(entry.toRoute<Route.AllergenKeywords>().allergenKey, pad)
             }
         }
-        composable<Route.Drinks> { PushedScreen("Drinks", back) { pad -> DrinksScreen(pad) } }
+        composable<Route.LogFood> { entry ->
+            val args = entry.toRoute<Route.LogFood>()
+            val slot = args.slot?.let { n -> MealSlot.entries.firstOrNull { it.name == n } } ?: defaultMealSlot(java.time.LocalTime.now().hour)
+            // The time to log at: the one the caller passed (Today's selected day), else now, fixed for this visit.
+            val at = remember(entry) { if (args.atMillis > 0) args.atMillis else System.currentTimeMillis() }
+            PushedScreen("Log food", back) { pad ->
+                LogFoodScreen(
+                    slot = slot,
+                    loggedAtMillis = at,
+                    initialTab = AddFoodTab.fromName(args.mode),
+                    contentPadding = pad,
+                    onBack = back,
+                    onOpenFood = { id, chosen -> navController.navigate(Route.FoodDetail(id, chosen.name, at)) },
+                    onOpenDrinks = { navController.navigate(Route.Drinks) },
+                    onOpenAiSettings = openAi,
+                )
+            }
+        }
+        composable<Route.FoodDetail> { entry ->
+            val args = entry.toRoute<Route.FoodDetail>()
+            PushedScreen("Food", back) { pad ->
+                FoodDetailScreen(
+                    foodId = args.foodId,
+                    slot = args.slot,
+                    atMillis = args.atMillis,
+                    contentPadding = pad,
+                    onBack = back,
+                    // Logged from Log food: leave both, back to where it was opened. From Drinks or Mine: just this page.
+                    onLogged = { if (!navController.popBackStack<Route.LogFood>(inclusive = true)) navController.popBackStack() },
+                    onOpenFoodData = { openSettings("fooddb", null) },
+                )
+            }
+        }
+        composable<Route.Drinks> {
+            PushedScreen("Drinks", back) { pad ->
+                DrinksScreen(pad, onOpenFood = { id -> navController.navigate(Route.FoodDetail(id)) })
+            }
+        }
         dialog<Route.SwapSheet> { entry ->
-            SwapSheet(slot = entry.toRoute<Route.SwapSheet>().slot, onDismiss = back)
+            SwapSheet(
+                slot = entry.toRoute<Route.SwapSheet>().slot,
+                onDismiss = back,
+                onOpenAiSettings = { back(); openAi() },
+                onOpenRadiusSetting = { back(); openSettings("nutrition", "eatOutRadius") },
+            )
         }
         composable<Route.ActiveWorkout> {
             FullScreenTask {

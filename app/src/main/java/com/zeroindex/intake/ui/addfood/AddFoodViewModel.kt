@@ -12,6 +12,14 @@ import com.zeroindex.intake.data.repository.OffSearchRepository
 import com.zeroindex.intake.data.settings.FoodDataPrefs
 import com.zeroindex.intake.domain.barcode.Barcodes
 import com.zeroindex.intake.data.repository.AllergenRepository
+import com.zeroindex.intake.data.repository.DrinkRepository
+import com.zeroindex.intake.data.settings.SettingsRepository
+import com.zeroindex.intake.domain.swap.SwapAllergen
+import com.zeroindex.intake.domain.units.PortionUnit
+import com.zeroindex.intake.ui.AppMessage
+import com.zeroindex.intake.ui.AppMessages
+import com.zeroindex.intake.ui.allergen.chipDetail
+import com.zeroindex.intake.ui.allergen.verdict
 import com.zeroindex.intake.data.repository.BarcodeRepository
 import com.zeroindex.intake.data.repository.FoodLogRepository
 import com.zeroindex.intake.data.repository.FoodRepository
@@ -37,17 +45,30 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+/**
+ * The modes of the Log food screen: Search, Scan and Photo are the three equal primary modes (R3-4), Mine replaces
+ * "My foods", and Quick add is the by-hand entry. Recents are the Search mode's list before anything is typed.
+ */
 enum class AddFoodTab(val label: String) {
-    RECENTS("Recents"),
     SEARCH("Search"),
-    BARCODE("Barcode"),
+    BARCODE("Scan"),
     PHOTO("Photo"),
+    MY_FOODS("Mine"),
     QUICK_ADD("Quick add"),
-    MY_FOODS("My foods"),
+    ;
+
+    companion object {
+        /** Reads a route argument; anything unknown opens Search. */
+        fun fromName(name: String?): AddFoodTab = entries.firstOrNull { it.name == name } ?: SEARCH
+    }
 }
+
+/** One result row's allergen chip: the local engine's verdict and the words it matched ("milk and peanuts"). */
+data class RowAllergen(val verdict: SwapAllergen, val detail: String?)
 
 /** A save waiting on the allergen sheet's explicit confirmation (SPEC §7.2). */
 data class PendingLog(
@@ -106,7 +127,13 @@ internal fun routeBarcodeResult(barcode: String, result: RemoteResult<ScannedPro
     }
 
 data class AddFoodUiState(
-    val tab: AddFoodTab = AddFoodTab.RECENTS,
+    val tab: AddFoodTab = AddFoodTab.SEARCH,
+    /** Portions are shown and typed in this unit (Settings > Appearance and units). */
+    val portionUnit: PortionUnit = PortionUnit.GRAMS,
+    /** The engine's verdict per food id, for the rows on screen. Empty when the person avoids nothing. */
+    val rowAllergens: Map<String, RowAllergen> = emptyMap(),
+    /** The same for the bundled USDA rows, keyed by `RefFood.id`. */
+    val refAllergens: Map<Int, RowAllergen> = emptyMap(),
     val query: String = "",
     val recents: List<FoodEntity> = emptyList(),
     val localResults: List<FoodEntity> = emptyList(),
@@ -136,10 +163,13 @@ class AddFoodViewModel @Inject constructor(
     private val apiKeyStore: ApiKeyStore,
     private val foodRefRepository: FoodRefRepository,
     private val offSearchRepository: OffSearchRepository,
+    private val drinkRepository: DrinkRepository,
+    private val messages: AppMessages,
+    settingsRepository: SettingsRepository,
     foodDataPrefs: FoodDataPrefs,
 ) : ViewModel() {
 
-    private val tab = MutableStateFlow(AddFoodTab.RECENTS)
+    private val tab = MutableStateFlow(AddFoodTab.SEARCH)
     private val query = MutableStateFlow("")
     private val searchState = MutableStateFlow<SearchState>(SearchState.Idle)
     private val barcodeState = MutableStateFlow<BarcodeState>(BarcodeState.Idle)
@@ -212,21 +242,51 @@ class AddFoodViewModel @Inject constructor(
         Lists(recents, favorites, safeIds, results, terms)
     }
 
+    private data class RowAllergens(val rows: Map<String, RowAllergen>, val refs: Map<Int, RowAllergen>)
+
+    /**
+     * The local engine's verdict for every row on screen, so a result list shows "Contains milk" before anything is
+     * tapped. One engine setup per list. Empty when the person avoids nothing (no chips then).
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val rowAllergens = combine(
+        combine(lists, extras, searchState) { l, e, s -> Triple(l, e, s) },
+        allergenRepository.observeAvoidedAllergens(),
+        allergenRepository.observeAliases(),
+        foodRepository.observeAll(),
+    ) { t, _, _, mine -> t to mine }.mapLatest { (t, mine) ->
+        val (l, e, s) = t
+        if (allergenRepository.avoidedAllergens().isEmpty()) {
+            RowAllergens(emptyMap(), emptyMap())
+        } else {
+            val scan = allergenRepository.foodScanner()
+            val foods = l.recents + l.favorites + l.localResults + mine.take(300) +
+                (e.off as? OffUiState.Results)?.foods.orEmpty() + (s as? SearchState.Remote)?.results.orEmpty()
+            fun row(r: com.zeroindex.intake.domain.allergen.AllergenScanResult) = RowAllergen(r.verdict(), r.chipDetail())
+            RowAllergens(
+                foods.associate { it.id to row(scan(it)) },
+                e.refResults.associate { it.id to row(allergenRepository.scan(name = it.name)) },
+            )
+        }
+    }
+
     val uiState: StateFlow<AddFoodUiState> = combine(
-        tab,
-        query,
-        lists,
-        searchState,
-        extras,
-    ) { tab, query, lists, search, extras ->
+        combine(tab, query, lists, searchState, extras) { a, b, c, d, f -> Quint(a, b, c, d, f) },
+        rowAllergens,
+        settingsRepository.settings,
+        foodRepository.observeAll(),
+    ) { core, allergens, settings, everything ->
+        val (tab, query, lists, search, extras) = core
         AddFoodUiState(
+            portionUnit = settings.portionUnit,
+            rowAllergens = allergens.rows,
+            refAllergens = allergens.refs,
             tab = tab,
             query = query,
             recents = lists.recents,
             localResults = lists.localResults,
-            // "My foods" is what the user entered by hand, as opposed to
-            // anything cached from a remote lookup.
-            myFoods = lists.recents.filter { it.source == FoodSource.MANUAL },
+            // Mine: every food on this phone (searched, scanned or made by hand) but the built-in drinks nobody touched.
+            myFoods = everything.filter { it.createdAt != com.zeroindex.intake.data.db.entity.SEED_TIMESTAMP },
             favorites = lists.favorites,
             safeFoodIds = lists.safeIds,
             searchState = search,
@@ -242,6 +302,14 @@ class AddFoodViewModel @Inject constructor(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = AddFoodUiState(),
+    )
+
+    private data class Quint(
+        val tab: AddFoodTab,
+        val query: String,
+        val lists: Lists,
+        val search: SearchState,
+        val extras: Extras,
     )
 
     private data class Lists(
@@ -323,7 +391,7 @@ class AddFoodViewModel @Inject constructor(
         if (scan.hasAnything) {
             pendingLog.value = PendingLog(food, food.name, grams, null, scan)
         } else {
-            foodLogRepository.logFood(food, grams, slot, at)
+            logOne(food, grams, slot, at)
             onLogged()
         }
     }
@@ -351,7 +419,7 @@ class AddFoodViewModel @Inject constructor(
         viewModelScope.launch {
             when {
                 pending.food != null && pending.grams != null ->
-                    foodLogRepository.logFood(pending.food, pending.grams, slot, at)
+                    logOne(pending.food, pending.grams, slot, at)
                 pending.macros != null ->
                     foodLogRepository.quickAdd(pending.name, pending.macros, slot, at)
             }
@@ -360,6 +428,21 @@ class AddFoodViewModel @Inject constructor(
     }
 
     fun dismissPendingLog() { pendingLog.value = null }
+
+    /** A drink goes through the one drink flow (hydration row and food-log row together); everything else is a food log. */
+    private suspend fun logOne(food: FoodEntity, amount: Double, slot: MealSlot, at: Long) {
+        if (food.drinkCategory != null) {
+            val logged = drinkRepository.log(food, amount, at, slot)
+            messages.post(AppMessage("Added ${amount.toInt()} ml ${food.name}", "Undo") { drinkRepository.delete(logged.hydration.id) })
+        } else {
+            val entry = foodLogRepository.logFood(food, amount, slot, at)
+            messages.post(AppMessage("Logged ${food.name} to ${slot.name.lowercase()}", "Undo") { foodLogRepository.softDelete(entry.id) })
+        }
+    }
+
+    /** The "+" on a result row: logs the food's own serving (after the allergen check) and stays on the screen. */
+    fun quickAddDefault(food: FoodEntity, slot: MealSlot, at: Long) =
+        requestLogFood(food, food.servingSizeGrams.coerceAtLeast(1.0), slot, at) { }
 
     /**
      * Creates a food by hand. The numbers the user types are for the serving

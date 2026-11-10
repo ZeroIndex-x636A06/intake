@@ -49,6 +49,14 @@ fun AllergenScanResult.verdict(): SwapAllergen = com.zeroindex.intake.domain.swa
     checkLabel = checkLabel.isNotEmpty(),
 )
 
+/** The words a row chip adds after "Contains" / "May contain": the worst tier's matched terms, or null when clear. */
+fun AllergenScanResult.chipDetail(): String? = when {
+    contains.isNotEmpty() -> contains.termsText()
+    mayContain.isNotEmpty() -> mayContain.termsText()
+    checkLabel.isNotEmpty() -> checkLabel.termsText()
+    else -> null
+}
+
 /** "milk and peanuts", from the matched allergens of a tier. */
 fun List<com.zeroindex.intake.domain.allergen.AllergenMatch>.termsText(): String =
     map { it.matchedTerm }.distinct().let { t ->
@@ -110,17 +118,25 @@ private fun SolidBanner(color: Color, icon: ImageVector, title: String, body: St
  * the others are solid.
  */
 @Composable
-fun AllergenChip(verdict: SwapAllergen, detail: String? = null, modifier: Modifier = Modifier, showClear: Boolean = true) {
+fun AllergenChip(
+    verdict: SwapAllergen,
+    detail: String? = null,
+    modifier: Modifier = Modifier,
+    showClear: Boolean = true,
+    /** Replaces the chip's words, for a reason already written out ("May contain milk: ask"). */
+    label: String? = null,
+) {
     val scheme = MaterialTheme.colorScheme
-    val (bg, fg, icon, text) = when (verdict) {
+    val (bg, fg, icon, defaultText) = when (verdict) {
         SwapAllergen.CLEAR -> {
             if (!showClear) return
             Quad(scheme.primaryContainer, scheme.onPrimaryContainer, Icons.Filled.Check, "No allergens")
         }
-        SwapAllergen.CHECK_LABEL -> Quad(scheme.secondaryContainer, scheme.onSecondaryContainer, null, "Check the label")
+        SwapAllergen.CHECK_LABEL -> Quad(scheme.secondaryContainer, scheme.onSecondaryContainer, null, detail?.let { "Check the label: $it" } ?: "Check the label")
         SwapAllergen.MAY_CONTAIN -> Quad(AllergenColors.amber, AllergenColors.onSolid, Icons.Filled.Warning, detail?.let { "May contain $it" } ?: "May contain")
         SwapAllergen.CONTAINS -> Quad(AllergenColors.red, AllergenColors.onSolid, Icons.Filled.Close, detail?.let { "Contains $it" } ?: "Contains your allergen")
     }
+    val text = label ?: defaultText
     Surface(
         color = bg,
         contentColor = fg,

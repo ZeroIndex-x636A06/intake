@@ -113,7 +113,7 @@ import kotlinx.coroutines.withContext
 @Composable
 fun PlanScreen(
     contentPadding: PaddingValues,
-    onOpenPlanB: () -> Unit,
+    onOpenSwap: () -> Unit,
     onOpenCook: (String) -> Unit,
     onOpenScriptReference: (page: String, anchor: String?) -> Unit,
     modifier: Modifier = Modifier,
@@ -443,7 +443,7 @@ fun PlanScreen(
             weekLabel = content?.let { "week ${it.week.weekNumber} (${it.week.proteinType.ifBlank { "no protein set" }})" } ?: "any week",
             onToggleAll = viewModel::toggleShowAllEatOut,
             onLog = { row -> parking = false; viewModel.logEatOut(row.option) },
-            onOpenPlanB = { parking = false; onOpenPlanB() },
+            onOpenSwap = { parking = false; onOpenSwap() },
             onDismiss = { parking = false },
         )
     }

@@ -181,6 +181,8 @@ class HydrationRepository @Inject constructor(
      * their fixed ids and deleted rows count, so removing them is permanent.
      */
     suspend fun ensureDefaultPresets() {
+        // The generic drinks (water, coffee, cola ...) are food rows too; seed them with the presets so Drinks is never empty.
+        drinks.ensureSeeded()
         val oz = VolumeUnit.US_FLUID_OUNCES
         val now = SEED_TIMESTAMP
         fun seed(name: String, ml: Double, order: Int, type: DrinkType = DrinkType.WATER) = HydrationPresetEntity(

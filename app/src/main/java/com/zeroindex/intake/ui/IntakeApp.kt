@@ -221,12 +221,11 @@ private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, sta
                         )
                     }
                 }
-                // Today, Progress and Plan B lay themselves out across the full
+                // Today and Progress lay themselves out across the full
                 // width; every other screen is a single column and gets capped.
                 val fullWidth = currentDestination?.let { destination ->
                     destination.hasRoute(Route.Today::class) ||
-                        destination.hasRoute(Route.Progress::class) ||
-                        destination.hierarchy.any { it.hasRoute(Route.PlanB::class) }
+                        destination.hasRoute(Route.Progress::class)
                 } == true
                 val capWidth = LocalWindowSizeClass.current.isExpanded && !fullWidth
                 IntakeNavHost(

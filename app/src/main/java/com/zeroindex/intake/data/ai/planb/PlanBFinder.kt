@@ -110,6 +110,10 @@ class PlanBFinder @Inject constructor(
     private val targets: TargetRepository,
     private val clock: Clock,
 ) {
+    companion object {
+        const val DEFAULT_RADIUS_MI = 1.0
+    }
+
     suspend fun remaining(): DayProgress {
         val today = clock.today()
         return DayProgress(foodLog.observeDayTotals(today).first(), targets.targetFor(today))
@@ -137,7 +141,11 @@ class PlanBFinder @Inject constructor(
         return (saved + menu).sortedByDescending { it.fit.score }
     }
 
-    suspend fun search(area: SearchArea): Pair<List<PlanBOption>, Double> {
+    /**
+     * @param radiusMi how far to look, from Settings > Nutrition > Eat out nearby (miles). It steers the prompt and the
+     * results farther than it are dropped here, so a model that ignores the limit still cannot show a far option.
+     */
+    suspend fun search(area: SearchArea, radiusMi: Double = DEFAULT_RADIUS_MI): Pair<List<PlanBOption>, Double> {
         val left = remaining()
         val avoided = allergens.avoidedAllergens()
         val outcome = gateway.structured(
@@ -146,10 +154,10 @@ class PlanBFinder @Inject constructor(
             serializer = FoundOptions.serializer(),
             schema = PlanBPrompts.schema,
             system = PlanBPrompts.system(avoided),
-            parts = listOf(AiPart.Text(userPrompt(area, left, avoided))),
+            parts = listOf(AiPart.Text(userPrompt(area, left, avoided, radiusMi))),
             tools = listOf(ServerTool.WebSearch(maxResults = 6, maxUses = 3), ServerTool.WebFetch(maxUses = 5)),
         )
-        val found = outcome.value.options.map { o ->
+        val found = outcome.value.options.filter { o -> o.distanceMiles?.let { it <= radiusMi * 1.25 } ?: true }.map { o ->
             option(
                 key = "web:${o.restaurant}:${o.order}", restaurant = o.restaurant, address = o.address,
                 distance = o.distanceMiles, order = o.order, modifications = o.modifications,
@@ -212,8 +220,8 @@ class PlanBFinder @Inject constructor(
         )
     }
 
-    suspend fun log(option: PlanBOption, slot: MealSlot) {
-        foodLog.logPrepared(
+    suspend fun log(option: PlanBOption, slot: MealSlot): com.zeroindex.intake.data.db.entity.FoodLogEntity {
+        return foodLog.logPrepared(
             name = "${option.order} · ${option.restaurant}",
             macros = option.macros,
             slot = slot,
@@ -250,11 +258,12 @@ class PlanBFinder @Inject constructor(
         return fix?.let { SearchArea.Coordinates(PlanBFit.coarsen(it.latitude), PlanBFit.coarsen(it.longitude)) }
     }
 
-    private fun userPrompt(area: SearchArea, left: DayProgress, avoided: Set<String>) = buildString {
+    private fun userPrompt(area: SearchArea, left: DayProgress, avoided: Set<String>, radiusMi: Double) = buildString {
         when (area) {
             is SearchArea.Coordinates -> appendLine("Approximate location: latitude ${area.lat}, longitude ${area.lng}.")
             is SearchArea.PostalCode -> appendLine("Near postal code ${area.code}.")
         }
+        appendLine("Only places within about ${"%.1f".format(java.util.Locale.US, radiusMi)} miles.")
         left.kcalRemaining?.let { appendLine("About $it kcal left today.") }
         left.proteinRemaining?.let { appendLine("About $it g protein left today; favour high-protein orders.") }
         if (avoided.isNotEmpty()) appendLine("Allergies: ${avoided.joinToString()}.")

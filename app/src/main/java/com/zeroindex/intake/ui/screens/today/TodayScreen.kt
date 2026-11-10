@@ -56,8 +56,6 @@ import com.zeroindex.intake.domain.onboarding.TourIds
 import com.zeroindex.intake.domain.settings.ExportReminderRule
 import com.zeroindex.intake.ui.adaptive.LocalWindowSizeClass
 import com.zeroindex.intake.ui.adaptive.isExpanded
-import com.zeroindex.intake.ui.addfood.AddFoodSheet
-import com.zeroindex.intake.ui.addfood.AddFoodTab
 import com.zeroindex.intake.ui.components.SandNote
 import com.zeroindex.intake.ui.components.SectionLine
 import com.zeroindex.intake.ui.motion.StaggerGate
@@ -121,6 +119,8 @@ fun TodayScreen(
     onSwap: (String?) -> Unit = {},
     onOpenPlan: () -> Unit = {},
     onOpenSettings: (group: String, focus: String?) -> Unit = { _, _ -> },
+    /** Opens Log food: a `MealSlot` name, the time to log at, and an `AddFoodTab` name (Search, Scan or Photo). */
+    onLogFood: (slot: String, atMillis: Long, mode: String) -> Unit = { _, _, _ -> },
     viewModel: TodayViewModel = hiltViewModel(),
     extrasViewModel: TodayExtrasViewModel = hiltViewModel(),
 ) {
@@ -129,19 +129,18 @@ fun TodayScreen(
     val lastCelebrated by viewModel.lastCelebration.collectAsStateWithLifecycle()
     val ringEvents = rememberRingEvents(state, lastCelebrated, viewModel::markCelebrated)
 
-    var addToSlot by remember { mutableStateOf<MealSlot?>(null) }
-    var addTab by remember { mutableStateOf(AddFoodTab.RECENTS) }
     var templateFor by remember { mutableStateOf<MealSlot?>(null) }
     val scope = rememberCoroutineScope()
     var actionsFor by remember { mutableStateOf<FoodLogEntity?>(null) }
     var copyTarget by remember { mutableStateOf<FoodLogEntity?>(null) }
 
-    fun openAdd(slot: MealSlot, tab: AddFoodTab) { addTab = tab; addToSlot = slot }
+    // Log food is a full-screen task (registered once at the nav root), opened for the day Today is showing.
+    fun openAdd(slot: MealSlot, mode: String) = onLogFood(slot.name, viewModel.timestampForSelectedDay(), mode)
     val actions = TodayActions(
         onOpenTrain, onResumeWorkout, onMakeProgram, onOpenProfile, onBuildPlan, onOpenCheckIn, onOpenBodyMetrics,
-        onLogFood = { openAdd(defaultSlotForNow(), AddFoodTab.RECENTS) },
-        onScan = { openAdd(defaultSlotForNow(), AddFoodTab.BARCODE) },
-        onPhoto = { openAdd(defaultSlotForNow(), AddFoodTab.PHOTO) },
+        onLogFood = { openAdd(defaultSlotForNow(), "SEARCH") },
+        onScan = { openAdd(defaultSlotForNow(), "BARCODE") },
+        onPhoto = { openAdd(defaultSlotForNow(), "PHOTO") },
         onOpenDrinks = onOpenDrinks,
         onSwap = onSwap,
         onOpenPlan = onOpenPlan,
@@ -166,7 +165,7 @@ fun TodayScreen(
             onPreviousDay = viewModel::showPreviousDay,
             onNextDay = viewModel::showNextDay,
             onShowToday = viewModel::showToday,
-            onAddToSlot = { openAdd(it, AddFoodTab.RECENTS) },
+            onAddToSlot = { openAdd(it, "SEARCH") },
             onEntryLongPress = { actionsFor = it },
             onEntrySwipedToCopy = { copyTarget = it },
             onWaterMinus = viewModel::removeLast,
@@ -184,16 +183,6 @@ fun TodayScreen(
                 viewModel.saveSlotAsTemplate(slot, name) { }
                 templateFor = null
             },
-        )
-    }
-
-    addToSlot?.let { slot ->
-        AddFoodSheet(
-            mealSlot = slot,
-            loggedAtMillis = viewModel.timestampForSelectedDay(),
-            onDismiss = { addToSlot = null },
-            onOpenAiSettings = onOpenAiSettings,
-            initialTab = addTab,
         )
     }
 
