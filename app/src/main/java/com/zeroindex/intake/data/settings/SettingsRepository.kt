@@ -83,6 +83,8 @@ data class AppSettings(
     /** Health Connect: watermark for the write sync, and when it last ran. */
     val healthLastWriteAt: Long = 0,
     val healthLastSyncAt: Long? = null,
+    /** One line of what the last Health Connect sync read per type. */
+    val healthLastReport: String? = null,
     /** Profile & goals: who the plan is for. One JSON value, see [UserProfile]. */
     val profile: UserProfile = UserProfile(),
     /** Baseline week progress marker. */
@@ -191,6 +193,7 @@ class SettingsRepository @Inject constructor(
         fun aiModel(task: AiTask) = stringPreferencesKey("ai_model_${task.name}")
         val healthLastWrite = longPreferencesKey("health_last_write_at")
         val healthLastSync = longPreferencesKey("health_last_sync_at")
+        val healthLastReport = stringPreferencesKey("health_last_report")
         val profile = stringPreferencesKey("profile_json")
         val baseline = stringPreferencesKey("baseline_json")
         val planHistory = stringPreferencesKey("plan_history_json")
@@ -254,6 +257,7 @@ class SettingsRepository @Inject constructor(
             dailyInsightEnabled = p[Keys.dailyInsight] ?: false,
             healthLastWriteAt = p[Keys.healthLastWrite] ?: 0,
             healthLastSyncAt = p[Keys.healthLastSync],
+            healthLastReport = p[Keys.healthLastReport],
             profile = p[Keys.profile]?.let { runCatching { settingsJson.decodeFromString<UserProfile>(it) }.getOrNull() }
                 ?: UserProfile(),
             baseline = p[Keys.baseline]?.let { runCatching { settingsJson.decodeFromString<BaselineState>(it) }.getOrNull() }
@@ -304,9 +308,10 @@ class SettingsRepository @Inject constructor(
     suspend fun setAiPrivacy(privacy: AiPrivacy) = put { it[Keys.aiPrivacy] = privacy.name }
     suspend fun setAiAllowRetaining(allow: Boolean) = put { it[Keys.aiAllowRetaining] = allow }
     suspend fun setDailyInsightEnabled(enabled: Boolean) = put { it[Keys.dailyInsight] = enabled }
-    suspend fun setHealthSynced(writeWatermark: Long, at: Long) = put {
+    suspend fun setHealthSynced(writeWatermark: Long, at: Long, report: String? = null) = put {
         it[Keys.healthLastWrite] = writeWatermark
         it[Keys.healthLastSync] = at
+        if (report == null) it.remove(Keys.healthLastReport) else it[Keys.healthLastReport] = report
     }
 
     suspend fun setProfile(profile: UserProfile) = put { it[Keys.profile] = settingsJson.encodeToString(profile) }

@@ -39,6 +39,10 @@ import com.zeroindex.intake.ui.components.SubHead
 import com.zeroindex.intake.ui.theme.IntakeShape
 import kotlin.math.roundToInt
 
+private fun formatSyncTime(millis: Long): String =
+    java.time.format.DateTimeFormatter.ofPattern("d MMM, HH:mm")
+        .format(java.time.Instant.ofEpochMilli(millis).atZone(java.time.ZoneId.systemDefault()))
+
 /** SPEC §12: every type is requested on its own terms and any can be refused. */
 private fun openHealthConnectSettings(context: android.content.Context) {
     runCatching {
@@ -157,7 +161,22 @@ fun HealthConnectScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                sync.lastError?.let { ErrorState(title = "Could not sync", body = "$it Your local data is unchanged.") }
+                val lastAt = state.settings.healthLastSyncAt
+                val summary = sync.report?.summary() ?: state.settings.healthLastReport
+                Spacer(Modifier.height(8.dp))
+                IntakeCard {
+                    Text("Last synced", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        lastAt?.let { formatSyncTime(it) } ?: "Not synced yet. The first sync reads the last 30 days.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (summary != null) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(summary, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                sync.lastError?.let { ErrorState(title = "Could not read everything", body = "$it Your local data is unchanged.") }
             }
         }
 
