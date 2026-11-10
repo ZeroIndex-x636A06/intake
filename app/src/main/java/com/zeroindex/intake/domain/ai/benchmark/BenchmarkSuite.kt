@@ -3,7 +3,6 @@ package com.zeroindex.intake.domain.ai.benchmark
 import com.zeroindex.intake.domain.ai.AiTask
 import com.zeroindex.intake.domain.ai.BenchmarkScore
 import com.zeroindex.intake.domain.ai.ModelInfo
-import com.zeroindex.intake.domain.ai.ModelSuggester
 import kotlin.math.ceil
 
 /** One request of a benchmark run, as measured. */
@@ -26,9 +25,6 @@ object BenchmarkSuite {
     /** Default hard spend limit for one run, in USD. */
     const val DEFAULT_CAP_USD = 0.25
 
-    /** The task's suggested model plus this many of the cheapest others. */
-    const val EXTRA_CHEAP_MODELS = 3
-
     val tasks: List<AiTask> = listOf(
         AiTask.MENU_INGESTION,
         AiTask.RECIPE_HUNTER,
@@ -47,24 +43,18 @@ object BenchmarkSuite {
     }
 
     /**
-     * The suggestion for [task] plus the cheapest other models able to do it,
-     * all honouring the retention setting the picker already applies.
+     * The models to measure for [task] when nothing is known about their endpoints (offline, or before the lookup
+     * finishes): capable paid models, most capable then cheapest. Never a free variant. See [BenchmarkCandidates]
+     * for the full plan with the privacy check.
      */
     fun defaultCandidates(
         task: AiTask,
         catalog: List<ModelInfo>,
         benchmarks: List<BenchmarkScore>,
         allowRetainingModels: Boolean,
-    ): List<ModelInfo> {
-        val suggestion = ModelSuggester.suggest(task, catalog, benchmarks, allowRetainingModels)
-        val suggested = suggestion.suggested?.model
-        val cheapest = suggestion.candidates
-            .filter { allowRetainingModels || !it.model.mayRetainPrompts }
-            .map { it.model }
-            .filter { it.id != suggested?.id }
-            .take(EXTRA_CHEAP_MODELS)
-        return listOfNotNull(suggested) + cheapest
-    }
+    ): List<ModelInfo> =
+        BenchmarkCandidates.plan(task, catalog.filter { allowRetainingModels || !it.mayRetainPrompts }, benchmarks, false, EndpointKnowledge())
+            .selected
 
     /** One stored row's numbers from a model's finished requests. */
     fun summarize(task: AiTask, modelId: String, outcomes: List<RequestOutcome>): BenchmarkScore {

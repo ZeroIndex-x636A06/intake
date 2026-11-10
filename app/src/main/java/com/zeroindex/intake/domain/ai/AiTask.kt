@@ -96,7 +96,7 @@ enum class AiTask(
         model.isInteractive &&
             model.hasKnownPrice &&
             model.outputsText &&
-            model.structuredOutputs &&
+            model.canReturnJson &&
             model.contextLength >= minContext &&
             (!needsImages || model.acceptsImages) &&
             (!needsTools || model.tools)

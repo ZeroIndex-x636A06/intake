@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 3,
-    "identityHash": "32d6fa040912aaba6ca30d61f9f0909e",
+    "identityHash": "dc791595f7e4bb82ea299beeec0183ea",
     "entities": [
       {
         "tableName": "food",
@@ -3913,7 +3913,7 @@
       },
       {
         "tableName": "ai_usage",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `feature` TEXT NOT NULL, `model` TEXT NOT NULL, `triggerKind` TEXT NOT NULL, `promptTokens` INTEGER, `completionTokens` INTEGER, `costUsd` REAL NOT NULL, `costReported` INTEGER NOT NULL, `success` INTEGER NOT NULL, `at` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `feature` TEXT NOT NULL, `model` TEXT NOT NULL, `triggerKind` TEXT NOT NULL, `promptTokens` INTEGER, `completionTokens` INTEGER, `costUsd` REAL NOT NULL, `costReported` INTEGER NOT NULL, `success` INTEGER NOT NULL, `failureKind` TEXT, `at` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -3966,6 +3966,11 @@
             "columnName": "success",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "failureKind",
+            "columnName": "failureKind",
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "at",
@@ -4030,7 +4035,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '32d6fa040912aaba6ca30d61f9f0909e')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'dc791595f7e4bb82ea299beeec0183ea')"
     ]
   }
 }

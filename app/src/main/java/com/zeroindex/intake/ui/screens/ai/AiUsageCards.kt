@@ -159,6 +159,22 @@ internal fun AiUsageMeterCard(meter: AiMeterState, onReset: () -> Unit) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             MeterRow("Total", usage.today, usage.week, usage.month, bold = true)
         }
+        if (meter.failures.isNotEmpty()) {
+            Spacer(Modifier.height(10.dp))
+            Eyebrow("Why calls failed this month")
+            meter.failures.forEach { f ->
+                Text(
+                    "${f.feature.label}: ${f.count} ${f.kind.label.lowercase()}",
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+                Text(
+                    f.kind.hint,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
         Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             OutlinedButton(
                 onClick = onReset,

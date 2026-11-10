@@ -1,10 +1,16 @@
 package com.zeroindex.intake.data.ai
 
+import com.zeroindex.intake.domain.ai.AiFailureKind
+import com.zeroindex.intake.domain.ai.AiTimeout
+import com.zeroindex.intake.domain.ai.RetryPolicy
 import com.zeroindex.intake.domain.ai.cost.AiMoney
 import java.io.IOException
+import java.io.InterruptedIOException
+import java.util.concurrent.TimeUnit
 import java.util.Base64
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -42,6 +48,10 @@ class OpenRouterClient(
     private val http: OkHttpClient,
     private val json: Json,
     private val baseUrl: String = BASE_URL,
+    /** How a retry waits. Injected so tests run without real pauses. */
+    private val pause: suspend (Long) -> Unit = { delay(it) },
+    private val jitter: () -> Double = { Math.random() },
+    private val nowMillis: () -> Long = System::currentTimeMillis,
 ) {
     companion object {
         const val BASE_URL = "https://openrouter.ai/api/v1"
@@ -50,16 +60,39 @@ class OpenRouterClient(
         private const val APP_TITLE = "Intake"
     }
 
+    /** One derived client per patience level: same connection pool and interceptors, different timeouts. */
+    private val clients = java.util.concurrent.ConcurrentHashMap<AiTimeout, OkHttpClient>()
+
+    private fun clientFor(timeout: AiTimeout): OkHttpClient = clients.getOrPut(timeout) {
+        http.newBuilder()
+            .readTimeout(timeout.readSeconds, TimeUnit.SECONDS)
+            .callTimeout(timeout.callSeconds, TimeUnit.SECONDS)
+            .build()
+    }
+
     /** Public list of models; needs no key. */
     internal suspend fun models(): List<OrModel> {
-        val body = execute(Request.Builder().url("$baseUrl/models").get().build())
+        val body = execute(Request.Builder().url("$baseUrl/models").get().build(), AiTimeout.MEDIUM)
         return json.decodeFromString(ModelsResponse.serializer(), body).data
+    }
+
+    /** The providers serving one model, with the parameters each accepts. Public; needs no key. */
+    internal suspend fun endpointsOf(modelId: String): List<OrEndpoint> {
+        val body = execute(Request.Builder().url("$baseUrl/models/$modelId/endpoints").get().build(), AiTimeout.TEXT)
+        return json.decodeFromString(EndpointsResponse.serializer(), body).data.endpoints
+    }
+
+    /** Every endpoint that keeps nothing after answering (the zero-data-retention list). Public; needs no key. */
+    internal suspend fun zdrEndpoints(): List<OrEndpoint> {
+        val body = execute(Request.Builder().url("$baseUrl/endpoints/zdr").get().build(), AiTimeout.MEDIUM)
+        return json.decodeFromString(ZdrResponse.serializer(), body).data
     }
 
     /** Checks a key and reports its remaining credit. */
     suspend fun keyInfo(apiKey: String): KeyData {
         val body = execute(
             Request.Builder().url("$baseUrl/key").header("Authorization", "Bearer $apiKey").get().build(),
+            AiTimeout.TEXT,
         )
         return json.decodeFromString(KeyResponse.serializer(), body).data
     }
@@ -80,6 +113,7 @@ class OpenRouterClient(
                 .header("X-Title", APP_TITLE)
                 .post(json.encodeToString(JsonObject.serializer(), payload).toRequestBody(JSON_MEDIA))
                 .build(),
+            request.effectiveTimeout(),
         )
         val root = runCatching { json.parseToJsonElement(body).jsonObject }
             .getOrElse { throw AiError.BadResponse("The reply was not JSON") }
@@ -102,7 +136,7 @@ class OpenRouterClient(
     internal fun buildPayload(request: AiRequest): JsonObject = buildJsonObject {
         put("model", request.model)
         putJsonArray("messages") {
-            request.system?.let { add(buildJsonObject { put("role", "system"); put("content", it) }) }
+            request.systemText()?.let { add(buildJsonObject { put("role", "system"); put("content", it) }) }
             add(
                 buildJsonObject {
                     put("role", "user")
@@ -113,22 +147,27 @@ class OpenRouterClient(
         request.maxTokens?.let { put("max_tokens", it) }
         request.temperature?.let { put("temperature", it) }
         request.schema?.let { schema ->
-            putJsonObject("response_format") {
-                put("type", "json_schema")
-                putJsonObject("json_schema") {
-                    put("name", request.schemaName)
-                    put("strict", true)
-                    put("schema", schema)
+            if (request.strictSchema) {
+                putJsonObject("response_format") {
+                    put("type", "json_schema")
+                    putJsonObject("json_schema") {
+                        put("name", request.schemaName)
+                        put("strict", true)
+                        put("schema", schema)
+                    }
                 }
+            } else {
+                // The model has no strict structured output: ask for a JSON object and give it the schema in words.
+                putJsonObject("response_format") { put("type", "json_object") }
             }
         }
         if (request.tools.isNotEmpty()) {
             putJsonArray("tools") { request.tools.forEach { add(it.toJson()) } }
         }
         if (request.parts.any { it is AiPart.Pdf }) {
-            // Native file handling where the model has it, cheap text
-            // extraction otherwise; Mistral OCR is the paid fallback and is
-            // only worth it for scanned menus, which this does not assume.
+            // The free text engine, named explicitly. Without an engine OpenRouter uses the model's native file
+            // handling (billed as input tokens) or Mistral OCR ($2 per 1,000 pages), neither of which a menu
+            // table with a text layer needs. ("pdf-text" is the old name; OpenRouter now redirects it here.)
             putJsonArray("plugins") {
                 add(buildJsonObject { put("id", "file-parser"); putJsonObject("pdf") { put("engine", "cloudflare-ai") } })
             }
@@ -193,33 +232,58 @@ class OpenRouterClient(
         else -> ""
     }
 
-    private suspend fun execute(request: Request): String {
-        val response = try {
-            http.newCall(request).await()
-        } catch (e: IOException) {
-            throw AiError.Network(e.message ?: "No connection")
-        }
-        response.use { r ->
-            val text = r.body.string()
-            if (!r.isSuccessful) {
-                val err = runCatching { json.parseToJsonElement(text).jsonObject["error"] }.getOrNull()
-                throw errorFromBody(r.code, err)
+    /**
+     * Sends [request], retrying a 429 or 5xx with backoff that honours `Retry-After`. A timeout or a dropped
+     * connection is reported at once, not retried: the provider may already have done (and billed) the work.
+     * Cancelling the coroutine cancels the OkHttp call.
+     */
+    private suspend fun execute(request: Request, timeout: AiTimeout): String {
+        val callClient = clientFor(timeout)
+        var attempt = 1
+        while (true) {
+            val response = try {
+                callClient.newCall(request).await()
+            } catch (e: InterruptedIOException) {
+                throw AiError.Timeout
+            } catch (e: IOException) {
+                throw AiError.Network(e.message ?: "No connection")
             }
-            return text
+            val (text, failure) = response.use { r ->
+                val body = r.body.string()
+                if (r.isSuccessful) return@use body to null
+                val err = runCatching { json.parseToJsonElement(body).jsonObject["error"] }.getOrNull()
+                body to errorFromBody(r.code, err, RetryPolicy.parseRetryAfter(r.header("Retry-After"), nowMillis()))
+            }
+            if (failure == null) return text
+            val status = when (failure) {
+                is AiError.RateLimited -> 429
+                is AiError.Server -> failure.code
+                else -> throw failure
+            }
+            val retryAfter = (failure as? AiError.RateLimited)?.retryAfterMs
+            val wait = if (RetryPolicy.isRetryable(status)) RetryPolicy.waitMs(attempt, retryAfter, jitter()) else null
+            if (wait == null) throw failure
+            pause(wait)
+            attempt++
         }
     }
 
-    private fun errorFromBody(code: Int, error: JsonElement?): AiError {
+    private fun errorFromBody(code: Int, error: JsonElement?, retryAfterMs: Long? = null): AiError {
         val obj = error as? JsonObject
         val message = obj?.get("message")?.jsonPrimitive?.contentOrNull.orEmpty()
         val status = obj?.get("code")?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: code
         return when {
             status == 401 -> AiError.Unauthorized
             status == 402 -> AiError.InsufficientCredits
-            status == 429 -> AiError.RateLimited
+            status == 408 -> AiError.Timeout
+            status == 429 -> AiError.RateLimited(retryAfterMs)
             // "No endpoints found matching your data policy" and its variants.
-            status == 404 && (message.contains("policy", true) || message.contains("endpoint", true)) ->
+            (status == 404 || status == 400) &&
+                (message.contains("data policy", true) || message.contains("endpoints found", true)) ->
                 AiError.NoEndpointForPrivacy
+            // Moderation or an unsupported request: the provider said no, and asking again will not change it.
+            status == 403 || status == 400 || status == 422 -> AiError.Refused(status, message.take(200))
+            status == 404 && message.contains("endpoint", true) -> AiError.NoEndpointForPrivacy
             else -> AiError.Server(status, message.take(200))
         }
     }
@@ -281,7 +345,27 @@ data class AiRequest(
     val maxTokens: Int? = null,
     val temperature: Double? = 0.2,
     val privacy: AiPrivacy = AiPrivacy.NO_TRAINING,
-)
+    /** How long to wait for the answer; see [AiTimeout]. Photos, PDFs and web tools are raised to at least LONG. */
+    val timeout: AiTimeout = AiTimeout.MEDIUM,
+    /**
+     * True when the model's catalog entry says it supports strict structured output. False sends JSON mode with
+     * the schema spelled out in the system prompt instead, for models that only know `response_format`.
+     */
+    val strictSchema: Boolean = true,
+) {
+    /** The patience this request really needs, whatever the caller asked for. */
+    fun effectiveTimeout(): AiTimeout {
+        val slow = tools.isNotEmpty() || parts.any { it is AiPart.Image || it is AiPart.Pdf }
+        return if (slow && timeout < AiTimeout.LONG) AiTimeout.LONG else timeout
+    }
+
+    /** The system prompt, with the schema appended in words when the model cannot be held to it strictly. */
+    fun systemText(): String? {
+        if (schema == null || strictSchema) return system
+        val spelled = "Reply with a single JSON object that matches this JSON Schema exactly, and nothing else:\n$schema"
+        return if (system.isNullOrBlank()) spelled else "$system\n\n$spelled"
+    }
+}
 
 data class AiResponse(
     val content: String,
@@ -306,13 +390,41 @@ sealed class AiError(override val message: String) : Exception(message) {
     data class NotAllowed(val detail: String) : AiError("This action is not allowed to use AI, so nothing was sent.")
     data object Unauthorized : AiError("OpenRouter rejected the key. Check it in Settings → AI.")
     data object InsufficientCredits : AiError("The OpenRouter account is out of credit.")
-    data object RateLimited : AiError("Too many requests just now. Try again in a minute.")
+    /** [retryAfterMs] is the provider's own `Retry-After`, when it gave one. */
+    data class RateLimited(val retryAfterMs: Long? = null) : AiError("Too many requests just now. Try again in a minute.")
+    /** The call waited as long as it is allowed to and got nothing back. */
+    data object Timeout : AiError(
+        "This is taking too long, so it was stopped. Try again, or pick a faster model in Settings → AI.",
+    )
+    /** The provider declined the request (moderation, or a request the model cannot take). Asking again will not help. */
+    data class Refused(val code: Int, val detail: String) :
+        AiError("The provider refused this request. Try another model in Settings → AI.")
+    /** No model can do this task with the catalog and settings as they are. */
+    data class NoModel(val task: String) : AiError("No suitable model is available for $task. Check Settings → AI.")
     data object NoEndpointForPrivacy : AiError(
         "No provider for this model meets your privacy setting. Pick another model, or relax the setting.",
     )
     data class Network(val detail: String) : AiError("Could not reach OpenRouter. Everything else still works offline.")
     data class Server(val code: Int, val detail: String) : AiError("OpenRouter returned an error ($code). Try again shortly.")
-    /** [raw] is the model's reply, kept so the UI can show it (SPEC §6.5). */
+    /**
+     * The model's reply could not be read even after one repair attempt. [detail] and [raw] are for tests and
+     * debugging only: the message is fixed text, because model text is never shown to the user.
+     */
     data class BadResponse(val detail: String, val raw: String? = null) :
-        AiError("The model's answer could not be read: $detail.")
+        AiError("The model's answer could not be understood, even after a second try. Try again, or pick another model in Settings → AI.")
+
+    /** What to record on the usage row when this is why a call failed. */
+    val failureKind: AiFailureKind
+        get() = when (this) {
+            is Timeout -> AiFailureKind.TIMEOUT
+            is BadResponse -> AiFailureKind.INVALID_OUTPUT
+            is Refused -> AiFailureKind.REFUSED
+            is RateLimited -> AiFailureKind.RATE_LIMITED
+            is Network -> AiFailureKind.NETWORK
+            is Unauthorized -> AiFailureKind.AUTH
+            is InsufficientCredits -> AiFailureKind.CREDITS
+            is NoEndpointForPrivacy -> AiFailureKind.PRIVACY
+            is Server -> AiFailureKind.SERVER
+            is NoKey, is Off, is BudgetReached, is NotAllowed, is NoModel -> AiFailureKind.REFUSED
+        }
 }

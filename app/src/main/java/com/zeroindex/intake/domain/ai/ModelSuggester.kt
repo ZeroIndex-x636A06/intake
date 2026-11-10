@@ -27,7 +27,7 @@ data class RankedModel(
 data class Suggestion(
     val suggested: RankedModel?,
     val basis: SuggestionBasis?,
-    /** Every capable model, cheapest first, for the picker list. */
+    /** Every capable model, most capable first and cheapest within a tier, for the picker list. */
     val candidates: List<RankedModel>,
 )
 
@@ -66,7 +66,11 @@ object ModelSuggester {
         val candidates = catalog
             .filter(task::canRun)
             .map { RankedModel(it, estimateUsd(it, task), scores[it.id]) }
-            .sortedWith(compareBy<RankedModel> { it.estimatedUsdPerUse }.thenBy { it.model.id })
+            .sortedWith(
+                compareByDescending<RankedModel> { ModelCapability.rank(it.model, task) }
+                    .thenBy { it.estimatedUsdPerUse }
+                    .thenBy { it.model.id },
+            )
         val eligible = candidates.filter { allowRetainingModels || !it.model.mayRetainPrompts }
 
         eligible.firstOrNull { it.benchmark?.passes() == true }?.let {
@@ -106,4 +110,14 @@ object ModelSuggester {
         fixtures >= MIN_FIXTURES && accuracy >= PASS_ACCURACY && jsonValidity >= PASS_JSON_VALIDITY
 
     private val VERSION = Regex("""\d+(\.\d+)*""")
+}
+
+/** How well a model suits a task, before price. Higher is better. */
+object ModelCapability {
+    /**
+     * Strict structured output counts most (the reply is held to the schema, so fewer repairs), then headroom in
+     * the context window. Vision and tool support are required by [AiTask.canRun], not ranked.
+     */
+    fun rank(model: ModelInfo, task: AiTask): Int =
+        (if (model.structuredOutputs) 2 else 0) + (if (model.contextLength >= task.minContext * 2) 1 else 0)
 }

@@ -61,6 +61,18 @@ enum class AiFeature(
     /** True when the task's benchmark requests look like this feature's, so its measured cost applies. */
     val benchmarkRepresentative: Boolean get() = task != null && profileOverride == null
 
+    /**
+     * How long one request may take. Photos and the web-search features (Recipe Hunter, Plan B, menu import)
+     * are slow, so they wait up to two minutes; text-only features fail after 45 seconds rather than leave the
+     * person watching a spinner. The benchmark sits between, so one hung model cannot eat the run.
+     */
+    val timeout: AiTimeout
+        get() = when (this) {
+            PHOTO_ESTIMATE, RECIPE_HUNTER, PLAN_B, MENU_IMPORT -> AiTimeout.LONG
+            RECIPE_TRY_AI, BENCHMARK -> AiTimeout.MEDIUM
+            DAILY_INSIGHT, COACH_REWORD -> AiTimeout.TEXT
+        }
+
     val allowedTriggers: Set<AiTrigger>
         get() = if (schedulable) setOf(AiTrigger.USER_ACTION, AiTrigger.OPT_IN_SCHEDULE) else setOf(AiTrigger.USER_ACTION)
 

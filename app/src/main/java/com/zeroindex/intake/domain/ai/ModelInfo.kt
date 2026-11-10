@@ -21,7 +21,12 @@ data class ModelInfo(
     val tools: Boolean,
     /** Unix seconds; used to resolve "latest" in a shortlist. */
     val createdAt: Long = 0,
+    /** Supports JSON mode (response_format) without the strict schema; the fallback when [structuredOutputs] is false. */
+    val responseFormat: Boolean = false,
 ) {
+    /** Whether the model can be asked for JSON at all, strictly or not. */
+    val canReturnJson: Boolean get() = structuredOutputs || responseFormat
+
     /**
      * Router entries such as `openrouter/auto` list a negative price, meaning "whatever the model it picks
      * charges". No estimate can be made for them, so they are never suggested and never priced.

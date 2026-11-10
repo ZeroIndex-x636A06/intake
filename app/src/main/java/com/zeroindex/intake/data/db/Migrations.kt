@@ -158,6 +158,12 @@ internal fun migrateAiUsage_2_3(): List<String> = listOf(
     "CREATE INDEX IF NOT EXISTS `index_ai_usage_deletedAt` ON `ai_usage` (`deletedAt`)",
 )
 
+internal fun migrateAiFailureKind_2_3(): List<String> = listOf(
+    // Why an AI call failed (timeout, unreadable answer, refused, rate limited, ...), for the usage meter. Nullable,
+    // so every existing row keeps its meaning. Purely additive.
+    "ALTER TABLE `ai_usage` ADD COLUMN `failureKind` TEXT",
+)
+
 internal fun migrateExercises_2_3(): List<String> = listOf(
     // Exercise diagrams, custom exercises and custom workouts (docs/EXERCISE-IMAGES.md, docs/WORKOUTS.md).
     // The person's own exercise photo (a file name in app storage), a saved single-session workout is a
@@ -178,7 +184,8 @@ internal val MIGRATION_2_3_STATEMENTS: List<String> =
         migrateCoach_2_3() +
         migrateAiUsage_2_3() +
         migrateExercises_2_3() +
-        migrateFoodUi_2_3()
+        migrateFoodUi_2_3() +
+        migrateAiFailureKind_2_3()
 
 internal val MIGRATION_2_3 = object : Migration(2, 3) {
     override fun migrate(db: SupportSQLiteDatabase) {

@@ -19,6 +19,7 @@ import com.zeroindex.intake.data.keys.ApiKeyStore
 import com.zeroindex.intake.work.MenuIngestionWorker
 import com.zeroindex.intake.data.settings.AppSettings
 import com.zeroindex.intake.data.settings.SettingsRepository
+import com.zeroindex.intake.domain.ai.AiFailureKind
 import com.zeroindex.intake.domain.ai.AiFeature
 import com.zeroindex.intake.domain.ai.AiTask
 import com.zeroindex.intake.domain.ai.AiTrigger
@@ -26,6 +27,7 @@ import com.zeroindex.intake.domain.ai.cost.AiBudget
 import com.zeroindex.intake.domain.ai.cost.AiCostModel
 import com.zeroindex.intake.domain.ai.cost.AiRecommendation
 import com.zeroindex.intake.domain.ai.cost.AiUsageRecord
+import com.zeroindex.intake.domain.ai.cost.FailureCount
 import com.zeroindex.intake.domain.ai.cost.BudgetStatus
 import com.zeroindex.intake.domain.ai.cost.CostSummary
 import com.zeroindex.intake.domain.ai.cost.FeatureCost
@@ -83,6 +85,8 @@ data class AiMeterState(
     val resetAt: Long = 0L,
     /** The start of next month, when the budget starts again. */
     val nextMonthStart: Long = 0L,
+    /** This month's failed calls by feature and reason. */
+    val failures: List<FailureCount> = emptyList(),
 )
 
 /** One line of the "Estimated cost" card. */
@@ -197,6 +201,7 @@ class AiSettingsViewModel @Inject constructor(
             usage = UsageSummarizer.summarize(records, now, zone, settings.aiUsageResetAt),
             resetAt = settings.aiUsageResetAt,
             nextMonthStart = UsagePeriods.nextMonthStart(now, zone),
+            failures = UsageSummarizer.failures(records, now, zone, settings.aiUsageResetAt),
         )
         val inputs = AiFeature.entries.filter { it.inEstimate }.map { f ->
             val model = base.rows.firstOrNull { it.task == f.task }?.active?.model
@@ -242,6 +247,7 @@ class AiSettingsViewModel @Inject constructor(
         val trigger = runCatching { AiTrigger.valueOf(e.triggerKind) }.getOrNull() ?: return null
         return AiUsageRecord(
             feature, e.model, trigger, e.promptTokens, e.completionTokens, e.costUsd, e.costReported, e.success, e.at,
+            failure = AiFailureKind.parse(e.failureKind),
         )
     }
 

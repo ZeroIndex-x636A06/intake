@@ -1,5 +1,6 @@
 package com.zeroindex.intake.domain.ai.cost
 
+import com.zeroindex.intake.domain.ai.AiFailureKind
 import com.zeroindex.intake.domain.ai.AiFeature
 import com.zeroindex.intake.domain.ai.AiTrigger
 import java.time.ZoneId
@@ -16,6 +17,8 @@ data class AiUsageRecord(
     val costReported: Boolean,
     val success: Boolean,
     val at: Long,
+    /** Why the call did not give a usable answer; null when it did. */
+    val failure: AiFailureKind? = null,
 )
 
 data class PeriodTotals(val calls: Int, val usd: Double) {
@@ -25,6 +28,9 @@ data class PeriodTotals(val calls: Int, val usd: Double) {
         val ZERO = PeriodTotals(0, 0.0)
     }
 }
+
+/** How many calls of [feature] failed for [kind]. */
+data class FailureCount(val feature: AiFeature, val kind: AiFailureKind, val count: Int)
 
 data class FeatureUsage(val feature: AiFeature, val today: PeriodTotals, val week: PeriodTotals, val month: PeriodTotals)
 
@@ -72,6 +78,19 @@ object UsageSummarizer {
     fun monthSpend(records: List<AiUsageRecord>, nowMillis: Long, zone: ZoneId): Double {
         val month = UsagePeriods.monthStart(nowMillis, zone)
         return AiMoney.round(records.filter { it.at in month..nowMillis }.sumOf { it.costUsd })
+    }
+
+    /**
+     * Why calls failed this month, per feature, most frequent first, so Settings can say "Photo estimates: 3 timed
+     * out" instead of leaving the person to guess. Honours "Reset counters" like the rest of the meter.
+     */
+    fun failures(records: List<AiUsageRecord>, nowMillis: Long, zone: ZoneId, resetAt: Long = 0L): List<FailureCount> {
+        val month = maxOf(UsagePeriods.monthStart(nowMillis, zone), resetAt)
+        return records
+            .filter { it.failure != null && it.at in month..nowMillis }
+            .groupBy { it.feature to it.failure!! }
+            .map { (key, rows) -> FailureCount(key.first, key.second, rows.size) }
+            .sortedWith(compareByDescending<FailureCount> { it.count }.thenBy { it.feature.ordinal })
     }
 
     /** Average request size of a feature over its successful calls that reported tokens, or null with none. */

@@ -93,7 +93,7 @@ class DefaultAiEnvironment @Inject constructor(
             // Offline with no cached catalog: fall back to the first concrete
             // shortlist entry rather than refusing outright.
             ?: task.shortlist.firstOrNull { '*' !in it }
-            ?: throw AiError.BadResponse("no model available for ${task.label}")
+            ?: throw AiError.NoModel(task.label)
     }
 
     /** From the cached catalog only: pricing a finished call must never start a download. */
@@ -112,6 +112,7 @@ class DefaultAiEnvironment @Inject constructor(
                 costUsd = record.costUsd,
                 costReported = record.costReported,
                 success = record.success,
+                failureKind = record.failure?.name,
                 at = record.at,
                 createdAt = now,
                 updatedAt = now,

@@ -54,9 +54,9 @@ object NetworkModule {
         .build()
 
     /**
-     * AI calls are not conveniences on a short fuse like the lookups above: a
-     * vision estimate takes seconds and a search-and-extract run can take a
-     * minute, so they get their own client with patient timeouts.
+     * AI calls are not conveniences on a short fuse like the lookups above, so they get their own client.
+     * The timeouts here are only the ceiling: [OpenRouterClient] derives a client per request from the
+     * feature's [com.zeroindex.intake.domain.ai.AiTimeout] (45 s for text, up to 120 s for photos and web search).
      */
     @Provides
     @Singleton

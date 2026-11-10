@@ -76,6 +76,8 @@ data class AiUsageEntity(
     /** True when OpenRouter reported [costUsd]; false when it was worked out from catalog prices. */
     val costReported: Boolean,
     val success: Boolean,
+    /** An [com.zeroindex.intake.domain.ai.AiFailureKind] name when the call failed, else null. */
+    val failureKind: String? = null,
     /** UTC epoch millis of the call. */
     val at: Long,
     override val createdAt: Long,

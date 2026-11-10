@@ -4,10 +4,12 @@ import com.zeroindex.intake.data.ai.AiError
 import com.zeroindex.intake.data.ai.AiPart
 import com.zeroindex.intake.data.ai.AiPrivacy
 import com.zeroindex.intake.data.ai.AiRequest
+import com.zeroindex.intake.data.ai.AiResponse
 import com.zeroindex.intake.data.ai.AiGateway
 import com.zeroindex.intake.data.db.dao.AiInsightDao
 import com.zeroindex.intake.data.db.entity.ModelBenchmarkEntity
 import com.zeroindex.intake.data.db.entity.seedId
+import com.zeroindex.intake.domain.ai.AiFailureKind
 import com.zeroindex.intake.domain.ai.AiFeature
 import com.zeroindex.intake.domain.ai.AiTask
 import com.zeroindex.intake.domain.ai.AiTrigger
@@ -21,6 +23,7 @@ import com.zeroindex.intake.domain.time.Clock
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 /** The models to measure on one task. */
@@ -33,7 +36,27 @@ data class BenchmarkProgress(
     val done: Int,
     val total: Int,
     val spentUsd: Double,
+    /** Set while the run is waiting, for example "Rate limited, waiting 15 s". */
+    val note: String? = null,
 )
+
+/**
+ * How the run paces itself. One request at a time with a small gap keeps a provider's rate limit from being
+ * hit in the first place; a 429 that still gets through is waited out, [rateLimitWaitsMs] long each time (or
+ * the provider's own `Retry-After`), a few times, before only that model is skipped.
+ */
+data class BenchmarkPacing(
+    val gapMs: Long = 1_000,
+    val rateLimitWaitsMs: List<Long> = listOf(5_000, 15_000, 45_000),
+    val cooldownAfterSkipMs: Long = 10_000,
+    val sleep: suspend (Long) -> Unit = { delay(it) },
+) {
+    companion object {
+        /** The longest we will wait on one `Retry-After`. */
+        const val MAX_WAIT_MS = 60_000L
+        val NONE = BenchmarkPacing(gapMs = 0, rateLimitWaitsMs = listOf(0, 0, 0), cooldownAfterSkipMs = 0, sleep = {})
+    }
+}
 
 /** What became of one (task, model) pair. */
 sealed interface ModelResult {
@@ -47,7 +70,13 @@ sealed interface ModelResult {
     }
 
     /** Not stored, because a partial or unmeasured result would mislead the picker. */
-    data class Skipped(override val task: AiTask, override val modelId: String, val reason: String) : ModelResult
+    data class Skipped(
+        override val task: AiTask,
+        override val modelId: String,
+        val reason: String,
+        /** Why, in the usage meter's terms, when it was a failed call; null for "stopped at the cap" and the like. */
+        val kind: AiFailureKind? = null,
+    ) : ModelResult
 }
 
 data class BenchmarkReport(
@@ -94,18 +123,24 @@ class BenchmarkRunner @Inject constructor(
      * Runs every selection in order and stores one row per fully measured
      * (task, model). Stops once spend reaches [capUsd]; a model cut off by the
      * cap is reported, not stored. Cancelling keeps the rows already stored.
+     *
+     * A rate limit (HTTP 429) is transient and belongs to one model: it is waited out per [pacing], and only
+     * after that does the model get skipped, with the run carrying on to the next. Only a rejected key, no
+     * credit, the master switch or being offline ends the whole run.
      */
     suspend fun run(
         selections: List<BenchmarkSelection>,
         capUsd: Double,
         privacy: AiPrivacy,
         onProgress: (BenchmarkProgress) -> Unit,
+        pacing: BenchmarkPacing = BenchmarkPacing(),
     ): BenchmarkReport {
         require(capUsd > 0) { "The spend cap must be above zero" }
         val results = mutableListOf<ModelResult>()
         var spent = 0.0
         var stoppedByCap = false
         var abortReason: String? = null
+        var first = true
 
         selections@ for (selection in selections) {
             val requests = withContext(Dispatchers.IO) { cases.forTask(selection.task) }
@@ -115,18 +150,23 @@ class BenchmarkRunner @Inject constructor(
                     break@selections
                 }
                 val outcomes = mutableListOf<RequestOutcome>()
-                var skipReason: String? = null
+                var skip: Skip? = null
                 for (case in requests) {
                     if (spent >= capUsd) {
                         stoppedByCap = true
-                        skipReason = "Stopped at the spend cap before it finished"
+                        skip = Skip("Stopped at the spend cap before it finished", null)
                         break
                     }
+                    if (!first) pacing.sleep(pacing.gapMs)
+                    first = false
                     onProgress(BenchmarkProgress(selection.task, model.id, outcomes.size, requests.size, spent))
-                    val response = try {
-                        gateway.complete(AiFeature.BENCHMARK, AiTrigger.USER_ACTION, request(selection.task, model, case, privacy))
-                    } catch (e: AiError) {
-                        if (e.endsRun()) abortReason = e.message else skipReason = e.message
+                    val attempt = sendWithPatience(selection, model, case, privacy, pacing) { note ->
+                        onProgress(BenchmarkProgress(selection.task, model.id, outcomes.size, requests.size, spent, note))
+                    }
+                    val response = attempt.response
+                    if (response == null) {
+                        val error = attempt.error!!
+                        if (error.endsRun()) abortReason = error.message else skip = Skip(attempt.reason!!, error.failureKind)
                         break
                     }
                     // A provider that reports no cost must not be able to slip past the cap.
@@ -139,11 +179,49 @@ class BenchmarkRunner @Inject constructor(
                         costUsd = response.costUsd,
                     )
                 }
-                results += finish(selection.task, model, requests.size, outcomes, skipReason ?: abortReason)
+                results += finish(
+                    selection.task, model, requests.size, outcomes,
+                    skip ?: abortReason?.let { Skip(it, null) },
+                )
                 if (abortReason != null) break@selections
+                // A model that was rate limited out leaves the provider needing a moment before the next one.
+                if (skip?.kind == AiFailureKind.RATE_LIMITED) pacing.sleep(pacing.cooldownAfterSkipMs)
             }
         }
         return BenchmarkReport(results, spent, capUsd, stoppedByCap, abortReason)
+    }
+
+    private class Skip(val reason: String, val kind: AiFailureKind?)
+
+    /** The outcome of one request: a response, or the error and the words to report it with. */
+    private class Attempt(val response: AiResponse?, val error: AiError?, val reason: String?)
+
+    /** Sends one request, waiting out a rate limit a few times before giving up on this model. */
+    private suspend fun sendWithPatience(
+        selection: BenchmarkSelection,
+        model: ModelInfo,
+        case: BenchmarkCase,
+        privacy: AiPrivacy,
+        pacing: BenchmarkPacing,
+        onNote: (String) -> Unit,
+    ): Attempt {
+        var waits = 0
+        while (true) {
+            try {
+                val response = gateway.complete(AiFeature.BENCHMARK, AiTrigger.USER_ACTION, request(selection.task, model, case, privacy))
+                return Attempt(response, null, null)
+            } catch (e: AiError.RateLimited) {
+                if (waits >= pacing.rateLimitWaitsMs.size) {
+                    return Attempt(null, e, "Rate limited by the provider, even after waiting")
+                }
+                val wait = (e.retryAfterMs ?: pacing.rateLimitWaitsMs[waits]).coerceAtMost(BenchmarkPacing.MAX_WAIT_MS)
+                onNote("Rate limited, waiting ${(wait + 999) / 1000} s")
+                pacing.sleep(wait)
+                waits++
+            } catch (e: AiError) {
+                return Attempt(null, e, e.message)
+            }
+        }
     }
 
     private suspend fun finish(
@@ -151,9 +229,9 @@ class BenchmarkRunner @Inject constructor(
         model: ModelInfo,
         expected: Int,
         outcomes: List<RequestOutcome>,
-        stopReason: String?,
+        stop: Skip?,
     ): ModelResult = when {
-        stopReason != null -> ModelResult.Skipped(task, model.id, stopReason)
+        stop != null -> ModelResult.Skipped(task, model.id, stop.reason, stop.kind)
         outcomes.none { it.costUsd != null } ->
             ModelResult.Skipped(task, model.id, "OpenRouter did not report a cost for this model")
         outcomes.size < expected -> ModelResult.Skipped(task, model.id, "Not every fixture ran")
@@ -172,16 +250,22 @@ class BenchmarkRunner @Inject constructor(
         schemaName = task.name.lowercase(),
         maxTokens = BenchmarkSuite.maxOutputTokens(task),
         privacy = privacy,
+        timeout = AiFeature.BENCHMARK.timeout,
+        strictSchema = model.structuredOutputs,
     )
 
     private fun requestEstimate(model: ModelInfo, task: AiTask, case: BenchmarkCase): Double =
         BenchmarkCost.requestUsd(model, BenchmarkCost.inputTokens(case.inputChars), BenchmarkSuite.maxOutputTokens(task))
 
-    /** Problems with the account or the connection hit every model alike; model-specific ones do not. */
+    /**
+     * Problems with the account or the connection hit every model alike; model-specific ones do not. A rate
+     * limit is the model's provider being busy, not the account, so it is never in this list.
+     */
     private fun AiError.endsRun(): Boolean = when (this) {
         AiError.NoKey, AiError.Off, is AiError.BudgetReached, is AiError.NotAllowed,
-            AiError.Unauthorized, AiError.InsufficientCredits, AiError.RateLimited, is AiError.Network -> true
-        AiError.NoEndpointForPrivacy, is AiError.Server, is AiError.BadResponse -> false
+            AiError.Unauthorized, AiError.InsufficientCredits, is AiError.Network -> true
+        is AiError.RateLimited, AiError.Timeout, is AiError.Refused, is AiError.NoModel,
+            AiError.NoEndpointForPrivacy, is AiError.Server, is AiError.BadResponse -> false
     }
 
     companion object {

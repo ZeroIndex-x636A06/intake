@@ -1,9 +1,12 @@
 package com.zeroindex.intake.data.ai
 
+import com.zeroindex.intake.domain.ai.AiFailureKind
 import com.zeroindex.intake.domain.ai.AiFeature
 import com.zeroindex.intake.domain.ai.AiGuard
 import com.zeroindex.intake.domain.ai.AiTrigger
 import com.zeroindex.intake.domain.ai.GuardRefusal
+import com.zeroindex.intake.domain.ai.ReplyDecode
+import com.zeroindex.intake.domain.ai.ReplyRepair
 import com.zeroindex.intake.domain.ai.cost.AiBudget
 import com.zeroindex.intake.domain.ai.cost.AiSpend
 import com.zeroindex.intake.domain.ai.cost.AiUsageRecord
@@ -12,8 +15,9 @@ import com.zeroindex.intake.domain.time.Clock
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 
@@ -29,8 +33,11 @@ data class AiOutcome<T>(val value: T, val response: AiResponse)
  *   The rest of the app never needs any of this (SPEC §3.3).
  * - **Which model**: the user's choice for that task, else the suggestion.
  * - **How private**: the privacy setting is applied to every request, not left to each caller to remember.
- * - **What it cost**: every call that goes out is logged (feature, model, tokens, cost, success; never the
- *   prompt or the key) for the usage meter and the budget.
+ * - **How patient**: each feature has its own timeout (photos and web search wait longer than text).
+ * - **How strict**: a model with strict structured output is held to the schema; one with only JSON mode gets
+ *   the schema in the prompt.
+ * - **What it cost, and why it failed**: every call that goes out is logged (feature, model, tokens, cost,
+ *   success, and the kind of failure; never the prompt or the key) for the usage meter and the budget.
  *
  * Nothing else in the app may call [OpenRouterClient.complete]; `AiAuditTest` fails if something tries.
  */
@@ -88,9 +95,14 @@ class AiGateway @Inject constructor(
     }
 
     /**
-     * Runs [feature] and decodes the reply into [T]. A reply that does not parse is retried once with the
-     * parse error fed back - models occasionally wrap JSON in prose even under a schema - and a second
-     * failure is reported rather than guessed at. Each request is guarded and logged on its own.
+     * Runs [feature] and decodes the reply into [T].
+     *
+     * The reply is read leniently (fences, prose around the object and trailing commas are tolerated, see
+     * [ReplyRepair]) and checked against [serializer]. If it still does not fit, the model gets one repair
+     * attempt in the same user action: its own reply and the error go back with "Your previous reply did not
+     * match the schema: ... Reply with JSON only." A second failure is reported as a plain [AiError.BadResponse];
+     * the model's text is never shown. Each request is guarded, billed to the budget and logged on its own, so
+     * the repair attempt counts toward spend like any other call.
      */
     suspend fun <T> structured(
         feature: AiFeature,
@@ -104,8 +116,9 @@ class AiGateway @Inject constructor(
     ): AiOutcome<T> {
         authorize(feature, trigger)
         val task = feature.task ?: throw IllegalArgumentException("${feature.name} has no model task")
+        val model = env.modelFor(task)
         val request = AiRequest(
-            model = env.modelFor(task),
+            model = model,
             parts = parts,
             system = system,
             schema = schema,
@@ -113,23 +126,32 @@ class AiGateway @Inject constructor(
             tools = tools,
             maxTokens = maxTokens ?: (task.typicalOutputTokens * 2),
             privacy = env.policy().privacy,
+            timeout = feature.timeout,
+            // Unknown model (an override missing from the cached list) is tried strictly, as before.
+            strictSchema = env.priceOf(model)?.structuredOutputs ?: true,
         )
         val first = send(feature, trigger, request)
-        val firstValue = decodeReply(json, serializer, first.content)
-        settle(feature, trigger, request, first, firstValue != null)
-        if (firstValue != null) return AiOutcome(firstValue, first)
+        val firstDecode = ReplyRepair.decode(json, serializer, first.content)
+        if (firstDecode is ReplyDecode.Ok) {
+            settle(feature, trigger, request, first, success = true)
+            return AiOutcome(firstDecode.value, first)
+        }
+        settle(feature, trigger, request, first, success = false, failure = AiFailureKind.INVALID_OUTPUT)
 
+        val error = (firstDecode as ReplyDecode.Invalid).error
         val retryRequest = request.copy(
-            parts = parts + AiPart.Text(
-                "Your previous reply could not be parsed. Reply with only a JSON object matching the schema.",
-            ),
+            parts = parts + AiPart.Text(repairPrompt(first.content, error)),
+            // The answer already exists and only needs reshaping: do not pay for a second web search.
             tools = emptyList(),
         )
         val retry = send(feature, trigger, retryRequest)
-        val value = decodeReply(json, serializer, retry.content)
-        settle(feature, trigger, retryRequest, retry, value != null)
-        if (value == null) throw AiError.BadResponse("it did not match the expected format", raw = retry.content)
-        return AiOutcome(value, retry.copy(costUsd = sum(first.costUsd, retry.costUsd)))
+        val retryDecode = ReplyRepair.decode(json, serializer, retry.content)
+        if (retryDecode is ReplyDecode.Invalid) {
+            settle(feature, trigger, retryRequest, retry, success = false, failure = AiFailureKind.INVALID_OUTPUT)
+            throw AiError.BadResponse(retryDecode.error, raw = retry.content)
+        }
+        settle(feature, trigger, retryRequest, retry, success = true)
+        return AiOutcome((retryDecode as ReplyDecode.Ok).value, retry.copy(costUsd = sum(first.costUsd, retry.costUsd)))
     }
 
     /**
@@ -149,18 +171,36 @@ class AiGateway @Inject constructor(
         val key = authorize(feature, trigger)
         try {
             return client.complete(key, request)
+        } catch (e: CancellationException) {
+            // The person pressed Cancel: the OkHttp call was cancelled with the coroutine. It may still have been billed.
+            logFailed(feature, trigger, request, AiFailureKind.CANCELLED)
+            throw e
         } catch (e: AiError) {
-            log(
-                AiUsageRecord(
-                    feature = feature, model = request.model, trigger = trigger!!, promptTokens = null,
-                    completionTokens = null, costUsd = 0.0, costReported = false, success = false, at = clock.nowMillis(),
-                ),
-            )
+            logFailed(feature, trigger, request, e.failureKind)
             throw e
         }
     }
 
-    private suspend fun settle(feature: AiFeature, trigger: AiTrigger?, request: AiRequest, response: AiResponse, success: Boolean) {
+    private suspend fun logFailed(feature: AiFeature, trigger: AiTrigger?, request: AiRequest, kind: AiFailureKind) {
+        withContext(NonCancellable) {
+            log(
+                AiUsageRecord(
+                    feature = feature, model = request.model, trigger = trigger!!, promptTokens = null,
+                    completionTokens = null, costUsd = 0.0, costReported = false, success = false,
+                    at = clock.nowMillis(), failure = kind,
+                ),
+            )
+        }
+    }
+
+    private suspend fun settle(
+        feature: AiFeature,
+        trigger: AiTrigger?,
+        request: AiRequest,
+        response: AiResponse,
+        success: Boolean,
+        failure: AiFailureKind? = null,
+    ) {
         val model = env.priceOf(response.model) ?: env.priceOf(request.model)
         val cost = AiSpend.resolve(response.costUsd, response.promptTokens, response.completionTokens, model, feature.profile)
         log(
@@ -174,6 +214,7 @@ class AiGateway @Inject constructor(
                 costReported = cost.reported,
                 success = success,
                 at = clock.nowMillis(),
+                failure = failure,
             ),
         )
     }
@@ -192,28 +233,21 @@ class AiGateway @Inject constructor(
     private fun sum(a: Double?, b: Double?): Double? = if (a == null && b == null) null else (a ?: 0.0) + (b ?: 0.0)
 
     companion object {
+        private const val MAX_ECHO_CHARS = 12_000
+
+        /** The repair turn: the model's own reply, then the error, then the instruction. */
+        fun repairPrompt(previousReply: String, error: String): String =
+            "Here is your previous reply:\n${previousReply.take(MAX_ECHO_CHARS)}\n\n" +
+                "Your previous reply did not match the schema: $error. Reply with JSON only."
+
         /**
          * Decodes a reply into [T], or null if it does not match. Shared with
          * the benchmark so "parsed" means the same thing in both.
          */
-        fun <T> decodeReply(json: Json, serializer: KSerializer<T>, content: String): T? {
-            val text = extractJson(content) ?: return null
-            return try {
-                json.decodeFromString(serializer, text)
-            } catch (_: SerializationException) {
-                null
-            } catch (_: IllegalArgumentException) {
-                null
-            }
-        }
+        fun <T> decodeReply(json: Json, serializer: KSerializer<T>, content: String): T? =
+            (ReplyRepair.decode(json, serializer, content) as? ReplyDecode.Ok)?.value
 
         /** Pulls the JSON object out of a reply that may be fenced or prefixed with prose. */
-        fun extractJson(content: String): String? {
-            val trimmed = content.trim()
-            if (trimmed.startsWith("{")) return trimmed
-            val start = trimmed.indexOf('{')
-            val end = trimmed.lastIndexOf('}')
-            return if (start >= 0 && end > start) trimmed.substring(start, end + 1) else null
-        }
+        fun extractJson(content: String): String? = ReplyRepair.extractJson(content)
     }
 }
