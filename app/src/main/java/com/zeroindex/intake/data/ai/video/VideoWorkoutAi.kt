@@ -48,7 +48,7 @@ class VideoWorkoutAi @Inject constructor(private val gateway: AiGateway) {
             parts = listOf(
                 AiPart.Text(
                     "Title: ${video.title.take(200)}\nLength: ${video.durationSec} seconds\n\n" +
-                        "Chapters:\n${chapterText.take(3_000)}\n\nDescription:\n${video.description.take(4_000)}",
+                        "Chapters:\n${chapterText.take(3_000)}\n\nDescription:\n${video.description.take(8_000)}",
                 ),
             ),
         )

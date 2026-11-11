@@ -130,13 +130,54 @@ fun MakeWorkoutScreen(
                     Text("  Add an exercise")
                 }
             }
+            item(key = "paste") {
+                var pasted by remember { mutableStateOf("") }
+                IntakeCard {
+                    Text("What is in the video itself", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Intake cannot watch a video. YouTube gives apps only the title and description, so exercises that are " +
+                            "only spoken or shown are not seen. To bring them in: open the video in YouTube, tap the description, " +
+                            "then \"Show transcript\", copy it and paste it here. A typed list works too, one exercise a line.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 2.dp, bottom = 10.dp),
+                    )
+                    OutlinedTextField(
+                        value = pasted,
+                        onValueChange = { pasted = it },
+                        label = { Text("Transcript or exercise list") },
+                        minLines = 3,
+                        maxLines = 6,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedButton(
+                        onClick = { viewModel.usePastedText(pasted) },
+                        enabled = pasted.isNotBlank(),
+                        shape = IntakeShape.Button,
+                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp).heightIn(min = 48.dp),
+                    ) { Text("Read this text") }
+                    state.pastedFound?.let { found ->
+                        Text(
+                            when {
+                                found == 0 && state.aiAvailable -> "No exercise lines found in it. \"Improve with AI\" below can read it instead."
+                                found == 0 -> "No exercise lines found in it. Lines like \"Squats 3 x 12\" or \"2:30 Lunges\" are what it looks for."
+                                found == 1 -> "Found 1 exercise. Check it above."
+                                else -> "Found $found exercises. Check them above."
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                    }
+                }
+            }
 
             if (state.aiAvailable) {
                 item(key = "ai") {
                     IntakeCard {
                         Text("Improve with AI", style = MaterialTheme.typography.titleMedium)
                         Text(
-                            "Optional. Sends this video's title, chapters and description (nothing else) to your AI model, and shows the answer here for you to check. It counts towards your AI budget.",
+                            "Optional. Sends this video's title, chapters, description and any text you pasted above (nothing else) to your AI model, and shows the answer here for you to check. It counts towards your AI budget.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 2.dp, bottom = 10.dp),

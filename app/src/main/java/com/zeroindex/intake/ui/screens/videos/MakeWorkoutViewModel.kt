@@ -38,6 +38,8 @@ data class MakeWorkoutState(
     val name: String = "",
     val source: DraftSource = DraftSource.NOTHING,
     val items: List<DraftItem> = emptyList(),
+    /** How many exercises the last pasted text gave, or null when nothing has been pasted. */
+    val pastedFound: Int? = null,
     val hasDescription: Boolean = false,
     val aiAvailable: Boolean = false,
     /** A workout is already running: only one session at a time, so "Save and start" is off. */
@@ -138,6 +140,23 @@ class MakeWorkoutViewModel @Inject constructor(
     fun rename(key: Int, name: String) = edit(key) { it.copy(exerciseName = name, primaryMuscle = MuscleGuess.of(name), exerciseId = null, kind = DraftKind.NEW) }
 
     /** "Improve with AI": one explicit tap, one gateway call. The answer replaces the list, marked "AI suggested". */
+    /**
+     * The person pasted what the video itself says (its transcript, or the exercise list from a pinned comment). YouTube
+     * gives an app only the title and description, never the spoken or on-screen content, so this is how that content
+     * gets in. It is read on this phone like a description, and it is what "Improve with AI" is sent if that is tapped.
+     */
+    fun usePastedText(text: String) {
+        val meta = _state.value.meta ?: return
+        val pasted = text.trim().take(MAX_PASTE)
+        if (pasted.isEmpty()) return
+        // Pasted text goes first: it is what the person chose to give, and the AI step reads only the start of long text.
+        val video = meta.copy(description = (pasted + "\n" + meta.description).trim())
+        val draft = VideoWorkoutDrafter.draft(video, library)
+        _state.update {
+            it.copy(meta = video, source = draft.source, items = draft.items.ifEmpty { it.items }, hasDescription = true, pastedFound = draft.items.size)
+        }
+    }
+
     fun improveWithAi() {
         val s = _state.value
         val meta = s.meta ?: return
@@ -197,5 +216,10 @@ class MakeWorkoutViewModel @Inject constructor(
     fun addByHand(onCreated: (programId: String) -> Unit) {
         val s = _state.value
         viewModelScope.launch { onCreated(training.createVideoWorkout(s.name, videoId).id) }
+    }
+
+    private companion object {
+        /** A long video's transcript is tens of thousands of characters; this is plenty for the exercise names. */
+        const val MAX_PASTE = 20_000
     }
 }
