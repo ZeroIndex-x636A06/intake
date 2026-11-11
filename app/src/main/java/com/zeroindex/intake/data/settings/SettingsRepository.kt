@@ -3,6 +3,7 @@ package com.zeroindex.intake.data.settings
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
+import com.zeroindex.intake.domain.model.MealSlot
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.doublePreferencesKey
@@ -143,6 +144,17 @@ data class AppSettings(
     val exportReminder: Boolean = true,
     /** Settings > Sync and export: include progress photo files in an export (opt-in). */
     val exportIncludePhotos: Boolean = false,
+    /** Settings > Reminders (opt-in). Times are minutes after midnight, local time. The once-per-day memory is device-local. */
+    val workoutReminderOn: Boolean = false,
+    val workoutReminderMinute: Int = 17 * 60,
+    val mealReminderOn: Boolean = false,
+    val breakfastReminderMinute: Int = 7 * 60 + 30,
+    val lunchReminderMinute: Int = 12 * 60,
+    val dinnerReminderMinute: Int = 18 * 60 + 30,
+    val waterReminderOn: Boolean = false,
+    /** Water slots run every two hours from the start hour up to and including the end hour. */
+    val waterReminderStartHour: Int = 8,
+    val waterReminderEndHour: Int = 20,
     /** When the app was first used (millis); starts the export reminder clock. Device-local, never exported. */
     val firstUseAtMillis: Long? = null,
 ) {
@@ -250,6 +262,15 @@ class SettingsRepository @Inject constructor(
         val photoReminder = intPreferencesKey("photo_reminder_weeks")
         val exportReminder = booleanPreferencesKey("export_reminder")
         val exportPhotos = booleanPreferencesKey("export_include_photos")
+        val workoutReminderOn = booleanPreferencesKey("workout_reminder_on")
+        val workoutReminderMinute = intPreferencesKey("workout_reminder_minute")
+        val mealReminderOn = booleanPreferencesKey("meal_reminder_on")
+        val breakfastReminderMinute = intPreferencesKey("breakfast_reminder_minute")
+        val lunchReminderMinute = intPreferencesKey("lunch_reminder_minute")
+        val dinnerReminderMinute = intPreferencesKey("dinner_reminder_minute")
+        val waterReminderOn = booleanPreferencesKey("water_reminder_on")
+        val waterReminderStartHour = intPreferencesKey("water_reminder_start_hour")
+        val waterReminderEndHour = intPreferencesKey("water_reminder_end_hour")
         val firstUseAt = longPreferencesKey("first_use_at_ms")
     }
 
@@ -335,6 +356,15 @@ class SettingsRepository @Inject constructor(
             photoReminderWeeks = p[Keys.photoReminder]?.takeIf { it in setOf(0, 2, 3, 4) } ?: 0,
             exportReminder = p[Keys.exportReminder] ?: true,
             exportIncludePhotos = p[Keys.exportPhotos] ?: false,
+            workoutReminderOn = p[Keys.workoutReminderOn] ?: false,
+            workoutReminderMinute = (p[Keys.workoutReminderMinute] ?: (17 * 60)).coerceIn(0, MINUTES_PER_DAY - 1),
+            mealReminderOn = p[Keys.mealReminderOn] ?: false,
+            breakfastReminderMinute = (p[Keys.breakfastReminderMinute] ?: (7 * 60 + 30)).coerceIn(0, MINUTES_PER_DAY - 1),
+            lunchReminderMinute = (p[Keys.lunchReminderMinute] ?: (12 * 60)).coerceIn(0, MINUTES_PER_DAY - 1),
+            dinnerReminderMinute = (p[Keys.dinnerReminderMinute] ?: (18 * 60 + 30)).coerceIn(0, MINUTES_PER_DAY - 1),
+            waterReminderOn = p[Keys.waterReminderOn] ?: false,
+            waterReminderStartHour = (p[Keys.waterReminderStartHour] ?: 8).coerceIn(0, 23),
+            waterReminderEndHour = (p[Keys.waterReminderEndHour] ?: 20).coerceIn(0, 23),
             firstUseAtMillis = p[Keys.firstUseAt],
         )
     }
@@ -438,6 +468,24 @@ class SettingsRepository @Inject constructor(
     suspend fun setPhotoReminderWeeks(weeks: Int) = put { it[Keys.photoReminder] = if (weeks in setOf(2, 3, 4)) weeks else 0 }
     suspend fun setExportReminder(on: Boolean) = put { it[Keys.exportReminder] = on }
     suspend fun setExportIncludePhotos(on: Boolean) = put { it[Keys.exportPhotos] = on }
+    suspend fun setWorkoutReminder(on: Boolean) = put { it[Keys.workoutReminderOn] = on }
+    suspend fun setWorkoutReminderMinute(minute: Int) = put { it[Keys.workoutReminderMinute] = minute.coerceIn(0, MINUTES_PER_DAY - 1) }
+    suspend fun setMealReminder(on: Boolean) = put { it[Keys.mealReminderOn] = on }
+    /** Breakfast, lunch or dinner time. Snacks have no reminder. */
+    suspend fun setMealReminderMinute(slot: MealSlot, minute: Int) = put {
+        val m = minute.coerceIn(0, MINUTES_PER_DAY - 1)
+        when (slot) {
+            MealSlot.BREAKFAST -> it[Keys.breakfastReminderMinute] = m
+            MealSlot.LUNCH -> it[Keys.lunchReminderMinute] = m
+            MealSlot.DINNER -> it[Keys.dinnerReminderMinute] = m
+            MealSlot.SNACK -> Unit
+        }
+    }
+    suspend fun setWaterReminder(on: Boolean) = put { it[Keys.waterReminderOn] = on }
+    suspend fun setWaterReminderHours(startHour: Int, endHour: Int) = put {
+        it[Keys.waterReminderStartHour] = startHour.coerceIn(0, 23)
+        it[Keys.waterReminderEndHour] = endHour.coerceIn(0, 23)
+    }
     /** Records the first use once; later calls change nothing. */
     suspend fun ensureFirstUse(now: Long) = put { if (it[Keys.firstUseAt] == null) it[Keys.firstUseAt] = now }
 
@@ -475,6 +523,7 @@ class SettingsRepository @Inject constructor(
 
     private companion object {
         const val PLAN_HISTORY_LIMIT = 12
+        const val MINUTES_PER_DAY = 24 * 60
     }
 
     private suspend fun put(block: (MutablePreferences) -> Unit) {

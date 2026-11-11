@@ -6,8 +6,8 @@ Rules that apply to every row: use screens hold no configuration; one home per s
 
 ## Totals
 
-* **98 settings** (stored values) in **12 groups**, plus 16 action buttons (export, import, replay tour and so on) and 1 read-only line: **115 controls** in all.
-* 17 controls are **new** since v5 (15 from the v5 brief, plus Hide Shorts, number 114, and Food search language, number 115, both added after phone testing); 98 existed in the code before.
+* **106 settings** (stored values) in **12 groups**, plus 16 action buttons (export, import, replay tour and so on) and 1 read-only line: **123 controls** in all.
+* 25 controls are **new** since v5 (15 from the v5 brief, plus Hide Shorts, number 114, and Food search language, number 115, both added after phone testing, plus the eight daily reminder controls, numbers 122 to 129, round 3 item D); 98 existed in the code before.
 * 25 controls sit in an **Advanced** disclosure on their page.
 
 | Group | Controls | Of which settings | Actions | New |
@@ -19,12 +19,12 @@ Rules that apply to every row: use screens hold no configuration; one home per s
 | Health Connect | 16 | 15 | 1 | 0 |
 | Food database | 6 | 6 | 0 | 1 |
 | Videos | 3 | 3 | 0 | 3 |
-| Reminders | 4 | 4 | 0 | 2 |
+| Reminders | 12 | 12 | 0 | 10 |
 | Sync and export | 10 | 5 | 5 | 1 |
 | AI (optional) | 21 | 19 | 2 | 0 |
 | API keys | 3 | 3 | 0 | 1 |
 | About and help | 7 | 0 | 6 | 0 |
-| **Total** | **115** | **98** | **16** | **17** |
+| **Total** | **123** | **106** | **16** | **25** |
 
 Option C calls the Nutrition tab "Eat", so its settings group is "Eating targets"; the contents are identical.
 
@@ -157,6 +157,14 @@ When Intake may nudge you. Nothing is sent anywhere.
 | 70 | Check-in day | `coachWeekday` (SettingsRepository coach_weekday) | Reminders | weekday chips | Check-in gear (use screen) | Reminders |
 | 71 | Progress photo reminder **(new)** | `photoReminder` (new) | Reminders | segmented (Off / 2 wk / 3 wk / 4 wk) | none | Reminders |
 | 72 | Export reminder **(new)** | `exportReminder` (new) | Reminders | switch | none (v4 default) | Reminders |
+| 122 | Workout reminder **(new)** | `workoutRemind` (SettingsRepository workout_reminder_on) | Reminders | switch | none | Reminders |
+| 123 | Workout reminder time **(new)** | `workoutTime` (SettingsRepository workout_reminder_minute) | Reminders | chips: 6:00, 7:00, 12:00, 17:00, 18:00, 19:00, 20:00 | none | Reminders |
+| 124 | Meal reminders **(new)** | `mealRemind` (SettingsRepository meal_reminder_on) | Reminders | switch | none | Reminders |
+| 125 | Breakfast reminder time **(new)** | `breakfastTime` (SettingsRepository breakfast_reminder_minute) | Reminders | chips: 6:30, 7:00, 7:30, 8:00, 9:00, 10:00 | none | Reminders |
+| 126 | Lunch reminder time **(new)** | `lunchTime` (SettingsRepository lunch_reminder_minute) | Reminders | chips: 11:00, 11:30, 12:00, 12:30, 13:00, 14:00 | none | Reminders |
+| 127 | Dinner reminder time **(new)** | `dinnerTime` (SettingsRepository dinner_reminder_minute) | Reminders | chips: 17:00, 18:00, 18:30, 19:00, 20:00 | none | Reminders |
+| 128 | Water reminders **(new)** | `waterRemind` (SettingsRepository water_reminder_on) | Reminders | switch | none | Reminders |
+| 129 | Water reminder hours **(new)** | `waterHours` (SettingsRepository water_reminder_start_hour, water_reminder_end_hour) | Reminders | chips: start 7 to 12; end 16, 18, 20, 21, 22 | none | Reminders |
 
 ## I. Sync and export
 
@@ -254,7 +262,7 @@ Remote backup destination (protocol, host, port, user, password, private key), b
 
 ## Build status (Option A part 1)
 
-All 115 controls are built (`domain/settings/SettingsRegistry.kt`, drawn by `ui/screens/settings/SettingsControls.kt`). Per item marked "new":
+All 123 controls are built (`domain/settings/SettingsRegistry.kt`, drawn by `ui/screens/settings/SettingsControls.kt`). Per item marked "new":
 
 | Item | Built now | Consumer |
 | --- | --- | --- |
@@ -265,7 +273,8 @@ All 115 controls are built (`domain/settings/SettingsRegistry.kt`, drawn by `ui/
 | Show jump tests (`jumpTests`) | yes, gates the Progress jump card | Progress |
 | Weekly sets per region (`weeklySets`) | storage and control (`WeeklySets`) | Train > Muscle volume |
 | Videos switches, YouTube key | storage, controls, key Save/Test/Remove (`videos.list` test) | Train > Videos |
-| Photo reminder | storage, control and an in-app line on You | none yet; no notification |
+| Photo reminder | storage, control and an in-app line on You | notification from `ReminderWorker` when a photo is due (from 10:00, once per photo cycle) |
+| Daily reminders (ids 122 to 129) | storage, controls, notifications from `ReminderWorker` (a 15-minute periodic job), once per slot per day | Reminders. Rules in `domain/reminders/ReminderRules.kt`; see `docs/REMINDERS.md` |
 | Export reminder | yes, a card on Today | Today |
 | Include progress photos in the export | yes, a zip of the files | Sync and export |
 | Export passphrase | asked per export, never stored | Sync and export |

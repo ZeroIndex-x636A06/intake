@@ -49,6 +49,10 @@ object PortableSettings {
         "today_card_meals", "show_sodium", "eat_out_radius_mi", "jump_tests", "weekly_sets_csv",
         "videos_only_workouts", "videos_personalise", "videos_hide_shorts", "photo_reminder_weeks", "export_reminder",
         "export_include_photos",
+        // Round 3, item D: daily reminders (the switches and times). NOT the last-sent markers: those are device-local.
+        "workout_reminder_on", "workout_reminder_minute", "meal_reminder_on", "breakfast_reminder_minute",
+        "lunch_reminder_minute", "dinner_reminder_minute", "water_reminder_on", "water_reminder_start_hour",
+        "water_reminder_end_hour",
         "off_search_enabled", "off_contribute_enabled", "off_other_languages", "off_language",
         // Hydration v2 (its own store): the opt-in, the chosen place name, drink edits and the measured sweat rate.
         // NOT the coordinates, the cached forecast or the retry time: a restore asks for the location again.
@@ -161,7 +165,7 @@ object PortableSettings {
             ),
             "reminders and videos" to setOf(
                 "photo_reminder_weeks", "export_reminder", "export_include_photos", "videos_only_workouts",
-                "videos_hide_shorts",
+                "videos_hide_shorts", "workout_reminder_on", "meal_reminder_on", "water_reminder_on",
                 "videos_personalise", "show_sodium", "eat_out_radius_mi", "jump_tests", "weekly_sets_csv",
             ),
             "workout timer and plates" to setOf("default_rest_sec", "rest_vibrate", "bar_weight_kg", "available_plates_kg"),

@@ -47,7 +47,7 @@ data class SettingSpec(
 }
 
 /**
- * The settings registry: all 114 controls of the inventory (97 stored settings, 16 actions, 1 read-only line), each
+ * The settings registry: all 123 controls of the inventory (106 stored settings, 16 actions, 1 read-only line), each
  * with its group. A test checks it against the inventory file and that the UI renders every id.
  */
 object SettingsRegistry {
@@ -126,6 +126,14 @@ object SettingsRegistry {
         SettingSpec(70, "coachWeekday", SettingsGroup.REMINDERS, ControlKind.CHIPS, "Check-in day", advanced = false, isNew = false),
         SettingSpec(71, "photoReminder", SettingsGroup.REMINDERS, ControlKind.SEGMENTED, "Progress photo reminder", advanced = false, isNew = true),
         SettingSpec(72, "exportReminder", SettingsGroup.REMINDERS, ControlKind.SWITCH, "Export reminder", advanced = false, isNew = true),
+        SettingSpec(122, "workoutRemind", SettingsGroup.REMINDERS, ControlKind.SWITCH, "Workout reminder", advanced = false, isNew = true),
+        SettingSpec(123, "workoutTime", SettingsGroup.REMINDERS, ControlKind.CHIPS, "Workout reminder time", advanced = false, isNew = true),
+        SettingSpec(124, "mealRemind", SettingsGroup.REMINDERS, ControlKind.SWITCH, "Meal reminders", advanced = false, isNew = true),
+        SettingSpec(125, "breakfastTime", SettingsGroup.REMINDERS, ControlKind.CHIPS, "Breakfast reminder time", advanced = false, isNew = true),
+        SettingSpec(126, "lunchTime", SettingsGroup.REMINDERS, ControlKind.CHIPS, "Lunch reminder time", advanced = false, isNew = true),
+        SettingSpec(127, "dinnerTime", SettingsGroup.REMINDERS, ControlKind.CHIPS, "Dinner reminder time", advanced = false, isNew = true),
+        SettingSpec(128, "waterRemind", SettingsGroup.REMINDERS, ControlKind.SWITCH, "Water reminders", advanced = false, isNew = true),
+        SettingSpec(129, "waterHours", SettingsGroup.REMINDERS, ControlKind.CHIPS, "Water reminder hours", advanced = false, isNew = true),
         SettingSpec(73, "syncServer", SettingsGroup.SYNC, ControlKind.TEXT, "Self-hosted sync server URL", advanced = false, isNew = false),
         SettingSpec(74, "pairCode", SettingsGroup.SYNC, ControlKind.TEXT, "Pairing code", advanced = false, isNew = false),
         SettingSpec(75, "deviceName", SettingsGroup.SYNC, ControlKind.TEXT, "Name this device", advanced = false, isNew = false),

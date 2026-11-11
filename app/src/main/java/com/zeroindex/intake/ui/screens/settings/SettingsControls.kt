@@ -2,6 +2,13 @@
 
 package com.zeroindex.intake.ui.screens.settings
 
+import android.Manifest
+import android.os.Build
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -37,6 +44,7 @@ import com.zeroindex.intake.BuildConfig
 import com.zeroindex.intake.data.foodref.FoodRefInfo
 import com.zeroindex.intake.data.settings.ThemeMode
 import com.zeroindex.intake.domain.goals.Phase
+import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.hydration.DrinkType
 import com.zeroindex.intake.domain.settings.MuscleRegion
 import com.zeroindex.intake.domain.settings.SodiumDisplay
@@ -97,6 +105,7 @@ fun SettingControl(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val s = state.settings
     val id = spec.id
+    val askNotifications = rememberNotificationPermissionAsk()
     Column(modifier.fillMaxWidth()) {
         when {
             AI_FAMILIES.any { id.startsWith(it) } -> AiSettingControl(id)
@@ -229,8 +238,40 @@ fun SettingControl(
                 "coachWeekday" -> WeekdayRow(s.coachWeekday, viewModel::setCoachWeekday)
                 "photoReminder" -> {
                     val options = listOf(0, 2, 3, 4)
-                    SettingRow("Progress photo reminder", "A line on You when a photo is due. Off, or every 2, 3 or 4 weeks.") {
-                        Segmented(options.map { if (it == 0) "Off" else "$it wk" }, options.indexOf(s.photoReminderWeeks).coerceAtLeast(0), { viewModel.setPhotoReminderWeeks(options[it]) })
+                    SettingRow("Progress photo reminder", "A notification and a line on You when a photo is due. Off, or every 2, 3 or 4 weeks.") {
+                        Segmented(options.map { if (it == 0) "Off" else "$it wk" }, options.indexOf(s.photoReminderWeeks).coerceAtLeast(0), { i ->
+                            if (options[i] > 0) askNotifications()
+                            viewModel.setPhotoReminderWeeks(options[i])
+                        })
+                    }
+                }
+                "workoutRemind" -> SwitchSetting(
+                    "Workout reminder", "On a training day, at the time below. Not sent once today's workout is done.", s.workoutReminderOn,
+                ) { on -> if (on) askNotifications(); viewModel.setWorkoutReminder(on) }
+                "workoutTime" -> ChipSetting(
+                    "Workout reminder time", null, WORKOUT_TIMES, s.workoutReminderMinute, { clockLabel(it) },
+                ) { viewModel.setWorkoutReminderMinute(it) }
+                "mealRemind" -> SwitchSetting(
+                    "Meal reminders", "At each meal's time, only if nothing is logged for that meal yet.", s.mealReminderOn,
+                ) { on -> if (on) askNotifications(); viewModel.setMealReminder(on) }
+                "breakfastTime" -> ChipSetting("Breakfast reminder time", null, BREAKFAST_TIMES, s.breakfastReminderMinute, { clockLabel(it) }) {
+                    viewModel.setMealReminderMinute(MealSlot.BREAKFAST, it)
+                }
+                "lunchTime" -> ChipSetting("Lunch reminder time", null, LUNCH_TIMES, s.lunchReminderMinute, { clockLabel(it) }) {
+                    viewModel.setMealReminderMinute(MealSlot.LUNCH, it)
+                }
+                "dinnerTime" -> ChipSetting("Dinner reminder time", null, DINNER_TIMES, s.dinnerReminderMinute, { clockLabel(it) }) {
+                    viewModel.setMealReminderMinute(MealSlot.DINNER, it)
+                }
+                "waterRemind" -> SwitchSetting(
+                    "Water reminders", "Every two hours between the hours below, only when you are behind for the time of day.", s.waterReminderOn,
+                ) { on -> if (on) askNotifications(); viewModel.setWaterReminder(on) }
+                "waterHours" -> Column {
+                    ChipSetting("Water reminders from", null, WATER_START_HOURS, s.waterReminderStartHour, { hourLabel(it) }) {
+                        viewModel.setWaterReminderHours(it, s.waterReminderEndHour)
+                    }
+                    ChipSetting("Water reminders until", null, WATER_END_HOURS, s.waterReminderEndHour, { hourLabel(it) }) {
+                        viewModel.setWaterReminderHours(s.waterReminderStartHour, it)
                     }
                 }
                 "exportReminder" -> SettingRow(
@@ -298,6 +339,37 @@ fun SettingControl(
                 SandNote(m)
                 TextButton(onClick = viewModel::clearMessage) { Text("Dismiss") }
             }
+        }
+    }
+}
+
+/** Reminder choices, in minutes after midnight (local time) and hours. The stored value must be one of these to show as selected. */
+private val WORKOUT_TIMES = listOf(6 * 60, 7 * 60, 12 * 60, 17 * 60, 18 * 60, 19 * 60, 20 * 60)
+private val BREAKFAST_TIMES = listOf(6 * 60 + 30, 7 * 60, 7 * 60 + 30, 8 * 60, 9 * 60, 10 * 60)
+private val LUNCH_TIMES = listOf(11 * 60, 11 * 60 + 30, 12 * 60, 12 * 60 + 30, 13 * 60, 14 * 60)
+private val DINNER_TIMES = listOf(17 * 60, 18 * 60, 18 * 60 + 30, 19 * 60, 20 * 60)
+private val WATER_START_HOURS = listOf(7, 8, 9, 10, 11, 12)
+private val WATER_END_HOURS = listOf(16, 18, 20, 21, 22)
+
+/** "7:30", from minutes after midnight. */
+private fun clockLabel(minute: Int): String = "%d:%02d".format(minute / 60, minute % 60)
+
+/** "8:00", from an hour of the day. */
+private fun hourLabel(hour: Int): String = "%d:00".format(hour)
+
+/**
+ * Android 13+ asks for notification permission the first time a reminder is switched on, the same way the
+ * baseline and the coach ask. Denied is fine: the reminder then simply does not show.
+ */
+@Composable
+private fun rememberNotificationPermissionAsk(): () -> Unit {
+    val context = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    return {
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 }

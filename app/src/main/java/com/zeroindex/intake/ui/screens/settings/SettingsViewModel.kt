@@ -191,6 +191,12 @@ class SettingsViewModel @Inject constructor(
     fun setPhotoReminderWeeks(weeks: Int) = launchSetting { setPhotoReminderWeeks(weeks) }
     fun setExportReminder(on: Boolean) = launchSetting { setExportReminder(on) }
     fun setExportIncludePhotos(on: Boolean) = launchSetting { setExportIncludePhotos(on) }
+    fun setWorkoutReminder(on: Boolean) = launchSetting { setWorkoutReminder(on) }
+    fun setWorkoutReminderMinute(minute: Int) = launchSetting { setWorkoutReminderMinute(minute) }
+    fun setMealReminder(on: Boolean) = launchSetting { setMealReminder(on) }
+    fun setMealReminderMinute(slot: com.zeroindex.intake.domain.model.MealSlot, minute: Int) = launchSetting { setMealReminderMinute(slot, minute) }
+    fun setWaterReminder(on: Boolean) = launchSetting { setWaterReminder(on) }
+    fun setWaterReminderHours(startHour: Int, endHour: Int) = launchSetting { setWaterReminderHours(startHour, endHour) }
 
     // ---- API keys ----
     fun setUsdaKey(key: String?) {
