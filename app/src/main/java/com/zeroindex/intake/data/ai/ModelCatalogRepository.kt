@@ -162,6 +162,7 @@ class ModelCatalogRepository @Inject constructor(
             outputsText = m.architecture.outputModalities.isEmpty() || "text" in m.architecture.outputModalities,
             structuredOutputs = "structured_outputs" in m.supportedParameters,
             responseFormat = "response_format" in m.supportedParameters,
+            acceptsTemperature = m.supportedParameters.isEmpty() || "temperature" in m.supportedParameters,
             tools = "tools" in m.supportedParameters,
             createdAt = m.created,
         )

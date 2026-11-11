@@ -182,6 +182,11 @@ fun LogFoodScreen(
                         onOpenAiSettings = onOpenAiSettings,
                         onManualEntry = { viewModel.selectTab(AddFoodTab.QUICK_ADD) },
                         onDone = onBack,
+                        // A label beats a guess: search for the product the photo looks like.
+                        onFindProduct = { name ->
+                            viewModel.setQuery(name)
+                            viewModel.selectTab(AddFoodTab.SEARCH)
+                        },
                     )
 
                     AddFoodTab.QUICK_ADD -> QuickAddTab(

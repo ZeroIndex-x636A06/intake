@@ -23,6 +23,12 @@ data class ModelInfo(
     val createdAt: Long = 0,
     /** Supports JSON mode (response_format) without the strict schema; the fallback when [structuredOutputs] is false. */
     val responseFormat: Boolean = false,
+    /**
+     * Whether providers of this model accept a `temperature`. Some current models (Claude Haiku 5.5, GPT-6 Luna) list
+     * none, and a request that sets `temperature` together with `require_parameters` then finds no provider at
+     * all, which OpenRouter reports as the same 404 as a privacy failure. Unknown counts as accepted.
+     */
+    val acceptsTemperature: Boolean = true,
 ) {
     /** Whether the model can be asked for JSON at all, strictly or not. */
     val canReturnJson: Boolean get() = structuredOutputs || responseFormat

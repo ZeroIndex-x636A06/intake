@@ -240,8 +240,10 @@ class MenuIngestor @Inject constructor(
     /** Problems with the account or the connection stop the whole import; a bad page only costs that page. */
     private fun AiError.endsImport(): Boolean = when (this) {
         AiError.NoKey, AiError.Off, is AiError.BudgetReached, is AiError.NotAllowed, AiError.Unauthorized,
-            AiError.InsufficientCredits, is AiError.Network, is AiError.RateLimited, is AiError.NoModel -> true
-        AiError.Timeout, is AiError.Refused, AiError.NoEndpointForPrivacy, is AiError.Server, is AiError.BadResponse -> false
+            AiError.InsufficientCredits, is AiError.Network, is AiError.RateLimited, is AiError.NoModel,
+            // The gateway already tried the other compatible models; every page would fail the same way.
+            AiError.NoEndpointForPrivacy, AiError.NoEndpointForParameters -> true
+        AiError.Timeout, is AiError.Refused, is AiError.Server, is AiError.BadResponse -> false
     }
 
     private fun toParsed(item: StructuredMenuItem) = ParsedItem(

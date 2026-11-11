@@ -129,6 +129,15 @@ Every request also sends the header `X-Title: Intake`.
 
 - **The "Anything we can't see?" note** on the photo screen (up to 300 characters, optional) is sent to OpenRouter in the
   same request as the photo. It is not stored beyond the screen and is not part of the usage log.
+- **A photo estimate may be two calls.** When the model is not sure it returns up to three short questions; you tap
+  answers and press "Update the estimate with my answers". That second request goes to OpenRouter with the same
+  privacy setting and carries **no photo**: only the model's own first look (food names, grams, calories), your
+  answers, and your "Anything we can't see?" note if you wrote one. It runs only when you press the button, and the
+  cost line shows both calls.
+- **"No provider meets your privacy setting" and the fallback.** If the chosen model has no provider that satisfies
+  the privacy setting, the app tries up to two other models that do (same setting, never relaxed) and logs each
+  attempt. If all fail, the message names both places that decide it: Settings, AI, "Privacy for AI requests", and your
+  OpenRouter account's own privacy page (openrouter.ai/settings/privacy), which can block providers too.
 - **PDFs are sent to OpenRouter for parsing.** A menu PDF, from a link or a picked file, is sent as page-sized pieces in
   `file` parts with the `file-parser` plugin (free text engine). The privacy setting applies, but note that
   OpenRouter's own documentation says plugin processing is not covered by ZDR routing. A link is downloaded by the

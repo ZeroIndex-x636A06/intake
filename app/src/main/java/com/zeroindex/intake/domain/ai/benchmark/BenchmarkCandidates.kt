@@ -113,8 +113,14 @@ object BenchmarkCandidates {
     }
 
     /** Null when some endpoint of [model] can serve the request under the privacy setting; otherwise why not. */
-    fun verdict(model: ModelInfo, requireZdr: Boolean, knowledge: EndpointKnowledge): ExclusionReason? {
-        val needed = requiredParameter(model)
+    fun verdict(
+        model: ModelInfo,
+        requireZdr: Boolean,
+        knowledge: EndpointKnowledge,
+        /** Parameters the request sends beyond the schema one (tools, and so on); the provider must accept them all. */
+        extraRequired: Set<String> = emptySet(),
+    ): ExclusionReason? {
+        val needed = setOf(requiredParameter(model)) + extraRequired
         val zdrTags = knowledge.zdr?.filter { it.modelId == model.id }
         val own = knowledge.perModel[model.id]
 
@@ -124,12 +130,12 @@ object BenchmarkCandidates {
         if (endpoints == null) return null // nothing known: do not guess a model out.
 
         val eligible = endpoints.filter { e ->
-            e.healthy && needed in e.supportedParameters &&
+            e.healthy && e.supportedParameters.containsAll(needed) &&
                 (!requireZdr || zdrTags == null || zdrTags.any { it.tag == e.tag })
         }
         if (eligible.isNotEmpty()) return null
         // Why none is eligible: the privacy filter, or the parameter/health filter?
-        val ignoringPrivacy = endpoints.any { it.healthy && needed in it.supportedParameters }
+        val ignoringPrivacy = endpoints.any { it.healthy && it.supportedParameters.containsAll(needed) }
         return if (requireZdr && ignoringPrivacy) ExclusionReason.PRIVACY else ExclusionReason.NO_ENDPOINT
     }
 }

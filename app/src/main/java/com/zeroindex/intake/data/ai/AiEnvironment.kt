@@ -6,7 +6,10 @@ import com.zeroindex.intake.data.keys.ApiKeyStore
 import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.ai.AiFeature
 import com.zeroindex.intake.domain.ai.AiTask
+import com.zeroindex.intake.domain.ai.BenchmarkScore
+import com.zeroindex.intake.domain.ai.ModelFit
 import com.zeroindex.intake.domain.ai.ModelInfo
+import com.zeroindex.intake.domain.ai.PrivacyFit
 import com.zeroindex.intake.domain.ai.ModelSuggester
 import com.zeroindex.intake.domain.ai.cost.AiUsageRecord
 import javax.inject.Inject
@@ -42,6 +45,13 @@ interface AiEnvironment {
 
     suspend fun policy(): AiPolicy
     suspend fun modelFor(task: AiTask): String
+
+    /**
+     * Other models for [task], best first, that have a provider meeting the privacy setting and accepting what
+     * the task sends. The gateway walks this list when the chosen model answers "no provider". Never includes
+     * [tried]. Empty when nothing is known (offline, nothing cached).
+     */
+    suspend fun fallbackModels(task: AiTask, tried: Set<String>): List<String> = emptyList()
     suspend fun priceOf(modelId: String): ModelInfo?
     suspend fun spentSince(startMillis: Long): Double
     suspend fun record(record: AiUsageRecord, now: Long)
@@ -88,12 +98,31 @@ class DefaultAiEnvironment @Inject constructor(
         val prefs = settings.settings.first()
         prefs.aiModelOverrides[task]?.let { return it }
         val state = catalog.ensureLoaded()
-        val suggestion = ModelSuggester.suggest(task, state.models, catalog.benchmarks(), prefs.aiAllowRetainingModels)
+        val benchmarks = catalog.benchmarks()
+        val fit = fitFor(task, prefs.aiPrivacy, state.models, benchmarks)
+        val suggestion = ModelSuggester.suggest(task, state.models, benchmarks, prefs.aiAllowRetainingModels, fit)
         return suggestion.suggested?.model?.id
             // Offline with no cached catalog: fall back to the first concrete
             // shortlist entry rather than refusing outright.
             ?: task.shortlist.firstOrNull { '*' !in it }
             ?: throw AiError.NoModel(task.label)
+    }
+
+    override suspend fun fallbackModels(task: AiTask, tried: Set<String>): List<String> {
+        val prefs = settings.settings.first()
+        val state = catalog.ensureLoaded()
+        val benchmarks = catalog.benchmarks()
+        val fit = fitFor(task, prefs.aiPrivacy, state.models, benchmarks)
+        return ModelFit.ordered(task, state.models, benchmarks, prefs.aiAllowRetainingModels, fit)
+            .map { it.id }
+            .filter { it !in tried }
+    }
+
+    /** Looks up where the likely models for [task] can be served (a public, key-free read), then reads the result. */
+    private suspend fun fitFor(task: AiTask, privacy: AiPrivacy, models: List<ModelInfo>, benchmarks: List<BenchmarkScore>): PrivacyFit {
+        val requireZdr = privacy != AiPrivacy.ANY
+        if (models.isNotEmpty()) catalog.ensureEndpoints(ModelFit.lookupIds(task, models, benchmarks), needZdr = requireZdr)
+        return PrivacyFit(requireZdr, catalog.endpoints.value)
     }
 
     /** From the cached catalog only: pricing a finished call must never start a download. */
