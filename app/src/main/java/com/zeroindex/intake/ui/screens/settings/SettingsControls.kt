@@ -186,7 +186,7 @@ fun SettingControl(
                 "defaultRestSec" -> NumberSetting("Default rest", "Seconds between sets.", s.defaultRestSec.toDouble(), "sec", 10.0..900.0) { viewModel.setRestSeconds(it.toInt()) }
                 "restVibrate" -> SwitchSetting("Vibrate when rest ends", null, s.restTimerVibrate, viewModel::setRestVibrate)
                 "barWeight" -> NumberSetting("Bar weight", "Used for the plate maths.", UnitConverter.round(s.weightUnit.fromKg(s.barWeightKg), 1), s.weightUnit.label, 0.0..60.0) { viewModel.setBarWeightKg(s.weightUnit.toKg(it)) }
-                "plates" -> PlatesRow(s.availablePlatesKg, viewModel::setPlates)
+                "plates" -> PlatesRow(s.availablePlatesKg, s.weightUnit, viewModel::setPlates)
                 "equipmentPreset" -> Column(Modifier.fillMaxWidth().padding(top = 6.dp)) {
                     Text("My equipment", style = MaterialTheme.typography.titleSmall)
                     Text(
@@ -431,13 +431,17 @@ private fun HydrationAdvancedBlock(weightUnit: WeightUnit, volumeUnit: VolumeUni
 }
 
 @Composable
-private fun PlatesRow(csv: String, onSet: (String) -> Unit) {
-    var text by remember(csv) { mutableStateOf(csv) }
+private fun PlatesRow(csvKg: String, unit: com.zeroindex.intake.domain.units.WeightUnit, onSet: (String) -> Unit) {
+    val shown = com.zeroindex.intake.domain.training.PlateDefaults.toDisplayCsv(csvKg, unit)
+    var text by remember(unit) { mutableStateOf(shown) }
     Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
         LabeledField(
-            "Plates available per side (kg, comma separated)", text,
-            { t -> text = t.filter { it.isDigit() || it == '.' || it == ',' }; onSet(text) },
-            supporting = "Stored in kg, shown in your weight unit where plates are drawn.",
+            "Plates available per side (${unit.label}, comma separated)", text,
+            { t ->
+                text = t.filter { it.isDigit() || it == '.' || it == ',' }
+                onSet(com.zeroindex.intake.domain.training.PlateDefaults.fromDisplayCsv(text, unit))
+            },
+            supporting = "The plates on your rack. The plate maths and the smallest step up use them.",
         )
     }
 }

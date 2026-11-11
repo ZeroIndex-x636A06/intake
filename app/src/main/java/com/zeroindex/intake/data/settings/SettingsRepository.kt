@@ -251,9 +251,10 @@ class SettingsRepository @Inject constructor(
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
+        val weightUnit = p[Keys.weightUnit]?.let { runCatching { WeightUnit.valueOf(it) }.getOrNull() }
+            ?: WeightUnit.POUNDS
         AppSettings(
-            weightUnit = p[Keys.weightUnit]?.let { runCatching { WeightUnit.valueOf(it) }.getOrNull() }
-                ?: WeightUnit.POUNDS,
+            weightUnit = weightUnit,
             lengthUnit = p[Keys.lengthUnit]?.let { runCatching { LengthUnit.valueOf(it) }.getOrNull() }
                 ?: LengthUnit.INCHES,
             themeMode = p[Keys.themeMode]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
@@ -261,8 +262,9 @@ class SettingsRepository @Inject constructor(
             dynamicColor = p[Keys.dynamicColor] ?: false,
             defaultRestSec = p[Keys.defaultRestSec] ?: 120,
             restTimerVibrate = p[Keys.restVibrate] ?: true,
-            barWeightKg = p[Keys.barWeight] ?: 20.0,
-            availablePlatesKg = p[Keys.plates] ?: "25,20,15,10,5,2.5,1.25",
+            // Until the person sets their own, the bar and plates are the ones a gym in their unit has.
+            barWeightKg = p[Keys.barWeight] ?: com.zeroindex.intake.domain.training.PlateDefaults.barKg(weightUnit),
+            availablePlatesKg = p[Keys.plates] ?: com.zeroindex.intake.domain.training.PlateDefaults.platesCsvKg(weightUnit),
             goalWeightKg = p[Keys.goalWeight],
             goalRateKgPerWeek = p[Keys.goalRate] ?: 0.0,
             proteinGramsPerKg = p[Keys.proteinPerKg] ?: 2.0,

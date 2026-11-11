@@ -172,7 +172,11 @@ fun MakeWorkoutScreen(
         }
 
         Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                // Keeps the buttons clear of the system navigation bar.
+                Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 10.dp + contentPadding.calculateBottomPadding()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 OutlinedTextField(
                     value = state.name,

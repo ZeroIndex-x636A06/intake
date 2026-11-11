@@ -198,7 +198,11 @@ fun WorkoutSummaryScreen(
                 Button(
                     onClick = { viewModel.saveNotes(onDone) },
                     shape = IntakeShape.Button,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp).height(56.dp),
+                    // The bar is the last thing on the page, so it keeps clear of the system navigation bar itself.
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 10.dp + contentPadding.calculateBottomPadding())
+                        .height(56.dp),
                 ) { Text("Done") }
             }
         }
@@ -237,10 +241,10 @@ internal fun recordText(r: RecordLine, unit: WeightUnit): String = when (r.kind)
 @Composable
 private fun StatsRow(summary: SessionSummary, unit: WeightUnit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        StatTileBox(Modifier.weight(1f), "${summary.durationMin}", "minutes")
+        StatTileBox(Modifier.weight(1f), "${summary.durationMin}", if (summary.durationMin == 1) "minute" else "minutes")
         StatTileBox(Modifier.weight(1f), TrainText.thousands(unit.fromKg(summary.volumeKg)), "${unit.label} volume")
-        StatTileBox(Modifier.weight(1f), "${summary.workingSets}", "sets")
-        StatTileBox(Modifier.weight(1f), "${summary.records.size}", "PRs")
+        StatTileBox(Modifier.weight(1f), "${summary.workingSets}", if (summary.workingSets == 1) "set" else "sets")
+        StatTileBox(Modifier.weight(1f), "${summary.records.size}", if (summary.records.size == 1) "PR" else "PRs")
     }
 }
 

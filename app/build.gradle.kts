@@ -99,6 +99,13 @@ android {
             applicationIdSuffix = ".debug"
             isMinifyEnabled = false
         }
+        // The same as debug, but its own app: it installs beside the released app and beside a debug build, with its
+        // own data, so a new build can be compared with the one already on the phone. Its name is "Intake Preview".
+        create("preview") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".preview"
+            matchingFallbacks += "debug"
+        }
         release {
             // SPEC §15.4 + §16: minify and resource shrinking on, and the
             // release APK gets built and installed from phase 1 so R8 breakage

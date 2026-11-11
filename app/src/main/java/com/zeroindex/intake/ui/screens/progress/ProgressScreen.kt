@@ -149,9 +149,6 @@ fun ProgressScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            item(key = "heading") {
-                SubHead("Progress", "Patterns over time, without the noise.")
-            }
             item(key = "tip") {
                 com.zeroindex.intake.ui.onboarding.TabTip(
                     key = com.zeroindex.intake.domain.onboarding.TipKey.PROGRESS,
@@ -253,11 +250,10 @@ private fun WeightCard(state: ProgressUiState, onAddMeasurement: () -> Unit) {
         }
         // SPEC §8: the trend line is what is shown, with raw points
         // behind it rather than instead of it.
+        // One message when there is nothing to draw; the Log weight button above the card is the way in.
         if (state.metrics.isEmpty()) {
-            EmptyState(
-                body = "No weigh-ins in this range yet. Log your weight and the trend line appears here.",
-                action = { Button(onClick = onAddMeasurement, modifier = Modifier.heightIn(min = 48.dp)) { Text("Log weight") } },
-            )
+            EmptyState(body = "No weigh-ins in this range yet. Log your weight and the trend line appears here.")
+            return@SectionCard
         }
         TrendLineChart(
             raw = state.metrics.map {
