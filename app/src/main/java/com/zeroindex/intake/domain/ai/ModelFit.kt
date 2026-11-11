@@ -23,7 +23,7 @@ object ModelFit {
     fun requiredParameters(model: ModelInfo, task: AiTask): Set<String> = buildSet {
         add(BenchmarkCandidates.requiredParameter(model))
         add("max_tokens")
-        add("temperature")
+        if (model.acceptsTemperature) add("temperature")
         if (task.needsTools) add("tools")
     }
 

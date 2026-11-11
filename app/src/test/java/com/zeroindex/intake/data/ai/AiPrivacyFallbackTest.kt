@@ -155,6 +155,29 @@ class AiPrivacyFallbackTest {
         assertThat(modelsSent()).containsExactly("test/daily_insight", "alt/one", "alt/one").inOrder()
     }
 
+    private fun info(id: String, acceptsTemperature: Boolean) = com.zeroindex.intake.domain.ai.ModelInfo(
+        id = id, name = id, description = "", contextLength = 100_000, promptPerMillion = 0.1, completionPerMillion = 0.1,
+        perImage = 0.0, perRequest = 0.0, acceptsImages = false, acceptsFiles = false, outputsText = true,
+        structuredOutputs = true, tools = true, acceptsTemperature = acceptsTemperature,
+    )
+
+    @Test
+    fun `temperature is left out for a model whose providers do not list it, and sent otherwise`() = runBlocking<Unit> {
+        // The root cause of the owner's failures: require_parameters plus a temperature no provider lists is a 404.
+        val env = FakeAiEnvironment(
+            models = mapOf("test/daily_insight" to info("test/daily_insight", acceptsTemperature = false), "alt/one" to info("alt/one", true)),
+            fallbacks = listOf("alt/one"),
+        )
+        gateway(env, privacy404, okReply).ask()
+        assertThat(sent[0].containsKey("temperature")).isFalse()
+        assertThat(sent[0]["provider"]!!.jsonObject["require_parameters"]!!.jsonPrimitive.content).isEqualTo("true")
+        assertThat(sent[1].containsKey("temperature")).isTrue()
+
+        sent.clear()
+        gateway(FakeAiEnvironment(), okReply).ask()
+        assertThat(sent.single().containsKey("temperature")).isTrue()
+    }
+
     @Test
     fun `the failure text is plain and helpful`() {
         val text = AiError.NoEndpointForPrivacy.message

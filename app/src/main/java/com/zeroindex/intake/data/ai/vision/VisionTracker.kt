@@ -10,9 +10,15 @@ import com.zeroindex.intake.data.repository.FoodLogRepository
 import com.zeroindex.intake.domain.ai.AiFeature
 import com.zeroindex.intake.domain.ai.AiTrigger
 import com.zeroindex.intake.domain.ai.EstimateLine
+import com.zeroindex.intake.domain.ai.FirstLookItem
+import com.zeroindex.intake.domain.ai.PackagedProduct
+import com.zeroindex.intake.domain.ai.PhotoFollowUp
 import com.zeroindex.intake.domain.ai.PhotoItem
 import com.zeroindex.intake.domain.ai.PhotoItemInput
 import com.zeroindex.intake.domain.ai.PhotoItems
+import com.zeroindex.intake.domain.ai.PhotoQuestion
+import com.zeroindex.intake.domain.ai.PhotoQuestions
+import com.zeroindex.intake.domain.ai.RawPhotoQuestion
 import com.zeroindex.intake.domain.ai.VisionContext
 import com.zeroindex.intake.domain.ai.VisionMath
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
@@ -42,6 +48,12 @@ sealed interface VisionResult {
         val model: String,
         val costUsd: Double?,
         override val photoPath: String,
+        /** What the model is unsure about, to tap before the final numbers. Empty when it was confident. */
+        val questions: List<PhotoQuestion> = emptyList(),
+        /** The packaged product the food looks like, as words to search for; null when none was named. */
+        val productQuery: String? = null,
+        /** How many model calls this result cost: 1, or 2 after the follow-up. */
+        val calls: Int = 1,
     ) : VisionResult
 
     /** SPEC §6.5: show what came back and offer manual logging, never a toast. */
@@ -86,8 +98,71 @@ class VisionTracker @Inject constructor(
             return VisionResult.Unreadable(null, e.message, photo.savedPath)
         }
 
-        val estimate = outcome.value
-        if (estimate.notFood || estimate.items.isEmpty()) return VisionResult.NotFood(photo.savedPath)
+        return resultOf(outcome.value, outcome.response.model, outcome.response.costUsd, photo.savedPath, avoided, asking = true, calls = 1)
+    }
+
+    /**
+     * The one follow-up call: the person's [answers] to the questions of [previous] go back to the model, which
+     * returns the final numbers. It is part of the same explicit user action, goes through the same guard (and so
+     * the same budget), and sends no photo, only the first look and the answers. The allergen claims of the first
+     * look are carried over: an answer can change the food, never remove a warning. The result carries both calls'
+     * cost. If the call fails the caller keeps [previous].
+     */
+    suspend fun refine(
+        previous: VisionResult.Ready,
+        answers: Map<Int, String>,
+        extraContext: String? = null,
+    ): VisionResult {
+        val answered = PhotoQuestions.answered(previous.questions, answers)
+        if (answered.isEmpty()) return previous
+        val avoided = allergens.avoidedAllergens()
+        val first = previous.estimate
+        val prompt = PhotoFollowUp.prompt(
+            items = first.items.map { FirstLookItem(it.name, it.estimatedGrams, it.kcal, it.protein, it.carbs, it.fat) },
+            portionAssumption = first.portionAssumption,
+            answers = answered,
+            note = VisionContext.clean(extraContext),
+        )
+        val outcome = try {
+            gateway.structured(
+                feature = AiFeature.PHOTO_ESTIMATE,
+                trigger = AiTrigger.USER_ACTION,
+                serializer = VisionEstimate.serializer(),
+                schema = VisionSchema.schema,
+                system = VisionSchema.systemPrompt(avoided),
+                parts = listOf(AiPart.Text(prompt)),
+            )
+        } catch (e: AiError.BadResponse) {
+            return VisionResult.Unreadable(null, e.message, previous.photoPath)
+        }
+        val second = outcome.value
+        val carried = PhotoFollowUp.carryAllergens(
+            first = first.items.map { ModelAllergenClaim(it.name, it.containsAllergens, it.allergenReasoning) },
+            second = second.items.map { ModelAllergenClaim(it.name, it.containsAllergens, it.allergenReasoning) },
+        )
+        val merged = second.copy(
+            items = second.items.mapIndexed { i, item ->
+                item.copy(containsAllergens = carried[i].allergens, allergenReasoning = carried[i].reasoning)
+            },
+        )
+        val cost = listOfNotNull(previous.costUsd, outcome.response.costUsd).takeIf { it.isNotEmpty() }?.sum()
+        return resultOf(
+            merged, outcome.response.model, cost, previous.photoPath, avoided, asking = false, calls = previous.calls + 1,
+            productFallback = previous.productQuery,
+        )
+    }
+
+    private suspend fun resultOf(
+        estimate: VisionEstimate,
+        model: String,
+        costUsd: Double?,
+        photoPath: String,
+        avoided: Set<String>,
+        asking: Boolean,
+        calls: Int,
+        productFallback: String? = null,
+    ): VisionResult {
+        if (estimate.notFood || estimate.items.isEmpty()) return VisionResult.NotFood(photoPath)
 
         val lines = estimate.items.map {
             EstimateLine(it.name, it.estimatedGrams, it.kcal, it.protein, it.carbs, it.fat)
@@ -102,9 +177,16 @@ class VisionTracker @Inject constructor(
             items = items,
             allergens = scan,
             flaggedLines = flagged,
-            model = outcome.response.model,
-            costUsd = outcome.response.costUsd,
-            photoPath = photo.savedPath,
+            model = model,
+            costUsd = costUsd,
+            photoPath = photoPath,
+            questions = if (asking) {
+                PhotoQuestions.toAsk(estimate.overallConfidence, estimate.questions.map { RawPhotoQuestion(it.question, it.choices) })
+            } else {
+                emptyList()
+            },
+            productQuery = PackagedProduct.searchQuery(estimate.packagedProduct) ?: productFallback,
+            calls = calls,
         )
     }
 

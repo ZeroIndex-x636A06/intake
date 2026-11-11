@@ -72,6 +72,14 @@ class ModelFitTest {
     }
 
     @Test
+    fun `a model that takes no temperature is not required to have a provider that lists it`() {
+        val m = model("anthropic/claude-haiku-5.5").copy(acceptsTemperature = false)
+        val noTemp = fit(null, mapOf(m.id to listOf(ep(m.id, "p", all - "temperature"))), requireZdr = false)
+        assertThat(ModelFit.requiredParameters(m, AiTask.DAILY_INSIGHT)).doesNotContain("temperature")
+        assertThat(ModelFit.verdict(m, AiTask.DAILY_INSIGHT, noTemp)).isNull()
+    }
+
+    @Test
     fun `the schema parameter depends on the model`() {
         val jsonMode = model("a/x", strict = false)
         val f = fit(null, mapOf("a/x" to listOf(ep("a/x", "p", setOf("response_format", "max_tokens", "temperature")))), requireZdr = false)

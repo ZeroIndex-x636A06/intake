@@ -47,6 +47,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.zeroindex.intake.domain.ai.EstimateLine
+import com.zeroindex.intake.domain.ai.HiddenCalorieRules
 import com.zeroindex.intake.domain.ai.PhotoItem
 import com.zeroindex.intake.domain.ai.PhotoItems
 import com.zeroindex.intake.domain.ai.VisionMath
@@ -56,6 +57,7 @@ import com.zeroindex.intake.domain.units.PortionUnit
 import com.zeroindex.intake.ui.allergen.AllergenWarningSheet
 import com.zeroindex.intake.ui.components.AccentNote
 import com.zeroindex.intake.ui.components.AiWaitCard
+import com.zeroindex.intake.ui.components.ChoiceChip
 import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.ui.components.MathGrid
 import com.zeroindex.intake.ui.theme.AllergenAmber
@@ -82,6 +84,8 @@ fun PhotoEstimateFlow(
     onOpenAiSettings: () -> Unit,
     onManualEntry: () -> Unit,
     onDone: () -> Unit,
+    /** Opens Log food's search with this product name filled in: a label beats a guess. */
+    onFindProduct: (String) -> Unit = {},
     viewModel: PhotoEstimateViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -136,6 +140,10 @@ fun PhotoEstimateFlow(
             onMacro = viewModel::setMacro,
             onConfirm = { viewModel.confirm(slot, loggedAtMillis, state.unit, onDone) },
             onRetake = viewModel::retake,
+            onAnswer = viewModel::answer,
+            onRefine = viewModel::refine,
+            onCancelRefine = viewModel::cancelRefine,
+            onFindProduct = onFindProduct,
         )
 
         // Never the model's own text: a plain message and a way forward.
@@ -201,6 +209,10 @@ private fun Review(
     onMacro: (Int, (EstimateLine) -> EstimateLine) -> Unit,
     onConfirm: () -> Unit,
     onRetake: () -> Unit,
+    onAnswer: (Int, String) -> Unit,
+    onRefine: () -> Unit,
+    onCancelRefine: () -> Unit,
+    onFindProduct: (String) -> Unit,
 ) {
     val estimate = stage.result.estimate
     val range = estimate.range
@@ -227,6 +239,31 @@ private fun Review(
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxWidth().height(140.dp).clip(RoundedCornerShape(18.dp)),
         )
+
+        stage.result.productQuery?.let { product ->
+            Surface(
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                shape = IntakeShape.Banner,
+            ) {
+                Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("This looks like a packaged product", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "$product. The label on the pack is more exact than any estimate from a photo.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    OutlinedButton(
+                        onClick = { onFindProduct(product) },
+                        shape = IntakeShape.Button,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    ) { Text("Find this product instead") }
+                }
+            }
+        }
+
+        if (stage.questions.isNotEmpty()) {
+            Questions(stage, onAnswer, onRefine, onCancelRefine)
+        }
 
         // SPEC §6.7: the portion assumption, prominent, with the slider beside it.
         Surface(
@@ -294,9 +331,10 @@ private fun Review(
             )
         }
 
-        if (estimate.hiddenCalorieSources.isNotEmpty()) {
+        val counted = estimate.hiddenCalorieSources.filter { HiddenCalorieRules.isCounted(it.basis) }
+        if (counted.isNotEmpty()) {
             Eyebrow("Hidden calories counted")
-            estimate.hiddenCalorieSources.forEach {
+            counted.forEach {
                 Text("${it.source} · ${it.kcal.roundToInt()} kcal", style = MaterialTheme.typography.bodyMedium)
             }
         }
@@ -312,7 +350,8 @@ private fun Review(
         )
         Text(
             "Estimated by ${stage.result.model}" +
-                (stage.result.costUsd?.let { " · cost \$%.4f".format(it) } ?: ""),
+                (stage.result.costUsd?.let { " · cost \$%.4f".format(it) } ?: "") +
+                (if (stage.result.calls > 1) " · ${stage.result.calls} calls" else ""),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -334,6 +373,57 @@ private fun Review(
             Text("Retake photo")
         }
         Spacer(Modifier.height(12.dp))
+    }
+}
+
+/**
+ * "Ask instead of guessing wrong": the model's short questions as tappable choices, above the estimate. The answers
+ * go back in one follow-up call for the final numbers; nothing is sent until the button is pressed.
+ */
+@Composable
+private fun Questions(
+    stage: PhotoStage.Review,
+    onAnswer: (Int, String) -> Unit,
+    onRefine: () -> Unit,
+    onCancelRefine: () -> Unit,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = IntakeShape.Banner,
+    ) {
+        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("A quick check", style = MaterialTheme.typography.titleSmall)
+            Text(
+                "The model is not sure about a few things. Tap what fits for a better estimate, or skip them.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            stage.questions.forEachIndexed { index, q ->
+                Text(q.text, style = MaterialTheme.typography.labelLarge)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    q.choices.forEach { choice ->
+                        ChoiceChip(choice, stage.answers[index] == choice, { onAnswer(index, choice) })
+                    }
+                }
+            }
+            if (stage.refining) {
+                Text("Working out the final numbers…", style = MaterialTheme.typography.bodyMedium)
+                TextButton(onClick = onCancelRefine) { Text("Cancel") }
+            } else {
+                Button(
+                    onClick = onRefine,
+                    enabled = stage.canRefine,
+                    shape = IntakeShape.Button,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                ) { Text("Update the estimate with my answers") }
+                Text(
+                    "One more call to the model, without the photo. It replaces any edits you made below.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            stage.refineError?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+        }
     }
 }
 

@@ -6,6 +6,7 @@ import com.zeroindex.intake.domain.ai.AiGuard
 import com.zeroindex.intake.domain.ai.AiTask
 import com.zeroindex.intake.domain.ai.AiTrigger
 import com.zeroindex.intake.domain.ai.GuardRefusal
+import com.zeroindex.intake.domain.ai.ModelInfo
 import com.zeroindex.intake.domain.ai.ReplyDecode
 import com.zeroindex.intake.domain.ai.ReplyRepair
 import com.zeroindex.intake.domain.ai.cost.AiBudget
@@ -207,8 +208,10 @@ class AiGateway @Inject constructor(
     suspend fun testKey(key: String): KeyData = client.keyInfo(key)
 
     /** Guards, sends, and on a failed send logs the attempt. A reply is logged by [settle] once its outcome is known. */
-    private suspend fun send(feature: AiFeature, trigger: AiTrigger?, request: AiRequest): AiResponse {
+    private suspend fun send(feature: AiFeature, trigger: AiTrigger?, wanted: AiRequest): AiResponse {
         val key = authorize(feature, trigger)
+        // Every request sets require_parameters, so one the model's providers do not list is not sent at all.
+        val request = if (!env.priceOf(wanted.model).acceptsTemperature()) wanted.copy(temperature = null) else wanted
         try {
             return client.complete(key, request)
         } catch (e: CancellationException) {
@@ -220,6 +223,8 @@ class AiGateway @Inject constructor(
             throw e
         }
     }
+
+    private fun ModelInfo?.acceptsTemperature() = this?.acceptsTemperature ?: true
 
     private suspend fun logFailed(feature: AiFeature, trigger: AiTrigger?, request: AiRequest, kind: AiFailureKind) {
         withContext(NonCancellable) {

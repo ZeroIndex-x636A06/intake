@@ -11,6 +11,8 @@ import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.ai.EstimateLine
 import com.zeroindex.intake.domain.ai.PhotoItem
 import com.zeroindex.intake.domain.ai.PhotoItems
+import com.zeroindex.intake.domain.ai.PhotoQuestion
+import com.zeroindex.intake.domain.ai.PhotoQuestions
 import com.zeroindex.intake.domain.ai.VisionContext
 import com.zeroindex.intake.domain.ai.VisionMath
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
@@ -44,9 +46,22 @@ sealed interface PhotoStage {
         /** Set when the final allergen check found something, to open the warning sheet. */
         val confirmingAllergens: AllergenScanResult? = null,
         val saving: Boolean = false,
+        /** Question index to the tapped choice. */
+        val answers: Map<Int, String> = emptyMap(),
+        /** The one follow-up call is in flight. */
+        val refining: Boolean = false,
+        /** Why the follow-up did not give new numbers; the first estimate is still here. */
+        val refineError: String? = null,
+        /** The follow-up has been used: its numbers are shown and no more questions are asked. */
+        val refined: Boolean = false,
     ) : PhotoStage {
         val shown: List<PhotoItem> get() = PhotoItems.shown(items, scale)
         val ticked: Int get() = items.count { it.included }
+
+        /** Questions are on offer until the follow-up has been used. */
+        val questions: List<PhotoQuestion> get() = if (refined) emptyList() else result.questions
+        val canRefine: Boolean
+            get() = !refining && !refined && PhotoQuestions.answered(result.questions, answers).isNotEmpty()
     }
 
     data class Unreadable(val reason: String) : PhotoStage
@@ -156,6 +171,51 @@ class PhotoEstimateViewModel @Inject constructor(
 
     fun setMacro(id: Int, change: (EstimateLine) -> EstimateLine) = review { r ->
         r.copy(items = PhotoItems.setMacro(r.items, id, r.scale, change))
+    }
+
+    fun answer(question: Int, choice: String) = review {
+        if (it.refining) it else it.copy(answers = PhotoQuestions.toggle(it.answers, question, choice), refineError = null)
+    }
+
+    /**
+     * The one follow-up call: sends the answers and replaces the estimate with the final numbers. The person's
+     * edits so far are replaced with them, which the button says. On failure the first estimate stays.
+     */
+    fun refine() {
+        val r = _state.value.stage as? PhotoStage.Review ?: return
+        if (!r.canRefine) return
+        review { it.copy(refining = true, refineError = null) }
+        job?.cancel()
+        job = viewModelScope.launch {
+            try {
+                val result = try {
+                    tracker.refine(r.result, r.answers, _state.value.extraContext)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: AiError) {
+                    review { it.copy(refining = false, refineError = e.message) }
+                    return@launch
+                } catch (e: Exception) {
+                    review { it.copy(refining = false, refineError = "The follow-up failed. Your first estimate is still here.") }
+                    return@launch
+                }
+                if (result is VisionResult.Ready) {
+                    setStage(PhotoStage.Review(result, result.items, refined = true))
+                } else {
+                    review {
+                        it.copy(refining = false, refineError = "The answers did not give a usable estimate. Your first estimate is still here.")
+                    }
+                }
+            } catch (_: CancellationException) {
+                review { it.copy(refining = false) }
+            }
+        }
+    }
+
+    /** Stops the follow-up and keeps the first estimate on screen. */
+    fun cancelRefine() {
+        job?.cancel()
+        review { it.copy(refining = false) }
     }
 
     fun retake() = setStage(if (tracker.isConfigured()) PhotoStage.Capture else PhotoStage.NeedsKey)

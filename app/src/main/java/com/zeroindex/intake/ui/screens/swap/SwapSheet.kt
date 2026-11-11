@@ -363,7 +363,11 @@ private fun NearbyCard(
                     TextButton(onClick = onOpenRadiusSetting) { Text("Change the radius in Settings") }
                 }
             }
-            nearby.error?.let { ErrorState(title = "Search did not finish", body = "$it Saved options still work.") }
+            nearby.error?.let {
+                ErrorState(title = "Search did not finish", body = "$it Saved options still work.") {
+                    TextButton(onClick = onOpenAiSettings) { Text("Open AI settings") }
+                }
+            }
             if (nearby.foundAt != null && nearby.error == null && !nearby.searching && nearby.resultCount == 0) {
                 EmptyState(title = "Nothing found", body = "No option within $radius mi fit. Saved options above still work.")
             }
