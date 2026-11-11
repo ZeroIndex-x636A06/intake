@@ -139,6 +139,7 @@ fun SettingControl(
                 "todayCard.next" -> SwitchSetting("Today card: Next up", "The planned meal, today's workout and the one thing to do.", s.todayCardNext) { viewModel.setTodayCard(TodayCard.NEXT, it) }
                 "todayCard.water" -> SwitchSetting("Today card: Water", "Today's drinks with a minus and a plus.", s.todayCardWater) { viewModel.setTodayCard(TodayCard.WATER, it) }
                 "todayCard.weight" -> SwitchSetting("Today card: Weight", "Your last weigh-in and a Weigh in button.", s.todayCardWeight) { viewModel.setTodayCard(TodayCard.WEIGHT, it) }
+                "todayCard.activity" -> SwitchSetting("Today card: Activity", "Steps, last night's sleep and active calories, from Health Connect. Hidden when there is no data.", s.todayCardActivity) { viewModel.setTodayCard(TodayCard.ACTIVITY, it) }
                 "todayCard.meals" -> SwitchSetting("Today card: Meals", "Four compact rows with what you ate. Calories is always shown.", s.todayCardMeals) { viewModel.setTodayCard(TodayCard.MEALS, it) }
 
                 // ---- Nutrition ----
@@ -152,7 +153,7 @@ fun SettingControl(
                 "fatPerKg" -> NumberSetting("Fat", "Per kg of weight. 0.6 is the minimum.", s.fatGramsPerKg, "g per kg", 0.3..2.0) { viewModel.setFatPerKg(it) }
                 "addActiveKcal" -> SwitchSetting(
                     "Add active calories to my target",
-                    "Off by default. Wearable burn estimates are often high, and counting them twice stalls a cut.",
+                    "Off by default. Only the burn inside workouts your watch or phone recorded is added, with resting burn taken out. Wearable estimates are often high, and counting them twice stalls a cut.",
                     s.addActiveCaloriesToTarget, viewModel::setAddActiveCalories,
                 )
                 "showSodium" -> SettingRow("Show salt or sodium on the dashboard", "Adds one nutrient tile in Nutrition.") {

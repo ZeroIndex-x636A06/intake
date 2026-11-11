@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 3,
-    "identityHash": "373ef185e1c8b3c9054eb0af2d9d1821",
+    "identityHash": "0605cf935744ff260e077fa5dda7f6d7",
     "entities": [
       {
         "tableName": "food",
@@ -3606,7 +3606,7 @@
       },
       {
         "tableName": "health_daily_summary",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `dayStartMillis` INTEGER NOT NULL, `activeKcalRaw` REAL, `bmrKcalInWindows` REAL, `activeKcalNet` REAL, `totalKcalBurned` REAL, `steps` INTEGER, `sleepMinutes` INTEGER, `sleepStartMillis` INTEGER, `restingHeartRate` REAL, `avgHeartRate` REAL, `syncedAt` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `dayStartMillis` INTEGER NOT NULL, `activeKcalRaw` REAL, `bmrKcalInWindows` REAL, `activeKcalNet` REAL, `totalKcalBurned` REAL, `activeKcalDay` REAL, `steps` INTEGER, `sleepMinutes` INTEGER, `sleepStartMillis` INTEGER, `restingHeartRate` REAL, `avgHeartRate` REAL, `syncedAt` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -3638,6 +3638,11 @@
           {
             "fieldPath": "totalKcalBurned",
             "columnName": "totalKcalBurned",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "activeKcalDay",
+            "columnName": "activeKcalDay",
             "affinity": "REAL"
           },
           {
@@ -4443,7 +4448,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '373ef185e1c8b3c9054eb0af2d9d1821')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '0605cf935744ff260e077fa5dda7f6d7')"
     ]
   }
 }

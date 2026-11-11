@@ -6,17 +6,17 @@ Rules that apply to every row: use screens hold no configuration; one home per s
 
 ## Totals
 
-* **106 settings** (stored values) in **12 groups**, plus 16 action buttons (export, import, replay tour and so on) and 1 read-only line: **123 controls** in all.
-* 25 controls are **new** since v5 (15 from the v5 brief, plus Hide Shorts, number 114, and Food search language, number 115, both added after phone testing, plus the eight daily reminder controls, numbers 122 to 129, round 3 item D); 98 existed in the code before.
+* **108 settings** (stored values) in **12 groups**, plus 16 action buttons (export, import, replay tour and so on) and 1 read-only line: **125 controls** in all.
+* 27 controls are **new** since v5 (15 from the v5 brief, plus Hide Shorts, number 114, and Food search language, number 115, both added after phone testing, plus the eight daily reminder controls, numbers 122 to 129, round 3 item D, plus Today card: Activity, number 116, and Older history, number 117, from the Health Connect round); 98 existed in the code before.
 * 25 controls sit in an **Advanced** disclosure on their page.
 
 | Group | Controls | Of which settings | Actions | New |
 | --- | ---: | ---: | ---: | ---: |
-| Appearance and units | 11 | 11 | 0 | 5 |
+| Appearance and units | 12 | 12 | 0 | 6 |
 | Nutrition | 15 | 14 | 1 | 2 |
 | Water and drinks | 11 | 10 | 1 | 0 |
 | Training | 8 | 8 | 0 | 2 |
-| Health Connect | 16 | 15 | 1 | 0 |
+| Health Connect | 17 | 16 | 1 | 1 |
 | Food database | 6 | 6 | 0 | 1 |
 | Videos | 3 | 3 | 0 | 3 |
 | Reminders | 12 | 12 | 0 | 10 |
@@ -24,7 +24,7 @@ Rules that apply to every row: use screens hold no configuration; one home per s
 | AI (optional) | 21 | 19 | 2 | 0 |
 | API keys | 3 | 3 | 0 | 1 |
 | About and help | 7 | 0 | 6 | 0 |
-| **Total** | **123** | **106** | **16** | **25** |
+| **Total** | **125** | **108** | **16** | **27** |
 
 Option C calls the Nutrition tab "Eat", so its settings group is "Eating targets"; the contents are identical.
 
@@ -45,6 +45,7 @@ How numbers and colours look. Nothing here changes your data.
 | 9 | Today card: Water **(new)** | `todayCard.water` (new) | Appearance and units | switch | planned "Edit Today" (use screen) | Appearance and units |
 | 10 | Today card: Weight **(new)** | `todayCard.weight` (new) | Appearance and units | switch | planned "Edit Today" (use screen) | Appearance and units |
 | 11 | Today card: Meals **(new)** | `todayCard.meals` (new) | Appearance and units | switch | planned "Edit Today" (use screen) | Appearance and units |
+| 116 | Today card: Activity **(new, round 3)** | `todayCard.activity` (new; SettingsRepository today_card_activity, portable) | Appearance and units | switch | none (new) | Appearance and units |
 
 ## B. Nutrition
 
@@ -118,11 +119,12 @@ Which records Intake may read from and write to Health Connect. Last synced: 14 
 | 54 | Weight | `hc.read.Weight` (HealthConnectManager.TYPES, read permission) | Health Connect | switch | Health Connect screen | Health Connect |
 | 55 | Body fat | `hc.read.Bodyfat` (HealthConnectManager.TYPES, read permission) | Health Connect | switch | Health Connect screen | Health Connect |
 | 56 | Lean body mass | `hc.read.Leanbodymass` (HealthConnectManager.TYPES, read permission) | Health Connect | switch | Health Connect screen | Health Connect |
+| 117 | Older history **(new, round 3)** | `hc.read.Olderhistory` (HealthConnectManager.TYPES, READ_HEALTH_DATA_HISTORY; shown only where Health Connect supports it) | Health Connect | switch | Health Connect screen | Health Connect |
 | 57 | Nutrition | `hc.write.Nutrition` (HealthConnectManager.TYPES, write permission) | Health Connect | switch | Health Connect screen | Health Connect |
 | 58 | Weight | `hc.write.Weight` (HealthConnectManager.TYPES, write permission) | Health Connect | switch | Health Connect screen | Health Connect |
 | 59 | Hydration | `hc.write.Hydration` (HealthConnectManager.TYPES, write permission) | Health Connect | switch | Health Connect screen | Health Connect |
 | 60 | Workouts | `hc.write.Workouts` (HealthConnectManager.TYPES, write permission) | Health Connect | switch | Health Connect screen | Health Connect |
-| 61 | Health Connect permissions | `hcOpen` | Health Connect | button (action, not stored) | Health Connect screen | Health Connect |
+| 61 | Allow all Health Connect permissions | `hcOpen` | Health Connect | button (action, not stored): one system sheet for every read and write permission | Health Connect screen | Health Connect |
 
 ## F. Food database
 
@@ -262,7 +264,7 @@ Remote backup destination (protocol, host, port, user, password, private key), b
 
 ## Build status (Option A part 1)
 
-All 123 controls are built (`domain/settings/SettingsRegistry.kt`, drawn by `ui/screens/settings/SettingsControls.kt`). Per item marked "new":
+All 125 controls are built (`domain/settings/SettingsRegistry.kt`, drawn by `ui/screens/settings/SettingsControls.kt`). Per item marked "new":
 
 | Item | Built now | Consumer |
 | --- | --- | --- |

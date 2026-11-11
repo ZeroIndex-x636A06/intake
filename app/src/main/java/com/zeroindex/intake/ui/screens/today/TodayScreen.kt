@@ -400,6 +400,11 @@ private fun LazyListScope.mainItems(
             WeightTile(state.latestWeightKg, state.weightWeekDeltaKg, s.weightUnit, actions.onOpenBodyMetrics)
         }
     }
+    if (s.todayCardActivity && state.isToday) {
+        extras.activity?.let { activity ->
+            item(key = "activity") { com.zeroindex.intake.ui.screens.today.components.ActivityCard(activity) }
+        }
+    }
     state.insight?.let { insight ->
         item(key = "insight") { InsightCard(insight, onDismiss = { onDismissInsight(insight) }) }
     }

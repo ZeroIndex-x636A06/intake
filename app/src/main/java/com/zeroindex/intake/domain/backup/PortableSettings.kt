@@ -46,7 +46,7 @@ object PortableSettings {
         "profile_json", "baseline_json", "plan_history_json", "week_pattern_json",
         // Round 3: You and Settings (all plain preferences; never a secret or a device id).
         "profile_display_name", "portion_unit", "today_card_next", "today_card_water", "today_card_weight",
-        "today_card_meals", "show_sodium", "eat_out_radius_mi", "jump_tests", "weekly_sets_csv",
+        "today_card_meals", "today_card_activity", "show_sodium", "eat_out_radius_mi", "jump_tests", "weekly_sets_csv",
         "videos_only_workouts", "videos_personalise", "videos_hide_shorts", "photo_reminder_weeks", "export_reminder",
         "export_include_photos",
         // Round 3, item D: daily reminders (the switches and times). NOT the last-sent markers: those are device-local.
@@ -161,7 +161,7 @@ object PortableSettings {
             "units" to setOf("weight_unit", "length_unit", "volume_unit", "portion_unit"),
             "look and feel" to setOf(
                 "theme_mode", "dynamic_color", "reduce_motion", "today_card_next", "today_card_water",
-                "today_card_weight", "today_card_meals", "profile_display_name",
+                "today_card_weight", "today_card_meals", "today_card_activity", "profile_display_name",
             ),
             "reminders and videos" to setOf(
                 "photo_reminder_weeks", "export_reminder", "export_include_photos", "videos_only_workouts",

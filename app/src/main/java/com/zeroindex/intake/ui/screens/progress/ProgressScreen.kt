@@ -46,6 +46,8 @@ import com.zeroindex.intake.domain.units.UnitConverter
 import com.zeroindex.intake.ui.adaptive.LocalWindowSizeClass
 import com.zeroindex.intake.ui.adaptive.isExpanded
 import com.zeroindex.intake.ui.components.AdherenceHeatmap
+import com.zeroindex.intake.domain.health.DayPoint
+import com.zeroindex.intake.domain.health.HealthSeries
 import com.zeroindex.intake.ui.components.ChartLegend
 import com.zeroindex.intake.ui.components.ChartPoint
 import com.zeroindex.intake.ui.components.ChoiceChip
@@ -118,6 +120,7 @@ fun ProgressScreen(
                         item(key = "loading") { SkeletonList(rows = 2, rowHeight = 150.dp, label = "Loading your progress") }
                     } else {
                         item(key = "weight") { WeightCard(state, onAddMeasurement) }
+                        healthItem(state)
                         item(key = "adherence") { AdherenceCard(state) }
                         detailItems(state)
                     }
@@ -165,6 +168,7 @@ fun ProgressScreen(
                 item(key = "loading") { SkeletonList(rows = 3, rowHeight = 150.dp, label = "Loading your progress") }
             } else {
                 item(key = "weight") { WeightCard(state, onAddMeasurement) }
+                healthItem(state)
                 item(key = "summary") { WeeklySummaryCard(state, viewModel) }
                 item(key = "adherence") { AdherenceCard(state) }
                 item(key = "calories") { CaloriesCard(state) }
@@ -280,6 +284,45 @@ private fun WeightCard(state: ProgressUiState, onAddMeasurement: () -> Unit) {
                     isLine = true,
                 ),
             ),
+        )
+    }
+}
+
+/**
+ * Sleep, steps and resting heart rate over the selected range, from Health Connect. The whole card is absent when none of
+ * the three has a day with data (no permission, no watch): days with no reading are left out of the lines, not drawn as zero.
+ */
+private fun LazyListScope.healthItem(state: ProgressUiState) {
+    val sleep = HealthSeries.sleepHours(state.health)
+    val steps = HealthSeries.steps(state.health)
+    val resting = HealthSeries.restingHeartRate(state.health)
+    if (sleep.isEmpty() && steps.isEmpty() && resting.isEmpty()) return
+    item(key = "health") {
+        SectionCard(title = "Sleep, steps and heart rate", caption = "from Health Connect · ${state.range.caption}") {
+            HealthSeriesChart("Sleep", sleep, "h a night") { "%.1f".format(it) }
+            HealthSeriesChart("Steps", steps, "a day") { "%,d".format(it.roundToInt()) }
+            HealthSeriesChart("Resting heart rate", resting, "bpm") { it.roundToInt().toString() }
+        }
+    }
+}
+
+@Composable
+private fun HealthSeriesChart(label: String, points: List<DayPoint>, unit: String, show: (Double) -> String) {
+    if (points.isEmpty()) return
+    val average = points.map { it.value }.average()
+    Eyebrow(text = label, modifier = Modifier.padding(top = 10.dp, bottom = 2.dp))
+    Text(
+        text = "${show(average)} $unit on average · latest ${show(points.last().value)} · ${points.size} ${if (points.size == 1) "day" else "days"} with data",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    if (points.size >= 2) {
+        val chart = points.map { ChartPoint(it.dayStartMillis.toDouble(), it.value) }
+        TrendLineChart(
+            raw = chart,
+            trend = chart,
+            description = "$label over time, from Health Connect. Average ${show(average)} $unit, latest ${show(points.last().value)}.",
+            modifier = Modifier.height(120.dp),
         )
     }
 }

@@ -114,7 +114,8 @@ class HydrationRepository @Inject constructor(
                 trainingDayBonusMl = settings.hydrationTrainingBonusMl,
                 sessions = loads,
                 measuredSweatLitresPerHour = prefs.measuredSweatLitresPerHour,
-                activeKcalNet = health?.activeKcalNet,
+                // All-day active calories (what the watch shows); falls back to the workout-only figure.
+                activeKcalNet = health?.activeKcalDay ?: health?.activeKcalNet,
                 weather = (weather as? WeatherStatus.Ready)?.day,
                 drinks = totals,
             )

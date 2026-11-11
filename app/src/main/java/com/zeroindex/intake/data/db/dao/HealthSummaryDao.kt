@@ -27,6 +27,16 @@ interface HealthSummaryDao {
     )
     suspend fun inRange(startInclusive: Long, endExclusive: Long): List<HealthDailySummaryEntity>
 
+    /** The days in a range, live, for the Progress charts. */
+    @Query(
+        """
+        SELECT * FROM health_daily_summary
+        WHERE deletedAt IS NULL AND dayStartMillis >= :startInclusive AND dayStartMillis < :endExclusive
+        ORDER BY dayStartMillis
+        """,
+    )
+    fun observeInRange(startInclusive: Long, endExclusive: Long): Flow<List<HealthDailySummaryEntity>>
+
     @Query("SELECT * FROM health_daily_summary WHERE deletedAt IS NULL")
     suspend fun all(): List<HealthDailySummaryEntity>
 

@@ -124,7 +124,9 @@ session's average effort (RPE of its working sets that were rated):
 This **replaces** the flat training-day amount (default 500 ml). The flat amount remains for a training
 day with no timed workout yet. A day's workout water is capped at 2 L, a session left open counts at
 most 4 hours, and measured active calories (1 ml per kcal, capped at 1 L) only add what is beyond the
-workout already counted, so one workout is not counted twice. The rates are mid-range figures for mild
+workout already counted, so one workout is not counted twice. The active calories are the **all-day** figure from
+Health Connect (what the watch shows, stored as `activeKcalDay`); a day synced before that figure existed falls back to
+the workout-only figure. With no Health Connect data or permission the line is absent, not zero. The rates are mid-range figures for mild
 weather; hot weather is the separate weather line.
 
 **Measure my sweat rate** (water sheet, Advanced). Weigh yourself before and after one session, with
