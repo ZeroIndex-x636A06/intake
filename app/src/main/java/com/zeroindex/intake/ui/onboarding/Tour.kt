@@ -190,19 +190,42 @@ class TourState {
                     else -> return true
                 }
                 val s = scroller ?: return true
+                // The scroller animates (or, with reduce motion, jumps) and returns when it has finished.
                 s(dy)
-                withFrameNanos { }
+                // Then wait for the target to stop moving before judging it again, so the highlight never lands on a
+                // position that is still changing.
+                val settled = settleOn(id)
                 // A scroll that moved nothing (end of the list) leaves the target where it was.
-                if (bounds[id] == r) return true
+                if (settled == r) return true
             }
         }
         return bounds[id] != null
+    }
+
+    /**
+     * Waits for a scroll to settle: [id]'s bounds must hold still for [SETTLE_FRAMES] frames in a row. Gives up after
+     * [MAX_SETTLE_FRAMES] frames and returns whatever the bounds are then.
+     */
+    private suspend fun settleOn(id: String): Rect? {
+        var last = bounds[id]
+        var still = 0
+        repeat(MAX_SETTLE_FRAMES) {
+            withFrameNanos { }
+            val now = bounds[id]
+            still = if (now != null && now == last) still + 1 else 0
+            last = now
+            if (still >= SETTLE_FRAMES) return now
+        }
+        return bounds[id]
     }
 
     private companion object {
         const val MAX_SCROLL_STEPS = 24
         const val SEARCH_STEP_PX = 700f
         const val EDGE_PX = 24f
+        /** Frames a target must hold still before the tour trusts its position. */
+        const val SETTLE_FRAMES = 3
+        const val MAX_SETTLE_FRAMES = 30
     }
 }
 
