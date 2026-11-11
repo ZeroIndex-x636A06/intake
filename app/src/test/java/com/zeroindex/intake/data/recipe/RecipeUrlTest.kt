@@ -42,6 +42,20 @@ class RecipeUrlTest {
     @Test fun `the size cap is 5 MB`() {
         assertThat(RecipeFetcher.MAX_BYTES).isEqualTo(5L * 1024 * 1024)
     }
+
+    @Test fun `utm, fbclid and gclid are stripped and other parameters stay in order`() {
+        assertThat(ok("https://www.eatwell101.com/tomato-zucchini-pasta-recipe?utm_source=Pinterest&utm_medium=organic"))
+            .isEqualTo("https://www.eatwell101.com/tomato-zucchini-pasta-recipe")
+        assertThat(ok("https://example.com/r?id=3&UTM_Campaign=x&fbclid=abc&page=2&gclid=g1"))
+            .isEqualTo("https://example.com/r?id=3&page=2")
+        assertThat(ok("https://example.com/r?fbclid=abc")).isEqualTo("https://example.com/r")
+    }
+
+    @Test fun `a parameter that only looks like tracking is kept`() {
+        assertThat(RecipeUrl.isTrackingParam("utm")).isFalse()
+        assertThat(RecipeUrl.isTrackingParam("my_utm_x")).isFalse()
+        assertThat(ok("https://example.com/r?utm=1&fbclid_old=2")).isEqualTo("https://example.com/r?utm=1&fbclid_old=2")
+    }
 }
 
 class RecipeEditingTest {
