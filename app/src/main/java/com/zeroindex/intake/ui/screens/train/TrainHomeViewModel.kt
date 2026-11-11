@@ -104,11 +104,13 @@ class TrainHomeViewModel @Inject constructor(
         if (program == null) {
             flowOf(null to TodayCard.NoProgram)
         } else {
-            repository.observeDays(program.id).mapLatest { days ->
+            combine(repository.observeDays(program.id), repository.observeSessionStats(1)) { d, last -> d to last }.mapLatest { (days, last) ->
+                val finished = last.firstOrNull()?.finishedAt
                 val plan = WorkoutSchedule.planFor(
                     days.map { ScheduleDay(it.dayIndex, it.name, it.weekday) },
                     program.currentDayIndex,
                     clock.today().dayOfWeek.value,
+                    trainedToday = finished != null && com.zeroindex.intake.domain.time.localDateOf(finished, clock.zone()) == clock.today(),
                 )
                 program to when (plan) {
                     TodayPlan.NoDays -> TodayCard.NoProgram

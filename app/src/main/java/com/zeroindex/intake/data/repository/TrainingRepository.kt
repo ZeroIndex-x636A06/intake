@@ -526,7 +526,13 @@ class TrainingRepository @Inject constructor(
      * (or spread out if they chose none), and a starting weight for each lift that has a rule for one
      * (see [StartingWeightEstimator]). Anything the blueprint already carries is kept.
      */
-    suspend fun finish(blueprint: GeneratedProgram): GeneratedProgram {
+    suspend fun finish(
+        blueprint: GeneratedProgram,
+        /** "Know your numbers?" answers by exercise id; used only where the lift has no logged sets. */
+        knownLifts: Map<String, List<PastSet>> = emptyMap(),
+        /** The experience the person just chose, when it is newer than the profile's. */
+        experience: com.zeroindex.intake.domain.training.generator.Experience? = null,
+    ): GeneratedProgram {
         val settings = settingsRepository.settings.first()
         val profile = settings.profile
         val scheduled = if (blueprint.days.any { it.weekday != null }) {
@@ -535,16 +541,18 @@ class TrainingRepository @Inject constructor(
             WorkoutSchedule.schedule(blueprint, profile.trainingWeekdays)
         }
         val context = StartingWeightContext(
-            experience = profile.experience,
+            experience = experience ?: profile.experience,
             bodyweightKg = bodyRepository.latest()?.weightKg,
             sex = profile.sex,
             barWeightKg = settings.barWeightKg,
             platesKg = settings.platesKgList.ifEmpty { listOf(25.0, 20.0, 15.0, 10.0, 5.0, 2.5, 1.25) },
+            // Dumbbells, machines and cables go up in 5 lb steps in a pound gym and 2.5 kg steps in a kilogram one.
+            smallStepKg = if (settings.weightUnit == com.zeroindex.intake.domain.units.WeightUnit.POUNDS) settings.weightUnit.toKg(5.0) else 2.5,
         )
         val ids = scheduled.days.flatMap { d -> d.exercises.map { it.exerciseId } }.distinct()
             .flatMap { StartingWeightEstimator.relevantIds(it) }.distinct()
         val history = ids.associateWith { id ->
-            workoutDao.lastWorkingSetsFor(id, null).map { PastSet(it.weightKg, it.reps) }
+            workoutDao.lastWorkingSetsFor(id, null).map { PastSet(it.weightKg, it.reps) }.ifEmpty { knownLifts[id].orEmpty() }
         }
         return StartingWeightEstimator.apply(scheduled, context) { id -> history[id].orEmpty() }
     }

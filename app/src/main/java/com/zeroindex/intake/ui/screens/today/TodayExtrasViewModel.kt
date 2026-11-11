@@ -132,7 +132,8 @@ class TodayExtrasViewModel @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     private val workout = training.observeActiveProgram().flatMapLatest { program ->
         val days = if (program == null) flowOf(emptyList()) else training.observeDays(program.id)
-        combine(days, training.observeInProgress()) { dayList, inProgress ->
+        combine(days, training.observeInProgress(), training.observeSessionStats(1)) { dayList, inProgress, last ->
+            val finished = last.firstOrNull()?.finishedAt
             when {
                 inProgress != null -> WorkoutCardState.InProgress(inProgress.id, program?.name)
                 program == null -> WorkoutCardState.NoProgram
@@ -142,6 +143,7 @@ class TodayExtrasViewModel @Inject constructor(
                         dayList.map { ScheduleDay(it.dayIndex, it.name, it.weekday) },
                         program.currentDayIndex,
                         clock.today().dayOfWeek.value,
+                        trainedToday = finished != null && com.zeroindex.intake.domain.time.localDateOf(finished, clock.zone()) == clock.today(),
                     )
                     when (plan) {
                         is TodayPlan.Train -> WorkoutCardState.Next(

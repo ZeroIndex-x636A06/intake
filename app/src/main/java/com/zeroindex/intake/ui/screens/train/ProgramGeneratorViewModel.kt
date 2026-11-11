@@ -29,6 +29,9 @@ data class GeneratorUiState(
     val step: Int = 0,
     val result: GeneratedProgram? = null,
     val saving: Boolean = false,
+    val unit: com.zeroindex.intake.domain.units.WeightUnit = com.zeroindex.intake.domain.units.WeightUnit.KILOGRAMS,
+    /** "Know your numbers?": what the person typed for each key lift, weight (in [unit]) then reps. */
+    val knownLifts: Map<String, Pair<String, String>> = emptyMap(),
 ) {
     /** The weekly sets the rules would ask for, by muscle, for the Advanced table. */
     val volumeTable: List<Pair<String, Int>>
@@ -57,7 +60,9 @@ class ProgramGeneratorViewModel @Inject constructor(
     init {
         // Profile & goals already asked these questions: start from those answers when they exist.
         viewModelScope.launch {
-            val profile = settings.settings.first().profile
+            val current = settings.settings.first()
+            _state.update { it.copy(unit = current.weightUnit) }
+            val profile = current.profile
             if (!profile.hasBasics) return@launch
             _state.update {
                 it.copy(inputs = profile.toGeneratorInputs(), preset = profile.equipmentPreset)
@@ -99,13 +104,25 @@ class ProgramGeneratorViewModel @Inject constructor(
     fun setIsolationReps(range: RepRange?) = edit { it.copy(isolationReps = range) }
     fun setDeload(weeks: Int?) = edit { it.copy(deloadEveryWeeks = weeks) }
 
+    fun setKnownLift(name: String, weight: String, reps: String) = _state.update {
+        it.copy(knownLifts = it.knownLifts + (name to (weight.filter { c -> c.isDigit() || c == '.' }.take(6) to reps.filter(Char::isDigit).take(2))))
+    }
+
     fun next() = _state.update { it.copy(step = it.step + 1) }
     fun back() = _state.update { if (it.result != null) it.copy(result = null) else it.copy(step = (it.step - 1).coerceAtLeast(0)) }
 
     fun generate() = viewModelScope.launch {
         val hidden = repository.hiddenExerciseIds()
         val inputs = _state.value.inputs.copy(hiddenExerciseIds = hidden)
-        _state.update { it.copy(result = repository.finish(generateProgram(inputs))) }
+        val unit = _state.value.unit
+        val known = com.zeroindex.intake.domain.training.KnownLifts.asHistory(
+            _state.value.knownLifts.mapValues { (_, typed) ->
+                com.zeroindex.intake.domain.training.KnownLifts.entry(typed.first.toDoubleOrNull()?.let(unit::toKg), typed.second.toIntOrNull())
+            },
+        )
+        // A beginner is not asked, so anything left over from changing the answer is ignored.
+        val use = if (inputs.experience == com.zeroindex.intake.domain.training.generator.Experience.NEW) emptyMap() else known
+        _state.update { it.copy(result = repository.finish(generateProgram(inputs), use, inputs.experience)) }
     }
 
     fun save(activate: Boolean, onSaved: (String) -> Unit) = viewModelScope.launch {

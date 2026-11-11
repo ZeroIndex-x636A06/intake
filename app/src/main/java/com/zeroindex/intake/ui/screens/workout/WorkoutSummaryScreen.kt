@@ -321,7 +321,7 @@ private fun NextTimeCard(changes: List<NextTimeChange>, unit: WeightUnit) {
                         "${c.exerciseName}: ${fmt(unit.fromKg(c.fromKg))} → ${fmt(unit.fromKg(c.toKg))} ${unit.label} × ${c.reps}",
                         style = MaterialTheme.typography.titleSmall,
                     )
-                    Text(c.reason, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(com.zeroindex.intake.domain.units.WeightText.inUnit(c.reason, unit), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (i != changes.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }

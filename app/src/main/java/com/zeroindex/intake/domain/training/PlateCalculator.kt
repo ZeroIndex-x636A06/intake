@@ -53,14 +53,16 @@ object PlateCalculator {
         )
     }
 
-    /** "2 x 20, 1 x 10, 1 x 2.5" - how you would say it out loud. */
-    fun describe(load: PlateLoad): String {
+    /** "2 x 20, 1 x 10, 1 x 2.5" - how you would say it out loud, in the person's unit ("1 x 45, 1 x 10" in pounds). */
+    fun describe(load: PlateLoad, unit: com.zeroindex.intake.domain.units.WeightUnit = com.zeroindex.intake.domain.units.WeightUnit.KILOGRAMS): String {
+        fun number(kg: Double) = com.zeroindex.intake.domain.units.WeightText.number(kg, unit)
+        val short = "${number(load.shortfallKg)} ${unit.label} short"
         if (load.perSide.isEmpty()) {
-            return if (load.shortfallKg > 0.001) "Bar only (plus ${fmt(load.shortfallKg)} kg short)" else "Bar only"
+            return if (load.shortfallKg > 0.001) "Bar only (plus $short)" else "Bar only"
         }
         val grouped = load.perSide.groupingBy { it }.eachCount()
-        val parts = grouped.entries.joinToString(", ") { (plate, count) -> "$count x ${fmt(plate)}" }
-        return if (load.isExact) parts else "$parts (${fmt(load.shortfallKg)} kg short)"
+        val parts = grouped.entries.joinToString(", ") { (plate, count) -> "$count x ${number(plate)}" }
+        return if (load.isExact) parts else "$parts ($short)"
     }
 
     private fun fmt(value: Double): String =

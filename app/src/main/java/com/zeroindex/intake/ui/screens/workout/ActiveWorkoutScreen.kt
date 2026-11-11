@@ -274,7 +274,7 @@ fun ActiveWorkoutScreen(
                 PlateVisual(
                     title = "Plates · $label total",
                     perSide = load.perSide,
-                    description = "Per side: ${com.zeroindex.intake.domain.training.PlateCalculator.describe(load)}",
+                    description = "Per side: ${com.zeroindex.intake.domain.training.PlateCalculator.describe(load, state.settings.weightUnit)}",
                 )
             }
         }
@@ -580,7 +580,7 @@ private fun ExerciseSetsCard(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
-            Text(prescription.reason, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(com.zeroindex.intake.domain.units.WeightText.inUnit(prescription.reason, unit), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
         Spacer(Modifier.height(12.dp))

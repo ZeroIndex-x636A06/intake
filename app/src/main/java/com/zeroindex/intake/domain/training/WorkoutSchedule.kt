@@ -8,10 +8,10 @@ data class ScheduleDay(val dayIndex: Int, val name: String, val weekday: Int?)
 
 /** What today holds. */
 sealed interface TodayPlan {
-    /** A day is scheduled for today (or the program has no weekdays and this one is next in the rotation). */
+    /** Today is a training day (or the program has no weekdays): [day] is the next one in the rotation. */
     data class Train(val day: ScheduleDay, val byWeekday: Boolean) : TodayPlan
 
-    /** Nothing is scheduled today; [next] is the next scheduled day and [daysAway] how far off (1 = tomorrow). */
+    /** Today is not a training day; [next] is the next workout, carrying the weekday it falls on, [daysAway] off (1 = tomorrow). */
     data class Rest(val next: ScheduleDay, val daysAway: Int) : TodayPlan
 
     data object NoDays : TodayPlan
@@ -20,10 +20,11 @@ sealed interface TodayPlan {
 /**
  * Scheduling program days on weekdays (SPEC-v3, "Use the plan creator's answers").
  *
- * A program day may carry an ISO weekday (1 Monday to 7 Sunday). When it does, Today and the coach
- * follow the week: the day with today's weekday is today's workout, any other day is a rest day, and
- * the card says which day is next. A program whose days carry no weekday (older programs, imports,
- * programs built by hand) keeps the **rotation**: the next day in order, whichever weekday it is.
+ * A program day may carry an ISO weekday (1 Monday to 7 Sunday). Together those weekdays are the
+ * person's training days: on one of them, today's workout is the next day in the **rotation** (the
+ * program's "next day" pointer, which only moves when a workout is finished); any other weekday is a
+ * rest day, and the card says which workout is next and when. A program whose days carry no weekday
+ * (older programs, imports, programs built by hand) offers the next day in the rotation every day.
  */
 object WorkoutSchedule {
 
@@ -51,18 +52,26 @@ object WorkoutSchedule {
 
     /**
      * Today's plan. [rotationIndex] is the program's "next day" pointer, used when no day has a weekday.
-     * [isoToday] is today's ISO weekday.
+     * [isoToday] is today's ISO weekday. [trainedToday] is true once a workout has been finished today, so the
+     * card says what comes next and when, and does not offer a second workout straight away.
      */
-    fun planFor(days: List<ScheduleDay>, rotationIndex: Int, isoToday: Int): TodayPlan {
+    fun planFor(days: List<ScheduleDay>, rotationIndex: Int, isoToday: Int, trainedToday: Boolean = false): TodayPlan {
         if (days.isEmpty()) return TodayPlan.NoDays
         val scheduled = days.filter { it.weekday != null }
         if (scheduled.isEmpty()) {
             val i = rotationIndex.coerceIn(0, days.lastIndex)
             return TodayPlan.Train(days[i], byWeekday = false)
         }
-        scheduled.firstOrNull { it.weekday == isoToday }?.let { return TodayPlan.Train(it, byWeekday = true) }
-        val next = scheduled.minBy { Math.floorMod(it.weekday!! - isoToday, 7) }
-        return TodayPlan.Rest(next, daysAway = Math.floorMod(next.weekday!! - isoToday, 7))
+        // The weekdays say WHEN the person trains; the rotation says WHICH workout is next. So a new program starts
+        // with its first day whatever weekday it is made on, a missed day is not skipped, and a workout that was
+        // started and discarded is still the one on offer.
+        val weekdays = scheduled.mapNotNull { it.weekday }.toSet()
+        val upNext = days[rotationIndex.coerceIn(0, days.lastIndex)]
+        if (isoToday in weekdays && !trainedToday) return TodayPlan.Train(upNext, byWeekday = true)
+        // Not a training day, or today's workout is already done: the next one is on the next training day after today.
+        fun daysUntil(weekday: Int) = Math.floorMod(weekday - isoToday - 1, 7) + 1
+        val nextWeekday = weekdays.minBy(::daysUntil)
+        return TodayPlan.Rest(upNext.copy(weekday = nextWeekday), daysAway = daysUntil(nextWeekday))
     }
 
     /** "Monday", "Tue" and so on, from an ISO weekday. */
