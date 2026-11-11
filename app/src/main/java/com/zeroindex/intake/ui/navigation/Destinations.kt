@@ -60,6 +60,8 @@ sealed interface Route {
      * today's drinks with caffeine and sugar. Pushed from Today, Nutrition and Log food. Its settings stay in Settings.
      */
     @Serializable data object Drinks : Route
+    /** Drinks opened from Log food with the words typed there, so its search starts with them. */
+    @Serializable data class DrinksSearch(val query: String) : Route
     /**
      * Swap the planned meal: a bottom sheet (dialog destination) with Plan & recipes, Saved, Saved eat-out options and the
      * optional "Find healthy options nearby" (AI, on tap). It replaces Plan B as a destination.

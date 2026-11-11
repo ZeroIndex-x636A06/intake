@@ -176,7 +176,7 @@ object PortableSettings {
                 "ai_privacy", "ai_allow_retaining", "daily_insight_enabled",
                 "ai_master_enabled", "ai_monthly_budget_usd", "ai_menu_auto_refresh",
             ),
-            "food database" to setOf("off_search_enabled", "off_contribute_enabled", "off_other_languages"),
+            "food database" to setOf("off_search_enabled", "off_contribute_enabled", "off_other_languages", "off_language"),
         )
         val present = groups.filter { (label, keys) ->
             when (label) {

@@ -1,7 +1,7 @@
 package com.zeroindex.intake.data.remote.openfoodfacts
 
 import com.zeroindex.intake.data.db.entity.FoodEntity
-import com.zeroindex.intake.domain.drinks.DrinkCategorizer
+import com.zeroindex.intake.domain.drinks.DrinkRule
 import com.zeroindex.intake.domain.food.OffLanguage
 import com.zeroindex.intake.domain.nutrition.NutrientKey
 import com.zeroindex.intake.domain.nutrition.Unlisted
@@ -30,16 +30,26 @@ object OffMapping {
 
     fun fromHit(hit: OffSearchHit): FoodEntity? = fromHit(hit, language = null)?.food
 
-    /** A search result, with whether its chosen name is in a script the reader of the language uses. */
-    class SearchItem(val food: FoodEntity, val readable: Boolean)
+    /**
+     * A search result, with whether its chosen name is in a script the reader uses ([readable]) and whether the
+     * product has a name in one of the person's food languages at all ([inLanguage]).
+     */
+    class SearchItem(val food: FoodEntity, val readable: Boolean, val inLanguage: Boolean = true) {
+        fun isShown(showOtherLanguages: Boolean): Boolean = showOtherLanguages || (readable && inLanguage)
+    }
 
     /**
      * With a [language], the name is `product_name_<language>`, then `product_name_en`, then `product_name`
      * (see [OffLanguage]). Without one it is plain `product_name`, as before.
      */
-    fun fromHit(hit: OffSearchHit, language: String?): SearchItem? {
+    fun fromHit(hit: OffSearchHit, language: String?): SearchItem? =
+        fromHit(hit, language?.let(OffLanguage::searchLanguages))
+
+    /** The same for the person's food languages, first choice first (`OffLanguage.foodLanguages`). */
+    @JvmName("fromHitInLanguages")
+    fun fromHit(hit: OffSearchHit, languages: List<String>?): SearchItem? {
         val code = hit.code?.trim()?.takeIf { it.isNotEmpty() } ?: return null
-        val picked = language?.let { OffLanguage.pickName(hit.names, hit.productName, it) }
+        val picked = languages?.let { OffLanguage.pickName(hit.names, hit.productName, hit.mainLanguage, it) }
         val food = toFood(
             barcode = code,
             name = picked?.name ?: hit.productName,
@@ -47,13 +57,14 @@ object OffMapping {
             servingSize = hit.servingSize,
             servingQuantity = hit.servingQuantity,
             nutriments = hit.nutriments,
-            ingredientsText = null,
+            ingredientsText = hit.ingredientsText,
             allergenTags = hit.allergensTags.orEmpty(),
-            traceTags = emptyList(),
+            // Traces are kept beside the allergen tags, so "may contain" on the product is never lost.
+            traceTags = hit.tracesTags.orEmpty(),
             imageUrl = hit.imageFrontSmallUrl ?: hit.imageFrontThumbUrl,
             categoryTags = hit.categoriesTags.orEmpty(),
         ) ?: return null
-        return SearchItem(food, readable = picked?.readable ?: true)
+        return SearchItem(food, readable = picked?.readable ?: true, inLanguage = picked?.inLanguage ?: true)
     }
 
     private fun toFood(
@@ -102,7 +113,7 @@ object OffMapping {
             source = FoodSource.OPEN_FOOD_FACTS,
             imageUrl = OffImages.safeUrl(imageUrl),
             unlistedNutrients = Unlisted.encode(unlisted),
-            drinkCategory = DrinkCategorizer.categorize(cleanName, offTags = categoryTags)?.name,
+            drinkCategory = DrinkRule.categoryOf(cleanName, offTags = categoryTags)?.name,
             // Both the structured tags and the panel text are kept: the allergen
             // engine rescans this whenever the food is logged again (SPEC §7.3).
             allergenTags = FoodIngredients.join(allergenTags + traceTags, ingredientsText),

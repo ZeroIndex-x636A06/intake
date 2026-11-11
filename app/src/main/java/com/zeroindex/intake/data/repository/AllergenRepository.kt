@@ -9,6 +9,7 @@ import com.zeroindex.intake.data.db.entity.AllergenProfileEntity
 import com.zeroindex.intake.data.db.entity.FoodEntity
 import com.zeroindex.intake.data.db.entity.seedId
 import com.zeroindex.intake.domain.allergen.AllergenAlias
+import com.zeroindex.intake.data.remote.openfoodfacts.FoodIngredients
 import com.zeroindex.intake.domain.allergen.AllergenMatcher
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
 import com.zeroindex.intake.domain.allergen.CheckLabelTerm
@@ -296,6 +297,7 @@ class AllergenRepository @Inject constructor(
                 name = food.name,
                 brand = food.brand,
                 ingredients = food.allergenTags.takeIf { it.isNotBlank() },
+                structuredContains = storedTags(food),
                 checkLabelTerms = checkTerms,
             )
         }
@@ -305,7 +307,16 @@ class AllergenRepository @Inject constructor(
         name = food.name,
         brand = food.brand,
         ingredients = food.allergenTags.takeIf { it.isNotBlank() },
+        structuredContains = storedTags(food),
     )
+
+    /**
+     * The Open Food Facts tags kept on a food ("en:milk,en:nuts"), handed to the engine as the product's own
+     * allergen list as well as being read as text. Allergen and trace tags are stored together, so a trace counts
+     * as "contains" here: stricter than the product, never weaker.
+     */
+    private fun storedTags(food: FoodEntity): List<String> =
+        FoodIngredients.tags(food.allergenTags).split(',').map { it.trim() }.filter { it.isNotEmpty() }
 
     /**
      * SPEC §7.5: any food logged three or more times with no allergen flag gets

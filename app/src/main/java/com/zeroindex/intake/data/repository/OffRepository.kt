@@ -13,17 +13,22 @@ import com.zeroindex.intake.data.remote.openfoodfacts.OffSearchService
 import com.zeroindex.intake.data.remote.openfoodfacts.OffWriteResponse
 import com.zeroindex.intake.data.settings.FoodDataPrefs
 import com.zeroindex.intake.BuildConfig
+import com.zeroindex.intake.domain.drinks.DrinkRule
+import com.zeroindex.intake.domain.drinks.SearchScope
 import com.zeroindex.intake.domain.food.OffLanguage
 import java.io.IOException
 import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.first
 import retrofit2.HttpException
 
 sealed interface OffSearchOutcome {
-    data class Results(val foods: List<FoodEntity>) : OffSearchOutcome
+    /** [otherKind]: answers left out because they belong to the other search (drinks in Log food, foods in Drinks). */
+    data class Results(val foods: List<FoodEntity>, val otherKind: Int = 0) : OffSearchOutcome
 
     /** The section is hidden: switched off in settings, or the phone is offline. */
     data object Unavailable : OffSearchOutcome
@@ -42,26 +47,35 @@ class OffSearchRepository @Inject constructor(
     private val connectivity: Connectivity,
     private val foodRepository: FoodRepository,
 ) {
-    suspend fun search(query: String): OffSearchOutcome {
+    /**
+     * [scope] says which search this is for: Log food gets foods only, Drinks gets drinks only (and asks Open Food
+     * Facts for its beverages category, so a page of results is not spent on foods).
+     */
+    suspend fun search(query: String, scope: SearchScope = SearchScope.FOODS): OffSearchOutcome {
         val trimmed = query.trim()
         if (trimmed.length < MIN_QUERY) return OffSearchOutcome.Results(emptyList())
         val settings = prefs.settings.first()
         if (!settings.offSearch || !connectivity.isOnline()) return OffSearchOutcome.Unavailable
-        val language = Locale.getDefault().language.ifBlank { "en" }
+        val languages = OffLanguage.foodLanguages(settings.offLanguage, Locale.getDefault().language)
         return try {
-            // The user's language, then English, are searched and returned; results whose name is in a script
-            // the user does not read are left out unless "Show products in other languages" is on.
+            // The person's food language, then English, are searched and returned. A product with no name in one of
+            // them, or whose name is in a script they do not read, is left out unless "Show products in other
+            // languages" is on.
             val hits = service.search(
-                query = trimmed,
-                fields = OffLanguage.searchFields(language, OffSearchService.FIELDS),
-                langs = OffLanguage.searchLanguages(language).joinToString(","),
+                query = queryFor(trimmed, scope),
+                fields = OffLanguage.searchFields(languages, OffSearchService.FIELDS),
+                langs = languages.joinToString(","),
             ).hits
-            val foods = hits
-                .mapNotNull { OffMapping.fromHit(it, language) }
-                .filter { it.readable || settings.offOtherLanguages }
-                .map { it.food }
-                .distinctBy { it.barcode }
-            OffSearchOutcome.Results(foods)
+            // Mapping forty hits (name rules, drink rules) is text work: off the main thread, whoever calls.
+            withContext(Dispatchers.Default) {
+                val shown = hits
+                    .mapNotNull { OffMapping.fromHit(it, languages) }
+                    .filter { it.isShown(settings.offOtherLanguages) }
+                    .map { it.food }
+                    .distinctBy { it.barcode }
+                val kept = shown.filter { scope.keeps(DrinkRule.isStoredDrink(it.drinkCategory)) }
+                OffSearchOutcome.Results(kept, otherKind = shown.size - kept.size)
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: IOException) {
@@ -86,6 +100,18 @@ class OffSearchRepository @Inject constructor(
     companion object {
         const val MIN_QUERY = 3
         private const val TAG = "OffSearchRepository"
+
+        /**
+         * The `q` sent for a search. Foods send the words as typed. Drinks add the beverages category filter, so the
+         * typed words first lose the characters that mean something in the query syntax (quotes, brackets, colons).
+         */
+        fun queryFor(text: String, scope: SearchScope): String = when (scope) {
+            SearchScope.FOODS -> text
+            SearchScope.DRINKS -> {
+                val words = text.replace(Regex("[\"():\\[\\]{}^~*?\\\\]"), " ").replace(Regex("\\s+"), " ").trim()
+                "$words ${OffSearchService.BEVERAGES_FILTER}"
+            }
+        }
     }
 }
 

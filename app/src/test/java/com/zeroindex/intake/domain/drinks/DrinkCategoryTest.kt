@@ -56,6 +56,65 @@ class DrinkCategoryTest {
     }
 
     @Test
+    fun `soups broths oils and sauces are never drinks`() {
+        listOf(
+            "Soup, chicken noodle, canned", "Chicken broth", "Beef stock", "Bouillon cubes", "Oil, olive, salad or cooking",
+            "Coconut oil", "Soy sauce", "Tomato sauce", "Gravy, beef", "Salad dressing", "Apple cider vinegar",
+        ).forEach { name ->
+            assertThat(DrinkRule.isDrink(name)).isFalse()
+            // Not even when the source files it under beverages.
+            assertThat(DrinkRule.isDrink(name, sourceCategory = "Beverages")).isFalse()
+            assertThat(DrinkRule.isDrink(name, offTags = listOf("en:beverages"))).isFalse()
+        }
+    }
+
+    @Test
+    fun `milk and plant milks are drinks`() {
+        listOf("Milk, whole, 3.25% milkfat", "Oat milk", "Almond milk, unsweetened", "Soy milk", "Soymilk, original", "Coconut milk drink").forEach {
+            assertThat(DrinkRule.categoryOf(it)).isEqualTo(DrinkCategory.MILK)
+        }
+        // Milk in the name of a food is not a drink.
+        assertThat(DrinkRule.isDrink("Milk, condensed, sweetened")).isFalse()
+        assertThat(DrinkRule.isDrink("Milk, dry, nonfat")).isFalse()
+        assertThat(DrinkRule.isDrink("Milk chocolate")).isFalse()
+    }
+
+    @Test
+    fun `the source category decides before the name does`() {
+        // USDA files it under Beverages, Open Food Facts tags it: a drink even when the name gives nothing away.
+        assertThat(DrinkRule.categoryOf("Horchata", sourceCategory = "Beverages")).isEqualTo(DrinkCategory.OTHER)
+        assertThat(DrinkRule.categoryOf("Original Taste", offTags = listOf("en:beverages", "en:carbonated-drinks", "en:sodas"))).isEqualTo(DrinkCategory.SODA)
+        assertThat(DrinkRule.categoryOf("Zero Sugar", offTags = listOf("en:beverages"))).isEqualTo(DrinkCategory.OTHER)
+        // No category from the source: the name rules.
+        assertThat(DrinkRule.categoryOf("Coke")).isEqualTo(DrinkCategory.SODA)
+        assertThat(DrinkRule.isDrink("Chicken McNuggets")).isFalse()
+        assertThat(DrinkRule.isDrink("Chicken McNuggets", sourceCategory = "Fast Foods")).isFalse()
+        assertThat(DrinkRule.isDrink("Cheddar", offTags = listOf("en:dairies", "en:cheeses"))).isFalse()
+    }
+
+    @Test
+    fun `drinks named with an excluded word are still drinks and near misses are not`() {
+        assertThat(DrinkRule.categoryOf("Cream soda")).isEqualTo(DrinkCategory.SODA)
+        assertThat(DrinkRule.categoryOf("Lipton Ice Tea Peach")).isEqualTo(DrinkCategory.TEA)
+        assertThat(DrinkRule.isDrink("Water chestnuts")).isFalse()
+        assertThat(DrinkRule.isDrink("Tea biscuits")).isFalse()
+        assertThat(DrinkRule.isDrink("Coffee beans")).isFalse()
+        assertThat(DrinkRule.isDrink("Crackers, soda")).isFalse()
+    }
+
+    @Test
+    fun `each search keeps its own kind`() {
+        assertThat(SearchScope.FOODS.keeps(isDrink = false)).isTrue()
+        assertThat(SearchScope.FOODS.keeps(isDrink = true)).isFalse()
+        assertThat(SearchScope.DRINKS.keeps(isDrink = true)).isTrue()
+        assertThat(SearchScope.DRINKS.keeps(isDrink = false)).isFalse()
+        // A food on the phone is a drink exactly when its stored category is set.
+        assertThat(DrinkRule.isStoredDrink("SODA")).isTrue()
+        assertThat(DrinkRule.isStoredDrink(null)).isFalse()
+        assertThat(DrinkRule.isStoredDrink("")).isFalse()
+    }
+
+    @Test
     fun `stored category names read back and unknown ones are Other`() {
         assertThat(DrinkCategory.fromStored(null)).isNull()
         assertThat(DrinkCategory.fromStored("")).isNull()

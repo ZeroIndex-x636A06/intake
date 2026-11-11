@@ -13,16 +13,68 @@ enum class NameScript { LATIN, CYRILLIC, GREEK, ARABIC, HEBREW, CJK, THAI, DEVAN
  *
  * - [pickName] takes `product_name_<device language>`, then `product_name_en`, then `product_name`, preferring the
  *   first one written in a script the user reads, and falling back to the first non-blank one.
- * - [isReadable] / [isShown] hide a result whose chosen name is in another script (a Cyrillic name for an English
- *   reader) unless "Show products in other languages" is on. A Latin-script name in another language (Spanish,
- *   French) is kept: it can still be read and is what the barcode says.
+ * - [hasNameIn] is the language rule: a product is listed only when it has a name in one of the person's food
+ *   languages (the "Food search language" setting, then English). A Dutch or French product with no English name is
+ *   left out for an English reader, even though its letters are Latin.
+ * - [isReadable] / [isShown] also hide a result whose chosen name is in another script (a Cyrillic name tagged
+ *   English). "Show products in other languages" lists both kinds.
  *
  * Nothing here translates anything and nothing here touches allergens: a hidden result is simply not listed, and
  * allergen checks on a food that is logged never depend on which name was shown.
  */
 object OffLanguage {
 
-    class Picked(val name: String, val readable: Boolean)
+    /**
+     * @param readable the name is in a script the reader uses.
+     * @param inLanguage the name is one the product has in one of the person's food languages (see [hasNameIn]).
+     */
+    class Picked(val name: String, val readable: Boolean, val inLanguage: Boolean = true)
+
+    /** What the "Food search language" setting offers besides "Phone language" (stored as ""). */
+    val CHOICES: List<Pair<String, String>> = listOf(
+        "en" to "English", "es" to "Spanish", "fr" to "French", "de" to "German",
+        "it" to "Italian", "pt" to "Portuguese", "nl" to "Dutch",
+    )
+
+    private fun code(language: String?): String = language.orEmpty().trim().lowercase().substringBefore('-').substringBefore('_')
+
+    /**
+     * The person's food languages, first choice first: the "Food search language" setting ([choice], blank for the
+     * phone's language), then English as the fallback. Anything that is not a language code falls back to English.
+     */
+    fun foodLanguages(choice: String?, phoneLanguage: String?): List<String> {
+        val first = code(choice).ifEmpty { code(phoneLanguage) }.takeIf { it.length in 2..3 && it.all(Char::isLetter) } ?: "en"
+        return listOf(first, "en").distinct()
+    }
+
+    /**
+     * True when the product has a name in one of [languages]: a non-blank `product_name_<code>` for one of them
+     * ([names]), or its main language ([mainLanguage], Open Food Facts `lang` / `lc`) is one of them, in which case
+     * the plain `product_name` is that name. A product with only a plain name and another main language has none:
+     * "Gemarineerde kipfilet" (`lang: nl`) is not shown to an English reader.
+     */
+    fun hasNameIn(names: Map<String, String>, productName: String?, mainLanguage: String?, languages: List<String>): Boolean {
+        val wanted = languages.map(::code).filter { it.isNotEmpty() }
+        if (wanted.any { !names[it].isNullOrBlank() }) return true
+        return code(mainLanguage) in wanted && !productName.isNullOrBlank()
+    }
+
+    /**
+     * The name to show for a search hit and whether it may be listed. Names in the person's languages come first, in
+     * the order of [languages]; when the product has none, the first name it does have is returned with
+     * `inLanguage = false`, which only "Show products in other languages" lists.
+     */
+    fun pickName(names: Map<String, String>, productName: String?, mainLanguage: String?, languages: List<String>): Picked? {
+        val wanted = languages.map(::code).filter { it.isNotEmpty() }.ifEmpty { listOf("en") }
+        fun readable(name: String) = scriptOf(name).let { s -> s == NameScript.NONE || wanted.any { expectedScript(it) == s } }
+        fun clean(text: String?) = text?.trim()?.takeIf(String::isNotEmpty)
+        val own = wanted.mapNotNull { clean(names[it]) } +
+            listOfNotNull(clean(productName).takeIf { code(mainLanguage) in wanted })
+        own.firstOrNull(::readable)?.let { return Picked(it, readable = true, inLanguage = true) }
+        own.firstOrNull()?.let { return Picked(it, readable = false, inLanguage = true) }
+        val other = (listOfNotNull(clean(productName)) + names.values.mapNotNull(::clean)).firstOrNull() ?: return null
+        return Picked(other, readable = readable(other), inLanguage = false)
+    }
 
     fun scriptOf(text: String): NameScript {
         val counts = HashMap<NameScript, Int>()
@@ -75,7 +127,9 @@ object OffLanguage {
         return Picked(candidates.first(), readable = false)
     }
 
-    fun isShown(picked: Picked, showOtherLanguages: Boolean): Boolean = showOtherLanguages || picked.readable
+    /** Listed when it has a readable name in one of the person's languages, or when the setting shows everything. */
+    fun isShown(picked: Picked, showOtherLanguages: Boolean): Boolean =
+        showOtherLanguages || (picked.readable && picked.inLanguage)
 
     /** The languages to send as `langs`: the user's own, then English, with no repeats. */
     fun searchLanguages(language: String): List<String> {
@@ -84,7 +138,10 @@ object OffLanguage {
     }
 
     /** The `fields` to ask for, so the app gets the local name, the English one, the thumbnail and the rest. */
-    fun searchFields(language: String, base: String): String =
-        (base.split(',') + listOf("lang", "image_front_small_url", "image_front_thumb_url") +
-            searchLanguages(language).map { "product_name_$it" }).distinct().joinToString(",")
+    fun searchFields(language: String, base: String): String = searchFields(searchLanguages(language), base)
+
+    /** The same for an explicit list of food languages: each one's name, and the product's main language. */
+    fun searchFields(languages: List<String>, base: String): String =
+        (base.split(',') + listOf("lang", "lc", "image_front_small_url", "image_front_thumb_url") +
+            languages.map { "product_name_$it" }).distinct().joinToString(",")
 }

@@ -459,7 +459,7 @@ fun IntakeNavHost(
                     contentPadding = pad,
                     onBack = back,
                     onOpenFood = { id, chosen -> navController.navigate(Route.FoodDetail(id, chosen.name, at)) },
-                    onOpenDrinks = { navController.navigate(Route.Drinks) },
+                    onOpenDrinks = { q -> navController.navigate(if (q.isBlank()) Route.Drinks else Route.DrinksSearch(q)) },
                     onOpenAiSettings = openAi,
                 )
             }
@@ -482,6 +482,12 @@ fun IntakeNavHost(
         composable<Route.Drinks> {
             PushedScreen("Drinks", back) { pad ->
                 DrinksScreen(pad, onOpenFood = { id -> navController.navigate(Route.FoodDetail(id)) })
+            }
+        }
+        composable<Route.DrinksSearch> { entry ->
+            val typed = entry.toRoute<Route.DrinksSearch>().query
+            PushedScreen("Drinks", back) { pad ->
+                DrinksScreen(pad, onOpenFood = { id -> navController.navigate(Route.FoodDetail(id)) }, initialQuery = typed)
             }
         }
         dialog<Route.SwapSheet> { entry ->

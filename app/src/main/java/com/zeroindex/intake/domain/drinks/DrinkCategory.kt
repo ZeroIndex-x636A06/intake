@@ -63,11 +63,21 @@ object DrinkKinds {
  */
 object DrinkCategorizer {
 
+    /**
+     * Words that mean "not something to drink by the glass", whatever else the name or the source says: dry forms,
+     * sweets and dairy foods, and the liquids people cook with rather than drink (soups, broths, oils, sauces).
+     */
     private val notDrink = setOf(
         "powder", "powdered", "mix", "mixes", "dry", "dried", "concentrate", "concentrated", "crystals", "tablets",
         "bar", "bars", "cookie", "cookies", "cake", "cakes", "candy", "pudding", "gum", "cheese", "yogurt", "yoghurt",
         "cottage", "ice", "cream", "creamer", "whitener", "sauce", "soup", "bread", "cereal", "granola", "pie", "dessert", "baking", "leavening",
+        "soups", "sauces", "broth", "broths", "stock", "stocks", "bouillon", "consomme", "gravy", "dressing", "vinegar",
+        "oil", "oils", "condensed", "evaporated", "biscuit", "biscuits", "cracker", "crackers", "chestnut", "chestnuts",
+        "melon", "beans", "grounds", "leaves", "jelly", "jam",
     )
+
+    /** Drinks whose usual name holds one of the [notDrink] words: read as the drink before the exclusions are checked. */
+    private val drinkPhrases = listOf("cream soda" to "soda", "ice tea" to "tea", "ice coffee" to "coffee", "ice water" to "water", "ice cold" to " ")
 
     private val rootBeerLike = listOf("root beer", "ginger beer", "ginger ale", "cream soda", "birch beer", "non-alcoholic", "alcohol-free", "alcohol free")
 
@@ -108,7 +118,8 @@ object DrinkCategorizer {
         val lowerName = name.lowercase()
         val all = tokens(name)
         if (all.isEmpty()) return null
-        if (all.any { it in notDrink } || "milk chocolate" in lowerName) return null
+        val forExclusion = tokens(drinkPhrases.fold(lowerName) { text, (phrase, plain) -> text.replace(phrase, plain) })
+        if (forExclusion.any { it in notDrink } || "milk chocolate" in lowerName) return null
 
         val tags = offTags.map { it.lowercase().trim() }
         val sourceSaysBeverage = tags.any { it == "en:beverages" || it == "en:beverages-and-beverages-preparations" } ||
@@ -143,4 +154,37 @@ object DrinkCategorizer {
         return null
     }
 
+}
+
+/** Which of the two searches a result list is for: Log food lists foods only, Drinks lists drinks only. */
+enum class SearchScope {
+    FOODS,
+    DRINKS,
+    ;
+
+    /** True when a row that [isDrink] (or is not) belongs in this search. */
+    fun keeps(isDrink: Boolean): Boolean = (this == DRINKS) == isDrink
+}
+
+/**
+ * The one "is it a drink" rule, used by both searches (Log food and Drinks) and by the copy to the phone.
+ *
+ *  - A food already on the phone is a drink exactly when its stored `drinkCategory` is set: that is what the Drinks
+ *    page lists and what the drink flow logs, and the person can change it.
+ *  - A result from a source (the bundled USDA database, Open Food Facts, the USDA API) is judged by
+ *    [DrinkCategorizer]: the source's own category first (USDA "Beverages", Open Food Facts `en:beverages` and the
+ *    more specific drink tags), and the name rules when the source gives none. Soups, broths, oils and sauces are
+ *    never drinks; milk and plant milks are.
+ */
+object DrinkRule {
+
+    /** The drink category of a source result, or null when it is a food. */
+    fun categoryOf(name: String, sourceCategory: String = "", offTags: List<String> = emptyList()): DrinkCategory? =
+        DrinkCategorizer.categorize(name, sourceCategory, offTags)
+
+    fun isDrink(name: String, sourceCategory: String = "", offTags: List<String> = emptyList()): Boolean =
+        categoryOf(name, sourceCategory, offTags) != null
+
+    /** For a food row (on the phone, or already mapped from a source): the stored category decides. */
+    fun isStoredDrink(drinkCategory: String?): Boolean = DrinkCategory.fromStored(drinkCategory) != null
 }

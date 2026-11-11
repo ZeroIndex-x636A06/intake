@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -15,7 +16,7 @@ import kotlinx.coroutines.flow.map
 private val Context.foodDataStore: DataStore<Preferences> by preferencesDataStore(name = "intake_food_data")
 
 /**
- * The two switches for the food database features (docs/FOOD-DATA.md). Kept in their
+ * The switches and the language choice for the food database features (docs/FOOD-DATA.md). Kept in their
  * own small store so they do not touch [SettingsRepository].
  *
  * - [offSearch]: search Open Food Facts while typing in Add food. Sends the query
@@ -29,6 +30,11 @@ data class FoodDataSettings(
     val offContribute: Boolean = false,
     /** Show Open Food Facts products whose name is in another language or script. Off by default. */
     val offOtherLanguages: Boolean = false,
+    /**
+     * The "Food search language": an ISO 639-1 code from `OffLanguage.CHOICES`, or blank for the phone's language.
+     * English is always searched as well.
+     */
+    val offLanguage: String = "",
 )
 
 @Singleton
@@ -39,6 +45,7 @@ class FoodDataPrefs @Inject constructor(
         val offSearch = booleanPreferencesKey("off_search_enabled")
         val offContribute = booleanPreferencesKey("off_contribute_enabled")
         val offOtherLanguages = booleanPreferencesKey("off_other_languages")
+        val offLanguage = stringPreferencesKey("off_language")
     }
 
     val settings: Flow<FoodDataSettings> = context.foodDataStore.data.map { p ->
@@ -46,6 +53,7 @@ class FoodDataPrefs @Inject constructor(
             offSearch = p[Keys.offSearch] ?: true,
             offContribute = p[Keys.offContribute] ?: false,
             offOtherLanguages = p[Keys.offOtherLanguages] ?: false,
+            offLanguage = p[Keys.offLanguage].orEmpty(),
         )
     }
 
@@ -55,6 +63,11 @@ class FoodDataPrefs @Inject constructor(
 
     suspend fun setOffOtherLanguages(enabled: Boolean) {
         context.foodDataStore.edit { it[Keys.offOtherLanguages] = enabled }
+    }
+
+    /** Blank means "Phone language". */
+    suspend fun setOffLanguage(code: String) {
+        context.foodDataStore.edit { it[Keys.offLanguage] = code.trim().lowercase() }
     }
 
     suspend fun setOffContribute(enabled: Boolean) {
