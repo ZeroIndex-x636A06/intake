@@ -17,6 +17,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.foundation.clickable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -28,9 +31,9 @@ object YoutubeEmbed {
     fun isValidId(id: String): Boolean = ID.matches(id)
 
     /** The page the WebView loads: YouTube's own embed in an iframe, nothing else. [startSec] jumps to a chapter. */
-    fun html(videoId: String, startSec: Int = 0): String {
+    fun html(videoId: String, startSec: Int = 0, autoplay: Boolean = startSec > 0): String {
         require(isValidId(videoId)) { "not a YouTube video id" }
-        val autoplay = if (startSec > 0) 1 else 0
+        val autoplay = if (autoplay) 1 else 0
         val src = "https://www.youtube-nocookie.com/embed/$videoId" +
             "?playsinline=1&rel=0&modestbranding=1&fs=0&start=${startSec.coerceAtLeast(0)}&autoplay=$autoplay"
         return "<!doctype html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" +
@@ -43,8 +46,19 @@ object YoutubeEmbed {
     /** The page's own address for the player's referrer check: this app, as YouTube's guidance for apps asks. */
     const val BASE_URL = "https://com.zeroindex.intake/"
 
-    /** Only YouTube's embed host may load inside the player view; every other navigation is refused. */
+    /** The embed host itself: the only place the page as a whole may go. */
     fun allowsHost(host: String?): Boolean = host != null && (host == "youtube-nocookie.com" || host.endsWith(".youtube-nocookie.com"))
+
+    /**
+     * Where the player frame may go. The embed moves between YouTube's and Google's own hosts while it starts (the
+     * player, a consent step); refusing those left a black box on a real phone. Everything else is still refused.
+     */
+    fun allowsFrameHost(host: String?): Boolean {
+        if (host == null) return false
+        return FRAME_HOSTS.any { host == it || host.endsWith(".$it") }
+    }
+
+    private val FRAME_HOSTS = listOf("youtube-nocookie.com", "youtube.com", "google.com", "googlevideo.com", "ytimg.com", "gstatic.com")
 }
 
 /**
@@ -53,7 +67,20 @@ object YoutubeEmbed {
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun YoutubePlayer(videoId: String, startSec: Int, modifier: Modifier = Modifier) {
+fun YoutubePlayer(videoId: String, startSec: Int, modifier: Modifier = Modifier, thumbnailUrl: String? = null, durationSec: Int = 0) {
+    // The video's picture comes first, with a play button; YouTube's player loads when it is tapped (or a chapter is).
+    // So the page always shows what the video is, costs nothing until it is played, and starts playing on that tap.
+    var started by androidx.compose.runtime.saveable.rememberSaveable(videoId) { androidx.compose.runtime.mutableStateOf(false) }
+    if (!started && startSec == 0) {
+        VideoThumbnail(
+            url = thumbnailUrl ?: com.zeroindex.intake.domain.videos.YoutubeIds.thumbnailUrl(videoId),
+            durationSec = durationSec,
+            modifier = modifier
+                .fillMaxWidth()
+                .clickable(role = androidx.compose.ui.semantics.Role.Button, onClickLabel = "Play the video") { started = true },
+        )
+        return
+    }
     val owner = LocalLifecycleOwner.current
     val holder = remember { arrayOfNulls<WebView>(1) }
     DisposableEffect(owner) {
@@ -85,8 +112,10 @@ fun YoutubePlayer(videoId: String, startSec: Int, modifier: Modifier = Modifier)
                 settings.setSupportMultipleWindows(false)
                 webViewClient = object : WebViewClient() {
                     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
-                        !YoutubeEmbed.allowsHost(request.url.host)
+                        if (request.isForMainFrame) !YoutubeEmbed.allowsHost(request.url.host) else !YoutubeEmbed.allowsFrameHost(request.url.host)
                 }
+                // The default chrome client: without one, some phones never draw the video surface.
+                webChromeClient = android.webkit.WebChromeClient()
                 holder[0] = this
             }
         },
@@ -94,7 +123,7 @@ fun YoutubePlayer(videoId: String, startSec: Int, modifier: Modifier = Modifier)
             val key = "$videoId@$startSec"
             if (view.tag != key && YoutubeEmbed.isValidId(videoId)) {
                 view.tag = key
-                view.loadDataWithBaseURL(YoutubeEmbed.BASE_URL, YoutubeEmbed.html(videoId, startSec), "text/html", "utf-8", null)
+                view.loadDataWithBaseURL(YoutubeEmbed.BASE_URL, YoutubeEmbed.html(videoId, startSec, autoplay = true), "text/html", "utf-8", null)
             }
         },
         onRelease = { view ->

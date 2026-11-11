@@ -6,7 +6,7 @@ Rules that apply to every row: use screens hold no configuration; one home per s
 
 ## Totals
 
-* **96 settings** (stored values) in **12 groups**, plus 16 action buttons (export, import, replay tour and so on) and 1 read-only line: **113 controls** in all.
+* **97 settings** (stored values) in **12 groups**, plus 16 action buttons (export, import, replay tour and so on) and 1 read-only line: **114 controls** in all.
 * 15 controls are **new** in v5 (not in the app today); 98 exist in the code.
 * 25 controls sit in an **Advanced** disclosure on their page.
 
@@ -18,13 +18,13 @@ Rules that apply to every row: use screens hold no configuration; one home per s
 | Training | 8 | 8 | 0 | 2 |
 | Health Connect | 16 | 15 | 1 | 0 |
 | Food database | 5 | 5 | 0 | 0 |
-| Videos | 2 | 2 | 0 | 2 |
+| Videos | 3 | 3 | 0 | 3 |
 | Reminders | 4 | 4 | 0 | 2 |
 | Sync and export | 10 | 5 | 5 | 1 |
 | AI (optional) | 21 | 19 | 2 | 0 |
 | API keys | 3 | 3 | 0 | 1 |
 | About and help | 7 | 0 | 6 | 0 |
-| **Total** | **113** | **96** | **16** | **15** |
+| **Total** | **114** | **97** | **16** | **16** |
 
 Option C calls the Nutrition tab "Eat", so its settings group is "Eating targets"; the contents are identical.
 
@@ -144,6 +144,7 @@ Videos need internet and your own YouTube key (under API keys). Intake never dow
 | ---: | --- | --- | --- | --- | --- | --- |
 | 67 | Show only workouts by default **(new)** | `onlyWorkouts` (new) | Videos | switch | none | Videos |
 | 68 | Personalise Recommended from this phone's data **(new)** | `personalise` (new) | Videos | switch | none | Videos |
+| 114 | Hide Shorts **(new, round 3)** | `hideShorts` (new) | Videos | switch | none | Videos |
 
 ## H. Reminders
 
@@ -252,7 +253,7 @@ Remote backup destination (protocol, host, port, user, password, private key), b
 
 ## Build status (Option A part 1)
 
-All 113 controls are built (`domain/settings/SettingsRegistry.kt`, drawn by `ui/screens/settings/SettingsControls.kt`). Per item marked "new":
+All 114 controls are built (`domain/settings/SettingsRegistry.kt`, drawn by `ui/screens/settings/SettingsControls.kt`). Per item marked "new":
 
 | Item | Built now | Consumer |
 | --- | --- | --- |

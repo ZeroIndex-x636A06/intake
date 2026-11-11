@@ -211,6 +211,7 @@ fun SettingControl(
                 "offPassword" -> Unit // drawn with the username above
 
                 // ---- Videos ----
+                "hideShorts" -> SwitchSetting("Hide Shorts", "Leaves out videos of a minute or less and ones tagged #shorts. A chip on Videos changes it for one visit.", s.hideShorts, viewModel::setHideShorts)
                 "onlyWorkouts" -> SwitchSetting("Show only workouts by default", "Hides results that do not look like a workout. A one-tap override shows everything for one search.", s.onlyWorkouts, viewModel::setOnlyWorkouts)
                 "personalise" -> SwitchSetting("Personalise Recommended from this phone's data", "Uses your weekly muscle volume, equipment and saved videos. Strictly local. Videos use about 100 searches a day on the free quota.", s.personaliseVideos, viewModel::setPersonalise)
 
@@ -247,7 +248,13 @@ fun SettingControl(
                         KeyTestResult.Untested -> null
                     },
                 )
-                "key.youtube" -> KeyField(
+                "key.youtube" -> Column {
+                    var steps by remember { mutableStateOf(false) }
+                    TextButton(onClick = { steps = !steps }, modifier = Modifier.heightIn(min = 48.dp)) {
+                        Text(if (steps) "Hide the steps" else "How to get and restrict a YouTube key")
+                    }
+                    if (steps) com.zeroindex.intake.ui.screens.videos.KeySteps(Modifier.padding(bottom = 10.dp))
+                    KeyField(
                     title = "YouTube Data API key", has = state.keys.hasYoutubeKey,
                     hint = "Videos need internet and your own free key. It is sent only to YouTube. The free quota allows about 100 searches a day; results are kept on this phone to save it.",
                     onSave = viewModel::setYoutubeKey, onTest = viewModel::testYoutubeKey,
@@ -258,6 +265,7 @@ fun SettingControl(
                         KeyTestResult.Untested -> null
                     },
                 )
+                }
 
                 // ---- About and help ----
                 "tour" -> AboutAction("Replay the tour", "A quick look around Today, one step at a time. Nothing is changed or deleted.", "Replay") { flow -> flow.replayTour(then = nav.goToToday) }

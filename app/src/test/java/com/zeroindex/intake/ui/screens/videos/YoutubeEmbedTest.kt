@@ -27,4 +27,18 @@ class YoutubeEmbedTest {
         assertThat(YoutubeEmbed.allowsHost("youtube-nocookie.com.evil.com")).isFalse()
         assertThat(YoutubeEmbed.allowsHost(null)).isFalse()
     }
+
+    @Test fun thePlayerFrameMayMoveBetweenYoutubeAndGoogleHostsOnly() {
+        listOf("www.youtube-nocookie.com", "www.youtube.com", "consent.google.com", "i.ytimg.com").forEach {
+            assertThat(YoutubeEmbed.allowsFrameHost(it)).isTrue()
+        }
+        listOf("evil.example.com", "youtube.com.evil.com", "notyoutube.com", null).forEach {
+            assertThat(YoutubeEmbed.allowsFrameHost(it)).isFalse()
+        }
+    }
+
+    @Test fun aTapOnThePictureStartsTheVideoPlaying() {
+        assertThat(YoutubeEmbed.html("dQw4w9WgXcQ", 0, autoplay = true)).contains("autoplay=1")
+        assertThat(com.zeroindex.intake.domain.videos.YoutubeIds.thumbnailUrl("dQw4w9WgXcQ")).isEqualTo("https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg")
+    }
 }

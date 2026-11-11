@@ -92,4 +92,26 @@ class VideoBrowseTest {
         assertThat(draft.items[1].seconds).isEqualTo(45)
         assertThat(draft.items[0].include).isTrue()
     }
+
+    @Test fun shortsAreAMinuteOrLessOrTaggedAndCanBeHidden() {
+        fun video(id: String, title: String, sec: Int, description: String = "") =
+            VideoMeta(id = id, title = title, description = description, channelTitle = "c", categoryId = "17", durationSec = sec)
+        val short = video("a", "Get a Slim Waist #pilates #fitness #workout", 19)
+        val tagged = video("b", "Quick core burner #Shorts", 95)
+        val full = video("c", "30 MIN FULL BODY WORKOUT", 30 * 60)
+        val pasted = video("d", "A pasted link with no length", 0)
+        assertThat(VideoBrowse.isShort(short)).isTrue()
+        assertThat(VideoBrowse.isShort(tagged)).isTrue()
+        assertThat(VideoBrowse.isShort(full)).isFalse()
+        assertThat(VideoBrowse.isShort(pasted)).isFalse()
+        assertThat(VideoBrowse.isShort(video("e", "Shortstop drills", 600))).isFalse()
+
+        val scored = VideoBrowse.score(listOf(short, tagged, full, pasted), emptyList())
+        val hidden = VideoBrowse.apply(scored, onlyWorkouts = false, showEverything = false, length = null, hideShorts = true)
+        assertThat(hidden.shown.map { it.video.id }).containsExactly("c", "d").inOrder()
+        assertThat(hidden.shortsLine()).isEqualTo("2 Shorts hidden.")
+        val all = VideoBrowse.apply(scored, onlyWorkouts = false, showEverything = false, length = null, hideShorts = false)
+        assertThat(all.shown).hasSize(4)
+        assertThat(all.shortsLine()).isNull()
+    }
 }

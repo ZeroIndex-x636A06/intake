@@ -27,10 +27,17 @@ enum class VideoLength(val label: String, val minSec: Int, val maxSec: Int) {
 data class ScoredVideo(val video: VideoMeta, val verdict: VideoVerdict)
 
 /** What a search shows after the filters, and how many rows the "Workouts only" filter hid. */
-data class FilteredVideos(val shown: List<ScoredVideo>, val hiddenAsNotWorkouts: Int, val total: Int) {
+data class FilteredVideos(val shown: List<ScoredVideo>, val hiddenAsNotWorkouts: Int, val total: Int, val hiddenShorts: Int = 0) {
     /** "12 of 30 results hidden as not workouts.", or null when nothing was hidden. */
     fun hiddenLine(): String? =
         if (hiddenAsNotWorkouts > 0) "$hiddenAsNotWorkouts of $total results hidden as not workouts." else null
+
+    /** "4 Shorts hidden.", or null when none were. */
+    fun shortsLine(): String? = when (hiddenShorts) {
+        0 -> null
+        1 -> "1 Short hidden."
+        else -> "$hiddenShorts Shorts hidden."
+    }
 }
 
 /** The pure rules of the Videos home: the words sent, and the filters applied afterwards. */
@@ -58,12 +65,34 @@ object VideoBrowse {
      * Applies "Workouts only" (when [onlyWorkouts]) and the length chip. [showEverything] is the "Show everything" tap for
      * the current search: it lifts the workout filter for the rows drawn, and changes no score.
      */
-    fun apply(scored: List<ScoredVideo>, onlyWorkouts: Boolean, showEverything: Boolean, length: VideoLength?): FilteredVideos {
-        val byLength = scored.filter { length == null || it.video.durationSec <= 0 || length.accepts(it.video.durationSec) }
+    fun apply(
+        scored: List<ScoredVideo>,
+        onlyWorkouts: Boolean,
+        showEverything: Boolean,
+        length: VideoLength?,
+        hideShorts: Boolean = false,
+    ): FilteredVideos {
+        val long = if (hideShorts) scored.filterNot { isShort(it.video) } else scored
+        val byLength = long.filter { length == null || it.video.durationSec <= 0 || length.accepts(it.video.durationSec) }
         val filterOn = onlyWorkouts && !showEverything
         val kept = if (filterOn) byLength.filter { it.verdict.label != VideoLabel.NOT_WORKOUT } else byLength
-        return FilteredVideos(kept, if (filterOn) byLength.size - kept.size else 0, byLength.size)
+        return FilteredVideos(kept, if (filterOn) byLength.size - kept.size else 0, byLength.size, hiddenShorts = scored.size - long.size)
     }
+
+    /** The longest a video can be and still count as a Short by its length alone. */
+    const val SHORT_MAX_SEC = 60
+
+    /**
+     * Is this a YouTube Short? YouTube's API has no field for it, so this goes by what it does give: a video of a
+     * minute or less, or one that tags itself #shorts in its title or description. A video with no known length
+     * (a pasted link) is never called a Short.
+     */
+    fun isShort(video: VideoMeta): Boolean {
+        if (video.durationSec in 1..SHORT_MAX_SEC) return true
+        return SHORTS_TAG.containsMatchIn(video.title) || SHORTS_TAG.containsMatchIn(video.description.take(400))
+    }
+
+    private val SHORTS_TAG = Regex("#shorts?\\b", RegexOption.IGNORE_CASE)
 
     /** How many chapters the description has (shown as a "Chapters" badge on the card). */
     fun chapterCount(video: VideoMeta): Int = ChapterParser.chapters(video.description).size

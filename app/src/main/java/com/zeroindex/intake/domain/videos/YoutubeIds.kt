@@ -29,6 +29,12 @@ object YoutubeIds {
         return candidate?.takeIf { ID.matches(it) }
     }
 
+    /**
+     * The video's still picture, straight from its id. YouTube serves it for every video with no key and no API call,
+     * so a pasted link, or a saved video whose details were never fetched, still has a picture.
+     */
+    fun thumbnailUrl(id: String): String = "https://i.ytimg.com/vi/$id/hqdefault.jpg"
+
     /** `https://www.youtube.com/watch?v=<id>`: for "Open in YouTube" and the share action. */
     fun watchUrl(id: String): String = "https://www.youtube.com/watch?v=$id"
 

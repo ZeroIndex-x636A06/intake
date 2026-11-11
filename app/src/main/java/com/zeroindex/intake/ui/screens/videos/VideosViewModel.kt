@@ -47,6 +47,7 @@ data class VideosUiState(
     val style: VideoStyle? = null,
     val length: VideoLength? = null,
     val onlyWorkouts: Boolean = true,
+    val hideShorts: Boolean = true,
     val searching: Boolean = false,
     /** The words of the search whose results are shown, or null when no search was run. */
     val searchedFor: String? = null,
@@ -79,6 +80,7 @@ class VideosViewModel @Inject constructor(
         val style: VideoStyle? = null,
         val length: VideoLength? = null,
         val onlyOverride: Boolean? = null,
+        val shortsOverride: Boolean? = null,
         val searching: Boolean = false,
         val searchedFor: String? = null,
         val results: List<VideoMeta>? = null,
@@ -105,8 +107,9 @@ class VideosViewModel @Inject constructor(
         combine(catalog, keyTick) { names, _ -> names },
     ) { r, rec, app, saved, names ->
         val only = r.onlyOverride ?: app.onlyWorkouts
+        val noShorts = r.shortsOverride ?: app.hideShorts
         val filtered = r.results?.let { list ->
-            VideoBrowse.apply(VideoBrowse.score(list, names), only, r.showEverything, r.length)
+            VideoBrowse.apply(VideoBrowse.score(list, names), only, r.showEverything, r.length, hideShorts = noShorts)
         }
         VideosUiState(
             hasKey = videos.hasKey(),
@@ -114,12 +117,13 @@ class VideosViewModel @Inject constructor(
             style = r.style,
             length = r.length,
             onlyWorkouts = only,
+            hideShorts = noShorts,
             searching = r.searching,
             searchedFor = r.searchedFor,
             results = filtered,
             resultsFromCache = r.fromCache,
             searchError = r.error,
-            recommended = scoreRecommended(rec, names, only),
+            recommended = scoreRecommended(rec, names, only, noShorts),
             saved = saved,
             quotaHint = videos.quotaHint(),
             link = r.link,
@@ -139,12 +143,12 @@ class VideosViewModel @Inject constructor(
     /** The recommended rows are stored raw and scored when drawn, so "Workouts only" can change without a new call. */
     private var rawRows: List<Pair<String, List<VideoMeta>>> = emptyList()
 
-    private fun scoreRecommended(rec: RecommendedUi, names: List<String>, onlyWorkouts: Boolean): RecommendedUi {
+    private fun scoreRecommended(rec: RecommendedUi, names: List<String>, onlyWorkouts: Boolean, hideShorts: Boolean): RecommendedUi {
         if (rec !is RecommendedUi.Ready) return rec
         val seen = mutableSetOf<String>()
         val rows = rawRows.map { (reason, list) ->
             val scored = VideoBrowse.score(list.filter { seen.add(it.id) }, names)
-            RecommendedRowUi(reason, VideoBrowse.apply(scored, onlyWorkouts, showEverything = false, length = null).shown.take(8))
+            RecommendedRowUi(reason, VideoBrowse.apply(scored, onlyWorkouts, showEverything = false, length = null, hideShorts = hideShorts).shown.take(8))
         }.filter { it.videos.isNotEmpty() }
         return rec.copy(rows = rows)
     }
@@ -163,6 +167,12 @@ class VideosViewModel @Inject constructor(
     fun toggleOnlyWorkouts() {
         val now = state.value.onlyWorkouts
         raw.update { it.copy(onlyOverride = !now) }
+    }
+
+    /** The "Hide Shorts" chip: for this visit only. The default stays in Settings > Videos. */
+    fun toggleHideShorts() {
+        val now = state.value.hideShorts
+        raw.update { it.copy(shortsOverride = !now) }
     }
 
     fun setLength(length: VideoLength?) = raw.update { it.copy(length = if (it.length == length) null else length) }

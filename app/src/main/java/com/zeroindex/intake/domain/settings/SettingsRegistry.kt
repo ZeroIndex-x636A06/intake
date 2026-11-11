@@ -120,6 +120,7 @@ object SettingsRegistry {
         SettingSpec(66, "offPassword", SettingsGroup.FOOD_DB, ControlKind.SECRET, "Open Food Facts password", advanced = false, isNew = false),
         SettingSpec(67, "onlyWorkouts", SettingsGroup.VIDEOS, ControlKind.SWITCH, "Show only workouts by default", advanced = false, isNew = true),
         SettingSpec(68, "personalise", SettingsGroup.VIDEOS, ControlKind.SWITCH, "Personalise Recommended from this phone's data", advanced = false, isNew = true),
+        SettingSpec(114, "hideShorts", SettingsGroup.VIDEOS, ControlKind.SWITCH, "Hide Shorts", advanced = false, isNew = true),
         SettingSpec(69, "coachNotify", SettingsGroup.REMINDERS, ControlKind.SWITCH, "Weekly check-in notification", advanced = false, isNew = false),
         SettingSpec(70, "coachWeekday", SettingsGroup.REMINDERS, ControlKind.CHIPS, "Check-in day", advanced = false, isNew = false),
         SettingSpec(71, "photoReminder", SettingsGroup.REMINDERS, ControlKind.SEGMENTED, "Progress photo reminder", advanced = false, isNew = true),

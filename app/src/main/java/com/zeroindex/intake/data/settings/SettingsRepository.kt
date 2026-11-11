@@ -134,6 +134,8 @@ data class AppSettings(
     val weeklySetsCsv: String = "",
     /** Settings > Videos (consumed by the Videos feature). */
     val onlyWorkouts: Boolean = true,
+    /** Videos: leave YouTube Shorts out of search results and Recommended. */
+    val hideShorts: Boolean = true,
     val personaliseVideos: Boolean = true,
     /** Settings > Reminders: progress photo reminder in weeks (0 = off, else 2, 3 or 4). */
     val photoReminderWeeks: Int = 0,
@@ -243,6 +245,7 @@ class SettingsRepository @Inject constructor(
         val jumpTests = booleanPreferencesKey("jump_tests")
         val weeklySets = stringPreferencesKey("weekly_sets_csv")
         val onlyWorkouts = booleanPreferencesKey("videos_only_workouts")
+        val hideShorts = booleanPreferencesKey("videos_hide_shorts")
         val personalise = booleanPreferencesKey("videos_personalise")
         val photoReminder = intPreferencesKey("photo_reminder_weeks")
         val exportReminder = booleanPreferencesKey("export_reminder")
@@ -327,6 +330,7 @@ class SettingsRepository @Inject constructor(
             jumpTests = p[Keys.jumpTests] ?: false,
             weeklySetsCsv = p[Keys.weeklySets].orEmpty(),
             onlyWorkouts = p[Keys.onlyWorkouts] ?: true,
+            hideShorts = p[Keys.hideShorts] ?: true,
             personaliseVideos = p[Keys.personalise] ?: true,
             photoReminderWeeks = p[Keys.photoReminder]?.takeIf { it in setOf(0, 2, 3, 4) } ?: 0,
             exportReminder = p[Keys.exportReminder] ?: true,
@@ -429,6 +433,7 @@ class SettingsRepository @Inject constructor(
     suspend fun setJumpTests(on: Boolean) = put { it[Keys.jumpTests] = on }
     suspend fun setWeeklySetsCsv(csv: String) = put { if (csv.isBlank()) it.remove(Keys.weeklySets) else it[Keys.weeklySets] = csv }
     suspend fun setOnlyWorkouts(on: Boolean) = put { it[Keys.onlyWorkouts] = on }
+    suspend fun setHideShorts(on: Boolean) = put { it[Keys.hideShorts] = on }
     suspend fun setPersonaliseVideos(on: Boolean) = put { it[Keys.personalise] = on }
     suspend fun setPhotoReminderWeeks(weeks: Int) = put { it[Keys.photoReminder] = if (weeks in setOf(2, 3, 4)) weeks else 0 }
     suspend fun setExportReminder(on: Boolean) = put { it[Keys.exportReminder] = on }

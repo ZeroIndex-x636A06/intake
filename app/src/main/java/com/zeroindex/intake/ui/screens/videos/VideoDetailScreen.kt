@@ -80,7 +80,7 @@ fun VideoDetailScreen(
     ) {
         item(key = "player") {
             if (YoutubeEmbed.isValidId(state.videoId)) {
-                YoutubePlayer(videoId = state.videoId, startSec = startSec)
+                YoutubePlayer(videoId = state.videoId, startSec = startSec, thumbnailUrl = meta?.thumbnailUrl, durationSec = meta?.durationSec ?: 0)
             } else {
                 ErrorState(title = "Not a YouTube video", body = "That link does not have a video id Intake can play.")
             }
@@ -157,16 +157,6 @@ fun VideoDetailScreen(
                 }
                 OutlinedButton(
                     onClick = {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(YoutubeIds.watchUrl(state.videoId))))
-                    },
-                    shape = IntakeShape.Button,
-                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                ) {
-                    Icon(Icons.Filled.OpenInNew, contentDescription = null)
-                    Text("  YouTube", maxLines = 1)
-                }
-                OutlinedButton(
-                    onClick = {
                         val send = Intent(Intent.ACTION_SEND).setType("text/plain")
                             .putExtra(Intent.EXTRA_TEXT, YoutubeIds.watchUrl(state.videoId))
                         context.startActivity(Intent.createChooser(send, "Share link"))
@@ -177,6 +167,18 @@ fun VideoDetailScreen(
                     Icon(Icons.Filled.Share, contentDescription = null)
                     Text("  Share", maxLines = 1)
                 }
+            }
+        }
+        item(key = "open-youtube") {
+            // Its own full-width button: as the middle of three it had no room for its words, and it is the way out
+            // when a video cannot be played inside another app.
+            OutlinedButton(
+                onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(YoutubeIds.watchUrl(state.videoId)))) },
+                shape = IntakeShape.Button,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+            ) {
+                Icon(Icons.Filled.OpenInNew, contentDescription = null)
+                Text("  Open in YouTube", maxLines = 1)
             }
         }
         if (state.chapters.isNotEmpty()) {

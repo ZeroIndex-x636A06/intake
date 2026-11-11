@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.videos
 
+import com.zeroindex.intake.domain.videos.YoutubeIds
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -122,7 +123,8 @@ fun VideosSection(
             item(key = "chips") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        WorkoutsOnlyChip(state.onlyWorkouts, viewModel::toggleOnlyWorkouts)
+                        ToggleChip("Workouts only", state.onlyWorkouts, viewModel::toggleOnlyWorkouts)
+                        ToggleChip("Hide Shorts", state.hideShorts, viewModel::toggleHideShorts)
                         VideoStyle.entries.forEach { s -> ChoiceChip(s.label, selected = state.style == s, onClick = { viewModel.toggleStyle(s) }) }
                     }
                     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -166,6 +168,11 @@ fun VideosSection(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
+                    }
+                }
+                results.shortsLine()?.let { line ->
+                    item(key = "hidden-shorts") {
+                        Text(line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 results.hiddenLine()?.let { line ->
@@ -283,20 +290,20 @@ private fun androidx.compose.foundation.lazy.LazyListScope.recommendedItems(
 }
 
 @Composable
-private fun WorkoutsOnlyChip(selected: Boolean, onClick: () -> Unit) {
+private fun ToggleChip(label: String, selected: Boolean, onClick: () -> Unit) {
     Surface(
         color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
         contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
         shape = IntakeShape.Chip,
         border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier.heightIn(min = 48.dp).clickable(role = Role.Switch, onClickLabel = "Workouts only", onClick = onClick),
+        modifier = Modifier.heightIn(min = 48.dp).clickable(role = Role.Switch, onClickLabel = label, onClick = onClick),
     ) {
         Row(Modifier.padding(horizontal = 13.dp), verticalAlignment = Alignment.CenterVertically) {
             if (selected) {
                 Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
             }
-            Text("Workouts only", style = MaterialTheme.typography.labelMedium)
+            Text(label, style = MaterialTheme.typography.labelMedium)
         }
     }
 }
@@ -356,7 +363,7 @@ private fun SavedRow(v: VideoMeta, onOpen: () -> Unit, onMake: () -> Unit, onRem
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.width(112.dp).clickable(role = Role.Button, onClickLabel = "Open ${v.title}", onClick = onOpen)) {
-            VideoThumbnail(v.thumbnailUrl, v.durationSec, corner = 12.dp, showPlay = false)
+            VideoThumbnail(v.thumbnailUrl ?: YoutubeIds.thumbnailUrl(v.id), v.durationSec, corner = 12.dp, showPlay = false)
         }
         Column(Modifier.weight(1f)) {
             Text(v.title, style = MaterialTheme.typography.titleSmall, maxLines = 2, color = MaterialTheme.colorScheme.onSurface)
@@ -401,13 +408,7 @@ private fun NoKeyCard(
                 Text(if (howTo) "Hide how to get a key" else "How do I get a key?")
             }
             if (howTo) {
-                SandNote(
-                    "1. Open the Google Cloud console and create a project.\n" +
-                        "2. Turn on \"YouTube Data API v3\" for it.\n" +
-                        "3. Create an API key under Credentials.\n" +
-                        "4. Paste it in Settings > API keys > YouTube, then tap Test.\n" +
-                        "It costs nothing at this size of use.",
-                )
+                KeySteps()
             }
         }
         IntakeCard {
@@ -436,6 +437,24 @@ private fun NoKeyCard(
                 shape = IntakeShape.Button,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
             ) { Text(if (linkBusy) "Looking it up" else "Open this video") }
+        }
+    }
+}
+
+
+/** Every step to a YouTube key, in order, and how to lock the key down afterwards. Also shown under Settings > API keys. */
+@Composable
+fun KeySteps(modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        com.zeroindex.intake.domain.videos.YoutubeKeyGuide.SECTIONS.forEach { section ->
+            Text(section.title, style = MaterialTheme.typography.titleSmall)
+            section.steps.forEachIndexed { i, step ->
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("${i + 1}.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                    Text(step, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                }
+            }
+            section.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
     }
 }
