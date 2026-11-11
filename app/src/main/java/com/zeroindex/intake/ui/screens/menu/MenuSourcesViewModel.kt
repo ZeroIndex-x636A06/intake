@@ -95,9 +95,14 @@ class MenuSourcesViewModel @Inject constructor(
      * Cancel that stops the download or the request in flight and puts the source back as it was.
      */
     fun run(source: MenuSourceEntity) {
-        gateway.unavailableReason()?.let { reason ->
-            _state.update { it.copy(error = reason.message) }
-            return
+        // A link is tried even with AI off: a page that publishes its menu as structured data is read with no model,
+        // and one that does not is refused by the gateway inside the import, with the same reason. Pasted text and a
+        // picked PDF always need the model, so those stop here.
+        if (source.kind != MenuSourceKind.URL) {
+            gateway.unavailableReason()?.let { reason ->
+                _state.update { it.copy(error = reason.message) }
+                return
+            }
         }
         if (importJob?.isActive == true) return
         _state.update { it.copy(running = MenuProgress("Starting…"), error = null) }
