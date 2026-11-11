@@ -52,6 +52,11 @@ data class ProgramEntity(
     @ColumnInfo(defaultValue = "0") val isStandalone: Boolean = false,
     /** The YouTube video id this workout was made from ("Make this a workout"), so the video plays from the workout too. */
     val videoId: String? = null,
+    /**
+     * Every this many weeks the program takes an easy week by itself (lighter, one set fewer). Null for none: programs
+     * built by hand, imports and saved workouts.
+     */
+    val deloadEveryWeeks: Int? = null,
     override val createdAt: Long,
     override val updatedAt: Long,
     override val deletedAt: Long? = null,

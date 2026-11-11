@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 3,
-    "identityHash": "3b4430f99052054fff6c00d309661a9c",
+    "identityHash": "373ef185e1c8b3c9054eb0af2d9d1821",
     "entities": [
       {
         "tableName": "food",
@@ -1311,7 +1311,7 @@
       },
       {
         "tableName": "program",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `isActive` INTEGER NOT NULL, `currentWeek` INTEGER NOT NULL, `currentDayIndex` INTEGER NOT NULL, `isStandalone` INTEGER NOT NULL DEFAULT 0, `videoId` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `isActive` INTEGER NOT NULL, `currentWeek` INTEGER NOT NULL, `currentDayIndex` INTEGER NOT NULL, `isStandalone` INTEGER NOT NULL DEFAULT 0, `videoId` TEXT, `deloadEveryWeeks` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -1360,6 +1360,11 @@
             "fieldPath": "videoId",
             "columnName": "videoId",
             "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "deloadEveryWeeks",
+            "columnName": "deloadEveryWeeks",
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "createdAt",
@@ -4438,7 +4443,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '3b4430f99052054fff6c00d309661a9c')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '373ef185e1c8b3c9054eb0af2d9d1821')"
     ]
   }
 }

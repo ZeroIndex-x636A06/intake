@@ -515,7 +515,7 @@ private class ProgramGenerator(raw: GeneratorInputs) {
             TrainingGoal.ATHLETIC -> "Athletic: fast low-rep jumps and lifts first, then strength work on the main lifts."
         }
         out += progressionWhy()
-        out += "Deload every $deload weeks: same exercises, about half the sets and 10% less weight, to shed fatigue."
+        out += "Every $deload weeks Intake makes the week easy by itself: same exercises, 10% lighter and one set fewer, to shed fatigue."
         if (inputs.focusMuscles.isNotEmpty()) {
             out += "Focus on " + inputs.focusMuscles.sorted().joinToString(", ") +
                 ": about 25% more sets, placed early in the session."
@@ -538,8 +538,8 @@ private class ProgramGenerator(raw: GeneratorInputs) {
         append("Made by Intake for: ${goal.label.lowercase()}, ${exp.label.lowercase()} lifter, ")
         append("${inputs.daysPerWeek} days a week, about ${inputs.sessionMinutes} minutes. ")
         append("Every number can be edited. ")
-        append("Deload: every $deload weeks (weeks $deload, ${deload * 2}, ${deload * 3} ...) keep the same exercises, do about half the sets ")
-        append("and use about 10% less weight, stopping well short of failure.")
+        append("Easy week: every $deload weeks (weeks $deload, ${deload * 2}, ${deload * 3} ...) Intake lowers the weights 10% ")
+        append("and takes one set off each exercise for a week.")
     }
 
     private companion object {

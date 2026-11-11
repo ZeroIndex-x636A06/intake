@@ -54,6 +54,7 @@ import com.zeroindex.intake.domain.training.RuleParams
 import com.zeroindex.intake.domain.training.SetResult
 import com.zeroindex.intake.domain.training.StartingWeight
 import com.zeroindex.intake.domain.training.PastSet
+import com.zeroindex.intake.domain.training.ScheduledDeload
 import com.zeroindex.intake.domain.training.StartingWeightContext
 import com.zeroindex.intake.domain.training.StartingWeightEstimate
 import com.zeroindex.intake.domain.training.StartingWeightEstimator
@@ -791,6 +792,20 @@ class TrainingRepository @Inject constructor(
         val nextIndex = (days.indexOfFirst { it.id == dayId } + 1) % days.size
         val nextWeek = if (nextIndex == 0) program.currentWeek + 1 else program.currentWeek
         programDao.updatePosition(program.id, nextWeek, nextIndex, clock.nowMillis())
+        // The program's planned easy week starts by itself when its week comes round (see ScheduledDeload).
+        if (nextIndex == 0 && ScheduledDeload.startsWith(nextWeek, program.deloadEveryWeeks)) {
+            val now = clock.nowMillis()
+            val until = now + ScheduledDeload.DAYS * 24L * 60 * 60 * 1000
+            settingsRepository.updateCoachState {
+                it.copy(
+                    deloadUntilMillis = until,
+                    deloadPercent = ScheduledDeload.PERCENT,
+                    easyUntilMillis = until,
+                    easySetsLess = ScheduledDeload.SETS_LESS,
+                    lastDeloadDay = clock.today().toEpochDay(),
+                )
+            }
+        }
     }
 
     suspend fun logSet(

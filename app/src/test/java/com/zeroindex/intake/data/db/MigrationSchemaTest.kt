@@ -164,6 +164,23 @@ class MigrationSchemaTest {
     }
 
     @Test
+    fun migrationTwoToThreeAddsTheDeloadCadenceAndLeavesExistingProgramsWithoutOne() {
+        val v2 = createAt(2)
+        v2.exec(
+            "INSERT INTO program (id, name, description, isActive, currentWeek, currentDayIndex, createdAt, updatedAt, deletedAt) " +
+                "VALUES ('p1', 'Upper lower', '', 1, 5, 0, 1, 1, NULL)",
+        )
+        MIGRATION_2_3_STATEMENTS.forEach { v2.exec(it) }
+        val row = v2.rows("SELECT name, currentWeek, deloadEveryWeeks FROM program").single()
+        assertThat(row["currentWeek"]).isEqualTo(5)
+        assertThat(row["deloadEveryWeeks"]).isNull()
+        v2.exec("UPDATE program SET deloadEveryWeeks = 6 WHERE id = 'p1'")
+        assertThat(v2.rows("SELECT deloadEveryWeeks FROM program").single()["deloadEveryWeeks"]).isEqualTo(6)
+        assertMatches(v2, 3)
+        v2.close()
+    }
+
+    @Test
     fun migrationTwoToThreeAddsTheVideoTablesAndTheWorkoutVideoLinkAndKeepsEveryProgram() {
         val v2 = createAt(2)
         fun programColumns(v: Int) = entities(v).getValue("program")["fields"]!!.jsonArray.map { it.jsonObject["columnName"]!!.jsonPrimitive.content }
