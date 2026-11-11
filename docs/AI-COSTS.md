@@ -59,6 +59,35 @@ row here.
 | 10 | `data/ai/video/VideoWorkoutAi.kt` via `MakeWorkoutViewModel` | `VIDEO_TO_WORKOUT` | **User action**: the "Improve with AI" button on Make this a workout | Chapters and description lines are read on the phone first (`VideoWorkoutDrafter`) and matched to the exercise library; the button is an optional second step the person taps after seeing that draft, or when nothing was found | The video's title, length, chapters and a trimmed description (up to 4,000 characters), no personal data | Daily insight model (text) | Guard; the button is hidden when AI is off or there is no key. The reply must fit a strict schema (one repair attempt); it only fills the review list, nothing is saved unseen |
 | 9 | `data/ai/benchmark/BenchmarkRunner.kt` | `BENCHMARK` | **User action**: Run benchmark, after the cost ceiling is shown and confirmed | n/a (it measures models) | The bundled fixtures, no personal data | per task | Guard (switch, budget); also has its own spend cap |
 
+### Which model, and what happens when it has no provider
+
+- **The suggestion is privacy-checked.** `ModelSuggester.suggest` takes the privacy setting and the endpoint data
+  (`domain/ai/ModelFit.kt`): a model with no healthy provider that meets the setting and accepts the parameters the task
+  sends is not suggested (and shows as unavailable in the picker). The request always sets `require_parameters`, so the
+  parameters count: a strict schema or JSON mode, `max_tokens`, `tools` for the web-search tasks, and `temperature` only
+  for a model that lists it. A request no longer sends `temperature` to a model whose providers do not list it (Claude
+  Haiku 5.5 and GPT-6 Luna list none); that mismatch is what made every task on those models fail with the privacy
+  message while the photo task, on a model that lists it, worked.
+- **Gateway fallback** (`AiGateway.sendWithFallback`): on a "no provider" answer (privacy or parameters) the gateway
+  tries the next models from `AiEnvironment.fallbackModels` (the suggestion, then the other shortlisted models, then any
+  other capable model, all provider-compatible), at most **3 models in all**, with the same privacy setting. Each attempt
+  is its own row in the usage log (failure kind "Privacy setting"). Any other error is reported at once. If all fail, the
+  message names the app's "Privacy for AI requests" and the OpenRouter account's privacy page. The benchmark does not
+  fall back: it measures one named model.
+- A call that fails over to another model can cost differently from the model the person chose; the model that actually
+  answered is what the usage log and the cost line record.
+
+### Photo estimate: questions and the follow-up
+
+When the photo model is not confident it returns up to three short questions (2 to 4 choices each). They show as chips
+above the estimate. Pressing "Update the estimate with my answers" sends **one** follow-up request (same feature, same
+user action, same guard and budget check, no photo: the first look, the answers and the note) and replaces the numbers.
+The cost line shows both calls summed. No questions are shown when the model says it is confident. A packaged product
+the model names offers "Find this product instead" (Log food search with the name filled in). Hidden-calorie sources carry
+a basis (seen in the photo, your note, your answer, or a guess); a guess is not shown as counted, and the prompt forbids
+adding butter, milk or oil by default. Allergen warnings raised by the first look are carried into the follow-up and can
+only be added to (`PhotoFollowUp.carryAllergens`).
+
 Two OpenRouter requests are not model calls and never send anything about you:
 
 | Call | Trigger | Notes |

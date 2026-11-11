@@ -83,7 +83,12 @@ estimate instead, so a missing figure cannot get past the cap.
 Requests run one at a time, so measured speed is not skewed by the run itself,
 and they use your privacy setting (for "No data collection", OpenRouter's
 `data_collection: deny`). A model that has no provider meeting that setting is
-skipped, not failed.
+skipped, not failed. The same check (`ModelFit`, built on `BenchmarkCandidates.verdict`) now decides which model the
+app *suggests* for a task and which models the gateway falls back to: a model with no healthy provider that meets the
+privacy setting and accepts what the task sends (a schema, tools for the web-search tasks, `max_tokens`, and
+`temperature` only for models that list it) is never suggested, and the picker marks it "Not available with your
+privacy setting". Provider data is looked up for each task's shortlist and the head of its ranking when Settings, AI
+opens and before a call; where it is unknown (offline), nothing is excluded.
 
 A model's row is stored only when all its fixtures ran and OpenRouter reported
 a cost. A model cut off by the cap, cancelled, or failing partway is listed as
