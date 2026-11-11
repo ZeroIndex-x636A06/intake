@@ -180,7 +180,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.optionRows(
     if (section.options.isEmpty() && section.kind == SwapKind.SAVED_EAT_OUT) {
         item(key = "empty-eatout") {
             Text(
-                "No saved eat-out options yet. Save one from a nearby search, or import a plan that has them. They work with no signal.",
+                "No saved eat-out options or imported menus yet. Save one from a nearby search, import a restaurant menu, or import a plan that has them. They work with no signal.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

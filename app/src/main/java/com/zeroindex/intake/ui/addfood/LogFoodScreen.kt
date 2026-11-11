@@ -157,6 +157,7 @@ fun LogFoodScreen(
                         onQuickAdd = { food -> viewModel.quickAddDefault(food, mealSlot, loggedAtMillis) },
                         onChooseRef = { ref -> viewModel.chooseRef(ref) { food, _ -> openEntity(food) } },
                         onChooseOff = { food -> viewModel.chooseOff(food, openEntity) },
+                        onLogMenu = { row -> viewModel.logMenuItem(row, mealSlot, loggedAtMillis) },
                         onOpenDrinks = onOpenDrinks,
                         onCreate = { name, brand, grams, label, k, p, c, f ->
                             viewModel.createFood(name, brand, grams, label, k, p, c, f, onCreated = openEntity)
@@ -345,6 +346,7 @@ private fun SearchTab(
     onQuickAdd: (FoodEntity) -> Unit,
     onChooseRef: (RefFood) -> Unit,
     onChooseOff: (FoodEntity) -> Unit,
+    onLogMenu: (MenuRow) -> Unit,
     onOpenDrinks: (String) -> Unit,
     onCreate: (String, String?, Double, String, Double, Double, Double, Double) -> Unit,
 ) {
@@ -414,7 +416,7 @@ private fun SearchTab(
         val offResults = (state.offState as? OffUiState.Results)?.foods.orEmpty()
         val usdaApiResults = (state.searchState as? SearchState.Remote)?.results.orEmpty()
         val nothingYet = state.localResults.isEmpty() && state.refResults.isEmpty() &&
-            offResults.isEmpty() && usdaApiResults.isEmpty()
+            offResults.isEmpty() && usdaApiResults.isEmpty() && state.menuRows.isEmpty()
 
         // Results arrive above rows that are already on screen (the phone's own foods and the offline database come in
         // over the Open Food Facts section), and a lazy list stays on the row it was showing. Without this the best
@@ -429,6 +431,14 @@ private fun SearchTab(
                 item(key = "h-local") { SourceHeader("My foods and recents") }
                 items(items = state.localResults, key = { "l-${it.id}" }) { food ->
                     FoodRow(food, food.id in state.safeFoodIds, state.rowAllergens[food.id], onOpen, onQuickAdd)
+                }
+            }
+
+            // Imported restaurant menus: on this phone, logged per serving with the item's own numbers.
+            if (state.menuRows.isNotEmpty()) {
+                item(key = "h-menu") { SourceHeader("Restaurant menus (imported, works offline)") }
+                items(items = state.menuRows, key = { "m-${it.hit.item.id}" }) { row ->
+                    MenuItemRow(row, onLogMenu)
                 }
             }
 
@@ -634,6 +644,48 @@ private fun MyFoodsTab(
 @Composable
 private fun SourceHeader(text: String) {
     Eyebrow(text = text, modifier = Modifier.padding(start = 16.dp, top = 10.dp, bottom = 4.dp))
+}
+
+/**
+ * An imported restaurant menu item: name over restaurant and the numbers for one serving, the allergen chip (when the
+ * person avoids anything) and a "+" that logs one serving after the allergen check. An item with no ingredient
+ * information says so instead of "No allergens".
+ */
+@Composable
+private fun MenuItemRow(row: MenuRow, onLog: (MenuRow) -> Unit) {
+    val item = row.hit.item
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 65.dp)
+                .padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(item.name, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface, maxLines = 2)
+                Text(
+                    text = buildString {
+                        append(item.restaurantName)
+                        append(" · 1 serving")
+                        item.kcal?.let { append(" · ${it.roundToInt()} kcal") }
+                        item.proteinG?.let { append(" · ${it.roundToInt()} g protein") }
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                )
+                row.allergen?.let {
+                    Spacer(Modifier.size(4.dp))
+                    RowAllergenChip(it)
+                }
+            }
+            IconButton(onClick = { onLog(row) }, modifier = Modifier.size(48.dp)) {
+                Icon(Icons.Filled.Add, contentDescription = "Log one serving of ${item.name} from ${item.restaurantName}")
+            }
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    }
 }
 
 /** A bundled USDA food: name, category, and the numbers for its first listed portion. */

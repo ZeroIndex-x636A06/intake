@@ -114,6 +114,8 @@ class SwapRepository @Inject constructor(
         }
 
         out += savedEatOut(plans.observeEatOutOptions().first())
+        // Imported restaurant menus: cleared, scanned again now, and usable with no signal.
+        out += finder.menuOptions().map(::menuEntry)
         return out
     }
 
@@ -149,6 +151,25 @@ class SwapRepository @Inject constructor(
         )
     }
 
+    /**
+     * An imported menu item as a swap entry, in the "Saved eat-out options" section. Its verdict is from today's scan.
+     * An item with no ingredient information is "check the label", never clear.
+     */
+    fun menuEntry(o: PlanBOption): SwapEntry {
+        val scanVerdict = o.scan.verdict()
+        val unknown = o.nameOnly && scanVerdict == SwapAllergen.CLEAR
+        val verdict = if (unknown) SwapAllergen.CHECK_LABEL else scanVerdict
+        val terms = (o.scan.contains + o.scan.mayContain + o.scan.checkLabel).map { it.matchedTerm }.distinct()
+        val reason = if (unknown) "Ingredients not listed: check with the restaurant" else reasonFor(verdict, terms)
+        return SwapEntry(
+            SwapOption(
+                key = o.key, title = o.order, subtitle = "Imported menu · ${o.restaurant} · works offline",
+                kind = SwapKind.SAVED_EAT_OUT, macros = o.macros, estimate = true, allergen = verdict, allergenReason = reason,
+            ),
+            SwapSource.Found(o),
+        )
+    }
+
     suspend fun saveForOffline(o: PlanBOption) = finder.saveForOffline(o)
 
     /** Logs the choice in place of the planned meal. A "contains" verdict is refused here too. */
@@ -175,7 +196,11 @@ class SwapRepository @Inject constructor(
                 }
             }
             is SwapSource.Found -> {
-                if (src.option.rejected) {
+                // An imported menu item is scanned again now: the screen may be older than the person's allergen list.
+                val live = finder.rescanMenuItem(src.option)
+                if (live != null && live.blocks) {
+                    SwapLogResult.Blocked(reasonFor(SwapAllergen.CONTAINS, live.contains.map { it.matchedTerm }.distinct()) ?: "Contains an allergen you avoid")
+                } else if (src.option.rejected) {
                     SwapLogResult.Blocked(entry.option.allergenReason ?: "Contains an allergen you avoid")
                 } else {
                     val log = finder.log(src.option, slot)

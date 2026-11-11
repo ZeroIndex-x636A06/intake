@@ -85,6 +85,20 @@ When the words match only drinks (on the phone, in the offline database, or in w
 empty state says "Drinks are logged from Drinks" with a button that opens Drinks with the same words. Recents and the
 Mine tab still list drinks the person has logged or saved; they are not searches.
 
+### Restaurant menus (imported)
+
+Menus imported in Menu import are searchable in Log food and usable in Swap, all on this phone:
+
+- **Log food, Search.** A "Restaurant menus (imported, works offline)" section lists saved menu items that have calories
+  and match every word typed (apostrophes and case ignored, restaurant name counts). At most 25 rows, in a lazy list.
+  The "+" logs one serving as a quick add named "Item · Restaurant" with the item's calories, protein, carbohydrate and
+  fat; a number the menu did not give is left at zero, never invented. The item is scanned again at the moment of
+  logging, and a hit opens the same warning sheet as any other food. Code: `MenuLogRepository`, `MenuSearch`.
+- **Swap.** `PlanBFinder.menuOptions()` (part of `offlineOptions()`) offers saved menu items that were clear at import
+  and have calories and protein, scanned again now, the 60 best fits for what is left today. They sit in "Saved
+  eat-out options" with the same macro delta and allergen display as the other options, and a blocked one is shown as
+  blocked, not hidden. Choosing one scans it once more.
+
 ### Allergen chip on every row
 
 When the person avoids anything, every result row, from every source, shows the local engine's verdict

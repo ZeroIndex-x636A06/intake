@@ -26,6 +26,7 @@ import com.zeroindex.intake.domain.ai.PlanBFit
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
 import com.zeroindex.intake.domain.allergen.ModelAllergenClaim
 import com.zeroindex.intake.domain.allergen.ModelAllergenPolicy
+import com.zeroindex.intake.domain.menu.MenuSearch
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nutrition.DayProgress
 import com.zeroindex.intake.domain.nutrition.Macros
@@ -85,6 +86,13 @@ data class PlanBOption(
     /** Already stored on the phone: usable with no signal. */
     val offline: Boolean,
     val savedId: String? = null,
+    /** The imported menu item behind this option, so it can be scanned again when it is chosen. */
+    val menuItemId: String? = null,
+    /**
+     * An imported menu item with no ingredient text and no stated allergens. A clear scan then rules nothing out, so
+     * it is offered as "check the label", never as clear (`AllergenEvidence`).
+     */
+    val nameOnly: Boolean = false,
 ) {
     val rejected: Boolean get() = scan.blocks
 }
@@ -112,6 +120,7 @@ class PlanBFinder @Inject constructor(
 ) {
     companion object {
         const val DEFAULT_RADIUS_MI = 1.0
+        const val MENU_OPTION_LIMIT = 60
     }
 
     suspend fun remaining(): DayProgress {
@@ -120,9 +129,12 @@ class PlanBFinder @Inject constructor(
     }
 
     /** Saved options and cleared menu items, ranked. Never touches the network. */
-    suspend fun offlineOptions(): List<PlanBOption> {
+    suspend fun offlineOptions(): List<PlanBOption> =
+        (savedOptions() + menuOptions()).sortedByDescending { it.fit.score }
+
+    suspend fun savedOptions(): List<PlanBOption> {
         val left = remaining()
-        val saved = planDao.allEatOutOptions().map { o ->
+        return planDao.allEatOutOptions().map { o ->
             option(
                 key = "saved:${o.id}", restaurant = o.venueName, address = o.address, distance = null,
                 order = o.whatToOrder, modifications = "", macros = Macros(o.estimatedKcal.toDouble(), o.estimatedProtein.toDouble(), o.estimatedCarbs.toDouble(), o.estimatedFat.toDouble()),
@@ -130,15 +142,41 @@ class PlanBFinder @Inject constructor(
                 offline = true, savedId = o.id,
             )
         }
-        val menu = menuDao.clearItems().filter { it.kcal != null && it.proteinG != null }.map { m ->
-            option(
-                key = "menu:${m.id}", restaurant = m.restaurantName, address = null, distance = null,
-                order = m.name, modifications = "", macros = Macros(m.kcal ?: 0.0, m.proteinG ?: 0.0, m.carbsG ?: 0.0, m.fatG ?: 0.0),
-                sayThis = "", caution = "From an imported menu - confirm current ingredients when ordering.",
-                risk = null, claims = null, left = left, offline = true,
-            )
+    }
+
+    /**
+     * Imported menu items that were clear when imported and have calories and protein, ranked by how they fit what is
+     * left today. The stored verdict can be stale (the person may have changed what they avoid since), so every item is
+     * scanned again here, off the main thread, with its stated allergens. An item with no ingredient information is
+     * kept but marked [PlanBOption.nameOnly]. At most [limit] are returned: the best fits.
+     */
+    suspend fun menuOptions(limit: Int = MENU_OPTION_LIMIT): List<PlanBOption> {
+        val left = remaining()
+        val items = menuDao.clearItems().filter { it.kcal != null && it.proteinG != null }
+        if (items.isEmpty()) return emptyList()
+        val scanner = allergens.menuScanner()
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            items.map { m ->
+                val scan = scanner(m.name, m.description, m.ingredientsText)
+                val macros = Macros(m.kcal ?: 0.0, m.proteinG ?: 0.0, m.carbsG ?: 0.0, m.fatG ?: 0.0)
+                PlanBOption(
+                    key = "menu:${m.id}", restaurant = m.restaurantName, address = null, distanceMiles = null,
+                    order = m.name, modifications = "", macros = macros, sayThis = "",
+                    caution = "From an imported menu - confirm current ingredients when ordering.",
+                    crossContactRisk = null, scan = scan,
+                    fit = PlanBFit.score(macros.kcal, macros.protein, left.kcalRemaining, left.proteinRemaining),
+                    offline = true, menuItemId = m.id,
+                    nameOnly = !scan.hasAnything && !scan.hasCheckLabel && MenuSearch.hasNoIngredientInfo(m.ingredientsText),
+                )
+            }.sortedByDescending { it.fit.score }.take(limit)
         }
-        return (saved + menu).sortedByDescending { it.fit.score }
+    }
+
+    /** The current scan of the menu item behind [option]: what is stored with it, against what the person avoids now. */
+    suspend fun rescanMenuItem(option: PlanBOption): AllergenScanResult? {
+        val id = option.menuItemId ?: return null
+        val m = menuDao.item(id) ?: return null
+        return allergens.menuScanner()(m.name, m.description, m.ingredientsText)
     }
 
     /**

@@ -24,6 +24,9 @@ import com.zeroindex.intake.data.repository.BarcodeRepository
 import com.zeroindex.intake.data.repository.FoodLogRepository
 import com.zeroindex.intake.data.repository.FoodRepository
 import com.zeroindex.intake.data.repository.FoodSearchRepository
+import com.zeroindex.intake.data.repository.MenuHit
+import com.zeroindex.intake.data.repository.MenuLogOutcome
+import com.zeroindex.intake.data.repository.MenuLogRepository
 import com.zeroindex.intake.data.repository.RemoteResult
 import com.zeroindex.intake.data.repository.ScannedProduct
 import com.zeroindex.intake.domain.allergen.AllergenEvidence
@@ -91,6 +94,9 @@ fun rowAllergenOf(food: FoodEntity, scan: AllergenScanResult): RowAllergen {
         nameOnly = verdict == SwapAllergen.CLEAR && AllergenEvidence.isNameOnlyProduct(food.source, food.isVerified, food.allergenTags),
     )
 }
+
+/** One imported restaurant-menu row in search: the item, and its allergen chip when the person avoids anything. */
+data class MenuRow(val hit: MenuHit, val allergen: RowAllergen?)
 
 /** A save waiting on the allergen sheet's explicit confirmation (SPEC §7.2). */
 data class PendingLog(
@@ -176,6 +182,8 @@ data class AddFoodUiState(
     val checkLabelTerms: List<CheckLabelTerm> = emptyList(),
     /** True when the words typed match drinks (on this phone, in the offline database or in Open Food Facts). */
     val queryMatchesDrinks: Boolean = false,
+    /** Imported restaurant menu items matching the query (B1), scanned on this phone. */
+    val menuRows: List<MenuRow> = emptyList(),
 )
 
 @HiltViewModel
@@ -189,6 +197,7 @@ class AddFoodViewModel @Inject constructor(
     private val foodRefRepository: FoodRefRepository,
     private val offSearchRepository: OffSearchRepository,
     private val drinkRepository: DrinkRepository,
+    private val menuLogRepository: MenuLogRepository,
     private val messages: AppMessages,
     private val settingsRepository: SettingsRepository,
     foodDataPrefs: FoodDataPrefs,
@@ -210,6 +219,34 @@ class AddFoodViewModel @Inject constructor(
                 found.filter { SearchScope.FOODS.keeps(DrinkRule.isStoredDrink(it.drinkCategory)) }
             }
         }
+
+    /**
+     * Imported restaurant menu items for the query. Scanned again here, off the main thread, so the chip is today's
+     * verdict and not the one stored at import; it is also redone when the person changes what they avoid.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
+    private val menuRows: kotlinx.coroutines.flow.Flow<List<MenuRow>> = combine(
+        query.debounce(300),
+        allergenRepository.observeAvoidedAllergens(),
+        allergenRepository.observeAliases(),
+    ) { q, _, _ -> q }.mapLatest { q ->
+        if (q.trim().length < 2) {
+            emptyList()
+        } else {
+            val avoidsSomething = allergenRepository.avoidedAllergens().isNotEmpty()
+            menuLogRepository.search(q.trim()).map { hit ->
+                val verdict = hit.scan.verdict()
+                MenuRow(
+                    hit,
+                    if (avoidsSomething) {
+                        RowAllergen(verdict, hit.scan.chipDetail(), nameOnly = verdict == SwapAllergen.CLEAR && hit.noIngredientInfo)
+                    } else {
+                        null
+                    },
+                )
+            }
+        }
+    }
 
     /** The offline database's foods for the query, and whether the same words also find drinks. */
     private data class RefAnswer(val foods: List<RefFood> = emptyList(), val drinksExist: Boolean = false)
@@ -328,7 +365,8 @@ class AddFoodViewModel @Inject constructor(
         rowAllergens,
         settingsRepository.settings,
         foodRepository.observeAll(),
-    ) { core, allergens, settings, everything ->
+        menuRows,
+    ) { core, allergens, settings, everything, menu ->
         val (tab, query, lists, search, extras) = core
         AddFoodUiState(
             portionUnit = settings.portionUnit,
@@ -350,6 +388,7 @@ class AddFoodViewModel @Inject constructor(
             offState = extras.off,
             offSearchEnabled = extras.offEnabled,
             checkLabelTerms = lists.checkLabelTerms,
+            menuRows = menu,
             queryMatchesDrinks = extras.drinksExist || ((extras.off as? OffUiState.Results)?.drinksLeftOut ?: 0) > 0,
         )
     }.stateIn(
@@ -467,6 +506,21 @@ class AddFoodViewModel @Inject constructor(
         } else {
             foodLogRepository.quickAdd(label, macros, slot, at)
             onLogged()
+        }
+    }
+
+    /**
+     * The "+" on a restaurant-menu row: one serving as a quick add with the item's own numbers. The item is scanned
+     * again first (the stored verdict can be stale); anything the person avoids stages it behind the warning sheet.
+     * A row that says "ingredients not listed" is logged like any other: the chip on the row was the warning.
+     */
+    fun logMenuItem(row: MenuRow, slot: MealSlot, at: Long) = viewModelScope.launch {
+        when (val outcome = menuLogRepository.log(row.hit.item.id, slot, at)) {
+            null -> messages.post(AppMessage("That menu item is no longer saved"))
+            is MenuLogOutcome.NeedsConfirmation -> pendingLog.value = PendingLog(null, outcome.name, null, outcome.macros, outcome.scan)
+            is MenuLogOutcome.Logged -> messages.post(
+                AppMessage("Logged ${row.hit.item.name} to ${slot.name.lowercase()}", "Undo") { foodLogRepository.softDelete(outcome.log.id) },
+            )
         }
     }
 
