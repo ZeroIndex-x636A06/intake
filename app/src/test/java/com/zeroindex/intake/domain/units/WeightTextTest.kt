@@ -36,4 +36,12 @@ class WeightTextTest {
         assertThat(WeightText.format(36.3, WeightUnit.KILOGRAMS)).isEqualTo("36.3 kg")
         assertThat(WeightText.format(WeightUnit.POUNDS.toKg(45.0), WeightUnit.POUNDS)).isEqualTo("45 lb")
     }
+
+    @Test fun theStockStepIsFivePoundsInAPoundGym() {
+        val labels = com.zeroindex.intake.domain.training.ProgressionLabels
+        val type = com.zeroindex.intake.domain.model.ProgressionType.DOUBLE_PROGRESSION
+        assertThat(labels.summary(type, """{"incrementKg":2.5}""", WeightUnit.POUNDS)).endsWith("(+5 lb)")
+        assertThat(labels.summary(type, """{"incrementKg":2.5}""", WeightUnit.KILOGRAMS)).endsWith("(+2.5 kg)")
+        assertThat(labels.summary(type, """{"incrementKg":5.0}""", WeightUnit.POUNDS)).endsWith("(+11 lb)")
+    }
 }

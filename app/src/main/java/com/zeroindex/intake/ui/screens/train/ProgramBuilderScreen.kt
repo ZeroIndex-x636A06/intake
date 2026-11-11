@@ -463,7 +463,7 @@ private fun ExerciseSummaryRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = item.rule?.let { com.zeroindex.intake.domain.units.WeightText.inUnit(ProgressionLabels.summary(it.type, it.params), unit) }
+                text = item.rule?.let { ProgressionLabels.summary(it.type, it.params, unit) }
                     ?: "No progression: weight stays as you set it",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary,

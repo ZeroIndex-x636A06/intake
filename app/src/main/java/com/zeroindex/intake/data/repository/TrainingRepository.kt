@@ -1034,7 +1034,9 @@ class TrainingRepository @Inject constructor(
             runCatching { obj[key]?.jsonPrimitive?.content }.getOrNull()
 
         return defaults.copy(
-            incrementKg = num("incrementKg") ?: defaults.incrementKg,
+            // The stock rules say 2.5 kg. That stands for "the smallest step this gym can load": 2.5 kg with kilogram
+            // plates, 5 lb with pound plates. A step the person set themselves is used as it is.
+            incrementKg = num("incrementKg")?.takeIf { it != ProgressionLabels.STOCK_INCREMENT_KG } ?: defaults.incrementKg,
             deloadPercent = num("deloadPercent") ?: defaults.deloadPercent,
             failuresBeforeDeload = num("failuresBeforeDeload")?.toInt()
                 ?: defaults.failuresBeforeDeload,
