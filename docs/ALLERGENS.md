@@ -89,6 +89,21 @@ A clear result is only as strong as the data behind it (`AllergenEvidence`, test
 This only ever makes a clear result more cautious. A hit of any tier is shown as the hit it is, and the full check
 still runs before anything is logged.
 
+### Imported restaurant menu items
+
+Imported menu items appear in Log food ("Restaurant menus") and in the Swap sheet's saved eat-out section. They are
+scanned again every time they are shown or logged (`AllergenRepository.menuScanner`), because the verdict stored at
+import can be older than the person's allergen list. The scan reads the name, the description and the ingredient text,
+and hands the restaurant's stated "Contains: ... ; May contain: ..." line to the engine as structured contains and
+trace inputs (`StatedAllergens`). A stated list can raise a verdict and never clear one.
+
+A menu item that carries no ingredient text and no stated allergens (`MenuSearch.hasNoIngredientInfo`, which is
+`AllergenEvidence` for a name-only product) is never shown as "No allergens": Log food says "No ingredient list: check
+the label", and Swap offers it as "check the label" with the reason "Ingredients not listed". An item read from a
+restaurant's own allergen chart always has stated text: the list the chart gave, or a line saying the chart lists no
+major allergens. That line covers the major allergens only; it cannot speak for a custom allergen the chart never
+considered, the same as any generic food.
+
 ## Custom allergens and keywords
 
 My allergens (Food, Allergens) lists all fifteen plus your own, searchable. A switch per allergen says whether you avoid it, and the profile's severity (Avoid / Strict) is set on the same screen. Tap an allergen for its keywords, grouped by level, with Add keyword.

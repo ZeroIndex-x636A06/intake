@@ -303,6 +303,34 @@ class AllergenRepository @Inject constructor(
         }
     }
 
+    /**
+     * One engine setup for many imported menu items. Each item is scanned by its name, description and ingredient
+     * text, and the "Contains: ... ; May contain: ..." line a restaurant's chart stated for it is also handed over as
+     * structured allergens (`StatedAllergens`). A stated list can only raise the result.
+     */
+    suspend fun menuScanner(): (name: String, description: String, ingredients: String) -> AllergenScanResult {
+        val avoided = allergenDao.profile().avoidedSet()
+        if (avoided.isEmpty()) return { _, _, _ -> AllergenScanResult.CLEAN }
+        val aliases = allergenDao.aliases().map {
+            AllergenAlias(allergen = it.allergen, aliasTerm = it.aliasTerm, level = it.level)
+        }
+        val checkTerms = HiddenCarriers.forAllergens(avoided) +
+            PlanWatchTerms.extract(PlanMeta.decode(planDao.activePlan()?.metaJson).hiddenDairyChecklist)
+        return { name, description, ingredients ->
+            val stated = com.zeroindex.intake.domain.menu.StatedAllergens.parse(ingredients)
+            AllergenMatcher.scan(
+                aliases = aliases,
+                avoidedAllergens = avoided,
+                name = name,
+                ingredients = listOf(description, com.zeroindex.intake.domain.menu.StatedAllergens.textForScan(ingredients).orEmpty())
+                    .filter { it.isNotBlank() }.joinToString("\n").ifBlank { null },
+                structuredContains = stated.contains,
+                structuredTraces = stated.mayContain,
+                checkLabelTerms = checkTerms,
+            )
+        }
+    }
+
     suspend fun scan(food: FoodEntity): AllergenScanResult = scan(
         name = food.name,
         brand = food.brand,

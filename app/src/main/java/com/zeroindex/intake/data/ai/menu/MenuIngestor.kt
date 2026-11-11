@@ -20,6 +20,9 @@ import com.zeroindex.intake.domain.ai.MenuStructured
 import com.zeroindex.intake.domain.ai.MenuText
 import com.zeroindex.intake.domain.ai.StructuredMenuItem
 import com.zeroindex.intake.domain.allergen.ModelAllergenClaim
+import com.zeroindex.intake.domain.menu.MenuTableParse
+import com.zeroindex.intake.domain.menu.NutritionTableParser
+import com.zeroindex.intake.domain.menu.StatedAllergens
 import com.zeroindex.intake.domain.pdf.PdfChunkPlanner
 import com.zeroindex.intake.domain.pdf.PdfDocument
 import com.zeroindex.intake.domain.pdf.PdfUnsupportedException
@@ -55,7 +58,25 @@ data class ParsedItem(
 /** A parsed item with the local engine's verdict, before anything is saved. */
 data class StagedItem(val entity: MenuItemEntity, val accepted: Boolean = entity.allergenStatus != AllergenStatus.CONTAINS)
 
-class MenuImportException(message: String) : Exception(message)
+open class MenuImportException(message: String) : Exception(message)
+
+/**
+ * The on-phone reader found no nutrition table in a PDF (or this phone cannot read PDF text). Nothing was sent
+ * anywhere. The message says why, and the person can choose to have the AI path read the file instead.
+ */
+class MenuNoTableException(message: String) : MenuImportException(message)
+
+/** How a PDF is read: on the phone first, and whether the AI path may follow. */
+enum class PdfRoute {
+    /** On the phone; if it finds no table, stop with [MenuNoTableException] so the person can choose AI. */
+    PHONE_ONLY,
+
+    /** On the phone; if it finds no table, go on to the AI path (the scheduled refresh, which the person opted into). */
+    PHONE_THEN_AI,
+
+    /** Straight to the AI path: the person chose it after the phone found nothing. */
+    AI_ONLY,
+}
 
 /**
  * Amendment §1 menu ingestion: fetch, extract, parse, then judge every item
@@ -75,7 +96,12 @@ class MenuImportException(message: String) : Exception(message)
  * PDF or pasted text - it never tries another way in.
  */
 /** What a menu import produced: the staged items, and plain notes about anything that could not be read. */
-data class StageOutcome(val items: List<StagedItem>, val warnings: List<String> = emptyList())
+data class StageOutcome(
+    val items: List<StagedItem>,
+    val warnings: List<String> = emptyList(),
+    /** True when the items were read on this phone from the PDF's own text, with no AI. */
+    val readOnPhone: Boolean = false,
+)
 
 /** Where an import is up to, for the progress line. [fraction] is null when it cannot be told. */
 data class MenuProgress(val message: String, val fraction: Float? = null)
@@ -85,6 +111,7 @@ class MenuIngestor @Inject constructor(
     @ApplicationContext private val context: Context,
     private val fetcher: MenuFetcher,
     private val gateway: AiGateway,
+    private val phonePdf: PhonePdfText,
     private val allergens: AllergenRepository,
     private val menuDao: MenuDao,
     private val clock: Clock,
@@ -101,6 +128,7 @@ class MenuIngestor @Inject constructor(
         source: MenuSourceEntity,
         trigger: AiTrigger,
         onProgress: (MenuProgress) -> Unit = {},
+        pdfRoute: PdfRoute = PdfRoute.PHONE_THEN_AI,
     ): StageOutcome = withContext(Dispatchers.Default) {
         val avoided = allergens.avoidedAllergens()
         val parts: List<AiPart>
@@ -115,7 +143,7 @@ class MenuIngestor @Inject constructor(
                 val bytes = withContext(Dispatchers.IO) {
                     context.contentResolver.openInputStream(Uri.parse(source.location))?.use { readPdfStream(it) }
                 } ?: throw MenuImportException("The PDF could not be opened. Pick it again.")
-                return@withContext stagePdf(source, bytes, avoided, trigger, onProgress)
+                return@withContext stagePdf(source, bytes, avoided, trigger, onProgress, pdfRoute)
             }
             MenuSourceKind.URL -> {
                 onProgress(MenuProgress("Downloading…"))
@@ -127,7 +155,7 @@ class MenuIngestor @Inject constructor(
                         ),
                     )
                 }
-                if (fetched is Fetched.Pdf) return@withContext stagePdf(source, fetched.bytes, avoided, trigger, onProgress)
+                if (fetched is Fetched.Pdf) return@withContext stagePdf(source, fetched.bytes, avoided, trigger, onProgress, pdfRoute)
                 val page = fetched as? Fetched.Page
                 // The deterministic path: structured menu data on the page needs no model.
                 val structured = page?.html?.let(MenuStructured::parse).orEmpty()
@@ -177,7 +205,11 @@ class MenuIngestor @Inject constructor(
         avoided: Set<String>,
         trigger: AiTrigger,
         onProgress: (MenuProgress) -> Unit,
+        route: PdfRoute,
     ): StageOutcome {
+        if (route != PdfRoute.AI_ONLY) {
+            readOnPhone(source, bytes, route, onProgress)?.let { return it }
+        }
         onProgress(MenuProgress("Reading the PDF's pages…"))
         val doc = try {
             PdfDocument.parse(bytes)
@@ -237,6 +269,90 @@ class MenuIngestor @Inject constructor(
         return StageOutcome(stageItems(source, merged, avoided, structured = false), warnings)
     }
 
+    /**
+     * The no-AI route: the platform's PDF reader gives the text, [NutritionTableParser] reads the table, and every row
+     * is judged by the local allergen engine. Returns null when no table was found and the AI path may follow
+     * ([PdfRoute.PHONE_THEN_AI]); throws [MenuNoTableException] when the person is to be asked first.
+     */
+    private suspend fun readOnPhone(
+        source: MenuSourceEntity,
+        bytes: ByteArray,
+        route: PdfRoute,
+        onProgress: (MenuProgress) -> Unit,
+    ): StageOutcome? {
+        onProgress(MenuProgress("Reading the PDF on this phone…"))
+        val why: String = when (val read = phonePdf.read(bytes)) {
+            is PhonePdfText.Result.Pages -> {
+                onProgress(MenuProgress("Looking for a nutrition table…"))
+                val table = NutritionTableParser.parse(read.pages)
+                if (table.foundTable) {
+                    onProgress(MenuProgress("Checking allergens on this phone…", 1f))
+                    val warnings = if (table.skipped > 0) {
+                        listOf(
+                            "${table.skipped} line${if (table.skipped == 1) "" else "s"} that looked like menu items were left out because their numbers did not fit the columns. Nothing was guessed.",
+                        )
+                    } else {
+                        emptyList()
+                    }
+                    return StageOutcome(stageTable(source, table), warnings, readOnPhone = true)
+                }
+                "The reader on this phone found no nutrition table in that file. It needs a PDF with selectable text."
+            }
+            is PhonePdfText.Result.Unsupported -> read.reason
+            is PhonePdfText.Result.Failed -> read.reason
+        }
+        if (route == PdfRoute.PHONE_ONLY) throw MenuNoTableException(why)
+        return null
+    }
+
+    /** Judges each table row with the local engine, handing it the restaurant's stated allergens as structured inputs. */
+    private suspend fun stageTable(source: MenuSourceEntity, table: MenuTableParse): List<StagedItem> {
+        val now = clock.nowMillis()
+        val scan = allergens.menuScanner()
+        return table.rows.map { row ->
+            coroutineContext.ensureActive()
+            // A chart lists the major allergens an item contains. An item it lists none for says so in words, so the
+            // item carries ingredient information and is not shown as "ingredients not listed".
+            val ingredients = row.stated.toText().ifBlank { CHART_LISTS_NONE }
+            val description = listOfNotNull(
+                row.category,
+                row.servingWeightG?.let { "${num(it)} g serving" } ?: row.servingLabel,
+                "saturated fat ${num(row.saturatedFatG)} g",
+                "sodium ${num(row.sodiumMg)} mg",
+                "fibre ${num(row.fiberG)} g",
+                "sugars ${num(row.sugarsG)} g",
+                "cooked or made where other allergens are present".takeIf { row.sharedFacility },
+            ).joinToString(" · ")
+            val verdict = withContext(Dispatchers.Default) { scan(row.name, description, ingredients) }
+            StagedItem(
+                MenuItemEntity(
+                    sourceId = source.id,
+                    restaurantName = source.restaurantName,
+                    name = row.name,
+                    description = description,
+                    ingredientsText = ingredients,
+                    kcal = row.kcal,
+                    proteinG = row.proteinG,
+                    carbsG = row.carbsG,
+                    fatG = row.fatG,
+                    macrosPublished = true,
+                    allergenStatus = when {
+                        verdict.blocks -> AllergenStatus.CONTAINS
+                        verdict.mayContain.isNotEmpty() -> AllergenStatus.MAY_CONTAIN
+                        verdict.checkLabel.isNotEmpty() -> AllergenStatus.CHECK_LABEL
+                        else -> AllergenStatus.CLEAR
+                    },
+                    allergenMatches = verdict.matches.map { it.matchedTerm }.distinct().joinToString(", "),
+                    importedAt = now,
+                    createdAt = now,
+                    updatedAt = now,
+                ),
+            )
+        }
+    }
+
+    private fun num(v: Double): String = if (v == Math.floor(v)) v.toLong().toString() else "%.1f".format(java.util.Locale.US, v)
+
     /** Problems with the account or the connection stop the whole import; a bad page only costs that page. */
     private fun AiError.endsImport(): Boolean = when (this) {
         AiError.NoKey, AiError.Off, is AiError.BudgetReached, is AiError.NotAllowed, AiError.Unauthorized,
@@ -275,9 +391,13 @@ class MenuIngestor @Inject constructor(
         val now = clock.nowMillis()
         return items.map { item ->
             coroutineContext.ensureActive()
+            // A "Contains: ... ; May contain: ..." line in the text is also handed over as structured allergens.
+            val stated = StatedAllergens.parse(item.ingredients)
             val local = allergens.scan(
                 name = item.name,
                 ingredients = listOf(item.description, item.ingredients).filter { it.isNotBlank() }.joinToString("\n"),
+                structuredContains = stated.contains,
+                structuredTraces = stated.mayContain,
             )
             val verdict = ModelAllergenPolicy.merge(
                 local = listOf(local),
@@ -343,6 +463,8 @@ class MenuIngestor @Inject constructor(
         return ok
     }
 }
+
+internal const val CHART_LISTS_NONE = "Restaurant allergen chart: no major allergens listed"
 
 /** The menu-import prompt and schema, shared with the in-app benchmark so both measure the same request. */
 internal object MenuPrompts {

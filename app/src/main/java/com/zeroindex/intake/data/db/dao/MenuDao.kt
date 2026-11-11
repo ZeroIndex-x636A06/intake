@@ -31,6 +31,9 @@ interface MenuDao {
     @Query("SELECT * FROM menu_item WHERE deletedAt IS NULL ORDER BY restaurantName, name")
     suspend fun allItems(): List<MenuItemEntity>
 
+    @Query("SELECT * FROM menu_item WHERE id = :id AND deletedAt IS NULL")
+    suspend fun item(id: String): MenuItemEntity?
+
     /** Items the local engine cleared, for Plan B to rank offline. */
     @Query(
         "SELECT * FROM menu_item WHERE deletedAt IS NULL AND allergenStatus = 'CLEAR' ORDER BY restaurantName, name",

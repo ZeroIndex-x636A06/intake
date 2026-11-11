@@ -138,6 +138,9 @@ Every request also sends the header `X-Title: Intake`.
   the privacy setting, the app tries up to two other models that do (same setting, never relaxed) and logs each
   attempt. If all fail, the message names both places that decide it: Settings, AI, "Privacy for AI requests", and your
   OpenRouter account's own privacy page (openrouter.ai/settings/privacy), which can block providers too.
+- **A menu PDF is read on the phone first, with no AI.** On Android 15 or later the platform PDF reader's text is
+  parsed on the phone (`NutritionTableParser`); if it finds a nutrition table, nothing is sent anywhere. Only when it
+  finds none does the app offer the AI path below, and only a tap on that offer sends the PDF.
 - **PDFs are sent to OpenRouter for parsing.** A menu PDF, from a link or a picked file, is sent as page-sized pieces in
   `file` parts with the `file-parser` plugin (free text engine). The privacy setting applies, but note that
   OpenRouter's own documentation says plugin processing is not covered by ZDR routing. A link is downloaded by the

@@ -85,6 +85,51 @@ When the words match only drinks (on the phone, in the offline database, or in w
 empty state says "Drinks are logged from Drinks" with a button that opens Drinks with the same words. Recents and the
 Mine tab still list drinks the person has logged or saved; they are not searches.
 
+### Restaurant menus (imported)
+
+Menus imported in Menu import are searchable in Log food and usable in Swap, all on this phone:
+
+- **Log food, Search.** A "Restaurant menus (imported, works offline)" section lists saved menu items that have calories
+  and match every word typed (apostrophes and case ignored, restaurant name counts). At most 25 rows, in a lazy list.
+  The "+" logs one serving as a quick add named "Item · Restaurant" with the item's calories, protein, carbohydrate and
+  fat; a number the menu did not give is left at zero, never invented. The item is scanned again at the moment of
+  logging, and a hit opens the same warning sheet as any other food. Code: `MenuLogRepository`, `MenuSearch`.
+- **Swap.** `PlanBFinder.menuOptions()` (part of `offlineOptions()`) offers saved menu items that were clear at import
+  and have calories and protein, scanned again now, the 60 best fits for what is left today. They sit in "Saved
+  eat-out options" with the same macro delta and allergen display as the other options, and a blocked one is shown as
+  blocked, not hidden. Choosing one scans it once more.
+
+### Reading a nutrition PDF on the phone (no AI)
+
+A restaurant's nutrition-and-allergen PDF with a text layer is read on the phone before any AI is considered:
+
+1. `PhonePdfText` asks the platform PDF reader for the page text (`PdfRenderer.Page.getTextContents()`, Android 15 /
+   API 35 and later). `PdfTextLayout` puts the positioned fragments back into lines, whatever order the reader returned
+   them in. On an older phone, or for a password-protected or damaged file, it reads nothing.
+2. `NutritionTableParser` (pure Kotlin, in `domain/menu`) finds the rows. A row is a name, an optional
+   "Contains: ... ; May contain: ..." clause, and a run of 12 numbers: serving weight (g), calories, calories from
+   fat, fat, saturated fat, trans fat, cholesterol (mg), sodium (mg), carbohydrate, fibre, sugars, protein. A run of 11
+   with a size word ("Small", "8oz") where the weight would be is a drink-style row with no weight. A name line followed
+   by a numbers-only line is joined. Capital-letter lines are section headings and become the category.
+   Column order comes from the heading words when one line names at least eight of them in order, and is the common
+   order above otherwise (a rotated heading comes out one word per line in a shuffled order, so it is not trusted).
+3. A row is used only when its numbers fit (saturated fat not above fat, fibre and sugars not above carbohydrate,
+   calories within a loose margin of 4 x protein + 4 x carbohydrate + 9 x fat). A row that does not fit is skipped and
+   counted, and the review sheet says how many; nothing is guessed.
+4. Stated allergens: "Contains" and "May contain" go to the allergen engine as structured inputs; a "†" list (cooked in
+   the same oil) and a "**" footnote word count as "may contain", and a leading "*" adds peanuts and tree nuts when the
+   document has the facility footnote. They can raise a verdict and never clear one.
+5. If a table is found, the same review sheet as an AI import opens, headed "read on this phone, no AI". If none is
+   found, the app says why and offers "Read it with AI" (the existing path, unchanged); nothing is sent until that tap.
+   The scheduled weekly refresh, which is opt-in to AI already, goes on to the AI path by itself.
+
+Only the common nutrients the menu item stores are kept as numbers (calories, protein, carbohydrate, fat). Serving
+weight, saturated fat, sodium, fibre and sugars are kept as text in the item's description.
+
+Not done: `com.tom-roush:pdfbox-android` was evaluated and not added: it is
+Apache 2.0 and is on Maven Central, but it pulls in three BouncyCastle artifacts and adds several MB to the APK for a
+fallback that only matters on phones older than Android 15.
+
 ### Allergen chip on every row
 
 When the person avoids anything, every result row, from every source, shows the local engine's verdict
