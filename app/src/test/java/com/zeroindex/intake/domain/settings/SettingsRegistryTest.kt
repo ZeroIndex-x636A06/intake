@@ -30,12 +30,12 @@ class SettingsRegistryTest {
     )
 
     @Test
-    fun `the inventory has 114 controls in 12 groups`() {
-        assertThat(rows).hasSize(114)
+    fun `the inventory has 115 controls in 12 groups`() {
+        assertThat(rows).hasSize(115)
         assertThat(rows.map { it.group }.toSet()).isEqualTo(titleOf.keys)
         assertThat(SettingsGroup.entries).hasSize(12)
-        assertThat(SettingsRegistry.all).hasSize(114)
-        assertThat(SettingsRegistry.all.count { it.isStored }).isEqualTo(97)
+        assertThat(SettingsRegistry.all).hasSize(115)
+        assertThat(SettingsRegistry.all.count { it.isStored }).isEqualTo(98)
         assertThat(SettingsRegistry.all.count { it.kind == ControlKind.ACTION }).isEqualTo(16)
     }
 

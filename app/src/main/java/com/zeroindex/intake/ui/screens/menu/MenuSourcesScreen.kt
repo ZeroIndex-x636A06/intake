@@ -95,7 +95,7 @@ fun MenuSourcesScreen(
             item(key = "nokey") {
                 EmptyState(
                     title = "AI is off or has no key",
-                    body = "Menus are read by an AI model. Turn on “Use AI features” and add a key in Settings → AI. Saved menus keep working without one.",
+                    body = "A link whose page publishes its menu as structured data is read without AI. Any other page, a PDF or pasted text is read by an AI model: turn on “Use AI features” and add a key in Settings → AI. Saved menus keep working without one.",
                 )
             }
         }
@@ -203,7 +203,8 @@ fun MenuSourcesScreen(
             ItemsSheet(
                 src,
                 items,
-                canRun = state.running == null && state.hasKey,
+                // A link can be refreshed with AI off: a page with structured menu data needs no model.
+                canRun = state.running == null && (state.hasKey || src.kind == com.zeroindex.intake.data.db.entity.MenuSourceKind.URL),
                 onRun = { viewModel.run(src); viewModel.open(null) },
                 onRemove = { viewModel.delete(src); viewModel.open(null) },
                 onDismiss = { viewModel.open(null) },

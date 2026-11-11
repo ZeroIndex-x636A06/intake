@@ -47,7 +47,7 @@ data class SettingSpec(
 }
 
 /**
- * The settings registry: all 113 controls of the inventory (96 stored settings, 16 actions, 1 read-only line), each
+ * The settings registry: all 114 controls of the inventory (97 stored settings, 16 actions, 1 read-only line), each
  * with its group. A test checks it against the inventory file and that the UI renders every id.
  */
 object SettingsRegistry {
@@ -114,6 +114,7 @@ object SettingsRegistry {
         SettingSpec(60, "hc.write.Workouts", SettingsGroup.HEALTH, ControlKind.SWITCH, "Workouts", advanced = false, isNew = false),
         SettingSpec(61, "hcOpen", SettingsGroup.HEALTH, ControlKind.ACTION, "Health Connect permissions", advanced = false, isNew = false),
         SettingSpec(62, "offSearch", SettingsGroup.FOOD_DB, ControlKind.SWITCH, "Search Open Food Facts while typing", advanced = false, isNew = false),
+        SettingSpec(115, "offLanguage", SettingsGroup.FOOD_DB, ControlKind.CHIPS, "Food search language", advanced = false, isNew = true),
         SettingSpec(63, "offOtherLanguages", SettingsGroup.FOOD_DB, ControlKind.SWITCH, "Show products in other languages", advanced = false, isNew = false),
         SettingSpec(64, "offContribute", SettingsGroup.FOOD_DB, ControlKind.SWITCH, "Allow contributing to Open Food Facts", advanced = false, isNew = false),
         SettingSpec(65, "offUsername", SettingsGroup.FOOD_DB, ControlKind.TEXT, "Open Food Facts username", advanced = false, isNew = false),

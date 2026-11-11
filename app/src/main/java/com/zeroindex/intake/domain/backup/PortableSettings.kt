@@ -49,7 +49,7 @@ object PortableSettings {
         "today_card_meals", "show_sodium", "eat_out_radius_mi", "jump_tests", "weekly_sets_csv",
         "videos_only_workouts", "videos_personalise", "videos_hide_shorts", "photo_reminder_weeks", "export_reminder",
         "export_include_photos",
-        "off_search_enabled", "off_contribute_enabled", "off_other_languages",
+        "off_search_enabled", "off_contribute_enabled", "off_other_languages", "off_language",
         // Hydration v2 (its own store): the opt-in, the chosen place name, drink edits and the measured sweat rate.
         // NOT the coordinates, the cached forecast or the retry time: a restore asks for the location again.
         "weather_enabled", "weather_location_mode", "weather_place", "drink_overrides",
@@ -177,7 +177,7 @@ object PortableSettings {
                 "ai_privacy", "ai_allow_retaining", "daily_insight_enabled",
                 "ai_master_enabled", "ai_monthly_budget_usd", "ai_menu_auto_refresh",
             ),
-            "food database" to setOf("off_search_enabled", "off_contribute_enabled", "off_other_languages"),
+            "food database" to setOf("off_search_enabled", "off_contribute_enabled", "off_other_languages", "off_language"),
         )
         val present = groups.filter { (label, keys) ->
             when (label) {

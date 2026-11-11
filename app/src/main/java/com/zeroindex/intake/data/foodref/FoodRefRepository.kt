@@ -3,7 +3,9 @@ package com.zeroindex.intake.data.foodref
 import com.zeroindex.intake.data.db.entity.FoodEntity
 import com.zeroindex.intake.data.foodref.FoodRefSearch.toRefFood
 import com.zeroindex.intake.data.repository.FoodRepository
-import com.zeroindex.intake.domain.drinks.DrinkCategorizer
+import com.zeroindex.intake.domain.drinks.DrinkCategory
+import com.zeroindex.intake.domain.drinks.DrinkRule
+import com.zeroindex.intake.domain.drinks.SearchScope
 import com.zeroindex.intake.domain.model.FoodSource
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -17,14 +19,28 @@ class FoodRefRepository @Inject constructor(
     private val dao: RefFoodDao,
     private val foodRepository: FoodRepository,
 ) {
-    suspend fun search(query: String, limit: Int = FoodRefSearch.RESULT_LIMIT): List<RefFood> {
+    /**
+     * [scope] narrows the answer to foods (Log food) or drinks (Drinks) by the one drink rule; null keeps both, for
+     * callers that pick an ingredient rather than log something.
+     */
+    suspend fun search(query: String, limit: Int = FoodRefSearch.RESULT_LIMIT, scope: SearchScope? = null): List<RefFood> {
         val tokens = FoodRefSearch.queryTokens(query)
         if (tokens.isEmpty()) return emptyList()
         val padded = tokens + List(FoodRefSearch.MAX_TOKENS - tokens.size) { "" }
         val candidates = dao.candidates(padded[0], padded[1], padded[2], padded[3], FoodRefSearch.CANDIDATE_LIMIT)
         // Ranking up to 500 candidates is work for a background thread, whoever calls this.
         return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-            FoodRefSearch.rank(query, candidates, limit).map { it.toRefFood() }
+            if (scope == null) {
+                FoodRefSearch.rank(query, candidates, limit).map { it.toRefFood() }
+            } else {
+                // Every candidate is ranked, then the other kind is dropped, so "milk" still fills the list with milks.
+                FoodRefSearch.rank(query, candidates, candidates.size.coerceAtLeast(1))
+                    .asSequence()
+                    .filter { scope.keeps(DrinkRule.isDrink(it.name, it.category)) }
+                    .take(limit)
+                    .map { it.toRefFood() }
+                    .toList()
+            }
         }
     }
 
@@ -40,6 +56,17 @@ class FoodRefRepository @Inject constructor(
         val id = foodId(ref.id)
         foodRepository.findById(id)?.let { return it }
         return foodRepository.save(toFoodEntity(ref))
+    }
+
+    /**
+     * The copy for a result chosen in the Drinks search: the same row, with its drink category set so the drink flow
+     * can log it by volume. An earlier copy that had no category gets one; a category the person set is kept.
+     */
+    suspend fun copyDrinkToMyFoods(ref: RefFood): FoodEntity {
+        val copy = copyToMyFoods(ref)
+        if (copy.drinkCategory != null) return copy
+        val category = DrinkRule.categoryOf(ref.name, ref.category) ?: DrinkCategory.OTHER
+        return foodRepository.save(copy.copy(drinkCategory = category.name))
     }
 
     companion object {
@@ -67,7 +94,7 @@ class FoodRefRepository @Inject constructor(
                 saturatedFatPer100g = ref.saturatedFat,
                 source = FoodSource.DATABASE,
                 isVerified = true,
-                drinkCategory = DrinkCategorizer.categorize(ref.name, ref.category)?.name,
+                drinkCategory = DrinkRule.categoryOf(ref.name, ref.category)?.name,
                 createdAt = 0,
                 updatedAt = 0,
             )

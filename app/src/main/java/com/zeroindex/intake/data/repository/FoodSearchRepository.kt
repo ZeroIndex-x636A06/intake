@@ -6,7 +6,7 @@ import com.zeroindex.intake.data.keys.ApiKeyStore
 import com.zeroindex.intake.data.remote.usda.UsdaFood
 import com.zeroindex.intake.data.remote.usda.UsdaNutrientIds
 import com.zeroindex.intake.data.remote.usda.UsdaService
-import com.zeroindex.intake.domain.drinks.DrinkCategorizer
+import com.zeroindex.intake.domain.drinks.DrinkRule
 import com.zeroindex.intake.domain.model.FoodSource
 import com.zeroindex.intake.domain.nutrition.NutrientKey
 import com.zeroindex.intake.domain.nutrition.Unlisted
@@ -88,7 +88,7 @@ class FoodSearchRepository @Inject constructor(
                     if (missing(UsdaNutrientIds.SATURATED_FAT)) add(NutrientKey.SATURATED_FAT)
                 },
             ),
-            drinkCategory = DrinkCategorizer.categorize(name, foodCategory.orEmpty())?.name,
+            drinkCategory = DrinkRule.categoryOf(name, foodCategory.orEmpty())?.name,
             // Ingredient text is what the allergen engine scans later.
             allergenTags = ingredients?.trim().orEmpty(),
             isVerified = dataType == "Foundation" || dataType == "SR Legacy",

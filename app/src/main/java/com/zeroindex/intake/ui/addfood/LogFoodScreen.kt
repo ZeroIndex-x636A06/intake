@@ -107,7 +107,8 @@ fun LogFoodScreen(
     onBack: () -> Unit,
     /** Opens Food detail for the id, for the meal chosen here. */
     onOpenFood: (foodId: String, slot: MealSlot) -> Unit,
-    onOpenDrinks: () -> Unit,
+    /** Opens Drinks, with the words typed here carried into its search (blank for none). */
+    onOpenDrinks: (query: String) -> Unit,
     onOpenAiSettings: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: AddFoodViewModel = hiltViewModel(),
@@ -238,6 +239,19 @@ fun LogFoodScreen(
 }
 
 /**
+ * The allergen chip of one result row, from any source. A clear result on a packaged product that lists no
+ * ingredients and no allergens is not "No allergens": the chip says the list is missing (docs/ALLERGENS.md).
+ */
+@Composable
+internal fun RowAllergenChip(allergen: RowAllergen) {
+    if (allergen.nameOnly) {
+        AllergenChip(com.zeroindex.intake.domain.swap.SwapAllergen.CHECK_LABEL, label = "No ingredient list: check the label")
+    } else {
+        AllergenChip(allergen.verdict, allergen.detail)
+    }
+}
+
+/**
  * Result rows. The tile, the name over its portion, the energy, the allergen chip (when the person avoids anything) and
  * a "+" that logs one serving. Tapping the row opens Food detail.
  */
@@ -294,7 +308,7 @@ private fun FoodRow(
                 )
                 if (allergen != null) {
                     Spacer(Modifier.size(4.dp))
-                    AllergenChip(allergen.verdict, allergen.detail)
+                    RowAllergenChip(allergen)
                 } else {
                     // Soft tier: shown beside the safe check too (docs/ALLERGENS.md).
                     checkLabelReasonFor(food.name)?.let { reason ->
@@ -331,7 +345,7 @@ private fun SearchTab(
     onQuickAdd: (FoodEntity) -> Unit,
     onChooseRef: (RefFood) -> Unit,
     onChooseOff: (FoodEntity) -> Unit,
-    onOpenDrinks: () -> Unit,
+    onOpenDrinks: (String) -> Unit,
     onCreate: (String, String?, Double, String, Double, Double, Double, Double) -> Unit,
 ) {
     var creating by remember { mutableStateOf(false) }
@@ -355,7 +369,7 @@ private fun SearchTab(
         TextField(
             value = state.query,
             onValueChange = onQueryChange,
-            placeholder = { Text("Search foods, recipes, drinks", style = MaterialTheme.typography.bodyMedium) },
+            placeholder = { Text("Search foods", style = MaterialTheme.typography.bodyMedium) },
             leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, modifier = Modifier.size(19.dp)) },
             trailingIcon = {
                 if (state.query.isNotEmpty()) {
@@ -391,7 +405,7 @@ private fun SearchTab(
                         FoodRow(food, food.id in state.safeFoodIds, state.rowAllergens[food.id], onOpen, onQuickAdd)
                     }
                 }
-                item(key = "drinks-row") { DrinksRow(onOpenDrinks) }
+                item(key = "drinks-row") { DrinksRow("Categories, a drinks search and size buttons") { onOpenDrinks("") } }
             }
             return@Column
         }
@@ -479,32 +493,51 @@ private fun SearchTab(
                 }
             }
 
-            if (nothingYet && !offLoading) {
+            val typed = state.query.trim()
+            if (nothingYet && !offLoading && state.queryMatchesDrinks) {
+                // The words only find drinks. Foods and drinks are separate searches, so say where they went.
+                item(key = "drinks-only") {
+                    Column(Modifier.padding(16.dp)) {
+                        Text("Drinks are logged from Drinks", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "\"$typed\" matches drinks, not foods. Drinks count toward water as well as calories, so they have their own page.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                        Button(onClick = { onOpenDrinks(typed) }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp).height(52.dp)) { Text("Search Drinks for \"$typed\"") }
+                        OutlinedButton(onClick = { creating = true }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp).height(48.dp)) { Text("It is a food: create \"$typed\"") }
+                    }
+                }
+            } else if (nothingYet && !offLoading) {
                 item(key = "create") {
                     Column(Modifier.padding(16.dp)) {
                         Text(
-                            "Nothing matches \"${state.query.trim()}\".",
+                            "Nothing matches \"$typed\".",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Button(onClick = { creating = true }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp).height(52.dp)) { Text("Create a food") }
                     }
                 }
+                item(key = "drinks-row") { DrinksRow("Looking for a drink? Search Drinks for \"$typed\"") { onOpenDrinks(typed) } }
             } else if (!nothingYet) {
                 item(key = "create-small") {
                     OutlinedButton(
                         onClick = { creating = true },
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).height(48.dp),
-                    ) { Text("Not here? Create \"${state.query.trim()}\"") }
+                    ) { Text("Not here? Create \"$typed\"") }
                 }
+                // Drinks are never listed here, so the way across stays at the foot of every result list.
+                item(key = "drinks-row") { DrinksRow("Looking for a drink? Search Drinks for \"$typed\"") { onOpenDrinks(typed) } }
             }
         }
     }
 }
 
-/** "Log a drink: categories and size buttons", at the foot of Search (the frame's last row). */
+/** "Log a drink", at the foot of Search (the frame's last row): the way across to the Drinks page and its search. */
 @Composable
-private fun DrinksRow(onOpenDrinks: () -> Unit) {
+private fun DrinksRow(note: String, onOpenDrinks: () -> Unit) {
     Surface(
         onClick = onOpenDrinks,
         color = MaterialTheme.colorScheme.surface,
@@ -518,7 +551,7 @@ private fun DrinksRow(onOpenDrinks: () -> Unit) {
             }
             Column(Modifier.weight(1f)) {
                 Text("Log a drink", style = MaterialTheme.typography.titleMedium)
-                Text("Categories and size buttons", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -631,7 +664,7 @@ private fun RefFoodRow(ref: RefFood, allergen: RowAllergen?, unit: PortionUnit, 
                 )
                 if (allergen != null) {
                     Spacer(Modifier.size(4.dp))
-                    AllergenChip(allergen.verdict, allergen.detail)
+                    RowAllergenChip(allergen)
                 } else {
                     checkLabelReasonFor(ref.name)?.let { reason ->
                         Spacer(Modifier.size(4.dp))

@@ -52,7 +52,7 @@ entity must match; `FoodRefAssetTest` compares the asset with the exported Room 
 
 ## Search
 
-Order in Add food > Search, each source labelled:
+Order in Log food > Search, each source labelled:
 
 1. **My foods and recents** (the user's table).
 2. **Food database (USDA, works offline).**
@@ -60,6 +60,40 @@ Order in Add food > Search, each source labelled:
 4. **USDA online (your key)**, only when a key is saved (the existing path).
 
 When nothing matches, "Create a food" opens the form with the query as the name.
+
+### Foods and drinks are separate searches
+
+Log food lists **foods only**. The Drinks page (Nutrition > Drinks) has its own search, under its categories and
+quick sizes, over the same four sources, and lists **drinks only** (docs/HYDRATION.md, "Drinks are foods").
+
+One rule decides, for both searches and for the copy to the phone: `DrinkRule` in `domain/drinks/DrinkCategory.kt`
+(tested in `DrinkCategoryTest`).
+
+- A food already on the phone is a drink exactly when its `drinkCategory` is set.
+- A result from a source is judged by the source's own category first (USDA food group "Beverages"; Open Food Facts
+  `categories_tags` such as `en:beverages`, `en:sodas`, `en:plant-based-milks`), then by the name rules when the
+  source gives none ("Coke", "Orange juice", "Oat milk").
+- Soups, broths, stocks, oils, sauces, gravies, dressings and vinegar are never drinks, whatever the source says. Nor are
+  powders, mixes, concentrates, condensed or dry milk, coffee beans or tea leaves. Milk and plant milks are drinks.
+
+Each source is narrowed by `SearchScope` (`FOODS` or `DRINKS`): the offline database ranks every candidate and then
+drops the other kind, so "milk" still fills a list; Open Food Facts results are filtered after mapping, and the Drinks
+search also adds the fixed filter `categories_tags:"en:beverages"` to the query so a page is not spent on foods.
+
+In Log food the "Log a drink" row stays at the foot of the list, and carries the words typed into the Drinks search.
+When the words match only drinks (on the phone, in the offline database, or in what Open Food Facts answered), the
+empty state says "Drinks are logged from Drinks" with a button that opens Drinks with the same words. Recents and the
+Mine tab still list drinks the person has logged or saved; they are not searches.
+
+### Allergen chip on every row
+
+When the person avoids anything, every result row, from every source, shows the local engine's verdict
+(`AllergenRepository.foodScanner`), computed off the main thread from everything the row carries: name, brand, the
+ingredient text if there is any, and the Open Food Facts allergen and trace tags (handed to the engine as the product's
+own allergen list, which is never downgraded). The search index of Open Food Facts returns tags but no ingredient text
+(checked against the live service; `ingredients_text` is requested in case that changes), so a search row from there
+is tags plus name. A packaged product with neither tags nor ingredients cannot be cleared by its name: its chip reads
+"No ingredient list: check the label", not "No allergens" (docs/ALLERGENS.md, "Search rows").
 
 Offline search uses a `LIKE '%token%'` match for every query word (up to four) over the
 name column, fetches up to 500 candidates shortest-name first, and ranks them in Kotlin
@@ -79,10 +113,36 @@ does. Every food, from every source, goes through the allergen engine when it is
 
 ### Search (no key, optional)
 
-`GET https://search.openfoodfacts.org/search?q=<text>&page_size=20&fields=...`
+`GET https://search.openfoodfacts.org/search?q=<text>&page_size=40&langs=<languages>&fields=...`
 (search-a-licious). Debounced at 600 ms, needs at least three characters, shown only when
-the phone is online, and can be turned off in Food database & credits. **Only the query text
-is sent**, plus the User-Agent. Results are saved to the user's foods only when one is chosen.
+the phone is online, and can be turned off in Settings > Food database. **Only the query text
+is sent**, plus the User-Agent, the food languages and, from the Drinks search, the fixed
+beverages filter. Results are saved to the user's foods only when one is chosen. Forty hits
+are asked for because the language rule and the food / drink split both leave rows out.
+
+Fields asked for: `code, product_name, product_name_<each food language>, lang, lc, brands, quantity,
+serving_size, serving_quantity, allergens_tags, traces_tags, ingredients_text, nutriments, categories_tags`
+and the two thumbnail fields.
+
+### Food search language
+
+Settings > Food database has **Food search language** (Phone language, English, Spanish, French, German,
+Italian, Portuguese, Dutch; the default is the phone's language) and **Show products in other languages** (off by
+default). Both are also asked on the units step of the welcome flow. The person's food languages are the chosen one
+and then English.
+
+With the switch off, a product is listed only when it has a name in one of those languages:
+
+- a non-empty `product_name_<lang>` for one of them, or
+- its main language (`lang`, or `lc`) is one of them, in which case the plain `product_name` is that name.
+
+A product whose only name is the plain `product_name` and whose main language is another one is left out. That is
+what hides "Gemarineerde kipfilet" and "Frites moyennes - McDonald's" from an English reader (`OffLanguage.hasNameIn`,
+`pickName` and `isShown`, tested in `OffLanguageTest` with those names). The older script rule still applies on top:
+a Cyrillic name tagged English is not listed either. With the switch on, everything is listed under the name the
+product has. The rule cannot catch a product whose contributor typed a Dutch name into the English field.
+
+Nothing here translates anything, and nothing here touches allergens: a hidden result is simply not listed.
 
 ### Barcode lookup (no key)
 

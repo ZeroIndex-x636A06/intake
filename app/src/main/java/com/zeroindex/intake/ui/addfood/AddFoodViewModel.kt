@@ -26,7 +26,10 @@ import com.zeroindex.intake.data.repository.FoodRepository
 import com.zeroindex.intake.data.repository.FoodSearchRepository
 import com.zeroindex.intake.data.repository.RemoteResult
 import com.zeroindex.intake.data.repository.ScannedProduct
+import com.zeroindex.intake.domain.allergen.AllergenEvidence
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
+import com.zeroindex.intake.domain.drinks.DrinkRule
+import com.zeroindex.intake.domain.drinks.SearchScope
 import com.zeroindex.intake.domain.allergen.CheckLabelTerm
 import com.zeroindex.intake.domain.model.FoodSource
 import com.zeroindex.intake.domain.model.MealSlot
@@ -35,6 +38,7 @@ import com.zeroindex.intake.domain.nutrition.NutrientKey
 import com.zeroindex.intake.domain.nutrition.Unlisted
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,9 +50,12 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * The modes of the Log food screen: Search, Scan and Photo are the three equal primary modes (R3-4), Mine replaces
@@ -68,8 +75,22 @@ enum class AddFoodTab(val label: String) {
     }
 }
 
-/** One result row's allergen chip: the local engine's verdict and the words it matched ("milk and peanuts"). */
-data class RowAllergen(val verdict: SwapAllergen, val detail: String?)
+/**
+ * One result row's allergen chip: the local engine's verdict and the words it matched ("milk and peanuts").
+ * [nameOnly] marks a clear result on a packaged product that carries no ingredient list and no allergen tags: the
+ * chip then says so instead of "No allergens" (`AllergenEvidence`).
+ */
+data class RowAllergen(val verdict: SwapAllergen, val detail: String?, val nameOnly: Boolean = false)
+
+/** The chip for a food row, from the engine's scan of everything the row carries. */
+fun rowAllergenOf(food: FoodEntity, scan: AllergenScanResult): RowAllergen {
+    val verdict = scan.verdict()
+    return RowAllergen(
+        verdict = verdict,
+        detail = scan.chipDetail(),
+        nameOnly = verdict == SwapAllergen.CLEAR && AllergenEvidence.isNameOnlyProduct(food.source, food.isVerified, food.allergenTags),
+    )
+}
 
 /** A save waiting on the allergen sheet's explicit confirmation (SPEC §7.2). */
 data class PendingLog(
@@ -94,7 +115,8 @@ sealed interface OffUiState {
     /** Not shown: switched off in settings, offline, or the query is too short. */
     data object Hidden : OffUiState
     data object Loading : OffUiState
-    data class Results(val foods: List<FoodEntity>) : OffUiState
+    /** [drinksLeftOut]: how many of the answers were drinks, which belong to the Drinks search. */
+    data class Results(val foods: List<FoodEntity>, val drinksLeftOut: Int = 0) : OffUiState
     data object Failed : OffUiState
 }
 
@@ -152,6 +174,8 @@ data class AddFoodUiState(
     val offSearchEnabled: Boolean = true,
     /** Soft "Check the label" terms in force, for list rows and the portion step. */
     val checkLabelTerms: List<CheckLabelTerm> = emptyList(),
+    /** True when the words typed match drinks (on this phone, in the offline database or in Open Food Facts). */
+    val queryMatchesDrinks: Boolean = false,
 )
 
 @HiltViewModel
@@ -181,14 +205,30 @@ class AddFoodViewModel @Inject constructor(
         // SPEC §5.1: 300ms debounce.
         .debounce(300)
         .flatMapLatest { q ->
-            if (q.isBlank()) flowOf(emptyList()) else foodRepository.search(q.trim())
+            // Food search lists foods only: a drink on this phone is found in Drinks (one rule, DrinkRule).
+            if (q.isBlank()) flowOf(emptyList()) else foodRepository.search(q.trim()).map { found ->
+                found.filter { SearchScope.FOODS.keeps(DrinkRule.isStoredDrink(it.drinkCategory)) }
+            }
         }
+
+    /** The offline database's foods for the query, and whether the same words also find drinks. */
+    private data class RefAnswer(val foods: List<RefFood> = emptyList(), val drinksExist: Boolean = false)
 
     @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
     private val refResults = query
         .debounce(300)
         .flatMapLatest { q ->
-            flow { emit(if (q.isBlank()) emptyList() else foodRefRepository.search(q)) }
+            flow {
+                if (q.isBlank()) {
+                    emit(RefAnswer())
+                } else {
+                    val foods = foodRefRepository.search(q, scope = SearchScope.FOODS)
+                    emit(RefAnswer(foods))
+                    val drinks = drinkRepository.searchDrinks(q).first().isNotEmpty() ||
+                        foodRefRepository.search(q, limit = 1, scope = SearchScope.DRINKS).isNotEmpty()
+                    if (drinks) emit(RefAnswer(foods, drinksExist = true))
+                }
+            }
         }
 
     /**
@@ -205,8 +245,8 @@ class AddFoodViewModel @Inject constructor(
                 } else {
                     emit(OffUiState.Loading)
                     emit(
-                        when (val outcome = offSearchRepository.search(q)) {
-                            is OffSearchOutcome.Results -> OffUiState.Results(outcome.foods)
+                        when (val outcome = offSearchRepository.search(q, SearchScope.FOODS)) {
+                            is OffSearchOutcome.Results -> OffUiState.Results(outcome.foods, outcome.otherKind)
                             OffSearchOutcome.Unavailable -> OffUiState.Hidden
                             OffSearchOutcome.Failed -> OffUiState.Failed
                         },
@@ -221,8 +261,12 @@ class AddFoodViewModel @Inject constructor(
         val refResults: List<RefFood>,
         val off: OffUiState,
         val offEnabled: Boolean,
+        val drinksExist: Boolean,
     )
 
+    // Shared, because both the screen state and the allergen chips read these. Collected twice, each collector
+    // would run its own Open Food Facts search and get rows with different ids, and the chips, which are keyed by
+    // id, would then belong to rows that are not on screen.
     private val extras = combine(
         barcodeState,
         pendingLog,
@@ -230,8 +274,8 @@ class AddFoodViewModel @Inject constructor(
         offState,
         foodDataPrefs.settings,
     ) { barcode, pending, ref, off, prefs ->
-        Extras(barcode, pending, ref, if (prefs.offSearch) off else OffUiState.Hidden, prefs.offSearch)
-    }
+        Extras(barcode, pending, ref.foods, if (prefs.offSearch) off else OffUiState.Hidden, prefs.offSearch, ref.drinksExist)
+    }.shareIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), replay = 1)
 
     private val lists = combine(
         foodRepository.observeRecents(),
@@ -241,7 +285,7 @@ class AddFoodViewModel @Inject constructor(
         allergenRepository.observeCheckLabelTerms(),
     ) { recents, favorites, safeIds, results, terms ->
         Lists(recents, favorites, safeIds, results, terms)
-    }
+    }.shareIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), replay = 1)
 
     private data class RowAllergens(val rows: Map<String, RowAllergen>, val refs: Map<Int, RowAllergen>)
 
@@ -251,23 +295,31 @@ class AddFoodViewModel @Inject constructor(
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     private val rowAllergens = combine(
-        combine(lists, extras, searchState) { l, e, s -> Triple(l, e, s) },
+        combine(lists, extras, searchState, tab) { l, e, s, t -> Triple(l, e, s) to t },
         allergenRepository.observeAvoidedAllergens(),
         allergenRepository.observeAliases(),
         foodRepository.observeAll(),
     ) { t, _, _, mine -> t to mine }.mapLatest { (t, mine) ->
-        val (l, e, s) = t
+        val (l, e, s) = t.first
         if (allergenRepository.avoidedAllergens().isEmpty()) {
             RowAllergens(emptyMap(), emptyMap())
         } else {
             val scan = allergenRepository.foodScanner()
-            val foods = l.recents + l.favorites + l.localResults + mine.take(300) +
+            // Every row on screen, from every source: this phone, Open Food Facts, the USDA API. The phone's whole
+            // food list is only read for the Mine tab.
+            val foods = l.recents + l.favorites + l.localResults +
+                (if (t.second == AddFoodTab.MY_FOODS) mine.take(300) else emptyList()) +
                 (e.off as? OffUiState.Results)?.foods.orEmpty() + (s as? SearchState.Remote)?.results.orEmpty()
-            fun row(r: com.zeroindex.intake.domain.allergen.AllergenScanResult) = RowAllergen(r.verdict(), r.chipDetail())
-            RowAllergens(
-                foods.associate { it.id to row(scan(it)) },
-                e.refResults.associate { it.id to row(allergenRepository.scan(name = it.name)) },
-            )
+            // Keyword matching over a few hundred rows is text work: never on the main thread.
+            withContext(Dispatchers.Default) {
+                RowAllergens(
+                    foods.associate { it.id to rowAllergenOf(it, scan(it)) },
+                    // A bundled USDA row is scanned as the food it becomes when chosen (its name: it is a generic food).
+                    e.refResults.associate { ref ->
+                        FoodRefRepository.toFoodEntity(ref).let { ref.id to rowAllergenOf(it, scan(it)) }
+                    },
+                )
+            }
         }
     }
 
@@ -298,6 +350,7 @@ class AddFoodViewModel @Inject constructor(
             offState = extras.off,
             offSearchEnabled = extras.offEnabled,
             checkLabelTerms = lists.checkLabelTerms,
+            queryMatchesDrinks = extras.drinksExist || ((extras.off as? OffUiState.Results)?.drinksLeftOut ?: 0) > 0,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -339,8 +392,11 @@ class AddFoodViewModel @Inject constructor(
         if (q.isBlank()) return@launch
         searchState.value = SearchState.Loading
         searchState.value = when (val result = foodSearchRepository.searchRemote(q)) {
-            is RemoteResult.Success ->
-                if (result.value.isEmpty()) SearchState.NoResults else SearchState.Remote(result.value)
+            is RemoteResult.Success -> {
+                // Drinks the USDA API returned are saved like the rest, and are found in Drinks, not here.
+                val foods = result.value.filter { SearchScope.FOODS.keeps(DrinkRule.isStoredDrink(it.drinkCategory)) }
+                if (foods.isEmpty()) SearchState.NoResults else SearchState.Remote(foods)
+            }
             RemoteResult.MissingKey -> SearchState.NeedsKey
             RemoteResult.NotFound -> SearchState.NoResults
             is RemoteResult.Failed -> SearchState.Failed(result.message)

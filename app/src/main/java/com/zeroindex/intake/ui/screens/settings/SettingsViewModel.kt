@@ -174,6 +174,7 @@ class SettingsViewModel @Inject constructor(
 
     // ---- Food database ----
     fun setOffSearch(on: Boolean) { viewModelScope.launch { foodDataPrefs.setOffSearch(on) } }
+    fun setOffLanguage(code: String) { viewModelScope.launch { foodDataPrefs.setOffLanguage(code) } }
     fun setOffOtherLanguages(on: Boolean) { viewModelScope.launch { foodDataPrefs.setOffOtherLanguages(on) } }
     fun setOffContribute(on: Boolean) { viewModelScope.launch { foodDataPrefs.setOffContribute(on) } }
     fun saveOffCredentials(username: String?, password: String?) {

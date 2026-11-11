@@ -69,6 +69,26 @@ Negation and "-free" wording apply only to text a person wrote: free-text names,
 
 CHECK_LABEL can only add a nudge. For an allergen that already has a CONTAINS or MAY_CONTAIN hit (any field, any source) no CHECK_LABEL match is produced, and merging scans takes the worse verdict. Open Food Facts tags that say "milk" are CONTAINS as before; a product whose tags show no milk can still get CHECK_LABEL from its name. A shorter hit inside a longer one is dropped only when that does not weaken the verdict (a softened wrapper such as "almond cream cheese" does cover the "cream" and "cheese" inside it).
 
+## Search rows
+
+Every result row in Log food and in the Drinks search shows the engine's verdict when the person avoids anything:
+the phone's own foods, the bundled USDA database, Open Food Facts and the USDA API alike. A row is scanned with
+everything it carries: name, brand, ingredient text, and Open Food Facts allergen and trace tags. Stored tags are
+handed to the engine as structured tags (CONTAINS, never downgraded) as well as being read as text; allergen and trace
+tags are stored together, so a trace counts as "contains" for a stored food, which is stricter than the product and
+never weaker.
+
+A clear result is only as strong as the data behind it (`AllergenEvidence`, tested):
+
+| Row | Clear chip |
+|---|---|
+| A generic food (bundled USDA, USDA Foundation / SR Legacy), or a food the person entered | "No allergens": the name is the food |
+| A packaged product with an ingredient list or allergen tags | "No allergens": the label data was read |
+| A packaged product (Open Food Facts, a barcode, a branded USDA API food) with no ingredient list and no tags | "No ingredient list: check the label", in the outlined check-the-label style. Never "No allergens" |
+
+This only ever makes a clear result more cautious. A hit of any tier is shown as the hit it is, and the full check
+still runs before anything is logged.
+
 ## Custom allergens and keywords
 
 My allergens (Food, Allergens) lists all fifteen plus your own, searchable. A switch per allergen says whether you avoid it, and the profile's severity (Avoid / Strict) is set on the same screen. Tap an allergen for its keywords, grouped by level, with Add keyword.

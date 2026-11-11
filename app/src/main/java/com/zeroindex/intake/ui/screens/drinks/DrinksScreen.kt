@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
@@ -31,6 +32,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
@@ -57,7 +59,8 @@ import com.zeroindex.intake.domain.drinks.DrinkCategory
 import com.zeroindex.intake.domain.drinks.DrinkSize
 import com.zeroindex.intake.domain.drinks.DrinkSizes
 import com.zeroindex.intake.domain.units.VolumeUnit
-import com.zeroindex.intake.ui.allergen.AllergenChip
+import com.zeroindex.intake.ui.addfood.RowAllergen
+import com.zeroindex.intake.ui.addfood.RowAllergenChip
 import com.zeroindex.intake.ui.allergen.AllergenWarningSheet
 import com.zeroindex.intake.ui.components.EmptyState
 import com.zeroindex.intake.ui.components.IntakeCard
@@ -74,8 +77,9 @@ private fun DrinkCategory.chipIcon(): ImageVector = fallbackType.icon()
 
 /**
  * The Drinks page (IA 5d, Option A frame): today's water against the target with caffeine, sugar, calories and alcohol
- * from drinks; category chips (Soda lists every soda); a search over the same food database; the quick sizes from
- * Settings (and Custom); and today's drinks with a remove. A drink is a food: one tap on a size writes the water entry and
+ * from drinks; category chips (Soda lists every soda) with the category's drinks and the quick sizes from Settings (and
+ * Custom); directly under those, a search over every source Log food uses (this phone, the offline USDA database, Open
+ * Food Facts, the USDA API) that lists drinks only; and today's drinks with a remove. A drink is a food: one tap on a size writes the water entry and
  * the food-log entry together, and the allergen check runs before it does. Settings for all of this (target, sizes,
  * drink values, units) live in Settings > Water and drinks, never here.
  */
@@ -85,19 +89,35 @@ fun DrinksScreen(
     contentPadding: PaddingValues,
     onOpenFood: (String) -> Unit,
     modifier: Modifier = Modifier,
+    /** Words carried over from Log food ("coke"), so the search under the predefined drinks starts with them. */
+    initialQuery: String = "",
     viewModel: DrinksViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val unit = state.volumeUnit
     var customOpen by remember { mutableStateOf(false) }
-    var query by rememberSaveable { mutableStateOf("") }
+    var query by rememberSaveable { mutableStateOf(initialQuery) }
     LaunchedEffect(query) { viewModel.setQuery(query) }
+    val search = state.search
+    val listState = rememberLazyListState()
+    // The search field sits under the category's drinks and (when one of them is chosen) its size buttons.
+    val searchIndex = 3 + state.drinks.size.coerceAtLeast(1) + (if (state.selected != null && !state.selectedFromSearch) 2 else 0)
+    // Opened with words from Log food: start at the search, not at the top of the page.
+    var jumped by rememberSaveable { mutableStateOf(initialQuery.isBlank()) }
+    LaunchedEffect(state.drinks.isNotEmpty()) {
+        if (!jumped && state.drinks.isNotEmpty()) { jumped = true; listState.scrollToItem(searchIndex) }
+    }
+    // A result was chosen: its size buttons appear right under the search field, so bring that into view.
+    LaunchedEffect(state.selected?.id, state.selectedFromSearch) {
+        if (state.selectedFromSearch) listState.animateScrollToItem(searchIndex)
+    }
 
     val selected = state.selected
     val sizes = remember(unit, state.presets) { DrinkSizes.buttons(unit, state.presets.map { DrinkSize(unit.format(it.volumeMl), it.volumeMl) }) }
     val time = remember { DateTimeFormatter.ofPattern("h:mm a") }
 
     LazyColumn(
+        state = listState,
         modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(
             top = contentPadding.calculateTopPadding() + 4.dp,
@@ -109,11 +129,56 @@ fun DrinksScreen(
     ) {
         item(key = "summary") { SummaryCard(state, unit) }
 
+        // ---- The predefined options: categories, the category's drinks, the quick sizes ----
+        item(key = "categories") {
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                DrinkCategory.entries.forEach { c ->
+                    CategoryChip(c.label, c.chipIcon(), c == state.category) { viewModel.selectCategory(c) }
+                }
+            }
+        }
+        item(key = "list-head") { SectionLine(state.category.label.uppercase()) }
+        if (state.drinks.isEmpty()) {
+            item(key = "none") {
+                EmptyState(
+                    title = "No ${state.category.label.lowercase()} drinks yet",
+                    body = "Drinks you find with the search below, or scan, land in their category here.",
+                )
+            }
+        } else {
+            items(state.drinks, key = { "cat-${it.food.id}" }) { row ->
+                DrinkRow(
+                    food = row.food,
+                    allergen = row.allergen,
+                    selected = row.food.id == selected?.id,
+                    onSelect = { viewModel.select(row.food.id) },
+                    onInfo = { onOpenFood(row.food.id) },
+                )
+            }
+        }
+
+        val sizeTiles: androidx.compose.foundation.lazy.LazyListScope.(FoodEntity) -> Unit = { drink ->
+            item(key = "size-head") { SectionLine("${drink.name.uppercase()} · TAP A SIZE TO LOG IT") }
+            item(key = "sizes") {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), maxItemsInEachRow = 2) {
+                    sizes.forEach { s ->
+                        SizeTile(s.label, kcalLabel(drink, s.ml), Modifier.weight(1f)) {
+                            viewModel.log(drink, s.ml)
+                        }
+                    }
+                    SizeTile("+ Custom size", "type any amount", Modifier.weight(1f), dashed = true) { customOpen = true }
+                }
+            }
+        }
+        if (selected != null && !state.selectedFromSearch) sizeTiles(selected)
+
+        // ---- The search, directly under the predefined options: every source Log food searches, drinks only ----
+        item(key = "search-head") { SectionLine("FIND ANOTHER DRINK") }
         item(key = "search") {
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
-                placeholder = { Text("Search drinks") },
+                placeholder = { Text("Search all drinks") },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                 trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Icons.Filled.Close, contentDescription = "Clear the search") } },
                 singleLine = true,
@@ -121,58 +186,58 @@ fun DrinksScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
+        // A result that was tapped is on the phone now: its sizes come first, where the tap can be followed.
+        if (selected != null && state.selectedFromSearch) sizeTiles(selected)
 
-        if (query.isBlank()) {
-            item(key = "categories") {
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DrinkCategory.entries.forEach { c ->
-                        CategoryChip(c.label, c.chipIcon(), c == state.category) { viewModel.selectCategory(c) }
+        if (query.isNotBlank()) {
+            fun isChosen(row: DrinkSearchRow) = state.selectedFromSearch && selected != null &&
+                (row.food.id == selected.id || (row.food.barcode != null && row.food.barcode == selected.barcode))
+            val section: androidx.compose.foundation.lazy.LazyListScope.(String, List<DrinkSearchRow>) -> Unit = { title, rows ->
+                if (rows.isNotEmpty()) {
+                    item(key = "h-$title") { SectionLine(title) }
+                    items(rows, key = { it.key }) { row ->
+                        DrinkRow(
+                            food = row.food,
+                            allergen = row.allergen,
+                            selected = isChosen(row),
+                            onSelect = { viewModel.choose(row) },
+                            // The nutrition label is for a drink that is on the phone already.
+                            onInfo = if (row.origin == DrinkOrigin.MINE || row.origin == DrinkOrigin.USDA_ONLINE) ({ onOpenFood(row.food.id) }) else null,
+                        )
                     }
                 }
             }
-        }
-        item(key = "list-head") {
-            SectionLine(if (query.isBlank()) state.category.label.uppercase() else "RESULTS FOR \"${query.trim().uppercase()}\"")
-        }
-        if (state.drinks.isEmpty()) {
-            item(key = "none") {
-                EmptyState(
-                    title = if (query.isBlank()) "No ${state.category.label.lowercase()} drinks yet" else "No drink matches",
-                    body = if (query.isBlank()) {
-                        "Drinks you scan or search for in Log food land in their category here."
-                    } else {
-                        "Try another word, or search Log food for packaged drinks."
-                    },
-                )
-            }
-        } else {
-            item(key = "drinks") {
-                IntakeCard {
-                    Column {
-                        state.drinks.forEachIndexed { i, row ->
-                            if (i > 0) androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                            DrinkRow(
-                                row = row,
-                                selected = row.food.id == selected?.id,
-                                onSelect = { viewModel.select(row.food.id) },
-                                onInfo = { onOpenFood(row.food.id) },
-                            )
-                        }
-                    }
+            section("YOUR DRINKS", search.mine)
+            section("FOOD DATABASE (USDA, WORKS OFFLINE)", search.usda)
+            when (search.offStatus) {
+                OffDrinksStatus.HIDDEN -> Unit
+                OffDrinksStatus.LOADING -> item(key = "off-loading") {
+                    Text("Searching Open Food Facts for drinks…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                OffDrinksStatus.DONE -> section("PACKAGED DRINKS (OPEN FOOD FACTS)", search.off)
+                OffDrinksStatus.FAILED -> item(key = "off-failed") {
+                    Text("Open Food Facts could not be reached. The sources above still work.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-        }
-
-        if (selected != null) {
-            item(key = "size-head") { SectionLine("${selected.name.uppercase()} · TAP A SIZE TO LOG IT") }
-            item(key = "sizes") {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), maxItemsInEachRow = 2) {
-                    sizes.forEach { s ->
-                        SizeTile(s.label, kcalLabel(selected, s.ml), Modifier.weight(1f)) {
-                            viewModel.log(selected, s.ml)
-                        }
+            if (search.hasUsdaKey) {
+                item(key = "usda-online") {
+                    when (val s = search.onlineStatus) {
+                        OnlineDrinksStatus.Idle -> OutlinedButton(onClick = viewModel::searchUsdaOnline, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Also search USDA online (your key)") }
+                        OnlineDrinksStatus.Loading -> Text("Searching USDA…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        OnlineDrinksStatus.Done -> Unit
+                        OnlineDrinksStatus.Nothing -> Text("USDA online had no drinks for that.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        is OnlineDrinksStatus.Failed -> Text(s.message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    SizeTile("+ Custom size", "type any amount", Modifier.weight(1f), dashed = true) { customOpen = true }
+                }
+                section("USDA ONLINE (YOUR KEY), SAVED TO THIS PHONE", search.online)
+            }
+            // The words on screen have been searched (not still waiting on the debounce) and nothing is a drink.
+            if (search.query.trim() == query.trim() && search.isEmpty && search.offStatus != OffDrinksStatus.LOADING) {
+                item(key = "search-none") {
+                    EmptyState(
+                        title = "No drink matches",
+                        body = "Only drinks are listed here. Foods, soups and sauces are in Log food.",
+                    )
                 }
             }
         }
@@ -297,9 +362,10 @@ private fun CategoryChip(label: String, icon: ImageVector, selected: Boolean, on
     }
 }
 
+/** One drink, from the category list or the search. Drinks are liquids: its numbers read per 100 ml, whatever the source. */
 @Composable
-private fun DrinkRow(row: DrinkRowUi, selected: Boolean, onSelect: () -> Unit, onInfo: () -> Unit) {
-    val f = row.food
+private fun DrinkRow(food: FoodEntity, allergen: RowAllergen?, selected: Boolean, onSelect: () -> Unit, onInfo: (() -> Unit)?) {
+    val f = food
     Row(
         Modifier
             .fillMaxWidth()
@@ -313,6 +379,7 @@ private fun DrinkRow(row: DrinkRowUi, selected: Boolean, onSelect: () -> Unit, o
             Text(f.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
             Text(
                 buildString {
+                    f.brand?.takeIf { it.isNotBlank() }?.let { append("$it · ") }
                     append("${f.kcalPer100g.roundToInt()} kcal / 100 ml")
                     if ((f.caffeineMgPer100ml ?: 0.0) > 0) append(" · ${f.caffeineMgPer100ml!!.roundToInt()} mg caffeine")
                     if (f.sugarPer100g >= 0.5) append(" · ${f.sugarPer100g.roundToInt()} g sugar")
@@ -321,10 +388,12 @@ private fun DrinkRow(row: DrinkRowUi, selected: Boolean, onSelect: () -> Unit, o
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            row.allergen?.let { a -> Box(Modifier.padding(top = 4.dp)) { AllergenChip(a.verdict, a.detail) } }
+            allergen?.let { a -> Box(Modifier.padding(top = 4.dp)) { RowAllergenChip(a) } }
         }
-        IconButton(onClick = onInfo, modifier = Modifier.size(48.dp)) {
-            Icon(Icons.Filled.Info, contentDescription = "Nutrition label for ${f.name}", modifier = Modifier.size(20.dp))
+        if (onInfo != null) {
+            IconButton(onClick = onInfo, modifier = Modifier.size(48.dp)) {
+                Icon(Icons.Filled.Info, contentDescription = "Nutrition label for ${f.name}", modifier = Modifier.size(20.dp))
+            }
         }
     }
 }

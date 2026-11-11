@@ -176,6 +176,24 @@ hydration row only. The hydration row keeps the food-log row's id; deleting eith
 both. Factor precedence: the person's own edit (Settings > Water and drinks > Advanced), then the drink's own number,
 then the type's default (so seeded oat milk counts 1.0 where milk counts 1.5).
 
+**The Drinks page, top to bottom.** Today's total; the category chips; the chosen category's drinks (the seeded
+ones and any the person added); the quick sizes for the selected drink; then **a search**, directly under those
+predefined options; then what was logged today.
+
+**The drinks search.** It searches what Log food searches (the person's own drinks, the offline USDA database, Open
+Food Facts when online and switched on, and the USDA API on request when a key is saved) and lists **only drinks**.
+Log food lists only foods. Both use the one rule in `DrinkRule` (docs/FOOD-DATA.md, "Foods and drinks are separate
+searches"): the source's category first (USDA "Beverages", Open Food Facts `en:beverages` and the specific drink
+tags), the name rules otherwise; soups, broths, oils and sauces are never drinks, milk and plant milks are. Rows read
+**per 100 ml**, because a drink's nutrition columns are per 100 ml (1 ml counted as 1 g), whatever the source calls it.
+
+Tapping a result from USDA or Open Food Facts copies it to the phone with its drink category set
+(`FoodRefRepository.copyDrinkToMyFoods`, `OffSearchRepository.adopt`), selects it and shows the quick sizes under the
+search field. A size then logs it through `DrinkLogger` like any other drink, so it counts for water and for calories,
+and it is listed under its category from then on. Nothing is saved for results that are not tapped (the USDA API is
+the exception, as in Log food: it saves what it returns). Log food's "Log a drink" row opens this page with the
+words typed there already in the search.
+
 **Allergens.** Every drink goes through the local allergen engine before it is written (the red sheet on a match), and
-each row on the Drinks page shows its verdict. The quick sizes, the target and the drink values are Settings, not part
+each row on the Drinks page, search results included, shows its verdict. The quick sizes, the target and the drink values are Settings, not part
 of the Drinks page.
