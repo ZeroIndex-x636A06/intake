@@ -21,6 +21,10 @@ interface BodyMetricDao {
     @Query("SELECT * FROM body_metric WHERE deletedAt IS NULL ORDER BY measuredAt DESC")
     fun observeAll(): Flow<List<BodyMetricEntity>>
 
+    /** Every row, soft-deleted ones included, so a Health Connect import can tell "already have it" from "removed it". */
+    @Query("SELECT * FROM body_metric")
+    suspend fun everyRow(): List<BodyMetricEntity>
+
     @Query("SELECT * FROM body_metric WHERE deletedAt IS NULL ORDER BY measuredAt")
     suspend fun all(): List<BodyMetricEntity>
 

@@ -222,6 +222,12 @@ internal fun migrateNutrientsListed_2_3(): List<String> = listOf(
     "ALTER TABLE `food_log` ADD COLUMN `unlistedNutrients` TEXT NOT NULL DEFAULT ''",
 )
 
+internal fun migrateHealthActive_2_3(): List<String> = listOf(
+    // Health Connect: the all-day active calories for the Today card and the Progress charts. Null on every old row
+    // until the next sync fills it in.
+    "ALTER TABLE `health_daily_summary` ADD COLUMN `activeKcalDay` REAL",
+)
+
 internal fun migrateDeload_2_3(): List<String> = listOf(
     // A generated program's planned easy week ("deload every 6 weeks") is kept with the program, so the app can switch it
     // on by itself. Null on every existing program: nothing changes for them.
@@ -257,7 +263,8 @@ internal val MIGRATION_2_3_STATEMENTS: List<String> =
         migrateDrinks_2_3() +
         migrateNutrientsListed_2_3() +
         migrateTraining_2_3() +
-        migrateDeload_2_3()
+        migrateDeload_2_3() +
+        migrateHealthActive_2_3()
 
 internal val MIGRATION_2_3 = object : Migration(2, 3) {
     override fun migrate(db: SupportSQLiteDatabase) {

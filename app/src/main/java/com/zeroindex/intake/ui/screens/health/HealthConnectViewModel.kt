@@ -43,5 +43,8 @@ class HealthConnectViewModel @Inject constructor(
     }
 
     fun refresh() = viewModelScope.launch { manager.refreshPermissions() }
+
+    /** Every read and write permission this phone's Health Connect can grant, for the Allow all sheet. */
+    suspend fun allPermissions(): Set<String> = manager.allPermissionsToRequest()
     fun syncNow() = viewModelScope.launch { manager.sync() }
 }

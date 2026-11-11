@@ -124,6 +124,7 @@ data class AppSettings(
     val todayCardWater: Boolean = true,
     val todayCardWeight: Boolean = true,
     val todayCardMeals: Boolean = true,
+    val todayCardActivity: Boolean = true,
     /** Settings > Nutrition: show salt or sodium on the dashboard (consumed by the Nutrition rebuild). */
     val showSodium: SodiumDisplay = SodiumDisplay.OFF,
     /** Settings > Nutrition: Swap > Eat out nearby search radius in miles (consumed by the Swap sheet). */
@@ -240,6 +241,7 @@ class SettingsRepository @Inject constructor(
         val todayWater = booleanPreferencesKey("today_card_water")
         val todayWeight = booleanPreferencesKey("today_card_weight")
         val todayMeals = booleanPreferencesKey("today_card_meals")
+        val todayActivity = booleanPreferencesKey("today_card_activity")
         val showSodium = stringPreferencesKey("show_sodium")
         val eatOutRadius = doublePreferencesKey("eat_out_radius_mi")
         val jumpTests = booleanPreferencesKey("jump_tests")
@@ -325,6 +327,7 @@ class SettingsRepository @Inject constructor(
             todayCardWater = p[Keys.todayWater] ?: true,
             todayCardWeight = p[Keys.todayWeight] ?: true,
             todayCardMeals = p[Keys.todayMeals] ?: true,
+            todayCardActivity = p[Keys.todayActivity] ?: true,
             showSodium = p[Keys.showSodium]?.let { runCatching { SodiumDisplay.valueOf(it) }.getOrNull() } ?: SodiumDisplay.OFF,
             eatOutRadiusMi = p[Keys.eatOutRadius]?.takeIf { it > 0 } ?: 1.0,
             jumpTests = p[Keys.jumpTests] ?: false,
@@ -425,6 +428,7 @@ class SettingsRepository @Inject constructor(
             com.zeroindex.intake.domain.settings.TodayCard.WATER -> Keys.todayWater
             com.zeroindex.intake.domain.settings.TodayCard.WEIGHT -> Keys.todayWeight
             com.zeroindex.intake.domain.settings.TodayCard.MEALS -> Keys.todayMeals
+            com.zeroindex.intake.domain.settings.TodayCard.ACTIVITY -> Keys.todayActivity
         }
         it[key] = shown
     }

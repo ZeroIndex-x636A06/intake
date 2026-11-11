@@ -164,6 +164,24 @@ class MigrationSchemaTest {
     }
 
     @Test
+    fun migrationTwoToThreeAddsTheAllDayActiveCaloriesToHealthSummariesAndKeepsOldRows() {
+        val v2 = createAt(2)
+        v2.exec(
+            "INSERT INTO health_daily_summary (id, dayStartMillis, steps, sleepMinutes, syncedAt, createdAt, updatedAt, deletedAt) " +
+                "VALUES ('h1', 1700000000000, 8000, 450, 1, 1, 1, NULL)",
+        )
+        MIGRATION_2_3_STATEMENTS.forEach { v2.exec(it) }
+        val row = v2.rows("SELECT steps, sleepMinutes, activeKcalDay FROM health_daily_summary").single()
+        assertThat(row["steps"]).isEqualTo(8000)
+        assertThat(row["sleepMinutes"]).isEqualTo(450)
+        assertThat(row["activeKcalDay"]).isNull()
+        v2.exec("UPDATE health_daily_summary SET activeKcalDay = 412.5 WHERE id = 'h1'")
+        assertThat(v2.rows("SELECT activeKcalDay FROM health_daily_summary").single()["activeKcalDay"]).isEqualTo(412.5)
+        assertMatches(v2, 3)
+        v2.close()
+    }
+
+    @Test
     fun migrationTwoToThreeAddsTheDeloadCadenceAndLeavesExistingProgramsWithoutOne() {
         val v2 = createAt(2)
         v2.exec(

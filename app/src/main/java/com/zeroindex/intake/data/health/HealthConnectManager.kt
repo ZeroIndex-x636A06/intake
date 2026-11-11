@@ -30,6 +30,7 @@ import com.zeroindex.intake.data.db.dao.WorkoutDao
 import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.health.ActivityNetting
 import com.zeroindex.intake.domain.health.BmrBasis
+import com.zeroindex.intake.domain.health.KnownWeighIn
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.time.Clock
 import java.time.Instant
@@ -59,6 +60,8 @@ data class HealthSyncState(
     val lastError: String? = null,
     val bmrBasis: BmrBasis? = null,
     val bmrKcalPerDay: Double? = null,
+    /** Whether this phone's Health Connect has the "older history" permission. Hidden where it does not. */
+    val historySupported: Boolean = false,
     /** What the last sync read, per type. Null until a sync has run in this process. */
     val report: SyncReport? = null,
 )
@@ -98,6 +101,10 @@ class HealthConnectManager @Inject constructor(
             read("Weight", WeightRecord::class, "Read weigh-ins from your scale"),
             read("Body fat", BodyFatRecord::class, "Read measurements"),
             read("Lean body mass", LeanBodyMassRecord::class, "Read measurements · stands in for skeletal muscle"),
+            HealthDataType(
+                "Older history", HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY,
+                "Read weigh-ins and other data from before you connected Intake",
+            ),
             write("Nutrition", NutritionRecord::class, "Write your food log"),
             write("Weight", WeightRecord::class, "Write weigh-ins you log here"),
             write("Hydration", HydrationRecord::class, "Write water you log"),
@@ -111,6 +118,9 @@ class HealthConnectManager @Inject constructor(
             HealthDataType(label, HealthPermission.getWritePermission(type), why, write = true)
 
         val ALL_PERMISSIONS: Set<String> = TYPES.map { it.permission }.toSet()
+
+        /** The "older history" permission, which only some versions of Health Connect have. */
+        val HISTORY_PERMISSION: String = HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY
     }
 
     private val mutex = Mutex()
@@ -119,6 +129,16 @@ class HealthConnectManager @Inject constructor(
     val state: StateFlow<HealthSyncState> = _state.asStateFlow()
 
     fun availability(): HealthAvailability = source.availability()
+
+    /**
+     * Every permission the app declares that this phone's Health Connect can grant, for the Allow all button: all the
+     * reads and writes in one system sheet. The history permission is left out where it is not supported, because a
+     * permission the provider does not know can make the whole sheet fail.
+     */
+    suspend fun allPermissionsToRequest(): Set<String> {
+        val historyOk = runCatching { source.historyPermissionSupported() }.getOrDefault(false)
+        return if (historyOk) ALL_PERMISSIONS else ALL_PERMISSIONS - HISTORY_PERMISSION
+    }
 
     suspend fun refreshPermissions(): Set<String> {
         val available = availability()
@@ -135,7 +155,8 @@ class HealthConnectManager @Inject constructor(
         } else {
             emptySet()
         }
-        _state.update { it.copy(availability = available, granted = granted) }
+        val history = available == HealthAvailability.AVAILABLE && runCatching { source.historyPermissionSupported() }.getOrDefault(false)
+        _state.update { it.copy(availability = available, granted = granted, historySupported = history) }
         return granted
     }
 
@@ -152,10 +173,14 @@ class HealthConnectManager @Inject constructor(
         try {
             val granted = refreshPermissions()
             val now = clock.nowMillis()
-            val days = HealthReader.historyDays(settings.settings.first().healthLastSyncAt, now)
+            val prefs = settings.settings.first()
+            // A last report that said "no permission" means some types have no history yet: read the full window again.
+            val days = HealthReader.historyDays(prefs.healthLastSyncAt, now, forceFull = prefs.healthLastReport?.contains("no permission") == true)
             val run = HealthReader.Run(granted)
 
-            val weighIns = reader.readWeighIns(run, days) { at -> bodyDao.near(at, WEIGH_IN_MATCH_WINDOW_MS) != null }
+            // Weigh-ins: a year back, every sync. Rows already here (by id, deleted or not, or by time) are skipped.
+            val known = bodyDao.everyRow().map { KnownWeighIn(it.id, it.measuredAt, it.deletedAt != null) }
+            val weighIns = reader.readWeighIns(run, known)
             weighIns.forEach { bodyDao.upsert(it.toEntity(clock.nowMillis())) }
 
             val latest = bodyDao.latest()
@@ -169,7 +194,9 @@ class HealthConnectManager @Inject constructor(
 
             val report = run.report(now, days)
             val watermark = writeChanges(granted)
-            settings.setHealthSynced(watermark, now, report.summary())
+            // A sync with no read permission at all has seen nothing, so it must not shorten the next one's window.
+            val anyRead = granted.any { it.startsWith("android.permission.health.READ_") }
+            if (anyRead) settings.setHealthSynced(watermark, now, report.summary())
             _state.update { it.copy(report = report, lastError = failureText(report)) }
         } catch (e: CancellationException) {
             throw e

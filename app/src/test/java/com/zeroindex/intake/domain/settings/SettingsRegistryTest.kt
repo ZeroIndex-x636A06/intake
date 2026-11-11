@@ -30,12 +30,12 @@ class SettingsRegistryTest {
     )
 
     @Test
-    fun `the inventory has 115 controls in 12 groups`() {
-        assertThat(rows).hasSize(115)
+    fun `the inventory has 117 controls in 12 groups`() {
+        assertThat(rows).hasSize(117)
         assertThat(rows.map { it.group }.toSet()).isEqualTo(titleOf.keys)
         assertThat(SettingsGroup.entries).hasSize(12)
-        assertThat(SettingsRegistry.all).hasSize(115)
-        assertThat(SettingsRegistry.all.count { it.isStored }).isEqualTo(98)
+        assertThat(SettingsRegistry.all).hasSize(117)
+        assertThat(SettingsRegistry.all.count { it.isStored }).isEqualTo(100)
         assertThat(SettingsRegistry.all.count { it.kind == ControlKind.ACTION }).isEqualTo(16)
     }
 
@@ -74,7 +74,7 @@ class SettingsRegistryTest {
     @Test
     fun `new keys are classified portable or device-local`() {
         listOf(
-            "profile_display_name", "portion_unit", "today_card_next", "today_card_water", "today_card_weight", "today_card_meals",
+            "profile_display_name", "portion_unit", "today_card_next", "today_card_water", "today_card_weight", "today_card_meals", "today_card_activity",
             "show_sodium", "eat_out_radius_mi", "jump_tests", "weekly_sets_csv", "videos_only_workouts", "videos_personalise", "videos_hide_shorts",
             "photo_reminder_weeks", "export_reminder", "export_include_photos",
         ).forEach { assertWithMessage(it).that(PortableSettings.isPortable(it)).isTrue() }

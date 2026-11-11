@@ -3,8 +3,8 @@ package com.zeroindex.intake.domain.settings
 /** Salt or sodium on the Nutrition dashboard (Settings > Nutrition). */
 enum class SodiumDisplay(val label: String) { OFF("Off"), SODIUM("Sodium"), SALT("Salt") }
 
-/** The four optional Today cards. Calories is always shown. */
-enum class TodayCard { NEXT, WATER, WEIGHT, MEALS }
+/** The five optional Today cards. Calories is always shown. */
+enum class TodayCard { NEXT, WATER, WEIGHT, MEALS, ACTIVITY }
 
 /** The twelve Settings pages, in the order the home lists them (docs/SETTINGS-INVENTORY.md). */
 enum class SettingsGroup(val id: String, val title: String, val blurb: String) {
@@ -47,7 +47,7 @@ data class SettingSpec(
 }
 
 /**
- * The settings registry: all 114 controls of the inventory (97 stored settings, 16 actions, 1 read-only line), each
+ * The settings registry: all 117 controls of the inventory (100 stored settings, 16 actions, 1 read-only line), each
  * with its group. A test checks it against the inventory file and that the UI renders every id.
  */
 object SettingsRegistry {
@@ -63,6 +63,7 @@ object SettingsRegistry {
         SettingSpec(9, "todayCard.water", SettingsGroup.APPEARANCE, ControlKind.SWITCH, "Today card: Water", advanced = false, isNew = true),
         SettingSpec(10, "todayCard.weight", SettingsGroup.APPEARANCE, ControlKind.SWITCH, "Today card: Weight", advanced = false, isNew = true),
         SettingSpec(11, "todayCard.meals", SettingsGroup.APPEARANCE, ControlKind.SWITCH, "Today card: Meals", advanced = false, isNew = true),
+        SettingSpec(116, "todayCard.activity", SettingsGroup.APPEARANCE, ControlKind.SWITCH, "Today card: Activity", advanced = false, isNew = true),
         SettingSpec(12, "autoTargets", SettingsGroup.NUTRITION, ControlKind.SWITCH, "Work my targets out from my data", advanced = false, isNew = false),
         SettingSpec(13, "manualCalories", SettingsGroup.NUTRITION, ControlKind.NUMBER, "Calories by hand", advanced = false, isNew = false),
         SettingSpec(14, "proteinPerKg", SettingsGroup.NUTRITION, ControlKind.NUMBER, "Protein", advanced = false, isNew = false),
@@ -97,6 +98,7 @@ object SettingsRegistry {
         SettingSpec(43, "equipment", SettingsGroup.TRAINING, ControlKind.CHIPS, "My equipment: items", advanced = false, isNew = false),
         SettingSpec(44, "jumpTests", SettingsGroup.TRAINING, ControlKind.SWITCH, "Show jump tests in Progress", advanced = false, isNew = true),
         SettingSpec(45, "weeklySets", SettingsGroup.TRAINING, ControlKind.NUMBER, "Weekly sets target per muscle region", advanced = true, isNew = true),
+        SettingSpec(61, "hcOpen", SettingsGroup.HEALTH, ControlKind.ACTION, "Allow all Health Connect permissions", advanced = false, isNew = false),
         SettingSpec(46, "hc.read.Exercisesessions", SettingsGroup.HEALTH, ControlKind.SWITCH, "Exercise sessions", advanced = false, isNew = false),
         SettingSpec(47, "hc.read.Totalcaloriesburned", SettingsGroup.HEALTH, ControlKind.SWITCH, "Total calories burned", advanced = false, isNew = false),
         SettingSpec(48, "hc.read.Activecalories", SettingsGroup.HEALTH, ControlKind.SWITCH, "Active calories", advanced = false, isNew = false),
@@ -112,7 +114,7 @@ object SettingsRegistry {
         SettingSpec(58, "hc.write.Weight", SettingsGroup.HEALTH, ControlKind.SWITCH, "Weight", advanced = false, isNew = false),
         SettingSpec(59, "hc.write.Hydration", SettingsGroup.HEALTH, ControlKind.SWITCH, "Hydration", advanced = false, isNew = false),
         SettingSpec(60, "hc.write.Workouts", SettingsGroup.HEALTH, ControlKind.SWITCH, "Workouts", advanced = false, isNew = false),
-        SettingSpec(61, "hcOpen", SettingsGroup.HEALTH, ControlKind.ACTION, "Health Connect permissions", advanced = false, isNew = false),
+        SettingSpec(117, "hc.read.Olderhistory", SettingsGroup.HEALTH, ControlKind.SWITCH, "Older history", advanced = false, isNew = true),
         SettingSpec(62, "offSearch", SettingsGroup.FOOD_DB, ControlKind.SWITCH, "Search Open Food Facts while typing", advanced = false, isNew = false),
         SettingSpec(115, "offLanguage", SettingsGroup.FOOD_DB, ControlKind.CHIPS, "Food search language", advanced = false, isNew = true),
         SettingSpec(63, "offOtherLanguages", SettingsGroup.FOOD_DB, ControlKind.SWITCH, "Show products in other languages", advanced = false, isNew = false),

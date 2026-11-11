@@ -149,4 +149,8 @@ If the call fails, the original text is shown. It uses the daily-insight model c
 - Only the weekly job and the screen make check-ins; there is no mid-week trigger.
 - A carb-cycling or refeed week pattern is ignored after a coach calorie change (the pattern only applies
   while the target equals the one it was built from).
+- Health Connect inputs: sleep is "last night" per day (sessions that ended that day, a phone and a watch counted once,
+  a short daytime nap left out unless it is all there is), so one night is no longer counted twice. Resting heart rate
+  is the day's mean of the resting records. The signals need the days to be in the database: the first sync reads 30
+  days, and a sync after one where a type had no permission reads the full 30 again.
 - Not seen on a device: the notification, the screen layout and the Health Connect signals.

@@ -3,6 +3,9 @@ package com.zeroindex.intake.ui.screens.today
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroindex.intake.data.coach.CoachRepository
+import com.zeroindex.intake.data.db.dao.HealthSummaryDao
+import com.zeroindex.intake.data.health.toDailyHealth
+import com.zeroindex.intake.domain.health.ActivityToday
 import com.zeroindex.intake.data.repository.MealPlanRepository
 import com.zeroindex.intake.data.repository.MealLogResult
 import com.zeroindex.intake.data.repository.RecipeContent
@@ -75,6 +78,8 @@ data class TodayExtras(
     val baseline: BaselineSnapshot? = null,
     /** "One thing to do today"; null until the first calculation. */
     val focus: DailyFocus? = null,
+    /** Steps, last night's sleep and active calories from Health Connect; null with no data or no permission. */
+    val activity: ActivityToday? = null,
 )
 
 /**
@@ -91,6 +96,7 @@ class TodayExtrasViewModel @Inject constructor(
     hydration: HydrationRepository,
     private val plans: MealPlanRepository,
     private val settingsRepository: SettingsRepository,
+    private val healthDao: HealthSummaryDao,
     private val messages: AppMessages,
     private val clock: Clock,
 ) : ViewModel() {
@@ -169,7 +175,10 @@ class TodayExtrasViewModel @Inject constructor(
         profile.observeBaseline(),
     ).let { fs -> combine(fs) { Unit } }.mapLatest { runCatching { coach.dailyFocus() }.getOrNull() }
 
-    val extras: StateFlow<TodayExtras> = combine(workout, profile.observeBaseline(), focus, nextMeal, exportState) { w, b, f, n, e ->
-        TodayExtras(nextMeal = n, exportDue = e.first, lastExportAt = e.second, workout = w, baseline = b, focus = f)
+    private val activity = healthDao.observeForDay(clock.todayRange().startInclusive).map { ActivityToday.from(it?.toDailyHealth()) }
+
+    val extras: StateFlow<TodayExtras> = combine(workout, profile.observeBaseline(), focus, nextMeal, combine(exportState, activity) { e, a -> e to a }) { w, b, f, n, ea ->
+        val (e, a) = ea
+        TodayExtras(nextMeal = n, exportDue = e.first, lastExportAt = e.second, workout = w, baseline = b, focus = f, activity = a)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TodayExtras())
 }
