@@ -402,8 +402,15 @@ private fun SearchTab(
         val nothingYet = state.localResults.isEmpty() && state.refResults.isEmpty() &&
             offResults.isEmpty() && usdaApiResults.isEmpty()
 
+        // Results arrive above rows that are already on screen (the phone's own foods and the offline database come in
+        // over the Open Food Facts section), and a lazy list stays on the row it was showing. Without this the best
+        // matches end up off the top of the screen.
+        val resultsState = androidx.compose.foundation.lazy.rememberLazyListState()
+        androidx.compose.runtime.LaunchedEffect(state.query, state.localResults.size, state.refResults.size) {
+            resultsState.scrollToItem(0)
+        }
         // Sources in order: this phone, the offline USDA database, Open Food Facts, the USDA API.
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(state = resultsState, modifier = Modifier.fillMaxSize()) {
             if (state.localResults.isNotEmpty()) {
                 item(key = "h-local") { SourceHeader("My foods and recents") }
                 items(items = state.localResults, key = { "l-${it.id}" }) { food ->

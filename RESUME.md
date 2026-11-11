@@ -1,7 +1,45 @@
 # Where this build is up to
 
-Read this first when picking the work back up. Branch:
-`claude/app-build-k2ag1d`.
+Read this first when picking the work back up. Latest work: branch
+`claude/optimistic-noether-fullk5` (not yet merged into `claude/app-build-k2ag1d`).
+
+## Option A parts 2 and 3, and the first emulator pass (branch `claude/optimistic-noether-fullk5`)
+
+Both WIP branches (`agent/nutrition-wip`, `agent/train-wip`) are merged and finished. Verified on the merged result:
+1440 unit tests, 0 lint errors (app and wear), `MigrationSchemaTest`, and the sync server tests.
+
+- **Nutrition (part 2).** New Nutrition home (allergen strip, Search/Scan/Photo, today's planned meal, dashboard, Drinks row,
+  Plan/Recipes/Meals/Eating out); Log food is a full screen with Search, Scan, Photo, Mine and Quick add; Food detail with the
+  Nutrition Facts label; Drinks from the food database with one log flow (`DrinkLogger`); the Swap sheet replaces Plan B.
+  Removed: the old Food hub, `Route.PlanB`, `Route.MyFoods`. No schema change beyond `migrateDrinks_2_3` and
+  `migrateNutrientsListed_2_3`.
+- **Train and Videos (part 3).** Train home with Workout, Exercises and Videos; Programs area; rebuilt active workout (previous
+  sets, rest strip, plate line, swap, live PR, minimised session bar); post-workout summary; Videos with the user's YouTube key,
+  cache and purge, paste-a-link without a key, the iframe player, and Make this a workout. Weighted muscles use the **fallback**
+  (main 1.0, helpers 0.5); there is no `exercise_muscle` table. No schema change beyond `migrateTraining_2_3`.
+- **Not built, from the briefs:** micronutrient totals (foods only store macros, fibre, sugar, sodium and saturated fat); a nutrition
+  label photo for Open Food Facts; the extra USDA portions in Log food; a separate muscle volume page with a week picker;
+  player fullscreen; a "last result" column in Exercises.
+
+**Seen on an emulator** (Android 11 image, software emulation, so slow; see `docs/HANDOFF.md` section 4). Walked: all nine
+onboarding steps, the Today tour, Today, Nutrition home, Log food (search, scan permission, photo off state, quick add), Food
+detail and logging, the allergen block and "Log anyway" confirmation for a dairy food, Drinks and a drink log, the Swap sheet,
+Train (all three sections), the program generator, an empty workout from start to summary, Programs, Progress, You, every
+Settings group, Allergens, the weekly check-in and Profile. Fixed from that pass:
+
+- Crash when the Today tour was skipped or finished (`Tour.kt` measured a child that was gone).
+- Freeze opening the exercise picker and the Exercises tab: every catalog row was composed inside one list item. They are lazy
+  rows now (`exerciseRows`); the photo index loads off the main thread; a catalog id is hashed once.
+- Freeze while typing a food search: ranking ran on the main thread and re-tokenised names inside the sort. Allergen matching
+  for rows also moved off the main thread.
+- Search results stayed scrolled to the bottom when results arrived above the Open Food Facts section.
+- Summary and Make-a-workout bottom buttons sat under the system navigation bar.
+- lb users got a 44.1 lb bar and kg plates; defaults now follow the weight unit (`PlateDefaults`).
+- Next up showed water in ml whatever the unit; Drinks listed Sparkling water before Water; Progress repeated its title and
+  had three Log weight buttons; "1 sets"; "1 1 slice"; the generated program's Save button was under a very long preview.
+
+**Not seen anywhere:** Android 12+ behaviour (pill blur, predictive back), a real camera or barcode, YouTube playback and search
+(no key, no network from the emulator), AI calls, Health Connect, the watch app, sync, light/dark theme switching, tablets.
 
 ## Option A part 1 (branch `worktree-agent-ad4c01822a3a47d62`)
 

@@ -77,6 +77,7 @@ You need JDK 17+ (21 works) and the Android SDK with platform 37 and build-tools
 ./gradlew :app:compileDebugKotlin :app:testDebugUnitTest :app:lintDebug
 ./gradlew :wearprotocol:test :wear:lintDebug
 ./gradlew :app:assembleDebug :wear:assembleDebug          # installable debug APKs
+./gradlew :app:assemblePreview                            # "Intake Preview": installs beside the real app
 python3 server/test_intake_sync.py                          # sync server tests
 ```
 
@@ -85,8 +86,9 @@ Before every merge, all of these must hold:
 - `app/build/reports/lint-results-debug.txt` shows **0 errors**;
 - `MigrationSchemaTest` passes.
 
-There is no emulator in the cloud containers. Say so when UI hasn't been seen on a
-device. Never claim it has.
+An emulator can be run in the cloud containers, slowly and without hardware acceleration
+(`docs/HANDOFF.md` section 4). It is not a phone: say what was seen on the emulator and what
+has not been seen on a device. Never claim more than that.
 
 **Release builds** need the signing properties `RELEASE_STORE_FILE`,
 `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS` and `RELEASE_KEY_PASSWORD` in
@@ -102,10 +104,9 @@ existing app, so the user must move their data across:
 When you hand over that first release, say so. If you don't have a key, build
 debug APKs only.
 
-**In a cloud container:** if Gradle gets HTTP 429 from Maven Central, fetch the
-missing jars with `curl` into `~/.m2/repository`, using the same path layout, and
-add an init script that calls `repositories.mavenLocal()`. Then build with
-`--offline`. On a small machine, use `--no-parallel --max-workers=1`, and don't
+**In a cloud container:** if Gradle gets HTTP 429 from Maven Central, run a local
+caching mirror that fetches with `curl` and point Gradle at it with an init script
+(`docs/HANDOFF.md` section 4). On a small machine, use `--no-parallel --max-workers=1`, and don't
 run two Gradle builds at once, because it can run out of memory.
 
 ## How to work alongside other agents

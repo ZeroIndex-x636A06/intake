@@ -234,18 +234,22 @@ class AllergenRepository @Inject constructor(
         val aliases = allergenDao.aliases().map {
             AllergenAlias(allergen = it.allergen, aliasTerm = it.aliasTerm, level = it.level)
         }
-        return AllergenMatcher.scan(
-            aliases = aliases,
-            avoidedAllergens = avoided,
-            name = name,
-            brand = brand,
-            ingredients = ingredients,
-            structuredContains = structuredContains,
-            structuredTraces = structuredTraces,
-            checkLabelTerms = HiddenCarriers.forAllergens(avoided) +
-                PlanWatchTerms.extract(PlanMeta.decode(planDao.activePlan()?.metaJson).hiddenDairyChecklist),
-            checkLabelInIngredients = checkLabelInIngredients,
-        )
+        val checkTerms = HiddenCarriers.forAllergens(avoided) +
+            PlanWatchTerms.extract(PlanMeta.decode(planDao.activePlan()?.metaJson).hiddenDairyChecklist)
+        // The matching is pure text work over every keyword; lists scan a row at a time, so it stays off the main thread.
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            AllergenMatcher.scan(
+                aliases = aliases,
+                avoidedAllergens = avoided,
+                name = name,
+                brand = brand,
+                ingredients = ingredients,
+                structuredContains = structuredContains,
+                structuredTraces = structuredTraces,
+                checkLabelTerms = checkTerms,
+                checkLabelInIngredients = checkLabelInIngredients,
+            )
+        }
     }
 
     /**

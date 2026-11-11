@@ -1,7 +1,6 @@
 # Task board
 
-> **In progress (pushed WIP branches):** `agent/nutrition-wip` (Option A part 2) and
-> `agent/train-wip` (Option A part 3). See `docs/HANDOFF.md` and `docs/briefs/`.
+> **Latest:** Option A parts 2 and 3 are finished on `claude/optimistic-noether-fullk5`. See `docs/HANDOFF.md`.
 
 The brief is `docs/SPEC-v3.md`. To claim a task, put your branch name next to it
 and push that change before you start. When you finish, move the task to Done
@@ -9,20 +8,13 @@ with its merge commit. Read `CLAUDE.md` before you claim anything.
 
 ## In progress
 
-**Option A part 1: shell, Today, You, Settings** (branch `worktree-agent-ad4c01822a3a47d62`, built from `docs/IA-v5.md` and
-`design/mockup-v5/option-a.html`). Four tabs (Today, Nutrition, Train, Progress), the avatar and You, one `IntakeTopBar`, no pill on
-pushed screens, the new transitions, Today, You with progress photos, Settings in 12 groups, the remote backup removed, one weekly
-check-in, one Allergens screen. Details and what is not verified: RESUME.md, "Option A part 1".
+Nothing. Option A parts 1 to 3 are built and merged on `claude/optimistic-noether-fullk5`, with a first emulator pass
+(`RESUME.md`, first section). That branch still has to be merged into `claude/app-build-k2ag1d` and `main`.
 
-**Next agents.** *Nutrition* (rebuild `Route.Nutrition`, which still holds the old Food hub; fill the stub `SwapSheet`; replace the stub
-`DrinksScreen`; finish the allergen strip; Log food as a screen; nutrition label). *Train* (rebuild `Route.Train`: sections, Programs menu,
-Videos). Both: **do not add settings to use screens.** Add the control to `docs/SETTINGS-INVENTORY.md`, `domain/settings/SettingsRegistry.kt`
-and `ui/screens/settings/SettingsControls.kt` (the test `SettingsRegistryTest` fails otherwise). Register a screen only one tab opens inside
-that tab's graph; a screen two tabs open goes once at the root of `IntakeNavHost`.
-
-**Claimed by the coordinating session**
-
-- Debug APK build for device testing.
+**Rules that still hold for new screens.** Do not add settings to use screens: a control goes into
+`docs/SETTINGS-INVENTORY.md`, `domain/settings/SettingsRegistry.kt` and `ui/screens/settings/SettingsControls.kt`
+(`SettingsRegistryTest` fails otherwise). Register a screen only one tab opens inside that tab's graph; a screen two tabs open
+goes once at the root of `IntakeNavHost`. Lists that can be long must be lazy rows, never a `forEach` inside one `item`.
 
 ## Bugs fixed from device testing
 
@@ -61,6 +53,17 @@ summary, top and bottom insets). The remaining device check is listed in `RESUME
 
 ## Open: anyone can claim these
 
+Suggestions from the emulator pass and a comparison with paid apps (not started; the user picks):
+- Home-screen widget (calories and water left, quick add) and launcher shortcuts (Log food, Scan, Start workout).
+- Reminders as notifications: meals, water, weigh-in and the progress photo (today the photo reminder is only a line on You).
+- lb plate increments in progression (the smallest step now follows the plate list; check program suggestions in lb).
+- A larger exercise catalog (94 lifts today), supersets, and a muscle-volume page with a week picker.
+- Micronutrients: store vitamins and minerals from USDA so "More nutrients" can total them.
+- The first weekly check-in appears on day one of a new install; hold it until there is a week of data.
+- The default allergen profile avoids dairy (right for this user); a public build should start with none.
+- Small ones: the training log shows "240 min" where the summary shows "241"; a session left open counts up to 4 hours;
+  the body map does not tell main muscles from helpers; "Core · Bodyweight · bodyweight" in the exercise list.
+
 Each task links to the section of `docs/SPEC-v3.md` that defines it.
 
 - Nothing open right now. Feedback from device testing will land here.
@@ -82,6 +85,11 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
   and run the benchmark, and set a backup destination.
 
 ## Done (v3)
+
+- Option A part 3, Train and Videos, and part 2, Nutrition (merged on `claude/optimistic-noether-fullk5`; briefs in
+  `docs/briefs/`, details and what was left out in `RESUME.md`). Walked on an emulator, with the fixes listed there.
+- `preview` build type (`:app:assemblePreview`): the debug build as its own app, "Intake Preview", id
+  `com.zeroindex.intake.preview`, so a new build installs beside the one already on the phone.
 
 - Recipe import improvements (branch `worktree-agent-ac631d26a40887bae`; see `docs/RECIPE-IMPORT.md`): notes, full nutrition (fibre, sugar, saturated fat, sodium in mg), photo (recipe-page image policy beside the Open Food Facts one), per-line allergen tags with the summary chip scrolling to them, prep/cook/total times, ingredient groups (a label per ingredient; recipe screen, cook mode, editor, shopping list), clean-up of WPRM artifacts and entities, and one primary action on the recipe screen with Open original, Add to this week, Edit and Delete (confirmed, soft) in a menu. Schema change: `migrateRecipes_2_3`. Tested on hand-written WPRM and Tasty fixtures. Not seen on a device.
 - Health Connect sync (FEEDBACK-R2 B6): first sync reads 30 days, later syncs 14 or the gap, a per-type result line and last sync time on the Health Connect screen, failures in plain words, and a fake-client test seam (`HealthDataSource`). Not run on a device; see `RESUME.md`.

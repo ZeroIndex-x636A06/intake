@@ -22,7 +22,10 @@ class FoodRefRepository @Inject constructor(
         if (tokens.isEmpty()) return emptyList()
         val padded = tokens + List(FoodRefSearch.MAX_TOKENS - tokens.size) { "" }
         val candidates = dao.candidates(padded[0], padded[1], padded[2], padded[3], FoodRefSearch.CANDIDATE_LIMIT)
-        return FoodRefSearch.rank(query, candidates, limit).map { it.toRefFood() }
+        // Ranking up to 500 candidates is work for a background thread, whoever calls this.
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            FoodRefSearch.rank(query, candidates, limit).map { it.toRefFood() }
+        }
     }
 
     suspend fun count(): Int = dao.count()

@@ -218,7 +218,7 @@ fun FoodDetailScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(
-                                if (servings >= 0.995 && servings <= 1.005) "1 ${food.servingLabel.ifBlank { "serving" }}" else "${fmt(Math.round(servings * 100.0) / 100.0)} × ${food.servingLabel.ifBlank { "serving" }}",
+                                if (servings >= 0.995 && servings <= 1.005) (if (food.servingLabel.firstOrNull()?.isDigit() == true) food.servingLabel else "1 ${food.servingLabel.ifBlank { "serving" }}") else "${fmt(Math.round(servings * 100.0) / 100.0)} × ${food.servingLabel.ifBlank { "serving" }}",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                             )
