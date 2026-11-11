@@ -6,8 +6,8 @@ Rules that apply to every row: use screens hold no configuration; one home per s
 
 ## Totals
 
-* **96 settings** (stored values) in **12 groups**, plus 16 action buttons (export, import, replay tour and so on) and 1 read-only line: **113 controls** in all.
-* 15 controls are **new** in v5 (not in the app today); 98 exist in the code.
+* **97 settings** (stored values) in **12 groups**, plus 16 action buttons (export, import, replay tour and so on) and 1 read-only line: **114 controls** in all.
+* 16 controls are **new** since v5 (15 from the v5 brief, plus Food search language, number 115, added after phone testing); 98 existed in the code before.
 * 25 controls sit in an **Advanced** disclosure on their page.
 
 | Group | Controls | Of which settings | Actions | New |
@@ -17,14 +17,14 @@ Rules that apply to every row: use screens hold no configuration; one home per s
 | Water and drinks | 11 | 10 | 1 | 0 |
 | Training | 8 | 8 | 0 | 2 |
 | Health Connect | 16 | 15 | 1 | 0 |
-| Food database | 5 | 5 | 0 | 0 |
+| Food database | 6 | 6 | 0 | 1 |
 | Videos | 2 | 2 | 0 | 2 |
 | Reminders | 4 | 4 | 0 | 2 |
 | Sync and export | 10 | 5 | 5 | 1 |
 | AI (optional) | 21 | 19 | 2 | 0 |
 | API keys | 3 | 3 | 0 | 1 |
 | About and help | 7 | 0 | 6 | 0 |
-| **Total** | **113** | **96** | **16** | **15** |
+| **Total** | **114** | **97** | **16** | **16** |
 
 Option C calls the Nutrition tab "Eat", so its settings group is "Eating targets"; the contents are identical.
 
@@ -131,6 +131,7 @@ Where food data comes from. The USDA key is under API keys. Licences and credits
 | # | Setting | Key (code) | Group | Control | Current home | New home |
 | ---: | --- | --- | --- | --- | --- | --- |
 | 62 | Search Open Food Facts while typing | `offSearch` (FoodDataPrefs off_search_enabled) | Food database | switch | Food database screen | Food database |
+| 115 | Food search language | `offLanguage` (FoodDataPrefs off_language) | Food database | chips: Phone language, English, Spanish, French, German, Italian, Portuguese, Dutch | none (new; also asked on the onboarding units step) | Food database |
 | 63 | Show products in other languages | `offOtherLanguages` (FoodDataPrefs off_other_languages) | Food database | switch | Food database screen | Food database |
 | 64 | Allow contributing to Open Food Facts | `offContribute` (FoodDataPrefs off_contribute_enabled) | Food database | switch | Food database screen | Food database |
 | 65 | Open Food Facts username | `offUsername` (ApiKeyStore off user) | Food database | text field | Food database screen | Food database |
@@ -252,7 +253,7 @@ Remote backup destination (protocol, host, port, user, password, private key), b
 
 ## Build status (Option A part 1)
 
-All 113 controls are built (`domain/settings/SettingsRegistry.kt`, drawn by `ui/screens/settings/SettingsControls.kt`). Per item marked "new":
+All 114 controls are built (`domain/settings/SettingsRegistry.kt`, drawn by `ui/screens/settings/SettingsControls.kt`). Per item marked "new":
 
 | Item | Built now | Consumer |
 | --- | --- | --- |

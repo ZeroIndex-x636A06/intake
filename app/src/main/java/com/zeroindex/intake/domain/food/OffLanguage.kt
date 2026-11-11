@@ -36,6 +36,11 @@ object OffLanguage {
         "it" to "Italian", "pt" to "Portuguese", "nl" to "Dutch",
     )
 
+    /** The chip's words for a stored choice: "English", or "Phone language (Dutch)" for the blank one. */
+    fun choiceLabel(choice: String, phone: java.util.Locale): String =
+        CHOICES.firstOrNull { it.first == choice }?.second
+            ?: "Phone language (${phone.getDisplayLanguage(java.util.Locale.ENGLISH).ifBlank { "English" }})"
+
     private fun code(language: String?): String = language.orEmpty().trim().lowercase().substringBefore('-').substringBefore('_')
 
     /**

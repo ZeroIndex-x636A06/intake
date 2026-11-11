@@ -7,6 +7,8 @@ import com.zeroindex.intake.data.onboarding.OnboardingRepository
 import com.zeroindex.intake.data.onboarding.StartChoice
 import com.zeroindex.intake.data.profile.ProfileRepository
 import com.zeroindex.intake.data.settings.AppSettings
+import com.zeroindex.intake.data.settings.FoodDataPrefs
+import com.zeroindex.intake.data.settings.FoodDataSettings
 import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.goals.GoalBuilder
 import com.zeroindex.intake.domain.onboarding.GateDecision
@@ -83,6 +85,7 @@ class OnboardingViewModel @Inject constructor(
     private val repository: OnboardingRepository,
     private val settingsRepository: SettingsRepository,
     private val profileRepository: ProfileRepository,
+    private val foodDataPrefs: FoodDataPrefs,
 ) : ViewModel() {
 
     val prefs: StateFlow<OnboardingPrefs> = repository.prefs
@@ -90,6 +93,18 @@ class OnboardingViewModel @Inject constructor(
 
     val settings: StateFlow<AppSettings> = settingsRepository.settings
         .stateIn(viewModelScope, SharingStarted.Eagerly, AppSettings())
+
+    /** The food search language and "Show products in other languages", asked on the units step. */
+    val foodData: StateFlow<FoodDataSettings> = foodDataPrefs.settings
+        .stateIn(viewModelScope, SharingStarted.Eagerly, FoodDataSettings())
+
+    fun setFoodLanguage(code: String) {
+        viewModelScope.launch { foodDataPrefs.setOffLanguage(code) }
+    }
+
+    fun setOtherLanguages(on: Boolean) {
+        viewModelScope.launch { foodDataPrefs.setOffOtherLanguages(on) }
+    }
 
     /** What the "Use the estimate now" tile last did, shown under it. */
     val estimate = MutableStateFlow<EstimateResult?>(null)

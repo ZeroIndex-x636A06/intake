@@ -43,6 +43,7 @@ import com.zeroindex.intake.domain.settings.SodiumDisplay
 import com.zeroindex.intake.domain.settings.TodayCard
 import com.zeroindex.intake.domain.settings.WeeklySets
 import com.zeroindex.intake.domain.settings.ControlKind
+import com.zeroindex.intake.domain.food.OffLanguage
 import com.zeroindex.intake.domain.settings.SettingSpec
 import com.zeroindex.intake.domain.training.generator.Equipment
 import com.zeroindex.intake.domain.training.generator.EquipmentPreset
@@ -205,7 +206,15 @@ fun SettingControl(
 
                 // ---- Food database ----
                 "offSearch" -> SwitchSetting("Search Open Food Facts while typing", "Sends only the words you typed, and only when you are online.", state.foodData.offSearch, viewModel::setOffSearch)
-                "offOtherLanguages" -> SwitchSetting("Show products in other languages", "Off leaves out products named in another script, such as Russian or Thai.", state.foodData.offOtherLanguages, viewModel::setOffOtherLanguages)
+                "offLanguage" -> ChipSetting(
+                    "Food search language",
+                    "Packaged foods are listed when they have a name in this language or in English.",
+                    listOf("") + OffLanguage.CHOICES.map { it.first },
+                    state.foodData.offLanguage,
+                    { code -> OffLanguage.choiceLabel(code, java.util.Locale.getDefault()) },
+                    viewModel::setOffLanguage,
+                )
+                "offOtherLanguages" -> SwitchSetting("Show products in other languages", "Off leaves out products with no name in your food search language or English.", state.foodData.offOtherLanguages, viewModel::setOffOtherLanguages)
                 "offContribute" -> SwitchSetting("Allow contributing to Open Food Facts", "Adds a Contribute button to foods you made that have a barcode. You confirm each time.", state.foodData.offContribute, viewModel::setOffContribute)
                 "offUsername" -> OffLogin(state.keys.offUsername, state.keys.hasOffCredentials, viewModel::saveOffCredentials)
                 "offPassword" -> Unit // drawn with the username above
