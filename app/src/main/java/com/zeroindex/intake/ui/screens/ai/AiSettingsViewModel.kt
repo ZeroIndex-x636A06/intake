@@ -39,7 +39,9 @@ import com.zeroindex.intake.domain.ai.cost.UsageSummarizer
 import com.zeroindex.intake.domain.ai.cost.UsageSummary
 import com.zeroindex.intake.domain.time.Clock
 import com.zeroindex.intake.domain.ai.BenchmarkScore
+import com.zeroindex.intake.domain.ai.ModelFit
 import com.zeroindex.intake.domain.ai.ModelSuggester
+import com.zeroindex.intake.domain.ai.PrivacyFit
 import com.zeroindex.intake.domain.ai.RankedModel
 import com.zeroindex.intake.domain.ai.Suggestion
 import com.zeroindex.intake.domain.ai.benchmark.BenchmarkCandidates
@@ -160,9 +162,10 @@ class AiSettingsViewModel @Inject constructor(
         keys.state,
         keyCheck,
         settingsRepository.settings,
-        catalog.state,
+        combine(catalog.state, catalog.endpoints, ::Pair),
         catalog.observeBenchmarks(),
-    ) { keyState, check, settings, catalogState, benchmarks ->
+    ) { keyState, check, settings, (catalogState, endpoints), benchmarks ->
+        val fit = PrivacyFit(settings.aiPrivacy != AiPrivacy.ANY, endpoints)
         AiSettingsUiState(
             hasKey = keyState.hasOpenRouterKey,
             keyCheck = check,
@@ -171,7 +174,7 @@ class AiSettingsViewModel @Inject constructor(
             benchmarks = benchmarks,
             rows = AiTask.entries.map { task ->
                 val suggestion = ModelSuggester.suggest(
-                    task, catalogState.models, benchmarks, settings.aiAllowRetainingModels,
+                    task, catalogState.models, benchmarks, settings.aiAllowRetainingModels, fit,
                 )
                 val overrideId = settings.aiModelOverrides[task]
                 val overridden = overrideId?.let { id -> suggestion.candidates.firstOrNull { it.model.id == id } }
@@ -295,8 +298,12 @@ class AiSettingsViewModel @Inject constructor(
         combine(catalog.state, benchmarkTasks, settingsRepository.settings) { c, tasks, settings -> Triple(c.models, tasks, settings) }
             .collect { (models, tasks, settings) ->
                 if (models.isEmpty() || !settings.aiEnabled) return@collect
-                val ids = BenchmarkSuite.tasks.filter { it in tasks }
-                    .flatMap { BenchmarkCandidates.lookahead(it, models, emptyList()) }.map { it.id }.distinct()
+                // The benchmark's tasks, plus every task's likely models, so each suggestion below is privacy-checked.
+                val ids = (
+                    BenchmarkSuite.tasks.filter { it in tasks }
+                        .flatMap { BenchmarkCandidates.lookahead(it, models, emptyList()) }.map { it.id } +
+                        AiTask.entries.flatMap { ModelFit.lookupIds(it, models, emptyList()) }
+                    ).distinct()
                 checkingProviders.value = true
                 try {
                     catalog.ensureEndpoints(ids, needZdr = settings.aiPrivacy != AiPrivacy.ANY)

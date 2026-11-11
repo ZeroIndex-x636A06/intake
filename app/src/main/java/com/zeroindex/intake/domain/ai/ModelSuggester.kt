@@ -1,5 +1,7 @@
 package com.zeroindex.intake.domain.ai
 
+import com.zeroindex.intake.domain.ai.benchmark.ExclusionReason
+
 /** A finished benchmark score for one model on one task. */
 data class BenchmarkScore(
     val task: AiTask,
@@ -29,6 +31,8 @@ data class Suggestion(
     val basis: SuggestionBasis?,
     /** Every capable model, most capable first and cheapest within a tier, for the picker list. */
     val candidates: List<RankedModel>,
+    /** Capable models with no provider that meets the privacy setting and the task's parameters, with why. */
+    val unavailable: Map<String, ExclusionReason> = emptyMap(),
 )
 
 /**
@@ -61,6 +65,8 @@ object ModelSuggester {
         catalog: List<ModelInfo>,
         benchmarks: List<BenchmarkScore>,
         allowRetainingModels: Boolean,
+        /** When given, models with no provider meeting the privacy setting are never suggested. See [ModelFit]. */
+        fit: PrivacyFit? = null,
     ): Suggestion {
         val scores = benchmarks.filter { it.task == task }.associateBy { it.modelId }
         val candidates = catalog
@@ -71,17 +77,22 @@ object ModelSuggester {
                     .thenBy { it.estimatedUsdPerUse }
                     .thenBy { it.model.id },
             )
-        val eligible = candidates.filter { allowRetainingModels || !it.model.mayRetainPrompts }
+        val unavailable = if (fit == null) {
+            emptyMap()
+        } else {
+            candidates.mapNotNull { c -> ModelFit.verdict(c.model, task, fit)?.let { c.model.id to it } }.toMap()
+        }
+        val eligible = candidates.filter { (allowRetainingModels || !it.model.mayRetainPrompts) && it.model.id !in unavailable }
 
         eligible.firstOrNull { it.benchmark?.passes() == true }?.let {
-            return Suggestion(it, SuggestionBasis.BENCHMARKED, candidates)
+            return Suggestion(it, SuggestionBasis.BENCHMARKED, candidates, unavailable)
         }
         val shortlisted = resolveShortlist(task, eligible.map { it.model }).toSet()
         eligible.firstOrNull { it.model.id in shortlisted }?.let {
-            return Suggestion(it, SuggestionBasis.SHORTLIST, candidates)
+            return Suggestion(it, SuggestionBasis.SHORTLIST, candidates, unavailable)
         }
-        eligible.firstOrNull()?.let { return Suggestion(it, SuggestionBasis.CHEAPEST_CAPABLE, candidates) }
-        return Suggestion(null, null, candidates)
+        eligible.firstOrNull()?.let { return Suggestion(it, SuggestionBasis.CHEAPEST_CAPABLE, candidates, unavailable) }
+        return Suggestion(null, null, candidates, unavailable)
     }
 
     /**

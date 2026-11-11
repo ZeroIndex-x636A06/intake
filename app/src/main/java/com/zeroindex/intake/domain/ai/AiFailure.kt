@@ -12,7 +12,11 @@ enum class AiFailureKind(val label: String, val hint: String) {
     NETWORK("No connection", "OpenRouter could not be reached."),
     AUTH("Key rejected", "OpenRouter did not accept the key. Check it in Settings -> AI."),
     CREDITS("Out of credit", "The OpenRouter account has no credit left."),
-    PRIVACY("Privacy setting", "No provider for this model meets your privacy setting."),
+    PRIVACY(
+        "Privacy setting",
+        "No provider met the app's privacy setting or your OpenRouter account's own privacy settings, " +
+            "or none accepts what the task sends.",
+    ),
     SERVER("Provider error", "The provider returned an error. Try again shortly."),
     CANCELLED("Cancelled", "You cancelled it."),
     ;
