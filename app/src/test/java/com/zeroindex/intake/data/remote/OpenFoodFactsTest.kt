@@ -94,6 +94,17 @@ class OpenFoodFactsTest {
     }
 
     @Test
+    fun `the product's own serving text is kept as the serving label, with its grams`() {
+        val body = """{"status":1,"product":{"product_name":"Instant Oatmeal Apples & Cinnamon","brands":"Quaker",""" +
+            """"serving_size":"1 packet (43 g)","serving_quantity":43,"nutriments":{"energy-kcal_100g":378,"proteins_100g":13,""" +
+            """"carbohydrates_100g":65,"fat_100g":6}}}"""
+        val product = json.decodeFromString<OffProductResponse>(body).product!!
+        val food = OffMapping.fromProduct(product, "123")!!
+        assertThat(food.servingLabel).isEqualTo("1 packet (43 g)")
+        assertThat(food.servingSizeGrams).isEqualTo(43.0)
+    }
+
+    @Test
     fun productResponseParsesAndMaps() {
         val response = json.decodeFromString<OffProductResponse>(fixture("product-nutella.json"))
         assertThat(response.status).isEqualTo(1)

@@ -48,6 +48,7 @@ import com.zeroindex.intake.data.remote.openfoodfacts.OffContributionForm
 import com.zeroindex.intake.domain.barcode.Barcodes
 import com.zeroindex.intake.domain.drinks.DrinkCategory
 import com.zeroindex.intake.domain.drinks.DrinkSizes
+import com.zeroindex.intake.domain.food.ServingText
 import com.zeroindex.intake.domain.model.FoodSource
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nfc.TemplateLink
@@ -218,7 +219,12 @@ fun FoodDetailScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(
-                                if (servings >= 0.995 && servings <= 1.005) (if (food.servingLabel.firstOrNull()?.isDigit() == true) food.servingLabel else "1 ${food.servingLabel.ifBlank { "serving" }}") else "${fmt(Math.round(servings * 100.0) / 100.0)} × ${food.servingLabel.ifBlank { "serving" }}",
+                                if (isDrink) {
+                                    if (servings >= 0.995 && servings <= 1.005) (if (food.servingLabel.firstOrNull()?.isDigit() == true) food.servingLabel else "1 ${food.servingLabel.ifBlank { "serving" }}") else "${fmt(Math.round(servings * 100.0) / 100.0)} × ${food.servingLabel.ifBlank { "serving" }}"
+                                } else {
+                                    // The servings in words; the grams sit under them.
+                                    ServingText.of(food.servingLabel, food.servingSizeGrams, servings).count
+                                },
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                             )
