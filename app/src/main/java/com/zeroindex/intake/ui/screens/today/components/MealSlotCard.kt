@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.data.db.entity.FoodLogEntity
+import com.zeroindex.intake.ui.components.MacroSplitBar
 import com.zeroindex.intake.ui.motion.pressScale
 import com.zeroindex.intake.ui.screens.today.MealSlotUi
 import com.zeroindex.intake.ui.screens.today.displayName
@@ -81,6 +82,14 @@ fun MealSlotCard(
                     },
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (slotUi.entries.isNotEmpty()) {
+                MacroSplitBar(
+                    proteinGrams = slotUi.entries.sumOf { it.protein },
+                    carbGrams = slotUi.entries.sumOf { it.carbs },
+                    fatGrams = slotUi.entries.sumOf { it.fat },
+                    modifier = Modifier.padding(bottom = 7.dp),
                 )
             }
 

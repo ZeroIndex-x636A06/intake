@@ -64,6 +64,7 @@ import com.zeroindex.intake.ui.allergen.AllergenBanner
 import com.zeroindex.intake.ui.allergen.AllergenWarningSheet
 import com.zeroindex.intake.ui.components.ChoiceChip
 import com.zeroindex.intake.ui.components.LabeledField
+import com.zeroindex.intake.ui.components.MacroSplitBar
 import com.zeroindex.intake.ui.components.MacroTiles
 import com.zeroindex.intake.ui.components.NutritionFactsLabel
 import com.zeroindex.intake.ui.components.SandNote
@@ -262,6 +263,7 @@ fun FoodDetailScreen(
                             Triple("${(food.kcalPer100g * f).roundToInt()}", "kcal", MaterialTheme.colorScheme.onSurface),
                         ),
                     )
+                    MacroSplitBar(food.proteinPer100g * f, food.carbsPer100g * f, food.fatPer100g * f)
                 }
             }
 
