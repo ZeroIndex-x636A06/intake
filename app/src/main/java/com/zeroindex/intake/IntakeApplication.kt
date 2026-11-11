@@ -42,6 +42,9 @@ class IntakeApplication : Application(), Configuration.Provider {
         BaselineWorker.schedule(WorkManager.getInstance(this))
         // Coach: a daily look at whether the weekly check-in is due.
         com.zeroindex.intake.work.CoachWorker.schedule(WorkManager.getInstance(this))
+        // Round 3, item D: daily reminders (workout, meals, water, progress photo). A 15-minute check that does nothing
+        // while every reminder is off.
+        com.zeroindex.intake.work.ReminderWorker.schedule(WorkManager.getInstance(this))
         // SPEC §12: Health Connect follows local writes, debounced - never a timer.
         healthSync.start()
         // The remote WebDAV / SFTP / SMB backup is gone. An old install may still have its nightly job queued and

@@ -32,6 +32,12 @@ class ReminderRulesTest {
     }
 
     @Test
+    fun `workout is not sent hours late`() {
+        // Six hours after 17:00 the window has closed: the phone was off, so nothing is sent late.
+        assertThat(ReminderRules.workoutDue(at(23, 30), at(17, 0), trainToday)).isFalse()
+    }
+
+    @Test
     fun `workout is not due on a rest day`() {
         assertThat(restToday).isInstanceOf(TodayPlan.Rest::class.java)
         assertThat(ReminderRules.workoutDue(at(18, 0), at(17, 0), restToday)).isFalse()
@@ -64,6 +70,12 @@ class ReminderRulesTest {
     @Test
     fun `meal is not due before its time`() {
         assertThat(ReminderRules.mealDue(at(7, 29), at(7, 30), slotLoggedToday = false)).isFalse()
+    }
+
+    @Test
+    fun `meal is not sent once the late window has closed`() {
+        assertThat(ReminderRules.mealDue(at(13, 29), at(7, 30), slotLoggedToday = false)).isTrue()
+        assertThat(ReminderRules.mealDue(at(13, 30), at(7, 30), slotLoggedToday = false)).isFalse()
     }
 
     // ---- Water ----

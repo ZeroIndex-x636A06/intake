@@ -16,16 +16,23 @@ object ReminderRules {
     /** Progress photo reminders wait until this hour, so a due photo never arrives in the night. */
     const val PHOTO_EARLIEST_HOUR = 10
 
-    /** True once the chosen time has come. Each reminder then fires at most once per slot per day. */
-    fun timeReached(nowMinute: Int, reminderMinute: Int): Boolean = nowMinute >= reminderMinute
+    /**
+     * A time-of-day reminder is sent from its time for [LATE_WINDOW_MINUTES]. After that (say the phone was off all
+     * evening) it is skipped rather than sent late, so a "log breakfast" nudge never arrives at night.
+     */
+    const val LATE_WINDOW_MINUTES = 6 * 60
+
+    /** True from the chosen time until the late window closes. Each reminder fires at most once per slot per day. */
+    fun inReminderWindow(nowMinute: Int, reminderMinute: Int): Boolean =
+        nowMinute >= reminderMinute && nowMinute < reminderMinute + LATE_WINDOW_MINUTES
 
     /** Workout: only on a training day, and only while today's workout is not finished. */
     fun workoutDue(nowMinute: Int, reminderMinute: Int, plan: TodayPlan): Boolean =
-        plan is TodayPlan.Train && timeReached(nowMinute, reminderMinute)
+        plan is TodayPlan.Train && inReminderWindow(nowMinute, reminderMinute)
 
     /** Meal: at the meal's time, and only if that meal slot has nothing logged today. */
     fun mealDue(nowMinute: Int, reminderMinute: Int, slotLoggedToday: Boolean): Boolean =
-        !slotLoggedToday && timeReached(nowMinute, reminderMinute)
+        !slotLoggedToday && inReminderWindow(nowMinute, reminderMinute)
 
     /** Water slots are every two hours from [startHour] up to and including [endHour]. */
     fun isWaterSlot(hour: Int, startHour: Int, endHour: Int): Boolean =
