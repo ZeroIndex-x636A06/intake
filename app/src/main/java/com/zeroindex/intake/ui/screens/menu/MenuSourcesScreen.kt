@@ -95,7 +95,7 @@ fun MenuSourcesScreen(
             item(key = "nokey") {
                 EmptyState(
                     title = "AI is off or has no key",
-                    body = "A link whose page publishes its menu as structured data is read without AI. Any other page, a PDF or pasted text is read by an AI model: turn on “Use AI features” and add a key in Settings → AI. Saved menus keep working without one.",
+                    body = "A link whose page publishes its menu as structured data is read without AI. A PDF with a nutrition table is read on this phone without AI (Android 15 or later). Any other page, a PDF the phone cannot read, or pasted text is read by an AI model: turn on “Use AI features” and add a key in Settings → AI. Saved menus keep working without one.",
                 )
             }
         }
@@ -122,6 +122,35 @@ fun MenuSourcesScreen(
                         shape = IntakeShape.Button,
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(top = 8.dp),
                     ) { Text("Cancel") }
+                }
+            }
+        }
+        state.aiOffer?.let { offer ->
+            item(key = "ai-offer") {
+                IntakeCard {
+                    Text("No table read on this phone", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        offer.reason,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                    Text(
+                        if (state.hasKey) {
+                            "Nothing was sent anywhere. If you read it with AI, the PDF is sent to your AI provider."
+                        } else {
+                            "Nothing was sent anywhere. AI is off or has no key: turn on “Use AI features” and add a key in Settings → AI to use it."
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                    Button(
+                        onClick = viewModel::readWithAi,
+                        enabled = state.hasKey,
+                        shape = IntakeShape.Button,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(top = 8.dp),
+                    ) { Text("Read it with AI") }
+                    TextButton(onClick = viewModel::dismissAiOffer, modifier = Modifier.fillMaxWidth()) { Text("Not now") }
                 }
             }
         }
@@ -204,7 +233,7 @@ fun MenuSourcesScreen(
                 src,
                 items,
                 // A link can be refreshed with AI off: a page with structured menu data needs no model.
-                canRun = state.running == null && (state.hasKey || src.kind == com.zeroindex.intake.data.db.entity.MenuSourceKind.URL),
+                canRun = state.running == null && (state.hasKey || src.kind == com.zeroindex.intake.data.db.entity.MenuSourceKind.URL || src.kind == com.zeroindex.intake.data.db.entity.MenuSourceKind.PDF),
                 onRun = { viewModel.run(src); viewModel.open(null) },
                 onRemove = { viewModel.delete(src); viewModel.open(null) },
                 onDismiss = { viewModel.open(null) },
@@ -299,6 +328,7 @@ private fun ReviewSheet(review: Review, onToggle: (Int) -> Unit, onSave: () -> U
             ) {
                 Text(
                     "Parsed ${review.items.size} items from ${review.source.restaurantName}" +
+                        (if (review.readOnPhone) " · read on this phone, no AI" else "") +
                         if (flagged > 0) " · $flagged need review" else "",
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(15.dp),
@@ -320,6 +350,14 @@ private fun ReviewSheet(review: Review, onToggle: (Int) -> Unit, onSave: () -> U
                             }
                         }
                         Text(macroLine(item), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+                        if (review.readOnPhone && item.description.isNotBlank()) {
+                            Text(
+                                item.description,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2,
+                            )
+                        }
                         Text(
                             when (item.allergenStatus) {
                                 AllergenStatus.CONTAINS, AllergenStatus.MAY_CONTAIN -> "Matched: ${item.allergenMatches}"

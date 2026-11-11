@@ -129,6 +129,9 @@ Every request also sends the header `X-Title: Intake`.
 
 - **The "Anything we can't see?" note** on the photo screen (up to 300 characters, optional) is sent to OpenRouter in the
   same request as the photo. It is not stored beyond the screen and is not part of the usage log.
+- **A menu PDF is read on the phone first, with no AI.** On Android 15 or later the platform PDF reader's text is
+  parsed on the phone (`NutritionTableParser`); if it finds a nutrition table, nothing is sent anywhere. Only when it
+  finds none does the app offer the AI path below, and only a tap on that offer sends the PDF.
 - **PDFs are sent to OpenRouter for parsing.** A menu PDF, from a link or a picked file, is sent as page-sized pieces in
   `file` parts with the `file-parser` plugin (free text engine). The privacy setting applies, but note that
   OpenRouter's own documentation says plugin processing is not covered by ZDR routing. A link is downloaded by the

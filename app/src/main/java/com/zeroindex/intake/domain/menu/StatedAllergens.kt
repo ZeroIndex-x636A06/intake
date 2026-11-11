@@ -18,6 +18,18 @@ data class StatedAllergens(val contains: List<String>, val mayContain: List<Stri
     companion object {
         val NONE = StatedAllergens(emptyList(), emptyList())
 
+        /**
+         * The ingredient text to give the engine's text scan. Text that is only the stored chart line
+         * ("Contains: ...; May contain: ...") is left out: its allergens reach the engine as structured contains and
+         * trace inputs, which keep "may contain" a may-contain, where a text scan would read it as "contains".
+         */
+        fun textForScan(ingredients: String): String? {
+            val t = ingredients.trim()
+            if (t.isEmpty()) return null
+            val stated = parse(t)
+            return if (!stated.isEmpty && stated.toText() == t) null else t
+        }
+
         private val CONTAINS = Regex("(?i)\\bcontains\\b\\s*:?")
         private val MAY_CONTAIN = Regex("(?i)\\bmay\\s+contain\\b\\s*:?")
         private val SHARED_FRYER = Regex("†")

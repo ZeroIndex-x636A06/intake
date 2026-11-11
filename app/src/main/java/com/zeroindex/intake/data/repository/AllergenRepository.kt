@@ -322,7 +322,8 @@ class AllergenRepository @Inject constructor(
                 aliases = aliases,
                 avoidedAllergens = avoided,
                 name = name,
-                ingredients = listOf(description, ingredients).filter { it.isNotBlank() }.joinToString("\n").ifBlank { null },
+                ingredients = listOf(description, com.zeroindex.intake.domain.menu.StatedAllergens.textForScan(ingredients).orEmpty())
+                    .filter { it.isNotBlank() }.joinToString("\n").ifBlank { null },
                 structuredContains = stated.contains,
                 structuredTraces = stated.mayContain,
                 checkLabelTerms = checkTerms,

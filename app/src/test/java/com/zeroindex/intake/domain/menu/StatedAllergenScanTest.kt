@@ -20,7 +20,7 @@ class StatedAllergenScanTest {
             aliases = aliases,
             avoidedAllergens = setOf("sesame", "dairy"),
             name = name,
-            ingredients = ingredients.ifBlank { null },
+            ingredients = StatedAllergens.textForScan(ingredients),
             structuredContains = stated.contains,
             structuredTraces = stated.mayContain,
         )

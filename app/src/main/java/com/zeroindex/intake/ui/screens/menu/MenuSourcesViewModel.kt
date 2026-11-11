@@ -9,6 +9,8 @@ import com.zeroindex.intake.data.ai.AiError
 import com.zeroindex.intake.data.ai.menu.MenuIngestor
 import com.zeroindex.intake.data.ai.menu.MenuProgress
 import com.zeroindex.intake.data.ai.menu.MenuImportException
+import com.zeroindex.intake.data.ai.menu.MenuNoTableException
+import com.zeroindex.intake.data.ai.menu.PdfRoute
 import com.zeroindex.intake.data.ai.menu.StagedItem
 import com.zeroindex.intake.data.db.dao.MenuDao
 import com.zeroindex.intake.data.db.entity.MenuItemEntity
@@ -36,12 +38,22 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-data class Review(val source: MenuSourceEntity, val items: List<StagedItem>, val warnings: List<String> = emptyList())
+data class Review(
+    val source: MenuSourceEntity,
+    val items: List<StagedItem>,
+    val warnings: List<String> = emptyList(),
+    /** True when the items were read on this phone from the PDF's text, with no AI. */
+    val readOnPhone: Boolean = false,
+)
+
+/** The phone's reader found no table in a PDF: [reason] says why, and the person may choose to use AI instead. */
+data class AiOffer(val source: MenuSourceEntity, val reason: String)
 
 data class MenuUiState(
     /** Where the import in flight is up to; null when none is running. */
     val running: MenuProgress? = null,
     val review: Review? = null,
+    val aiOffer: AiOffer? = null,
     val error: String? = null,
     val hasKey: Boolean = false,
     val openSourceId: String? = null,
@@ -94,25 +106,30 @@ class MenuSourcesViewModel @Inject constructor(
      * Imports [source]. The work runs off the main thread (see [MenuIngestor.stage]); progress is shown with a
      * Cancel that stops the download or the request in flight and puts the source back as it was.
      */
-    fun run(source: MenuSourceEntity) {
+    fun run(source: MenuSourceEntity, pdfRoute: PdfRoute = PdfRoute.PHONE_ONLY) {
         // A link is tried even with AI off: a page that publishes its menu as structured data is read with no model,
-        // and one that does not is refused by the gateway inside the import, with the same reason. Pasted text and a
-        // picked PDF always need the model, so those stop here.
-        if (source.kind != MenuSourceKind.URL) {
+        // and one that does not is refused by the gateway inside the import, with the same reason. A picked PDF is read
+        // on the phone first (no model), so it only needs AI when the person chose it. Pasted text always needs the model.
+        val needsModelNow = source.kind == MenuSourceKind.TEXT || (source.kind == MenuSourceKind.PDF && pdfRoute == PdfRoute.AI_ONLY)
+        if (needsModelNow) {
             gateway.unavailableReason()?.let { reason ->
                 _state.update { it.copy(error = reason.message) }
                 return
             }
         }
         if (importJob?.isActive == true) return
-        _state.update { it.copy(running = MenuProgress("Starting…"), error = null) }
+        _state.update { it.copy(running = MenuProgress("Starting…"), error = null, aiOffer = null) }
         importJob = viewModelScope.launch {
             menuDao.upsertSource(source.copy(lastStatus = MenuRunStatus.RUNNING, updatedAt = clock.nowMillis()))
             try {
-                val outcome = ingestor.stage(source, AiTrigger.USER_ACTION) { progress ->
+                val outcome = ingestor.stage(source, AiTrigger.USER_ACTION, onProgress = { progress ->
                     _state.update { s -> if (s.running != null) s.copy(running = progress) else s }
-                }
-                _state.update { it.copy(running = null, review = Review(source, outcome.items, outcome.warnings)) }
+                }, pdfRoute = pdfRoute)
+                _state.update { it.copy(running = null, review = Review(source, outcome.items, outcome.warnings, outcome.readOnPhone)) }
+            } catch (e: MenuNoTableException) {
+                // Nothing was sent anywhere. Say why, and let the person choose the AI path.
+                ingestor.markFailed(source, e.message ?: "No nutrition table was found.")
+                _state.update { it.copy(running = null, aiOffer = AiOffer(source, e.message ?: "No nutrition table was found.")) }
             } catch (e: CancellationException) {
                 // Cancel was pressed: the source goes back to how it was before this run.
                 withContext(NonCancellable) { menuDao.upsertSource(source) }
@@ -125,6 +142,14 @@ class MenuSourcesViewModel @Inject constructor(
             }
         }
     }
+
+    /** The person chose AI after the phone found no table: the same source, straight to the AI path. */
+    fun readWithAi() {
+        val offer = _state.value.aiOffer ?: return
+        run(offer.source, PdfRoute.AI_ONLY)
+    }
+
+    fun dismissAiOffer() = _state.update { it.copy(aiOffer = null) }
 
     /** Stops the import in flight; the OkHttp download or model call is cancelled with it. */
     fun cancelImport() {
