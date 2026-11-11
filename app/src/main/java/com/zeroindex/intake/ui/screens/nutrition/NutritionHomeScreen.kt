@@ -53,6 +53,7 @@ import com.zeroindex.intake.ui.components.AnimatedBar
 import com.zeroindex.intake.ui.components.EmptyState
 import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.ui.components.IntakeCard
+import com.zeroindex.intake.ui.components.MacroSplitBar
 import com.zeroindex.intake.ui.components.Segmented
 import com.zeroindex.intake.ui.components.rememberSweepFraction
 import com.zeroindex.intake.ui.motion.MoreDetail
@@ -312,6 +313,13 @@ private fun DashboardCard(
                 model.macros.forEachIndexed { i, row -> MacroBar(row, colors[i]) }
             }
         }
+        val grams = model.macros.associate { it.id to (it.value ?: 0.0) }
+        MacroSplitBar(
+            proteinGrams = grams["protein"] ?: 0.0,
+            carbGrams = grams["carbs"] ?: 0.0,
+            fatGrams = grams["fat"] ?: 0.0,
+            modifier = Modifier.padding(top = 10.dp),
+        )
         Spacer(Modifier.size(12.dp))
         // Fibre, saturated fat, sugar and salt or sodium: reference limits where a limit exists, "not listed" when unknown.
         model.others.chunked(2).forEach { pair ->

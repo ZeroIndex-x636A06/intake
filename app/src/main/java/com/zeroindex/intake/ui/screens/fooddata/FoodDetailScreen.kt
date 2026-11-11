@@ -48,6 +48,7 @@ import com.zeroindex.intake.data.remote.openfoodfacts.OffContributionForm
 import com.zeroindex.intake.domain.barcode.Barcodes
 import com.zeroindex.intake.domain.drinks.DrinkCategory
 import com.zeroindex.intake.domain.drinks.DrinkSizes
+import com.zeroindex.intake.domain.food.ServingText
 import com.zeroindex.intake.domain.model.FoodSource
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nfc.TemplateLink
@@ -63,6 +64,7 @@ import com.zeroindex.intake.ui.allergen.AllergenBanner
 import com.zeroindex.intake.ui.allergen.AllergenWarningSheet
 import com.zeroindex.intake.ui.components.ChoiceChip
 import com.zeroindex.intake.ui.components.LabeledField
+import com.zeroindex.intake.ui.components.MacroSplitBar
 import com.zeroindex.intake.ui.components.MacroTiles
 import com.zeroindex.intake.ui.components.NutritionFactsLabel
 import com.zeroindex.intake.ui.components.SandNote
@@ -218,7 +220,12 @@ fun FoodDetailScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(
-                                if (servings >= 0.995 && servings <= 1.005) (if (food.servingLabel.firstOrNull()?.isDigit() == true) food.servingLabel else "1 ${food.servingLabel.ifBlank { "serving" }}") else "${fmt(Math.round(servings * 100.0) / 100.0)} × ${food.servingLabel.ifBlank { "serving" }}",
+                                if (isDrink) {
+                                    if (servings >= 0.995 && servings <= 1.005) (if (food.servingLabel.firstOrNull()?.isDigit() == true) food.servingLabel else "1 ${food.servingLabel.ifBlank { "serving" }}") else "${fmt(Math.round(servings * 100.0) / 100.0)} × ${food.servingLabel.ifBlank { "serving" }}"
+                                } else {
+                                    // The servings in words; the grams sit under them.
+                                    ServingText.of(food.servingLabel, food.servingSizeGrams, servings).count
+                                },
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                             )
@@ -256,6 +263,7 @@ fun FoodDetailScreen(
                             Triple("${(food.kcalPer100g * f).roundToInt()}", "kcal", MaterialTheme.colorScheme.onSurface),
                         ),
                     )
+                    MacroSplitBar(food.proteinPer100g * f, food.carbsPer100g * f, food.fatPer100g * f)
                 }
             }
 

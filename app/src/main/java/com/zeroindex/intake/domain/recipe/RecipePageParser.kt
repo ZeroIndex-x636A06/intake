@@ -127,11 +127,16 @@ object RecipePageParser {
         return null
     }
 
+    private val CDATA_OPEN = Regex("""^\s*(?:(?://|/\*)\s*)?<!\[CDATA\[\s*(?:\*/)?""")
+    private val CDATA_CLOSE = Regex("""\s*(?:(?://|/\*)\s*)?\]\]>\s*(?:\*/)?\s*$""")
+
     private fun parseJson(raw: String): JsonElement? {
         var text = raw.trim()
         text = text.removePrefix("<!--").removeSuffix("-->").trim()
-        text = text.removePrefix("//<![CDATA[").removeSuffix("//]]>").removePrefix("/*<![CDATA[*/").removeSuffix("/*]]>*/").trim()
-        text = text.dropWhile { it.code == 0xFEFF }
+        text = text.dropWhile { it.code == 0xFEFF }.trim()
+        // CDATA wrappers, with or without a space after the comment marker: "//<![CDATA[", "// <![CDATA[", "/* <![CDATA[ */".
+        text = CDATA_OPEN.replace(text, "")
+        text = CDATA_CLOSE.replace(text, "").trim()
         if (text.isEmpty()) return null
         return runCatching { json.parseToJsonElement(text) }.getOrNull()
             // Raw line breaks and tabs inside strings are common and invalid; as spaces they are harmless.
