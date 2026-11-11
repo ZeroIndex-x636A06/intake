@@ -3,6 +3,21 @@
 Written 2026-11-11 so that nothing sent while work was in progress is lost. Read with `docs/FEEDBACK-R3.md` (items 1 to
 15, the first batch). The owner's words are quoted or closely paraphrased. "Mine" marks an interpretation.
 
+## Status at 06871e3
+
+Branch `claude/optimistic-noether-fullk5`, head `06871e3`. Round 3 is merged on that branch. It is not yet in
+`claude/app-build-k2ag1d` or `main`. Verified there: 1599 unit tests, 0 lint errors (app and wear).
+
+- **Done:** A, B, C, D, E, F (parts 1 and 2), G and H.
+- **Left:**
+  - F's simpler layout. The mockup is at `design/mockup-r3/food-layout.png`; it waits for the owner to pick option 1, 2 or 3.
+  - Watch workouts in the training log. This needs an `external_session` table.
+  - "Find this product" goes to search only, not to scan.
+  - Reading a PDF on the phone needs Android 15 or newer. Older phones use the AI path.
+  - `pdfbox-android` was not added.
+  - The "Open AI settings" button is only on Swap. It is not on Menu import, Recipe import, insights or Make this a workout.
+- **Not seen yet:** nothing in round 3 has been seen on the owner's phone.
+
 ## State of the branch when this was written
 
 - Branch `claude/optimistic-noether-fullk5`, head `e93b885`, pushed. Full verify passed on it: unit tests, 0 lint errors

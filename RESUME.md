@@ -3,6 +3,34 @@
 Read this first when picking the work back up. Latest work: branch
 `claude/optimistic-noether-fullk5` (not yet merged into `claude/app-build-k2ag1d`).
 
+## Round 3 (phone feedback), branch `claude/optimistic-noether-fullk5`
+
+Head `06871e3`. What the owner sent from the phone is in `docs/FEEDBACK-R3.md` and `docs/R3-BACKLOG.md` (the status section
+at the top lists what is done and what is left). Verified: 1599 unit tests and 0 lint errors (app and wear).
+
+- **AI.** The real cause of "No provider for this model meets your privacy setting" was `temperature` sent together with
+  `require_parameters` to models whose providers do not accept it. Fixed. Added a fallback to the other compatible models
+  and a clearer message.
+- **Photo estimate.** Asks up to three short questions with choices when it is unsure. No questions when it is confident.
+- **Health Connect.** Allow all button; permission for older history; weigh-ins read back a year; Activity card on Today;
+  sleep, steps and resting HR charts on Progress; sleep no longer counted twice. Schema `migrateHealthActive_2_3`.
+- **Reminders.** Workout, meals, water and progress photo notifications (settings 122 to 129).
+- **Tour.** Waits for scrolling to settle before moving the highlight.
+- **Recipe import.** Reads recipe data wrapped in CDATA; strips tracking parameters (`utm_*`) before fetching.
+- **Food.** Servings read as "1 serving (43 g)" style. Macro split bar on the food page, Today's meals and the Nutrition
+  dashboard.
+- **Restaurant menus.** In Swap and in Log food. Nutrition PDFs are read on the phone on Android 15 and newer; older phones use AI.
+- **Earlier round-3 items** are listed in `docs/FEEDBACK-R3.md`.
+
+**Seen on an emulator** (Android 11 image, software emulation; see `docs/HANDOFF.md` section 4), debug build: setup skipped,
+then Today, Nutrition, Train, Progress, You and Settings opened; the Reminders group and the Health Connect group opened;
+Log food search for "cheddar" returned USDA results with the allergen chip. No crash and no "not responding" kill in logcat.
+The Health Connect group says "Health Connect needs an update" on this image, so its switches were not seen. Screenshots:
+`design/r3-smoke/`. Not seen: the tour, the photo estimate questions, the food page macro bar, reminders firing.
+
+**Not seen anywhere yet:** nothing in round 3 has run on a physical phone. The Health Connect data, reminders, the photo
+questions, the PDF reader and the video playback are unit-tested or compiled only.
+
 ## Option A parts 2 and 3, and the first emulator pass (branch `claude/optimistic-noether-fullk5`)
 
 Both WIP branches (`agent/nutrition-wip`, `agent/train-wip`) are merged and finished. Verified on the merged result:

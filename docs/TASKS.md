@@ -53,6 +53,13 @@ summary, top and bottom insets). The remaining device check is listed in `RESUME
 
 ## Open: anyone can claim these
 
+Left over from round 3 (`docs/R3-BACKLOG.md`, status section):
+- F's simpler food layout: waits for the owner to pick option 1, 2 or 3 in `design/mockup-r3/food-layout.png`.
+- Watch workouts in the training log (needs an `external_session` table).
+- "Find this product" goes to search only, not scan.
+- On-phone PDF reading needs Android 15 or newer; older phones use AI. `pdfbox-android` not added.
+- "Open AI settings" button only on Swap; not on Menu import, Recipe import, insights or Make this a workout.
+
 Suggestions from the emulator pass and a comparison with paid apps (not started; the user picks):
 - Home-screen widget (calories and water left, quick add) and launcher shortcuts (Log food, Scan, Start workout).
 - Reminders as notifications: meals, water, weigh-in and the progress photo (today the photo reminder is only a line on You).
@@ -86,6 +93,8 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
 
 ## Done (v3)
 
+- Round 3 (phone feedback), on `claude/optimistic-noether-fullk5` at `06871e3`: see `docs/R3-BACKLOG.md` (status at the top)
+  and `RESUME.md` (first section). Verified by unit tests and lint; not yet seen on the owner's phone.
 - Option A part 3, Train and Videos, and part 2, Nutrition (merged on `claude/optimistic-noether-fullk5`; briefs in
   `docs/briefs/`, details and what was left out in `RESUME.md`). Walked on an emulator, with the fixes listed there.
 - `preview` build type (`:app:assemblePreview`): the debug build as its own app, "Intake Preview", id

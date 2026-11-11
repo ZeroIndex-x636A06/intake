@@ -5,10 +5,10 @@ Last updated 2026-11-11 by the coordinating session. If you are a new agent, rea
 ## 1. Where things stand
 
 **Branches**
-- `claude/optimistic-noether-fullk5` holds the latest work: Option A parts 2 and 3 finished and merged, plus the fixes from
-  the first emulator pass. Verified there: 1440 unit tests, 0 lint errors (app and wear), the sync server tests.
-- `main` and `claude/app-build-k2ag1d` are still the older snapshot (Option A part 1). Merge
-  `claude/optimistic-noether-fullk5` into `claude/app-build-k2ag1d`, re-verify, then fast-forward `main`.
+- `claude/optimistic-noether-fullk5` holds the latest work, head `06871e3`. Round 3 (phone feedback) is merged on it; see
+  `RESUME.md` (first section) and `docs/R3-BACKLOG.md`. Verified there: 1599 unit tests, 0 lint errors (app and wear).
+- `main` and `claude/app-build-k2ag1d` still need the merge. This session can only push its own branch, so the merge into
+  `claude/app-build-k2ag1d` (then `main`) is still to do. Re-verify after merging.
 - `agent/nutrition-wip` and `agent/train-wip` are fully merged and can be deleted.
 
 **The app today**
@@ -28,12 +28,13 @@ Last updated 2026-11-11 by the coordinating session. If you are a new agent, rea
 
 ## 2. What to do next, in order
 
-1. **Merge and hand over.** Merge `claude/optimistic-noether-fullk5` into `claude/app-build-k2ag1d`, run the full verify,
-   push, then fast-forward `main`.
-2. **APKs for the user.** `:app:assemblePreview :wear:assembleDebug`, copied to `release/` (git-ignored) with
-   `release/SHA256SUMS-debug`. The preview app has its own data, so it does not touch the installed app. A preview built in
-   another container is signed with a different debug key: uninstall the old preview before installing a new one.
-3. **Per-page adjustments.** The user will review each page and style on the phone and send changes. Record them in a new `docs/FEEDBACK-R3.md`, then implement.
+1. **Owner tests the preview on the phone.** The preview APK and `release/SHA256SUMS-debug` are in `release/` (git-ignored).
+   The preview app has its own data, so it does not touch the installed app. A preview built in another container is signed
+   with a different debug key: uninstall the old preview before installing a new one.
+2. **Owner picks a food layout option.** The mockup is `design/mockup-r3/food-layout.png` (options 1, 2 and 3). Build only after
+   the choice (`docs/R3-BACKLOG.md`, item F).
+3. **Merge to the integration branch and `main`.** Merge `claude/optimistic-noether-fullk5` into `claude/app-build-k2ag1d`, run the
+   full verify, push, then fast-forward `main`.
 4. **Backlog**, from `docs/FEEDBACK-R2.md` and `docs/TASKS.md`:
    - **Open Food Facts nutrition-label photo upload.** Real photos only, through the OFF image upload API (`imagefield=nutrition`), with the user's confirmation. We do not generate label images.
    - **Restaurant menus "like Google shows".** Google has no public API and scraping it is against its terms. Do a web search through OpenRouter on tap to find the restaurant's own menu page or PDF, then run it through the existing menu pipeline. Say so plainly when nothing is found.
