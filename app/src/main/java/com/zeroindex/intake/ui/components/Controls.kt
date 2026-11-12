@@ -62,6 +62,17 @@ fun SubHead(
     }
 }
 
+/** Just the explanatory line of a [SubHead], for a pushed screen whose top bar already shows the title. */
+@Composable
+fun SubCopy(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier.fillMaxWidth().padding(top = 8.dp, bottom = 10.dp),
+    )
+}
+
 /**
  * `.sectionline`: a bare heading row between cards, with an optional trailing
  * action or note. Unlike [SectionCard] this draws no container.

@@ -79,7 +79,6 @@ fun RecipesScreen(
     val recipes by viewModel.recipes.collectAsStateWithLifecycle()
     val gate = rememberStaggerGate()
     HubScreen(
-        title = "Recipes",
         subtitle = "Saved recipes log a serving in one tap.",
         contentPadding = contentPadding,
         modifier = modifier,
@@ -157,7 +156,6 @@ fun EatingOutScreen(
     val options by viewModel.options.collectAsStateWithLifecycle()
     var removing by remember { mutableStateOf<SwapEntry?>(null) }
     HubScreen(
-        title = "Eating out",
         subtitle = "Saved options, restaurant menus and healthier options near you.",
         contentPadding = contentPadding,
         modifier = modifier,

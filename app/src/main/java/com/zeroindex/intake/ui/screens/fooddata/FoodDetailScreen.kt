@@ -122,7 +122,7 @@ fun FoodDetailScreen(
 
     if (food == null) {
         Column(modifier.padding(contentPadding).padding(16.dp)) {
-            SubHead("Food", "This food is not on this phone.")
+            Text("This food is not on this phone.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             OutlinedButton(onClick = onBack) { Text("Back") }
         }
         return

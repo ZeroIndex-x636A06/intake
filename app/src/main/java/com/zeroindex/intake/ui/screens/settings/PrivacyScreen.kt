@@ -22,7 +22,7 @@ import com.zeroindex.intake.ui.components.PillTone
 import com.zeroindex.intake.ui.components.PrivacyTag
 import com.zeroindex.intake.ui.components.SectionLine
 import com.zeroindex.intake.ui.components.StatusPill
-import com.zeroindex.intake.ui.components.SubHead
+import com.zeroindex.intake.ui.components.SubCopy
 
 /**
  * SPEC §13 and the amendments: every way data can leave this phone, grouped by
@@ -41,9 +41,8 @@ fun PrivacyScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        SubHead(
-            title = "What leaves this phone",
-            subcopy = "The app works fully offline and without any key. Nothing is sent unless a " +
+        SubCopy(
+            "The app works fully offline and without any key. Nothing is sent unless a " +
                 "feature you switched on needs it. No account, no analytics, no crash reports, no ads.",
         )
 
