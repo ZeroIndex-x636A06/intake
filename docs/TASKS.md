@@ -162,4 +162,4 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
 - Food database, barcode fixes, Open Food Facts search and contribution (ede46d6).
 - Flexible meal plans, recipe editor, recipe import from a link (71e4911).
 
-- Menu import, McDonald's Ireland PDF (branch `claude/optimistic-noether-fullk5`): download checks, one error card, the duplicate heading, the allergen-chart reader, the nutrition follow-up card and the merge are done and unit-tested. Open: seeing PdfRenderer's text for the tick glyphs on a phone; the "page list" error from the phone is not reproduced (needs the exact file or text the phone received).
+- Menu import, McDonald's Ireland PDF (branch `claude/optimistic-noether-fullk5`): download checks, one error card, the duplicate heading, the allergen-chart reader, the nutrition follow-up card and the merge are done and unit-tested. Open: seeing PdfRenderer's text for the tick glyphs on a phone; the "page list" error is fixed (Android regex anchor difference, see RESUME.md).

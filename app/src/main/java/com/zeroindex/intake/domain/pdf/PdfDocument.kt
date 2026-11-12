@@ -128,6 +128,7 @@ class PdfDocument private constructor(
         private val HEADER = Regex("""(?<![0-9])(\d{1,10})\s+(\d{1,5})\s+obj(?![a-z])""")
         private val REF = Regex("""(?<![0-9])(\d{1,10})\s+\d{1,5}\s+R(?![a-zA-Z0-9])""")
         private val PARENT = Regex("""/Parent\s+\d+\s+\d+\s+R""")
+        private val REF_AT = Regex("""(\d+)\s+(\d+)\s+R(?![a-zA-Z0-9])""")
         private val STREAM_KEYWORD = Regex(""">>\s*stream\r?\n""")
 
         /** Parses [bytes], or throws [PdfUnsupportedException] with a message to show the person. */
@@ -298,7 +299,9 @@ class PdfDocument private constructor(
                     s.substring(start, i) to i
                 }
                 else -> {
-                    val ref = Regex("""\G(\d+)\s+(\d+)\s+R(?![a-zA-Z0-9])""").find(s, start)
+                    // matchAt, not the start-of-match anchor with find(start): Android's regex engine anchors that at the
+                    // beginning of the text, not at the start index, so on a phone every "15 0 R" came back as "15".
+                    val ref = REF_AT.matchAt(s, start)
                     if (ref != null) {
                         ref.value to ref.range.last + 1
                     } else {

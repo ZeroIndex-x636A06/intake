@@ -161,6 +161,25 @@ class PdfDocumentTest {
     }
 
     @Test
+    fun `an indirect reference in the middle of a dictionary is read whole`() {
+        val dict = "<</Lang(en-GB)/Metadata 16 0 R/Pages 15 0 R/Type/Catalog/ViewerPreferences<</Direction/L2R>>>>"
+        assertThat(PdfDocument.valueOf(dict, "Pages")).isEqualTo("15 0 R")
+        assertThat(PdfDocument.valueOf(dict, "Metadata")).isEqualTo("16 0 R")
+    }
+
+    /**
+     * Android's regex engine (ICU) anchors "\\G" at the start of the text after find(start), where the JVM anchors it at
+     * start. That made every page list unreadable on a phone while all JVM tests passed, so the construct is banned.
+     */
+    @Test
+    fun `no regex in the main sources relies on G after find(start), which differs on Android`() {
+        val roots = listOf(File("src/main/java"), File("app/src/main/java")).filter { it.isDirectory }
+        val offenders = roots.flatMap { it.walkTopDown().filter { f -> f.extension == "kt" }.toList() }
+            .filter { it.readText().contains("\\G") }.map { it.name }
+        assertThat(offenders).isEmpty()
+    }
+
+    @Test
     fun `a few bytes of junk before the pdf marker are tolerated`() {
         val doc = PdfDocument.parse(latin1("\r\n  junk\n") + classicPdf(2))
         assertThat(doc.pageCount).isEqualTo(2)
