@@ -54,7 +54,9 @@ steps) and `docs/TASKS.md`.
    - Never use `fallbackToDestructiveMigration`.
    - **Schema v2 is RELEASED**, because the user has it installed (APK built at
      4952404). Never edit v2 or `MIGRATION_1_2`.
-   - New changes go into v3 via `MIGRATION_2_3`, until a v3 APK ships.
+   - **Version 3 is closed.** Preview APKs went out with it and later builds edited it in place, which crashed the app on
+     launch after an update. A preview APK counts as shipped: any further schema change bumps the version and adds a
+     migration. `MIGRATION_3_4` repairs older version-3 files and is the model.
    - Every migration needs a `MigrationSchemaTest` case.
 6. **Secrets:**
    - Never commit or print `local.properties`, keystores, `.env` or `*.db` files

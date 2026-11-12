@@ -16,6 +16,10 @@ Nothing. Option A parts 1 to 3 are built and merged on `claude/optimistic-noethe
 (`SettingsRegistryTest` fails otherwise). Register a screen only one tab opens inside that tab's graph; a screen two tabs open
 goes once at the root of `IntakeNavHost`. Lists that can be long must be lazy rows, never a `forEach` inside one `item`.
 
+## Preview launch crash and ring labels
+
+Done on `claude/optimistic-noether-fullk5`: DB version 4 with `MIGRATION_3_4` repairing older version-3 files (the cause of the crash on launch after updating), and ring percentage labels placed clear of the ring (`RingLabelLayout`). Emulator only; the owner's phone has not confirmed either. See `RESUME.md`.
+
 ## Watch: workout link and quick remote
 
 Branch `worktree-agent-a978a2d098487061e`. Compiled, linted and unit-tested only; nothing has run on a watch.
