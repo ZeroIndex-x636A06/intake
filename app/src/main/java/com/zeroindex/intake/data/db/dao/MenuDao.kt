@@ -28,6 +28,16 @@ interface MenuDao {
     @Query("SELECT * FROM menu_item WHERE sourceId = :sourceId AND deletedAt IS NULL ORDER BY name")
     fun observeItemsOf(sourceId: String): Flow<List<MenuItemEntity>>
 
+    @Query("SELECT * FROM menu_item WHERE sourceId = :sourceId AND deletedAt IS NULL ORDER BY name")
+    suspend fun itemsOf(sourceId: String): List<MenuItemEntity>
+
+    /** Sources whose saved items all lack calories: allergen charts still waiting for a nutrition menu. */
+    @Query(
+        "SELECT sourceId FROM menu_item WHERE deletedAt IS NULL AND sourceId IS NOT NULL " +
+            "GROUP BY sourceId HAVING COUNT(kcal) = 0",
+    )
+    fun observeAllergenOnlySourceIds(): Flow<List<String>>
+
     @Query("SELECT * FROM menu_item WHERE deletedAt IS NULL ORDER BY restaurantName, name")
     suspend fun allItems(): List<MenuItemEntity>
 

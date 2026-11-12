@@ -20,7 +20,10 @@ import com.zeroindex.intake.domain.ai.MenuStructured
 import com.zeroindex.intake.domain.ai.MenuText
 import com.zeroindex.intake.domain.ai.StructuredMenuItem
 import com.zeroindex.intake.domain.allergen.ModelAllergenClaim
+import com.zeroindex.intake.domain.menu.AllergenChartParser
+import com.zeroindex.intake.domain.menu.ChartItem
 import com.zeroindex.intake.domain.menu.MenuTableParse
+import com.zeroindex.intake.domain.menu.NutritionPrompt
 import com.zeroindex.intake.domain.menu.NutritionTableParser
 import com.zeroindex.intake.domain.menu.StatedAllergens
 import com.zeroindex.intake.domain.pdf.PdfChunkPlanner
@@ -101,6 +104,8 @@ data class StageOutcome(
     val warnings: List<String> = emptyList(),
     /** True when the items were read on this phone from the PDF's own text, with no AI. */
     val readOnPhone: Boolean = false,
+    /** Set when the file was an allergen chart (no nutrition values): the line the review sheet shows instead of a count. */
+    val chartNote: String? = null,
 )
 
 /** Where an import is up to, for the progress line. [fraction] is null when it cannot be told. */
@@ -227,6 +232,7 @@ class MenuIngestor @Inject constructor(
         val results = ArrayList<List<ParsedItem>>()
         val warnings = ArrayList<String>()
         var stoppedBy: AiError? = null
+        var firstFailure: AiError? = null
 
         for ((i, chunk) in chunks.withIndex()) {
             coroutineContext.ensureActive()
@@ -257,12 +263,17 @@ class MenuIngestor @Inject constructor(
                     stoppedBy = e
                     break
                 }
+                if (firstFailure == null) firstFailure = e
                 warnings += "${chunk.label.replaceFirstChar { it.uppercase() }} could not be read (${e.failureKind.label.lowercase()})."
             }
         }
 
         val merged = MenuMerge.merge(results)
-        if (merged.isEmpty()) throw stoppedBy ?: MenuImportException("No menu items were found in that PDF.")
+        // Say what really happened: the request that failed, not "no items" when every request failed.
+        if (merged.isEmpty()) {
+            throw stoppedBy ?: firstFailure
+                ?: MenuImportException("The AI read the PDF but found no menu items in it. If it is an allergen chart with no nutrition values, only a phone that can read PDF text (Android 15 or later) can import it.")
+        }
         stoppedBy?.let {
             warnings += "Stopped early: ${it.message} The items below are the pages read so far."
         }
@@ -296,6 +307,19 @@ class MenuIngestor @Inject constructor(
                         emptyList()
                     }
                     return StageOutcome(stageTable(source, table), warnings, readOnPhone = true)
+                }
+                val chart = AllergenChartParser.parse(read.fragments)
+                if (chart.foundChart) {
+                    onProgress(MenuProgress("Checking allergens on this phone…", 1f))
+                    val warnings = buildList {
+                        if (chart.skippedTables > 0) add("${chart.skippedTables} table${if (chart.skippedTables == 1) "" else "s"} in the chart could not be matched to its allergen columns and were left out.")
+                        val unplaced = chart.items.count { !it.marksPlaced }
+                        if (unplaced > 0) add("$unplaced row${if (unplaced == 1) "" else "s"} had marks that could not be placed under one allergen exactly. Check those with the restaurant.")
+                    }
+                    return StageOutcome(
+                        stageChart(source, chart.items), warnings, readOnPhone = true,
+                        chartNote = "Allergen chart: ${chart.items.size} items, no calories or macros in this file.",
+                    )
                 }
                 "The reader on this phone found no nutrition table in that file. It needs a PDF with selectable text."
             }
@@ -342,6 +366,52 @@ class MenuIngestor @Inject constructor(
                         verdict.mayContain.isNotEmpty() -> AllergenStatus.MAY_CONTAIN
                         verdict.checkLabel.isNotEmpty() -> AllergenStatus.CHECK_LABEL
                         else -> AllergenStatus.CLEAR
+                    },
+                    allergenMatches = verdict.matches.map { it.matchedTerm }.distinct().joinToString(", "),
+                    importedAt = now,
+                    createdAt = now,
+                    updatedAt = now,
+                ),
+            )
+        }
+    }
+
+    /**
+     * An allergen chart has names, sizes and tick marks but no nutrition. Every item keeps "check the label" at best:
+     * a blank cell only means the chart marks nothing there, never that the item is free of it. Ticks and asterisks
+     * reach the engine as structured contains and may-contain inputs, so they can only raise a verdict.
+     */
+    private suspend fun stageChart(source: MenuSourceEntity, items: List<ChartItem>): List<StagedItem> {
+        val now = clock.nowMillis()
+        val scan = allergens.menuScanner()
+        return items.map { row ->
+            coroutineContext.ensureActive()
+            val label = if (row.size != null) "${row.name} (${row.size})" else row.name
+            val ingredients = row.stated.toText()
+            val description = listOfNotNull(
+                row.category,
+                "vegan".takeIf { row.vegan },
+                "vegetarian".takeIf { row.vegetarian },
+                "nutrition not listed in this chart",
+                "marks in this row could not be placed exactly: check with the restaurant".takeIf { !row.marksPlaced },
+            ).joinToString(" · ")
+            val verdict = withContext(Dispatchers.Default) { scan(label, description, ingredients) }
+            StagedItem(
+                MenuItemEntity(
+                    sourceId = source.id,
+                    restaurantName = source.restaurantName,
+                    name = label,
+                    description = description,
+                    ingredientsText = ingredients,
+                    kcal = null,
+                    proteinG = null,
+                    carbsG = null,
+                    fatG = null,
+                    macrosPublished = false,
+                    allergenStatus = when {
+                        verdict.blocks -> AllergenStatus.CONTAINS
+                        verdict.mayContain.isNotEmpty() -> AllergenStatus.MAY_CONTAIN
+                        else -> AllergenStatus.CHECK_LABEL
                     },
                     allergenMatches = verdict.matches.map { it.matchedTerm }.distinct().joinToString(", "),
                     importedAt = now,
@@ -437,11 +507,23 @@ class MenuIngestor @Inject constructor(
     /** Replaces the source's items with [items]; the previous run is soft deleted. */
     suspend fun commit(source: MenuSourceEntity, items: List<MenuItemEntity>) {
         val now = clock.nowMillis()
+        val toSave = keepNutritionOnRefresh(source, items, now)
         menuDao.softDeleteItemsOf(source.id, now)
-        menuDao.upsertItems(items)
+        menuDao.upsertItems(toSave)
         menuDao.upsertSource(
-            source.copy(lastRunAt = now, lastStatus = MenuRunStatus.OK, lastError = null, itemCount = items.size, updatedAt = now),
+            source.copy(lastRunAt = now, lastStatus = MenuRunStatus.OK, lastError = null, itemCount = toSave.size, updatedAt = now),
         )
+    }
+
+    /**
+     * Re-reading an allergen chart must not throw away the nutrition added to it earlier: the fresh chart rows are
+     * merged with what is saved, so nutrition stays and the allergens are refreshed (the union, raise only).
+     */
+    private suspend fun keepNutritionOnRefresh(source: MenuSourceEntity, items: List<MenuItemEntity>, now: Long): List<MenuItemEntity> {
+        if (!NutritionPrompt.isAllergenOnly(items.map { it.kcal })) return items
+        val saved = menuDao.itemsOf(source.id).filter { it.kcal != null }
+        if (saved.isEmpty()) return items
+        return MenuNutritionMerge.merge(chart = items, nutrition = saved, sourceId = source.id, now = now).items
     }
 
     suspend fun markFailed(source: MenuSourceEntity, reason: String) {
@@ -482,7 +564,10 @@ internal object MenuPrompts {
                 "You are reading $pdfPages of a restaurant's nutrition and allergen PDF. Each table row is one menu " +
                     "item. Take calories, total fat, total carbohydrate and protein from the column the header names, " +
                     "in kcal and grams, and set macrosPublished to true. If a row says \"Contains: ...\", copy that line " +
-                    "exactly into ingredients and list the same allergens in containsAllergens. Section titles, " +
+                    "exactly into ingredients and list the same allergens in containsAllergens. If the PDF prints no nutrition " +
+                    "values (an allergen chart of ticks and asterisks), set kcal, protein, carbs and fat to null and " +
+                    "macrosPublished to false: never estimate or invent numbers for a PDF, and never list an allergen the " +
+                    "chart does not mark. Section titles, " +
                     "footnotes and column headers are not items. Skip a row that is cut off by the page edge.",
             )
         }

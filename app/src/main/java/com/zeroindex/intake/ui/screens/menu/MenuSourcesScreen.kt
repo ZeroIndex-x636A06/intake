@@ -75,12 +75,18 @@ fun MenuSourcesScreen(
     val sources by viewModel.sources.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val items by viewModel.openItems.collectAsStateWithLifecycle()
+    val allergenOnly by viewModel.allergenOnlyIds.collectAsStateWithLifecycle()
     var adding by remember { mutableStateOf(false) }
     val dates = remember { DateTimeFormatter.ofPattern("d MMM") }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         val refused = state.refusedSource
         if (uri != null && refused != null) viewModel.replaceWithPdf(refused, uri.toString())
     }
+    val nutritionPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) viewModel.addNutritionPdf(uri.toString())
+    }
+    var linkText by remember { mutableStateOf("") }
+    var askingLink by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
@@ -132,6 +138,43 @@ fun MenuSourcesScreen(
                         shape = IntakeShape.Button,
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(top = 8.dp),
                     ) { Text("Cancel") }
+                }
+            }
+        }
+        state.nutritionPrompt?.let { chart ->
+            item(key = "nutrition-prompt") {
+                IntakeCard {
+                    Text("Add the nutrition menu?", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "This chart has allergens but no calories. Add ${chart.restaurantName}'s nutrition menu? " +
+                            "Calories and macros come from it; allergens from both files are kept.",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                    if (askingLink) {
+                        OutlinedTextField(
+                            linkText, { linkText = it.trim() }, label = { Text("Nutrition menu link") }, singleLine = true,
+                            shape = IntakeShape.Field, modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        )
+                        Button(
+                            onClick = { viewModel.addNutritionLink(linkText); askingLink = false },
+                            enabled = linkText.startsWith("http"),
+                            shape = IntakeShape.Button,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(top = 8.dp),
+                        ) { Text("Read the link") }
+                    } else {
+                        Button(
+                            onClick = { nutritionPicker.launch(arrayOf("application/pdf")) },
+                            shape = IntakeShape.Button,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(top = 8.dp),
+                        ) { Text("Choose a PDF") }
+                        OutlinedButton(
+                            onClick = { askingLink = true },
+                            shape = IntakeShape.Button,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(top = 6.dp),
+                        ) { Text("Paste a link") }
+                    }
+                    TextButton(onClick = { askingLink = false; viewModel.skipNutritionPrompt() }, modifier = Modifier.fillMaxWidth()) { Text("Skip") }
                 }
             }
         }
@@ -226,6 +269,9 @@ fun MenuSourcesScreen(
                                 MenuRunStatus.RUNNING -> StatusPill("Running", tone = PillTone.Wait)
                                 MenuRunStatus.NEVER_RUN -> StatusPill("Never run", tone = PillTone.Wait)
                             }
+                        }
+                        if (source.id in allergenOnly) {
+                            TextButton(onClick = { viewModel.askForNutrition(source) }) { Text("Add nutrition menu") }
                         }
                         if (i != sources.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
@@ -344,9 +390,13 @@ private fun ReviewSheet(review: Review, onToggle: (Int) -> Unit, onSave: () -> U
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
-                    "Parsed ${review.items.size} items from ${review.source.restaurantName}" +
-                        (if (review.readOnPhone) " · read on this phone, no AI" else "") +
-                        if (flagged > 0) " · $flagged need review" else "",
+                    if (review.chartNote != null) {
+                        review.chartNote + (if (review.readOnPhone) " Read on this phone, no AI." else "") + if (flagged > 0) " $flagged need review." else ""
+                    } else {
+                        "Parsed ${review.items.size} items from ${review.source.restaurantName}" +
+                            (if (review.readOnPhone) " · read on this phone, no AI" else "") +
+                            if (flagged > 0) " · $flagged need review" else ""
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(15.dp),
                 )
@@ -378,7 +428,8 @@ private fun ReviewSheet(review: Review, onToggle: (Int) -> Unit, onSave: () -> U
                         Text(
                             when (item.allergenStatus) {
                                 AllergenStatus.CONTAINS, AllergenStatus.MAY_CONTAIN -> "Matched: ${item.allergenMatches}"
-                                AllergenStatus.CHECK_LABEL -> "Often hides dairy: ${item.allergenMatches}"
+                                AllergenStatus.CHECK_LABEL ->
+                                    if (review.chartNote != null) "Not stated by this chart: it cannot show an item is free of an allergen" else "Often hides dairy: ${item.allergenMatches}"
                                 AllergenStatus.CLEAR, AllergenStatus.MENTIONED_AVOIDED -> "No terms you avoid were found"
                                 AllergenStatus.UNKNOWN -> "Check with staff before ordering"
                             },
@@ -411,7 +462,7 @@ private fun macroLine(item: MenuItemEntity): String = listOfNotNull(
     item.kcal?.let { "${it.roundToInt()} kcal" },
     item.proteinG?.let { "${it.roundToInt()} g protein" },
     "estimated".takeIf { !item.macrosPublished && item.kcal != null },
-).joinToString(" · ").ifBlank { "No nutrition listed" }
+).joinToString(" · ").ifBlank { "Nutrition not listed" }
 
 @Composable
 private fun ItemsSheet(

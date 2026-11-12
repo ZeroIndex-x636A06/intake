@@ -31,7 +31,7 @@ class PhonePdfText @Inject constructor(
 ) {
     sealed interface Result {
         /** One entry per page, each page as reading lines joined with newlines. */
-        data class Pages(val pages: List<String>) : Result
+        data class Pages(val pages: List<String>, val fragments: List<List<TextFragment>> = emptyList()) : Result
 
         /** This phone cannot read PDF text (older than Android 15). */
         data class Unsupported(val reason: String) : Result
@@ -68,6 +68,7 @@ class PhonePdfText @Inject constructor(
             PdfRenderer(fd).use { renderer ->
                 val count = minOf(renderer.pageCount, MAX_PAGES)
                 val pages = ArrayList<String>(count)
+                val positioned = ArrayList<List<TextFragment>>(count)
                 for (i in 0 until count) {
                     coroutineContext.ensureActive()
                     renderer.openPage(i).use { page ->
@@ -83,9 +84,10 @@ class PhonePdfText @Inject constructor(
                             }
                         }
                         pages += PdfTextLayout.lines(fragments).joinToString("\n")
+                        positioned += fragments
                     }
                 }
-                return Result.Pages(pages)
+                return Result.Pages(pages, positioned)
             }
         }
     }

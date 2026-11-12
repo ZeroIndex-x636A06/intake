@@ -196,6 +196,7 @@ class SettingsRepository @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
     private object Keys {
+        val menuNutritionSkipped = stringPreferencesKey("menu_nutrition_prompt_skipped")
         val weightUnit = stringPreferencesKey("weight_unit")
         val lengthUnit = stringPreferencesKey("length_unit")
         val themeMode = stringPreferencesKey("theme_mode")
@@ -417,6 +418,15 @@ class SettingsRepository @Inject constructor(
     }
     suspend fun setReduceMotion(enabled: Boolean) = put { it[Keys.reduceMotion] = enabled }
     suspend fun setCelebratedProteinDay(epochDay: Long) = put { it[Keys.celebratedProteinDay] = epochDay }
+    /** Menu sources (by id) whose "add the nutrition menu" prompt the person skipped. Stays on this phone. */
+    val menuNutritionPromptSkipped: Flow<Set<String>> =
+        context.dataStore.data.map { p -> p[Keys.menuNutritionSkipped].orEmpty().split(',').filter { it.isNotBlank() }.toSet() }
+
+    suspend fun skipMenuNutritionPrompt(sourceId: String) = put {
+        val now = it[Keys.menuNutritionSkipped].orEmpty().split(',').filter { s -> s.isNotBlank() }.toSet()
+        it[Keys.menuNutritionSkipped] = (now + sourceId).joinToString(",")
+    }
+
     val celebratedProteinDay: Flow<Long?> = context.dataStore.data.map { it[Keys.celebratedProteinDay] }
     suspend fun setCoachNotify(enabled: Boolean) = put { it[Keys.coachNotify] = enabled }
     suspend fun setCoachAiReword(enabled: Boolean) = put { it[Keys.coachAiReword] = enabled }

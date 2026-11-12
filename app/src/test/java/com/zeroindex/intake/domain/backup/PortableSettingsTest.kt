@@ -167,6 +167,8 @@ class PortableSettingsTest {
             "last_celebration_day",
             // Round 3: when the app was first used (starts the export reminder clock); per device.
             "first_use_at_ms",
+            // Menu import: sources whose "add the nutrition menu" prompt was skipped (ids are local to this phone).
+            "menu_nutrition_prompt_skipped",
             // AI usage meter: where this device's counters were last reset.
             "ai_usage_reset_at",
             // Hydration v2: precise location, forecast cache and retry time.
