@@ -376,7 +376,10 @@ docs describe them. A phone already on an earlier v3 debug build must be reinsta
   (fake HTTP layer); the Settings -> AI switch, budget, meter and cost cards have not been seen on a
   screen, and structured menu parsing has only been run on hand-written JSON-LD, not real restaurant pages.
   PDF menus still go to the model (no PDF text extractor without a new dependency).
-- No real watch and phone pairing. The Data Layer path has not run on devices.
+- No real watch and phone pairing. The Data Layer path has not run on devices. The watch's workout link was fixed and a
+  quick remote added (`docs/WEAR.md`): the cause was a missing `preview` build type in `wear/`, so the watch could not pair
+  with the owner's Intake Preview phone app. All of it is compiled, linted and unit-tested (`RemoteProtocolTest`, 14 wearprotocol
+  tests) only. The pair must be installed as the same variant; `docs/WEAR.md` has the tasks and APK paths.
 - No NFC hardware. Tag writing and reading are untested on a device.
 - Health Connect has not run on a device.
 - Vision (photo estimate) is not benchmarked. No photos with known answers are

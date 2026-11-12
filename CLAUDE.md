@@ -21,6 +21,7 @@ steps) and `docs/TASKS.md`.
 | `docs/briefs/` | Full briefs for in-progress work. |
 | `docs/TASKS.md` | **Task board.** Open work, who is on it, what is done. |
 | `docs/scripting/` | The Intake script language wiki, also bundled into the app |
+| `docs/WEAR.md` | Watch app: the quick remote, the phone/watch pairing rule, how to install the pair |
 | `docs/ALLERGENS.md`, `PRIVACY.md`, `SYNC-EXPORT.md`, `BENCHMARK.md`, `FOOD-DATA.md`, `MEAL-PLAN.md` | Feature docs |
 | `RESUME.md` | Detailed state of the code, plus what is and isn't verified |
 | `design/mockup-v5/option-a.html` | **Chosen design (Option A)**; frames in `design/mockup-v5/shots/` |

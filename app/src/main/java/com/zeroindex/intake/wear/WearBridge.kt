@@ -10,6 +10,8 @@ import com.zeroindex.intake.data.repository.TrainingRepository
 import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.time.Clock
 import com.zeroindex.intake.wearprotocol.ActiveWorkout
+import com.zeroindex.intake.wearprotocol.RemoteProtocol
+import com.zeroindex.intake.wearprotocol.RemoteState
 import com.zeroindex.intake.wearprotocol.WearProtocol
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -21,6 +23,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -48,11 +52,12 @@ class WearBridge @Inject constructor(
     private val training: TrainingRepository,
     private val settings: SettingsRepository,
     private val clock: Clock,
+    private val remote: RemoteStateBuilder,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val data by lazy { Wearable.getDataClient(context) }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
+    @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
     fun start() {
         training.observeInProgress()
             .flatMapLatest { session ->
@@ -68,6 +73,21 @@ class WearBridge @Inject constructor(
             }
             .onEach(::publish)
             .launchIn(scope)
+        // The quick remote's day at a glance. Debounced, and an unchanged state (apart from its timestamp) is not re-sent.
+        remote.observe()
+            .debounce(750)
+            .distinctUntilChanged { a, b -> a.copy(updatedAt = 0) == b.copy(updatedAt = 0) }
+            .onEach(::publishState)
+            .launchIn(scope)
+    }
+
+    private suspend fun publishState(state: RemoteState) {
+        runCatching {
+            val request = PutDataMapRequest.create(RemoteProtocol.PATH_STATE).apply {
+                dataMap.putString(WearProtocol.KEY_JSON, RemoteProtocol.encode(state))
+            }.asPutDataRequest().setUrgent()
+            data.putDataItem(request).await()
+        }.onFailure { Log.i(TAG, "No watch link for state: ${it.javaClass.simpleName}") }
     }
 
     private suspend fun publish(workout: ActiveWorkout?) {
