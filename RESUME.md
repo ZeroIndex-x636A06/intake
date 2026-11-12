@@ -3,6 +3,16 @@
 Read this first when picking the work back up. Latest work: branch
 `claude/optimistic-noether-fullk5` (not yet merged into `claude/app-build-k2ag1d`).
 
+## Recipe nutrition and shopping amounts (branch `worktree-agent-a2198826f8ff9a2b4`)
+
+Root cause of "0 g protein, 0 g carbs, 444 kcal": the page's JSON-LD gives only `"calories":"444 calories"`; the parser correctly left the macros
+null, but the recipe screen, the import preview and "Log a serving" turned null into 0. Now: unknown shows "not listed"; a log row for an unknown
+macro stores 0 plus `protein`/`carbs`/`fat` in `unlistedNutrients` (no migration; `CoreMacro`); the schema.org parser also reads
+`@id`-referenced and array nutrition, "12g"/"12 grams"/"1,200"/"3,5 g" strings, and prefers kcal over kJ. Missing macros are estimated offline from the
+ingredient lines against the bundled USDA file and shown as "Estimated from ingredients" with per-line matches behind a tap. Shopping list:
+quantities are summed per item across the week's recipes by the same line reader. Not verified on a device or emulator. Corrections to
+the estimate's matches last only while the recipe screen is open. The plan stores no servings, so shopping amounts use each recipe as written.
+
 ## Round 3 (phone feedback), branch `claude/optimistic-noether-fullk5`
 
 Head `06871e3`. What the owner sent from the phone is in `docs/FEEDBACK-R3.md` and `docs/R3-BACKLOG.md` (the status section

@@ -15,6 +15,9 @@ import com.zeroindex.intake.data.repository.FoodLogRepository
 import com.zeroindex.intake.data.repository.MealPlanRepository
 import com.zeroindex.intake.data.repository.RecipeRepository
 import com.zeroindex.intake.data.repository.RecipeView
+import com.zeroindex.intake.data.recipe.RecipeNutritionEstimator
+import com.zeroindex.intake.domain.recipe.RecipeEstimate
+import com.zeroindex.intake.domain.recipe.ReferenceFood
 import com.zeroindex.intake.domain.ai.RecipeQuery
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nutrition.Macros
@@ -39,8 +42,32 @@ class RecipeLibraryViewModel @Inject constructor(
     private val foodLog: FoodLogRepository,
     private val plans: MealPlanRepository,
     private val recipeRepo: RecipeRepository,
+    private val estimator: RecipeNutritionEstimator,
     private val clock: Clock,
 ) : ViewModel() {
+    /** Foods the person picked for ingredient lines of the estimate, by recipe and line. Kept while the screen is open. */
+    private val picks = MutableStateFlow<Map<String, Map<Int, ReferenceFood>>>(emptyMap())
+
+    /**
+     * The estimate from a recipe's ingredient lines, only for a recipe the page left without some of calories,
+     * protein, carbs or fat. Offline and deterministic; it never touches the network or an AI model.
+     */
+    fun estimateOf(recipeId: String): Flow<RecipeEstimate?> =
+        kotlinx.coroutines.flow.combine(viewOf(recipeId), picks) { view, chosen ->
+            val r = view?.recipe
+            if (view == null || r == null) return@combine null
+            val missing = r.kcalPerServing == null || r.proteinPerServing == null || r.carbsPerServing == null || r.fatPerServing == null
+            if (!missing || view.ingredients.isEmpty()) {
+                null
+            } else {
+                estimator.estimate(view.ingredients.map { it.text }, r.servings, chosen[recipeId].orEmpty())
+            }
+        }
+
+    fun pickFood(recipeId: String, lineIndex: Int, food: ReferenceFood) {
+        picks.update { all -> all + (recipeId to (all[recipeId].orEmpty() + (lineIndex to food))) }
+    }
+
     private val _notice = MutableStateFlow<String?>(null)
     val notice: StateFlow<String?> = _notice.asStateFlow()
 
@@ -59,18 +86,29 @@ class RecipeLibraryViewModel @Inject constructor(
             .distinctUntilChanged()
             .map { if (it == null) null else recipeRepo.view(recipeId) }
 
-    fun logServing(recipe: RecipeEntity, slot: MealSlot, onDone: () -> Unit) = viewModelScope.launch {
+    /**
+     * Logs one serving. Numbers the page gave are logged as they are; protein, carbs and fat it did not give come from
+     * the estimate when there is one (and the row says so), and otherwise are stored as unlisted, not as 0 g.
+     */
+    fun logServing(recipe: RecipeEntity, slot: MealSlot, estimate: RecipeEstimate?, onDone: () -> Unit) = viewModelScope.launch {
+        val n = resolveNutrition(recipe, estimate?.perServing)
+        val kcal = n.kcal?.value ?: return@launch
         foodLog.logPrepared(
             name = recipe.name,
             macros = Macros(
-                kcal = recipe.kcalPerServing ?: 0.0,
-                protein = recipe.proteinPerServing ?: 0.0,
-                carbs = recipe.carbsPerServing ?: 0.0,
-                fat = recipe.fatPerServing ?: 0.0,
+                kcal = kcal,
+                protein = n.protein?.value ?: 0.0,
+                carbs = n.carbs?.value ?: 0.0,
+                fat = n.fat?.value ?: 0.0,
+                fiber = n.fiber?.value ?: 0.0,
+                sugar = n.sugar?.value ?: 0.0,
+                sodium = n.sodiumMg?.value ?: 0.0,
+                saturatedFat = n.saturatedFat?.value ?: 0.0,
             ),
             slot = slot,
-            servingLabel = "1 serving",
+            servingLabel = if (n.anyEstimated) "1 serving · macros estimated" else "1 serving",
             at = clock.nowMillis(),
+            unknownMacros = n.unknownMacros,
         )
         onDone()
     }

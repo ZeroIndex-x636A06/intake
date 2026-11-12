@@ -1,5 +1,7 @@
 package com.zeroindex.intake.ui.screens.today.components
 
+import com.zeroindex.intake.domain.nutrition.CoreMacro
+import com.zeroindex.intake.domain.nutrition.Unlisted
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -231,7 +233,8 @@ private fun EntryRow(entry: FoodLogEntity, onLongPress: () -> Unit) {
             modifier = Modifier.weight(1f).padding(end = 8.dp),
         )
         Text(
-            text = "${entry.kcal.roundToInt()} kcal · ${entry.protein.roundToInt()} g protein",
+            text = "${entry.kcal.roundToInt()} kcal · " +
+                if (CoreMacro.PROTEIN in Unlisted.decodeMacros(entry.unlistedNutrients)) "protein not listed" else "${entry.protein.roundToInt()} g protein",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

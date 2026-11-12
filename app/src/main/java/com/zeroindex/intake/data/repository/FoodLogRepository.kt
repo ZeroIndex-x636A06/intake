@@ -10,6 +10,7 @@ import com.zeroindex.intake.data.db.projection.DailyIntake
 import com.zeroindex.intake.data.db.projection.SlotTotals
 import com.zeroindex.intake.domain.model.AiConfidence
 import com.zeroindex.intake.domain.model.MealSlot
+import com.zeroindex.intake.domain.nutrition.CoreMacro
 import com.zeroindex.intake.domain.nutrition.Macros
 import com.zeroindex.intake.domain.nutrition.Unlisted
 import com.zeroindex.intake.domain.time.Clock
@@ -150,6 +151,11 @@ class FoodLogRepository @Inject constructor(
         photoUri: String? = null,
         aiConfidence: AiConfidence? = null,
         at: Long = clock.nowMillis(),
+        /**
+         * Protein, carbs or fat nobody gave a number for. The row stores 0 (its columns are not nullable) and lists
+         * them as unlisted, so the screens say "not listed" rather than "0 g".
+         */
+        unknownMacros: Set<CoreMacro> = emptySet(),
     ): FoodLogEntity {
         val log = newLog(
             foodId = null,
@@ -161,6 +167,7 @@ class FoodLogRepository @Inject constructor(
             at = at,
             photoUri = photoUri,
             aiConfidence = aiConfidence,
+            unlisted = if (unknownMacros.isEmpty()) null else Unlisted.encode(Unlisted.forTypedMacros(macros), unknownMacros),
         )
         foodLogDao.upsert(log)
         return log

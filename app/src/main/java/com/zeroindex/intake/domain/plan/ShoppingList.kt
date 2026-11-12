@@ -23,6 +23,8 @@ data class GeneratedShoppingLine(
     val isPantryStaple: Boolean,
     /** Which recipe groups use it: "For the Sauce, For the Chicken". Null when none are grouped. */
     val note: String? = null,
+    /** The recipes that use it, for "where is this used". */
+    val sources: List<String> = emptyList(),
 )
 
 data class ShoppingSections(
@@ -62,6 +64,24 @@ object ShoppingListBuilder {
                 )
             }
             .sortedBy { it.key }
+
+    /**
+     * The same, from whole ingredient lines ("2 medium zucchini", "1 tbsp olive oil"): amounts in different units are
+     * added up by [ShoppingQuantities], scaled per recipe, and each line's source recipes are kept.
+     */
+    fun generateFromLines(lines: List<ShoppingContribution>): List<GeneratedShoppingLine> =
+        ShoppingQuantities.aggregate(lines).map { t ->
+            GeneratedShoppingLine(
+                key = t.key,
+                name = t.name,
+                quantity = t.quantity,
+                category = categoryOf(t.key),
+                isPantryStaple = isPantryStaple(t.key),
+                note = listOfNotNull(t.groups.joinToString(", ").takeIf { it.isNotEmpty() }, t.sources.takeIf { it.isNotEmpty() }?.let { "from " + it.joinToString(", ") })
+                    .joinToString(" · ").takeIf { it.isNotEmpty() },
+                sources = t.sources,
+            )
+        }
 
     private val MEAT = setOf(
         "beef", "chicken", "pork", "turkey", "salmon", "tuna", "steak", "ribeye", "chuck", "bacon", "sausage",
@@ -124,17 +144,8 @@ object ShoppingListBuilder {
         StoreCategory.OTHER -> "Other"
     }
 
-    private val GRAMS = Regex("""^(\d+(?:\.\d+)?) g$""")
-
-    /** Stored quantities are grams; show them in the weight unit from settings. Free text passes through. */
-    fun displayQuantity(quantity: String, unit: WeightUnit): String {
-        val grams = GRAMS.matchEntire(quantity.trim())?.groupValues?.get(1)?.toDoubleOrNull() ?: return quantity
-        val kg = grams / 1000.0
-        return when (unit) {
-            WeightUnit.KILOGRAMS -> if (grams >= 1000) "${formatNumber(kg, 2)} kg" else "${formatNumber(grams)} g"
-            WeightUnit.POUNDS -> "${formatNumber(unit.fromKg(kg), 2)} lb"
-        }
-    }
+    /** Stored quantities are metric ("450 g", "250 ml", "2 medium + 200 g"); show them in the units from settings. Free text passes through. */
+    fun displayQuantity(quantity: String, unit: WeightUnit): String = ShoppingQuantities.display(quantity, unit)
 
     /** Plain text for ACTION_SEND: unchecked items first within each section, pantry last. */
     fun shareText(title: String, sections: ShoppingSections, unit: WeightUnit): String = buildString {
