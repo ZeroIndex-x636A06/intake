@@ -3,6 +3,18 @@
 Read this first when picking the work back up. Latest work: branch
 `claude/optimistic-noether-fullk5` (not yet merged into `claude/app-build-k2ag1d`).
 
+## Merge of three agent branches (branch `claude/optimistic-noether-fullk5`)
+
+Merged with `--no-ff`, one at a time, each followed by compile and the unit tests: recipe nutrition (`worktree-agent-a2198826f8ff9a2b4`), Recipe
+Hunter list pages and Find more (`worktree-agent-a413caf0d3be660a6`), eating-out healthier nearby and Choose anyway
+(`worktree-agent-a4d8ea88c7c1d444a`). Only RESUME.md and docs/AI-COSTS.md conflicted (kept both sides). No code conflicts; the nearby/menu work did
+not touch the menu scanner or MenuLogRepository, so the allergen-chart reader and MenuItemMatcher are unchanged. Duplicate in-screen headings removed
+from the Recipes and Eating out hubs, Your plan, What leaves this phone, Log weight, the Recipe editor and the not-found Food screen (subtitles kept).
+PRIVACY.md now lists the Recipe Hunter page fetch. Seen on the debug build on the emulator (screens in `design/r3-smoke/merge-*.png`): Today,
+Nutrition, More, Eating out with the healthier-nearby block (no imported menus, AI not set up), Recipes, Recipe Hunter (AI not set up), the recipe editor, a
+hand-made recipe showing "Nutrition: not listed", Menu import. Not seen: Recipe Hunter and nearby searches with a key, Choose anyway, shopping totals,
+any of it on a phone.
+
 ## Recipe nutrition and shopping amounts (branch `worktree-agent-a2198826f8ff9a2b4`)
 
 Root cause of "0 g protein, 0 g carbs, 444 kcal": the page's JSON-LD gives only `"calories":"444 calories"`; the parser correctly left the macros

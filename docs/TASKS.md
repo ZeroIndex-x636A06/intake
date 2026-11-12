@@ -176,3 +176,8 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
 - Flexible meal plans, recipe editor, recipe import from a link (71e4911).
 
 - Menu import, McDonald's Ireland PDF (branch `claude/optimistic-noether-fullk5`): download checks, one error card, the duplicate heading, the allergen-chart reader, the nutrition follow-up card and the merge are done and unit-tested. Open: seeing PdfRenderer's text for the tick glyphs on a phone; the "page list" error is fixed (Android regex anchor difference, see RESUME.md).
+
+## Merge of recipe nutrition, Recipe Hunter list pages and nearby healthier options
+
+Done on `claude/optimistic-noether-fullk5`: all three branches merged, duplicate in-screen headings removed, PRIVACY.md updated. Emulator-checked
+screens are in RESUME.md. Still needs a phone with an OpenRouter key: Recipe Hunter Search and Find more, nearby search, Choose anyway, shopping totals.
