@@ -16,6 +16,16 @@ Nothing. Option A parts 1 to 3 are built and merged on `claude/optimistic-noethe
 (`SettingsRegistryTest` fails otherwise). Register a screen only one tab opens inside that tab's graph; a screen two tabs open
 goes once at the root of `IntakeNavHost`. Lists that can be long must be lazy rows, never a `forEach` inside one `item`.
 
+## Watch: workout link and quick remote
+
+Branch `worktree-agent-a978a2d098487061e`. Compiled, linted and unit-tested only; nothing has run on a watch.
+
+- The watch did nothing with workouts because the owner's phone is the preview build and the watch app had no matching
+  variant. Added a `preview` build type to `wear/` (same id suffix, same debug key). A watch service now also wakes the
+  app and posts a "workout in progress" notification. See `docs/WEAR.md`.
+- The watch home is a quick remote when no workout runs: today at a glance, add water, add food (planned meal, recents,
+  favourites, saved meals, quick add), start a workout. Requests queue offline as "pending, will sync" and are idempotent.
+
 ## Bugs fixed from device testing
 
 Branch `worktree-agent-acbf47c924ce706e7`. None of this has been seen on a device (no emulator in the cloud container).
@@ -55,7 +65,8 @@ summary, top and bottom insets). The remaining device check is listed in `RESUME
 
 Left over from round 3 (`docs/R3-BACKLOG.md`, status section):
 - F's simpler food layout: waits for the owner to pick option 1, 2 or 3 in `design/mockup-r3/food-layout.png`.
-- Watch workouts in the training log (needs an `external_session` table).
+- Watch workouts in the training log: done for workouts started from the watch (they are normal phone sessions, see
+  `docs/WEAR.md`). A workout the watch would record itself (heart rate, GPS) would still need an `external_session` table.
 - "Find this product" goes to search only, not scan.
 - On-phone PDF reading needs Android 15 or newer; older phones use AI. `pdfbox-android` not added.
 - "Open AI settings" button only on Swap; not on Menu import, Recipe import, insights or Make this a workout.

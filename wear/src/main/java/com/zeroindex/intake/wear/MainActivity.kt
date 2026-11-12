@@ -1,5 +1,8 @@
 package com.zeroindex.intake.wear
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -66,20 +69,32 @@ private val WatchColors = ColorScheme(
 
 class MainActivity : ComponentActivity() {
     private lateinit var workout: WatchWorkout
+    private lateinit var remote: WatchRemote
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         workout = WatchWorkout(applicationContext)
-        setContent { MaterialTheme(colorScheme = WatchColors) { WatchApp(workout, ::buzz) } }
+        remote = WatchRemote(applicationContext)
+        setContent { MaterialTheme(colorScheme = WatchColors) { WatchApp(workout, remote, ::buzz) } }
+        // Wear OS 4 and later: the "workout in progress" notification needs this. Asked once; a no is fine.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
+        }
     }
 
     override fun onStart() {
         super.onStart()
+        WatchVisibility.visible = true
         workout.start()
+        remote.start()
     }
 
     override fun onStop() {
+        WatchVisibility.visible = false
         workout.stop()
+        remote.stop()
         super.onStop()
     }
 
@@ -89,7 +104,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun WatchApp(source: WatchWorkout, onRestOver: () -> Unit) {
+private fun WatchApp(source: WatchWorkout, remote: WatchRemote, onRestOver: () -> Unit) {
     val workout by source.workout.collectAsStateWithLifecycle()
     val connected by source.phoneConnected.collectAsStateWithLifecycle()
     val pending by source.pending.collectAsStateWithLifecycle()
@@ -99,7 +114,8 @@ private fun WatchApp(source: WatchWorkout, onRestOver: () -> Unit) {
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
         val w = workout
         when {
-            w == null || w.exercises.isEmpty() -> Waiting(connected)
+            // No workout (or an empty one the phone has just started): the quick remote.
+            w == null || w.exercises.isEmpty() -> RemoteHome(remote, connected, workoutRunning = w != null)
             restLeft > 0 -> {
                 KeepScreenOn()
                 Rest(
@@ -135,19 +151,6 @@ private fun KeepScreenOn() {
     DisposableEffect(view) {
         view.keepScreenOn = true
         onDispose { view.keepScreenOn = false }
-    }
-}
-
-@Composable
-private fun Waiting(connected: Boolean) {
-    Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("INTAKE", fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
-        Text(
-            if (connected) "Start a workout on your phone and it appears here." else "Phone not connected. Open Intake on your phone to start a workout.",
-            textAlign = TextAlign.Center,
-            fontSize = 13.sp,
-            modifier = Modifier.padding(top = 6.dp),
-        )
     }
 }
 

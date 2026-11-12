@@ -133,6 +133,11 @@
                 <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
                 <data android:scheme="wear" android:host="*" android:pathPrefix="/intake/workout/logged" />
             </intent-filter>
+            <!-- The watch's quick remote: water, food, calories and "start a workout" requests. -->
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
+                <data android:scheme="wear" android:host="*" android:pathPrefix="/intake/remote/req" />
+            </intent-filter>
         </service>
     </application>
 
