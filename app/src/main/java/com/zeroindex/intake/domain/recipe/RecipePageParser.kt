@@ -119,8 +119,9 @@ object RecipePageParser {
     private fun jsonLdRecipe(html: String, pageUrl: String?): RecipeDraft? {
         for (block in jsonLdBlocks(html)) {
             val root = parseJson(block) ?: continue
+            val index = HashMap<String, JsonObject>().also { indexById(root, it, 0) }
             for (candidate in recipeObjects(root, depth = 0)) {
-                val draft = fromJsonLd(candidate, pageUrl)
+                val draft = fromJsonLd(candidate, pageUrl, index)
                 if (draft != null && (draft.ingredients.isNotEmpty() || draft.steps.isNotEmpty())) return draft
             }
         }
@@ -167,7 +168,7 @@ object RecipePageParser {
         }
     }
 
-    private fun fromJsonLd(o: JsonObject, pageUrl: String?): RecipeDraft? {
+    private fun fromJsonLd(o: JsonObject, pageUrl: String?, index: Map<String, JsonObject>): RecipeDraft? {
         val name = text(o["name"]) ?: text(o["headline"]) ?: return null
         val ingredients = strings(o["recipeIngredient"]).ifEmpty { strings(o["ingredients"]) }
         val steps = instructions(o["recipeInstructions"], 0)
@@ -183,7 +184,7 @@ object RecipePageParser {
             cookMinutes = cook,
             ingredients = ingredients,
             steps = steps,
-            nutrition = nutrition(o["nutrition"]),
+            nutrition = nutrition(o["nutrition"], index),
             imageUrl = imageUrl(o["image"]),
             url = text(o["url"]) ?: pageUrl,
             source = RecipeSource.JSON_LD,
@@ -257,14 +258,60 @@ object RecipePageParser {
         else -> null
     }
 
-    private fun nutrition(e: JsonElement?): PageNutrition? {
-        val o = e as? JsonObject ?: return null
-        return nutritionOf(
-            calories = text(o["calories"]), protein = text(o["proteinContent"]),
-            carbs = text(o["carbohydrateContent"]), fat = text(o["fatContent"]),
-            fiber = text(o["fiberContent"]), sugar = text(o["sugarContent"]),
-            sodium = text(o["sodiumContent"]), saturatedFat = text(o["saturatedFatContent"]),
-        )
+    /** Every object that carries an "@id", so a Recipe's `"nutrition": {"@id": "#nutrition"}` can be followed inside an @graph. */
+    private fun indexById(e: JsonElement, out: MutableMap<String, JsonObject>, depth: Int) {
+        if (depth > 8) return
+        when (e) {
+            is JsonArray -> e.forEach { indexById(it, out, depth + 1) }
+            is JsonObject -> {
+                val id = (e["@id"] as? JsonPrimitive)?.contentOrNull
+                // A bare reference ({"@id": ...} alone) is not the node itself.
+                if (id != null && e.size > 1) out.putIfAbsent(id, e)
+                e.values.forEach { indexById(it, out, depth + 1) }
+            }
+            else -> Unit
+        }
+    }
+
+    /**
+     * The page's NutritionInformation. It may be an object, an array of objects (the first that says anything wins),
+     * or a reference by "@id" to a node elsewhere in the graph. Keys are matched without regard to case and the
+     * common alternatives are read too ("protein" for "proteinContent"). A missing value stays null; it is never 0.
+     */
+    private fun nutrition(e: JsonElement?, index: Map<String, JsonObject>, depth: Int = 0): PageNutrition? {
+        if (depth > 4) return null
+        return when (e) {
+            is JsonArray -> e.firstNotNullOfOrNull { nutrition(it, index, depth + 1) }
+            is JsonObject -> {
+                val ref = (e["@id"] as? JsonPrimitive)?.contentOrNull
+                if (e.size == 1 && ref != null) return index[ref]?.let { nutrition(it, index, depth + 1) }
+                val lower = e.entries.associate { it.key.lowercase() to it.value }
+                fun get(vararg keys: String): String? = keys.firstNotNullOfOrNull { k -> lower[k.lowercase()]?.let { measure(it) } }
+                nutritionOf(
+                    calories = get("calories", "energy", "kcal", "energyContent"),
+                    protein = get("proteinContent", "protein"),
+                    carbs = get("carbohydrateContent", "carbohydrates", "carbs", "carbohydrate"),
+                    fat = get("fatContent", "fat", "totalFat"),
+                    fiber = get("fiberContent", "fibreContent", "fiber", "fibre", "dietaryFiber"),
+                    sugar = get("sugarContent", "sugar", "sugars"),
+                    sodium = get("sodiumContent", "sodium"),
+                    saturatedFat = get("saturatedFatContent", "saturatedFat"),
+                )
+            }
+            else -> null
+        }
+    }
+
+    /** A nutrient's text: a string or number as written, or the "value" (with its unit) of a QuantitativeValue. */
+    private fun measure(e: JsonElement): String? = when (e) {
+        is JsonPrimitive -> e.contentOrNull?.let { HtmlText.plain(it) }?.takeIf { it.isNotEmpty() }
+        is JsonArray -> e.firstNotNullOfOrNull { measure(it) }
+        is JsonObject -> {
+            val v = (e["value"] ?: e["@value"] ?: e["minValue"])?.let { measure(it) }
+            val unit = (e["unitText"] ?: e["unitCode"])?.let { measure(it) }.orEmpty()
+            v?.let { if (unit.isBlank()) it else "$it $unit" } ?: text(e)
+        }
+        else -> null
     }
 
     internal fun nutritionOf(
@@ -277,42 +324,65 @@ object RecipePageParser {
         sodium: String? = null,
         saturatedFat: String? = null,
     ): PageNutrition? {
-        fun num(s: String?): Double? =
-            s?.let { Regex("""(\d+(?:[.,]\d+)?)""").find(it)?.groupValues?.get(1)?.replace(',', '.')?.toDoubleOrNull() }
-        var kcal = num(calories)
-        if (kcal != null && calories != null && Regex("""\bkj\b""", RegexOption.IGNORE_CASE).containsMatchIn(calories)) kcal /= 4.184
         val result = PageNutrition(
-            kcal, num(protein), num(carbs), num(fat),
+            kcalOf(calories), massG(protein), massG(carbs), massG(fat),
             fiberG = massG(fiber), sugarG = massG(sugar), sodiumMg = massMg(sodium), saturatedFatG = massG(saturatedFat),
         )
         return result.takeUnless { it.isEmpty }
     }
 
-    private val MASS = Regex("""(\d+(?:[.,]\d+)?)\s*(mg|kg|g|mcg|\u00b5g)?(?![A-Za-z])""", RegexOption.IGNORE_CASE)
+    /** A number as pages write it: "12", "12.5", "12,5" (decimal comma), "1,200" (thousands), ".5". */
+    private const val NUM = """\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d*\.\d+|\d+(?:,\d{1,2}(?!\d))?"""
 
-    /** "2 g", "2000 mg", "2" -> grams. A bare number is read as grams. */
+    private val THOUSANDS = Regex("""\d{1,3}(?:,\d{3})+(?:\.\d+)?""")
+    private val KCAL = Regex("""($NUM)\s*(?:k?cal(?:ories?)?\b)""", RegexOption.IGNORE_CASE)
+    private val KILOJOULE = Regex("""\bk?j(?:oules?)?\b""", RegexOption.IGNORE_CASE)
+
+    private fun numberOf(raw: String): Double? {
+        val t = raw.trim()
+        return (if (THOUSANDS.matches(t)) t.replace(",", "") else t.replace(',', '.')).toDoubleOrNull()
+    }
+
+    /**
+     * "444 calories", "444 kcal", 444, "1,840 kJ" and "1,840 kJ (440 kcal)". A kilojoule figure is converted
+     * unless the same text also gives kilocalories, which then win.
+     */
+    private fun kcalOf(s: String?): Double? {
+        if (s.isNullOrBlank()) return null
+        KCAL.find(s)?.let { return numberOf(it.groupValues[1]) }
+        val first = Regex(NUM).find(s)?.let { numberOf(it.value) } ?: return null
+        return if (KILOJOULE.containsMatchIn(s)) first / 4.184 else first
+    }
+
+    private val MASS = Regex("""($NUM)\s*(mg|milligrams?|mcg|[µμ]g|micrograms?|kg|kilograms?|grams?|gr|g)?(?![A-Za-z])""", RegexOption.IGNORE_CASE)
+
+    private fun isMilli(u: String) = u.startsWith("mg") || u.startsWith("milli")
+    private fun isMicro(u: String) = u.startsWith("mcg") || u.startsWith("micro") || u.startsWith("µ") || u.startsWith("μ")
+
+    /** "2 g", "2 grams", "2000 mg", "2" -> grams. A bare number is read as grams; nothing readable is null, never 0. */
     private fun massG(s: String?): Double? = mass(s)?.let { (v, unit) ->
-        when (unit) {
-            "mg" -> v / 1000.0
-            "kg" -> v * 1000.0
-            "mcg", "\u00b5g" -> v / 1_000_000.0
+        when {
+            isMilli(unit) -> v / 1000.0
+            isMicro(unit) -> v / 1_000_000.0
+            unit.startsWith("k") -> v * 1000.0
             else -> v
         }
     }
 
     /** "1179 mg", "1.2 g", "1179" -> milligrams. A bare number is read as milligrams, which is what pages publish. */
     private fun massMg(s: String?): Double? = mass(s)?.let { (v, unit) ->
-        when (unit) {
-            "g" -> v * 1000.0
-            "kg" -> v * 1_000_000.0
-            "mcg", "\u00b5g" -> v / 1000.0
+        when {
+            isMilli(unit) -> v
+            isMicro(unit) -> v / 1000.0
+            unit.startsWith("k") -> v * 1_000_000.0
+            unit.isNotEmpty() -> v * 1000.0
             else -> v
         }
     }
 
     private fun mass(s: String?): Pair<Double, String>? {
         val m = MASS.find(s ?: return null) ?: return null
-        val v = m.groupValues[1].replace(',', '.').toDoubleOrNull() ?: return null
+        val v = numberOf(m.groupValues[1]) ?: return null
         return v to m.groupValues[2].lowercase()
     }
 

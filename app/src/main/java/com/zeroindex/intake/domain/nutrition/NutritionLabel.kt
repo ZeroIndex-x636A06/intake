@@ -14,8 +14,31 @@ enum class NutrientKey(val code: String, val label: String) {
     SATURATED_FAT("satfat", "saturated fat"),
 }
 
+/**
+ * Protein, carbs and fat of a logged row whose source never gave them (a recipe page that published only calories).
+ * The row still stores `0.0` in its columns, because they are not nullable, and lists these in `unlistedNutrients` next
+ * to the [NutrientKey] codes so the screens can say "not listed" instead of "0 g". The codes are kept out of
+ * [NutrientKey] on purpose: that enum is also read as "every optional nutrient" in places that must not touch these.
+ */
+enum class CoreMacro(val code: String, val label: String) {
+    PROTEIN("protein", "protein"),
+    CARBS("carbs", "carbs"),
+    FAT("fat", "fat"),
+}
+
 object Unlisted {
     fun encode(keys: Set<NutrientKey>): String = keys.sortedBy { it.ordinal }.joinToString(",") { it.code }
+
+    /** The optional nutrients plus the core macros that were never given, in one stored list. */
+    fun encode(keys: Set<NutrientKey>, unknownMacros: Set<CoreMacro>): String =
+        (keys.sortedBy { it.ordinal }.map { it.code } + unknownMacros.sortedBy { it.ordinal }.map { it.code }).joinToString(",")
+
+    /** The core macros a stored list says were never given. Unknown codes are ignored. */
+    fun decodeMacros(text: String?): Set<CoreMacro> {
+        if (text.isNullOrBlank()) return emptySet()
+        val codes = text.split(',').map { it.trim() }
+        return CoreMacro.entries.filter { it.code in codes }.toSet()
+    }
 
     fun decode(text: String?): Set<NutrientKey> {
         if (text.isNullOrBlank()) return emptySet()

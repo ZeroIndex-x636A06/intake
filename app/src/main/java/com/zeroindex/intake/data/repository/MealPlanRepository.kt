@@ -39,7 +39,6 @@ import com.zeroindex.intake.domain.model.PlanLoopMode
 import com.zeroindex.intake.domain.model.PlanRecipeRole
 import com.zeroindex.intake.domain.plan.PlanPosition
 import com.zeroindex.intake.domain.recipe.IngredientGroupsCodec
-import com.zeroindex.intake.domain.recipe.IngredientLineParser
 import com.zeroindex.intake.domain.plan.PlanSchedule
 import java.time.LocalDate
 import com.zeroindex.intake.domain.model.StoreCategory
@@ -52,7 +51,7 @@ import com.zeroindex.intake.domain.plan.PlanMeta
 import com.zeroindex.intake.domain.plan.PlanWeekExtras
 import com.zeroindex.intake.domain.plan.RecipeMacroResult
 import com.zeroindex.intake.domain.plan.RecipeMacros
-import com.zeroindex.intake.domain.plan.ShoppingIngredient
+import com.zeroindex.intake.domain.plan.ShoppingContribution
 import com.zeroindex.intake.domain.plan.ShoppingListBuilder
 import com.zeroindex.intake.domain.plan.compute
 import com.zeroindex.intake.domain.time.Clock
@@ -543,26 +542,26 @@ class MealPlanRepository @Inject constructor(
 
     private suspend fun generateShopping(weekId: String, recipes: List<RecipeEntity>, force: Boolean) {
         val now = clock.nowMillis()
-        val ingredients = recipes.flatMap { r ->
+        // Lists made before amounts were added up by unit keep their rows: their ids were keyed differently, so
+        // generating again beside them would double every item.
+        if (!force && shoppingDao.idsForWeek(weekId).isNotEmpty()) return
+        // Every ingredient line of every recipe in the week, as text, so amounts can be added up by unit. The plan
+        // stores no servings of its own, so each recipe is cooked once as written (scale 1).
+        val contributions = recipes.flatMap { r ->
             val rows = recipeDao.ingredientsOf(r.id).mapNotNull { row ->
-                foodDao.findById(row.foodId)?.let { ShoppingIngredient(it.name, row.quantityGrams, row.groupLabel) }
+                foodDao.findById(row.foodId)?.let { ShoppingContribution("${row.quantityGrams} g ${it.name}", r.name, row.groupLabel) }
             }
             // Group labels are stored per line of the raw text, so they are read before blanks are dropped.
             val rawLines = r.ingredientsText.lines()
             val rawGroups = IngredientGroupsCodec.decode(r.ingredientGroups, rawLines.size)
             val lines = rawLines.indices.filter { rawLines[it].isNotBlank() }.map { i ->
-                val line = rawLines[i].trim()
-                // Plan-imported text lines carry a "250 g " prefix the import did not use in the item's name.
-                when (r.origin) {
-                    RecipeOrigin.PLAN -> ShoppingIngredient(line.replace(Regex("^\\d+(\\.\\d+)? g "), ""), null, rawGroups[i])
-                    // Typed or imported lines are "1 1/2 cups milk": shop for the item, with grams when the unit is a weight.
-                    else -> IngredientLineParser.parse(line).let { ShoppingIngredient(it.name, it.grams, rawGroups[i]) }
-                }
+                // Plan-imported lines keep their "250 g " prefix: it is the amount, and the line reader uses it.
+                ShoppingContribution(rawLines[i].trim(), r.name, rawGroups[i])
             }
             rows + lines
         }
         val have = if (force) emptySet() else shoppingDao.idsForWeek(weekId).toSet()
-        val fresh = ShoppingListBuilder.generate(ingredients).mapNotNull { g ->
+        val fresh = ShoppingListBuilder.generateFromLines(contributions).mapNotNull { g ->
             val id = seedId("shopping", "$weekId:${g.key}")
             if (id in have) null
             else ShoppingListItemEntity(

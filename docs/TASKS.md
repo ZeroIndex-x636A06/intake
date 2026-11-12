@@ -8,6 +8,11 @@ with its merge commit. Read `CLAUDE.md` before you claim anything.
 
 ## In progress
 
+**Recipe nutrition and shopping amounts** (branch `worktree-agent-a2198826f8ff9a2b4`, not pushed, not seen on a device). A recipe page that
+lists only calories no longer shows 0 g protein, carbs and fat: they read "not listed", or an offline estimate from the ingredient lines
+(`domain/recipe/IngredientEstimator.kt`) labelled as such. The meal-plan shopping list now adds up quantities by unit
+(`domain/plan/ShoppingQuantities.kt`). No schema change.
+
 Nothing. Option A parts 1 to 3 are built and merged on `claude/optimistic-noether-fullk5`, with a first emulator pass
 (`RESUME.md`, first section). That branch still has to be merged into `claude/app-build-k2ag1d` and `main`.
 

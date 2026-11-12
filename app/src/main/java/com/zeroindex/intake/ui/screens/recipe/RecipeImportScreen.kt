@@ -310,12 +310,18 @@ private fun Preview(s: ImportStage.Preview, vm: RecipeImportViewModel) {
         IntakeCard {
             Text("From the recipe page", style = MaterialTheme.typography.titleSmall)
             Text(
-                "${n.kcal!!.roundToInt()} kcal · ${(n.proteinG ?: 0.0).roundToInt()} g protein · ${(n.carbsG ?: 0.0).roundToInt()} g carbs · ${(n.fatG ?: 0.0).roundToInt()} g fat per serving",
+                "${n.kcal!!.roundToInt()} kcal · protein ${n.proteinG.listed()} · carbs ${n.carbsG.listed()} · fat ${n.fatG.listed()} per serving",
                 style = MaterialTheme.typography.bodyMedium,
             )
             RecipeNutritionLabels.extras(n.fiberG, n.sugarG, n.saturatedFatG, n.sodiumMg).takeIf { it.isNotEmpty() }?.let { extras ->
                 Text(
                     extras.joinToString(" · ") { (label, value) -> "$label $value" },
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            if (n.proteinG == null || n.carbsG == null || n.fatG == null) {
+                Text(
+                    "The page did not list everything. Intake will estimate what is missing from the ingredients and label it as an estimate.",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
@@ -325,7 +331,7 @@ private fun Preview(s: ImportStage.Preview, vm: RecipeImportViewModel) {
             )
         }
     } ?: Text(
-        "The page published no nutrition. You can add ingredient macros later by editing the recipe.",
+        "The page published no nutrition. Intake will estimate it from the ingredients, labelled as an estimate, or you can add ingredient macros by editing the recipe.",
         style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     if (f.sourceUrl.isNotBlank()) {
@@ -336,3 +342,6 @@ private fun Preview(s: ImportStage.Preview, vm: RecipeImportViewModel) {
         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
     ) { Text("Save recipe") }
 }
+
+/** "12 g", or "not listed" for a number the page did not give. Never "0 g" for a missing one. */
+private fun Double?.listed(): String = this?.let { "${it.roundToInt()} g" } ?: "not listed"
