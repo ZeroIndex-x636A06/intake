@@ -35,6 +35,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /** What the section switch (Plan, Recipes, Meals, Eating out) shows. */
 data class SectionsUi(
@@ -49,6 +50,18 @@ data class SectionsUi(
     val eatOutCount: Int = 0,
 )
 
+/** One meal row on the Nutrition tab: what was logged in the slot today. Empty [foods] means nothing logged. */
+data class SlotRowUi(
+    val slot: MealSlot,
+    val foods: List<String> = emptyList(),
+    val kcal: Int = 0,
+    val protein: Double = 0.0,
+    val carbs: Double = 0.0,
+    val fat: Double = 0.0,
+) {
+    val logged: Boolean get() = foods.isNotEmpty()
+}
+
 data class NutritionHomeState(
     /** False until the first read of the day finishes, so the card does not flash an empty day. */
     val ready: Boolean = false,
@@ -56,6 +69,8 @@ data class NutritionHomeState(
     val hydration: HydrationDay? = null,
     val settings: AppSettings = AppSettings(),
     val next: NextMealUi? = null,
+    /** Breakfast, lunch, dinner and snack, in that order, from today's log. */
+    val slots: List<SlotRowUi> = MealSlot.entries.map { SlotRowUi(it) },
     val sections: SectionsUi = SectionsUi(),
     /** Today's drinks in a phrase: "water, coffee, tea". */
     val drinkNames: String = "",
@@ -89,6 +104,20 @@ class NutritionHomeViewModel @Inject constructor(
         }
     }
 
+    private val slotRows = foodLog.observeDay(today).map { rows ->
+        MealSlot.entries.map { slot ->
+            val mine = rows.filter { it.mealSlot == slot }.sortedBy { it.loggedAt }
+            SlotRowUi(
+                slot = slot,
+                foods = mine.map { it.foodNameAtLog },
+                kcal = mine.sumOf { it.kcal }.roundToInt(),
+                protein = mine.sumOf { it.protein },
+                carbs = mine.sumOf { it.carbs },
+                fat = mine.sumOf { it.fat },
+            )
+        }
+    }
+
     private val dashboard: Flow<DashboardModel?> = combine(dayEntries, targets.observeTargetFor(today), settingsRepository.settings) { entries, target, s ->
         NutritionDashboard.build(DayNutrition.aggregate(entries), target, saltInsteadOfSodium = s.showSodium == SodiumDisplay.SALT)
     }
@@ -117,13 +146,14 @@ class NutritionHomeViewModel @Inject constructor(
 
     private val partial = combine(dashboard, hydration.observeDay(today), settingsRepository.settings) { d, h, s -> Triple(d, h, s) }
 
-    val state: StateFlow<NutritionHomeState> = combine(partial, next, sections) { (d, h, s), n, sec ->
+    val state: StateFlow<NutritionHomeState> = combine(partial, next, sections, slotRows) { (d, h, s), n, sec, slots ->
         NutritionHomeState(
             ready = true,
             dashboard = d,
             hydration = h,
             settings = s,
             next = n,
+            slots = slots,
             sections = sec,
             drinkNames = h.logs.map { it.drinkType.label.lowercase() }.distinct().take(3).joinToString(", "),
         )

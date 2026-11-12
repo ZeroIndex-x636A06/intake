@@ -20,6 +20,22 @@ at the top lists what is done and what is left). Verified: 1599 unit tests and 0
 - **Food.** Servings read as "1 serving (43 g)" style. Macro split bar on the food page, Today's meals and the Nutrition
   dashboard.
 - **Restaurant menus.** In Swap and in Log food. Nutrition PDFs are read on the phone on Android 15 and newer; older phones use AI.
+- **Nutrition tab v3** (`design/mockup-r3/nutrition-tab-v3.html`, option 1 "Day at a glance"). The root is now: compact
+  "Avoiding: ... >" chip; one overview card (124 dp calorie ring, "N kcal left", "of X kcal", "N eaten"; Protein, Carbs and
+  Fat cards with grams, target, bar and kcal; Fibre, Sat fat, Sugar and Sodium or Salt in a 2x2 grid, "not listed" never 0;
+  "More nutrients" holding the reference-limit note); a Meals card (Breakfast, Lunch, Dinner, Snacks, Drinks, each with
+  an icon tile, foods and kcal, a mini macro bar, a "+" to Log food for that slot, "Planned: ... Log it / Swap" for the
+  planned meal when the slot is empty); and a "More: plan, recipes, eating out, nutrients" row to the new pushed
+  `Route.NutritionMore` (Plan, Recipes, Meals, Eating out, Drinks). Holding the round pie button on the card draws the
+  eaten arc as protein, carbs and fat segments with each percentage just outside the ring, and adds "P% of kcal" to the
+  macro cards. Pure maths: `domain/nutrition/MacroSplit.kt` `MacroRingSplit` (9 tests). No schema change. The old Search,
+  Scan, Photo tiles, planned-meal card, Drinks card and the four-section switch were removed from the root; Search, Scan
+  and Photo are reached from each meal's "+" (Log food). Tapping a meal row opens Log food for that slot (there is no
+  per-slot screen; entries are edited from Today). Verified: 1608 unit tests, 0 lint errors.
+  Seen on the emulator (debug build): chip, ring, cards, grid, meal rows with mini bars, "Nothing yet", Drinks row,
+  the held state (ring segments 26/48/26 with labels, "% of kcal" on the cards) and the More screen; screenshots
+  `design/r3-smoke/nutrition-v3-*.png`. Not seen on the emulator: the "Planned: ... Log it / Swap" row (no plan loaded),
+  the haptic, the held press with a finger on a phone, the Salt setting. Not on a phone at all yet.
 - **Earlier round-3 items** are listed in `docs/FEEDBACK-R3.md`.
 
 **Seen on an emulator** (Android 11 image, software emulation; see `docs/HANDOFF.md` section 4), debug build: setup skipped,

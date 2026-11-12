@@ -42,3 +42,45 @@ object MacroShares {
 
     private fun Double.usable(): Double = if (isFinite() && this > 0.0) this else 0.0
 }
+
+/**
+ * Geometry for the hold-to-split calorie ring: the eaten arc cut into protein, carbs and fat by their share of calories.
+ * Angles are in degrees, clockwise from 12 o'clock (0 = top). Pure.
+ */
+object MacroRingSplit {
+
+    /** One coloured piece of the eaten arc. [midDegrees] is where its percentage label sits. */
+    data class Segment(val macro: Macro, val pct: Int, val startDegrees: Float, val sweepDegrees: Float) {
+        val midDegrees: Float get() = startDegrees + sweepDegrees / 2f
+    }
+
+    enum class Macro { PROTEIN, CARBS, FAT }
+
+    /** Calories from each macro, in whole kcal (4, 4 and 9 kcal per gram). Negative and non-finite amounts count as zero. */
+    data class Kcal(val protein: Int, val carbs: Int, val fat: Int)
+
+    fun kcal(proteinGrams: Double, carbGrams: Double, fatGrams: Double): Kcal {
+        fun Double.k(per: Double) = if (isFinite() && this > 0.0) Math.round(this * per).toInt() else 0
+        return Kcal(proteinGrams.k(4.0), carbGrams.k(4.0), fatGrams.k(9.0))
+    }
+
+    /**
+     * The segments of an eaten arc that covers [arcFraction] (0..1) of the ring, in order protein, carbs, fat, with
+     * zero-share macros left out. Empty when there are no calories to split or the arc is empty.
+     */
+    fun segments(proteinGrams: Double, carbGrams: Double, fatGrams: Double, arcFraction: Float): List<Segment> {
+        val shares = MacroShares.of(proteinGrams, carbGrams, fatGrams) ?: return emptyList()
+        val arc = (if (arcFraction.isNaN()) 0f else arcFraction.coerceIn(0f, 1f)) * 360f
+        if (arc <= 0f) return emptyList()
+        var start = 0f
+        val out = ArrayList<Segment>(3)
+        listOf(Macro.PROTEIN to shares.proteinPct, Macro.CARBS to shares.carbPct, Macro.FAT to shares.fatPct).forEach { (m, pct) ->
+            if (pct > 0) {
+                val sweep = arc * pct / 100f
+                out += Segment(m, pct, start, sweep)
+                start += sweep
+            }
+        }
+        return out
+    }
+}

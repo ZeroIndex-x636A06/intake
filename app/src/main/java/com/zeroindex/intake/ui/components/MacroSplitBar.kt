@@ -30,7 +30,15 @@ import com.zeroindex.intake.ui.theme.ProteinAccent
  * calories to split.
  */
 @Composable
-fun MacroSplitBar(proteinGrams: Double, carbGrams: Double, fatGrams: Double, modifier: Modifier = Modifier) {
+fun MacroSplitBar(
+    proteinGrams: Double,
+    carbGrams: Double,
+    fatGrams: Double,
+    modifier: Modifier = Modifier,
+    /** False draws the bar alone (a compact row); the description still reads the percentages. */
+    showLabels: Boolean = true,
+    barHeight: androidx.compose.ui.unit.Dp = 10.dp,
+) {
     val shares = MacroShares.of(proteinGrams, carbGrams, fatGrams) ?: return
     val segments = listOf(
         Triple(shares.proteinPct, ProteinAccent, "protein"),
@@ -40,13 +48,13 @@ fun MacroSplitBar(proteinGrams: Double, carbGrams: Double, fatGrams: Double, mod
     val description = "Share of calories: protein ${shares.proteinPct}%, carbs ${shares.carbPct}%, fat ${shares.fatPct}%"
 
     Column(modifier.fillMaxWidth().semantics { contentDescription = description }) {
-        Row(Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp))) {
+        Row(Modifier.fillMaxWidth().height(barHeight).clip(RoundedCornerShape(barHeight / 2))) {
             segments.forEach { (pct, color, _) ->
                 Box(Modifier.weight(pct.toFloat()).fillMaxHeight().background(color))
             }
         }
-        Spacer(Modifier.height(4.dp))
-        Row(Modifier.fillMaxWidth()) {
+        if (showLabels) Spacer(Modifier.height(4.dp))
+        if (showLabels) Row(Modifier.fillMaxWidth()) {
             segments.forEach { (pct, color, _) ->
                 Text(
                     text = "$pct%",

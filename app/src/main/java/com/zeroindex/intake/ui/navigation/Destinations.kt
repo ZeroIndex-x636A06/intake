@@ -44,6 +44,8 @@ sealed interface Route {
     @Serializable data class CookMode(val recipeId: String) : Route
     @Serializable data object MenuSources : Route
     @Serializable data object MealTemplates : Route
+    /** The pushed list behind the Nutrition tab's "More" row: Plan, Recipes, Meals, Eating out and Drinks. */
+    @Serializable data object NutritionMore : Route
     /**
      * Log food: a full-screen task with Search, Scan, Photo, Mine and Quick add. Shared (Today and Nutrition open it),
      * so it is registered once at the root. [slot] is a `MealSlot` name (null picks by the clock), [atMillis] the time

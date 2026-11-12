@@ -54,7 +54,7 @@ summary, top and bottom insets). The remaining device check is listed in `RESUME
 ## Open: anyone can claim these
 
 Left over from round 3 (`docs/R3-BACKLOG.md`, status section):
-- F's simpler food layout: waits for the owner to pick option 1, 2 or 3 in `design/mockup-r3/food-layout.png`.
+- F's simpler food layout: DONE on `claude/optimistic-noether-fullk5` as Option 1 refined into `nutrition-tab-v3` (see `RESUME.md`, round 3). Still to check on a phone: hold-to-split press and haptic, the planned-meal row with a real plan, the Salt setting.
 - Watch workouts in the training log (needs an `external_session` table).
 - "Find this product" goes to search only, not scan.
 - On-phone PDF reading needs Android 15 or newer; older phones use AI. `pdfbox-android` not added.

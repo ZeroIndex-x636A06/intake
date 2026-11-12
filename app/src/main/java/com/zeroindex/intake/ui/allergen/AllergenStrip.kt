@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -70,11 +71,31 @@ class AllergenStripViewModel @Inject constructor(allergens: AllergenRepository) 
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun AllergenStrip(onClick: () -> Unit, modifier: Modifier = Modifier, viewModel: AllergenStripViewModel = hiltViewModel()) {
+fun AllergenStrip(onClick: () -> Unit, modifier: Modifier = Modifier, compact: Boolean = false, viewModel: AllergenStripViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val s = state ?: return
     val empty = s.names.isEmpty()
     val tone = if (empty) AllergenAmber else AllergenRed
+    if (compact) {
+        // "Avoiding: Milk and dairy ›": one line, the same destination and colours as the full strip.
+        val label = if (empty) "No allergens set. Add yours" else "Avoiding: ${s.names.take(2).joinToString(" and ")}" + if (s.names.size > 2) " +${s.names.size - 2}" else ""
+        Surface(
+            onClick = onClick,
+            color = tone.copy(alpha = 0.14f),
+            shape = CircleShape,
+            border = BorderStroke(1.dp, tone.copy(alpha = 0.55f)),
+            modifier = modifier.heightIn(min = 48.dp).semantics {
+                contentDescription = if (empty) "No allergens set. Add yours" else "Allergens: ${s.title}. Open the allergens screen"
+            },
+        ) {
+            Row(Modifier.padding(start = 12.dp, end = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Icon(if (empty) Icons.Filled.AddModerator else Icons.Filled.Security, contentDescription = null, tint = tone, modifier = Modifier.size(16.dp))
+                Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = tone, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = tone, modifier = Modifier.size(18.dp))
+            }
+        }
+        return
+    }
     Surface(
         onClick = onClick,
         color = tone.copy(alpha = 0.14f),

@@ -35,6 +35,7 @@ import com.zeroindex.intake.ui.addfood.LogFoodScreen
 import com.zeroindex.intake.ui.screens.hub.EatingOutScreen
 import com.zeroindex.intake.ui.screens.hub.defaultMealSlot
 import com.zeroindex.intake.ui.screens.nutrition.NutritionActions
+import com.zeroindex.intake.ui.screens.nutrition.NutritionMoreScreen
 import com.zeroindex.intake.ui.screens.nutrition.NutritionHomeScreen
 import com.zeroindex.intake.ui.screens.hub.RecipesScreen
 import com.zeroindex.intake.ui.screens.menu.MenuSourcesScreen
@@ -174,22 +175,24 @@ fun IntakeNavHost(
 
         // ---- Nutrition ----
         navigation<TabGraph.Nutrition>(startDestination = Route.Nutrition) {
+            val nutritionActions = NutritionActions(
+                onOpenAllergens = { navController.navigate(Route.Allergens) },
+                onLogFood = { mode, slot -> navController.navigate(Route.LogFood(slot = slot, mode = mode)) },
+                onSwap = { slot -> navController.navigate(Route.SwapSheet(slot)) },
+                onOpenDrinks = { navController.navigate(Route.Drinks) },
+                onOpenMealPlans = { navController.navigate(Route.MealPlans) },
+                onOpenRecipes = { navController.navigate(Route.Recipes) },
+                onOpenMealTemplates = { navController.navigate(Route.MealTemplates) },
+                onOpenEatingOut = { navController.navigate(Route.EatingOut) },
+                onOpenMore = { navController.navigate(Route.NutritionMore) },
+            )
             composable<Route.Nutrition> {
                 TabRootScreen(TopLevelDestination.NUTRITION, "Nutrition", goToToday) { pad ->
-                    NutritionHomeScreen(
-                        contentPadding = pad,
-                        actions = NutritionActions(
-                            onOpenAllergens = { navController.navigate(Route.Allergens) },
-                            onLogFood = { mode, slot -> navController.navigate(Route.LogFood(slot = slot, mode = mode)) },
-                            onSwap = { slot -> navController.navigate(Route.SwapSheet(slot)) },
-                            onOpenDrinks = { navController.navigate(Route.Drinks) },
-                            onOpenMealPlans = { navController.navigate(Route.MealPlans) },
-                            onOpenRecipes = { navController.navigate(Route.Recipes) },
-                            onOpenMealTemplates = { navController.navigate(Route.MealTemplates) },
-                            onOpenEatingOut = { navController.navigate(Route.EatingOut) },
-                        ),
-                    )
+                    NutritionHomeScreen(contentPadding = pad, actions = nutritionActions)
                 }
+            }
+            composable<Route.NutritionMore> {
+                PushedScreen("More", back) { pad -> NutritionMoreScreen(contentPadding = pad, actions = nutritionActions) }
             }
             composable<Route.MealPlans> {
                 PushedScreen("Meal plans", back) { pad ->

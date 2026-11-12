@@ -1,5 +1,9 @@
 package com.zeroindex.intake.ui.screens.nutrition
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,66 +11,73 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.QrCodeScanner
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material.icons.filled.WaterDrop
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.PieChart
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.db.entity.AllergenStatus
+import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nutrition.DashRow
 import com.zeroindex.intake.domain.nutrition.DashboardModel
+import com.zeroindex.intake.domain.nutrition.MacroRingSplit
+import com.zeroindex.intake.domain.nutrition.MacroShares
 import com.zeroindex.intake.domain.nutrition.NutritionDashboard
+import com.zeroindex.intake.domain.onboarding.TipKey
 import com.zeroindex.intake.domain.swap.SwapAllergen
-import com.zeroindex.intake.ui.addfood.slotWord
 import com.zeroindex.intake.ui.allergen.AllergenChip
 import com.zeroindex.intake.ui.allergen.AllergenStrip
-import com.zeroindex.intake.ui.components.ActionTile
 import com.zeroindex.intake.ui.components.AnimatedBar
-import com.zeroindex.intake.ui.components.EmptyState
-import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.MacroSplitBar
-import com.zeroindex.intake.ui.components.Segmented
 import com.zeroindex.intake.ui.components.rememberSweepFraction
 import com.zeroindex.intake.ui.motion.MoreDetail
 import com.zeroindex.intake.ui.onboarding.TabTip
 import com.zeroindex.intake.ui.onboarding.TabTipCopy
-import com.zeroindex.intake.domain.onboarding.TipKey
 import com.zeroindex.intake.ui.screens.today.NextMealUi
 import com.zeroindex.intake.ui.theme.CarbAccent
 import com.zeroindex.intake.ui.theme.FatAccent
 import com.zeroindex.intake.ui.theme.IntakeShape
 import com.zeroindex.intake.ui.theme.ProteinAccent
-import com.zeroindex.intake.ui.theme.WaterAccent
+import kotlin.math.cos
 import kotlin.math.roundToInt
+import kotlin.math.sin
 
 /** Where each control on the Nutrition tab leads. Each is a different screen; nothing here configures anything. */
 class NutritionActions(
@@ -79,13 +90,16 @@ class NutritionActions(
     val onOpenRecipes: () -> Unit,
     val onOpenMealTemplates: () -> Unit,
     val onOpenEatingOut: () -> Unit,
+    /** The pushed "More" list: Plan, Recipes, Meals, Eating out and Drinks. */
+    val onOpenMore: () -> Unit,
 )
 
 /**
- * The Nutrition tab root (IA 5a, Option A): the allergen strip; Search, Scan and Photo; today's planned meal with Swap and
- * Log it; the nutrition dashboard (calorie ring, macros, fibre, saturated fat, sugar, salt or sodium, and "More nutrients"),
- * where a value no logged food listed reads "not listed" and never 0; the Drinks row; and the four sections Plan, Recipes,
- * Meals and Eating out. The content clears the status bar and the pill through [contentPadding].
+ * The Nutrition tab root (round 3, "Nutrition tab v3"): the compact allergen chip; the overview card (calorie ring with a
+ * hold-to-split button, macro cards, fibre, saturated fat, sugar and salt or sodium, and "More nutrients"), where a value
+ * no logged food listed reads "not listed" and never 0; the Meals card (Breakfast, Lunch, Dinner, Snacks and Drinks, each
+ * with a "+" that opens Log food with Search, Scan and Photo); and a row to the pushed More list. The content clears the
+ * status bar and the pill through [contentPadding].
  */
 @Composable
 fun NutritionHomeScreen(
@@ -95,7 +109,6 @@ fun NutritionHomeScreen(
     viewModel: NutritionHomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    var section by rememberSaveable { mutableIntStateOf(0) }
     val slot = viewModel.currentSlot().name
 
     LazyColumn(
@@ -108,194 +121,53 @@ fun NutritionHomeScreen(
         ),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item(key = "strip") { AllergenStrip(onClick = actions.onOpenAllergens) }
+        item(key = "strip") { AllergenStrip(onClick = actions.onOpenAllergens, compact = true) }
 
         item(key = "tip") {
             TabTip(key = TipKey.FOOD, body = TabTipCopy.FOOD, actionLabel = "Log food", onAction = { actions.onLogFood("SEARCH", slot) })
         }
 
-        item(key = "tiles") {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ActionTile("Search", Icons.Filled.Search, { actions.onLogFood("SEARCH", slot) }, Modifier.weight(1f))
-                ActionTile("Scan", Icons.Filled.QrCodeScanner, { actions.onLogFood("BARCODE", slot) }, Modifier.weight(1f))
-                ActionTile("Photo", Icons.Filled.CameraAlt, { actions.onLogFood("PHOTO", slot) }, Modifier.weight(1f))
-            }
-        }
+        item(key = "overview") { OverviewCard(state.dashboard, state.ready, state.hydration, state.settings.volumeUnit) }
 
-        item(key = "planned") {
-            PlannedMealCard(
-                next = state.next,
-                ready = state.ready,
-                onSwap = actions.onSwap,
+        item(key = "meals") {
+            MealsCard(
+                state = state,
+                actions = actions,
                 onLogIt = viewModel::logNextMeal,
-                onOpenPlan = actions.onOpenMealPlans,
-                fallbackSlot = slot,
             )
         }
 
-        item(key = "dashboard") { DashboardCard(state.dashboard, state.ready, state.hydration, state.settings.volumeUnit) }
-
-        item(key = "drinks") {
-            val day = state.hydration
-            val unit = state.settings.volumeUnit
-            NavCard(
-                title = "Drinks",
-                body = if (day == null) {
-                    "Log a drink, with sizes and categories"
-                } else {
-                    "${unit.formatNumber(day.consumedMl)} of ${unit.format(day.target.totalMl)} today" +
-                        (state.drinkNames.takeIf { it.isNotBlank() }?.let { " · $it" } ?: "")
-                },
-                icon = { Icon(Icons.Filled.WaterDrop, contentDescription = null, tint = WaterAccent) },
-                onClick = actions.onOpenDrinks,
-            )
-        }
-
-        item(key = "switch") {
-            Segmented(listOf("Plan", "Recipes", "Meals", "Eating out"), section, { section = it }, Modifier.fillMaxWidth())
-        }
-        item(key = "section") {
-            val s = state.sections
-            when (section) {
-                0 -> NavCard(
-                    title = s.planName ?: "Meal plan",
-                    body = if (s.planName == null) {
-                        "No plan yet. Import one, write one or start from a template. Plans of any length, shopping lists, import and export."
-                    } else {
-                        listOfNotNull(s.weekLine, s.weekDish?.let { "this week: $it" }, "shopping list, import and export").joinToString(" · ")
-                    },
-                    onClick = actions.onOpenMealPlans,
-                )
-                1 -> NavCard(
-                    title = "Recipes",
-                    body = if (s.recipeCount == 0) {
-                        "No recipes yet. Add one, import one from a link or let Recipe Hunter find one."
-                    } else {
-                        "${s.recipeCount} saved · ${s.recipeNames.joinToString(", ")}" + if (s.recipeCount > 3) " and more" else ""
-                    },
-                    onClick = actions.onOpenRecipes,
-                )
-                2 -> NavCard(
-                    title = "Meals",
-                    body = if (s.templateCount == 0) {
-                        "No saved meals yet. Save a meal you eat often and log it in one tap, or from an NFC tag."
-                    } else {
-                        "${s.templateCount} saved · ${s.templateNames.joinToString(", ")}" + if (s.templateCount > 3) " and more" else ""
-                    },
-                    onClick = actions.onOpenMealTemplates,
-                )
-                else -> NavCard(
-                    title = "Eating out",
-                    body = (if (s.eatOutCount == 0) "No saved options yet. " else "${s.eatOutCount} saved option${if (s.eatOutCount == 1) "" else "s"}. ") +
-                        "Saved options and restaurant menus. Nearby search is in Swap.",
-                    onClick = actions.onOpenEatingOut,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun NavCard(title: String, body: String, onClick: () -> Unit, icon: (@Composable () -> Unit)? = null) {
-    Surface(
-        onClick = onClick,
-        color = MaterialTheme.colorScheme.surface,
-        shape = IntakeShape.Card,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            if (icon != null) {
-                Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = IntakeShape.Tile, modifier = Modifier.size(48.dp)) {
-                    Box(contentAlignment = Alignment.Center) { icon() }
-                }
-            }
-            Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
-                Text(body, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-@Composable
-private fun PlannedMealCard(
-    next: NextMealUi?,
-    ready: Boolean,
-    fallbackSlot: String,
-    onSwap: (String?) -> Unit,
-    onLogIt: (NextMealUi) -> Unit,
-    onOpenPlan: () -> Unit,
-) {
-    IntakeCard {
-        if (next == null) {
-            Eyebrow("Today's ${slotWord(com.zeroindex.intake.domain.model.MealSlot.valueOf(fallbackSlot)).lowercase()}", color = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.size(8.dp))
-            if (!ready) {
-                Text("Reading your plan…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            } else {
-                Text("Nothing planned for now", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
-                Text(
-                    "A meal plan puts the day's meal here with Log it. Swap also finds something else when you cannot eat it.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = onOpenPlan, shape = IntakeShape.Button, modifier = Modifier.weight(1f).heightIn(min = 52.dp)) { Text("Open meal plans") }
-                    OutlinedButton(onClick = { onSwap(fallbackSlot) }, shape = IntakeShape.Button, modifier = Modifier.weight(1f).heightIn(min = 52.dp)) {
-                        Icon(Icons.Filled.SwapHoriz, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Swap")
-                    }
-                }
-            }
-            return@IntakeCard
-        }
-        val m = next.content.macros.perServing
-        Eyebrow("Today's ${slotWord(next.slot).lowercase()}", color = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.size(8.dp))
-        Surface(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), shape = IntakeShape.InnerCard, modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(14.dp)) {
-                Row(verticalAlignment = Alignment.Top) {
-                    Text("${slotWord(next.slot)} · planned".uppercase(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-                    val verdict = when (next.content.allergenStatus) {
-                        AllergenStatus.CONTAINS -> SwapAllergen.CONTAINS
-                        AllergenStatus.MAY_CONTAIN -> SwapAllergen.MAY_CONTAIN
-                        AllergenStatus.CHECK_LABEL, AllergenStatus.UNKNOWN -> SwapAllergen.CHECK_LABEL
-                        else -> SwapAllergen.CLEAR
-                    }
-                    AllergenChip(verdict, next.content.allergenTerms.firstOrNull())
-                }
-                Text(next.content.recipe.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(top = 4.dp))
-                Text(
-                    if (next.content.macros.isComplete) {
-                        "${m.kcal.roundToInt()} kcal · P ${m.protein.roundToInt()} · C ${m.carbs.roundToInt()} · F ${m.fat.roundToInt()}"
-                    } else {
-                        "Macros incomplete. Open the plan to confirm."
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { onSwap(next.slot.name) }, shape = IntakeShape.Button, modifier = Modifier.weight(1f).heightIn(min = 52.dp)) {
-                        Icon(Icons.Filled.SwapHoriz, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Swap")
-                    }
-                    Button(
-                        onClick = { if (next.content.macros.isComplete) onLogIt(next) else onOpenPlan() },
-                        shape = IntakeShape.Button,
-                        modifier = Modifier.weight(1f).heightIn(min = 52.dp),
-                    ) { Text(if (next.content.macros.isComplete) "Log it" else "Open plan") }
+        item(key = "more") {
+            Surface(
+                onClick = actions.onOpenMore,
+                color = MaterialTheme.colorScheme.surface,
+                shape = CircleShape,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+            ) {
+                Row(Modifier.padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "More: plan, recipes, eating out, nutrients",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
     }
 }
 
+// ---- Overview card ----
+
+private val RingSize = 124.dp
+private val RingStroke = 12.dp
+/** The ring plus the room its percentage labels need outside it. */
+private val RingBox = 172.dp
+
 @Composable
-private fun DashboardCard(
+private fun OverviewCard(
     model: DashboardModel?,
     ready: Boolean,
     hydration: com.zeroindex.intake.data.repository.HydrationDay?,
@@ -306,40 +178,43 @@ private fun DashboardCard(
             Text("Reading today…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             return@IntakeCard
         }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            CalorieRingView(model)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                val colors = listOf(ProteinAccent, CarbAccent, FatAccent)
-                model.macros.forEachIndexed { i, row -> MacroBar(row, colors[i]) }
-            }
-        }
+        var held by remember { mutableStateOf(false) }
         val grams = model.macros.associate { it.id to (it.value ?: 0.0) }
-        MacroSplitBar(
-            proteinGrams = grams["protein"] ?: 0.0,
-            carbGrams = grams["carbs"] ?: 0.0,
-            fatGrams = grams["fat"] ?: 0.0,
-            modifier = Modifier.padding(top = 10.dp),
-        )
-        Spacer(Modifier.size(12.dp))
+        val protein = grams["protein"] ?: 0.0
+        val carbs = grams["carbs"] ?: 0.0
+        val fat = grams["fat"] ?: 0.0
+        val shares = MacroShares.of(protein, carbs, fat)
+        // Holding with nothing eaten shows nothing extra.
+        val showSplit = held && shares != null
+
+        Box(Modifier.fillMaxWidth()) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                CalorieRingView(model, showSplit, protein, carbs, fat)
+                Column(Modifier.weight(1f).padding(end = 28.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    model.calories.target?.let {
+                        Text("of ${java.text.NumberFormat.getIntegerInstance().format(it)} kcal", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Text("${model.calories.eaten} eaten", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold)
+                }
+            }
+            SplitButton(held = held, onHeld = { held = it }, modifier = Modifier.align(Alignment.TopEnd).offset(x = 8.dp, y = (-8).dp))
+        }
+
+        MacroCards(model, showSplit, shares)
+
+        Spacer(Modifier.height(10.dp))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Spacer(Modifier.height(8.dp))
         // Fibre, saturated fat, sugar and salt or sodium: reference limits where a limit exists, "not listed" when unknown.
         model.others.chunked(2).forEach { pair ->
-            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 pair.forEach { row -> Box(Modifier.weight(1f)) { SmallBar(row) } }
                 if (pair.size == 1) Spacer(Modifier.weight(1f))
             }
         }
-        if (model.entries == 0) {
-            Text("Nothing logged yet today. Search, scan or photograph what you eat.", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
-        }
         model.notes.forEach {
             Text("$it (that total is a floor).", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
         }
-        Text(
-            "Fibre, saturated fat and salt are measured against common reference limits, not a personal target.",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 6.dp),
-        )
         MoreDetail(title = "More nutrients") {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(bottom = 6.dp)) {
                 val t = hydration?.totals
@@ -351,21 +226,59 @@ private fun DashboardCard(
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Text(
+                    "Fibre, saturated fat and salt are measured against common reference limits, not a personal target.",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * The round pie button in the card's corner. Pressed and held it reports `true` through [onHeld]; released it reports
+ * `false`. A screen reader's activation toggles it instead, since it cannot hold.
+ */
+@Composable
+private fun SplitButton(held: Boolean, onHeld: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+    val haptics = LocalHapticFeedback.current
+    val ring = MaterialTheme.colorScheme.primary
+    Box(
+        modifier
+            .size(48.dp)
+            .semantics {
+                contentDescription = "Hold to show macro split"
+                onClick(label = if (held) "Hide macro split" else "Show macro split") { onHeld(!held); true }
+            }
+            .pointerInput(Unit) {
+                detectTapGestures(onPress = {
+                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onHeld(true)
+                    try {
+                        tryAwaitRelease()
+                    } finally {
+                        onHeld(false)
+                    }
+                })
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            shape = CircleShape,
+            border = BorderStroke(if (held) 2.dp else 1.dp, if (held) ring else MaterialTheme.colorScheme.outlineVariant),
+            modifier = Modifier.size(34.dp),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(Icons.Filled.PieChart, contentDescription = null, tint = if (held) ring else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
             }
         }
     }
 }
 
 @Composable
-private fun ValueLine(label: String, value: String) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-    }
-}
-
-@Composable
-private fun CalorieRingView(model: DashboardModel) {
+private fun CalorieRingView(model: DashboardModel, showSplit: Boolean, protein: Double, carbs: Double, fat: Double) {
     val c = model.calories
     val sweep by rememberSweepFraction(c.fraction)
     val track = MaterialTheme.colorScheme.surfaceVariant
@@ -380,12 +293,43 @@ private fun CalorieRingView(model: DashboardModel) {
         c.over -> "kcal over"
         else -> "kcal left"
     }
+    val segments = if (showSplit) MacroRingSplit.segments(protein, carbs, fat, sweep) else emptyList()
+    val colors = mapOf(MacroRingSplit.Macro.PROTEIN to ProteinAccent, MacroRingSplit.Macro.CARBS to CarbAccent, MacroRingSplit.Macro.FAT to FatAccent)
     Box(
-        Modifier.size(132.dp).semantics { contentDescription = "$big $small" + (c.target?.let { ", of $it, ${c.eaten} eaten" } ?: "") },
+        Modifier.size(RingBox).semantics { contentDescription = "$big $small" + (c.target?.let { ", of $it, ${c.eaten} eaten" } ?: "") },
         contentAlignment = Alignment.Center,
     ) {
-        CircularProgressIndicator(progress = { 1f }, color = track, strokeWidth = 14.dp, modifier = Modifier.size(132.dp), trackColor = Color.Transparent)
-        CircularProgressIndicator(progress = { sweep }, color = color, strokeWidth = 14.dp, modifier = Modifier.size(132.dp), trackColor = Color.Transparent)
+        Canvas(Modifier.size(RingSize)) {
+            val stroke = RingStroke.toPx()
+            val topLeft = Offset(stroke / 2, stroke / 2)
+            val arcSize = Size(size.width - stroke, size.height - stroke)
+            drawArc(track, 0f, 360f, false, topLeft, arcSize, style = Stroke(stroke))
+            if (segments.isNotEmpty()) {
+                segments.forEach {
+                    drawArc(colors.getValue(it.macro), -90f + it.startDegrees, it.sweepDegrees, false, topLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Butt))
+                }
+            } else if (sweep > 0f) {
+                drawArc(color, -90f, 360f * sweep, false, topLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
+            }
+        }
+        // Each percentage sits just outside the ring, at the middle of its segment.
+        val radius = RingSize / 2 + RingStroke / 2 + 4.dp
+        segments.forEach { seg ->
+            val a = Math.toRadians(seg.midDegrees.toDouble())
+            val dx = (radius.value * sin(a)).toFloat()
+            val dy = (-radius.value * cos(a)).toFloat()
+            Box(Modifier.offset(x = dx.dp, y = dy.dp).size(width = 40.dp, height = 18.dp), contentAlignment = Alignment.Center) {
+                Text(
+                    "${seg.pct}%",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = colors.getValue(seg.macro),
+                    maxLines = 1,
+                    softWrap = false,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(big, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
             Text(small, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -394,22 +338,47 @@ private fun CalorieRingView(model: DashboardModel) {
 }
 
 @Composable
-private fun MacroBar(row: DashRow, color: Color) {
-    Surface(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f), shape = IntakeShape.Tile) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(row.label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-                Text("${row.value?.roundToInt() ?: 0}", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold, color = color)
-                Text(" / ${row.target?.roundToInt() ?: "—"} g", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 1.dp))
+private fun MacroCards(model: DashboardModel, showSplit: Boolean, shares: MacroShares.Shares?) {
+    val colors = listOf(ProteinAccent, CarbAccent, FatAccent)
+    val g = model.macros.map { it.value ?: 0.0 }
+    val kcal = MacroRingSplit.kcal(g[0], g[1], g[2])
+    val kcals = listOf(kcal.protein, kcal.carbs, kcal.fat)
+    val pcts = shares?.let { listOf(it.proteinPct, it.carbPct, it.fatPct) }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        model.macros.forEachIndexed { i, row ->
+            Surface(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f), shape = IntakeShape.Tile, modifier = Modifier.weight(1f)) {
+                Column(Modifier.padding(horizontal = 10.dp, vertical = 9.dp)) {
+                    Text(row.label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("${row.value?.roundToInt() ?: 0}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
+                    Text("/ ${row.target?.roundToInt() ?: "—"} g", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(5.dp))
+                    AnimatedBar(row.fraction, colors[i], MaterialTheme.colorScheme.surfaceVariant, height = 3.dp)
+                    Spacer(Modifier.height(5.dp))
+                    Text("${kcals[i]} kcal", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (showSplit && pcts != null) {
+                        Text("${pcts[i]}% of kcal", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, color = colors[i])
+                    }
+                }
             }
-            Spacer(Modifier.size(5.dp))
-            AnimatedBar(row.fraction, color, MaterialTheme.colorScheme.surfaceVariant, height = 6.dp)
         }
     }
 }
 
 @Composable
+private fun ValueLine(label: String, value: String) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
 private fun SmallBar(row: DashRow) {
+    val barColor = when (row.id) {
+        "fiber", "fibre" -> ProteinAccent
+        "sugar" -> FatAccent
+        else -> CarbAccent
+    }
     Column(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.Bottom) {
             Text(row.label, style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
@@ -421,7 +390,149 @@ private fun SmallBar(row: DashRow) {
                 color = if (listed) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Spacer(Modifier.size(4.dp))
-        AnimatedBar(row.fraction, CarbAccent.copy(alpha = 0.7f), MaterialTheme.colorScheme.surfaceVariant, height = 5.dp)
+        Spacer(Modifier.height(4.dp))
+        AnimatedBar(row.fraction, barColor, MaterialTheme.colorScheme.surfaceVariant, height = 3.dp)
     }
+}
+
+// ---- Meals card ----
+
+@Composable
+private fun MealsCard(state: NutritionHomeState, actions: NutritionActions, onLogIt: (NextMealUi) -> Unit) {
+    val unit = state.settings.volumeUnit
+    IntakeCard {
+        state.slots.forEach { row ->
+            val planned = state.next?.takeIf { it.slot == row.slot && !row.logged }
+            MealRow(
+                emoji = slotEmoji(row.slot),
+                name = slotLabel(row.slot),
+                onClick = { actions.onLogFood("SEARCH", row.slot.name) },
+                onAdd = { actions.onLogFood("SEARCH", row.slot.name) },
+                addDescription = "Log food for ${slotLabel(row.slot).lowercase()}",
+            ) {
+                when {
+                    row.logged -> {
+                        Row {
+                            Text(foodsLine(row.foods), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                            Text(" · ${row.kcal} kcal", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
+                        }
+                        MacroSplitBar(row.protein, row.carbs, row.fat, Modifier.fillMaxWidth(0.7f).padding(top = 5.dp), showLabels = false, barHeight = 5.dp)
+                    }
+                    planned != null -> PlannedLine(planned, actions, onLogIt)
+                    else -> Text("Nothing yet", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        }
+        val day = state.hydration
+        MealRow(
+            emoji = "\uD83D\uDCA7",
+            name = "Drinks",
+            onClick = actions.onOpenDrinks,
+            onAdd = actions.onOpenDrinks,
+            addDescription = "Open drinks",
+        ) {
+            Text(
+                if (day == null) "Log a drink" else "${unit.formatNumber(day.consumedMl)} of ${unit.format(day.target.totalMl)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlannedLine(next: NextMealUi, actions: NutritionActions, onLogIt: (NextMealUi) -> Unit) {
+    val complete = next.content.macros.isComplete
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            "Planned: ${next.content.recipe.name}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false),
+        )
+        Text(" · ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        TextAction(if (complete) "Log it" else "Open plan") { if (complete) onLogIt(next) else actions.onOpenMealPlans() }
+        Spacer(Modifier.size(12.dp))
+        TextAction("Swap") { actions.onSwap(next.slot.name) }
+    }
+    val verdict = when (next.content.allergenStatus) {
+        AllergenStatus.CONTAINS -> SwapAllergen.CONTAINS
+        AllergenStatus.MAY_CONTAIN -> SwapAllergen.MAY_CONTAIN
+        AllergenStatus.CHECK_LABEL, AllergenStatus.UNKNOWN -> SwapAllergen.CHECK_LABEL
+        else -> SwapAllergen.CLEAR
+    }
+    if (verdict != SwapAllergen.CLEAR) {
+        Box(Modifier.padding(top = 4.dp)) { AllergenChip(verdict, next.content.allergenTerms.firstOrNull()) }
+    }
+}
+
+@Composable
+private fun TextAction(text: String, onClick: () -> Unit) {
+    Text(
+        text,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.ExtraBold,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.clickable(onClick = onClick).heightIn(min = 36.dp).padding(horizontal = 2.dp, vertical = 8.dp),
+    )
+}
+
+@Composable
+private fun MealRow(
+    emoji: String,
+    name: String,
+    onClick: () -> Unit,
+    onAdd: () -> Unit,
+    addDescription: String,
+    subtitle: @Composable () -> Unit,
+) {
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = IntakeShape.Tile, modifier = Modifier.size(44.dp)) {
+            Box(contentAlignment = Alignment.Center) { Text(emoji, style = MaterialTheme.typography.titleMedium) }
+        }
+        Column(Modifier.weight(1f)) {
+            Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
+            subtitle()
+        }
+        IconButton(onClick = onAdd, modifier = Modifier.size(48.dp)) {
+            Surface(
+                color = Color.Transparent,
+                shape = CircleShape,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier.size(34.dp).semantics { contentDescription = addDescription },
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.Add, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                }
+            }
+        }
+    }
+}
+
+private fun slotLabel(slot: MealSlot): String = when (slot) {
+    MealSlot.BREAKFAST -> "Breakfast"
+    MealSlot.LUNCH -> "Lunch"
+    MealSlot.DINNER -> "Dinner"
+    MealSlot.SNACK -> "Snacks"
+}
+
+private fun slotEmoji(slot: MealSlot): String = when (slot) {
+    MealSlot.BREAKFAST -> "\uD83C\uDF05"
+    MealSlot.LUNCH -> "\u2600\uFE0F"
+    MealSlot.DINNER -> "\uD83C\uDF19"
+    MealSlot.SNACK -> "\uD83C\uDF4E"
+}
+
+/** "Oatmeal, banana" for the first two foods, then "+N" for the rest; the Text ellipsises anything still too long. */
+internal fun foodsLine(foods: List<String>): String {
+    val shown = foods.distinct().take(2).joinToString(", ")
+    val rest = foods.distinct().size - 2
+    return if (rest > 0) "$shown +$rest" else shown
 }
