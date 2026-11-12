@@ -13,6 +13,8 @@ import com.zeroindex.intake.data.repository.TemplateLogResult
 import com.zeroindex.intake.data.repository.TrainingRepository
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nutrition.Macros
+import com.zeroindex.intake.domain.nutrition.QuickAddField
+import com.zeroindex.intake.domain.nutrition.QuickAddLimits
 import com.zeroindex.intake.domain.time.Clock
 import com.zeroindex.intake.wearprotocol.RemoteReplies
 import com.zeroindex.intake.wearprotocol.RemoteRequest
@@ -87,6 +89,9 @@ class RemoteRequestHandler @Inject constructor(
             RequestKind.LOG_PLANNED -> logPlanned(request, slot)
             RequestKind.QUICK_ADD -> {
                 val kcal = request.kcal ?: return RemoteReplies.failed(request.id, "Bad calories")
+                QuickAddLimits.problem(QuickAddField.KCAL, kcal.toDouble())?.let {
+                    return RemoteReplies.failed(request.id, "Not logged. ${QuickAddField.KCAL.label}: $it")
+                }
                 foodLog.quickAdd("Quick add", Macros(kcal = kcal.toDouble()), slot, at)
                 RemoteReplies.done(request.id, "Logged $kcal kcal to ${slot.name.lowercase()}")
             }

@@ -8,6 +8,7 @@ Read this first when picking the work back up. Latest work: branch
 Head `06871e3`. What the owner sent from the phone is in `docs/FEEDBACK-R3.md` and `docs/R3-BACKLOG.md` (the status section
 at the top lists what is done and what is left). Verified: 1599 unit tests and 0 lint errors (app and wear).
 
+- **Quick add limits.** A typed value such as 348416 g of protein was saved. Per-entry limits now live in `domain/nutrition/QuickAddLimits.kt` (kcal 5000, protein/carbs/fat 500 g, fibre/sugar 300 g, sodium 20000 mg): the form shows an inline error and disables Log it, the save path refuses, and the watch's calorie request is refused with a message. Unit-tested; not seen on a device.
 - **AI.** The real cause of "No provider for this model meets your privacy setting" was `temperature` sent together with
   `require_parameters` to models whose providers do not accept it. Fixed. Added a fallback to the other compatible models
   and a clearer message.

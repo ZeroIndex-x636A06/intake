@@ -28,6 +28,7 @@ Branch `worktree-agent-a978a2d098487061e`. Compiled, linted and unit-tested only
 
 ## Bugs fixed from device testing
 
+- **Quick add accepted absurd values** (348416 g of protein). Per-entry limits in `domain/nutrition/QuickAddLimits.kt`, checked by the form, the save path and the watch's calorie request. Not seen on a device.
 Branch `worktree-agent-acbf47c924ce706e7`. None of this has been seen on a device (no emulator in the cloud container).
 
 - **Crashes on Menu import, Meal templates, Health Connect, Training stats and Settings -> AI.** One cause: two public

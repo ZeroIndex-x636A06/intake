@@ -64,6 +64,8 @@ import com.zeroindex.intake.data.db.entity.FoodEntity
 import com.zeroindex.intake.data.foodref.RefFood
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nutrition.Macros
+import com.zeroindex.intake.domain.nutrition.QuickAddField
+import com.zeroindex.intake.domain.nutrition.QuickAddLimits
 import com.zeroindex.intake.domain.units.PortionUnit
 import com.zeroindex.intake.ui.allergen.AllergenChip
 import com.zeroindex.intake.ui.allergen.AllergenWarningSheet
@@ -902,6 +904,12 @@ private fun QuickAddTab(onQuickAdd: (String, Double, Double, Double, Double) -> 
     var carbs by remember { mutableStateOf("") }
     var fat by remember { mutableStateOf("") }
 
+    val kcalError = QuickAddLimits.problem(QuickAddField.KCAL, kcal)
+    val proteinError = QuickAddLimits.problem(QuickAddField.PROTEIN, protein)
+    val carbsError = QuickAddLimits.problem(QuickAddField.CARBS, carbs)
+    val fatError = QuickAddLimits.problem(QuickAddField.FAT, fat)
+    val anyError = listOf(kcalError, proteinError, carbsError, fatError).any { it != null }
+
     Column(
         modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -919,12 +927,12 @@ private fun QuickAddTab(onQuickAdd: (String, Double, Double, Double, Double) -> 
             modifier = Modifier.fillMaxWidth(),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            NumberField(kcal, { kcal = it }, "Calories", Modifier.weight(1f))
-            NumberField(protein, { protein = it }, "Protein g", Modifier.weight(1f))
+            NumberField(kcal, { kcal = it }, "Calories", Modifier.weight(1f), error = kcalError)
+            NumberField(protein, { protein = it }, "Protein g", Modifier.weight(1f), error = proteinError)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            NumberField(carbs, { carbs = it }, "Carbs g", Modifier.weight(1f))
-            NumberField(fat, { fat = it }, "Fat g", Modifier.weight(1f))
+            NumberField(carbs, { carbs = it }, "Carbs g", Modifier.weight(1f), error = carbsError)
+            NumberField(fat, { fat = it }, "Fat g", Modifier.weight(1f), error = fatError)
         }
         Button(
             onClick = {
@@ -936,7 +944,7 @@ private fun QuickAddTab(onQuickAdd: (String, Double, Double, Double, Double) -> 
                     fat.toDoubleOrNull() ?: 0.0,
                 )
             },
-            enabled = kcal.toDoubleOrNull()?.let { it > 0 } == true,
+            enabled = !anyError && kcal.toDoubleOrNull()?.let { it > 0 } == true,
             modifier = Modifier.fillMaxWidth().height(52.dp),
         ) { Text("Log it") }
         Spacer(Modifier.height(8.dp))
@@ -1039,6 +1047,7 @@ private fun NumberField(
     onValueChange: (String) -> Unit,
     label: String,
     modifier: Modifier = Modifier,
+    error: String? = null,
 ) {
     OutlinedTextField(
         value = value,
@@ -1046,6 +1055,12 @@ private fun NumberField(
         label = { Text(label) },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        isError = error != null,
+        supportingText = if (error != null) {
+            { Text(error) }
+        } else {
+            null
+        },
         modifier = modifier,
     )
 }

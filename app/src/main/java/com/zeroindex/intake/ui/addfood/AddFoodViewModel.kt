@@ -38,6 +38,7 @@ import com.zeroindex.intake.domain.model.FoodSource
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nutrition.Macros
 import com.zeroindex.intake.domain.nutrition.NutrientKey
+import com.zeroindex.intake.domain.nutrition.QuickAddLimits
 import com.zeroindex.intake.domain.nutrition.Unlisted
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -499,6 +500,8 @@ class AddFoodViewModel @Inject constructor(
         at: Long,
         onLogged: () -> Unit,
     ) = viewModelScope.launch {
+        // The form disables Save for an out-of-range value; this keeps the save path honest too.
+        if (QuickAddLimits.firstProblem(macros) != null) return@launch
         val label = name.ifBlank { "Quick add" }
         val scan = allergenRepository.scan(name = label)
         if (scan.hasAnything) {
