@@ -56,6 +56,10 @@ Branch `worktree-agent-acbf47c924ce706e7`. None of this has been seen on a devic
 - Floating pill: frosted-glass backdrop blur on Android 12 and up, translucent fill below.
 - Schema: `food.imageUrl` in `migrateFoodUi_2_3`, with a `MigrationSchemaTest` case.
 
+## Recipe Hunter returned too few results: done on branch `worktree-agent-a413caf0d3be660a6` (not pushed, not seen on a device)
+
+Cause: a 5 recipe target, 3 rounds, and the model both searching and copying whole recipes (full ingredients and steps) inside one capped reply, so each round yielded about one recipe. Now the model only lists pages (10 a round, 2 searches); the app downloads and reads each page itself 4 at a time (`RecipeHunter.kt`), until 12 are kept or 4 rounds or $0.08 is reached. Pure rules in `domain/ai/HuntRules.kt`. "Find more" continues with exclusions. Near misses (within 10%) go to "Close matches"; pages with no nutrition are kept and labelled; unreadable pages are listed as "Could not check" and cannot be saved. Not tried with a live key.
+
 ## Next up (claimed by the coordinating session)
 
 **AI benchmark fixes.** From the user's run on the phone (screenshot, 2026-11-09).

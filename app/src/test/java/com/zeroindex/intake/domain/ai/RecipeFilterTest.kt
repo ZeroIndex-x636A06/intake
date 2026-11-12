@@ -40,13 +40,26 @@ class RecipeFilterTest {
     }
 
     @Test
-    fun `macro goals have a five percent tolerance`() {
-        assertThat(RecipeFilter.evaluate(good.copy(proteinPerServing = 38.5), query, AllergenScanResult.CLEAN))
-            .isEqualTo(RecipeVerdict.Passed)
-        assertThat(RecipeFilter.evaluate(good.copy(proteinPerServing = 37.0), query, AllergenScanResult.CLEAN))
-            .isEqualTo(RecipeVerdict.Rejected("37 g protein per serving, goal ≥ 40 g"))
-        assertThat(RecipeFilter.evaluate(good.copy(kcalPerServing = 640.0), query, AllergenScanResult.CLEAN))
+    fun `a near miss is not rejected and is graded close`() {
+        val near = good.copy(proteinPerServing = 38.5)
+        assertThat(RecipeFilter.evaluate(near, query, AllergenScanResult.CLEAN)).isEqualTo(RecipeVerdict.Passed)
+        assertThat(RecipeFilter.fitOf(near, query).fit).isEqualTo(Fit.CLOSE)
+        assertThat(RecipeFilter.fitOf(good, query).fit).isEqualTo(Fit.MATCH)
+    }
+
+    @Test
+    fun `well outside a limit is rejected`() {
+        assertThat(RecipeFilter.evaluate(good.copy(proteinPerServing = 35.0), query, AllergenScanResult.CLEAN))
+            .isEqualTo(RecipeVerdict.Rejected("35 g protein per serving, goal ≥ 40 g"))
+        assertThat(RecipeFilter.evaluate(good.copy(kcalPerServing = 700.0), query, AllergenScanResult.CLEAN))
             .isInstanceOf(RecipeVerdict.Rejected::class.java)
+    }
+
+    @Test
+    fun `a page with no nutrition is kept unchecked, not rejected`() {
+        val none = good.copy(kcalPerServing = null, proteinPerServing = null)
+        assertThat(RecipeFilter.evaluate(none, query, AllergenScanResult.CLEAN)).isEqualTo(RecipeVerdict.Passed)
+        assertThat(RecipeFilter.fitOf(none, query).fit).isEqualTo(Fit.UNCHECKED)
     }
 
     @Test
