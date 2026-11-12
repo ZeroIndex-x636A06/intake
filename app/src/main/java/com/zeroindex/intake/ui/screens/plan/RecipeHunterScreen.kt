@@ -53,13 +53,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.ai.recipes.HuntedRecipe
 import com.zeroindex.intake.ui.allergen.CheckLabelChip
+import com.zeroindex.intake.domain.ai.HuntPolicy
 import com.zeroindex.intake.domain.ai.RecipeVerdict
 import com.zeroindex.intake.ui.components.AccentNote
 import com.zeroindex.intake.ui.components.ChoiceChip
 import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.SectionLine
-import com.zeroindex.intake.ui.components.SubHead
 import com.zeroindex.intake.ui.screens.ai.usd
 import com.zeroindex.intake.ui.theme.IntakeShape
 import kotlin.math.roundToInt
@@ -76,6 +76,7 @@ fun RecipeHunterScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var open by remember { mutableStateOf<HuntedRecipe?>(null) }
+    var showRemoved by remember { mutableStateOf(false) }
     val pad = PaddingValues(
         top = contentPadding.calculateTopPadding(),
         bottom = contentPadding.calculateBottomPadding() + 24.dp,
@@ -85,7 +86,7 @@ fun RecipeHunterScreen(
 
     when (val stage = state.stage) {
         HuntStage.NeedsKey -> Column(modifier.padding(pad)) {
-            SubHead("Recipe Hunter", "Searches the web with AI, so it needs “Use AI features” on and an OpenRouter key (Settings → AI).")
+            HuntSubtitle("Searches the web with AI, so it needs “Use AI features” on and an OpenRouter key (Settings → AI).")
             OutlinedButton(onClick = onOpenImport, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(52.dp)) {
                 Text("Have a link? Import it with no AI")
             }
@@ -100,8 +101,7 @@ fun RecipeHunterScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             val q = state.query
-            SubHead(
-                "Recipe Hunter",
+            HuntSubtitle(
                 if (q.avoidedAllergens.isEmpty()) "Find recipes that fit your macros." else
                     "Find recipes that fit your macros and your ${q.avoidedAllergens.joinToString(" and ")} allergy.",
             )
@@ -166,7 +166,7 @@ fun RecipeHunterScreen(
                 Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     PrivacyTag("Sends goals to OpenRouter")
                     Text(
-                        "  Usually a few cents a search. Ingredients are checked on this phone.",
+                        "  About ${usd(HuntPolicy().capUsd)} at most per search, and you see the running cost. Ingredients are checked on this phone.",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -175,16 +175,19 @@ fun RecipeHunterScreen(
         }
 
         is HuntStage.Running -> Column(modifier.padding(pad), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            SubHead("Recipe Hunter", "Working - this can take a minute.")
+            HuntSubtitle("Working - this can take a minute or two.")
+            val policy = HuntPolicy()
+            val last = stage.steps.lastOrNull()
             LoadingState(
                 steps = stage.steps.mapIndexed { i, step ->
                     if (i == stage.steps.lastIndex) "◌ ${step.message}" else "✓ ${step.message}"
-                } + "Checking ingredients against your allergens happens on this phone",
+                } + (last?.let {
+                    "Round ${it.round} of up to ${policy.maxRounds} · ${it.kept} kept · ${usd(it.costUsd)} of ${usd(policy.capUsd)} cap"
+                } ?: "Starting") + "Ingredients are checked against your allergens on this phone",
             )
         }
 
         is HuntStage.Failed -> Column(modifier.padding(pad), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            SubHead("Recipe Hunter", null)
             ErrorState(
                 title = "The search did not finish",
                 body = stage.message,
@@ -196,30 +199,92 @@ fun RecipeHunterScreen(
 
         is HuntStage.Done -> LazyColumn(modifier.fillMaxWidth(), contentPadding = pad, verticalArrangement = Arrangement.spacedBy(2.dp)) {
             val result = stage.result
-            item(key = "head") { SubHead("Recipe Hunter", "${result.rounds} round${if (result.rounds == 1) "" else "s"} · ${usd(result.costUsd)} · ${result.model}") }
-            item(key = "results-head") {
-                SectionLine(
-                    "Results · ${result.usable.size} kept",
-                    note = "of ${result.results.size} reviewed",
+            val onCard: (HuntedRecipe) -> Unit = { open = it }
+            item(key = "head") {
+                HuntSubtitle(
+                    "${result.rounds} round${if (result.rounds == 1) "" else "s"} · ${usd(result.costUsd)} spent · " +
+                        "${result.candidatesSeen} pages read · ${result.stop.label.replaceFirstChar(Char::lowercase)}",
                 )
             }
-            if (result.usable.isEmpty()) {
+            item(key = "legend") {
+                Text(
+                    "Check the label: an ingredient may carry the allergen, so read the pack. " +
+                        "Check allergens: the recipe may contain it, so read the ingredients first. " +
+                        "Both come from this phone's own check; the AI cannot clear either.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 6.dp),
+                )
+            }
+            item(key = "results-head") {
+                SectionLine("Results · ${result.kept.size} kept", note = "of ${result.results.size} reviewed")
+            }
+            if (result.kept.isEmpty()) {
                 item(key = "none") {
                     EmptyState(
-                        title = "Nothing passed every check",
-                        body = "Try a lower protein goal, a higher calorie cap, or more time.",
+                        title = if (result.close.isEmpty()) "Nothing passed every check" else "Nothing met every limit",
+                        body = if (result.close.isEmpty()) "Try a lower protein goal, a higher calorie cap, or more time, or tap Find more."
+                        else "The close matches below are within 10% of a limit. Tap Find more to keep looking.",
                     )
                 }
             }
-            items(result.results.sortedBy { it.verdict is RecipeVerdict.Rejected }, key = { it.recipe.sourceUrl + it.recipe.title }) { hunted ->
-                HuntedCard(hunted, saved = hunted.recipe.sourceUrl in stage.saved, onClick = { open = hunted })
+            items(result.kept, key = { "k" + it.recipe.sourceUrl + it.recipe.title }) { hunted ->
+                HuntedCard(hunted, saved = hunted.recipe.sourceUrl in stage.saved, onClick = { onCard(hunted) })
             }
-            item(key = "again") {
-                OutlinedButton(
-                    onClick = viewModel::backToForm,
-                    shape = IntakeShape.Button,
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp).height(50.dp),
-                ) { Text("Change the search") }
+            if (result.close.isNotEmpty()) {
+                item(key = "close-head") { SectionLine("Close matches · ${result.close.size}", note = "within 10% of a limit") }
+                items(result.close, key = { "c" + it.recipe.sourceUrl + it.recipe.title }) { hunted ->
+                    HuntedCard(hunted, saved = hunted.recipe.sourceUrl in stage.saved, onClick = { onCard(hunted) })
+                }
+            }
+            if (result.unverified.isNotEmpty()) {
+                item(key = "unverified-head") { SectionLine("Could not check · ${result.unverified.size}", note = "page unreadable, not saved") }
+                items(result.unverified, key = { "u" + it.recipe.sourceUrl + it.recipe.title }) { hunted ->
+                    HuntedCard(hunted, saved = false, onClick = { onCard(hunted) })
+                }
+            }
+            if (result.removed.isNotEmpty()) {
+                item(key = "removed-head") {
+                    SectionLine(
+                        "Removed · ${result.removed.size}",
+                        note = "allergen or well outside a limit",
+                        trailing = { TextButton(onClick = { showRemoved = !showRemoved }) { Text(if (showRemoved) "Hide" else "Show") } },
+                    )
+                }
+                if (showRemoved) {
+                    items(result.removed, key = { "r" + it.recipe.sourceUrl + it.recipe.title }) { hunted ->
+                        HuntedCard(hunted, saved = false, onClick = { onCard(hunted) })
+                    }
+                }
+            }
+            item(key = "more") {
+                Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    stage.error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+                    val working = stage.working
+                    if (working != null) {
+                        Text(
+                            "${working.message} Round ${working.round} · ${usd(working.costUsd)} of ${usd(result.policy.capUsd)} cap",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    } else {
+                        Button(
+                            onClick = viewModel::findMore,
+                            shape = IntakeShape.Button,
+                            modifier = Modifier.fillMaxWidth().height(52.dp),
+                        ) { Text("Find more") }
+                        Text(
+                            "Keeps the same search and skips what you have seen. Up to ${usd(result.policy.capUsd)} more, " +
+                                "only when you tap. ${usd(result.costUsd)} spent so far.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = viewModel::backToForm,
+                        shape = IntakeShape.Button,
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                    ) { Text("Change the search") }
+                }
             }
         }
     }
@@ -231,10 +296,22 @@ fun RecipeHunterScreen(
 }
 
 @Composable
+private fun HuntSubtitle(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 8.dp, bottom = 10.dp),
+    )
+}
+
+@Composable
 private fun HuntedCard(hunted: HuntedRecipe, saved: Boolean, onClick: () -> Unit) {
+    val context = LocalContext.current
     val r = hunted.recipe
     val rejected = hunted.verdict as? RecipeVerdict.Rejected
-    ResultCard(dimmed = rejected != null, modifier = Modifier.padding(vertical = 4.dp)) {
+    val unverified = hunted.verdict as? RecipeVerdict.Unverified
+    ResultCard(dimmed = rejected != null || unverified != null, modifier = Modifier.padding(vertical = 4.dp)) {
         Row(verticalAlignment = Alignment.Top) {
             Text(r.title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f).padding(end = 6.dp))
             when (val v = hunted.verdict) {
@@ -243,24 +320,29 @@ private fun HuntedCard(hunted: HuntedRecipe, saved: Boolean, onClick: () -> Unit
                     else StatusPill("Passed allergen check")
                 is RecipeVerdict.NeedsReview -> StatusPill("Check allergens", tone = PillTone.Wait)
                 is RecipeVerdict.Rejected -> StatusPill("Removed: ${v.reason.replaceFirstChar(Char::lowercase).let { if (it.length > 28) it.take(27) + "…" else it }}", tone = PillTone.Bad)
+                is RecipeVerdict.Unverified -> StatusPill("Not checked", tone = PillTone.Wait)
             }
         }
-        Text(
-            listOfNotNull(
-                "${r.proteinPerServing.roundToInt()} g protein",
-                "${r.kcalPerServing.roundToInt()} kcal",
-                r.totalMinutes?.roundToInt()?.let { "$it min" },
-            ).joinToString(" · "),
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.padding(top = 5.dp),
-        )
+        if (unverified == null) {
+            Text(
+                listOfNotNull(
+                    r.proteinPerServing?.let { "${it.roundToInt()} g protein" },
+                    r.kcalPerServing?.let { "${it.roundToInt()} kcal" },
+                    if (!r.nutritionStated) "Nutrition not stated on the page" else null,
+                    r.totalMinutes?.let { "$it min" },
+                ).joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 5.dp),
+            )
+        }
         Text(
             when {
                 rejected != null -> "${rejected.reason}. This result is excluded from saving."
+                unverified != null -> "${unverified.reason}. Allergens were not checked, so it cannot be saved. Source: ${r.sourceName}."
                 else -> listOfNotNull(
+                    if (hunted.isClose) "Close: ${hunted.fitReason}" else null,
                     "Source: ${r.sourceName}",
                     "Ingredients checked locally",
-                    if (!r.macrosPublished) "macros estimated" else null,
                     if (saved) "saved" else null,
                 ).joinToString(" · ")
             },
@@ -268,10 +350,16 @@ private fun HuntedCard(hunted: HuntedRecipe, saved: Boolean, onClick: () -> Unit
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 5.dp),
         )
-        if (rejected == null) {
+        if (rejected == null && unverified == null) {
             TextButton(onClick = onClick, modifier = Modifier.semantics { contentDescription = "View recipe: ${r.title}" }) {
                 Text("View recipe")
             }
+        }
+        if (unverified != null) {
+            TextButton(
+                onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(r.sourceUrl))) } },
+                modifier = Modifier.semantics { contentDescription = "Open the page: ${r.title}" },
+            ) { Text("Open the page") }
         }
     }
 }
@@ -287,7 +375,7 @@ private fun HuntedDetailSheet(hunted: HuntedRecipe, saved: Boolean, onSave: () -
         ) {
             Text(r.title, style = MaterialTheme.typography.headlineSmall)
             Text(
-                "${r.servings} servings · ${r.totalMinutes?.roundToInt()?.let { "$it min" } ?: "time not stated"} · ${r.sourceName}",
+                "${r.servings} servings · ${r.totalMinutes?.let { "$it min" } ?: "time not stated"} · ${r.sourceName}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -302,13 +390,24 @@ private fun HuntedDetailSheet(hunted: HuntedRecipe, saved: Boolean, onSave: () -
                     container = MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                 )
-                RecipeVerdict.Passed -> Unit
+                is RecipeVerdict.Unverified, RecipeVerdict.Passed -> Unit
+            }
+            if (hunted.isClose) {
+                AccentNote(
+                    lead = "Close match", body = hunted.fitReason.orEmpty(),
+                    container = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
             }
             SectionLine("Per serving")
             Text(
-                "${r.kcalPerServing.roundToInt()} kcal · ${r.proteinPerServing.roundToInt()} g protein · " +
-                    "${r.carbsPerServing.roundToInt()} g carbs · ${r.fatPerServing.roundToInt()} g fat" +
-                    if (r.macrosPublished) "" else " (estimated from the ingredients)",
+                if (!r.nutritionStated) "Nutrition not stated on the page." else
+                    listOfNotNull(
+                        r.kcalPerServing?.let { "${it.roundToInt()} kcal" },
+                        r.proteinPerServing?.let { "${it.roundToInt()} g protein" },
+                        r.carbsPerServing?.let { "${it.roundToInt()} g carbs" },
+                        r.fatPerServing?.let { "${it.roundToInt()} g fat" },
+                    ).joinToString(" · ") + " (as published on the page)",
                 style = MaterialTheme.typography.bodySmall,
             )
             SectionLine("Ingredients")
@@ -316,7 +415,7 @@ private fun HuntedDetailSheet(hunted: HuntedRecipe, saved: Boolean, onSave: () -
             SectionLine("Steps")
             r.steps.forEachIndexed { i, s -> Text("${i + 1}. $s", style = MaterialTheme.typography.bodySmall) }
             Spacer(Modifier.height(6.dp))
-            if (hunted.verdict !is RecipeVerdict.Rejected) {
+            if (hunted.isSavable) {
                 Button(onClick = onSave, enabled = !saved, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(52.dp)) {
                     Text(if (saved) "Saved to My recipes" else "Save to My recipes")
                 }

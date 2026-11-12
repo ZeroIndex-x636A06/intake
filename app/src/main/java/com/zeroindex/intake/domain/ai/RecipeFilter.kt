@@ -1,7 +1,6 @@
 package com.zeroindex.intake.domain.ai
 
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
-import kotlin.math.roundToInt
 
 /** What the user asked Recipe Hunter for. Macros are per serving. */
 data class RecipeQuery(
@@ -15,35 +14,36 @@ data class RecipeQuery(
     val avoidedAllergens: Set<String> = emptySet(),
 )
 
-/** A recipe as extracted, reduced to what the filter checks. */
+/** A recipe as read from its page, reduced to what the filter checks. Null numbers are "not stated". */
 data class RecipeCandidate(
     val title: String,
     val sourceUrl: String,
     val ingredients: List<String>,
-    val kcalPerServing: Double,
-    val proteinPerServing: Double,
+    val kcalPerServing: Double?,
+    val proteinPerServing: Double?,
     val totalMinutes: Int?,
 )
 
 sealed interface RecipeVerdict {
     data object Passed : RecipeVerdict
+
     /** Passed, but an allergen review is needed before it can be saved or logged. */
     data class NeedsReview(val reason: String) : RecipeVerdict
+
     data class Rejected(val reason: String) : RecipeVerdict
+
+    /** The page could not be read, so nothing (allergens included) was checked. Never saved, never "kept". */
+    data class Unverified(val reason: String) : RecipeVerdict
 }
 
 /**
- * The local half of Recipe Hunter's loop: every recipe the model brings back
- * is judged here, in code, and never on the model's word.
+ * The local half of Recipe Hunter's loop: every recipe is judged here, in code, and never on the model's word.
  *
- * Order matters - allergens first, because a recipe that contains something
- * the user avoids is rejected whatever its macros. Macro goals get a 5%
- * tolerance: 39 g against a 40 g goal is a pass, since recipe macros are
- * estimates to begin with and rejecting on rounding helps no one.
+ * Allergens first, because a recipe that contains something the user avoids is rejected whatever its macros.
+ * Then the numbers the page itself published ([RecipeFit]): well outside a limit is rejected; a near miss
+ * (within 10%) is not rejected, the caller shows it as a close match; a page with no nutrition is not rejected.
  */
 object RecipeFilter {
-
-    const val TOLERANCE = 0.05
 
     fun evaluate(candidate: RecipeCandidate, query: RecipeQuery, scan: AllergenScanResult): RecipeVerdict {
         if (scan.blocks) {
@@ -53,27 +53,14 @@ object RecipeFilter {
         if (!candidate.sourceUrl.startsWith("http")) return RecipeVerdict.Rejected("No source link to check it against")
         if (candidate.ingredients.isEmpty()) return RecipeVerdict.Rejected("No ingredient list")
 
-        query.minProteinPerServing?.let { goal ->
-            if (candidate.proteinPerServing < goal * (1 - TOLERANCE)) {
-                return RecipeVerdict.Rejected(
-                    "${candidate.proteinPerServing.roundToInt()} g protein per serving, goal ≥ $goal g",
-                )
-            }
-        }
-        query.maxKcalPerServing?.let { cap ->
-            if (candidate.kcalPerServing > cap * (1 + TOLERANCE)) {
-                return RecipeVerdict.Rejected("${candidate.kcalPerServing.roundToInt()} kcal per serving, goal ≤ $cap")
-            }
-        }
-        query.maxMinutes?.let { cap ->
-            val minutes = candidate.totalMinutes
-            if (minutes != null && minutes > cap * (1 + TOLERANCE)) {
-                return RecipeVerdict.Rejected("Takes $minutes min, goal ≤ $cap")
-            }
-        }
+        val fit = fitOf(candidate, query)
+        if (fit.fit == Fit.OUT) return RecipeVerdict.Rejected(fit.reason.orEmpty())
         if (scan.mayContain.isNotEmpty()) {
             return RecipeVerdict.NeedsReview(scan.mayContain.first().note)
         }
         return RecipeVerdict.Passed
     }
+
+    fun fitOf(candidate: RecipeCandidate, query: RecipeQuery): FitResult =
+        RecipeFit.assess(candidate.proteinPerServing, candidate.kcalPerServing, candidate.totalMinutes, query)
 }

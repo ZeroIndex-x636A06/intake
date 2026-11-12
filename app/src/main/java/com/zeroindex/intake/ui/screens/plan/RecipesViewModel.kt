@@ -3,8 +3,8 @@ package com.zeroindex.intake.ui.screens.plan
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroindex.intake.data.ai.AiError
-import com.zeroindex.intake.data.ai.recipes.HuntProgress
 import com.zeroindex.intake.data.ai.recipes.HuntResult
+import com.zeroindex.intake.data.ai.recipes.HuntProgress
 import com.zeroindex.intake.data.ai.recipes.HuntedRecipe
 import com.zeroindex.intake.data.ai.recipes.RecipeHunter
 import com.zeroindex.intake.data.db.dao.RecipeDao
@@ -82,7 +82,13 @@ sealed interface HuntStage {
     data object NeedsKey : HuntStage
     data object Form : HuntStage
     data class Running(val steps: List<HuntProgress>) : HuntStage
-    data class Done(val result: HuntResult, val saved: Set<String> = emptySet()) : HuntStage
+    /** [working] is set while "Find more" runs, [error] when it failed and the earlier results are still shown. */
+    data class Done(
+        val result: HuntResult,
+        val saved: Set<String> = emptySet(),
+        val working: HuntProgress? = null,
+        val error: String? = null,
+    ) : HuntStage
     data class Failed(val message: String) : HuntStage
 }
 
@@ -132,6 +138,34 @@ class RecipeHunterViewModel @Inject constructor(
                         it.copy(stage = HuntStage.Failed((e as? AiError)?.message ?: "The search failed. Try again."))
                     }
                 }
+        }
+    }
+
+    /** Continues the same search with everything already seen excluded. Runs only when the person taps Find more. */
+    fun findMore() {
+        val done = _state.value.stage as? HuntStage.Done ?: return
+        if (done.working != null) return
+        val query = _state.value.query
+        _state.update { it.copy(stage = done.copy(working = HuntProgress("Looking for more recipes…", 0), error = null)) }
+        viewModelScope.launch {
+            runCatching {
+                hunter.hunt(query, previous = done.result) { progress ->
+                    _state.update { s ->
+                        val cur = s.stage as? HuntStage.Done ?: return@update s
+                        s.copy(stage = cur.copy(working = progress))
+                    }
+                }
+            }.onSuccess { result ->
+                _state.update { s ->
+                    val cur = s.stage as? HuntStage.Done ?: return@update s
+                    s.copy(stage = cur.copy(result = result, working = null))
+                }
+            }.onFailure { e ->
+                _state.update { s ->
+                    val cur = s.stage as? HuntStage.Done ?: return@update s
+                    s.copy(stage = cur.copy(working = null, error = (e as? AiError)?.message ?: "The search failed. Try again."))
+                }
+            }
         }
     }
 
