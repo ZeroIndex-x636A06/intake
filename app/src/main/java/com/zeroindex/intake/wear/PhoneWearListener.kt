@@ -36,7 +36,8 @@ class PhoneWearListener : WearableListenerService() {
         if (items.isEmpty() && requests.isEmpty()) return
         val client = Wearable.getDataClient(this)
         runBlocking {
-            requests.forEach { item -> answer(client, item) }
+            // A failure on one request must not take the app down; the watch asks again and the id makes that harmless.
+            requests.forEach { item -> runCatching { answer(client, item) }.onFailure { Log.w(TAG, "Request failed: ${it.javaClass.simpleName}") } }
             items.forEach { item ->
                 val json = DataMapItem.fromDataItem(item).dataMap.getString(WearProtocol.KEY_JSON) ?: return@forEach
                 val set = runCatching { WearProtocol.decodeSet(json) }.getOrElse {

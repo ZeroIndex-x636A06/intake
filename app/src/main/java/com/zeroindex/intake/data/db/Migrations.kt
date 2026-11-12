@@ -298,10 +298,54 @@ internal fun migrateMealPlans_2_3(): List<String> = listOf(
         "WHERE `weekNumber` = 0 AND `deletedAt` IS NULL",
 )
 
-/** Every migration, in order. [IntakeDatabase] registers all of them. */
-internal val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
+/**
+ * 3 -> 4: repairs a version-3 database that was made by an EARLIER build of version 3.
+ *
+ * Version 3 was edited in place while preview builds were already on the owner's phone (columns such as
+ * `program.deloadEveryWeeks` and `health_daily_summary.activeKcalDay` were added to 2 -> 3 after the fact). Room only
+ * compares a version number and an identity hash, so a newer build opening an older "version 3" file stops with
+ * "Room cannot verify the data integrity" and the app crashes on every launch. Bumping the version gives such a file a
+ * migration to run.
+ *
+ * The repair replays the structural half of 2 -> 3 and skips whatever the file already has: `CREATE ... IF NOT EXISTS`
+ * statements run as they are, and an `ALTER TABLE ... ADD COLUMN` runs only when the column is missing ([columnsOf]
+ * reads the table's current columns). The data statements of 2 -> 3 (the meal plan copy) are not replayed. On a file
+ * that already has everything this does nothing, so a current version-3 file passes through it untouched. Nothing is
+ * dropped or rewritten.
+ */
+internal fun migrateRepair_3_4(columnsOf: (table: String) -> Set<String>): List<String> {
+    val addColumn = Regex("^ALTER TABLE `(\\w+)` ADD COLUMN `(\\w+)`", RegexOption.IGNORE_CASE)
+    val columns = HashMap<String, Set<String>>()
+    return MIGRATION_2_3_STATEMENTS.filter { sql ->
+        val m = addColumn.find(sql)
+        if (m != null) {
+            val (table, column) = m.destructured
+            val have = columns.getOrPut(table) { columnsOf(table).map { it.lowercase() }.toSet() }
+            column.lowercase() !in have
+        } else {
+            sql.startsWith("CREATE ", ignoreCase = true)
+        }
+    }
+}
 
-/** Statement lists by starting version, for `MigrationSchemaTest`. */
+internal val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        val statements = migrateRepair_3_4 { table ->
+            buildSet {
+                db.query("PRAGMA table_info(`$table`)").use { c ->
+                    val name = c.getColumnIndexOrThrow("name")
+                    while (c.moveToNext()) add(c.getString(name))
+                }
+            }
+        }
+        statements.forEach(db::execSQL)
+    }
+}
+
+/** Every migration, in order. [IntakeDatabase] registers all of them. */
+internal val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+
+/** Statement lists by starting version, for `MigrationSchemaTest`. Version 3 is computed: see [migrateRepair_3_4]. */
 internal val MIGRATION_STATEMENTS: Map<Int, List<String>> = mapOf(
     1 to MIGRATION_1_2_STATEMENTS,
     2 to MIGRATION_2_3_STATEMENTS,

@@ -60,6 +60,14 @@ class MigrationSchemaTest {
         return connection
     }
 
+    /** The columns a table has now, as the 3 -> 4 repair reads them on a phone. */
+    private fun columnsOf(c: Connection, table: String): Set<String> =
+        c.rows("PRAGMA table_info(`$table`)").map { it["name"] as String }.toSet()
+
+    /** The migration's statements; version 3 is computed from the file's current columns. */
+    private fun statementsFrom(from: Int, c: Connection): List<String> =
+        if (from == 3) migrateRepair_3_4 { columnsOf(c, it) } else MIGRATION_STATEMENTS.getValue(from)
+
     private fun Connection.exec(sql: String) = createStatement().use { it.execute(sql) }
 
     private fun Connection.rows(sql: String): List<Map<String, Any?>> =
@@ -79,7 +87,7 @@ class MigrationSchemaTest {
         val latest = IntakeDatabase.VERSION
         for (from in 1 until latest) {
             val connection = createAt(from)
-            MIGRATION_STATEMENTS.getValue(from).forEach { connection.exec(it) }
+            statementsFrom(from, connection).forEach { connection.exec(it) }
             assertMatches(connection, from + 1)
             connection.close()
         }
@@ -89,7 +97,7 @@ class MigrationSchemaTest {
     fun chainedFromVersionOneReachesTheLatestSchema() {
         val connection = createAt(1)
         for (from in 1 until IntakeDatabase.VERSION) {
-            MIGRATION_STATEMENTS.getValue(from).forEach { connection.exec(it) }
+            statementsFrom(from, connection).forEach { connection.exec(it) }
         }
         assertMatches(connection, IntakeDatabase.VERSION)
         connection.close()
@@ -483,6 +491,49 @@ class MigrationSchemaTest {
         c.close()
     }
 
+    /**
+     * The launch crash on the owner's phone: version 3 was edited in place after a preview build had created a version-3
+     * file, so the newer build found an old file under the same version number and Room refused to open it. This builds
+     * such a file (2 -> 3 without the columns added later), puts rows in it, runs the 3 -> 4 repair and checks the
+     * result is exactly the current schema with every row kept.
+     */
+    @Test
+    fun versionThreeFileFromAnEarlierBuildIsRepairedByThreeToFour() {
+        val later = setOf("deloadEveryWeeks", "activeKcalDay")
+        val c = createAt(2)
+        MIGRATION_2_3_STATEMENTS.filterNot { sql -> later.any { it in sql } }.forEach { c.exec(it) }
+        assertThat(columnsOf(c, "program")).doesNotContain("deloadEveryWeeks")
+        assertThat(columnsOf(c, "health_daily_summary")).doesNotContain("activeKcalDay")
+        c.exec(
+            "INSERT INTO health_daily_summary (id, dayStartMillis, syncedAt, createdAt, updatedAt) VALUES ('h1', 20000, 1, 1, 1)",
+        )
+        val before = c.rows("SELECT * FROM health_daily_summary").single()
+        statementsFrom(3, c).forEach { c.exec(it) }
+        assertMatches(c, 4)
+        val after = c.rows("SELECT * FROM health_daily_summary").single()
+        assertThat(after["id"]).isEqualTo(before["id"])
+        assertThat(after["activeKcalDay"]).isNull()
+        c.close()
+    }
+
+    @Test
+    fun threeToFourOnACurrentVersionThreeFileDoesNothing() {
+        val c = createAt(3)
+        val statements = migrateRepair_3_4 { columnsOf(c, it) }
+        assertThat(statements.filter { it.startsWith("ALTER", ignoreCase = true) }).isEmpty()
+        statements.forEach { c.exec(it) }
+        assertMatches(c, 4)
+        // And again: a repair that has run once is a no-op.
+        migrateRepair_3_4 { columnsOf(c, it) }.forEach { c.exec(it) }
+        assertMatches(c, 4)
+        c.close()
+    }
+
+    @Test
+    fun versionFourSchemaIsTheCurrentVersionThreeSchema() {
+        assertThat(entities(4).keys).isEqualTo(entities(3).keys)
+    }
+
     @Test
     fun fullChainOneToTwoToThreeMatchesTheCurrentSchema() {
         val c = createAt(1)
@@ -490,7 +541,10 @@ class MigrationSchemaTest {
         assertMatches(c, 2)
         MIGRATION_2_3_STATEMENTS.forEach { c.exec(it) }
         assertMatches(c, 3)
-        assertThat(IntakeDatabase.VERSION).isEqualTo(3)
+        // 3 -> 4 repairs a file from an earlier build of 3 and changes nothing on a current one.
+        statementsFrom(3, c).forEach { c.exec(it) }
+        assertMatches(c, 4)
+        assertThat(IntakeDatabase.VERSION).isEqualTo(4)
         c.close()
     }
 
