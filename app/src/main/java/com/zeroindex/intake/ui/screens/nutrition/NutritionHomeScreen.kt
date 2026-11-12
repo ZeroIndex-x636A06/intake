@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -47,7 +49,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -59,6 +60,7 @@ import com.zeroindex.intake.domain.nutrition.DashboardModel
 import com.zeroindex.intake.domain.nutrition.MacroRingSplit
 import com.zeroindex.intake.domain.nutrition.MacroShares
 import com.zeroindex.intake.domain.nutrition.NutritionDashboard
+import com.zeroindex.intake.domain.nutrition.RingLabelLayout
 import com.zeroindex.intake.domain.onboarding.TipKey
 import com.zeroindex.intake.domain.swap.SwapAllergen
 import com.zeroindex.intake.ui.allergen.AllergenChip
@@ -75,9 +77,7 @@ import com.zeroindex.intake.ui.theme.CarbAccent
 import com.zeroindex.intake.ui.theme.FatAccent
 import com.zeroindex.intake.ui.theme.IntakeShape
 import com.zeroindex.intake.ui.theme.ProteinAccent
-import kotlin.math.cos
 import kotlin.math.roundToInt
-import kotlin.math.sin
 
 /** Where each control on the Nutrition tab leads. Each is a different screen; nothing here configures anything. */
 class NutritionActions(
@@ -163,8 +163,13 @@ fun NutritionHomeScreen(
 
 private val RingSize = 124.dp
 private val RingStroke = 12.dp
-/** The ring plus the room its percentage labels need outside it. */
-private val RingBox = 172.dp
+/** The ring's gap to its percentage labels, and the room the box keeps for them on each side (a "100%" label, the gap, a margin). */
+private val RingLabelGap = 6.dp
+private val RingLabelRoomX = 40.dp
+private val RingLabelRoomY = 26.dp
+/** The ring plus the room its percentage labels need outside it, so they never reach the text beside it. */
+private val RingBoxWidth = RingSize + RingLabelRoomX * 2
+private val RingBoxHeight = RingSize + RingLabelRoomY * 2
 
 @Composable
 private fun OverviewCard(
@@ -188,9 +193,9 @@ private fun OverviewCard(
         val showSplit = held && shares != null
 
         Box(Modifier.fillMaxWidth()) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 CalorieRingView(model, showSplit, protein, carbs, fat)
-                Column(Modifier.weight(1f).padding(end = 28.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     model.calories.target?.let {
                         Text("of ${java.text.NumberFormat.getIntegerInstance().format(it)} kcal", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -296,7 +301,7 @@ private fun CalorieRingView(model: DashboardModel, showSplit: Boolean, protein: 
     val segments = if (showSplit) MacroRingSplit.segments(protein, carbs, fat, sweep) else emptyList()
     val colors = mapOf(MacroRingSplit.Macro.PROTEIN to ProteinAccent, MacroRingSplit.Macro.CARBS to CarbAccent, MacroRingSplit.Macro.FAT to FatAccent)
     Box(
-        Modifier.size(RingBox).semantics { contentDescription = "$big $small" + (c.target?.let { ", of $it, ${c.eaten} eaten" } ?: "") },
+        Modifier.size(RingBoxWidth, RingBoxHeight).semantics { contentDescription = "$big $small" + (c.target?.let { ", of $it, ${c.eaten} eaten" } ?: "") },
         contentAlignment = Alignment.Center,
     ) {
         Canvas(Modifier.size(RingSize)) {
@@ -312,21 +317,27 @@ private fun CalorieRingView(model: DashboardModel, showSplit: Boolean, protein: 
                 drawArc(color, -90f, 360f * sweep, false, topLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
             }
         }
-        // Each percentage sits just outside the ring, at the middle of its segment.
-        val radius = RingSize / 2 + RingStroke / 2 + 4.dp
-        segments.forEach { seg ->
-            val a = Math.toRadians(seg.midDegrees.toDouble())
-            val dx = (radius.value * sin(a)).toFloat()
-            val dy = (-radius.value * cos(a)).toFloat()
-            Box(Modifier.offset(x = dx.dp, y = dy.dp).size(width = 40.dp, height = 18.dp), contentAlignment = Alignment.Center) {
+        // Each percentage sits just outside the ring, at the middle of its segment. The label is measured and placed so
+        // its nearest edge is RingLabelGap clear of the ring's outer edge (RingLabelLayout), then nudged outward if it
+        // would touch another label.
+        if (segments.isNotEmpty()) {
+            val measurer = rememberTextMeasurer()
+            val density = LocalDensity.current
+            val style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.ExtraBold)
+            val texts = segments.map { "${it.pct}%" }
+            val sizes = texts.map {
+                val px = measurer.measure(it, style, maxLines = 1, softWrap = false).size
+                with(density) { RingLabelLayout.Size(px.width.toDp().value.toDouble(), px.height.toDp().value.toDouble()) }
+            }
+            val placed = RingLabelLayout.place(segments.map { it.midDegrees }, sizes, RingSize.value / 2.0, RingLabelGap.value.toDouble())
+            segments.forEachIndexed { i, seg ->
                 Text(
-                    "${seg.pct}%",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.ExtraBold,
+                    texts[i],
+                    style = style,
                     color = colors.getValue(seg.macro),
                     maxLines = 1,
                     softWrap = false,
-                    textAlign = TextAlign.Center,
+                    modifier = Modifier.offset(x = placed[i].centerX.dp, y = placed[i].centerY.dp),
                 )
             }
         }
