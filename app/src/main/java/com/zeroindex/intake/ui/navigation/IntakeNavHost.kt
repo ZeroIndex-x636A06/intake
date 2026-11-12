@@ -270,6 +270,8 @@ fun IntakeNavHost(
                     EatingOutScreen(
                         contentPadding = pad,
                         onOpenMenuImport = { navController.navigate(Route.MenuSources) },
+                        onOpenAiSettings = { openAi() },
+                        onOpenRadiusSetting = { openSettings("nutrition", "eatOutRadius") },
                     )
                 }
             }

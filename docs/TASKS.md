@@ -16,6 +16,10 @@ Nothing. Option A parts 1 to 3 are built and merged on `claude/optimistic-noethe
 (`SettingsRegistryTest` fails otherwise). Register a screen only one tab opens inside that tab's graph; a screen two tabs open
 goes once at the root of `IntakeNavHost`. Lists that can be long must be lazy rows, never a `forEach` inside one `item`.
 
+## Find nearby: Swap and Eating out
+
+Branch `worktree-agent-a4d8ea88c7c1d444a`. Swap ranks nearby and local options by closeness to the planned meal (kcal and protein). Eating out has "Find healthier options nearby": imported menus first, AI search only on tap, a deterministic healthier score (`NearbyRanking`). Unit-tested and linted; nothing run on a device. Imported menus have no fibre, sat fat, sugar or sodium columns, so those are unknown for them (a schema change would be needed to store them).
+
 ## Preview launch crash and ring labels
 
 Done on `claude/optimistic-noether-fullk5`: DB version 4 with `MIGRATION_3_4` repairing older version-3 files (the cause of the crash on launch after updating), and ring percentage labels placed clear of the ring (`RingLabelLayout`). Emulator only; the owner's phone has not confirmed either. See `RESUME.md`.

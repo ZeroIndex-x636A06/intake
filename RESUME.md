@@ -3,6 +3,10 @@
 Read this first when picking the work back up. Latest work: branch
 `claude/optimistic-noether-fullk5` (not yet merged into `claude/app-build-k2ag1d`).
 
+## Find nearby, two modes (branch `worktree-agent-a4d8ea88c7c1d444a`)
+
+One finder (`PlanBFinder.search`, `NearbyMode`) with two rankings in `domain/swap/NearbyRanking.kt`. Swap ranks by closeness to the planned meal's calories and protein (deltas shown as chips); Eating out has a new "Find healthier options nearby" button (`ui/screens/hub/HealthierNearby.kt`) that shows imported menus and saved options first (no AI), then an optional AI search on tap, ranked by a healthier score with a short reason. No schema change; no new AI feature. Compiled, unit-tested and linted only; not seen on an emulator or a device.
+
 ## Round 3 (phone feedback), branch `claude/optimistic-noether-fullk5`
 
 Head `06871e3`. What the owner sent from the phone is in `docs/FEEDBACK-R3.md` and `docs/R3-BACKLOG.md` (the status section

@@ -141,20 +141,24 @@ class EatingOutViewModel @Inject constructor(
 
 /**
  * Nutrition > Eating out: the options saved for when the plan does not apply (they work with no signal, and each carries
- * its allergen verdict) and the restaurant menu import. Searching for places nearby is not here: it is in Swap, on tap.
+ * its allergen verdict), the restaurant menu import, and "Find healthier options nearby" (imported menus first, then an
+ * optional AI search on tap). Swap is still the main home of nearby search, ranked against the planned meal.
  */
 @Composable
 fun EatingOutScreen(
     contentPadding: PaddingValues,
     onOpenMenuImport: () -> Unit,
+    onOpenAiSettings: () -> Unit,
+    onOpenRadiusSetting: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: EatingOutViewModel = hiltViewModel(),
 ) {
+    val healthierBlock = rememberHealthierBlock(onOpenAiSettings, onOpenRadiusSetting)
     val options by viewModel.options.collectAsStateWithLifecycle()
     var removing by remember { mutableStateOf<SwapEntry?>(null) }
     HubScreen(
         title = "Eating out",
-        subtitle = "Saved options and restaurant menus. Nearby search is in Swap.",
+        subtitle = "Saved options, restaurant menus and healthier options near you.",
         contentPadding = contentPadding,
         modifier = modifier,
         items = listOf(
@@ -166,6 +170,7 @@ fun EatingOutScreen(
             ),
         ),
         after = {
+            healthierBlock()
             item(key = "saved-head") { SectionLine("Saved eat-out options", note = "works offline") }
             val list = options
             when {

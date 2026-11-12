@@ -125,6 +125,7 @@ fun SwapSheet(
             item(key = "nearby-card") {
                 NearbyCard(
                     nearby = nearby,
+                    blurb = if (planned != null) " Ranked by how close each is to your planned meal." else "",
                     foundTime = nearby.foundAt?.let { timeFmt.format(Instant.ofEpochMilli(it)) },
                     onUseLocation = {
                         if (nearby.hasLocation) viewModel.searchNearby() else locationLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
@@ -230,7 +231,7 @@ private fun macroLine(m: Macros, estimate: Boolean): String =
     "${m.kcal.roundToInt()} kcal · P ${m.protein.roundToInt()} · C ${m.carbs.roundToInt()} · F ${m.fat.roundToInt()}" + if (estimate) " · estimate" else ""
 
 @Composable
-private fun OptionCard(
+internal fun OptionCard(
     o: SwapOption,
     planned: Macros?,
     choosing: Boolean,
@@ -238,6 +239,7 @@ private fun OptionCard(
     saveable: Boolean,
     onChoose: () -> Unit,
     onSave: () -> Unit,
+    chooseLabel: String = "Choose",
 ) {
     val blocked = !SwapSections.canChoose(o)
     val scheme = MaterialTheme.colorScheme
@@ -253,13 +255,14 @@ private fun OptionCard(
                     Text(o.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
                     o.subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant) }
                     Text(macroLine(o.macros, o.estimate), style = MaterialTheme.typography.bodySmall)
+                    o.reason?.let { Text(it, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = scheme.primary) }
                 }
                 Button(
                     onClick = onChoose,
                     enabled = !blocked && !choosing,
                     shape = IntakeShape.Button,
                     modifier = Modifier.heightIn(min = 48.dp),
-                ) { Text("Choose") }
+                ) { Text(chooseLabel) }
             }
             if (planned != null) {
                 val chips = SwapMath.chips(SwapMath.delta(o.macros, planned))
@@ -294,8 +297,10 @@ private fun OptionCard(
 }
 
 @Composable
-private fun NearbyCard(
+internal fun NearbyCard(
     nearby: NearbyState,
+    title: String = "Find healthy options nearby",
+    blurb: String = "",
     foundTime: String?,
     onUseLocation: () -> Unit,
     onPostalCode: (String) -> Unit,
@@ -314,14 +319,14 @@ private fun NearbyCard(
                     }
                 }
                 Column(Modifier.weight(1f)) {
-                    Text("Find healthy options nearby", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
+                    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
                     Text(
                         if (nearby.foundAt != null && foundTime != null) {
                             "Within $radius mi. Found at $foundTime with AI on your key" +
                                 (nearby.costUsd?.takeIf { it > 0 }?.let { ", about ${usd(it)}" } ?: "") +
-                                ". Macros are estimates. Your allergens are checked on this phone."
+                                ". Macros are estimates. Your allergens are checked on this phone." + blurb
                         } else {
-                            "Within $radius mi. Runs only when you tap Search, with AI on your own key (a cent or so). Your allergens are checked on this phone, and the place is rounded to about a kilometre."
+                            "Within $radius mi. Runs only when you tap Search, with AI on your own key (a cent or so). Your allergens are checked on this phone, and the place is rounded to about a kilometre." + blurb
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,

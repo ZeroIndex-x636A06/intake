@@ -15,6 +15,7 @@ import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nfc.TemplateLink
 import com.zeroindex.intake.domain.nutrition.Macros
+import com.zeroindex.intake.domain.swap.NearbyMode
 import com.zeroindex.intake.domain.swap.SwapSection
 import com.zeroindex.intake.domain.swap.SwapSections
 import com.zeroindex.intake.domain.time.Clock
@@ -126,7 +127,7 @@ class SwapViewModel @Inject constructor(
     private suspend fun run(area: SearchArea) {
         val radius = _state.value.nearby.radiusMi
         _state.update { it.copy(nearby = it.nearby.copy(status = "Searching nearby menus and checking them against your allergens…")) }
-        runCatching { finder.search(area, radius) }
+        runCatching { finder.search(area, radius, NearbyMode.SWAP_VS_PLANNED, _state.value.planned?.macros) }
             .onSuccess { (options, cost) ->
                 found = options.map(repo::foundEntry)
                 _state.update {

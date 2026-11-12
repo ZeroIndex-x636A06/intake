@@ -30,6 +30,8 @@ import com.zeroindex.intake.domain.menu.MenuSearch
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nutrition.DayProgress
 import com.zeroindex.intake.domain.nutrition.Macros
+import com.zeroindex.intake.domain.swap.MealNutrition
+import com.zeroindex.intake.domain.swap.NearbyMode
 import com.zeroindex.intake.domain.time.Clock
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -61,6 +63,11 @@ data class FoundOption(
     val sayThis: String,
     val crossContactRisk: String,
     val sourceUrl: String,
+    /** Optional detail for the healthier ranking. Null means the source did not give it; never read as zero. */
+    val fiberG: Double? = null,
+    val satFatG: Double? = null,
+    val sugarG: Double? = null,
+    val sodiumMg: Double? = null,
 )
 
 /** Where to search: rounded coordinates, or a zip code the user typed. */
@@ -93,7 +100,15 @@ data class PlanBOption(
      * it is offered as "check the label", never as clear (`AllergenEvidence`).
      */
     val nameOnly: Boolean = false,
+    /** Fibre, saturated fat, sugar (g) and sodium (mg) when known. Null is unknown, never zero. */
+    val fiberG: Double? = null,
+    val satFatG: Double? = null,
+    val sugarG: Double? = null,
+    val sodiumMg: Double? = null,
 ) {
+    val nutrition: MealNutrition
+        get() = MealNutrition(macros.kcal, macros.protein, fiberG, satFatG, sugarG, sodiumMg)
+
     val rejected: Boolean get() = scan.blocks
 }
 
@@ -182,8 +197,16 @@ class PlanBFinder @Inject constructor(
     /**
      * @param radiusMi how far to look, from Settings > Nutrition > Eat out nearby (miles). It steers the prompt and the
      * results farther than it are dropped here, so a model that ignores the limit still cannot show a far option.
+     * @param mode [NearbyMode.SWAP_VS_PLANNED] asks for orders close to [planned] (when there is one); [NearbyMode.HEALTHIER]
+     * asks for the healthier orders on the menus. The model only supplies candidates: every one is scanned locally and a
+     * claim can only add to a warning.
      */
-    suspend fun search(area: SearchArea, radiusMi: Double = DEFAULT_RADIUS_MI): Pair<List<PlanBOption>, Double> {
+    suspend fun search(
+        area: SearchArea,
+        radiusMi: Double = DEFAULT_RADIUS_MI,
+        mode: NearbyMode = NearbyMode.SWAP_VS_PLANNED,
+        planned: Macros? = null,
+    ): Pair<List<PlanBOption>, Double> {
         val left = remaining()
         val avoided = allergens.avoidedAllergens()
         val outcome = gateway.structured(
@@ -191,8 +214,8 @@ class PlanBFinder @Inject constructor(
             trigger = AiTrigger.USER_ACTION,
             serializer = FoundOptions.serializer(),
             schema = PlanBPrompts.schema,
-            system = PlanBPrompts.system(avoided),
-            parts = listOf(AiPart.Text(userPrompt(area, left, avoided, radiusMi))),
+            system = PlanBPrompts.system(avoided, mode),
+            parts = listOf(AiPart.Text(userPrompt(area, left, avoided, radiusMi, mode, planned))),
             tools = listOf(ServerTool.WebSearch(maxResults = 6, maxUses = 3), ServerTool.WebFetch(maxUses = 5)),
         )
         val found = outcome.value.options.filter { o -> o.distanceMiles?.let { it <= radiusMi * 1.25 } ?: true }.map { o ->
@@ -202,6 +225,7 @@ class PlanBFinder @Inject constructor(
                 macros = Macros(o.kcal, o.protein, o.carbs, o.fat), sayThis = o.sayThis, caution = o.allergenNotes,
                 risk = o.crossContactRisk, claims = ModelAllergenClaim(o.order, o.containsAllergens, o.allergenNotes),
                 left = left, offline = false,
+                fiberG = o.fiberG, satFatG = o.satFatG, sugarG = o.sugarG, sodiumMg = o.sodiumMg,
             )
         }
         return found.sortedWith(compareBy<PlanBOption> { it.rejected }.thenByDescending { it.fit.score }) to
@@ -212,6 +236,7 @@ class PlanBFinder @Inject constructor(
         key: String, restaurant: String, address: String?, distance: Double?, order: String, modifications: String,
         macros: Macros, sayThis: String, caution: String, risk: String?, claims: ModelAllergenClaim?,
         left: DayProgress, offline: Boolean, savedId: String? = null,
+        fiberG: Double? = null, satFatG: Double? = null, sugarG: Double? = null, sodiumMg: Double? = null,
     ): PlanBOption {
         // Scan what is eaten. The modifications are instructions ("no
         // cheese"), and relying on one is a cross-contact risk the matcher
@@ -228,6 +253,7 @@ class PlanBFinder @Inject constructor(
             modifications = modifications, macros = macros, sayThis = sayThis, caution = caution, crossContactRisk = risk,
             scan = scan, fit = PlanBFit.score(macros.kcal, macros.protein, left.kcalRemaining, left.proteinRemaining),
             offline = offline, savedId = savedId,
+            fiberG = fiberG, satFatG = satFatG, sugarG = sugarG, sodiumMg = sodiumMg,
         )
     }
 
@@ -296,12 +322,20 @@ class PlanBFinder @Inject constructor(
         return fix?.let { SearchArea.Coordinates(PlanBFit.coarsen(it.latitude), PlanBFit.coarsen(it.longitude)) }
     }
 
-    private fun userPrompt(area: SearchArea, left: DayProgress, avoided: Set<String>, radiusMi: Double) = buildString {
+    private fun userPrompt(
+        area: SearchArea, left: DayProgress, avoided: Set<String>, radiusMi: Double, mode: NearbyMode, planned: Macros?,
+    ) = buildString {
         when (area) {
             is SearchArea.Coordinates -> appendLine("Approximate location: latitude ${area.lat}, longitude ${area.lng}.")
             is SearchArea.PostalCode -> appendLine("Near postal code ${area.code}.")
         }
         appendLine("Only places within about ${"%.1f".format(java.util.Locale.US, radiusMi)} miles.")
+        if (mode == NearbyMode.SWAP_VS_PLANNED && planned != null) {
+            appendLine(
+                "These stand in for a planned meal of about ${planned.kcal.toInt()} kcal and ${planned.protein.toInt()} g " +
+                    "protein: prefer orders close to that.",
+            )
+        }
         left.kcalRemaining?.let { appendLine("About $it kcal left today.") }
         left.proteinRemaining?.let { appendLine("About $it g protein left today; favour high-protein orders.") }
         if (avoided.isNotEmpty()) appendLine("Allergies: ${avoided.joinToString()}.")
@@ -310,11 +344,20 @@ class PlanBFinder @Inject constructor(
 
 /** The Plan B prompt and schema, shared with the in-app benchmark. */
 internal object PlanBPrompts {
-    fun system(avoided: Set<String>) = buildString {
+    fun system(avoided: Set<String>, mode: NearbyMode = NearbyMode.SWAP_VS_PLANNED) = buildString {
         appendLine("You help someone pick a fast, safe meal near them right now.")
         appendLine("Search for restaurants near the given area and read their current menus or nutrition pages.")
         appendLine("Return up to 6 options, each a specific order at a specific restaurant, with nutrition for the order as modified.")
         appendLine("Prefer published nutrition; otherwise estimate from the menu description.")
+        if (mode == NearbyMode.HEALTHIER) {
+            appendLine(
+                "Pick the healthier orders on each menu: more protein for the calories, more fibre, and less saturated " +
+                    "fat, sugar and salt. Fill fiberG, satFatG, sugarG and sodiumMg only when the menu or nutrition page " +
+                    "states them; use null when unknown. Never use 0 for unknown.",
+            )
+        } else {
+            appendLine("Fill fiberG, satFatG, sugarG and sodiumMg when published, otherwise null. Never use 0 for unknown.")
+        }
         if (avoided.isNotEmpty()) {
             appendLine(
                 "The user must avoid: ${avoided.joinToString()}. Choose orders that avoid them, and say exactly what to " +
@@ -343,6 +386,10 @@ internal object PlanBPrompts {
                 "sayThis" to S.string(),
                 "crossContactRisk" to S.enumOf("low", "medium", "high"),
                 "sourceUrl" to S.string(),
+                "fiberG" to S.nullableNumber("Grams of fibre, or null if unknown"),
+                "satFatG" to S.nullableNumber("Grams of saturated fat, or null if unknown"),
+                "sugarG" to S.nullableNumber("Grams of sugar, or null if unknown"),
+                "sodiumMg" to S.nullableNumber("Milligrams of sodium, or null if unknown"),
             ),
         ),
     )

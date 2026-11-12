@@ -14,6 +14,8 @@ import com.zeroindex.intake.data.db.entity.FoodLogEntity
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nutrition.Macros
+import com.zeroindex.intake.domain.swap.MealNutrition
+import com.zeroindex.intake.domain.swap.NearbyRanking
 import com.zeroindex.intake.domain.swap.SwapAllergen
 import com.zeroindex.intake.domain.swap.SwapKind
 import com.zeroindex.intake.domain.swap.SwapMath
@@ -172,6 +174,40 @@ class SwapRepository @Inject constructor(
 
     suspend fun saveForOffline(o: PlanBOption) = finder.saveForOffline(o)
 
+    /**
+     * Eating out > healthier options, the part that needs no network: saved eat-out options and the imported restaurant
+     * menus, each scanned by the local allergen engine and scored against what is left today. A "contains" option stays
+     * in the list, last, with its reason.
+     */
+    suspend fun healthierOffline(limit: Int = HEALTHIER_LIMIT): List<SwapEntry> {
+        val saved = savedEatOut(plans.observeEatOutOptions().first())
+        val menus = finder.menuOptions(limit = MENU_SCAN_LIMIT).map(::menuEntry)
+        return healthierRank(saved + menus).take(limit)
+    }
+
+    /** Nearby (AI) results for the healthier mode: the same local scan as Swap, then the healthier ranking. */
+    suspend fun healthierFound(options: List<PlanBOption>): List<SwapEntry> =
+        healthierRank(options.map(::foundEntry))
+
+    /**
+     * Scores each entry for how healthy it is against what is left today and orders them: choosable first, healthiest
+     * first. Values a source did not give stay unknown; they are never counted as zero.
+     */
+    suspend fun healthierRank(entries: List<SwapEntry>): List<SwapEntry> {
+        val left = finder.remaining()
+        val scored = entries.map { e ->
+            val n = when (val src = e.source) {
+                is SwapSource.Found -> src.option.nutrition
+                else -> MealNutrition(e.option.macros.kcal, e.option.macros.protein)
+            }
+            val h = NearbyRanking.healthier(n, left.kcalRemaining, left.proteinRemaining)
+            e.copy(option = e.option.copy(score = h.score, reason = h.reason))
+        }
+        val order = NearbyRanking.orderHealthier(scored.map { it.option }).map { it.key }
+        val byKey = scored.associateBy { it.option.key }
+        return order.mapNotNull(byKey::get)
+    }
+
     /** Logs the choice in place of the planned meal. A "contains" verdict is refused here too. */
     suspend fun choose(entry: SwapEntry, slot: MealSlot): SwapLogResult {
         if (entry.option.blocked) return SwapLogResult.Blocked(entry.option.allergenReason ?: "Contains an allergen you avoid")
@@ -220,6 +256,9 @@ class SwapRepository @Inject constructor(
     private fun AllergenScanResult.verdict(): SwapAllergen = SwapMath.verdict(blocks, mayContain.isNotEmpty(), hasCheckLabel)
 
     companion object {
+        const val HEALTHIER_LIMIT = 40
+        const val MENU_SCAN_LIMIT = 300
+
         /** "Contains milk and peanuts", "May contain milk", "Check the label: teriyaki", or null when clear. */
         fun reasonFor(verdict: SwapAllergen, terms: List<String>): String? {
             val t = when (terms.size) {
