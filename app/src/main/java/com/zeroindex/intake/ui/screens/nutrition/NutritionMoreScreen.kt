@@ -87,7 +87,7 @@ fun NutritionMoreScreen(
             NavCard(
                 title = "Eating out",
                 body = (if (s.eatOutCount == 0) "No saved options yet. " else "${s.eatOutCount} saved option${if (s.eatOutCount == 1) "" else "s"}. ") +
-                    "Saved options and restaurant menus. Nearby search is in Swap.",
+                    "Saved places, restaurant menus and healthier options nearby.",
                 onClick = actions.onOpenEatingOut,
             )
         }
