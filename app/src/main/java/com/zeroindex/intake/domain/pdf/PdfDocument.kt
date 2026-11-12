@@ -132,10 +132,14 @@ class PdfDocument private constructor(
 
         /** Parses [bytes], or throws [PdfUnsupportedException] with a message to show the person. */
         fun parse(bytes: ByteArray): PdfDocument {
-            if (bytes.size < 8 || String(bytes, 0, 5, Charsets.ISO_8859_1) != "%PDF-") {
+            // The marker may follow a few bytes of junk (the spec allows 1 KB); offsets are not used, so just drop them.
+            val start = (0..minOf(1024, bytes.size - 5).coerceAtLeast(-1)).firstOrNull { i ->
+                bytes[i] == '%'.code.toByte() && String(bytes, i, 5, Charsets.ISO_8859_1) == "%PDF-"
+            }
+            if (bytes.size < 8 || start == null) {
                 throw PdfUnsupportedException("That file is not a PDF.")
             }
-            val text = String(bytes, Charsets.ISO_8859_1)
+            val text = String(bytes, start, bytes.size - start, Charsets.ISO_8859_1)
             val objects = scanObjects(text)
             if (text.contains("/Encrypt")) throw PdfUnsupportedException("This PDF is password protected, so it cannot be read.")
 
@@ -148,9 +152,9 @@ class PdfDocument private constructor(
             for ((n, o) in unpacked) all.putIfAbsent(n, o)
 
             val catalog = all.values.filter { CATALOG.containsMatchIn(it.dict) }.maxByOrNull { it.number }
-                ?: throw PdfUnsupportedException("This PDF's page list could not be found.")
+                ?: throw PdfUnsupportedException("This PDF's structure could not be read: no page list was found in it.")
             val rootPages = valueOf(catalog.dict, "Pages")?.let { REF.find(it)?.groupValues?.get(1)?.toInt() }
-                ?: throw PdfUnsupportedException("This PDF's page list could not be found.")
+                ?: throw PdfUnsupportedException("This PDF's structure could not be read: no page list was found in it.")
 
             val pages = ArrayList<PdfPage>()
             fun walk(num: Int, inherited: Map<String, String>, depth: Int) {

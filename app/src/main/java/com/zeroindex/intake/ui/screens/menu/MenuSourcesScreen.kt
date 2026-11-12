@@ -77,6 +77,10 @@ fun MenuSourcesScreen(
     val items by viewModel.openItems.collectAsStateWithLifecycle()
     var adding by remember { mutableStateOf(false) }
     val dates = remember { DateTimeFormatter.ofPattern("d MMM") }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        val refused = state.refusedSource
+        if (uri != null && refused != null) viewModel.replaceWithPdf(refused, uri.toString())
+    }
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
@@ -88,8 +92,14 @@ fun MenuSourcesScreen(
         ),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        // The top bar already says "Menu import"; no second heading here.
         item(key = "head") {
-            SubHead("Menu import", "Keep a local copy of menus you trust. Refreshed weekly, or when you choose.")
+            Text(
+                "Keep a local copy of menus you trust. Refreshed weekly, or when you choose.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+            )
         }
         if (!state.hasKey) {
             item(key = "nokey") {
@@ -157,6 +167,13 @@ fun MenuSourcesScreen(
         state.error?.let { err ->
             item(key = "error") {
                 ErrorState(title = "Import failed", body = err) {
+                    state.refusedSource?.let { refused ->
+                        Button(
+                            onClick = { picker.launch(arrayOf("application/pdf")) },
+                            shape = IntakeShape.Button,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        ) { Text("Choose a PDF") }
+                    }
                     TextButton(onClick = viewModel::clearError) { Text("Dismiss") }
                 }
             }
@@ -214,7 +231,7 @@ fun MenuSourcesScreen(
                     }
                 }
             }
-            sources.firstOrNull { it.lastStatus == MenuRunStatus.FAILED && it.lastError != null }?.let { failed ->
+            MenuErrorCards.sourceFailure(sources, state.error, state.aiOffer?.source?.id)?.let { failed ->
                 item(key = "failed") {
                     ErrorState(
                         title = "Import failed · ${failed.restaurantName}",
@@ -435,5 +452,19 @@ private fun ItemText(item: MenuItemEntity, modifier: Modifier) {
             AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
             else -> Unit
         }
+    }
+}
+
+/** Which cards say what failed, so one failure is never shown twice. */
+internal object MenuErrorCards {
+    /**
+     * The saved source whose last run failed, or null when the same words are already on screen: the top error card
+     * ([topError]) or the "No table read" offer for that source ([offerSourceId]).
+     */
+    fun sourceFailure(sources: List<MenuSourceEntity>, topError: String?, offerSourceId: String?): MenuSourceEntity? {
+        val failed = sources.firstOrNull { it.lastStatus == MenuRunStatus.FAILED && it.lastError != null } ?: return null
+        if (topError != null && topError == failed.lastError) return null
+        if (offerSourceId != null && offerSourceId == failed.id) return null
+        return failed
     }
 }
