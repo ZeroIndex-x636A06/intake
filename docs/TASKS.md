@@ -165,3 +165,5 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
   workouts, program generator (05b7466).
 - Food database, barcode fixes, Open Food Facts search and contribution (ede46d6).
 - Flexible meal plans, recipe editor, recipe import from a link (71e4911).
+
+- Menu import, McDonald's Ireland PDF (branch `claude/optimistic-noether-fullk5`): download checks, one error card and the duplicate heading are done. Open: the file is an allergen chart (Wingdings tick marks in a grid, no kcal or macros), so there is no nutrition table to read; whether to read it as an allergen-only chart is undecided. The "page list" error was not reproduced with the real file.

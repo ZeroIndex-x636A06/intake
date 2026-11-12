@@ -160,6 +160,18 @@ class PdfDocumentTest {
         assertThat(e.message).contains("password")
     }
 
+    @Test
+    fun `a few bytes of junk before the pdf marker are tolerated`() {
+        val doc = PdfDocument.parse(latin1("\r\n  junk\n") + classicPdf(2))
+        assertThat(doc.pageCount).isEqualTo(2)
+    }
+
+    @Test
+    fun `a real pdf with no page tree says its structure could not be read, not that a page list is missing from a web page`() {
+        val e = assertThrows(PdfUnsupportedException::class.java) { PdfDocument.parse(latin1("%PDF-1.7\n1 0 obj\n<< /Foo 1 >>\nendobj\n%%EOF\n")) }
+        assertThat(e.message).contains("structure could not be read")
+    }
+
     /**
      * Run against a real file when INTAKE_TEST_PDF names one (the Arby's nutrition PDF, downloaded by hand and never
      * committed). Skipped otherwise. Chunks are written to INTAKE_TEST_PDF_OUT when that is set, so they can be

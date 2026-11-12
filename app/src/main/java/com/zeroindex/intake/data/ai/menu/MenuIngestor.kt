@@ -155,6 +155,7 @@ class MenuIngestor @Inject constructor(
                         ),
                     )
                 }
+                if (fetched is Fetched.Refused) throw MenuImportException(fetched.message)
                 if (fetched is Fetched.Pdf) return@withContext stagePdf(source, fetched.bytes, avoided, trigger, onProgress, pdfRoute)
                 val page = fetched as? Fetched.Page
                 // The deterministic path: structured menu data on the page needs no model.
@@ -214,7 +215,7 @@ class MenuIngestor @Inject constructor(
         val doc = try {
             PdfDocument.parse(bytes)
         } catch (e: PdfUnsupportedException) {
-            throw MenuImportException("${e.message} Paste the menu text instead.")
+            throw MenuImportException("${e.message} Choose a different PDF, or paste the menu text instead.")
         }
         if (doc.pageCount > PdfChunkPlanner.MAX_PAGES) {
             throw MenuImportException(

@@ -19,6 +19,7 @@ import com.zeroindex.intake.data.db.entity.MenuSourceEntity
 import com.zeroindex.intake.data.db.entity.MenuSourceKind
 import com.zeroindex.intake.data.ai.AiGateway
 import com.zeroindex.intake.domain.ai.AiTrigger
+import com.zeroindex.intake.domain.menu.DownloadClassifier
 import com.zeroindex.intake.domain.time.Clock
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -55,6 +56,8 @@ data class MenuUiState(
     val review: Review? = null,
     val aiOffer: AiOffer? = null,
     val error: String? = null,
+    /** The link whose download was refused: the error card offers to choose the saved PDF instead. */
+    val refusedSource: MenuSourceEntity? = null,
     val hasKey: Boolean = false,
     val openSourceId: String? = null,
 )
@@ -118,7 +121,7 @@ class MenuSourcesViewModel @Inject constructor(
             }
         }
         if (importJob?.isActive == true) return
-        _state.update { it.copy(running = MenuProgress("Starting…"), error = null, aiOffer = null) }
+        _state.update { it.copy(running = MenuProgress("Starting…"), error = null, refusedSource = null, aiOffer = null) }
         importJob = viewModelScope.launch {
             menuDao.upsertSource(source.copy(lastStatus = MenuRunStatus.RUNNING, updatedAt = clock.nowMillis()))
             try {
@@ -138,7 +141,8 @@ class MenuSourcesViewModel @Inject constructor(
             } catch (e: Exception) {
                 val reason = (e as? AiError)?.message ?: (e as? MenuImportException)?.message ?: "The import failed. Try again, or paste the menu text."
                 ingestor.markFailed(source, reason)
-                _state.update { it.copy(running = null, error = reason) }
+                val refused = source.takeIf { it.kind == MenuSourceKind.URL && DownloadClassifier.offersFilePicker(reason) }
+                _state.update { it.copy(running = null, error = reason, refusedSource = refused) }
             }
         }
     }
@@ -182,5 +186,17 @@ class MenuSourcesViewModel @Inject constructor(
         menuDao.softDeleteSource(source.id, now)
     }
 
-    fun clearError() = _state.update { it.copy(error = null) }
+    fun clearError() = _state.update { it.copy(error = null, refusedSource = null) }
+
+    /**
+     * The link was refused and the person saved the PDF themselves: import the picked file under the same restaurant
+     * name. The refused link is removed (soft delete) because it would only be refused again.
+     */
+    fun replaceWithPdf(refused: MenuSourceEntity, uri: String) {
+        viewModelScope.launch {
+            menuDao.softDeleteItemsOf(refused.id, clock.nowMillis())
+            menuDao.softDeleteSource(refused.id, clock.nowMillis())
+            add(refused.restaurantName, MenuSourceKind.PDF, uri, null).join()
+        }
+    }
 }
