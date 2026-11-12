@@ -120,6 +120,15 @@ object NearbyRanking {
         return HealthierScore(score.coerceIn(0.0, 1.0), reason)
     }
 
+    /** One shown option as a line to send back as "already shown", so "Search again for more" does not repeat it. */
+    fun excludeLine(restaurant: String, order: String): String = "${restaurant.trim()}: ${order.trim()}"
+
+    /** [existing] followed by the [fresh] ones whose key is not already there: a repeat search adds, never duplicates. */
+    fun <T> mergeMore(existing: List<T>, fresh: List<T>, key: (T) -> String): List<T> {
+        val seen = existing.map(key).toSet()
+        return existing + fresh.filter { key(it) !in seen }
+    }
+
     /** Options that can be chosen first, healthiest first; blocked ("contains") ones last, in the same order. */
     fun orderHealthier(options: List<SwapOption>): List<SwapOption> =
         options.sortedWith(

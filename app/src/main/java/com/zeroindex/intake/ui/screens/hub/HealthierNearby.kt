@@ -35,7 +35,10 @@ import com.zeroindex.intake.data.swap.SwapLogResult
 import com.zeroindex.intake.data.swap.SwapRepository
 import com.zeroindex.intake.data.swap.SwapSource
 import com.zeroindex.intake.domain.nfc.TemplateLink
+import com.zeroindex.intake.domain.allergen.AllergenOverride
+import com.zeroindex.intake.domain.allergen.OverridePrompt
 import com.zeroindex.intake.domain.swap.NearbyMode
+import com.zeroindex.intake.domain.swap.NearbyRanking
 import com.zeroindex.intake.domain.time.Clock
 import com.zeroindex.intake.ui.AppMessage
 import com.zeroindex.intake.ui.AppMessages
@@ -68,6 +71,7 @@ data class HealthierUiState(
     val notice: String? = null,
     val savedKeys: Set<String> = emptySet(),
     val choosing: Boolean = false,
+    val pendingOverride: OverridePrompt? = null,
     val zone: java.time.ZoneId = java.time.ZoneId.systemDefault(),
 )
 
@@ -129,13 +133,15 @@ class HealthierNearbyViewModel @Inject constructor(
     private suspend fun run(area: SearchArea) {
         val radius = _state.value.nearby.radiusMi
         _state.update { it.copy(nearby = it.nearby.copy(status = "Searching nearby menus for healthier orders and checking your allergens…")) }
-        runCatching { finder.search(area, radius, NearbyMode.HEALTHIER, planned = null) }
+        val shown = _state.value.found.mapNotNull { (it.source as? SwapSource.Found)?.option }.map { NearbyRanking.excludeLine(it.restaurant, it.order) }
+        runCatching { finder.search(area, radius, NearbyMode.HEALTHIER, planned = null, exclude = shown) }
             .onSuccess { (options, cost) ->
-                val ranked = repo.healthierFound(options)
+                val merged = NearbyRanking.mergeMore(_state.value.found, repo.healthierFound(options)) { it.option.key }
+                val ranked = repo.healthierRank(merged)
                 _state.update {
                     it.copy(
                         found = ranked,
-                        nearby = it.nearby.copy(searching = false, status = null, foundAt = clock.nowMillis(), costUsd = cost, resultCount = ranked.size),
+                        nearby = it.nearby.copy(searching = false, status = null, foundAt = clock.nowMillis(), costUsd = (it.nearby.costUsd ?: 0.0) + cost, resultCount = ranked.size),
                     )
                 }
             }
@@ -154,13 +160,27 @@ class HealthierNearbyViewModel @Inject constructor(
         }
     }
 
-    /** Logs the option to the meal slot for this time of day. A blocked option never gets this far. */
-    fun log(key: String) {
+    /** "Choose anyway" on a blocked option: opens the warning dialog. Nothing is logged until the person confirms it. */
+    fun requestOverride(key: String) {
+        val prompt = entryOf(key)?.option?.let(AllergenOverride::prompt) ?: return
+        _state.update { it.copy(pendingOverride = prompt, notice = null) }
+    }
+
+    fun cancelOverride() = _state.update { it.copy(pendingOverride = null) }
+
+    fun confirmOverride() {
+        val key = _state.value.pendingOverride?.optionKey ?: return
+        _state.update { it.copy(pendingOverride = null) }
+        log(key, override = true)
+    }
+
+    /** Logs the option to the meal slot for this time of day. A blocked option only gets this far as a confirmed override. */
+    fun log(key: String, override: Boolean = false) {
         val entry = entryOf(key) ?: return
         if (_state.value.choosing) return
         _state.update { it.copy(choosing = true, notice = null) }
         viewModelScope.launch {
-            when (val r = repo.choose(entry, TemplateLink.slotFor(java.time.LocalTime.now(clock.zone())))) {
+            when (val r = repo.choose(entry, TemplateLink.slotFor(java.time.LocalTime.now(clock.zone())), override)) {
                 is SwapLogResult.Logged -> {
                     messages.post(AppMessage(text = r.text, actionLabel = "Undo", onAction = r.undo))
                     _state.update { it.copy(choosing = false) }
@@ -182,6 +202,9 @@ fun rememberHealthierBlock(
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         viewModel.refreshPermissions()
         if (granted) viewModel.searchNearby()
+    }
+    state.pendingOverride?.let { p ->
+        com.zeroindex.intake.ui.allergen.AllergenOverrideDialog(p, onCancel = viewModel::cancelOverride, onConfirm = viewModel::confirmOverride)
     }
     val timeFmt = remember(state.zone) { DateTimeFormatter.ofPattern("h:mm a").withZone(state.zone) }
     return {
@@ -220,6 +243,7 @@ fun rememberHealthierBlock(
                     OptionCard(
                         e.option, planned = null, choosing = state.choosing, saved = e.option.key in state.savedKeys, saveable = false,
                         onChoose = { viewModel.log(e.option.key) }, onSave = {}, chooseLabel = "Log",
+                        onOverride = { viewModel.requestOverride(e.option.key) },
                     )
                 }
             }
@@ -243,6 +267,7 @@ fun rememberHealthierBlock(
                     OptionCard(
                         e.option, planned = null, choosing = state.choosing, saved = e.option.key in state.savedKeys, saveable = true,
                         onChoose = { viewModel.log(e.option.key) }, onSave = { viewModel.saveForOffline(e.option.key) }, chooseLabel = "Log",
+                        onOverride = { viewModel.requestOverride(e.option.key) },
                     )
                 }
             }

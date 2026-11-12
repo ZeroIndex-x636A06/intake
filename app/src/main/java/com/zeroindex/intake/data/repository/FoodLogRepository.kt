@@ -166,6 +166,17 @@ class FoodLogRepository @Inject constructor(
         return log
     }
 
+    /**
+     * Keeps the person's override on the entry: the note ("Logged despite: dairy") is added to its name and serving
+     * label. The allergen warning itself is never cleared; this only records that the person chose it anyway.
+     */
+    suspend fun markOverridden(log: FoodLogEntity, note: String): FoodLogEntity {
+        val (name, label) = com.zeroindex.intake.domain.allergen.AllergenOverride.annotate(log.foodNameAtLog, log.servingLabelAtLog, note)
+        val marked = log.copy(foodNameAtLog = name, servingLabelAtLog = label, updatedAt = clock.nowMillis())
+        foodLogDao.upsert(marked)
+        return marked
+    }
+
     /** Rescales an entry to a new gram amount, proportionally to what was logged. */
     suspend fun updateQuantity(log: FoodLogEntity, newGrams: Double) {
         val oldGrams = log.quantityGrams

@@ -148,6 +148,13 @@ class NearbyRankingTest {
     }
 
     @Test
+    fun `a repeat search sends what is shown and only adds new options`() {
+        assertThat(NearbyRanking.excludeLine(" Burger King ", "Whopper, no cheese ")).isEqualTo("Burger King: Whopper, no cheese")
+        val merged = NearbyRanking.mergeMore(listOf("a", "b"), listOf("b", "c", "a", "d")) { it }
+        assertThat(merged).containsExactly("a", "b", "c", "d").inOrder()
+    }
+
+    @Test
     fun `a may contain option stays choosable but keeps its warning`() {
         val o = opt("m", 500.0, 40.0, SwapAllergen.MAY_CONTAIN, score = 0.5)
         assertThat(o.blocked).isFalse()

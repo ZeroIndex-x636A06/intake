@@ -206,16 +206,19 @@ class PlanBFinder @Inject constructor(
         radiusMi: Double = DEFAULT_RADIUS_MI,
         mode: NearbyMode = NearbyMode.SWAP_VS_PLANNED,
         planned: Macros? = null,
+        /** "restaurant: order" lines already shown, so a repeat search ("Search again for more") returns different ones. */
+        exclude: List<String> = emptyList(),
     ): Pair<List<PlanBOption>, Double> {
         val left = remaining()
         val avoided = allergens.avoidedAllergens()
+        val notes = allergens.profileNotes()
         val outcome = gateway.structured(
             feature = AiFeature.PLAN_B,
             trigger = AiTrigger.USER_ACTION,
             serializer = FoundOptions.serializer(),
             schema = PlanBPrompts.schema,
             system = PlanBPrompts.system(avoided, mode),
-            parts = listOf(AiPart.Text(userPrompt(area, left, avoided, radiusMi, mode, planned))),
+            parts = listOf(AiPart.Text(userPrompt(area, left, avoided, radiusMi, mode, planned, notes, exclude))),
             tools = listOf(ServerTool.WebSearch(maxResults = 6, maxUses = 3), ServerTool.WebFetch(maxUses = 5)),
         )
         val found = outcome.value.options.filter { o -> o.distanceMiles?.let { it <= radiusMi * 1.25 } ?: true }.map { o ->
@@ -241,7 +244,12 @@ class PlanBFinder @Inject constructor(
         // Scan what is eaten. The modifications are instructions ("no
         // cheese"), and relying on one is a cross-contact risk the matcher
         // already treats as a softened, amber match when it appears in text.
-        val local = allergens.scan(name = order, ingredients = modifications.takeIf { it.isNotBlank() })
+        // Both the order and the modifications are wording about the order, so a clearly negated mention ("no cheese",
+        // "without cheese") is not counted as the ingredient. It clears nothing: the rest of the evidence still counts.
+        val local = allergens.scan(
+            name = order, ingredients = modifications.takeIf { it.isNotBlank() },
+            checkLabelInIngredients = modifications.isNotBlank(), freeText = true,
+        )
         val scan = ModelAllergenPolicy.merge(
             local = listOf(local),
             claims = listOfNotNull(claims),
@@ -253,6 +261,9 @@ class PlanBFinder @Inject constructor(
             modifications = modifications, macros = macros, sayThis = sayThis, caution = caution, crossContactRisk = risk,
             scan = scan, fit = PlanBFit.score(macros.kcal, macros.protein, left.kcalRemaining, left.proteinRemaining),
             offline = offline, savedId = savedId,
+            // A negated mention was the only thing the engine found: nothing is known to be in it and nothing is known to
+            // be out of it, so it is offered as "check with the restaurant", never as clear.
+            nameOnly = scan.hasMentionedAvoided && !scan.hasAnything && !scan.hasCheckLabel,
             fiberG = fiberG, satFatG = satFatG, sugarG = sugarG, sodiumMg = sodiumMg,
         )
     }
@@ -293,6 +304,9 @@ class PlanBFinder @Inject constructor(
         )
     }
 
+    /** Keeps the person's "Choose anyway" on a logged entry. The warning itself is never cleared. */
+    suspend fun markOverridden(log: com.zeroindex.intake.data.db.entity.FoodLogEntity, note: String) = foodLog.markOverridden(log, note)
+
     fun hasLocationPermission(): Boolean =
         ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
@@ -324,6 +338,7 @@ class PlanBFinder @Inject constructor(
 
     private fun userPrompt(
         area: SearchArea, left: DayProgress, avoided: Set<String>, radiusMi: Double, mode: NearbyMode, planned: Macros?,
+        notes: String, exclude: List<String>,
     ) = buildString {
         when (area) {
             is SearchArea.Coordinates -> appendLine("Approximate location: latitude ${area.lat}, longitude ${area.lng}.")
@@ -338,7 +353,12 @@ class PlanBFinder @Inject constructor(
         }
         left.kcalRemaining?.let { appendLine("About $it kcal left today.") }
         left.proteinRemaining?.let { appendLine("About $it g protein left today; favour high-protein orders.") }
-        if (avoided.isNotEmpty()) appendLine("Allergies: ${avoided.joinToString()}.")
+        if (avoided.isNotEmpty()) appendLine("Allergies to avoid: ${avoided.joinToString()}.")
+        if (notes.isNotBlank()) appendLine("Dietary notes from the user: ${notes.take(300)}")
+        if (exclude.isNotEmpty()) {
+            appendLine("Already shown, do not repeat these; find different orders and, where you can, different restaurants:")
+            exclude.take(40).forEach { appendLine("- $it") }
+        }
     }
 }
 
@@ -347,7 +367,11 @@ internal object PlanBPrompts {
     fun system(avoided: Set<String>, mode: NearbyMode = NearbyMode.SWAP_VS_PLANNED) = buildString {
         appendLine("You help someone pick a fast, safe meal near them right now.")
         appendLine("Search for restaurants near the given area and read their current menus or nutrition pages.")
-        appendLine("Return up to 6 options, each a specific order at a specific restaurant, with nutrition for the order as modified.")
+        appendLine(
+            "Return 8 to 15 options, each a specific order at a specific restaurant, with nutrition for the order as modified. " +
+                "Cover as many different restaurants near the area as you can, and give several options per restaurant " +
+                "rather than only the single best one. Include chains and independent places.",
+        )
         appendLine("Prefer published nutrition; otherwise estimate from the menu description.")
         if (mode == NearbyMode.HEALTHIER) {
             appendLine(
@@ -360,8 +384,12 @@ internal object PlanBPrompts {
         }
         if (avoided.isNotEmpty()) {
             appendLine(
-                "The user must avoid: ${avoided.joinToString()}. Choose orders that avoid them, and say exactly what to " +
-                    "ask to leave off. List anything in the order that may still contain them in containsAllergens.",
+                "The user must avoid: ${avoided.joinToString()}. Do not only list orders that are already free of them: " +
+                    "most menus have items that become safe with the usual modifications, for example, for dairy, " +
+                    "\"no cheese, no butter, ask for oil instead\", sauce on the side, grilled not buttered or breaded. " +
+                    "Offer those, and say exactly what to ask to leave off in modifications. Name the order as it is " +
+                    "ordered, for example \"Whopper, no cheese\". List anything in the order that may still contain " +
+                    "them in containsAllergens, and never leave an allergen out of it to make an option look safe.",
             )
             appendLine(
                 "In sayThis, write the words to say when ordering: name the allergy, ask for clean gloves and " +

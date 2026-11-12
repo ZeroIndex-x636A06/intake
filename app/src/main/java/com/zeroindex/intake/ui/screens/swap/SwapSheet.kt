@@ -91,6 +91,9 @@ fun SwapSheet(
         viewModel.refreshPermissions()
         if (granted) viewModel.searchNearby()
     }
+    state.pendingOverride?.let { p ->
+        com.zeroindex.intake.ui.allergen.AllergenOverrideDialog(p, onCancel = viewModel::cancelOverride, onConfirm = { viewModel.confirmOverride(onDismiss) })
+    }
     val timeFmt = remember(state.zone) { DateTimeFormatter.ofPattern("h:mm a").withZone(state.zone) }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
@@ -189,7 +192,11 @@ private fun androidx.compose.foundation.lazy.LazyListScope.optionRows(
         return
     }
     items(section.options, key = { it.key }) { o ->
-        OptionCard(o, planned, choosing, saved = o.key in saved, saveable = saveable, onChoose = { vm.choose(o.key, onDone) }, onSave = { vm.saveForOffline(o.key) })
+        OptionCard(
+            o, planned, choosing, saved = o.key in saved, saveable = saveable,
+            onChoose = { vm.choose(o.key, onDone) }, onSave = { vm.saveForOffline(o.key) },
+            onOverride = { vm.requestOverride(o.key) },
+        )
     }
 }
 
@@ -240,6 +247,8 @@ internal fun OptionCard(
     onChoose: () -> Unit,
     onSave: () -> Unit,
     chooseLabel: String = "Choose",
+    /** "Choose anyway" on a blocked option: opens the warning dialog. Never logs by itself. */
+    onOverride: () -> Unit = {},
 ) {
     val blocked = !SwapSections.canChoose(o)
     val scheme = MaterialTheme.colorScheme
@@ -257,12 +266,23 @@ internal fun OptionCard(
                     Text(macroLine(o.macros, o.estimate), style = MaterialTheme.typography.bodySmall)
                     o.reason?.let { Text(it, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = scheme.primary) }
                 }
-                Button(
-                    onClick = onChoose,
-                    enabled = !blocked && !choosing,
-                    shape = IntakeShape.Button,
-                    modifier = Modifier.heightIn(min = 48.dp),
-                ) { Text(chooseLabel) }
+                if (blocked) {
+                    OutlinedButton(
+                        onClick = onOverride,
+                        enabled = !choosing,
+                        shape = IntakeShape.Button,
+                        border = BorderStroke(1.dp, AllergenColors.red),
+                        colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = AllergenColors.red),
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    ) { Text("Choose anyway") }
+                } else {
+                    Button(
+                        onClick = onChoose,
+                        enabled = !choosing,
+                        shape = IntakeShape.Button,
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    ) { Text(chooseLabel) }
+                }
             }
             if (planned != null) {
                 val chips = SwapMath.chips(SwapMath.delta(o.macros, planned))
@@ -282,7 +302,7 @@ internal fun OptionCard(
             AllergenChip(o.allergen, label = if (o.allergen == com.zeroindex.intake.domain.swap.SwapAllergen.CLEAR) "No allergens found" else o.allergenReason)
             if (blocked) {
                 Text(
-                    "Cannot be chosen: ${SwapSections.blockedReason(o)?.replaceFirstChar { it.lowercase() }}.",
+                    "${SwapSections.blockedReason(o)}. You can still choose it after a warning; the warning stays on the entry.",
                     style = MaterialTheme.typography.labelMedium,
                     color = scheme.onSurfaceVariant,
                 )
@@ -346,7 +366,7 @@ internal fun NearbyCard(
                             Spacer(Modifier.size(8.dp))
                             Text(
                                 when {
-                                    nearby.foundAt != null -> "Search again"
+                                    nearby.foundAt != null -> "Search again for more"
                                     nearby.hasLocation -> "Search near me"
                                     else -> "Allow location once and search"
                                 },
