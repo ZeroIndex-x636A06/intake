@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nutrition dashboard: macro split on hold</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    --page: #0a0b0d;
+    --bg: #121316;
+    --card: #1c1d21;
+    --tile: #26272c;
+    --track: #2c2d33;
+    --line: #2a2c32;
+    --text: #f2f3f5;
+    --muted: #9a9ca4;
+    --accent: #8fdcc4;
+    --protein: #7fd9bf;
+    --carbs: #e3b64c;
+    --fat: #f0877a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--text);
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 40px 24px 56px;
+    -webkit-font-smoothing: antialiased;
+  }
+  header { max-width: 900px; margin: 0 auto 32px; }
+  header h1 { font-size: 22px; font-weight: 600; margin: 0 0 8px; }
+  header p { color: var(--muted); font-size: 14px; line-height: 1.5; margin: 0; }
+
+  .frames {
+    display: flex;
+    gap: 48px;
+    justify-content: center;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .frame-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--muted);
+    margin: 0 0 12px 4px;
+  }
+  .phone {
+    width: 390px;
+    background: var(--bg);
+    border: 1px solid #23252b;
+    border-radius: 36px;
+    padding: 16px;
+  }
+
+  .card {
+    position: relative;
+    background: var(--card);
+    border-radius: 24px;
+    padding: 20px;
+  }
+
+  /* Top row: label + split toggle */
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 32px;
+  }
+  .topbar .label { font-size: 14px; font-weight: 600; color: var(--muted); }
+  .split-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid #3a3d45;
+    background: #24262c;
+    color: var(--text);
+    font: 500 13px/1 Inter, system-ui, sans-serif;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+  }
+  .split-btn svg { width: 16px; height: 16px; color: var(--accent); flex: none; }
+  .split-btn.is-pressed {
+    transform: scale(0.94);
+    background: #1b3530;
+    border-color: var(--accent);
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.5);
+  }
+  .hint {
+    position: absolute;
+    right: 20px;
+    top: 58px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.02em;
+  }
+
+  /* Ring */
+  .ring-wrap {
+    position: relative;
+    width: 220px;
+    height: 220px;
+    margin: 28px auto 0;
+  }
+  .ring { width: 220px; height: 220px; display: block; transform: rotate(0deg); }
+  .ring-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+  .big { font-size: 48px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
+  .unit { font-size: 15px; color: var(--muted); margin-top: 6px; }
+  .split-stack { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .split-row { font-size: 17px; font-weight: 700; line-height: 1.1; white-space: nowrap; }
+  .split-row em { font-style: normal; font-weight: 500; color: var(--muted); margin-left: 6px; font-size: 13px; }
+  .ring-sub {
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+    margin: 14px 0 20px;
+  }
+
+  /* Macro cards */
+  .macros {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .macro {
+    background: var(--tile);
+    border-radius: 16px;
+    padding: 12px;
+    min-width: 0;
+  }
+  .macro .name { font-size: 13px; color: var(--muted); }
+  .macro .num { font-size: 26px; font-weight: 700; line-height: 1.1; margin-top: 4px; }
+  .macro .tgt { font-size: 12px; color: var(--muted); }
+  .macro .bar { height: 4px; background: var(--track); border-radius: 4px; margin: 10px 0 8px; overflow: hidden; }
+  .macro .bar i { display: block; height: 100%; border-radius: 4px; }
+  .macro .sub { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .macro .sub.pct { font-weight: 600; }
+
+  /* Rest of the current card */
+  .rest {
+    border-top: 1px solid var(--line);
+    margin-top: 20px;
+    padding-top: 18px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 24px;
+    row-gap: 14px;
+  }
+  .metric .row { display: flex; justify-content: space-between; font-size: 15px; font-weight: 500; }
+  .metric .row span:last-child { font-weight: 600; }
+  .metric .mbar { height: 4px; background: var(--track); border-radius: 4px; margin: 8px 0 0; overflow: hidden; }
+  .metric .mbar i { display: block; height: 100%; border-radius: 4px; }
+  .note {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+    margin: 18px 0 0;
+  }
+  .more {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 15px;
+  }
+  .more svg { width: 18px; height: 18px; }
+
+  .footnote {
+    max-width: 900px;
+    margin: 40px auto 0;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .footnote code { color: var(--text); font-size: 12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Nutrition dashboard: macro split on hold</h1>
+  <p>Design mockup only. Press and hold the split button on the left frame to see the ring change. The right frame shows the held state. Numbers: 34 g protein (136 kcal), 84 g carbs (336 kcal), 16 g fat (144 kcal) = 616 kcal eaten of a 2,260 kcal target, so 1644 kcal left.</p>
+</header>
+
+<main class="frames">
+
+  <!-- Frame A: normal, interactive -->
+  <section>
+    <div class="frame-label">Normal</div>
+    <div class="phone">
+      <article class="card" id="cardA" data-state="solid">
+        <div class="topbar">
+          <span class="label">Energy today</span>
+          <button class="split-btn" id="btnA" type="button" aria-label="Hold to show macro split of calories">
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/>
+              <path d="M8 8 V1.5 A6.5 6.5 0 0 1 14.5 8 Z" fill="currentColor"/>
+            </svg>
+            Hold for split
+          </button>
+        </div>
+
+        <div class="ring-wrap">
+          <svg class="ring" viewBox="0 0 220 220" aria-hidden="true"></svg>
+          <div class="ring-center"></div>
+        </div>
+        <p class="ring-sub">of 2,260 kcal · 616 eaten</p>
+
+        <div class="macros"></div>
+
+        <div class="rest">
+          <div class="metric">
+            <div class="row"><span>Fibre</span><span>6 g</span></div>
+            <div class="mbar"><i style="width:20%;background:#8fdcc4"></i></div>
+          </div>
+          <div class="metric">
+            <div class="row"><span>Sat fat</span><span>5.1 g</span></div>
+            <div class="mbar"><i style="width:23%;background:#d9a441"></i></div>
+          </div>
+          <div class="metric">
+            <div class="row"><span>Sugar</span><span>42 g</span></div>
+            <div class="mbar"></div>
+          </div>
+          <div class="metric">
+            <div class="row"><span>Sodium</span><span>1,240 mg</span></div>
+            <div class="mbar"><i style="width:54%;background:#d9a441"></i></div>
+          </div>
+        </div>
+
+        <p class="note">Fibre, saturated fat and salt are measured against common reference limits, not a personal target.</p>
+
+        <div class="more">
+          <span>More nutrients</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- Frame B: held state, static -->
+  <section>
+    <div class="frame-label">Holding the split button</div>
+    <div class="phone">
+      <article class="card" id="cardB" data-state="split">
+        <div class="topbar">
+          <span class="label">Energy today</span>
+          <button class="split-btn is-pressed" type="button" tabindex="-1" aria-hidden="true">
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/>
+              <path d="M8 8 V1.5 A6.5 6.5 0 0 1 14.5 8 Z" fill="currentColor"/>
+            </svg>
+            Hold for split
+          </button>
+        </div>
+        <span class="hint">Press and hold</span>
+
+        <div class="ring-wrap">
+          <svg class="ring" viewBox="0 0 220 220" aria-hidden="true"></svg>
+          <div class="ring-center"></div>
+        </div>
+        <p class="ring-sub">of 2,260 kcal · 616 eaten</p>
+
+        <div class="macros"></div>
+
+        <div class="rest">
+          <div class="metric">
+            <div class="row"><span>Fibre</span><span>6 g</span></div>
+            <div class="mbar"><i style="width:20%;background:#8fdcc4"></i></div>
+          </div>
+          <div class="metric">
+            <div class="row"><span>Sat fat</span><span>5.1 g</span></div>
+            <div class="mbar"><i style="width:23%;background:#d9a441"></i></div>
+          </div>
+          <div class="metric">
+            <div class="row"><span>Sugar</span><span>42 g</span></div>
+            <div class="mbar"></div>
+          </div>
+          <div class="metric">
+            <div class="row"><span>Sodium</span><span>1,240 mg</span></div>
+            <div class="mbar"><i style="width:54%;background:#d9a441"></i></div>
+          </div>
+        </div>
+
+        <p class="note">Fibre, saturated fat and salt are measured against common reference limits, not a personal target.</p>
+
+        <div class="more">
+          <span>More nutrients</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+      </article>
+    </div>
+  </section>
+
+</main>
+
+<p class="footnote">
+  Ring: the eaten arc is 616 / 2,260 of the circle (98.1&deg;). In the held state it is split into protein, carbs and fat in that order, each sized by its kcal share of the 616 (4, 4 and 9 kcal per gram). The percentages are rounded and add to 100 (22 + 55 + 23).
+</p>
+
+<script>
+  // Data. Everything on the page is computed from these values.
+  var TARGET_KCAL = 2260;
+  var EATEN_KCAL = 616;
+  var COLORS = { accent: "#8fdcc4", protein: "#7fd9bf", carbs: "#e3b64c", fat: "#f0877a", track: "#2c2d33" };
+  var MACROS = [
+    { key: "protein", name: "Protein", grams: 34, target: 170, kcalPerG: 4, color: COLORS.protein },
+    { key: "carbs",   name: "Carbs",   grams: 84, target: 250, kcalPerG: 4, color: COLORS.carbs },
+    { key: "fat",     name: "Fat",     grams: 16, target: 65,  kcalPerG: 9, color: COLORS.fat }
+  ];
+  MACROS.forEach(function (m) { m.kcal = m.grams * m.kcalPerG; });
+  var kcalSum = MACROS.reduce(function (s, m) { return s + m.kcal; }, 0);
+  if (kcalSum !== EATEN_KCAL) { throw new Error("macro kcal " + kcalSum + " does not match eaten " + EATEN_KCAL); }
+  MACROS.forEach(function (m) { m.pct = Math.round(m.kcal / EATEN_KCAL * 100); });
+
+  var C = 110, R = 92;
+  function pt(deg) {
+    var r = (deg - 90) * Math.PI / 180;
+    return [C + R * Math.cos(r), C + R * Math.sin(r)];
+  }
+  function arc(a, b, color) {
+    var p0 = pt(a), p1 = pt(b);
+    var large = (b - a) > 180 ? 1 : 0;
+    return '<path d="M' + p0[0].toFixed(2) + ' ' + p0[1].toFixed(2) +
+           ' A' + R + ' ' + R + ' 0 ' + large + ' 1 ' + p1[0].toFixed(2) + ' ' + p1[1].toFixed(2) +
+           '" fill="none" stroke="' + color + '" stroke-width="16"/>';
+  }
+
+  function drawRing(card, mode) {
+    var svg = card.querySelector(".ring");
+    var html = '<circle cx="110" cy="110" r="92" fill="none" stroke="' + COLORS.track + '" stroke-width="16"/>';
+    if (mode === "split") {
+      var a = 0;
+      MACROS.forEach(function (m) {
+        var span = m.kcal / TARGET_KCAL * 360;
+        html += arc(a, a + span, m.color);
+        a += span;
+      });
+    } else {
+      html += arc(0, EATEN_KCAL / TARGET_KCAL * 360, COLORS.accent);
+    }
+    svg.innerHTML = html;
+
+    var center = card.querySelector(".ring-center");
+    if (mode === "split") {
+      center.innerHTML =
+        '<div class="split-stack">' +
+        MACROS.map(function (m) {
+          return '<div class="split-row" style="color:' + m.color + '">' + m.pct + '%<em>' + m.name.toLowerCase() + '</em></div>';
+        }).join('') +
+        '</div><div class="unit" style="margin-top:8px">of kcal eaten</div>';
+    } else {
+      center.innerHTML = '<div class="big">' + (TARGET_KCAL - EATEN_KCAL) + '</div><div class="unit">kcal left</div>';
+    }
+  }
+
+  function drawMacros(card, mode) {
+    var wrap = card.querySelector(".macros");
+    wrap.innerHTML = MACROS.map(function (m) {
+      var split = mode === "split";
+      var sub = split
+        ? '<div class="sub pct" style="color:' + m.color + '">' + m.pct + '% of kcal</div>'
+        : '<div class="sub">' + m.kcal + ' kcal</div>';
+      return '<div class="macro">' +
+        '<div class="name">' + m.name + '</div>' +
+        '<div class="num">' + m.grams + '</div>' +
+        '<div class="tgt">/ ' + m.target + ' g</div>' +
+        '<div class="bar"><i style="width:' + (m.grams / m.target * 100).toFixed(1) + '%;background:' + m.color + '"></i></div>' +
+        sub +
+        '</div>';
+    }).join("");
+  }
+
+  function setMode(card, mode) {
+    card.setAttribute("data-state", mode);
+    drawRing(card, mode);
+    drawMacros(card, mode);
+  }
+
+  // Frame B is always the held state.
+  setMode(document.getElementById("cardB"), "split");
+
+  // Frame A is interactive: press and hold the button to split the ring.
+  var cardA = document.getElementById("cardA");
+  var btnA = document.getElementById("btnA");
+  setMode(cardA, "solid");
+
+  function hold(e) {
+    if (e) { e.preventDefault(); }
+    btnA.classList.add("is-pressed");
+    setMode(cardA, "split");
+  }
+  function release() {
+    btnA.classList.remove("is-pressed");
+    setMode(cardA, "solid");
+  }
+  btnA.addEventListener("pointerdown", hold);
+  btnA.addEventListener("pointerup", release);
+  btnA.addEventListener("pointerleave", release);
+  btnA.addEventListener("pointercancel", release);
+  btnA.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+</script>
+</body>
+</html>
