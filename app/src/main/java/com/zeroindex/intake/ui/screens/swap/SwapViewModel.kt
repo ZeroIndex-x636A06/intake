@@ -15,6 +15,10 @@ import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nfc.TemplateLink
 import com.zeroindex.intake.domain.nutrition.Macros
+import com.zeroindex.intake.domain.allergen.AllergenOverride
+import com.zeroindex.intake.domain.allergen.OverridePrompt
+import com.zeroindex.intake.domain.swap.NearbyMode
+import com.zeroindex.intake.domain.swap.NearbyRanking
 import com.zeroindex.intake.domain.swap.SwapSection
 import com.zeroindex.intake.domain.swap.SwapSections
 import com.zeroindex.intake.domain.time.Clock
@@ -53,6 +57,8 @@ data class SwapUiState(
     val notice: String? = null,
     val choosing: Boolean = false,
     val savedKeys: Set<String> = emptySet(),
+    /** The "Choose anyway" warning dialog, while it is open. */
+    val pendingOverride: OverridePrompt? = null,
     val zone: java.time.ZoneId = java.time.ZoneId.systemDefault(),
 )
 
@@ -126,11 +132,13 @@ class SwapViewModel @Inject constructor(
     private suspend fun run(area: SearchArea) {
         val radius = _state.value.nearby.radiusMi
         _state.update { it.copy(nearby = it.nearby.copy(status = "Searching nearby menus and checking them against your allergens…")) }
-        runCatching { finder.search(area, radius) }
+        // A repeat search sends what is already shown, so it brings different options, which are added to the list.
+        val shown = found.mapNotNull { (it.source as? SwapSource.Found)?.option }.map { NearbyRanking.excludeLine(it.restaurant, it.order) }
+        runCatching { finder.search(area, radius, NearbyMode.SWAP_VS_PLANNED, _state.value.planned?.macros, exclude = shown) }
             .onSuccess { (options, cost) ->
-                found = options.map(repo::foundEntry)
+                found = NearbyRanking.mergeMore(found, options.map(repo::foundEntry)) { it.option.key }
                 _state.update {
-                    it.copy(nearby = it.nearby.copy(searching = false, status = null, foundAt = clock.nowMillis(), costUsd = cost, resultCount = options.size))
+                    it.copy(nearby = it.nearby.copy(searching = false, status = null, foundAt = clock.nowMillis(), costUsd = (it.nearby.costUsd ?: 0.0) + cost, resultCount = found.size))
                 }
                 publish()
             }
@@ -148,13 +156,28 @@ class SwapViewModel @Inject constructor(
         }
     }
 
-    /** Logs the option in place of the planned meal, then closes the sheet. A blocked option never gets this far. */
-    fun choose(key: String, onDone: () -> Unit) {
+    /** "Choose anyway" on a blocked option: opens the warning dialog. Nothing is logged until the person confirms it. */
+    fun requestOverride(key: String) {
+        val prompt = entryOf(key)?.option?.let(AllergenOverride::prompt) ?: return
+        _state.update { it.copy(pendingOverride = prompt, notice = null) }
+    }
+
+    fun cancelOverride() = _state.update { it.copy(pendingOverride = null) }
+
+    /** The red button in the warning dialog: logs the item with the warning kept on the entry. */
+    fun confirmOverride(onDone: () -> Unit) {
+        val key = _state.value.pendingOverride?.optionKey ?: return
+        _state.update { it.copy(pendingOverride = null) }
+        choose(key, onDone, override = true)
+    }
+
+    /** Logs the option in place of the planned meal, then closes the sheet. A blocked option only gets this far as a confirmed override. */
+    fun choose(key: String, onDone: () -> Unit, override: Boolean = false) {
         val entry = entryOf(key) ?: return
         if (_state.value.choosing) return
         _state.update { it.copy(choosing = true, notice = null) }
         viewModelScope.launch {
-            when (val r = repo.choose(entry, _state.value.slot)) {
+            when (val r = repo.choose(entry, _state.value.slot, override)) {
                 is SwapLogResult.Logged -> {
                     val planned = _state.value.planned
                     messages.post(

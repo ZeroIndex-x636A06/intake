@@ -11,9 +11,12 @@ import com.zeroindex.intake.data.repository.RecipeContent
 import com.zeroindex.intake.data.repository.TemplateLogResult
 import com.zeroindex.intake.data.db.entity.EatOutOptionEntity
 import com.zeroindex.intake.data.db.entity.FoodLogEntity
+import com.zeroindex.intake.domain.allergen.AllergenOverride
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nutrition.Macros
+import com.zeroindex.intake.domain.swap.MealNutrition
+import com.zeroindex.intake.domain.swap.NearbyRanking
 import com.zeroindex.intake.domain.swap.SwapAllergen
 import com.zeroindex.intake.domain.swap.SwapKind
 import com.zeroindex.intake.domain.swap.SwapMath
@@ -88,7 +91,7 @@ class SwapRepository @Inject constructor(
                 SwapOption(
                     key = "recipe:${c.recipe.id}", title = c.recipe.name, subtitle = "Recipe · 1 serving", kind = SwapKind.PLAN_RECIPE,
                     macros = c.macros.perServing, estimate = !c.macros.isComplete, allergen = verdict,
-                    allergenReason = reasonFor(verdict, c.allergenTerms),
+                    allergenReason = reasonFor(verdict, c.allergenTerms), evidence = c.allergenTerms,
                 ),
                 SwapSource.Recipe(c),
             )
@@ -108,6 +111,7 @@ class SwapRepository @Inject constructor(
                 SwapOption(
                     key = "template:${s.template.id}", title = s.template.name, subtitle = "Saved meal · ${s.items.size} ${if (s.items.size == 1) "food" else "foods"}",
                     kind = SwapKind.SAVED_MEAL, macros = macros, estimate = false, allergen = verdict, allergenReason = reasonFor(verdict, terms),
+                    matchedAllergens = scans.flatMap { it.contains }.map { it.allergen }.distinct(), evidence = terms,
                 ),
                 SwapSource.Template(s.template.id),
             )
@@ -124,7 +128,7 @@ class SwapRepository @Inject constructor(
      * raised by today's scan of what to order, never lowered.
      */
     suspend fun savedEatOut(options: List<EatOutOptionEntity>): List<SwapEntry> = options.map { o ->
-        val live = allergens.scan(name = o.whatToOrder)
+        val live = allergens.scan(name = o.whatToOrder, freeText = true)
         val verdict = SwapMath.raise(live.verdict(), o.allergenStatus.toSwap())
         val terms = (live.contains + live.mayContain + live.checkLabel).map { it.matchedTerm }.distinct()
         SwapEntry(
@@ -133,6 +137,7 @@ class SwapRepository @Inject constructor(
                 kind = SwapKind.SAVED_EAT_OUT,
                 macros = Macros(o.estimatedKcal.toDouble(), o.estimatedProtein.toDouble(), o.estimatedCarbs.toDouble(), o.estimatedFat.toDouble()),
                 estimate = true, allergen = verdict, allergenReason = reasonFor(verdict, terms),
+                matchedAllergens = live.contains.map { it.allergen }.distinct(), evidence = live.contains.map { it.reason }.distinct().ifEmpty { terms },
             ),
             SwapSource.EatOut(o),
         )
@@ -142,10 +147,15 @@ class SwapRepository @Inject constructor(
     fun foundEntry(o: PlanBOption): SwapEntry {
         val verdict = o.scan.verdict()
         val terms = (o.scan.contains + o.scan.mayContain + o.scan.checkLabel).map { it.matchedTerm }.distinct()
+        // Nothing was found except a negated mention ("no cheese"): not known to be in it, not known to be out of it.
+        val unknown = o.nameOnly && verdict == SwapAllergen.CLEAR
         return SwapEntry(
             SwapOption(
                 key = o.key, title = o.order, subtitle = listOfNotNull(o.restaurant, o.distanceMiles?.let { "%.1f mi".format(java.util.Locale.US, it) }).joinToString(" · "),
-                kind = SwapKind.NEARBY, macros = o.macros, estimate = true, allergen = verdict, allergenReason = reasonFor(verdict, terms),
+                kind = SwapKind.NEARBY, macros = o.macros, estimate = true,
+                allergen = if (unknown) SwapAllergen.CHECK_LABEL else verdict,
+                allergenReason = if (unknown) "Check with the restaurant" else reasonFor(verdict, terms),
+                matchedAllergens = o.scan.contains.map { it.allergen }.distinct(), evidence = o.scan.contains.map { it.reason }.distinct(),
             ),
             SwapSource.Found(o),
         )
@@ -165,6 +175,7 @@ class SwapRepository @Inject constructor(
             SwapOption(
                 key = o.key, title = o.order, subtitle = "Imported menu · ${o.restaurant} · works offline",
                 kind = SwapKind.SAVED_EAT_OUT, macros = o.macros, estimate = true, allergen = verdict, allergenReason = reason,
+                matchedAllergens = o.scan.contains.map { it.allergen }.distinct(), evidence = o.scan.contains.map { it.reason }.distinct(),
             ),
             SwapSource.Found(o),
         )
@@ -172,39 +183,83 @@ class SwapRepository @Inject constructor(
 
     suspend fun saveForOffline(o: PlanBOption) = finder.saveForOffline(o)
 
-    /** Logs the choice in place of the planned meal. A "contains" verdict is refused here too. */
-    suspend fun choose(entry: SwapEntry, slot: MealSlot): SwapLogResult {
-        if (entry.option.blocked) return SwapLogResult.Blocked(entry.option.allergenReason ?: "Contains an allergen you avoid")
-        val title = entry.option.title
-        return when (val src = entry.source) {
-            is SwapSource.Recipe -> when (val r = plans.logMeal(src.content, slot)) {
-                is MealLogResult.Blocked -> SwapLogResult.Blocked("Contains ${r.terms.joinToString()}")
-                is MealLogResult.Logged -> SwapLogResult.Logged("Logged $title to ${slot.name.lowercase()}") { plans.undoLog(r.log) }
+    /**
+     * Eating out > healthier options, the part that needs no network: saved eat-out options and the imported restaurant
+     * menus, each scanned by the local allergen engine and scored against what is left today. A "contains" option stays
+     * in the list, last, with its reason.
+     */
+    suspend fun healthierOffline(limit: Int = HEALTHIER_LIMIT): List<SwapEntry> {
+        val saved = savedEatOut(plans.observeEatOutOptions().first())
+        val menus = finder.menuOptions(limit = MENU_SCAN_LIMIT).map(::menuEntry)
+        return healthierRank(saved + menus).take(limit)
+    }
+
+    /** Nearby (AI) results for the healthier mode: the same local scan as Swap, then the healthier ranking. */
+    suspend fun healthierFound(options: List<PlanBOption>): List<SwapEntry> =
+        healthierRank(options.map(::foundEntry))
+
+    /**
+     * Scores each entry for how healthy it is against what is left today and orders them: choosable first, healthiest
+     * first. Values a source did not give stay unknown; they are never counted as zero.
+     */
+    suspend fun healthierRank(entries: List<SwapEntry>): List<SwapEntry> {
+        val left = finder.remaining()
+        val scored = entries.map { e ->
+            val n = when (val src = e.source) {
+                is SwapSource.Found -> src.option.nutrition
+                else -> MealNutrition(e.option.macros.kcal, e.option.macros.protein)
             }
-            is SwapSource.Template -> when (val r = templates.log(src.templateId, slot)) {
+            val h = NearbyRanking.healthier(n, left.kcalRemaining, left.proteinRemaining)
+            e.copy(option = e.option.copy(score = h.score, reason = h.reason))
+        }
+        val order = NearbyRanking.orderHealthier(scored.map { it.option }).map { it.key }
+        val byKey = scored.associateBy { it.option.key }
+        return order.mapNotNull(byKey::get)
+    }
+
+    /**
+     * Logs the choice in place of the planned meal. A "contains" verdict is refused here too, unless [override] is true:
+     * the person's own "Choose anyway" after the warning dialog. Then it is logged with "Logged despite: ..." kept on the
+     * entry, and no status anywhere is changed to clear. [override] does nothing for an option that is not blocked.
+     */
+    suspend fun choose(entry: SwapEntry, slot: MealSlot, override: Boolean = false): SwapLogResult {
+        val overriding = override && entry.option.blocked
+        if (entry.option.blocked && !overriding) return SwapLogResult.Blocked(entry.option.allergenReason ?: "Contains an allergen you avoid")
+        val title = entry.option.title
+        val note = AllergenOverride.loggedDespite(entry.option.matchedAllergens.ifEmpty { entry.option.evidence })
+        suspend fun logged(logs: List<FoodLogEntity>, undo: suspend () -> Unit): SwapLogResult {
+            if (overriding) logs.forEach { finder.markOverridden(it, note) }
+            return SwapLogResult.Logged("Logged $title to ${slot.name.lowercase()}" + if (overriding) " (allergen warning kept)" else "", undo)
+        }
+        return when (val src = entry.source) {
+            is SwapSource.Recipe -> when (val r = plans.logMeal(src.content, slot, allergenOverride = overriding)) {
+                is MealLogResult.Blocked -> SwapLogResult.Blocked("Contains ${r.terms.joinToString()}")
+                is MealLogResult.Logged -> logged(listOf(r.log)) { plans.undoLog(r.log) }
+            }
+            is SwapSource.Template -> when (val r = templates.log(src.templateId, slot, allergenOverride = overriding)) {
                 is TemplateLogResult.Blocked -> SwapLogResult.Blocked("Contains ${r.foods.joinToString()}")
                 TemplateLogResult.NotFound -> SwapLogResult.Blocked("That saved meal is empty or gone")
-                is TemplateLogResult.Logged -> SwapLogResult.Logged("Logged $title to ${slot.name.lowercase()}") { templates.undo(r.logs) }
+                is TemplateLogResult.Logged -> logged(r.logs) { templates.undo(r.logs) }
             }
             is SwapSource.EatOut -> {
-                val live = allergens.scan(name = src.option.whatToOrder)
-                if (live.blocks) {
+                val live = allergens.scan(name = src.option.whatToOrder, freeText = true)
+                if (live.blocks && !overriding) {
                     SwapLogResult.Blocked(reasonFor(SwapAllergen.CONTAINS, live.contains.map { it.matchedTerm }.distinct()) ?: "Contains an allergen you avoid")
                 } else {
                     val log: FoodLogEntity = plans.logEatOut(src.option, slot)
-                    SwapLogResult.Logged("Logged $title to ${slot.name.lowercase()}") { plans.undoLog(log) }
+                    logged(listOf(log)) { plans.undoLog(log) }
                 }
             }
             is SwapSource.Found -> {
                 // An imported menu item is scanned again now: the screen may be older than the person's allergen list.
                 val live = finder.rescanMenuItem(src.option)
-                if (live != null && live.blocks) {
+                if (live != null && live.blocks && !overriding) {
                     SwapLogResult.Blocked(reasonFor(SwapAllergen.CONTAINS, live.contains.map { it.matchedTerm }.distinct()) ?: "Contains an allergen you avoid")
-                } else if (src.option.rejected) {
+                } else if (src.option.rejected && !overriding) {
                     SwapLogResult.Blocked(entry.option.allergenReason ?: "Contains an allergen you avoid")
                 } else {
                     val log = finder.log(src.option, slot)
-                    SwapLogResult.Logged("Logged $title to ${slot.name.lowercase()}") { plans.undoLog(log) }
+                    logged(listOf(log)) { plans.undoLog(log) }
                 }
             }
         }
@@ -220,6 +275,9 @@ class SwapRepository @Inject constructor(
     private fun AllergenScanResult.verdict(): SwapAllergen = SwapMath.verdict(blocks, mayContain.isNotEmpty(), hasCheckLabel)
 
     companion object {
+        const val HEALTHIER_LIMIT = 40
+        const val MENU_SCAN_LIMIT = 300
+
         /** "Contains milk and peanuts", "May contain milk", "Check the label: teriyaki", or null when clear. */
         fun reasonFor(verdict: SwapAllergen, terms: List<String>): String? {
             val t = when (terms.size) {

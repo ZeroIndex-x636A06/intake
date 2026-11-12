@@ -108,13 +108,13 @@ class MealTemplateRepository @Inject constructor(
      * Every food is re-checked against the allergen profile as it is now. A
      * template saved before an allergen was added must not log silently.
      */
-    suspend fun log(templateId: String, slot: MealSlot? = null, at: Long = clock.nowMillis()): TemplateLogResult {
+    suspend fun log(templateId: String, slot: MealSlot? = null, at: Long = clock.nowMillis(), allergenOverride: Boolean = false): TemplateLogResult {
         val template = templateDao.all().firstOrNull { it.id == templateId } ?: return TemplateLogResult.NotFound
         val items = summary(template).items
         if (items.isEmpty()) return TemplateLogResult.NotFound
 
         val blocked = items.filter { (food, _) -> allergens.scan(food).blocks }.map { it.first.name }
-        if (blocked.isNotEmpty()) return TemplateLogResult.Blocked(template, blocked)
+        if (blocked.isNotEmpty() && !allergenOverride) return TemplateLogResult.Blocked(template, blocked)
 
         val target = slot ?: TemplateLink.slotFor(Instant.ofEpochMilli(at).atZone(clock.zone()).toLocalTime())
         val logs = items.map { (food, grams) -> foodLog.logFood(food, grams, target, at) }

@@ -715,12 +715,12 @@ class MealPlanRepository @Inject constructor(
     /**
      * SPEC §9: one FoodLog for the recipe's per-serving macros. [override] is what the user
      * confirmed when the macros were incomplete or typed in by hand. A recipe that now matches
-     * the allergen profile is not logged.
+     * the allergen profile is not logged, unless the person chose it anyway ([allergenOverride], a user action).
      */
-    suspend fun logMeal(content: RecipeContent, slot: MealSlot, override: Macros? = null): MealLogResult {
+    suspend fun logMeal(content: RecipeContent, slot: MealSlot, override: Macros? = null, allergenOverride: Boolean = false): MealLogResult {
         val live = scanner().scan(content.recipe.name, content.ingredientLines.joinToString("\n"))
         val status = PlanImportBuilder.statusOf(live)
-        if (status == AllergenStatus.CONTAINS) {
+        if (status == AllergenStatus.CONTAINS && !allergenOverride) {
             return MealLogResult.Blocked(live.contains.map { it.matchedTerm }.distinct())
         }
         val macros = override ?: content.macros.perServing

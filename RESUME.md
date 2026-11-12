@@ -13,6 +13,12 @@ ingredient lines against the bundled USDA file and shown as "Estimated from ingr
 quantities are summed per item across the week's recipes by the same line reader. Not verified on a device or emulator. Corrections to
 the estimate's matches last only while the recipe screen is open. The plan stores no servings, so shopping amounts use each recipe as written.
 
+## Find nearby, two modes (branch `worktree-agent-a4d8ea88c7c1d444a`)
+
+One finder (`PlanBFinder.search`, `NearbyMode`) with two rankings in `domain/swap/NearbyRanking.kt`. Swap ranks by closeness to the planned meal's calories and protein (deltas shown as chips); Eating out has a new "Find healthier options nearby" button (`ui/screens/hub/HealthierNearby.kt`) that shows imported menus and saved options first (no AI), then an optional AI search on tap, ranked by a healthier score with a short reason. No schema change; no new AI feature. Compiled, unit-tested and linted only; not seen on an emulator or a device.
+
+**Nearby follow-up.** The AI prompt (both modes) now sends allergens and the profile notes, asks for 8 to 15 options across many restaurants with the usual modifications, and "Search again for more" sends what is shown so results add rather than repeat. Orders and modification notes are read as free text, so "Whopper without cheese" is not a cheese hit (shown as "Check with the restaurant" when that was the only finding). "Choose anyway" on blocked options (Swap, Eating out nearby, imported menus) opens a warning dialog and logs with "Logged despite: dairy" on the entry's name and serving label; no schema change. Unit-tested and linted only. Imported menu items stored as CONTAINS at import time are still excluded from the healthier and swap menu lists (the stored status is not re-derived).
+
 ## Round 3 (phone feedback), branch `claude/optimistic-noether-fullk5`
 
 Head `06871e3`. What the owner sent from the phone is in `docs/FEEDBACK-R3.md` and `docs/R3-BACKLOG.md` (the status section

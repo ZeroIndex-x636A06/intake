@@ -229,6 +229,12 @@ class AllergenRepository @Inject constructor(
         structuredTraces: List<String> = emptyList(),
         /** True when [ingredients] is free-text recipe lines rather than a label panel. */
         checkLabelInIngredients: Boolean = false,
+        /**
+         * True when [name] (and [ingredients], with [checkLabelInIngredients]) is wording a person or a menu wrote
+         * about an order ("Whopper without cheese"), so a clearly negated mention is not counted as the ingredient.
+         * It never applies to ingredient panels, Open Food Facts tags or stated allergen lists.
+         */
+        freeText: Boolean = false,
     ): AllergenScanResult {
         val avoided = allergenDao.profile().avoidedSet()
         if (avoided.isEmpty()) return AllergenScanResult.CLEAN
@@ -249,9 +255,13 @@ class AllergenRepository @Inject constructor(
                 structuredTraces = structuredTraces,
                 checkLabelTerms = checkTerms,
                 checkLabelInIngredients = checkLabelInIngredients,
+                freeText = freeText,
             )
         }
     }
+
+    /** The free-text notes on the allergen profile ("no pork either"), trimmed, or blank. Sent to the model only on a tap. */
+    suspend fun profileNotes(): String = allergenDao.profile()?.notes.orEmpty().trim()
 
     /**
      * One engine setup for many short texts, so a recipe's ingredient lines do not each reload the profile
@@ -327,6 +337,9 @@ class AllergenRepository @Inject constructor(
                 structuredContains = stated.contains,
                 structuredTraces = stated.mayContain,
                 checkLabelTerms = checkTerms,
+                // Only the item's name is read for negation ("Whopper without cheese"); the description and the stated
+                // allergen list are label-like and are never downgraded.
+                freeText = true,
             )
         }
     }

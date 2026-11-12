@@ -25,6 +25,12 @@ data class SwapOption(
     val allergen: SwapAllergen,
     /** Why it is flagged ("Contains sesame"), or null when clear. */
     val allergenReason: String? = null,
+    /** Healthier mode only: why it was picked ("High protein for the calories"), and its 0..1 score. */
+    val reason: String? = null,
+    val score: Double? = null,
+    /** The allergens the local engine matched ("dairy"), and the evidence for each ("Says cheese"), for the override warning. */
+    val matchedAllergens: List<String> = emptyList(),
+    val evidence: List<String> = emptyList(),
 ) {
     /** A "contains" option is shown but cannot be chosen. */
     val blocked: Boolean get() = SwapMath.isBlocked(allergen)
@@ -68,11 +74,11 @@ object SwapMath {
         else -> SwapAllergen.CLEAR
     }
 
-    /** Choosable options first, closest to the planned calories first; blocked ones last, in the same order. */
+    /** Choosable options first, closest to the planned calories and protein first; blocked ones last, in the same order. */
     fun order(options: List<SwapOption>, planned: Macros): List<SwapOption> =
         options.sortedWith(
             compareBy<SwapOption> { it.blocked }
-                .thenBy { abs(it.macros.kcal - planned.kcal) }
+                .thenByDescending { NearbyRanking.closeness(it.macros, planned) }
                 .thenBy { it.title.lowercase() },
         )
 }

@@ -104,6 +104,12 @@ restaurant's own allergen chart always has stated text: the list the chart gave,
 major allergens. That line covers the major allergens only; it cannot speak for a custom allergen the chart never
 considered, the same as any generic food.
 
+### Nearby and menu orders, and "Choose anyway"
+
+The nearby finder and imported menu items read an order's title and modification note as free text, so "Whopper without cheese" or "no cheese, no butter" is not counted as cheese or butter (`freeText = true`); this clears nothing, and everything else (the rest of the name, a description, a stated "Contains" list, the model's own claims, which can only raise) still counts. A nearby option whose only finding was a negated mention is shown as "Check with the restaurant", never as clear. Ingredient panels, Open Food Facts tags and stated allergen lists are never negated.
+
+**Choosing anyway.** A "contains" option in Swap, Eating out nearby and imported menus has a "Choose anyway" button. It opens a warning that names the allergens and the evidence and says the warning stays on the entry; Cancel has focus, confirm is red. Only a person's tap can do this (never a model or a file). The item is logged with "Logged despite: dairy" added to the entry's name and serving label, and no status anywhere is changed to clear (`AllergenOverride`, no schema change).
+
 ## Custom allergens and keywords
 
 My allergens (Food, Allergens) lists all fifteen plus your own, searchable. A switch per allergen says whether you avoid it, and the profile's severity (Avoid / Strict) is set on the same screen. Tap an allergen for its keywords, grouped by level, with Add keyword.
