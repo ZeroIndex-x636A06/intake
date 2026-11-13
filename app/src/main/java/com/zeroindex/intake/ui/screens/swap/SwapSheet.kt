@@ -145,6 +145,7 @@ fun SwapSheet(
                     onPostalCode = viewModel::searchPostalCode,
                     onToggleAi = viewModel::setUseAi,
                     onStop = viewModel::stopSearch,
+                    onLookUpRest = viewModel::lookUpRest,
                     onSearchWithAi = viewModel::searchWithAi,
                     onOpenAiSettings = onOpenAiSettings,
                     onOpenRadiusSetting = onOpenRadiusSetting,
@@ -340,6 +341,7 @@ internal fun NearbyCard(
     onPostalCode: (String) -> Unit,
     onToggleAi: (Boolean) -> Unit,
     onStop: () -> Unit,
+    onLookUpRest: () -> Unit,
     onSearchWithAi: () -> Unit,
     onOpenAiSettings: () -> Unit,
     onOpenRadiusSetting: () -> Unit,
@@ -374,8 +376,8 @@ internal fun NearbyCard(
                         Text("Use AI to find menus I can't", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
                         Text(
                             if (nearby.hasKey) {
-                                "Off by default. Only for places where the steps above found nothing, up to ${NearbyPipeline.MAX_AI_LOOKUPS} lookups a search on your own key " +
-                                    "(a few cents each; the cost so far is shown). It looks the nutrition page up, or gives estimates that are marked as estimates."
+                                "Off by default. Only for places where the steps above found nothing, nearest first, up to ${com.zeroindex.intake.domain.nearby.NearbyAiBatch.BATCH_SIZE} places to a call and at most ${NearbyPipeline.MAX_AI_LOOKUPS} calls a search, on your own key " +
+                                    "(a few cents each; the cost so far is shown). It looks the nutrition page up, or gives estimates, clearly marked as estimates and never shown as free of an allergen."
                             } else {
                                 "Needs “Use AI features” on and an OpenRouter key. The search works without it."
                             },
@@ -462,6 +464,13 @@ internal fun NearbyCard(
                         }
                     }
                 }
+            }
+            if (!working && !nearby.searching && nearby.hasKey && nearby.aiPending > 0) {
+                Button(onClick = onLookUpRest, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Look up the rest with AI") }
+                Text(
+                    com.zeroindex.intake.domain.nearby.NearbyAiBatch.costNote(nearby.aiPending) + " Runs only because you tapped it.",
+                    style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             if (pipeline.aiLookups > 0 || pipeline.costUsd > 0) {
                 Text(

@@ -181,7 +181,7 @@ class PlanBFinder @Inject constructor(
                     crossContactRisk = null, scan = scan,
                     fit = PlanBFit.score(macros.kcal, macros.protein, left.kcalRemaining, left.proteinRemaining),
                     offline = true, menuItemId = m.id,
-                    nameOnly = !scan.hasAnything && !scan.hasCheckLabel && MenuSearch.hasNoIngredientInfo(m.ingredientsText),
+                    nameOnly = !scan.hasAnything && !scan.hasCheckLabel && com.zeroindex.intake.domain.menu.MenuAllergenEvidence.statesNothing(m.description, m.ingredientsText),
                 )
             }.sortedByDescending { it.fit.score }.take(limit)
         }
@@ -208,7 +208,7 @@ class PlanBFinder @Inject constructor(
                     crossContactRisk = null, scan = scan,
                     fit = PlanBFit.score(macros.kcal, macros.protein, left.kcalRemaining, left.proteinRemaining),
                     offline = true, menuItemId = m.id,
-                    nameOnly = !scan.hasAnything && !scan.hasCheckLabel && MenuSearch.hasNoIngredientInfo(m.ingredientsText),
+                    nameOnly = !scan.hasAnything && !scan.hasCheckLabel && com.zeroindex.intake.domain.menu.MenuAllergenEvidence.statesNothing(m.description, m.ingredientsText),
                 )
             }
         }
@@ -290,7 +290,7 @@ class PlanBFinder @Inject constructor(
             offline = offline, savedId = savedId,
             // A negated mention was the only thing the engine found: nothing is known to be in it and nothing is known to
             // be out of it, so it is offered as "check with the restaurant", never as clear.
-            nameOnly = scan.hasMentionedAvoided && !scan.hasAnything && !scan.hasCheckLabel,
+            nameOnly = !scan.hasAnything && !scan.hasCheckLabel,
             fiberG = fiberG, satFatG = satFatG, sugarG = sugarG, sodiumMg = sodiumMg,
         )
     }
@@ -313,7 +313,7 @@ class PlanBFinder @Inject constructor(
                 allergenStatus = when {
                     option.scan.blocks -> AllergenStatus.CONTAINS
                     option.scan.mayContain.isNotEmpty() -> AllergenStatus.MAY_CONTAIN
-                    option.scan.hasCheckLabel -> AllergenStatus.CHECK_LABEL
+                    option.scan.hasCheckLabel || option.nameOnly -> AllergenStatus.CHECK_LABEL
                     else -> AllergenStatus.CLEAR
                 },
                 createdAt = now,

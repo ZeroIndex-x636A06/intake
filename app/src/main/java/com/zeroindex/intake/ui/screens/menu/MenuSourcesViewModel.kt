@@ -77,6 +77,8 @@ data class MenuUiState(
     val nutritionAiOffer: NutritionAiOffer? = null,
     val hasKey: Boolean = false,
     val openSourceId: String? = null,
+    /** The source whose "Discard import" is waiting for the confirm. */
+    val confirmDiscard: MenuSourceEntity? = null,
 )
 
 @HiltViewModel
@@ -151,6 +153,7 @@ class MenuSourcesViewModel @Inject constructor(
                 val outcome = ingestor.stage(source, AiTrigger.USER_ACTION, onProgress = { progress ->
                     _state.update { s -> if (s.running != null) s.copy(running = progress) else s }
                 }, pdfRoute = pdfRoute)
+                keepForReview(source, outcome.items)
                 _state.update { it.copy(running = null, review = Review(source, outcome.items, outcome.warnings, outcome.readOnPhone, outcome.chartNote)) }
             } catch (e: MenuNoTableException) {
                 // Nothing was sent anywhere. Say why, and let the person choose the AI path.
@@ -188,11 +191,21 @@ class MenuSourcesViewModel @Inject constructor(
         s.copy(review = r.copy(items = r.items.mapIndexed { i, it -> if (i == index) it.copy(accepted = !it.accepted) else it }))
     }
 
+    /** Every finished import is kept for review before the screen opens, so closing it by accident loses nothing. */
+    private suspend fun keepForReview(source: MenuSourceEntity, items: List<StagedItem>) {
+        try {
+            ingestor.persistStaged(source, items)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // The review still opens from memory; it just cannot be reopened later.
+        }
+    }
+
     fun commit() {
         val r = _state.value.review ?: return
         viewModelScope.launch {
-            val saved = r.items.filter { it.accepted }.map { it.entity }
-            ingestor.commit(r.source, saved)
+            ingestor.commitStaged(r.source, r.items)
             // An allergen chart has no calories: ask for the nutrition menu, unless the person skipped it for this source.
             val skipped = r.source.id in settings.menuNutritionPromptSkipped.first()
             val prompt = NutritionPrompt.shouldPrompt(menuDao.itemsOf(r.source.id).map { it.kcal }, skipped)
@@ -260,6 +273,7 @@ class MenuSourcesViewModel @Inject constructor(
                 val warnings = outcome.warnings + buildList {
                     if (merged.nutritionOnly > 0) add("${merged.nutritionOnly} item${if (merged.nutritionOnly == 1) "" else "s"} in the nutrition menu are not in the allergen chart. They are kept with their own allergen information only.")
                 }
+                keepForReview(chart, merged.items.map(::StagedItem))
                 _state.update {
                     it.copy(
                         running = null, nutritionPrompt = null,
@@ -279,15 +293,42 @@ class MenuSourcesViewModel @Inject constructor(
         }
     }
 
-    fun discardReview() = viewModelScope.launch {
-        _state.value.review?.let { r -> ingestor.markFailed(r.source, "Import discarded at review") }
-        _state.update { it.copy(review = null) }
+    /** Closing the review (back, a swipe, a tap outside) keeps the import: the source reads "To review" until it is decided. */
+    fun closeReview() = _state.update { it.copy(review = null) }
+
+    /** The source row's "Review import": reopens the review with every staged item. */
+    fun reviewStaged(source: MenuSourceEntity) {
+        viewModelScope.launch {
+            val items = ingestor.loadStaged(source)
+            if (items.isEmpty()) {
+                ingestor.discardStaged(source)
+                _state.update { it.copy(error = "The staged import is empty, so it was cleared. Import the menu again.") }
+                return@launch
+            }
+            val chart = items.none { it.entity.kcal != null }
+            _state.update {
+                it.copy(
+                    openSourceId = null,
+                    review = Review(source, items, chartNote = if (chart) "Allergen chart: ${items.size} items, no calories or macros in this file." else null),
+                )
+            }
+        }
+    }
+
+    /** Asks for the confirm before "Discard import". */
+    fun askDiscard(source: MenuSourceEntity?) = _state.update { it.copy(confirmDiscard = source) }
+
+    /** "Discard import", confirmed: the staged items are soft deleted. This is the only way a staged import is removed. */
+    fun discardImport(source: MenuSourceEntity) = viewModelScope.launch {
+        ingestor.discardStaged(source)
+        _state.update { it.copy(review = null, confirmDiscard = null) }
     }
 
     fun open(source: MenuSourceEntity?) = _state.update { it.copy(openSourceId = source?.id) }
 
     fun delete(source: MenuSourceEntity) = viewModelScope.launch {
         val now = clock.nowMillis()
+        ingestor.discardStaged(source)
         menuDao.softDeleteItemsOf(source.id, now)
         menuDao.softDeleteSource(source.id, now)
     }

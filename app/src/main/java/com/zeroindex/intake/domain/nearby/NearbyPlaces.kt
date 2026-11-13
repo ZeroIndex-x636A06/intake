@@ -28,6 +28,8 @@ data class NearbyPlace(
     val lat: Double,
     val lon: Double,
     val distanceM: Double,
+    /** Other names the map gives the place (alt_name, short_name, official_name), used only to match it to a chain. */
+    val altNames: List<String> = emptyList(),
 ) {
     /** What groups branches of one chain: the brand's Wikidata id, else the brand, else the name. */
     val chainKey: String get() = brandWikidata?.lowercase() ?: NameMatch.normalize(brand ?: name)
@@ -43,6 +45,12 @@ object NameMatch {
     fun normalize(raw: String): String {
         val folded = Normalizer.normalize(raw, Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "")
         return folded.lowercase().replace("&", " and ").replace(Regex("^the\\s+"), "").replace(Regex("[^a-z0-9]+"), "")
+    }
+
+    /** Lower-case words of [raw]: accents folded, apostrophes dropped ("Hardee's" is "hardees"), "&" read as "and". */
+    fun words(raw: String): List<String> {
+        val folded = Normalizer.normalize(raw, Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "")
+        return folded.lowercase().replace(Regex("['\u2019\u2018`]"), "").replace("&", " and ").split(Regex("[^a-z0-9]+")).filter { it.isNotEmpty() }
     }
 
     /** True when the two names are the same place or one is the other plus a suffix ("subway" / "subway restaurant"). */
@@ -100,6 +108,8 @@ object OverpassParser {
                 lat = lat,
                 lon = lon,
                 distanceM = d,
+                altNames = listOfNotNull(tag("alt_name"), tag("short_name"), tag("official_name"), tag("brand:en"))
+                    .flatMap { it.split(';') }.map { it.trim() }.filter { it.isNotEmpty() }.distinct(),
             )
         }
         return out.sortedBy { it.distanceM }

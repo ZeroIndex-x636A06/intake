@@ -299,3 +299,7 @@ about $0.41 to about $4 a month, which the cap would stop at $2.00.
 - No emulator: none of the new Settings → AI cards (switch, budget, meter, cost screen) has been
   seen on a screen.
 - Structured menu parsing is tested on hand-written JSON-LD, not on real restaurant pages.
+
+### Round 5 change to row 11 (nearby menus)
+
+The nearby search no longer makes one or two model calls per restaurant. Restaurants the free steps (saved menu, chain table, own website) found nothing for go to the model in batches: up to 8 restaurants per call, at most 3 calls per search (24 restaurants, nearest first). One call asks for each restaurant's nutrition page address (read afterwards with no AI) and labelled estimates, with the allergens the model knows each item contains. Estimates are never shown as free of an allergen. The search card states the cap before running; the calls and the cost so far are shown while it runs. "Look up the rest with AI" runs the next up-to-3 calls for the restaurants still missing, only on a tap, with its own cost line. Still the `MENU_IMPORT` feature, `USER_ACTION`, in `NearbyMenuSearch.kt`.

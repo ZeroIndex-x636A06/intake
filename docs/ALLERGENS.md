@@ -161,3 +161,16 @@ Add food (search rows, portion step), barcode result (only when no stronger flag
 - **Baking chemistry.** In a baked good, 3 or more eggs, eggs above 20% of weight, or wheat flour above 8% is the structure: refused. One egg or a thickening spoon of flour is adaptable.
 - **Anything unplaced is refused:** a flagged line with no class (unless it is optional and tiny: then "leave it out"), a warning no ingredient line explains, an unusable substitute.
 - **Never clears a warning.** The original recipe keeps its CONTAINS verdict and warning on the card. "Save adapted copy" saves a separate recipe made of the swapped lines, re-scanned locally (and with any model claim merged back in); if the copy still blocks, nothing is offered. A plant cheese saves as "check the label", never "clear". Nutrition is the page's figure for the original, kept and noted as an estimate in the notes, or "not listed" when the page gave none.
+
+### Estimates, nutrition-only menus and "No allergens found" (round 5)
+
+The nearby and imported-menu lists showed "No allergens found" for AI-estimated items (McDonald's Hotcakes, Filet-O-Fish, Whopper, BK French Fries). The cause: the estimate path asked the model for an ingredient list, so the item carried ingredient text, `hasNoIngredientInfo` was false, the scan found nothing, and the chip read clear. The stored "check the label" status was never consulted when the list was drawn. Saved eat-out options and AI-found options had the same gap, and an AI-read PDF with no allergen column was saved as CLEAR.
+
+The rule now (`MenuAllergenEvidence`, tested): a menu item can be clear only when its source STATED allergen information (a chart row, a "Contains:" line, an ingredient panel, or the chart's "no major allergens listed" line) and that information is clean. Otherwise the best verdict is "Check with the restaurant" (the check-label tier). That covers:
+
+- AI estimates. Marked with the description prefix "AI estimate"; the model's own ingredient guess is moved into the description, so it is never ingredient text. What the model says an item contains is stored as a stated "May contain" line, so it raises an amber review now and whenever the person's allergens change. It is raise-only.
+- Pages or PDFs with no allergen column (the OSU nutrition PDF): no ingredient text is kept, and an AI-read item with no ingredient text is saved as CHECK_LABEL, not CLEAR.
+- Saved eat-out options and options an AI found: no ingredient text exists, so they never read as clear.
+- Merged chart plus nutrition menus: items matched to a chart row carry the chart's stated list, so the chart's verdicts apply; nutrition-only items stay unstated.
+
+The estimate prompt asks the model to list the allergens it knows each item contains (Hotcakes: milk, egg, wheat), for every item, whether or not the person avoids anything.

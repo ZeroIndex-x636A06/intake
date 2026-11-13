@@ -26,6 +26,7 @@ import com.zeroindex.intake.domain.menu.MenuTableParse
 import com.zeroindex.intake.domain.menu.NutritionPrompt
 import com.zeroindex.intake.domain.menu.NutritionTableParser
 import com.zeroindex.intake.domain.menu.PositionedNutritionTable
+import com.zeroindex.intake.domain.menu.MenuAllergenEvidence
 import com.zeroindex.intake.domain.menu.StatedAllergens
 import com.zeroindex.intake.domain.pdf.PdfChunkPlanner
 import com.zeroindex.intake.domain.pdf.PdfDocument
@@ -218,7 +219,15 @@ class MenuIngestor @Inject constructor(
         val marked = items.filter { it.kcal != null && it.protein != null }.map {
             it.copy(
                 macrosPublished = false,
-                description = listOf("AI estimate from the menu's wording, not published nutrition", it.description).filter { d -> d.isNotBlank() }.joinToString(" · "),
+                // The model's ingredient list is a guess too: it moves into the description, so the item carries no
+                // ingredient text and can never read as "ingredients listed". What the model says the item contains is
+                // kept as a stated "May contain" line, so it raises a warning now and whenever the allergens change.
+                description = listOf(
+                    MenuAllergenEvidence.ESTIMATE_NOTE,
+                    it.description,
+                    it.ingredients.takeIf { g -> g.isNotBlank() }?.let { g -> "Guessed ingredients: $g" }.orEmpty(),
+                ).filter { d -> d.isNotBlank() }.joinToString(" · "),
+                ingredients = MenuAllergenEvidence.claimsAsText(it.containsAllergens),
             )
         }
         return stageItems(source, marked, avoided, structured = true).map { st ->
@@ -524,7 +533,7 @@ class MenuIngestor @Inject constructor(
                     allergenStatus = when {
                         verdict.blocks -> AllergenStatus.CONTAINS
                         verdict.mayContain.isNotEmpty() -> AllergenStatus.MAY_CONTAIN
-                        verdict.checkLabel.isNotEmpty() || (structured && item.ingredients.isBlank()) -> AllergenStatus.CHECK_LABEL
+                        verdict.checkLabel.isNotEmpty() || item.ingredients.isBlank() -> AllergenStatus.CHECK_LABEL
                         else -> AllergenStatus.CLEAR
                     },
                     allergenMatches = verdict.matches.map { it.matchedTerm }.distinct().joinToString(", "),
@@ -546,6 +555,46 @@ class MenuIngestor @Inject constructor(
         menuDao.upsertSource(
             source.copy(lastRunAt = now, lastStatus = MenuRunStatus.OK, lastError = null, itemCount = toSave.size, updatedAt = now),
         )
+    }
+
+    /**
+     * Keeps a finished import for review ([StagedImports]): the staged items are stored under the source's hidden staging
+     * source and the source reads "To review". Called for every import path, so closing the review loses nothing. A
+     * previous staged import of the same source is replaced (soft deleted).
+     */
+    suspend fun persistStaged(source: MenuSourceEntity, items: List<StagedItem>) {
+        val now = clock.nowMillis()
+        val stagingId = StagedImports.stagingId(source.id)
+        menuDao.softDeleteItemsOf(stagingId, now)
+        menuDao.upsertSource(StagedImports.stagingSource(source, items.size, now))
+        menuDao.upsertItems(StagedImports.toRows(source, items, now))
+        menuDao.upsertSource(StagedImports.markToReview(source, now))
+    }
+
+    /** The staged items kept for [source], or an empty list when there are none. */
+    suspend fun loadStaged(source: MenuSourceEntity): List<StagedItem> =
+        StagedImports.fromRows(source, menuDao.itemsOf(StagedImports.stagingId(source.id)))
+
+    /** The person accepted: saves [items]' accepted ones to [source], then clears the staged copy (soft delete). */
+    suspend fun commitStaged(source: MenuSourceEntity, items: List<StagedItem>) {
+        commit(source, StagedImports.acceptedEntities(source, items))
+        clearStaged(source.id)
+    }
+
+    /** "Discard import": the staged items are soft deleted and the source goes back to how it read before. */
+    suspend fun discardStaged(source: MenuSourceEntity) {
+        val now = clock.nowMillis()
+        clearStaged(source.id)
+        val current = menuDao.source(source.id) ?: return
+        val saved = menuDao.itemsOf(source.id).size
+        menuDao.upsertSource(current.copy(lastStatus = StagedImports.statusAfterDiscard(saved), lastError = null, updatedAt = now))
+    }
+
+    private suspend fun clearStaged(sourceId: String) {
+        val now = clock.nowMillis()
+        val stagingId = StagedImports.stagingId(sourceId)
+        menuDao.softDeleteItemsOf(stagingId, now)
+        menuDao.softDeleteSource(stagingId, now)
     }
 
     /**
@@ -571,7 +620,7 @@ class MenuIngestor @Inject constructor(
      */
     suspend fun runScheduled(): Int {
         var ok = 0
-        menuDao.sources().filter { it.enabled && it.kind != MenuSourceKind.TEXT }.forEach { source ->
+        menuDao.sources().filter { it.enabled && it.kind != MenuSourceKind.TEXT && !StagedImports.needsReview(it.lastStatus) }.forEach { source ->
             runCatching { stage(source, AiTrigger.OPT_IN_SCHEDULE) }
                 .onSuccess { staged -> commit(source, staged.items.map { it.entity }); ok++ }
                 .onFailure { markFailed(source, (it as? AiError)?.message ?: it.message ?: "Import failed") }
@@ -604,6 +653,11 @@ internal object MenuPrompts {
                     "footnotes and column headers are not items. Skip a row that is cut off by the page edge.",
             )
         }
+        appendLine(
+            "For every item also list in containsAllergens each major allergen (milk, egg, wheat, soy, peanut, tree nut, fish, " +
+                "shellfish, sesame) you know it contains, for example a McDonald's Hotcakes item contains milk, egg and wheat. " +
+                "Leaving one out never means the item is free of it.",
+        )
         if (avoided.isNotEmpty()) {
             appendLine(
                 "The user avoids ${avoided.joinToString()}. For each item list any of these it contains or is likely " +

@@ -291,6 +291,13 @@ fun MenuSourcesScreen(
                                 MenuRunStatus.FAILED -> StatusPill("Failed", tone = PillTone.Bad)
                                 MenuRunStatus.RUNNING -> StatusPill("Running", tone = PillTone.Wait)
                                 MenuRunStatus.NEVER_RUN -> StatusPill("Never run", tone = PillTone.Wait)
+                                MenuRunStatus.TO_REVIEW -> StatusPill("To review", tone = PillTone.Wait)
+                            }
+                        }
+                        if (source.lastStatus == MenuRunStatus.TO_REVIEW) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Button(onClick = { viewModel.reviewStaged(source) }, shape = IntakeShape.Button, modifier = Modifier.heightIn(min = 48.dp)) { Text("Review import") }
+                                TextButton(onClick = { viewModel.askDiscard(source) }) { Text("Discard import") }
                             }
                         }
                         if (source.id in allergenOnly) {
@@ -312,7 +319,16 @@ fun MenuSourcesScreen(
     }
 
     if (adding) AddSourceSheet(onDismiss = { adding = false }, onAdd = { n, k, l, p -> viewModel.add(n, k, l, p); adding = false })
-    state.review?.let { ReviewSheet(it, onToggle = viewModel::toggle, onSave = viewModel::commit, onDiscard = viewModel::discardReview) }
+    state.review?.let { ReviewSheet(it, onToggle = viewModel::toggle, onSave = viewModel::commit, onClose = viewModel::closeReview, onDiscard = { viewModel.askDiscard(it.source) }) }
+    state.confirmDiscard?.let { src ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { viewModel.askDiscard(null) },
+            title = { Text("Discard this import?") },
+            text = { Text("The items read from ${src.restaurantName} that you have not accepted are removed. Items already saved are not touched.") },
+            confirmButton = { TextButton(onClick = { viewModel.discardImport(src) }) { Text("Discard import") } },
+            dismissButton = { TextButton(onClick = { viewModel.askDiscard(null) }) { Text("Keep it") } },
+        )
+    }
     state.openSourceId?.let { id ->
         sources.firstOrNull { it.id == id }?.let { src ->
             ItemsSheet(
@@ -392,12 +408,12 @@ private fun AddSourceSheet(onDismiss: () -> Unit, onAdd: (String, MenuSourceKind
 
 /** Nothing from a manual import is saved until the user has seen it. */
 @Composable
-private fun ReviewSheet(review: Review, onToggle: (Int) -> Unit, onSave: () -> Unit, onDiscard: () -> Unit) {
+private fun ReviewSheet(review: Review, onToggle: (Int) -> Unit, onSave: () -> Unit, onClose: () -> Unit, onDiscard: () -> Unit) {
     val flagged = review.items.count { it.entity.allergenStatus == AllergenStatus.CONTAINS || it.entity.allergenStatus == AllergenStatus.MAY_CONTAIN }
     val accepted = review.items.count { it.accepted }
-    ModalBottomSheet(onDismissRequest = onDiscard, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    ModalBottomSheet(onDismissRequest = onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.padding(horizontal = 16.dp).navigationBarsPadding()) {
-            SubHead("Review imported menu", "Nothing is stored until you accept items.")
+            SubHead("Review imported menu", "Nothing is added to your menus until you accept. Close this and it waits on the source as \"To review\".")
             review.warnings.forEach { w ->
                 Text(
                     w,
@@ -475,7 +491,7 @@ private fun ReviewSheet(review: Review, onToggle: (Int) -> Unit, onSave: () -> U
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(52.dp),
             ) { Text("Save $accepted accepted item${if (accepted == 1) "" else "s"}") }
             TextButton(onClick = onDiscard, modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 8.dp)) {
-                Text("Discard this import")
+                Text("Discard import")
             }
         }
     }

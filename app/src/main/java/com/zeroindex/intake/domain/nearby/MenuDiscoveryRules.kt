@@ -34,11 +34,39 @@ object ChainDirectory {
         }
     }
 
-    /** The chain a place belongs to: by brand Wikidata id first, then by the normalised brand or name. */
+    /**
+     * Words a map name may carry after the chain's name without changing which chain it is ("DQ Grill & Chill",
+     * "Popeyes Louisiana Kitchen"). A name that continues with any other word is not matched by its start.
+     */
+    private val DESCRIPTORS = setOf(
+        "and", "grill", "chill", "bar", "restaurant", "restaurants", "louisiana", "kitchen", "drive", "in", "pizza", "subs", "sandwiches",
+        "chicken", "famous", "express", "cafe", "coffee", "burgers", "bakery", "original", "treat", "treats", "brazier", "eats", "mexican",
+        "southwest", "of", "co", "company", "inc", "llc", "house", "the", "fast", "food",
+    )
+
+    /**
+     * The chain a place belongs to. In order: the brand's Wikidata id; then the normalised brand, name or any other name
+     * the map gives, against the chain's aliases; then the start of the brand or name, so "Popeyes Louisiana Kitchen" and
+     * "DQ Grill & Chill" find Popeyes and Dairy Queen. A start counts when the words after it are only descriptors, or,
+     * for the brand tag (which names the chain by definition), when it is at least five letters.
+     */
     fun match(place: NearbyPlace, chains: List<ChainEntry>): ChainEntry? {
         place.brandWikidata?.lowercase()?.let { id -> chains.firstOrNull { it.wikidata == id }?.let { return it } }
-        val keys = listOfNotNull(place.brand, place.name).map(NameMatch::normalize).filter { it.isNotEmpty() }
-        return chains.firstOrNull { c -> keys.any { it in c.aliases } }
+        val raw = listOfNotNull(place.brand, place.name) + place.altNames
+        val keys = raw.map(NameMatch::normalize).filter { it.isNotEmpty() }
+        chains.firstOrNull { c -> keys.any { it in c.aliases } }?.let { return it }
+        for ((index, text) in raw.withIndex()) {
+            val isBrand = place.brand != null && index == 0
+            val words = NameMatch.words(text)
+            for (n in 1 until words.size) {
+                val head = words.take(n).joinToString("")
+                val rest = words.drop(n)
+                val ok = if (isBrand) head.length >= 5 else rest.all { it in DESCRIPTORS }
+                if (!ok) continue
+                chains.firstOrNull { head in it.aliases }?.let { return it }
+            }
+        }
+        return null
     }
 }
 

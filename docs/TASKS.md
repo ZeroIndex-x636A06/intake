@@ -214,3 +214,7 @@ screens are in RESUME.md. Still needs a phone with an OpenRouter key: Recipe Hun
 - 12 "Could be adapted" (substitution engine, section, Save adapted copy), 13 "Saved" chip by URL, 15 recipe images. Rules in docs/ALLERGENS.md. Unit-tested only.
 
 Nutrition meals card without Drinks, and a location-denied note with an app-settings button on the nearby card: done on `claude/optimistic-noether-fullk5`, unit-tested, not seen on a device.
+
+## Round 5 items 1 to 3: nearby chains, batched AI lookups, imports waiting for review (branch `worktree-agent-a2bb1c5265e1024f0`)
+
+Done and unit-tested, not run on a device, no schema change. Safety: estimates and sources that state no allergen information never read as clear (`MenuAllergenEvidence`, docs/ALLERGENS.md). Missed restaurants: 26 chains added to `nearby_chains.json`, alias and name-prefix matching (DQ Grill & Chill, Popeyes Louisiana Kitchen), batched AI lookups (8 places a call, 3 calls), "Look up the rest with AI". Imports: every import is kept as "To review" with "Review import" and a confirmed "Discard import" (`StagedImports`).

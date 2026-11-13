@@ -56,6 +56,8 @@ data class NearbyState(
     val foundAt: Long? = null,
     val costUsd: Double? = null,
     val resultCount: Int = 0,
+    /** Restaurants the search found no menu for, which "Look up the rest with AI" can still try. */
+    val aiPending: Int = 0,
 )
 
 data class SwapUiState(
@@ -109,6 +111,9 @@ class SwapViewModel @Inject constructor(
     fun setUseAi(on: Boolean) = _state.update { it.copy(nearby = it.nearby.copy(useAi = on)) }
 
     fun stopSearch() = host.stop()
+
+    /** The card's "Look up the rest with AI" button: batched AI calls for the restaurants still without a menu. */
+    fun lookUpRest() = host.lookUpRest()
 
     /** The map service failed and the person tapped "Search with AI instead". */
     fun searchWithAi() {

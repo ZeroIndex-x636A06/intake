@@ -13,10 +13,10 @@ interface MenuDao {
     @Upsert suspend fun upsertSources(sources: List<MenuSourceEntity>)
     @Upsert suspend fun upsertItems(items: List<MenuItemEntity>)
 
-    @Query("SELECT * FROM menu_source WHERE deletedAt IS NULL ORDER BY restaurantName")
+    @Query("SELECT * FROM menu_source WHERE deletedAt IS NULL AND id NOT LIKE 'staged:%' ORDER BY restaurantName")
     fun observeSources(): Flow<List<MenuSourceEntity>>
 
-    @Query("SELECT * FROM menu_source WHERE deletedAt IS NULL ORDER BY restaurantName")
+    @Query("SELECT * FROM menu_source WHERE deletedAt IS NULL AND id NOT LIKE 'staged:%' ORDER BY restaurantName")
     suspend fun sources(): List<MenuSourceEntity>
 
     @Query("SELECT * FROM menu_source WHERE id = :id AND deletedAt IS NULL")
@@ -33,20 +33,20 @@ interface MenuDao {
 
     /** Sources whose saved items all lack calories: allergen charts still waiting for a nutrition menu. */
     @Query(
-        "SELECT sourceId FROM menu_item WHERE deletedAt IS NULL AND sourceId IS NOT NULL " +
+        "SELECT sourceId FROM menu_item WHERE deletedAt IS NULL AND sourceId IS NOT NULL AND sourceId NOT LIKE 'staged:%' " +
             "GROUP BY sourceId HAVING COUNT(kcal) = 0",
     )
     fun observeAllergenOnlySourceIds(): Flow<List<String>>
 
-    @Query("SELECT * FROM menu_item WHERE deletedAt IS NULL ORDER BY restaurantName, name")
+    @Query("SELECT * FROM menu_item WHERE deletedAt IS NULL AND (sourceId IS NULL OR sourceId NOT LIKE 'staged:%') ORDER BY restaurantName, name")
     suspend fun allItems(): List<MenuItemEntity>
 
-    @Query("SELECT * FROM menu_item WHERE id = :id AND deletedAt IS NULL")
+    @Query("SELECT * FROM menu_item WHERE id = :id AND deletedAt IS NULL AND (sourceId IS NULL OR sourceId NOT LIKE 'staged:%')")
     suspend fun item(id: String): MenuItemEntity?
 
     /** Items the local engine cleared, for Plan B to rank offline. */
     @Query(
-        "SELECT * FROM menu_item WHERE deletedAt IS NULL AND allergenStatus = 'CLEAR' ORDER BY restaurantName, name",
+        "SELECT * FROM menu_item WHERE deletedAt IS NULL AND allergenStatus = 'CLEAR' AND (sourceId IS NULL OR sourceId NOT LIKE 'staged:%') ORDER BY restaurantName, name",
     )
     suspend fun clearItems(): List<MenuItemEntity>
 

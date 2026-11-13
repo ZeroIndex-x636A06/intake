@@ -9,8 +9,7 @@ import com.zeroindex.intake.data.ai.ServerTool
 import com.zeroindex.intake.data.ai.menu.Fetched
 import com.zeroindex.intake.data.ai.menu.MenuFetcher
 import com.zeroindex.intake.data.ai.menu.MenuIngestor
-import com.zeroindex.intake.data.ai.menu.MenuPrompts
-import com.zeroindex.intake.data.ai.menu.ParsedMenu
+import com.zeroindex.intake.data.ai.menu.ParsedItem
 import com.zeroindex.intake.data.ai.menu.PdfRoute
 import com.zeroindex.intake.data.ai.menu.StagedItem
 import com.zeroindex.intake.data.db.dao.MenuDao
@@ -21,7 +20,11 @@ import com.zeroindex.intake.domain.ai.AiFeature
 import com.zeroindex.intake.domain.ai.AiTrigger
 import com.zeroindex.intake.domain.nearby.ChainDirectory
 import com.zeroindex.intake.domain.nearby.ChainEntry
+import com.zeroindex.intake.domain.menu.MenuAllergenEvidence
+import com.zeroindex.intake.domain.nearby.BatchAnswer
+import com.zeroindex.intake.domain.nearby.BatchItem
 import com.zeroindex.intake.domain.nearby.MenuLinkScorer
+import com.zeroindex.intake.domain.nearby.NearbyAiBatch
 import com.zeroindex.intake.domain.nearby.MenuOrigin
 import com.zeroindex.intake.domain.nearby.NearbyPlace
 import com.zeroindex.intake.domain.nearby.RowPhase
@@ -36,19 +39,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.Serializable
 
 /** A menu that was found for one restaurant and saved as a source. */
 data class DiscoveredMenu(val sourceId: String, val origin: MenuOrigin)
 
-/** What AI looking for a menu may cost the person, and what it has cost so far in this search. */
-class AiAllowance(val maxLookups: Int) {
-    private var used = 0
-    @Synchronized fun take(): Boolean = if (used < maxLookups) { used++; true } else false
-}
-
-@Serializable
-internal data class FoundMenuUrl(val nutritionUrl: String)
+/** What one batched AI lookup produced: the menus it found by place id, and why it found none, if it did not. */
+data class BatchOutcome(val found: Map<String, DiscoveredMenu>, val error: String? = null)
 
 /**
  * Finds a restaurant's menu and brings it in through the ordinary menu import, one restaurant at a time. In order:
@@ -56,8 +52,10 @@ internal data class FoundMenuUrl(val nutritionUrl: String)
  *  2. the bundled table of chain nutrition pages, tried with no AI;
  *  3. the restaurant's own website: its home page is read for links that mention nutrition, allergens, menu or a PDF,
  *     and the best few are tried with no AI (one level deep, one request each);
- *  4. only when the person switched it on for this search, AI: ask for the nutrition page's address with a web search and
- *     import that address, or, if none exists, estimates that are labelled as estimates.
+ * Steps 1 to 3 never use AI ([discover]). A restaurant they find nothing for can be looked up by AI, only when the
+ * person switched that on or tapped "Look up the rest with AI": [lookupBatch] sends up to 8 such restaurants in one call
+ * and asks for each one's nutrition page address (imported with no further AI) or, failing that, estimated items that
+ * are labelled as estimates and are never "clear".
  * Every menu found is saved as a source, so the next search finds it in step 1, with no signal.
  */
 @Singleton
@@ -75,22 +73,21 @@ class NearbyMenuSearch @Inject constructor(
     }
 
     /**
-     * Finds and saves the menu for [place]. Returns null when none could be found; [onPhase] reports "looking" and
-     * "reading". [aiCost] is told what each AI lookup cost. Cancelling the coroutine stops it at the next request.
+     * Finds and saves the menu for [place] with no AI. Returns null when none could be found; [onPhase] reports "looking"
+     * and "reading". Cancelling the coroutine stops it at the next request.
      */
-    suspend fun discover(
-        place: NearbyPlace,
-        allowance: AiAllowance?,
-        onPhase: (RowPhase) -> Unit,
-        onAiCost: (Double) -> Unit,
-    ): DiscoveredMenu? {
+    suspend fun discover(place: NearbyPlace, onPhase: (RowPhase) -> Unit): DiscoveredMenu? {
         onPhase(RowPhase.LOOKING)
         val chain = ChainDirectory.match(place, chains)
 
         // 1. Already saved.
         val known = menuDao.sources().filter { it.itemCount > 0 }.map { SourceMatch.Known(it.id, it.restaurantName) }
         SourceMatch.find(place, chain, known)?.let { k ->
-            if (menuDao.itemsOf(k.id).any { it.kcal != null }) return DiscoveredMenu(k.id, MenuOrigin.SAVED)
+            if (menuDao.itemsOf(k.id).any { it.kcal != null }) {
+                // A saved AI estimate stays labelled as one: it is not published nutrition.
+                val estimate = menuDao.source(k.id)?.pastedText?.startsWith(MenuAllergenEvidence.ESTIMATE_MARK) == true
+                return DiscoveredMenu(k.id, if (estimate) MenuOrigin.AI_ESTIMATE else MenuOrigin.SAVED)
+            }
         }
 
         val name = chain?.name ?: place.displayName
@@ -113,17 +110,6 @@ class NearbyMenuSearch @Inject constructor(
             }
         }
 
-        // 4. AI, only when the person turned it on for this search.
-        if (allowance != null && gateway.isConfigured() && allowance.take()) {
-            onPhase(RowPhase.LOOKING)
-            val found = askForUrl(place, name, onAiCost)
-            if (found != null) {
-                tryImport(name, found, allowAi = true, route = PdfRoute.PHONE_THEN_AI, onPhase = onPhase)?.let { return DiscoveredMenu(it, MenuOrigin.AI_PAGE) }
-            }
-            if (allowance.take()) {
-                estimate(place, name, onAiCost)?.let { return DiscoveredMenu(it, MenuOrigin.AI_ESTIMATE) }
-            }
-        }
         return null
     }
 
@@ -150,47 +136,100 @@ class NearbyMenuSearch @Inject constructor(
         ingestor.commit(source, items.map { it.entity })
     }
 
-    private suspend fun askForUrl(place: NearbyPlace, restaurant: String, onAiCost: (Double) -> Unit): String? = try {
-        val outcome = gateway.structured(
-            feature = AiFeature.MENU_IMPORT,
-            trigger = AiTrigger.USER_ACTION,
-            serializer = FoundMenuUrl.serializer(),
-            schema = S.obj("nutritionUrl" to S.string("The https address of the restaurant's own nutrition or allergen page or PDF, or an empty string")),
-            system = "You find where a restaurant publishes its nutrition information. Search the web and return the address of " +
-                "the restaurant's own nutrition, allergen or full menu page or PDF. Never guess an address: if you did not " +
-                "see it in a search result, return an empty string. Reply with JSON only.",
-            parts = listOf(AiPart.Text("Restaurant: $restaurant" + (place.website?.let { "\nIts website: $it" } ?: "") + (place.cuisine?.let { "\nCuisine: $it" } ?: ""))),
-            tools = listOf(ServerTool.WebSearch(maxResults = 5, maxUses = 2)),
-        )
-        onAiCost(outcome.response.costUsd ?: 0.0)
-        outcome.value.nutritionUrl.trim().takeIf { it.startsWith("https://") && !it.contains(' ') }
-    } catch (e: AiError) {
-        null
+    /** Whether [place] is a chain (known by the table or by the map's brand tag), as opposed to a local or independent place. */
+    private fun isChain(place: NearbyPlace): Boolean = ChainDirectory.match(place, chains) != null || place.brand != null
+
+    private fun nameOf(place: NearbyPlace): String = ChainDirectory.match(place, chains)?.name ?: place.displayName
+
+    /**
+     * One AI call for up to [NearbyAiBatch.BATCH_SIZE] restaurants that no free step found a menu for. Each restaurant
+     * that gets a nutrition page address has that page read with no further AI; one that does not, but has estimated
+     * items, gets those, labelled as estimates. [onPhase] says which restaurant is being read, and [onAiCost] is told
+     * what the one call cost. A failed call gives an empty result with the reason, and spends nothing more.
+     */
+    suspend fun lookupBatch(places: List<NearbyPlace>, onPhase: (NearbyPlace, RowPhase) -> Unit, onAiCost: (Double) -> Unit): BatchOutcome {
+        if (places.isEmpty()) return BatchOutcome(emptyMap())
+        coroutineContext.ensureActive()
+        val asked = NearbyAiBatch.restaurantsOf(places, ::isChain, ::nameOf)
+        val avoided = allergens.avoidedAllergens()
+        val answer = try {
+            val outcome = gateway.structured(
+                feature = AiFeature.MENU_IMPORT,
+                trigger = AiTrigger.USER_ACTION,
+                serializer = BatchAnswer.serializer(),
+                schema = batchSchema,
+                system = NearbyAiBatch.system(avoided),
+                parts = listOf(AiPart.Text(NearbyAiBatch.userText(asked))),
+                tools = listOf(ServerTool.WebSearch(maxResults = 8, maxUses = 4)),
+                maxTokens = 12_000,
+            )
+            onAiCost(outcome.response.costUsd ?: 0.0)
+            outcome.value
+        } catch (e: AiError) {
+            return BatchOutcome(emptyMap(), e.message ?: "The AI lookup failed.")
+        }
+        val resolved = NearbyAiBatch.resolve(asked, answer)
+        val found = LinkedHashMap<String, DiscoveredMenu>()
+        for ((index, place) in places.withIndex()) {
+            coroutineContext.ensureActive()
+            val r = resolved[asked[index].id] ?: continue
+            val restaurant = asked[index].name
+            if (r.nutritionUrl != null) {
+                onPhase(place, RowPhase.READING)
+                val id = tryImport(restaurant, r.nutritionUrl, allowAi = false, route = PdfRoute.PHONE_ONLY, onPhase = { onPhase(place, it) })
+                if (id != null) {
+                    found[place.osmId] = DiscoveredMenu(id, MenuOrigin.AI_PAGE)
+                    continue
+                }
+            }
+            if (r.items.isNotEmpty()) {
+                onPhase(place, RowPhase.READING)
+                saveEstimates(place, restaurant, r.items)?.let { found[place.osmId] = DiscoveredMenu(it, MenuOrigin.AI_ESTIMATE) }
+            }
+        }
+        return BatchOutcome(found, if (found.isEmpty()) "The AI found no menu for these places." else null)
     }
 
-    private suspend fun estimate(place: NearbyPlace, restaurant: String, onAiCost: (Double) -> Unit): String? = try {
-        val avoided = allergens.avoidedAllergens()
-        val outcome = gateway.structured(
-            feature = AiFeature.MENU_IMPORT,
-            trigger = AiTrigger.USER_ACTION,
-            serializer = ParsedMenu.serializer(),
-            schema = MenuPrompts.schema,
-            system = MenuPrompts.system(restaurant, avoided) + "\nNo published nutrition could be found for this place. Return 6 to 12 of its typical " +
-                "menu items with estimates from the descriptions you find, macrosPublished false. Never invent a dish that is not on its menu.",
-            parts = listOf(AiPart.Text("Restaurant: $restaurant" + (place.website?.let { "\nIts website: $it" } ?: ""))),
-            tools = listOf(ServerTool.WebSearch(maxResults = 5, maxUses = 2)),
-        )
-        onAiCost(outcome.response.costUsd ?: 0.0)
+    private suspend fun saveEstimates(place: NearbyPlace, restaurant: String, items: List<BatchItem>): String? {
         val now = clock.nowMillis()
         val source = MenuSourceEntity(restaurantName = restaurant, kind = MenuSourceKind.TEXT, location = "", pastedText = "AI estimate, ${place.osmId}", createdAt = now, updatedAt = now)
-        val staged = ingestor.stageEstimates(source, outcome.value.items)
-        if (staged.size < MIN_ITEMS) null else { save(source.copy(enabled = false), staged); source.id }
-    } catch (e: AiError) {
-        null
+        val parsed = items.map {
+            ParsedItem(
+                name = it.name.trim(), description = it.description.trim(), ingredients = "",
+                kcal = it.kcal, protein = it.protein, carbs = it.carbs, fat = it.fat,
+                macrosPublished = false, priceCents = null, containsAllergens = it.containsAllergens, allergenNotes = "",
+            )
+        }
+        val staged = ingestor.stageEstimates(source, parsed)
+        if (staged.size < MIN_ITEMS) return null
+        save(source.copy(enabled = false), staged)
+        return source.id
+    }
+
+    private val batchSchema by lazy {
+        S.obj(
+            "restaurants" to S.array(
+                S.obj(
+                    "id" to S.string("The id from the list"),
+                    "nutritionUrl" to S.string("The https address of the restaurant's own nutrition, allergen or menu page or PDF, or an empty string"),
+                    "items" to S.array(
+                        S.obj(
+                            "name" to S.string(),
+                            "description" to S.string(),
+                            "kcal" to S.nullableNumber(),
+                            "protein" to S.nullableNumber(),
+                            "carbs" to S.nullableNumber(),
+                            "fat" to S.nullableNumber(),
+                            "containsAllergens" to S.array(S.string()),
+                        ),
+                    ),
+                ),
+            ),
+        )
     }
 
     companion object {
         /** A page that gives fewer menu items than this was not a menu. */
-        const val MIN_ITEMS = 3
+        const val MIN_ITEMS = NearbyAiBatch.MIN_ITEMS
     }
 }
