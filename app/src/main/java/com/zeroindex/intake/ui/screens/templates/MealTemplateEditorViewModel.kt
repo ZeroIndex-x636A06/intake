@@ -2,6 +2,7 @@ package com.zeroindex.intake.ui.screens.templates
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zeroindex.intake.data.db.dao.FoodLogDao
 import com.zeroindex.intake.data.db.dao.RecipeDao
 import com.zeroindex.intake.data.db.entity.FoodEntity
 import com.zeroindex.intake.data.db.entity.newId
@@ -17,6 +18,9 @@ import com.zeroindex.intake.domain.model.FoodSource
 import com.zeroindex.intake.domain.recipe.RecipeCandidate
 import com.zeroindex.intake.domain.recipe.RecipeSearch
 import com.zeroindex.intake.domain.template.MealTemplateRules
+import com.zeroindex.intake.domain.template.PickItem
+import com.zeroindex.intake.domain.template.PickLists
+import com.zeroindex.intake.domain.template.TemplatePicker
 import com.zeroindex.intake.domain.template.RecipeFood
 import com.zeroindex.intake.domain.template.TemplateLine
 import com.zeroindex.intake.domain.units.PortionUnit
@@ -24,6 +28,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -37,6 +42,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /** One line in the editor. [amountText] is what the person typed: servings for a recipe, the portion unit for a food. */
 data class EditorItem(
@@ -50,10 +56,10 @@ data class EditorItem(
     val amountText: String,
 )
 
+/** The picker: Recent and All saved (filtered by the typed words), then the offline USDA hits for them. */
 data class SearchHits(
-    val foods: List<FoodEntity> = emptyList(),
+    val lists: PickLists = PickLists(emptyList(), emptyList()),
     val database: List<RefFood> = emptyList(),
-    val recipes: List<RecipeCandidate> = emptyList(),
 )
 
 data class EditorUi(
@@ -77,6 +83,7 @@ class MealTemplateEditorViewModel @Inject constructor(
     private val foods: FoodRepository,
     private val foodRef: FoodRefRepository,
     private val recipeDao: RecipeDao,
+    private val foodLogDao: FoodLogDao,
     settings: SettingsRepository,
 ) : ViewModel() {
 
@@ -93,24 +100,47 @@ class MealTemplateEditorViewModel @Inject constructor(
     private val query = MutableStateFlow("")
     fun setQuery(text: String) { query.value = text }
 
-    @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
-    val hits: StateFlow<SearchHits> = query.debounce(250).flatMapLatest { q ->
-        if (q.isBlank()) {
-            flowOf(SearchHits())
-        } else {
-            combine(
-                foods.search(q.trim()).map { list -> list.filter { SearchScope.FOODS.keeps(DrinkRule.isStoredDrink(it.drinkCategory)) } },
-                recipeDao.observeAll(),
-                flow { emit(runCatching { foodRef.search(q, scope = SearchScope.FOODS) }.getOrDefault(emptyList())) },
-            ) { f, recipes, db ->
-                SearchHits(
-                    foods = f.take(20),
-                    database = db.take(15),
-                    recipes = RecipeSearch.rank(q, recipes.map { RecipeCandidate(it.id, it.name, it.kcalPerServing, it.proteinPerServing) }).take(15),
+    /** Every saved food (not a recipe's stand-in food, not a drink) and recipe, with when it was last logged. */
+    private val saved: Flow<List<PickItem>> = combine(
+        foods.observeAll(),
+        recipeDao.observeAll(),
+        foodLogDao.observeRecentPrepared(60),
+    ) { allFoods, recipes, prepared ->
+        val foodItems = allFoods
+            .filter { SearchScope.FOODS.keeps(DrinkRule.isStoredDrink(it.drinkCategory)) && !isRecipeFood(it) }
+            .map {
+                PickItem(
+                    PickItem.Kind.FOOD, it.id, it.name,
+                    "${it.kcalPer100g.roundToInt()} kcal per 100 g · ${it.servingLabel}",
+                    lastUsedAt = if (it.timesLogged > 0) it.updatedAt else null,
+                    searchText = it.brand.orEmpty(),
                 )
             }
+        val candidates = RecipeSearch.withLastLogged(
+            recipes.map { RecipeCandidate(it.id, it.name, it.kcalPerServing, it.proteinPerServing) },
+            prepared.map { RecipeSearch.LoggedName(it.name, it.at) },
+        )
+        val recipeItems = candidates.map { PickItem(PickItem.Kind.RECIPE, it.id, it.name, "Per serving · ${it.summary}", lastUsedAt = it.lastLoggedAt) }
+        foodItems + recipeItems
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
+    val hits: StateFlow<SearchHits> = query.debounce(250).flatMapLatest { q ->
+        combine(
+            saved,
+            if (q.isBlank()) flowOf(emptyList()) else flow { emit(runCatching { foodRef.search(q, scope = SearchScope.FOODS) }.getOrDefault(emptyList())) },
+        ) { items, db ->
+            SearchHits(lists = TemplatePicker.build(q, items), database = db.take(15))
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SearchHits())
+
+    /** Adds a food or recipe the picker listed. */
+    fun addPicked(item: PickItem) {
+        when (item.kind) {
+            PickItem.Kind.RECIPE -> addRecipe(item.id)
+            PickItem.Kind.FOOD -> viewModelScope.launch { foods.findById(item.id)?.let(::addFood) }
+        }
+    }
 
     /** Loads the template to edit once; a null id starts an empty one. Safe to call again on recomposition. */
     fun start(templateId: String?) {
