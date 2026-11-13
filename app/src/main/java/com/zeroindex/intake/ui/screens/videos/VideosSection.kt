@@ -2,6 +2,24 @@ package com.zeroindex.intake.ui.screens.videos
 
 import com.zeroindex.intake.domain.videos.YoutubeIds
 import androidx.compose.foundation.BorderStroke
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.text.style.TextOverflow
+import com.zeroindex.intake.domain.training.muscles.BodyRegion
+import com.zeroindex.intake.domain.videos.VideoPaging
+import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -75,6 +93,7 @@ import com.zeroindex.intake.ui.theme.IntakeShape
  * Train > Videos (the `a-videos` frame). Search with your own YouTube key, filter to workouts, browse Recommended, keep
  * Saved. With no key: what the key is for, a way to add it, and "Paste a YouTube link", which needs none.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VideosSection(
     contentPadding: PaddingValues,
@@ -87,6 +106,10 @@ fun VideosSection(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val focus = LocalFocusManager.current
     var cleared by remember { mutableStateOf(false) }
+    var showFilters by remember { mutableStateOf(false) }
+    var showNote by remember { mutableStateOf(false) }
+    var allSaved by rememberSaveable { mutableStateOf(false) }
+    val listState = rememberLazyListState()
 
     // On first show and every time the page comes back to the front (a key may have been added in Settings).
     val owner = LocalLifecycleOwner.current
@@ -96,41 +119,102 @@ fun VideosSection(
         onDispose { owner.lifecycle.removeObserver(observer) }
     }
 
+    // Infinite scroll: the next page of the search loads when the last visible item is within a few of the end. The pair
+    // changes when a page arrives, so a page that is mostly filtered out still pulls the next one.
+    LaunchedEffect(listState) {
+        snapshotFlow { (listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1) to listState.layoutInfo.totalItemsCount }
+            .distinctUntilChanged()
+            .collect { (last, total) -> if (VideoPaging.nearEnd(last, total)) viewModel.loadMore() }
+    }
+
+    BackHandler(enabled = allSaved) { allSaved = false }
+
+    if (showFilters) {
+        FiltersSheet(
+            style = state.style,
+            muscle = state.muscle,
+            length = state.length,
+            onApply = { s, m, l -> viewModel.applyFilters(s, m, l); showFilters = false },
+            onDismiss = { showFilters = false },
+        )
+    }
+    if (showNote) {
+        AlertDialog(
+            onDismissRequest = { showNote = false },
+            confirmButton = { TextButton(onClick = { showNote = false }) { Text("Done") } },
+            title = { Text("How Videos works") },
+            text = {
+                Text(
+                    "Videos need internet and your own key. Intake never downloads a video. Only the words you search for are sent to YouTube, and only when you search or scroll for more. Video information and playback come from YouTube.",
+                )
+            },
+        )
+    }
+
     LazyColumn(
+        state = listState,
         modifier = modifier.fillMaxWidth(),
         contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        if (allSaved) {
+            savedAllItems(
+                saved = state.saved,
+                onBack = { allSaved = false },
+                onOpen = onOpenVideo,
+                onMake = onMakeWorkout,
+                onMoreLikeThis = { v -> allSaved = false; viewModel.moreLikeThis(v) },
+                onRemove = viewModel::unsave,
+            )
+            return@LazyColumn
+        }
+
         if (state.hasKey) {
             item(key = "search") {
-                OutlinedTextField(
-                    value = state.query,
-                    onValueChange = viewModel::setQuery,
-                    placeholder = { Text("Search workout videos") },
-                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                    trailingIcon = {
-                        if (state.query.isNotEmpty() || state.searchedFor != null) {
-                            IconButton(onClick = { viewModel.clearSearch() }) { Icon(Icons.Filled.Close, contentDescription = "Clear the search") }
-                        }
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(18.dp),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { focus.clearFocus(); viewModel.search() }),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-            item(key = "chips") {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ToggleChip("Workouts only", state.onlyWorkouts, viewModel::toggleOnlyWorkouts)
-                        ToggleChip("Hide Shorts", state.hideShorts, viewModel::toggleHideShorts)
-                        VideoStyle.entries.forEach { s -> ChoiceChip(s.label, selected = state.style == s, onClick = { viewModel.toggleStyle(s) }) }
-                    }
-                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        VideoLength.entries.forEach { l -> ChoiceChip(l.label, selected = state.length == l, onClick = { viewModel.setLength(l) }) }
-                    }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = state.query,
+                        onValueChange = viewModel::setQuery,
+                        placeholder = { Text("Search workout videos") },
+                        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                        trailingIcon = {
+                            if (state.query.isNotEmpty() || state.searchedFor != null) {
+                                IconButton(onClick = { viewModel.clearSearch() }) { Icon(Icons.Filled.Close, contentDescription = "Clear the search") }
+                            }
+                        },
+                        singleLine = true,
+                        shape = RoundedCornerShape(18.dp),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions(onSearch = { focus.clearFocus(); viewModel.search() }),
+                        modifier = Modifier.weight(1f),
+                    )
+                    VideosOverflow(
+                        searchesLeft = state.searchesLeft,
+                        cleared = cleared,
+                        onHow = { showNote = true },
+                        onClear = { viewModel.clearCache { cleared = true } },
+                    )
                 }
+            }
+            item(key = "filters") {
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ToggleChip("Workouts only", state.onlyWorkouts, viewModel::toggleOnlyWorkouts)
+                    ToggleChip("Hide Shorts", state.hideShorts, viewModel::toggleHideShorts)
+                    FiltersChip(state.filterCount) { showFilters = true }
+                }
+            }
+        }
+
+        if (state.saved.isNotEmpty()) {
+            item(key = "saved-strip") {
+                SavedStrip(
+                    saved = state.saved,
+                    onSeeAll = { allSaved = true },
+                    onOpen = onOpenVideo,
+                    onMake = onMakeWorkout,
+                    onMoreLikeThis = viewModel::moreLikeThis,
+                    onRemove = viewModel::unsave,
+                )
             }
         }
 
@@ -151,7 +235,7 @@ fun VideosSection(
             state.searchError != null -> item(key = "search-error") {
                 ErrorState(
                     title = "Could not search",
-                    body = state.searchError.orEmpty() + " Your saved videos below still work.",
+                    body = state.searchError.orEmpty() + " Your saved videos above still work.",
                     action = { TextButton(onClick = viewModel::search) { Text("Try again") } },
                 )
             }
@@ -183,7 +267,7 @@ fun VideosSection(
                         }
                     }
                 }
-                if (results.shown.isEmpty()) {
+                if (results.shown.isEmpty() && !state.canLoadMore) {
                     item(key = "none") {
                         EmptyState(
                             title = "No videos to show",
@@ -195,49 +279,191 @@ fun VideosSection(
                         VideoRow(scored, onClick = { onOpenVideo(scored.video.id) })
                     }
                 }
-            }
-
-            else -> recommendedItems(state, viewModel, onOpenVideo)
-        }
-
-        if (state.saved.isNotEmpty()) {
-            item(key = "saved-head") { Text("Saved", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 8.dp)) }
-            item(key = "saved-list") {
-                Surface(
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = IntakeShape.Card,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column {
-                        state.saved.forEachIndexed { i, v ->
-                            SavedRow(v, onOpen = { onOpenVideo(v.id) }, onMake = { onMakeWorkout(v.id) }, onRemove = { viewModel.unsave(v.id) })
-                            if (i != state.saved.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                item(key = "results-foot") {
+                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        when {
+                            state.loadingMore -> CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                            state.moreError != null -> {
+                                Text(state.moreError.orEmpty(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                TextButton(onClick = viewModel::loadMore, modifier = Modifier.heightIn(min = 48.dp)) { Text("Try again") }
+                            }
+                            state.pagingStoppedForQuota -> Text(
+                                "No more pages: today's free searches are nearly used up.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            !state.canLoadMore -> Text(
+                                "That is all the results.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
                 }
             }
-        } else if (state.hasKey && state.results == null) {
-            item(key = "saved-empty") {
-                Text(
-                    "Videos you save to watch later appear here.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+
+            else -> recommendedItems(state, viewModel, onOpenVideo)
+        }
+    }
+}
+
+/** The overflow menu next to the search box: the quota estimate, how Videos works, and clearing the cache. */
+@Composable
+private fun VideosOverflow(searchesLeft: Int, cleared: Boolean, onHow: () -> Unit, onClear: () -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More for Videos") }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(text = { Text("About $searchesLeft searches left today") }, onClick = {}, enabled = false)
+            DropdownMenuItem(text = { Text("How Videos works") }, onClick = { open = false; onHow() })
+            DropdownMenuItem(
+                text = { Text(if (cleared) "Cached video information cleared" else "Clear cached video information") },
+                onClick = { open = false; onClear() },
+            )
+        }
+    }
+}
+
+/** The "Filters" chip: how many of muscle group, style and duration are set. */
+@Composable
+private fun FiltersChip(count: Int, onClick: () -> Unit) {
+    ToggleChip(if (count > 0) "Filters · $count" else "Filters", selected = count > 0, onClick = onClick, showCheck = false)
+}
+
+/** Muscle group, style and duration in one sheet. Apply runs one search when the muscle group or style changed. */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun FiltersSheet(
+    style: VideoStyle?,
+    muscle: BodyRegion?,
+    length: VideoLength?,
+    onApply: (VideoStyle?, BodyRegion?, VideoLength?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var s by remember { mutableStateOf(style) }
+    var m by remember { mutableStateOf(muscle) }
+    var l by remember { mutableStateOf(length) }
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text("Filters", style = MaterialTheme.typography.titleLarge)
+            Text("Muscle group", style = MaterialTheme.typography.titleSmall)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                BodyRegion.entries.forEach { r -> ChoiceChip(r.label, selected = m == r, onClick = { m = if (m == r) null else r }) }
+            }
+            Text("Style", style = MaterialTheme.typography.titleSmall)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                VideoStyle.entries.forEach { v -> ChoiceChip(v.label, selected = s == v, onClick = { s = if (s == v) null else v }) }
+            }
+            Text("Duration", style = MaterialTheme.typography.titleSmall)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                VideoLength.entries.forEach { d -> ChoiceChip(d.label, selected = l == d, onClick = { l = if (l == d) null else d }) }
+            }
+            Text(
+                "Muscle group and style add words to the search, so applying them uses one search. Duration only hides videos on this phone.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = { s = null; m = null; l = null }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Clear all") }
+                Spacer(Modifier.weight(1f))
+                Button(onClick = { onApply(s, m, l) }, shape = IntakeShape.Button, modifier = Modifier.heightIn(min = 48.dp)) { Text("Apply") }
             }
         }
+    }
+}
 
-        item(key = "footer") {
-            Column(Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    "Videos need internet and your own key. Intake never downloads a video. Only the words you search for are sent to YouTube, and only when you search. Video information and playback come from YouTube.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                if (state.hasKey) {
-                    Text(state.quotaHint, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    TextButton(onClick = { viewModel.clearCache { cleared = true } }, modifier = Modifier.heightIn(min = 48.dp)) {
-                        Text(if (cleared) "Cached video information cleared" else "Clear cached video information")
+/** "Saved · N" with "See all", then a compact horizontal row of saved videos. */
+@Composable
+private fun SavedStrip(
+    saved: List<VideoMeta>,
+    onSeeAll: () -> Unit,
+    onOpen: (String) -> Unit,
+    onMake: (String) -> Unit,
+    onMoreLikeThis: (VideoMeta) -> Unit,
+    onRemove: (String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Saved · ${saved.size}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            TextButton(onClick = onSeeAll, modifier = Modifier.heightIn(min = 48.dp)) { Text("See all") }
+        }
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            items(saved.take(12), key = { it.id }) { v ->
+                var menu by remember { mutableStateOf(false) }
+                Column(Modifier.width(CARD_WIDTH_SAVED)) {
+                    VideoThumbnail(v.thumbnailUrl ?: YoutubeIds.thumbnailUrl(v.id), v.durationSec, modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClickLabel = "Open ${v.title}") { onOpen(v.id) })
+                    Row(verticalAlignment = Alignment.Top) {
+                        Text(
+                            v.title,
+                            style = MaterialTheme.typography.titleSmall,
+                            maxLines = 2,
+                            minLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f).padding(top = 6.dp),
+                        )
+                        Box {
+                            IconButton(onClick = { menu = true }, modifier = Modifier.size(40.dp)) { Icon(Icons.Filled.MoreVert, contentDescription = "More for ${v.title}") }
+                            SavedMenu(menu, { menu = false }, onOpen = { onOpen(v.id) }, onMake = { onMake(v.id) }, onMoreLikeThis = { onMoreLikeThis(v) }, onRemove = { onRemove(v.id) })
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private val CARD_WIDTH_SAVED = 200.dp
+private val CARD_WIDTH = 240.dp
+
+@Composable
+private fun SavedMenu(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    onOpen: () -> Unit,
+    onMake: () -> Unit,
+    onMoreLikeThis: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        DropdownMenuItem(text = { Text("Open") }, onClick = { onDismiss(); onOpen() })
+        DropdownMenuItem(text = { Text("More like this") }, onClick = { onDismiss(); onMoreLikeThis() })
+        DropdownMenuItem(text = { Text("Make this a workout") }, onClick = { onDismiss(); onMake() })
+        DropdownMenuItem(text = { Text("Remove from saved") }, onClick = { onDismiss(); onRemove() })
+    }
+}
+
+/** The full Saved list ("See all"). */
+private fun androidx.compose.foundation.lazy.LazyListScope.savedAllItems(
+    saved: List<VideoMeta>,
+    onBack: () -> Unit,
+    onOpen: (String) -> Unit,
+    onMake: (String) -> Unit,
+    onMoreLikeThis: (VideoMeta) -> Unit,
+    onRemove: (String) -> Unit,
+) {
+    item(key = "saved-all-head") {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Saved · ${saved.size}", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            TextButton(onClick = onBack, modifier = Modifier.heightIn(min = 48.dp)) { Text("Back") }
+        }
+    }
+    if (saved.isEmpty()) {
+        item(key = "saved-all-empty") { EmptyState(body = "Videos you save to watch later appear here.") }
+    } else {
+        item(key = "saved-all-list") {
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                shape = IntakeShape.Card,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column {
+                    saved.forEachIndexed { i, v ->
+                        SavedRow(v, onOpen = { onOpen(v.id) }, onMake = { onMake(v.id) }, onMoreLikeThis = { onMoreLikeThis(v) }, onRemove = { onRemove(v.id) })
+                        if (i != saved.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
                 }
             }
@@ -277,10 +503,24 @@ private fun androidx.compose.foundation.lazy.LazyListScope.recommendedItems(
             }
             rec.rows.forEachIndexed { index, row ->
                 item(key = "rec-$index") {
+                    val rowState = rememberLazyListState()
+                    // Horizontal scroll to the end of a row loads that row's next page (a few items before the end).
+                    LaunchedEffect(rowState, index) {
+                        snapshotFlow { (rowState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1) to rowState.layoutInfo.totalItemsCount }
+                            .distinctUntilChanged()
+                            .collect { (last, total) -> if (VideoPaging.nearEnd(last, total, ahead = 2)) viewModel.loadMoreRecommended(index) }
+                    }
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(row.reason, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(row.reason, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        LazyRow(state = rowState, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             items(row.videos, key = { it.video.id }) { v -> VideoCard(v, onClick = { onOpenVideo(v.video.id) }) }
+                            if (row.loadingMore) {
+                                item(key = "more") {
+                                    Box(Modifier.width(48.dp).height(135.dp), contentAlignment = Alignment.Center) {
+                                        CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -290,16 +530,16 @@ private fun androidx.compose.foundation.lazy.LazyListScope.recommendedItems(
 }
 
 @Composable
-private fun ToggleChip(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun ToggleChip(label: String, selected: Boolean, onClick: () -> Unit, showCheck: Boolean = true) {
     Surface(
         color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
         contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
         shape = IntakeShape.Chip,
         border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier.heightIn(min = 48.dp).clickable(role = Role.Switch, onClickLabel = label, onClick = onClick),
+        modifier = Modifier.heightIn(min = 48.dp).clickable(role = if (showCheck) Role.Switch else Role.Button, onClickLabel = label, onClick = onClick),
     ) {
         Row(Modifier.padding(horizontal = 13.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (selected) {
+            if (selected && showCheck) {
                 Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
             }
@@ -343,19 +583,20 @@ private fun VideoRow(v: ScoredVideo, onClick: () -> Unit) {
 private fun VideoCard(v: ScoredVideo, onClick: () -> Unit) {
     Column(
         modifier = Modifier
-            .width(264.dp)
+            .width(CARD_WIDTH)
             .clickable(role = Role.Button, onClickLabel = "Open ${v.video.title}", onClick = onClick),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         VideoThumbnail(v.video.thumbnailUrl, v.video.durationSec, modifier = Modifier.fillMaxWidth())
-        Text(v.video.title, style = MaterialTheme.typography.titleSmall, maxLines = 2, color = MaterialTheme.colorScheme.onSurface)
-        Text(v.video.channelTitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+        // Two lines always, so every card in a row is the same height.
+        Text(v.video.title, style = MaterialTheme.typography.titleSmall, maxLines = 2, minLines = 2, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface)
+        Text(v.video.channelTitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Badges(v)
     }
 }
 
 @Composable
-private fun SavedRow(v: VideoMeta, onOpen: () -> Unit, onMake: () -> Unit, onRemove: () -> Unit) {
+private fun SavedRow(v: VideoMeta, onOpen: () -> Unit, onMake: () -> Unit, onMoreLikeThis: () -> Unit, onRemove: () -> Unit) {
     var menu by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
@@ -373,10 +614,7 @@ private fun SavedRow(v: VideoMeta, onOpen: () -> Unit, onMake: () -> Unit, onRem
         }
         Column {
             IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More for ${v.title}") }
-            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                DropdownMenuItem(text = { Text("Open") }, onClick = { menu = false; onOpen() })
-                DropdownMenuItem(text = { Text("Remove from saved") }, onClick = { menu = false; onRemove() })
-            }
+            SavedMenu(menu, { menu = false }, onOpen = onOpen, onMake = onMake, onMoreLikeThis = onMoreLikeThis, onRemove = onRemove)
         }
     }
 }

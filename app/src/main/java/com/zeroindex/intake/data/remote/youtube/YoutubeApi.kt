@@ -29,6 +29,9 @@ sealed class VideoError(message: String) : Exception(message) {
     data class Failed(val code: Int) : VideoError("YouTube answered with an error ($code). Try again later.")
 }
 
+/** One page of `search.list`. */
+data class SearchPage(val ids: List<String>, val nextPageToken: String?)
+
 /** Reading the Data API's JSON. Pure, so it is tested against fixtures. */
 object YoutubeJson {
     private val json = Json { ignoreUnknownKeys = true }
@@ -38,6 +41,11 @@ object YoutubeJson {
         val items = json.parseToJsonElement(body).jsonObject["items"] as? JsonArray ?: return emptyList()
         return items.mapNotNull { it.jsonObject["id"]?.jsonObject?.get("videoId")?.jsonPrimitive?.contentOrNull }
     }
+
+    /** The `nextPageToken` of a `search.list` answer, or null on the last page. */
+    fun nextPageToken(body: String): String? = runCatching {
+        json.parseToJsonElement(body).jsonObject["nextPageToken"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+    }.getOrNull()
 
     /** The videos of a `videos.list` answer (part snippet, contentDetails, statistics). */
     fun videos(body: String): List<VideoMeta> {
@@ -106,18 +114,22 @@ class YoutubeApi @Inject constructor(
     fun hasKey(): Boolean = keys.youtubeKey() != null
 
     /** `search.list`: embeddable videos, moderate safe search. About 100 quota units. Returns the video ids. */
-    suspend fun search(query: String, maxResults: Int = 25): List<String> {
+    suspend fun search(query: String, maxResults: Int = 25): List<String> = searchPage(query, null, maxResults).ids
+
+    /** One page of `search.list`: the video ids and the token for the next page (null at the end). The token is not secret. */
+    suspend fun searchPage(query: String, pageToken: String?, maxResults: Int = 25): SearchPage {
         val key = keys.youtubeKey() ?: throw VideoError.NoKey
-        val url = "https://www.googleapis.com/youtube/v3/search".toHttpUrl().newBuilder()
+        val builder = "https://www.googleapis.com/youtube/v3/search".toHttpUrl().newBuilder()
             .addQueryParameter("part", "snippet")
             .addQueryParameter("type", "video")
             .addQueryParameter("videoEmbeddable", "true")
             .addQueryParameter("safeSearch", "moderate")
             .addQueryParameter("maxResults", maxResults.coerceIn(1, 50).toString())
             .addQueryParameter("q", query)
-            .addQueryParameter("key", key)
-            .build()
-        return YoutubeJson.searchIds(get(url.toString()))
+        if (!pageToken.isNullOrBlank()) builder.addQueryParameter("pageToken", pageToken)
+        val url = builder.addQueryParameter("key", key).build()
+        val body = get(url.toString())
+        return SearchPage(YoutubeJson.searchIds(body), YoutubeJson.nextPageToken(body))
     }
 
     /** `videos.list` with snippet, contentDetails and statistics for up to 50 ids. About 1 quota unit. */

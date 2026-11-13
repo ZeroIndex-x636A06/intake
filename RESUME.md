@@ -3,6 +3,12 @@
 Read this first when picking the work back up. Latest work: branch
 `claude/optimistic-noether-fullk5` (not yet merged into `claude/app-build-k2ag1d`).
 
+## Videos tab: layout, paging, Hide Shorts (FEEDBACK-R5 item 14; branch `worktree-agent-a03c7ea740999eae8`, not pushed, schema stays v5)
+
+Layout: search box + overflow menu (searches left today, How Videos works, Clear cached video information), one filter row (Workouts only, Hide Shorts, Filters with a count; the sheet holds muscle group, style, duration), a compact "Saved · N" row with See all and a More like this action, then Recommended (3 rows, equal cards, 2-line titles) or results. Paging: `VideoRepository.searchPage` with `nextPageToken`, pages and tokens cached in `video_search` rows (no schema change), caps of 5 pages per search and 3 per Recommended row, stop when 5 or fewer searches are left; about 101 units per uncached page. Hide Shorts: `domain/videos/ShortsRule.kt`, documented in `docs/VIDEOS.md`. Similar-to-saved: `SavedSimilarity` (channels and title keywords). Tests: `ShortsAndPagingTest`.
+
+**Not verified:** no device or emulator run; the Compose layout (filter sheet, saved strip, scroll-triggered loading, spinner and end text), the real `nextPageToken` flow against YouTube, and the Shorts rule against real results were not seen. Vertical-format detection is not implemented (would need schema v6).
+
 ## Round 4 merge and emulator smoke (branch `claude/optimistic-noether-fullk5`, schema v5)
 
 Six `--no-ff` merges on this branch: navigation transitions, Progress charts, drinks (schema v5, `MIGRATION_4_5`), recipes in Log food / Cook / meal templates, Recipe Hunter substitutions, and nearby menus (last; only `RESUME.md` conflicted, both sides kept). Verified at the last merge: `:app:compileDebugKotlin :app:testDebugUnitTest :app:lintDebug :wearprotocol:test :wear:lintDebug` all pass (app 1908 tests, 3 skipped, 0 failed; wearprotocol 14; app lint 0 errors, wear lint 0 errors).
