@@ -70,6 +70,7 @@ internal fun MealSlot.displayName(): String = when (this) {
     MealSlot.LUNCH -> "Lunch"
     MealSlot.DINNER -> "Dinner"
     MealSlot.SNACK -> "Snacks"
+    MealSlot.DRINKS -> "Drinks"
 }
 
 @HiltViewModel
@@ -114,9 +115,11 @@ class TodayViewModel @Inject constructor(
                     isToday = date == today,
                     isFuture = date.isAfter(today),
                     progress = DayProgress(consumed = totals, target = target),
-                    slots = MealSlot.entries.map { slot ->
+                    // The four meals always show; "Drinks" (no meal) shows only once something was logged there.
+                    slots = MealSlot.MEALS.map { slot ->
                         MealSlotUi(slot = slot, entries = logs.filter { it.mealSlot == slot })
-                    },
+                    } + MealSlotUi(slot = MealSlot.DRINKS, entries = logs.filter { it.mealSlot == MealSlot.DRINKS })
+                        .takeIf { it.entries.isNotEmpty() }.let { listOfNotNull(it) },
                     hasTarget = target != null,
                     hydration = hydration,
                     hydrationPresets = presetsAndSettings.presets,

@@ -202,6 +202,51 @@ internal fun migrateProgressPhotos_2_3(): List<String> = listOf(
     "CREATE INDEX IF NOT EXISTS `index_progress_photo_deletedAt` ON `progress_photo` (`deletedAt`)",
 )
 
+internal fun migrateDrinks_2_3(): List<String> = listOf(
+    // Drinks in the food database (Nutrition > Drinks): a drink is a food with a category, caffeine, strength and a
+    // hydration factor per 100 ml, and a drink log writes a hydration row and a food-log row that point at each
+    // other (hydration_log.foodLogId). All nullable, so every existing row keeps its meaning.
+    "ALTER TABLE `food` ADD COLUMN `drinkCategory` TEXT",
+    "ALTER TABLE `food` ADD COLUMN `caffeineMgPer100ml` REAL",
+    "ALTER TABLE `food` ADD COLUMN `abvPercent` REAL",
+    "ALTER TABLE `food` ADD COLUMN `hydrationFactor` REAL",
+    "CREATE INDEX IF NOT EXISTS `index_food_drinkCategory` ON `food` (`drinkCategory`)",
+    "ALTER TABLE `hydration_log` ADD COLUMN `foodLogId` TEXT",
+    "CREATE INDEX IF NOT EXISTS `index_hydration_log_foodLogId` ON `hydration_log` (`foodLogId`)",
+)
+
+internal fun migrateNutrientsListed_2_3(): List<String> = listOf(
+    // Which of fibre, sugar, sodium and saturated fat a food's source did not give, so "not listed" is not shown as 0.
+    // Existing rows get the empty list: their zeros stay zeros, exactly as before.
+    "ALTER TABLE `food` ADD COLUMN `unlistedNutrients` TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE `food_log` ADD COLUMN `unlistedNutrients` TEXT NOT NULL DEFAULT ''",
+)
+
+internal fun migrateHealthActive_2_3(): List<String> = listOf(
+    // Health Connect: the all-day active calories for the Today card and the Progress charts. Null on every old row
+    // until the next sync fills it in.
+    "ALTER TABLE `health_daily_summary` ADD COLUMN `activeKcalDay` REAL",
+)
+
+internal fun migrateDeload_2_3(): List<String> = listOf(
+    // A generated program's planned easy week ("deload every 6 weeks") is kept with the program, so the app can switch it
+    // on by itself. Null on every existing program: nothing changes for them.
+    "ALTER TABLE `program` ADD COLUMN `deloadEveryWeeks` INTEGER",
+)
+
+internal fun migrateTraining_2_3(): List<String> = listOf(
+    // Train and Videos. A workout can remember the YouTube video it was made from.
+    "ALTER TABLE `program` ADD COLUMN `videoId` TEXT",
+    // Cache of YouTube API data (deleted after 30 days, never backed up) and the person's saved videos.
+    "CREATE TABLE IF NOT EXISTS `video_cache` (`videoId` TEXT NOT NULL, `title` TEXT NOT NULL, `description` TEXT NOT NULL, `channelTitle` TEXT NOT NULL, `categoryId` TEXT NOT NULL, `durationSec` INTEGER NOT NULL, `thumbnailUrl` TEXT, `publishedAt` TEXT NOT NULL, `viewCount` INTEGER, `fetchedAt` INTEGER NOT NULL, PRIMARY KEY(`videoId`))",
+    "CREATE INDEX IF NOT EXISTS `index_video_cache_fetchedAt` ON `video_cache` (`fetchedAt`)",
+    "CREATE TABLE IF NOT EXISTS `video_search` (`searchKey` TEXT NOT NULL, `videoIds` TEXT NOT NULL, `fetchedAt` INTEGER NOT NULL, PRIMARY KEY(`searchKey`))",
+    "CREATE INDEX IF NOT EXISTS `index_video_search_fetchedAt` ON `video_search` (`fetchedAt`)",
+    "CREATE TABLE IF NOT EXISTS `saved_video` (`id` TEXT NOT NULL, `videoId` TEXT NOT NULL, `title` TEXT, `channelTitle` TEXT, `categoryId` TEXT, `durationSec` INTEGER, `thumbnailUrl` TEXT, `metaFetchedAt` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+    "CREATE INDEX IF NOT EXISTS `index_saved_video_videoId` ON `saved_video` (`videoId`)",
+    "CREATE INDEX IF NOT EXISTS `index_saved_video_deletedAt` ON `saved_video` (`deletedAt`)",
+)
+
 // Add new 2 -> 3 steps to the list below, after the existing ones.
 internal val MIGRATION_2_3_STATEMENTS: List<String> =
     migrateFoodOff_2_3() +
@@ -214,7 +259,12 @@ internal val MIGRATION_2_3_STATEMENTS: List<String> =
         migrateFoodUi_2_3() +
         migrateRecipes_2_3() +
         migrateAiFailureKind_2_3() +
-        migrateProgressPhotos_2_3()
+        migrateProgressPhotos_2_3() +
+        migrateDrinks_2_3() +
+        migrateNutrientsListed_2_3() +
+        migrateTraining_2_3() +
+        migrateDeload_2_3() +
+        migrateHealthActive_2_3()
 
 internal val MIGRATION_2_3 = object : Migration(2, 3) {
     override fun migrate(db: SupportSQLiteDatabase) {
@@ -248,11 +298,90 @@ internal fun migrateMealPlans_2_3(): List<String> = listOf(
         "WHERE `weekNumber` = 0 AND `deletedAt` IS NULL",
 )
 
-/** Every migration, in order. [IntakeDatabase] registers all of them. */
-internal val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
+/**
+ * 3 -> 4: repairs a version-3 database that was made by an EARLIER build of version 3.
+ *
+ * Version 3 was edited in place while preview builds were already on the owner's phone (columns such as
+ * `program.deloadEveryWeeks` and `health_daily_summary.activeKcalDay` were added to 2 -> 3 after the fact). Room only
+ * compares a version number and an identity hash, so a newer build opening an older "version 3" file stops with
+ * "Room cannot verify the data integrity" and the app crashes on every launch. Bumping the version gives such a file a
+ * migration to run.
+ *
+ * The repair replays the structural half of 2 -> 3 and skips whatever the file already has: `CREATE ... IF NOT EXISTS`
+ * statements run as they are, and an `ALTER TABLE ... ADD COLUMN` runs only when the column is missing ([columnsOf]
+ * reads the table's current columns). The data statements of 2 -> 3 (the meal plan copy) are not replayed. On a file
+ * that already has everything this does nothing, so a current version-3 file passes through it untouched. Nothing is
+ * dropped or rewritten.
+ */
+internal fun migrateRepair_3_4(columnsOf: (table: String) -> Set<String>): List<String> {
+    val addColumn = Regex("^ALTER TABLE `(\\w+)` ADD COLUMN `(\\w+)`", RegexOption.IGNORE_CASE)
+    val columns = HashMap<String, Set<String>>()
+    return MIGRATION_2_3_STATEMENTS.filter { sql ->
+        val m = addColumn.find(sql)
+        if (m != null) {
+            val (table, column) = m.destructured
+            val have = columns.getOrPut(table) { columnsOf(table).map { it.lowercase() }.toSet() }
+            column.lowercase() !in have
+        } else {
+            sql.startsWith("CREATE ", ignoreCase = true)
+        }
+    }
+}
 
-/** Statement lists by starting version, for `MigrationSchemaTest`. */
+internal val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        val statements = migrateRepair_3_4 { table ->
+            buildSet {
+                db.query("PRAGMA table_info(`$table`)").use { c ->
+                    val name = c.getColumnIndexOrThrow("name")
+                    while (c.moveToNext()) add(c.getString(name))
+                }
+            }
+        }
+        statements.forEach(db::execSQL)
+    }
+}
+
+/**
+ * 4 -> 5: saved custom drinks ("Black coffee + 3 tsp sugar"). One nullable column on `food` that holds the drink's recipe;
+ * existing foods keep null, so nothing is rewritten. Purely additive.
+ */
+internal val MIGRATION_4_5_STATEMENTS: List<String> = listOf(
+    "ALTER TABLE `food` ADD COLUMN `customDrink` TEXT",
+)
+
+internal val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        MIGRATION_4_5_STATEMENTS.forEach(db::execSQL)
+    }
+}
+
+/**
+ * 5 -> 6: Videos. Two nullable columns on `video_cache` hold the video's player size (`part=player`), which is how Hide Shorts
+ * tells a vertical video from a horizontal one (rows cached before this keep null and fall back to the length rule), and
+ * `downloaded_video` lists the videos downloaded with yt-dlp (opt-in). Purely additive.
+ */
+internal val MIGRATION_5_6_STATEMENTS: List<String> = listOf(
+    "ALTER TABLE `video_cache` ADD COLUMN `embedWidth` INTEGER",
+    "ALTER TABLE `video_cache` ADD COLUMN `embedHeight` INTEGER",
+    "CREATE TABLE IF NOT EXISTS `downloaded_video` (`id` TEXT NOT NULL, `videoId` TEXT NOT NULL, `title` TEXT NOT NULL, `channelTitle` TEXT NOT NULL, `durationSec` INTEGER, `thumbnailUrl` TEXT, `fileName` TEXT NOT NULL, `sizeBytes` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+    "CREATE INDEX IF NOT EXISTS `index_downloaded_video_videoId` ON `downloaded_video` (`videoId`)",
+    "CREATE INDEX IF NOT EXISTS `index_downloaded_video_deletedAt` ON `downloaded_video` (`deletedAt`)",
+)
+
+internal val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        MIGRATION_5_6_STATEMENTS.forEach(db::execSQL)
+    }
+}
+
+/** Every migration, in order. [IntakeDatabase] registers all of them. */
+internal val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+
+/** Statement lists by starting version, for `MigrationSchemaTest`. Version 3 is computed: see [migrateRepair_3_4]. */
 internal val MIGRATION_STATEMENTS: Map<Int, List<String>> = mapOf(
     1 to MIGRATION_1_2_STATEMENTS,
     2 to MIGRATION_2_3_STATEMENTS,
+    4 to MIGRATION_4_5_STATEMENTS,
+    5 to MIGRATION_5_6_STATEMENTS,
 )

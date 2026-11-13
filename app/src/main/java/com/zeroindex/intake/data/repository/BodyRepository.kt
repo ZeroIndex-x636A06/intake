@@ -31,7 +31,7 @@ class BodyRepository @Inject constructor(
 
     /** SPEC §8: the trend line, not the raw weigh-ins, is what gets displayed. */
     fun observeTrend(from: LocalDate, to: LocalDate): Flow<List<TrendPoint>> =
-        observeInRange(from, to).map { metrics -> WeightTrend.smooth(metrics.toWeightPoints()) }
+        observeInRange(from, to).map { metrics -> WeightTrend.smoothByTime(metrics.toWeightPoints()) }
 
     suspend fun weightPointsSince(from: LocalDate): List<WeightPoint> =
         dao.inRange(clock.rangeFor(from).startInclusive, clock.nowMillis() + 1).toWeightPoints()

@@ -75,8 +75,18 @@ fun MenuSourcesScreen(
     val sources by viewModel.sources.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val items by viewModel.openItems.collectAsStateWithLifecycle()
+    val allergenOnly by viewModel.allergenOnlyIds.collectAsStateWithLifecycle()
     var adding by remember { mutableStateOf(false) }
     val dates = remember { DateTimeFormatter.ofPattern("d MMM") }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        val refused = state.refusedSource
+        if (uri != null && refused != null) viewModel.replaceWithPdf(refused, uri.toString())
+    }
+    val nutritionPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) viewModel.addNutritionPdf(uri.toString())
+    }
+    var linkText by remember { mutableStateOf("") }
+    var askingLink by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
@@ -88,14 +98,20 @@ fun MenuSourcesScreen(
         ),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        // The top bar already says "Menu import"; no second heading here.
         item(key = "head") {
-            SubHead("Menu import", "Keep a local copy of menus you trust. Refreshed weekly, or when you choose.")
+            Text(
+                "Keep a local copy of menus you trust. Refreshed weekly, or when you choose.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+            )
         }
         if (!state.hasKey) {
             item(key = "nokey") {
                 EmptyState(
                     title = "AI is off or has no key",
-                    body = "Menus are read by an AI model. Turn on “Use AI features” and add a key in Settings → AI. Saved menus keep working without one.",
+                    body = "A link whose page publishes its menu as structured data is read without AI. A PDF with a nutrition table is read on this phone without AI (Android 15 or later). Any other page, a PDF the phone cannot read, or pasted text is read by an AI model: turn on “Use AI features” and add a key in Settings → AI. Saved menus keep working without one.",
                 )
             }
         }
@@ -125,9 +141,105 @@ fun MenuSourcesScreen(
                 }
             }
         }
+        state.nutritionPrompt?.let { chart ->
+            item(key = "nutrition-prompt") {
+                IntakeCard {
+                    Text("Add the nutrition menu?", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "This chart has allergens but no calories. Add ${chart.restaurantName}'s nutrition menu? " +
+                            "Calories and macros come from it; allergens from both files are kept.",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                    if (askingLink) {
+                        OutlinedTextField(
+                            linkText, { linkText = it.trim() }, label = { Text("Nutrition menu link") }, singleLine = true,
+                            shape = IntakeShape.Field, modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        )
+                        Button(
+                            onClick = { viewModel.addNutritionLink(linkText); askingLink = false },
+                            enabled = linkText.startsWith("http"),
+                            shape = IntakeShape.Button,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(top = 8.dp),
+                        ) { Text("Read the link") }
+                    } else {
+                        Button(
+                            onClick = { nutritionPicker.launch(arrayOf("application/pdf")) },
+                            shape = IntakeShape.Button,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(top = 8.dp),
+                        ) { Text("Choose a PDF") }
+                        OutlinedButton(
+                            onClick = { askingLink = true },
+                            shape = IntakeShape.Button,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(top = 6.dp),
+                        ) { Text("Paste a link") }
+                    }
+                    state.nutritionAiOffer?.let { offer ->
+                        Text("No table read on this phone", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 10.dp))
+                        Text(offer.reason, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+                        Text(
+                            if (state.hasKey) {
+                                "Nothing was sent anywhere. If you read it with AI, the file is sent to your AI provider on your own key. " +
+                                    "A PDF is read a few pages at a time, so a long one costs a few cents; the cost is added to AI usage in Settings. " +
+                                    "The AI reads the numbers as printed and never invents any; allergens from it can only add warnings."
+                            } else {
+                                "Nothing was sent anywhere. AI is off or has no key: turn on “Use AI features” and add a key in Settings → AI to use it."
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 6.dp),
+                        )
+                        Button(
+                            onClick = viewModel::readNutritionWithAi,
+                            enabled = state.hasKey,
+                            shape = IntakeShape.Button,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(top = 8.dp),
+                        ) { Text("Read it with AI") }
+                        TextButton(onClick = viewModel::dismissNutritionAiOffer, modifier = Modifier.fillMaxWidth()) { Text("Not now") }
+                    }
+                    TextButton(onClick = { askingLink = false; viewModel.skipNutritionPrompt() }, modifier = Modifier.fillMaxWidth()) { Text("Skip") }
+                }
+            }
+        }
+        state.aiOffer?.let { offer ->
+            item(key = "ai-offer") {
+                IntakeCard {
+                    Text("No table read on this phone", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        offer.reason,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                    Text(
+                        if (state.hasKey) {
+                            "Nothing was sent anywhere. If you read it with AI, the PDF is sent to your AI provider."
+                        } else {
+                            "Nothing was sent anywhere. AI is off or has no key: turn on “Use AI features” and add a key in Settings → AI to use it."
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                    Button(
+                        onClick = viewModel::readWithAi,
+                        enabled = state.hasKey,
+                        shape = IntakeShape.Button,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(top = 8.dp),
+                    ) { Text("Read it with AI") }
+                    TextButton(onClick = viewModel::dismissAiOffer, modifier = Modifier.fillMaxWidth()) { Text("Not now") }
+                }
+            }
+        }
         state.error?.let { err ->
             item(key = "error") {
                 ErrorState(title = "Import failed", body = err) {
+                    state.refusedSource?.let { refused ->
+                        Button(
+                            onClick = { picker.launch(arrayOf("application/pdf")) },
+                            shape = IntakeShape.Button,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        ) { Text("Choose a PDF") }
+                    }
                     TextButton(onClick = viewModel::clearError) { Text("Dismiss") }
                 }
             }
@@ -141,7 +253,7 @@ fun MenuSourcesScreen(
             item(key = "empty") {
                 EmptyState(
                     title = "No menus yet",
-                    body = "Add a restaurant's nutrition page, PDF or pasted menu text. Plan B can then suggest from it offline.",
+                    body = "Add a restaurant's nutrition page, PDF or pasted menu text. Swap can then suggest from it offline.",
                 )
             }
         } else {
@@ -179,13 +291,23 @@ fun MenuSourcesScreen(
                                 MenuRunStatus.FAILED -> StatusPill("Failed", tone = PillTone.Bad)
                                 MenuRunStatus.RUNNING -> StatusPill("Running", tone = PillTone.Wait)
                                 MenuRunStatus.NEVER_RUN -> StatusPill("Never run", tone = PillTone.Wait)
+                                MenuRunStatus.TO_REVIEW -> StatusPill("To review", tone = PillTone.Wait)
                             }
+                        }
+                        if (source.lastStatus == MenuRunStatus.TO_REVIEW) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Button(onClick = { viewModel.reviewStaged(source) }, shape = IntakeShape.Button, modifier = Modifier.heightIn(min = 48.dp)) { Text("Review import") }
+                                TextButton(onClick = { viewModel.askDiscard(source) }) { Text("Discard import") }
+                            }
+                        }
+                        if (source.id in allergenOnly) {
+                            TextButton(onClick = { viewModel.askForNutrition(source) }) { Text("Add nutrition menu") }
                         }
                         if (i != sources.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
                 }
             }
-            sources.firstOrNull { it.lastStatus == MenuRunStatus.FAILED && it.lastError != null }?.let { failed ->
+            MenuErrorCards.sourceFailure(sources, state.error, state.aiOffer?.source?.id)?.let { failed ->
                 item(key = "failed") {
                     ErrorState(
                         title = "Import failed · ${failed.restaurantName}",
@@ -197,13 +319,23 @@ fun MenuSourcesScreen(
     }
 
     if (adding) AddSourceSheet(onDismiss = { adding = false }, onAdd = { n, k, l, p -> viewModel.add(n, k, l, p); adding = false })
-    state.review?.let { ReviewSheet(it, onToggle = viewModel::toggle, onSave = viewModel::commit, onDiscard = viewModel::discardReview) }
+    state.review?.let { ReviewSheet(it, onToggle = viewModel::toggle, onSave = viewModel::commit, onClose = viewModel::closeReview, onDiscard = { viewModel.askDiscard(it.source) }) }
+    state.confirmDiscard?.let { src ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { viewModel.askDiscard(null) },
+            title = { Text("Discard this import?") },
+            text = { Text("The items read from ${src.restaurantName} that you have not accepted are removed. Items already saved are not touched.") },
+            confirmButton = { TextButton(onClick = { viewModel.discardImport(src) }) { Text("Discard import") } },
+            dismissButton = { TextButton(onClick = { viewModel.askDiscard(null) }) { Text("Keep it") } },
+        )
+    }
     state.openSourceId?.let { id ->
         sources.firstOrNull { it.id == id }?.let { src ->
             ItemsSheet(
                 src,
                 items,
-                canRun = state.running == null && state.hasKey,
+                // A link can be refreshed with AI off: a page with structured menu data needs no model.
+                canRun = state.running == null && (state.hasKey || src.kind == com.zeroindex.intake.data.db.entity.MenuSourceKind.URL || src.kind == com.zeroindex.intake.data.db.entity.MenuSourceKind.PDF),
                 onRun = { viewModel.run(src); viewModel.open(null) },
                 onRemove = { viewModel.delete(src); viewModel.open(null) },
                 onDismiss = { viewModel.open(null) },
@@ -276,12 +408,12 @@ private fun AddSourceSheet(onDismiss: () -> Unit, onAdd: (String, MenuSourceKind
 
 /** Nothing from a manual import is saved until the user has seen it. */
 @Composable
-private fun ReviewSheet(review: Review, onToggle: (Int) -> Unit, onSave: () -> Unit, onDiscard: () -> Unit) {
+private fun ReviewSheet(review: Review, onToggle: (Int) -> Unit, onSave: () -> Unit, onClose: () -> Unit, onDiscard: () -> Unit) {
     val flagged = review.items.count { it.entity.allergenStatus == AllergenStatus.CONTAINS || it.entity.allergenStatus == AllergenStatus.MAY_CONTAIN }
     val accepted = review.items.count { it.accepted }
-    ModalBottomSheet(onDismissRequest = onDiscard, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    ModalBottomSheet(onDismissRequest = onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.padding(horizontal = 16.dp).navigationBarsPadding()) {
-            SubHead("Review imported menu", "Nothing is stored until you accept items.")
+            SubHead("Review imported menu", "Nothing is added to your menus until you accept. Close this and it waits on the source as \"To review\".")
             review.warnings.forEach { w ->
                 Text(
                     w,
@@ -297,8 +429,13 @@ private fun ReviewSheet(review: Review, onToggle: (Int) -> Unit, onSave: () -> U
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
-                    "Parsed ${review.items.size} items from ${review.source.restaurantName}" +
-                        if (flagged > 0) " · $flagged need review" else "",
+                    if (review.chartNote != null) {
+                        review.chartNote + (if (review.readOnPhone) " Read on this phone, no AI." else "") + if (flagged > 0) " $flagged need review." else ""
+                    } else {
+                        "Parsed ${review.items.size} items from ${review.source.restaurantName}" +
+                            (if (review.readOnPhone) " · read on this phone, no AI" else "") +
+                            if (flagged > 0) " · $flagged need review" else ""
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(15.dp),
                 )
@@ -319,10 +456,19 @@ private fun ReviewSheet(review: Review, onToggle: (Int) -> Unit, onSave: () -> U
                             }
                         }
                         Text(macroLine(item), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+                        if (review.readOnPhone && item.description.isNotBlank()) {
+                            Text(
+                                item.description,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2,
+                            )
+                        }
                         Text(
                             when (item.allergenStatus) {
                                 AllergenStatus.CONTAINS, AllergenStatus.MAY_CONTAIN -> "Matched: ${item.allergenMatches}"
-                                AllergenStatus.CHECK_LABEL -> "Often hides dairy: ${item.allergenMatches}"
+                                AllergenStatus.CHECK_LABEL ->
+                                    if (review.chartNote != null) "Not stated by this chart: it cannot show an item is free of an allergen" else "Often hides dairy: ${item.allergenMatches}"
                                 AllergenStatus.CLEAR, AllergenStatus.MENTIONED_AVOIDED -> "No terms you avoid were found"
                                 AllergenStatus.UNKNOWN -> "Check with staff before ordering"
                             },
@@ -345,7 +491,7 @@ private fun ReviewSheet(review: Review, onToggle: (Int) -> Unit, onSave: () -> U
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(52.dp),
             ) { Text("Save $accepted accepted item${if (accepted == 1) "" else "s"}") }
             TextButton(onClick = onDiscard, modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 8.dp)) {
-                Text("Discard this import")
+                Text("Discard import")
             }
         }
     }
@@ -355,7 +501,7 @@ private fun macroLine(item: MenuItemEntity): String = listOfNotNull(
     item.kcal?.let { "${it.roundToInt()} kcal" },
     item.proteinG?.let { "${it.roundToInt()} g protein" },
     "estimated".takeIf { !item.macrosPublished && item.kcal != null },
-).joinToString(" · ").ifBlank { "No nutrition listed" }
+).joinToString(" · ").ifBlank { "Nutrition not listed" }
 
 @Composable
 private fun ItemsSheet(
@@ -396,5 +542,19 @@ private fun ItemText(item: MenuItemEntity, modifier: Modifier) {
             AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
             else -> Unit
         }
+    }
+}
+
+/** Which cards say what failed, so one failure is never shown twice. */
+internal object MenuErrorCards {
+    /**
+     * The saved source whose last run failed, or null when the same words are already on screen: the top error card
+     * ([topError]) or the "No table read" offer for that source ([offerSourceId]).
+     */
+    fun sourceFailure(sources: List<MenuSourceEntity>, topError: String?, offerSourceId: String?): MenuSourceEntity? {
+        val failed = sources.firstOrNull { it.lastStatus == MenuRunStatus.FAILED && it.lastError != null } ?: return null
+        if (topError != null && topError == failed.lastError) return null
+        if (offerSourceId != null && offerSourceId == failed.id) return null
+        return failed
     }
 }

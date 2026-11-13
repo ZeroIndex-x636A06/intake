@@ -38,6 +38,18 @@ interface HydrationDao {
     @Query("UPDATE hydration_log SET deletedAt = :now, updatedAt = :now WHERE id = :id")
     suspend fun softDeleteLog(id: String, now: Long)
 
+    /** The row whether or not it was deleted. */
+    @Query("SELECT * FROM hydration_log WHERE id = :id")
+    suspend fun logById(id: String): HydrationLogEntity?
+
+    /** The live hydration row written with a food-log row, or null (plain food, or already deleted). */
+    @Query("SELECT * FROM hydration_log WHERE foodLogId = :foodLogId AND deletedAt IS NULL LIMIT 1")
+    suspend fun liveLogForFoodLog(foodLogId: String): HydrationLogEntity?
+
+    /** Soft-deletes the drink's hydration row when its food-log row is removed from Today's meals. */
+    @Query("UPDATE hydration_log SET deletedAt = :now, updatedAt = :now WHERE foodLogId = :foodLogId AND deletedAt IS NULL")
+    suspend fun softDeleteByFoodLog(foodLogId: String, now: Long)
+
     @Query("SELECT * FROM hydration_preset WHERE deletedAt IS NULL ORDER BY displayOrder")
     fun observePresets(): Flow<List<HydrationPresetEntity>>
 

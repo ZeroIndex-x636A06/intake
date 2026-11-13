@@ -2,6 +2,13 @@
 
 package com.zeroindex.intake.ui.screens.settings
 
+import android.Manifest
+import android.os.Build
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -37,21 +44,23 @@ import com.zeroindex.intake.BuildConfig
 import com.zeroindex.intake.data.foodref.FoodRefInfo
 import com.zeroindex.intake.data.settings.ThemeMode
 import com.zeroindex.intake.domain.goals.Phase
+import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.hydration.DrinkType
 import com.zeroindex.intake.domain.settings.MuscleRegion
 import com.zeroindex.intake.domain.settings.SodiumDisplay
 import com.zeroindex.intake.domain.settings.TodayCard
 import com.zeroindex.intake.domain.settings.WeeklySets
 import com.zeroindex.intake.domain.settings.ControlKind
+import com.zeroindex.intake.domain.food.OffLanguage
 import com.zeroindex.intake.domain.settings.SettingSpec
-import com.zeroindex.intake.domain.training.generator.Equipment
-import com.zeroindex.intake.domain.training.generator.EquipmentPreset
 import com.zeroindex.intake.domain.units.LengthUnit
 import com.zeroindex.intake.domain.units.PortionUnit
 import com.zeroindex.intake.domain.units.UnitConverter
 import com.zeroindex.intake.domain.units.VolumeUnit
 import com.zeroindex.intake.domain.units.WeightUnit
 import com.zeroindex.intake.ui.components.ChoiceChip
+import com.zeroindex.intake.ui.components.EquipmentChecklist
+import com.zeroindex.intake.ui.components.EquipmentPresetChips
 import com.zeroindex.intake.ui.components.LabeledField
 import com.zeroindex.intake.ui.components.SandNote
 import com.zeroindex.intake.ui.components.Segmented
@@ -96,6 +105,7 @@ fun SettingControl(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val s = state.settings
     val id = spec.id
+    val askNotifications = rememberNotificationPermissionAsk()
     Column(modifier.fillMaxWidth()) {
         when {
             AI_FAMILIES.any { id.startsWith(it) } -> AiSettingControl(id)
@@ -129,6 +139,7 @@ fun SettingControl(
                 "todayCard.next" -> SwitchSetting("Today card: Next up", "The planned meal, today's workout and the one thing to do.", s.todayCardNext) { viewModel.setTodayCard(TodayCard.NEXT, it) }
                 "todayCard.water" -> SwitchSetting("Today card: Water", "Today's drinks with a minus and a plus.", s.todayCardWater) { viewModel.setTodayCard(TodayCard.WATER, it) }
                 "todayCard.weight" -> SwitchSetting("Today card: Weight", "Your last weigh-in and a Weigh in button.", s.todayCardWeight) { viewModel.setTodayCard(TodayCard.WEIGHT, it) }
+                "todayCard.activity" -> SwitchSetting("Today card: Activity", "Steps, last night's sleep and active calories, from Health Connect. Hidden when there is no data.", s.todayCardActivity) { viewModel.setTodayCard(TodayCard.ACTIVITY, it) }
                 "todayCard.meals" -> SwitchSetting("Today card: Meals", "Four compact rows with what you ate. Calories is always shown.", s.todayCardMeals) { viewModel.setTodayCard(TodayCard.MEALS, it) }
 
                 // ---- Nutrition ----
@@ -142,16 +153,24 @@ fun SettingControl(
                 "fatPerKg" -> NumberSetting("Fat", "Per kg of weight. 0.6 is the minimum.", s.fatGramsPerKg, "g per kg", 0.3..2.0) { viewModel.setFatPerKg(it) }
                 "addActiveKcal" -> SwitchSetting(
                     "Add active calories to my target",
-                    "Off by default. Wearable burn estimates are often high, and counting them twice stalls a cut.",
+                    "Off by default. Only the burn inside workouts your watch or phone recorded is added, with resting burn taken out. Wearable estimates are often high, and counting them twice stalls a cut.",
                     s.addActiveCaloriesToTarget, viewModel::setAddActiveCalories,
                 )
                 "showSodium" -> SettingRow("Show salt or sodium on the dashboard", "Adds one nutrient tile in Nutrition.") {
                     Segmented(SodiumDisplay.entries.map { it.label }, SodiumDisplay.entries.indexOf(s.showSodium), { viewModel.setShowSodium(SodiumDisplay.entries[it]) })
                 }
                 "eatOutRadius" -> {
-                    val miles = listOf(0.5, 1.0, 2.0, 5.0)
-                    SettingRow("Eat out nearby: search radius", "Used by Swap > Eat out nearby. Uses the weather location, never a live track.") {
-                        Segmented(miles.map { "${if (it % 1.0 == 0.0) it.toInt() else it} mi" }, miles.indexOf(s.eatOutRadiusMi).coerceAtLeast(1), { viewModel.setEatOutRadius(miles[it]) })
+                    val minutes = com.zeroindex.intake.domain.nearby.TravelRadius.MINUTES_CHOICES
+                    val modes = com.zeroindex.intake.domain.nearby.TravelMode.entries
+                    val travel = s.eatOutTravel
+                    SettingRow(
+                        "Eat out nearby: how far",
+                        "How far the nearby restaurant search reaches, as a travel time. Walking is about 5 km/h and driving about 40 km/h, with allowance for roads being longer than a straight line (about ${"%.1f".format(java.util.Locale.US, travel.meters / 1000.0)} km out for ${travel.label}). Uses your location once, when you tap search.",
+                    ) {
+                        androidx.compose.foundation.layout.Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp)) {
+                            Segmented(minutes.map { "$it min" }, minutes.indexOf(travel.minutes).coerceAtLeast(0), { viewModel.setEatOutTravel(travel.copy(minutes = minutes[it])) })
+                            Segmented(modes.map { it.label }, modes.indexOf(travel.mode), { viewModel.setEatOutTravel(travel.copy(mode = modes[it])) })
+                        }
                     }
                 }
                 "recalc" -> SettingRow("Recalculate from my data", "Runs the target maths again with today's weight trend.") {
@@ -186,17 +205,26 @@ fun SettingControl(
                 "defaultRestSec" -> NumberSetting("Default rest", "Seconds between sets.", s.defaultRestSec.toDouble(), "sec", 10.0..900.0) { viewModel.setRestSeconds(it.toInt()) }
                 "restVibrate" -> SwitchSetting("Vibrate when rest ends", null, s.restTimerVibrate, viewModel::setRestVibrate)
                 "barWeight" -> NumberSetting("Bar weight", "Used for the plate maths.", UnitConverter.round(s.weightUnit.fromKg(s.barWeightKg), 1), s.weightUnit.label, 0.0..60.0) { viewModel.setBarWeightKg(s.weightUnit.toKg(it)) }
-                "plates" -> PlatesRow(s.availablePlatesKg, viewModel::setPlates)
+                "plates" -> PlatesRow(s.availablePlatesKg, s.weightUnit, viewModel::setPlates)
                 "equipmentPreset" -> Column(Modifier.fillMaxWidth().padding(top = 6.dp)) {
                     Text("My equipment", style = MaterialTheme.typography.titleSmall)
                     Text(
-                        "One list for the generator, swaps and the exercise library. Pick a preset, then adjust the items.",
+                        "One list for the generator, swaps and the exercise library. Pick a quick pick, then tick or untick any item below.",
                         style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = 6.dp),
                     )
-                    EquipmentPresetRow(s.profile.equipmentPreset) { p -> viewModel.updateProfile { it.copy(equipmentPreset = p, equipment = if (p == EquipmentPreset.CUSTOM) it.equipment else p.kinds) } }
+                    EquipmentPresetChips(s.profile.equipmentPreset, { p -> viewModel.updateProfile { it.withEquipmentPreset(p) } }, Modifier.padding(bottom = 6.dp))
                 }
-                "equipment" -> EquipmentItemsRow(s.profile.equipment) { kinds -> viewModel.updateProfile { it.copy(equipment = kinds, equipmentPreset = EquipmentPreset.CUSTOM) } }
+                "equipment" -> {
+                    EquipmentChecklist(
+                        selected = s.profile.effectiveEquipmentItems,
+                        onChange = { items -> viewModel.updateProfile { it.withEquipmentItems(items) } },
+                        dumbbellMaxKg = s.profile.dumbbellMaxKg,
+                        onDumbbellMax = { kg -> viewModel.updateProfile { it.copy(dumbbellMaxKg = kg) } },
+                        unit = s.weightUnit,
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                }
                 "jumpTests" -> SwitchSetting("Show jump tests in Progress", "Hidden until you switch it on.", s.jumpTests, viewModel::setJumpTests)
                 "weeklySets" -> WeeklySetsRow(s.weeklySetsCsv, viewModel::setWeeklySets)
 
@@ -205,12 +233,22 @@ fun SettingControl(
 
                 // ---- Food database ----
                 "offSearch" -> SwitchSetting("Search Open Food Facts while typing", "Sends only the words you typed, and only when you are online.", state.foodData.offSearch, viewModel::setOffSearch)
-                "offOtherLanguages" -> SwitchSetting("Show products in other languages", "Off leaves out products named in another script, such as Russian or Thai.", state.foodData.offOtherLanguages, viewModel::setOffOtherLanguages)
+                "offLanguage" -> ChipSetting(
+                    "Food search language",
+                    "Packaged foods are listed when they have a name in this language or in English.",
+                    listOf("") + OffLanguage.CHOICES.map { it.first },
+                    state.foodData.offLanguage,
+                    { code -> OffLanguage.choiceLabel(code, java.util.Locale.getDefault()) },
+                    viewModel::setOffLanguage,
+                )
+                "offOtherLanguages" -> SwitchSetting("Show products in other languages", "Off leaves out products with no name in your food search language or English.", state.foodData.offOtherLanguages, viewModel::setOffOtherLanguages)
                 "offContribute" -> SwitchSetting("Allow contributing to Open Food Facts", "Adds a Contribute button to foods you made that have a barcode. You confirm each time.", state.foodData.offContribute, viewModel::setOffContribute)
                 "offUsername" -> OffLogin(state.keys.offUsername, state.keys.hasOffCredentials, viewModel::saveOffCredentials)
                 "offPassword" -> Unit // drawn with the username above
 
                 // ---- Videos ----
+                "hideShorts" -> SwitchSetting("Hide Shorts", "Leaves out vertical videos (YouTube Shorts) and ones tagged #shorts. A chip on Videos changes it for one visit.", s.hideShorts, viewModel::setHideShorts)
+                "directVideos" -> DirectVideosSetting(s.directVideos, viewModel::setDirectVideos)
                 "onlyWorkouts" -> SwitchSetting("Show only workouts by default", "Hides results that do not look like a workout. A one-tap override shows everything for one search.", s.onlyWorkouts, viewModel::setOnlyWorkouts)
                 "personalise" -> SwitchSetting("Personalise Recommended from this phone's data", "Uses your weekly muscle volume, equipment and saved videos. Strictly local. Videos use about 100 searches a day on the free quota.", s.personaliseVideos, viewModel::setPersonalise)
 
@@ -219,8 +257,40 @@ fun SettingControl(
                 "coachWeekday" -> WeekdayRow(s.coachWeekday, viewModel::setCoachWeekday)
                 "photoReminder" -> {
                     val options = listOf(0, 2, 3, 4)
-                    SettingRow("Progress photo reminder", "A line on You when a photo is due. Off, or every 2, 3 or 4 weeks.") {
-                        Segmented(options.map { if (it == 0) "Off" else "$it wk" }, options.indexOf(s.photoReminderWeeks).coerceAtLeast(0), { viewModel.setPhotoReminderWeeks(options[it]) })
+                    SettingRow("Progress photo reminder", "A notification and a line on You when a photo is due. Off, or every 2, 3 or 4 weeks.") {
+                        Segmented(options.map { if (it == 0) "Off" else "$it wk" }, options.indexOf(s.photoReminderWeeks).coerceAtLeast(0), { i ->
+                            if (options[i] > 0) askNotifications()
+                            viewModel.setPhotoReminderWeeks(options[i])
+                        })
+                    }
+                }
+                "workoutRemind" -> SwitchSetting(
+                    "Workout reminder", "On a training day, at the time below. Not sent once today's workout is done.", s.workoutReminderOn,
+                ) { on -> if (on) askNotifications(); viewModel.setWorkoutReminder(on) }
+                "workoutTime" -> ChipSetting(
+                    "Workout reminder time", null, WORKOUT_TIMES, s.workoutReminderMinute, { clockLabel(it) },
+                ) { viewModel.setWorkoutReminderMinute(it) }
+                "mealRemind" -> SwitchSetting(
+                    "Meal reminders", "At each meal's time, only if nothing is logged for that meal yet.", s.mealReminderOn,
+                ) { on -> if (on) askNotifications(); viewModel.setMealReminder(on) }
+                "breakfastTime" -> ChipSetting("Breakfast reminder time", null, BREAKFAST_TIMES, s.breakfastReminderMinute, { clockLabel(it) }) {
+                    viewModel.setMealReminderMinute(MealSlot.BREAKFAST, it)
+                }
+                "lunchTime" -> ChipSetting("Lunch reminder time", null, LUNCH_TIMES, s.lunchReminderMinute, { clockLabel(it) }) {
+                    viewModel.setMealReminderMinute(MealSlot.LUNCH, it)
+                }
+                "dinnerTime" -> ChipSetting("Dinner reminder time", null, DINNER_TIMES, s.dinnerReminderMinute, { clockLabel(it) }) {
+                    viewModel.setMealReminderMinute(MealSlot.DINNER, it)
+                }
+                "waterRemind" -> SwitchSetting(
+                    "Water reminders", "Every two hours between the hours below, only when you are behind for the time of day.", s.waterReminderOn,
+                ) { on -> if (on) askNotifications(); viewModel.setWaterReminder(on) }
+                "waterHours" -> Column {
+                    ChipSetting("Water reminders from", null, WATER_START_HOURS, s.waterReminderStartHour, { hourLabel(it) }) {
+                        viewModel.setWaterReminderHours(it, s.waterReminderEndHour)
+                    }
+                    ChipSetting("Water reminders until", null, WATER_END_HOURS, s.waterReminderEndHour, { hourLabel(it) }) {
+                        viewModel.setWaterReminderHours(s.waterReminderStartHour, it)
                     }
                 }
                 "exportReminder" -> SettingRow(
@@ -247,7 +317,13 @@ fun SettingControl(
                         KeyTestResult.Untested -> null
                     },
                 )
-                "key.youtube" -> KeyField(
+                "key.youtube" -> Column {
+                    var steps by remember { mutableStateOf(false) }
+                    TextButton(onClick = { steps = !steps }, modifier = Modifier.heightIn(min = 48.dp)) {
+                        Text(if (steps) "Hide the steps" else "How to get and restrict a YouTube key")
+                    }
+                    if (steps) com.zeroindex.intake.ui.screens.videos.KeySteps(Modifier.padding(bottom = 10.dp))
+                    KeyField(
                     title = "YouTube Data API key", has = state.keys.hasYoutubeKey,
                     hint = "Videos need internet and your own free key. It is sent only to YouTube. The free quota allows about 100 searches a day; results are kept on this phone to save it.",
                     onSave = viewModel::setYoutubeKey, onTest = viewModel::testYoutubeKey,
@@ -258,6 +334,7 @@ fun SettingControl(
                         KeyTestResult.Untested -> null
                     },
                 )
+                }
 
                 // ---- About and help ----
                 "tour" -> AboutAction("Replay the tour", "A quick look around Today, one step at a time. Nothing is changed or deleted.", "Replay") { flow -> flow.replayTour(then = nav.goToToday) }
@@ -281,6 +358,37 @@ fun SettingControl(
                 SandNote(m)
                 TextButton(onClick = viewModel::clearMessage) { Text("Dismiss") }
             }
+        }
+    }
+}
+
+/** Reminder choices, in minutes after midnight (local time) and hours. The stored value must be one of these to show as selected. */
+private val WORKOUT_TIMES = listOf(6 * 60, 7 * 60, 12 * 60, 17 * 60, 18 * 60, 19 * 60, 20 * 60)
+private val BREAKFAST_TIMES = listOf(6 * 60 + 30, 7 * 60, 7 * 60 + 30, 8 * 60, 9 * 60, 10 * 60)
+private val LUNCH_TIMES = listOf(11 * 60, 11 * 60 + 30, 12 * 60, 12 * 60 + 30, 13 * 60, 14 * 60)
+private val DINNER_TIMES = listOf(17 * 60, 18 * 60, 18 * 60 + 30, 19 * 60, 20 * 60)
+private val WATER_START_HOURS = listOf(7, 8, 9, 10, 11, 12)
+private val WATER_END_HOURS = listOf(16, 18, 20, 21, 22)
+
+/** "7:30", from minutes after midnight. */
+private fun clockLabel(minute: Int): String = "%d:%02d".format(minute / 60, minute % 60)
+
+/** "8:00", from an hour of the day. */
+private fun hourLabel(hour: Int): String = "%d:00".format(hour)
+
+/**
+ * Android 13+ asks for notification permission the first time a reminder is switched on, the same way the
+ * baseline and the coach ask. Denied is fine: the reminder then simply does not show.
+ */
+@Composable
+private fun rememberNotificationPermissionAsk(): () -> Unit {
+    val context = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    return {
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 }
@@ -431,32 +539,19 @@ private fun HydrationAdvancedBlock(weightUnit: WeightUnit, volumeUnit: VolumeUni
 }
 
 @Composable
-private fun PlatesRow(csv: String, onSet: (String) -> Unit) {
-    var text by remember(csv) { mutableStateOf(csv) }
+private fun PlatesRow(csvKg: String, unit: com.zeroindex.intake.domain.units.WeightUnit, onSet: (String) -> Unit) {
+    val shown = com.zeroindex.intake.domain.training.PlateDefaults.toDisplayCsv(csvKg, unit)
+    var text by remember(unit) { mutableStateOf(shown) }
     Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
         LabeledField(
-            "Plates available per side (kg, comma separated)", text,
-            { t -> text = t.filter { it.isDigit() || it == '.' || it == ',' }; onSet(text) },
-            supporting = "Stored in kg, shown in your weight unit where plates are drawn.",
+            "Plates available per side (${unit.label}, comma separated)", text,
+            { t ->
+                text = t.filter { it.isDigit() || it == '.' || it == ',' }
+                onSet(com.zeroindex.intake.domain.training.PlateDefaults.fromDisplayCsv(text, unit))
+            },
+            supporting = "The plates on your rack. The plate maths and the smallest step up use them.",
         )
     }
-}
-
-@Composable
-private fun EquipmentPresetRow(selected: EquipmentPreset, onSelect: (EquipmentPreset) -> Unit) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(bottom = 6.dp)) {
-        EquipmentPreset.entries.forEach { p -> ChoiceChip(p.label, p == selected, { onSelect(p) }) }
-    }
-}
-
-@Composable
-private fun EquipmentItemsRow(selected: Set<String>, onChange: (Set<String>) -> Unit) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(bottom = 6.dp)) {
-        Equipment.ALL.forEach { kind ->
-            ChoiceChip(Equipment.label(kind), kind in selected, { onChange(if (kind in selected) selected - kind else selected + kind) })
-        }
-    }
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 }
 
 @Composable
@@ -586,6 +681,37 @@ private fun CreditsRow() {
                 }
             },
             confirmButton = { TextButton(onClick = { open = false }) { Text("Close") } },
+        )
+    }
+}
+
+/**
+ * Settings > Videos > "Offline downloads and direct playback". Off by default. Turning it on first shows what it is and that it
+ * goes against YouTube's terms; only "I understand, turn it on" switches it on. Turning it off needs no question.
+ */
+@Composable
+private fun DirectVideosSetting(checked: Boolean, onChange: (Boolean) -> Unit) {
+    var warn by remember { mutableStateOf(false) }
+    SettingRow(
+        "Offline downloads and direct playback (uses yt-dlp, not an official YouTube feature)",
+        "Plays videos without YouTube's ads and lets you download saved videos to this phone to watch offline. Off keeps YouTube's own player.",
+    ) {
+        Switch(checked = checked, onCheckedChange = { if (it) warn = true else onChange(false) })
+    }
+    if (warn) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { warn = false },
+            title = { Text("Before you turn this on") },
+            text = {
+                Text(
+                    "This uses yt-dlp, a third-party tool, to get video streams from YouTube. It is not an official YouTube feature, and " +
+                        "YouTube's terms do not allow downloading videos or skipping ads outside YouTube's own apps. Using it can get the YouTube " +
+                        "key you added suspended, and it can stop working whenever YouTube changes. Downloads stay in Intake's private storage on this " +
+                        "phone and are never uploaded. Intake adds a large component to the app for this. You can turn it off at any time.",
+                )
+            },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = { warn = false; onChange(true) }) { Text("I understand, turn it on") } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { warn = false }) { Text("Keep YouTube's player") } },
         )
     }
 }

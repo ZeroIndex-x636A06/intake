@@ -10,10 +10,17 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -87,7 +94,8 @@ fun HealthStatusHeader(modifier: Modifier = Modifier, viewModel: HealthConnectVi
             IntakeCard {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Last synced", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                    StatusPill("${HealthConnectManager.TYPES.count { it.permission in sync.granted }} of ${HealthConnectManager.TYPES.size} allowed")
+                    val shown = HealthConnectManager.TYPES.filter { sync.historySupported || it.permission != HealthConnectManager.HISTORY_PERMISSION }
+                    StatusPill("${shown.count { it.permission in sync.granted }} of ${shown.size} allowed")
                 }
                 Text(
                     lastAt?.let { formatSyncTime(it) } ?: "Not synced yet. The first sync reads the last 30 days.",
@@ -130,6 +138,8 @@ fun HealthControl(id: String, modifier: Modifier = Modifier, viewModel: HealthCo
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val sync = state.sync
+    val scope = rememberCoroutineScope()
+    var allowAllAsked by remember { mutableStateOf(false) }
     val request = rememberLauncherForActivityResult(PermissionController.createRequestPermissionResultContract()) {
         viewModel.refresh()
         viewModel.syncNow()
@@ -140,6 +150,8 @@ fun HealthControl(id: String, modifier: Modifier = Modifier, viewModel: HealthCo
     }
     val type = HealthConnectManager.TYPES.firstOrNull { healthControlId(it) == id }
     Column(modifier) {
+        // The history permission exists only on newer Health Connect; where it does not, there is no switch to show.
+        if (type != null && type.permission == HealthConnectManager.HISTORY_PERMISSION && !sync.historySupported) return@Column
         if (type != null) {
             val granted = type.permission in sync.granted
             SwitchRow(
@@ -152,11 +164,31 @@ fun HealthControl(id: String, modifier: Modifier = Modifier, viewModel: HealthCo
                 },
             )
         } else if (id == "hcOpen") {
-            OutlinedButton(
-                onClick = { runCatching { request.launch(HealthConnectManager.TYPES.map { it.permission }.toSet()) } },
+            // One system sheet for every read and write permission, so nothing has to be switched on one by one.
+            val everythingAllowed = sync.granted.containsAll(HealthConnectManager.ALL_PERMISSIONS - if (sync.historySupported) emptySet() else setOf(HealthConnectManager.HISTORY_PERMISSION))
+            Button(
+                onClick = {
+                    allowAllAsked = true
+                    scope.launch { runCatching { request.launch(viewModel.allPermissions()) } }
+                },
+                enabled = !everythingAllowed,
                 shape = IntakeShape.Button,
                 modifier = Modifier.fillMaxWidth().height(48.dp),
-            ) { Text("Request permissions") }
+            ) { Text(if (everythingAllowed) "Everything is allowed" else "Allow all") }
+            Text(
+                "Asks for every read and write permission below in one sheet. You can still switch any of them off later in Health Connect.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            if (allowAllAsked && !everythingAllowed && !sync.syncing) {
+                // Android stops showing the sheet after a permission was refused twice; Health Connect's own screen still works.
+                OutlinedButton(
+                    onClick = { openHealthConnectSettings(context) },
+                    shape = IntakeShape.Button,
+                    modifier = Modifier.fillMaxWidth().height(48.dp).padding(top = 4.dp),
+                ) { Text("Nothing changed? Open Health Connect") }
+            }
         }
     }
 }

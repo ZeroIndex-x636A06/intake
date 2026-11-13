@@ -13,6 +13,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BakeryDining
 import androidx.compose.material.icons.filled.Cookie
 import androidx.compose.material.icons.filled.Egg
+import androidx.compose.material.icons.filled.EmojiFoodBeverage
+import androidx.compose.material.icons.filled.LocalBar
+import androidx.compose.material.icons.filled.LocalCafe
+import androidx.compose.material.icons.filled.SportsBar
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material.icons.filled.Grass
 import androidx.compose.material.icons.filled.Icecream
@@ -38,6 +43,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.data.db.entity.FoodEntity
+import com.zeroindex.intake.domain.drinks.DrinkCategory
 import com.zeroindex.intake.data.di.OffHttp
 import com.zeroindex.intake.data.recipe.RecipeFetcher
 import com.zeroindex.intake.data.remote.Connectivity
@@ -178,7 +184,7 @@ fun FoodThumb(
     food: FoodEntity,
     modifier: Modifier = Modifier,
     size: Dp = 44.dp,
-) = ThumbTile(name = food.name, imageUrl = food.imageUrl, modifier = modifier, size = size)
+) = ThumbTile(name = food.name, imageUrl = food.imageUrl, modifier = modifier, size = size, drinkCategory = food.drinkCategory)
 
 @Composable
 fun ThumbTile(
@@ -189,6 +195,8 @@ fun ThumbTile(
     category: String = "",
     /** True for a recipe's photo: it comes from the page the user imported, not from Open Food Facts. */
     fromRecipePage: Boolean = false,
+    /** The stored drink category of a drink: its icon is a cup or glass for that category, never a food-word guess ("sugar" is not a cookie). */
+    drinkCategory: String? = null,
 ) {
     val loader = rememberProductImageLoader()
     val px = with(androidx.compose.ui.platform.LocalDensity.current) { size.roundToPx() }
@@ -214,13 +222,23 @@ fun ThumbTile(
                 )
             } else {
                 Icon(
-                    imageVector = categoryIcon(FoodCategory.of(name, category)),
+                    imageVector = DrinkCategory.fromStored(drinkCategory)?.let(::drinkIcon) ?: categoryIcon(FoodCategory.of(name, category)),
                     contentDescription = null,
                     modifier = Modifier.size(size * 0.52f),
                 )
             }
         }
     }
+}
+
+/** The icon of a saved drink, by its category: a tea cup for tea, a coffee cup for coffee, and so on. */
+internal fun drinkIcon(category: DrinkCategory): ImageVector = when (category) {
+    DrinkCategory.WATER -> Icons.Filled.WaterDrop
+    DrinkCategory.COFFEE -> Icons.Filled.LocalCafe
+    DrinkCategory.TEA -> Icons.Filled.EmojiFoodBeverage
+    DrinkCategory.ALCOHOL -> Icons.Filled.LocalBar
+    DrinkCategory.SPORTS_ENERGY -> Icons.Filled.SportsBar
+    DrinkCategory.SODA, DrinkCategory.JUICE, DrinkCategory.MILK, DrinkCategory.OTHER -> Icons.Filled.LocalDrink
 }
 
 internal fun categoryIcon(category: FoodCategory): ImageVector = when (category) {

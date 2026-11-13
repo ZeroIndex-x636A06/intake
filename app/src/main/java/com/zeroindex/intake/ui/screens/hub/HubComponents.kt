@@ -29,7 +29,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
-import com.zeroindex.intake.ui.components.SubHead
+import com.zeroindex.intake.ui.components.SubCopy
 import com.zeroindex.intake.ui.components.Tag
 import com.zeroindex.intake.ui.motion.pressScale
 import com.zeroindex.intake.ui.motion.rememberStaggerGate
@@ -53,7 +53,6 @@ data class HubItem(
 /** The standard hub: a heading, an optional intro slot, then one calm list of [items]. */
 @Composable
 fun HubScreen(
-    title: String,
     subtitle: String,
     items: List<HubItem>,
     contentPadding: PaddingValues,
@@ -68,7 +67,7 @@ fun HubScreen(
         contentPadding = hubPadding(contentPadding),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item(key = "heading") { SubHead(title, subtitle) }
+        item(key = "heading") { SubCopy(subtitle) }
         if (tip != null) item(key = "tip") { tip() }
         before()
         item(key = "sections") { HubList(items) }

@@ -122,7 +122,7 @@ class SettingsViewModel @Inject constructor(
     fun setProteinPerKg(value: Double) = launchSetting { setProteinPerKg(value) }
     fun setFatPerKg(value: Double) = launchSetting { setFatPerKg(value) }
     fun setShowSodium(mode: SodiumDisplay) = launchSetting { setShowSodium(mode) }
-    fun setEatOutRadius(miles: Double) = launchSetting { setEatOutRadiusMi(miles) }
+    fun setEatOutTravel(budget: com.zeroindex.intake.domain.nearby.TravelBudget) = launchSetting { setEatOutTravel(budget) }
     fun updateProfile(block: (UserProfile) -> UserProfile) { viewModelScope.launch { profileRepository.update(block) } }
 
     /** Manual calorie entry, which switches auto-calculation off (SPEC §13). */
@@ -174,6 +174,7 @@ class SettingsViewModel @Inject constructor(
 
     // ---- Food database ----
     fun setOffSearch(on: Boolean) { viewModelScope.launch { foodDataPrefs.setOffSearch(on) } }
+    fun setOffLanguage(code: String) { viewModelScope.launch { foodDataPrefs.setOffLanguage(code) } }
     fun setOffOtherLanguages(on: Boolean) { viewModelScope.launch { foodDataPrefs.setOffOtherLanguages(on) } }
     fun setOffContribute(on: Boolean) { viewModelScope.launch { foodDataPrefs.setOffContribute(on) } }
     fun saveOffCredentials(username: String?, password: String?) {
@@ -183,12 +184,20 @@ class SettingsViewModel @Inject constructor(
 
     // ---- Videos / reminders / sync and export ----
     fun setOnlyWorkouts(on: Boolean) = launchSetting { setOnlyWorkouts(on) }
+    fun setHideShorts(on: Boolean) = launchSetting { setHideShorts(on) }
+    fun setDirectVideos(on: Boolean) = launchSetting { setDirectVideos(on) }
     fun setPersonalise(on: Boolean) = launchSetting { setPersonaliseVideos(on) }
     fun setCoachNotify(on: Boolean) = launchSetting { setCoachNotify(on) }
     fun setCoachWeekday(isoWeekday: Int?) = launchSetting { setCoachWeekday(isoWeekday) }
     fun setPhotoReminderWeeks(weeks: Int) = launchSetting { setPhotoReminderWeeks(weeks) }
     fun setExportReminder(on: Boolean) = launchSetting { setExportReminder(on) }
     fun setExportIncludePhotos(on: Boolean) = launchSetting { setExportIncludePhotos(on) }
+    fun setWorkoutReminder(on: Boolean) = launchSetting { setWorkoutReminder(on) }
+    fun setWorkoutReminderMinute(minute: Int) = launchSetting { setWorkoutReminderMinute(minute) }
+    fun setMealReminder(on: Boolean) = launchSetting { setMealReminder(on) }
+    fun setMealReminderMinute(slot: com.zeroindex.intake.domain.model.MealSlot, minute: Int) = launchSetting { setMealReminderMinute(slot, minute) }
+    fun setWaterReminder(on: Boolean) = launchSetting { setWaterReminder(on) }
+    fun setWaterReminderHours(startHour: Int, endHour: Int) = launchSetting { setWaterReminderHours(startHour, endHour) }
 
     // ---- API keys ----
     fun setUsdaKey(key: String?) {

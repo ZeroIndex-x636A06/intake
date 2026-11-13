@@ -2,6 +2,8 @@
 
 package com.zeroindex.intake.ui.onboarding
 
+import com.zeroindex.intake.domain.training.generator.EquipmentPreset
+import com.zeroindex.intake.ui.components.EquipmentChecklist
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -28,6 +30,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -40,6 +43,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -57,6 +61,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -75,6 +80,7 @@ import com.zeroindex.intake.domain.goals.Phase
 import com.zeroindex.intake.domain.goals.PhasePlanner
 import com.zeroindex.intake.domain.goals.Sex
 import com.zeroindex.intake.domain.onboarding.OnboardingFlow
+import com.zeroindex.intake.domain.food.OffLanguage
 import com.zeroindex.intake.domain.onboarding.OnboardingStep
 import com.zeroindex.intake.domain.onboarding.PendingDestination
 import com.zeroindex.intake.domain.units.LengthUnit
@@ -172,6 +178,7 @@ fun OnboardingScreen(
                     OnboardingStep.UNITS -> UnitsStep(viewModel)
                     OnboardingStep.ABOUT_YOU -> AboutYouStep(profileViewModel)
                     OnboardingStep.GOAL -> GoalStep(profileViewModel) { viewModel.goTo(OnboardingStep.ABOUT_YOU) }
+                    OnboardingStep.EQUIPMENT -> EquipmentStep(profileViewModel)
                     OnboardingStep.ALLERGENS -> AllergensStep()
                     OnboardingStep.HOW_TO_START -> HowToStartStep(viewModel) { viewModel.goTo(OnboardingStep.ABOUT_YOU) }
                     OnboardingStep.PLANS -> PlansStep(viewModel)
@@ -311,7 +318,8 @@ private fun WelcomeStep() {
 @Composable
 private fun UnitsStep(viewModel: OnboardingViewModel) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
-    StepHeading("Which units do you like?", "Pick what you use every day. You can change this later in Settings.")
+    val foodData by viewModel.foodData.collectAsStateWithLifecycle()
+    StepHeading("Units and language", "Pick what you use every day. You can change this later in Settings.")
     IntakeCard {
         Text("Body weight", style = MaterialTheme.typography.titleSmall)
         ChipGroup(
@@ -328,6 +336,37 @@ private fun UnitsStep(viewModel: OnboardingViewModel) {
             VolumeUnit.entries.reversed(), settings.volumeUnit, { it.label }, viewModel::setVolumeUnit,
             Modifier.padding(top = 8.dp),
         )
+    }
+    Spacer(Modifier.height(12.dp))
+    IntakeCard {
+        Text("Food search language", style = MaterialTheme.typography.titleSmall)
+        Text(
+            "Packaged foods are listed when they have a name in this language or in English.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        ChipGroup(
+            listOf("") + OffLanguage.CHOICES.map { it.first }, foodData.offLanguage,
+            { code -> OffLanguage.choiceLabel(code, java.util.Locale.getDefault()) }, viewModel::setFoodLanguage,
+            Modifier.padding(top = 8.dp, bottom = 6.dp),
+        )
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .toggleable(value = foodData.offOtherLanguages, role = Role.Switch, onValueChange = viewModel::setOtherLanguages)
+                .heightIn(min = 48.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Show products in other languages", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "Off leaves out products with no name in your language or English.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Switch(checked = foodData.offOtherLanguages, onCheckedChange = null)
+        }
     }
 }
 
@@ -512,6 +551,47 @@ private fun GoalStep(viewModel: ProfileViewModel, onNeedAbout: () -> Unit) {
             "Add your sex, birth year, height and weight on the About you step to see your daily calories and protein here.",
         )
         TextButton(onClick = onNeedAbout, modifier = Modifier.heightIn(min = 48.dp)) { Text("Go to About you") }
+    }
+}
+
+// ------------------------------------------------------------------------------------ Equipment
+
+/** The simple choice first (three quick picks); "Advanced: pick each item" opens the grouped checklist. */
+@Composable
+private fun EquipmentStep(viewModel: ProfileViewModel) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val profile = state.profile
+    var advanced by remember { mutableStateOf(false) }
+    StepHeading("What can you train with?", "Used to pick exercises and swaps that fit. You can change it later in Settings.")
+    listOf(EquipmentPreset.FULL_GYM, EquipmentPreset.HOME_DUMBBELLS, EquipmentPreset.BODYWEIGHT_ONLY).forEach { p ->
+        OptionTile(
+            title = p.label,
+            description = when (p) {
+                EquipmentPreset.FULL_GYM -> "Barbells, racks, dumbbells, machines and cables"
+                EquipmentPreset.HOME_DUMBBELLS -> "Adjustable dumbbells, a bench and a pull-up bar"
+                else -> "Your own bodyweight and a pull-up bar"
+            },
+            selected = profile.equipmentPreset == p,
+            onClick = { viewModel.update { it.withEquipmentPreset(p) } },
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+    OptionTile(
+        title = "Advanced: pick each item",
+        description = if (profile.equipmentPreset == EquipmentPreset.CUSTOM) "Your own list: ${profile.effectiveEquipmentItems.size} items" else "Tick every barbell, bench, machine and extra you have",
+        selected = advanced || profile.equipmentPreset == EquipmentPreset.CUSTOM,
+        onClick = { advanced = !advanced },
+        modifier = Modifier.fillMaxWidth(),
+        secondary = "Advanced",
+    )
+    if (advanced) {
+        EquipmentChecklist(
+            selected = profile.effectiveEquipmentItems,
+            onChange = { items -> viewModel.update { it.withEquipmentItems(items) } },
+            dumbbellMaxKg = profile.dumbbellMaxKg,
+            onDumbbellMax = { kg -> viewModel.update { it.copy(dumbbellMaxKg = kg) } },
+            unit = state.settings.weightUnit,
+        )
     }
 }
 

@@ -69,6 +69,47 @@ Negation and "-free" wording apply only to text a person wrote: free-text names,
 
 CHECK_LABEL can only add a nudge. For an allergen that already has a CONTAINS or MAY_CONTAIN hit (any field, any source) no CHECK_LABEL match is produced, and merging scans takes the worse verdict. Open Food Facts tags that say "milk" are CONTAINS as before; a product whose tags show no milk can still get CHECK_LABEL from its name. A shorter hit inside a longer one is dropped only when that does not weaken the verdict (a softened wrapper such as "almond cream cheese" does cover the "cream" and "cheese" inside it).
 
+## Search rows
+
+Every result row in Log food and in the Drinks search shows the engine's verdict when the person avoids anything:
+the phone's own foods, the bundled USDA database, Open Food Facts and the USDA API alike. A row is scanned with
+everything it carries: name, brand, ingredient text, and Open Food Facts allergen and trace tags. Stored tags are
+handed to the engine as structured tags (CONTAINS, never downgraded) as well as being read as text; allergen and trace
+tags are stored together, so a trace counts as "contains" for a stored food, which is stricter than the product and
+never weaker.
+
+A clear result is only as strong as the data behind it (`AllergenEvidence`, tested):
+
+| Row | Clear chip |
+|---|---|
+| A generic food (bundled USDA, USDA Foundation / SR Legacy), or a food the person entered | "No allergens": the name is the food |
+| A packaged product with an ingredient list or allergen tags | "No allergens": the label data was read |
+| A packaged product (Open Food Facts, a barcode, a branded USDA API food) with no ingredient list and no tags | "No ingredient list: check the label", in the outlined check-the-label style. Never "No allergens" |
+
+This only ever makes a clear result more cautious. A hit of any tier is shown as the hit it is, and the full check
+still runs before anything is logged.
+
+### Imported restaurant menu items
+
+Imported menu items appear in Log food ("Restaurant menus") and in the Swap sheet's saved eat-out section. They are
+scanned again every time they are shown or logged (`AllergenRepository.menuScanner`), because the verdict stored at
+import can be older than the person's allergen list. The scan reads the name, the description and the ingredient text,
+and hands the restaurant's stated "Contains: ... ; May contain: ..." line to the engine as structured contains and
+trace inputs (`StatedAllergens`). A stated list can raise a verdict and never clear one.
+
+A menu item that carries no ingredient text and no stated allergens (`MenuSearch.hasNoIngredientInfo`, which is
+`AllergenEvidence` for a name-only product) is never shown as "No allergens": Log food says "No ingredient list: check
+the label", and Swap offers it as "check the label" with the reason "Ingredients not listed". An item read from a
+restaurant's own allergen chart always has stated text: the list the chart gave, or a line saying the chart lists no
+major allergens. That line covers the major allergens only; it cannot speak for a custom allergen the chart never
+considered, the same as any generic food.
+
+### Nearby and menu orders, and "Choose anyway"
+
+The nearby finder and imported menu items read an order's title and modification note as free text, so "Whopper without cheese" or "no cheese, no butter" is not counted as cheese or butter (`freeText = true`); this clears nothing, and everything else (the rest of the name, a description, a stated "Contains" list, the model's own claims, which can only raise) still counts. A nearby option whose only finding was a negated mention is shown as "Check with the restaurant", never as clear. Ingredient panels, Open Food Facts tags and stated allergen lists are never negated.
+
+**Choosing anyway.** A "contains" option in Swap, Eating out nearby and imported menus has a "Choose anyway" button. It opens a warning that names the allergens and the evidence and says the warning stays on the entry; Cancel has focus, confirm is red. Only a person's tap can do this (never a model or a file). The item is logged with "Logged despite: dairy" added to the entry's name and serving label, and no status anywhere is changed to clear (`AllergenOverride`, no schema change).
+
 ## Custom allergens and keywords
 
 My allergens (Food, Allergens) lists all fifteen plus your own, searchable. A switch per allergen says whether you avoid it, and the profile's severity (Avoid / Strict) is set on the same screen. Tap an allergen for its keywords, grouped by level, with Add keyword.
@@ -107,3 +148,34 @@ Both the plan import and the script import use one preview (`ImportAllergenSecti
 ## Where it shows
 
 Add food (search rows, portion step), barcode result (only when no stronger flag), meal-plan ingredient lines and shopping list, eat-out rows, Recipe Hunter, Plan B, menu import review, and the allergen reference screen. CHECK_LABEL is not an allergen flag for the safe check: a food logged three or more times with no contains/may-contain flag keeps its green check and still shows the "Check the label" chip. MENTIONED_AVOIDED shows as a clear check in lists and as its own section in the import preview.
+
+## Adapting a recipe (Recipe Hunter, "Could be adapted")
+
+`domain/allergen/Substitutions.kt`. Deterministic, local, no AI. It only ever runs on a recipe whose ingredient lines scan as CONTAINS an avoided allergen. A recipe whose lines scan clean is "Already fine" and stays in the main results whatever its title says ("Vegan Mac and Cheese", "Dairy-Free Cheesecake"); the title rules below never block or downgrade it.
+
+- **Title scan.** Recipe Hunter reads the title with the free-text rules (negation and "-free" wording, so "Dairy-free alfredo" is not evidence) and the ingredient lines with the strict rules, then combines them. Labelled-free products in the lines ("vegan cheddar", "non-dairy milk") stay "check the label", never "contains" and never cleared.
+- **Swap classes.** Per allergen, ingredient classes with named substitutes in order of preference: cheese, cream cheese, butter, milk, cream, sour cream, yogurt, buttermilk, condensed milk (dairy); eggs (flax egg), egg whites (aquafaba), mayonnaise (egg); pasta, noodles, breadcrumbs, bread, grains, thickening flour, soy sauce (wheat, gluten, soy); nut topping, nut butter, nut milk, peanuts, peanut butter, peanut oil, sesame seeds, sesame oil, tahini, soy milk, miso. A substitute that carries another allergen the person avoids (oat milk with gluten, tamari with soy, cashew cream with tree nuts) is skipped; if none is left the recipe is not adaptable.
+- **Role and quantity.** Each class has a share-of-recipe-weight limit (from `IngredientAmounts`, approximate grams). Above the limit the ingredient is a main ingredient: refused. Between the borderline share and the limit the swap is offered as "Borderline" with a warning. A cream sauce at about 20 to 40% of the recipe is borderline; above 40% it is refused. All of one allergen's lines together above 40% is refused.
+- **Count cap.** More than 3 distinct lines carrying avoided allergens: refused.
+- **Defining dishes and titles.** A title for a dish that is the allergen (cheesecake, custard, alfredo, tres leches, mac and cheese, meringue, souffle, quiche, brioche, hummus, satay...) is refused, but only when the lines actually contain the allergen. A title that merely names an ingredient is refused once the ingredient is a real share.
+- **Baking chemistry.** In a baked good, 3 or more eggs, eggs above 20% of weight, or wheat flour above 8% is the structure: refused. One egg or a thickening spoon of flour is adaptable.
+- **Anything unplaced is refused:** a flagged line with no class (unless it is optional and tiny: then "leave it out"), a warning no ingredient line explains, an unusable substitute.
+- **Never clears a warning.** The original recipe keeps its CONTAINS verdict and warning on the card. "Save adapted copy" saves a separate recipe made of the swapped lines, re-scanned locally (and with any model claim merged back in); if the copy still blocks, nothing is offered. A plant cheese saves as "check the label", never "clear". Nutrition is the page's figure for the original, kept and noted as an estimate in the notes, or "not listed" when the page gave none.
+
+### Recipe Hunter: every reason, and recipes read by AI
+
+- A recipe that fails on several counts lists them all: "Contains dairy" and "Under protein goal" are separate short chips, and the card's text gives each full reason. A recipe only goes to "Removed" for a limit when it misses it by more than 10%; within 10% it is a close match. An allergen that cannot be swapped or a limit missed by more than 10% removes it whatever else is fine. Note the order: a recipe whose only blocker is a swappable topping (cheese and sour cream on a burrito bowl) is "Could be adapted" **when its numbers are within limits**; if it also misses the protein goal by more than 10% it is removed, and both reasons show.
+- When no local reader can parse a page, the optional per-search switch "Use AI to read pages the phone can't" sends its text to the model to copy out the recipe. A model can leave an ingredient line out, so the local scan of those lines proves less than it does for a page the phone read itself: a recipe read by AI that scans clean is **never "Passed allergen check"**; it is "Check allergens: read by AI, check the ingredient list on the original page", and carries a "Read by AI" label. A line that scans as containing an avoided allergen blocks it exactly as for any page.
+
+### Estimates, nutrition-only menus and "No allergens found" (round 5)
+
+The nearby and imported-menu lists showed "No allergens found" for AI-estimated items (McDonald's Hotcakes, Filet-O-Fish, Whopper, BK French Fries). The cause: the estimate path asked the model for an ingredient list, so the item carried ingredient text, `hasNoIngredientInfo` was false, the scan found nothing, and the chip read clear. The stored "check the label" status was never consulted when the list was drawn. Saved eat-out options and AI-found options had the same gap, and an AI-read PDF with no allergen column was saved as CLEAR.
+
+The rule now (`MenuAllergenEvidence`, tested): a menu item can be clear only when its source STATED allergen information (a chart row, a "Contains:" line, an ingredient panel, or the chart's "no major allergens listed" line) and that information is clean. Otherwise the best verdict is "Check with the restaurant" (the check-label tier). That covers:
+
+- AI estimates. Marked with the description prefix "AI estimate"; the model's own ingredient guess is moved into the description, so it is never ingredient text. What the model says an item contains is stored as a stated "May contain" line, so it raises an amber review now and whenever the person's allergens change. It is raise-only.
+- Pages or PDFs with no allergen column (the OSU nutrition PDF): no ingredient text is kept, and an AI-read item with no ingredient text is saved as CHECK_LABEL, not CLEAR.
+- Saved eat-out options and options an AI found: no ingredient text exists, so they never read as clear.
+- Merged chart plus nutrition menus: items matched to a chart row carry the chart's stated list, so the chart's verdicts apply; nutrition-only items stay unstated.
+
+The estimate prompt asks the model to list the allergens it knows each item contains (Hotcakes: milk, egg, wheat), for every item, whether or not the person avoids anything.

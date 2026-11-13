@@ -99,6 +99,13 @@ android {
             applicationIdSuffix = ".debug"
             isMinifyEnabled = false
         }
+        // The same as debug, but its own app: it installs beside the released app and beside a debug build, with its
+        // own data, so a new build can be compared with the one already on the phone. Its name is "Intake Preview".
+        create("preview") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".preview"
+            matchingFallbacks += "debug"
+        }
         release {
             // SPEC §15.4 + §16: minify and resource shrinking on, and the
             // release APK gets built and installed from phase 1 so R8 breakage
@@ -124,6 +131,9 @@ android {
     }
 
     packaging {
+        // yt-dlp's Python runtime ships as zipped native libraries that are unpacked at run time, so they must be stored
+        // extracted (the youtubedl-android requirement).
+        jniLibs { useLegacyPackaging = true }
         resources {
             excludes += setOf(
                 "/META-INF/{AL2.0,LGPL2.1}",
@@ -226,6 +236,9 @@ dependencies {
     implementation(libs.retrofit)
     implementation(libs.retrofit.kotlinx.serialization)
     implementation(libs.okhttp)
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.ui)
+    implementation(libs.youtubedl.library)
     // Wear OS companion (amendment §2): the shared protocol and the Data Layer.
     implementation(project(":wearprotocol"))
     implementation(libs.play.services.wearable)

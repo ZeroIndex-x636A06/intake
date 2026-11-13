@@ -13,7 +13,18 @@ package com.zeroindex.intake.domain.model
  */
 enum class FoodSource { MANUAL, BARCODE, SEARCH, AI_PHOTO, RECIPE, DATABASE, OPEN_FOOD_FACTS }
 
-enum class MealSlot { BREAKFAST, LUNCH, DINNER, SNACK }
+/**
+ * Where a food-log row sits on Today. [DRINKS] is "no meal": a drink logged from Drinks, the water card or the watch.
+ * Stored by name in the same TEXT column, so it needs no schema change; rows written before it keep their meal slot.
+ */
+enum class MealSlot {
+    BREAKFAST, LUNCH, DINNER, SNACK, DRINKS;
+
+    companion object {
+        /** The four real meals, in day order: what a meal picker or the meal cards list. */
+        val MEALS: List<MealSlot> = listOf(BREAKFAST, LUNCH, DINNER, SNACK)
+    }
+}
 
 /** Self-reported confidence from the AI photo estimator (SPEC §6.4). */
 enum class AiConfidence { HIGH, MEDIUM, LOW }

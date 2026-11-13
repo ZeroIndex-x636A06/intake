@@ -63,21 +63,7 @@ fun ExercisePickerSheet(
                         )
                     }
                 } else {
-                    item {
-                        Surface(
-                            color = MaterialTheme.colorScheme.surface,
-                            shape = IntakeShape.Card,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Column {
-                                state.shown.forEachIndexed { i, e ->
-                                    ExerciseRow(e, onClick = { onPick(e.id) }, onInfo = { info = e.id })
-                                    if (i != state.shown.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                                }
-                            }
-                        }
-                    }
+                    exerciseRows(state.shown) { e -> ExerciseRow(e, onClick = { onPick(e.id) }, onInfo = { info = e.id }) }
                 }
                 item {
                     OutlinedButton(

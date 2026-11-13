@@ -1,47 +1,505 @@
 package com.zeroindex.intake.ui.screens.swap
 
+import android.Manifest
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.zeroindex.intake.data.swap.PlannedMeal
+import com.zeroindex.intake.domain.nearby.NearbyPipeline
+import com.zeroindex.intake.domain.nearby.SearchStage
+import com.zeroindex.intake.domain.nutrition.Macros
+import com.zeroindex.intake.domain.swap.SwapKind
+import com.zeroindex.intake.domain.swap.SwapMath
+import com.zeroindex.intake.domain.swap.SwapOption
+import com.zeroindex.intake.domain.swap.SwapSection
+import com.zeroindex.intake.domain.swap.SwapSections
+import com.zeroindex.intake.ui.addfood.slotWord
+import com.zeroindex.intake.ui.allergen.AllergenChip
+import com.zeroindex.intake.ui.allergen.AllergenColors
+import com.zeroindex.intake.ui.components.EmptyState
+import com.zeroindex.intake.ui.components.ErrorState
+import com.zeroindex.intake.ui.components.LabeledField
+import com.zeroindex.intake.ui.components.LoadingState
 import com.zeroindex.intake.ui.components.SandNote
+import com.zeroindex.intake.ui.screens.ai.usd
+import com.zeroindex.intake.ui.theme.IntakeShape
+import java.time.Instant
+import java.time.format.DateTimeFormatter
+import kotlin.math.roundToInt
 
 /**
- * STUB of the Swap sheet (round 3, R3-2), opened from Today's Next up card. It shows the three section headers the
- * Nutrition agent fills in: Plan & recipes, Saved, Eat out nearby. Nothing here swaps anything yet. When it is built:
- * every option shows its macros against the planned meal and its allergen status, a red option cannot be chosen, and
- * "Eat out nearby" runs only when the person taps Search (its radius is Settings > Nutrition, never a control here).
+ * The Swap sheet (round 3, R3-2), opened from Today's Next up and from the planned meal on Nutrition. It replaces Plan B
+ * as a destination. Sections: Plan & recipes, Saved meals, then Eat out nearby: saved eat-out options first (they work
+ * offline), then the optional "Find healthy options nearby" (AI on the person's key, only when they tap Search, within
+ * the radius set in Settings).
+ *
+ * Every option shows its macros against the planned meal and its allergen status. A red ("contains") option is shown, dimmed,
+ * with its reason, and cannot be chosen. Choosing one logs it in place of the planned meal.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SwapSheet(slot: String?, onDismiss: () -> Unit) {
+fun SwapSheet(
+    slot: String?,
+    onDismiss: () -> Unit,
+    onOpenAiSettings: () -> Unit,
+    onOpenRadiusSetting: () -> Unit,
+    viewModel: SwapViewModel = hiltViewModel(),
+) {
+    LaunchedEffect(slot) { viewModel.load(slot) }
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val nearby = state.nearby
+    var locationDenied by remember { mutableStateOf(false) }
+    val locationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        viewModel.refreshPermissions()
+        locationDenied = !granted
+        if (granted) viewModel.searchNearby()
+    }
+    state.pendingOverride?.let { p ->
+        com.zeroindex.intake.ui.allergen.AllergenOverrideDialog(p, onCancel = viewModel::cancelOverride, onConfirm = { viewModel.confirmOverride(onDismiss) })
+    }
+    val timeFmt = remember(state.zone) { DateTimeFormatter.ofPattern("h:mm a").withZone(state.zone) }
+
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(
-            Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp).padding(bottom = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text("Swap${slot?.let { " your ${it.lowercase()}" } ?: ""}", style = MaterialTheme.typography.headlineSmall)
-            Section("Plan & recipes", "Another meal from your plan or your recipes.")
-            Section("Saved", "A saved meal, a template, or a saved eat-out option. These work offline.")
-            Section("Eat out nearby", "Find a place near you. Runs only when you tap Search, and uses your own AI key.")
-            SandNote("Coming with the Nutrition rebuild. Nothing is swapped yet.")
+            item(key = "title") {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Swap ${slotWord(state.slot).lowercase()}", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+                    IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, contentDescription = "Close") }
+                }
+            }
+            item(key = "planned") { PlannedCard(state.planned, slotWord(state.slot)) }
+            state.notice?.let { n -> item(key = "notice") { SandNote(n) } }
+
+            if (state.loading) {
+                item(key = "loading") { LoadingState(listOf("Reading your plan, recipes and meal templates")) }
+            }
+
+            val planned = state.planned?.macros
+            state.sections.filter { it.kind == SwapKind.PLAN_RECIPE || it.kind == SwapKind.SAVED_MEAL }.forEach { section ->
+                section(section, planned, state.savedKeys, state.choosing, viewModel, onDismiss)
+            }
+
+            // Eat out nearby: saved options first, then the optional AI search and its results.
+            item(key = "nearby-head") { SectionTitle("Eat out nearby", tag = "AI optional") }
+            state.sections.firstOrNull { it.kind == SwapKind.SAVED_EAT_OUT }?.let { saved ->
+                optionRows(saved, planned, state.savedKeys, state.choosing, viewModel, onDismiss)
+            }
+            item(key = "nearby-card") {
+                NearbyCard(
+                    nearby = nearby,
+                    blurb = if (planned != null) " Ranked by how close each is to your planned meal." else "",
+                    foundTime = nearby.foundAt?.let { timeFmt.format(Instant.ofEpochMilli(it)) },
+                    locationDenied = locationDenied,
+                    onUseLocation = {
+                        if (nearby.hasLocation) viewModel.searchNearby() else locationLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+                    },
+                    onPostalCode = viewModel::searchPostalCode,
+                    onToggleAi = viewModel::setUseAi,
+                    onStop = viewModel::stopSearch,
+                    onLookUpRest = viewModel::lookUpRest,
+                    onSearchWithAi = viewModel::searchWithAi,
+                    onOpenAiSettings = onOpenAiSettings,
+                    onOpenRadiusSetting = onOpenRadiusSetting,
+                )
+            }
+            state.sections.firstOrNull { it.kind == SwapKind.NEARBY }?.let { found ->
+                optionRows(found, planned, state.savedKeys, state.choosing, viewModel, onDismiss, saveable = true)
+            }
+            item(key = "foot") { Spacer(Modifier.navigationBarsPadding().size(4.dp)) }
+        }
+    }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.section(
+    section: SwapSection,
+    planned: Macros?,
+    saved: Set<String>,
+    choosing: Boolean,
+    vm: SwapViewModel,
+    onDone: () -> Unit,
+) {
+    item(key = "head-${section.kind}") { SectionTitle(section.title) }
+    if (section.options.isEmpty()) {
+        item(key = "empty-${section.kind}") {
+            Text(
+                when (section.kind) {
+                    SwapKind.PLAN_RECIPE -> "No other recipes yet. Recipes you save, and the week's variations, show up here."
+                    SwapKind.SAVED_MEAL -> "No meal templates yet. Make one in Nutrition, More, or save a meal you logged on Today, and it shows up here."
+                    else -> "Nothing here."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    } else {
+        optionRows(section, planned, saved, choosing, vm, onDone)
+    }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.optionRows(
+    section: SwapSection,
+    planned: Macros?,
+    saved: Set<String>,
+    choosing: Boolean,
+    vm: SwapViewModel,
+    onDone: () -> Unit,
+    saveable: Boolean = false,
+) {
+    if (section.options.isEmpty() && section.kind == SwapKind.SAVED_EAT_OUT) {
+        item(key = "empty-eatout") {
+            Text(
+                "No saved eat-out options or imported menus yet. Save one from a nearby search, import a restaurant menu, or import a plan that has them. They work with no signal.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        return
+    }
+    items(section.options, key = { it.key }) { o ->
+        OptionCard(
+            o, planned, choosing, saved = o.key in saved, saveable = saveable,
+            onChoose = { vm.choose(o.key, onDone) }, onSave = { vm.saveForOffline(o.key) },
+            onOverride = { vm.requestOverride(o.key) },
+        )
+    }
+}
+
+@Composable
+private fun SectionTitle(text: String, tag: String? = null) {
+    Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(text, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+        if (tag != null) {
+            Surface(color = MaterialTheme.colorScheme.tertiaryContainer, contentColor = MaterialTheme.colorScheme.onTertiaryContainer, shape = IntakeShape.Chip) {
+                Text(tag, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+            }
         }
     }
 }
 
 @Composable
-private fun Section(title: String, body: String) {
-    Column {
-        Text(title, style = MaterialTheme.typography.titleMedium)
-        Text(body, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+private fun PlannedCard(planned: PlannedMeal?, slotLabel: String) {
+    Surface(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f), shape = IntakeShape.Card, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (planned == null) {
+                Text("NOTHING PLANNED FOR ${slotLabel.uppercase()}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    "There is no planned meal to compare with, so each option shows its own macros. Choosing one logs it to ${slotLabel.lowercase()}.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            } else {
+                Row(verticalAlignment = Alignment.Top) {
+                    Text("PLANNED", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                    AllergenChip(planned.allergen, label = planned.allergenReason)
+                }
+                Text(planned.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+                Text(macroLine(planned.macros, false), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+private fun macroLine(m: Macros, estimate: Boolean): String =
+    "${m.kcal.roundToInt()} kcal · P ${m.protein.roundToInt()} · C ${m.carbs.roundToInt()} · F ${m.fat.roundToInt()}" + if (estimate) " · estimate" else ""
+
+@Composable
+internal fun OptionCard(
+    o: SwapOption,
+    planned: Macros?,
+    choosing: Boolean,
+    saved: Boolean,
+    saveable: Boolean,
+    onChoose: () -> Unit,
+    onSave: () -> Unit,
+    chooseLabel: String = "Choose",
+    /** "Choose anyway" on a blocked option: opens the warning dialog. Never logs by itself. */
+    onOverride: () -> Unit = {},
+) {
+    val blocked = !SwapSections.canChoose(o)
+    val scheme = MaterialTheme.colorScheme
+    Surface(
+        color = if (blocked) AllergenColors.red.copy(alpha = 0.12f) else scheme.surface,
+        shape = IntakeShape.Card,
+        border = BorderStroke(1.dp, if (blocked) AllergenColors.red.copy(alpha = 0.6f) else scheme.outlineVariant),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.weight(1f).alpha(if (blocked) 0.75f else 1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(o.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
+                    o.subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant) }
+                    Text(macroLine(o.macros, o.estimate), style = MaterialTheme.typography.bodySmall)
+                    o.reason?.let { Text(it, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = scheme.primary) }
+                }
+                if (blocked) {
+                    OutlinedButton(
+                        onClick = onOverride,
+                        enabled = !choosing,
+                        shape = IntakeShape.Button,
+                        border = BorderStroke(1.dp, AllergenColors.red),
+                        colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = AllergenColors.red),
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    ) { Text("Choose anyway") }
+                } else {
+                    Button(
+                        onClick = onChoose,
+                        enabled = !choosing,
+                        shape = IntakeShape.Button,
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    ) { Text(chooseLabel) }
+                }
+            }
+            if (planned != null) {
+                val chips = SwapMath.chips(SwapMath.delta(o.macros, planned))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    chips.forEach { c ->
+                        Surface(color = scheme.surfaceVariant, shape = IntakeShape.Chip) {
+                            Text(c, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp))
+                        }
+                    }
+                    if (o.estimate) {
+                        Surface(color = scheme.surfaceVariant, shape = IntakeShape.Chip) {
+                            Text("Estimate", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp))
+                        }
+                    }
+                }
+            }
+            AllergenChip(o.allergen, label = if (o.allergen == com.zeroindex.intake.domain.swap.SwapAllergen.CLEAR) "No allergens found" else o.allergenReason)
+            if (blocked) {
+                Text(
+                    "${SwapSections.blockedReason(o)}. You can still choose it after a warning; the warning stays on the entry.",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = scheme.onSurfaceVariant,
+                )
+            }
+            if (saveable && !blocked) {
+                TextButton(onClick = onSave, enabled = !saved, modifier = Modifier.heightIn(min = 40.dp)) {
+                    Text(if (saved) "Saved for offline" else "Save for offline")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun NearbyCard(
+    nearby: NearbyState,
+    title: String = "Find healthy options nearby",
+    blurb: String = "",
+    foundTime: String?,
+    /** The last location request was refused: say so on the card and offer the app's settings page. */
+    locationDenied: Boolean = false,
+    onUseLocation: () -> Unit,
+    onPostalCode: (String) -> Unit,
+    onToggleAi: (Boolean) -> Unit,
+    onStop: () -> Unit,
+    onLookUpRest: () -> Unit,
+    onSearchWithAi: () -> Unit,
+    onOpenAiSettings: () -> Unit,
+    onOpenRadiusSetting: () -> Unit,
+) {
+    var zip by remember { mutableStateOf("") }
+    var useZip by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val pipeline = nearby.pipeline
+    val working = pipeline.running
+    Surface(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), shape = IntakeShape.Card, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+                Surface(color = MaterialTheme.colorScheme.tertiaryContainer, shape = IntakeShape.Tile, modifier = Modifier.size(46.dp)) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                        Icon(Icons.Filled.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.onTertiaryContainer, modifier = Modifier.padding(top = 11.dp))
+                    }
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
+                    Text(
+                        "Restaurants within a ${nearby.budget.label} of you, from OpenStreetMap (free, no key). Each one's menu is found for you: " +
+                            "your saved menu, then the chain's own page, then its website, one at a time, nearest first. " +
+                            "Your allergens are checked on this phone. Your place is rounded to about a kilometre and sent once, when you tap." + blurb,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            if (!working && nearby.searching.not()) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Use AI to find menus I can't", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                        Text(
+                            if (nearby.hasKey) {
+                                "Off by default. Only for places where the steps above found nothing, nearest first, up to ${com.zeroindex.intake.domain.nearby.NearbyAiBatch.BATCH_SIZE} places to a call and at most ${NearbyPipeline.MAX_AI_LOOKUPS} calls a search, on your own key " +
+                                    "(a few cents each; the cost so far is shown). It looks the nutrition page up, or gives estimates, clearly marked as estimates and never shown as free of an allergen."
+                            } else {
+                                "Needs “Use AI features” on and an OpenRouter key. The search works without it."
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    androidx.compose.material3.Switch(checked = nearby.useAi && nearby.hasKey, onCheckedChange = onToggleAi, enabled = nearby.hasKey)
+                }
+            }
+            when {
+                working -> {
+                    LoadingState(listOf(NearbyPipeline.summary(pipeline)))
+                    OutlinedButton(onClick = onStop, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Stop searching") }
+                }
+                nearby.searching -> LoadingState(listOfNotNull(nearby.status, "Checking allergens on this phone"))
+                else -> {
+                    if (!useZip) {
+                        if (locationDenied) {
+                            Text(
+                                "Location is off for Intake. Allow it, or use a zip code instead.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                        Button(onClick = onUseLocation, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+                            Icon(Icons.Filled.SwapHoriz, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.size(8.dp))
+                            Text(
+                                when {
+                                    pipeline.stage != SearchStage.IDLE || nearby.foundAt != null -> "Search again"
+                                    nearby.hasLocation -> "Search near me"
+                                    else -> "Allow location once and search"
+                                },
+                            )
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            if (nearby.hasKey) TextButton(onClick = { useZip = true }) { Text("Use a zip code instead (AI search)") }
+                            if (locationDenied) {
+                                TextButton(onClick = {
+                                    context.startActivity(
+                                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)),
+                                    )
+                                }) { Text("Open app settings") }
+                            }
+                        }
+                    } else {
+                        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            LabeledField(label = "Zip code", value = zip, onValueChange = { zip = it.take(10) }, keyboardType = KeyboardType.Number, modifier = Modifier.weight(1f))
+                            Button(
+                                onClick = { onPostalCode(zip) },
+                                enabled = zip.trim().length >= 3,
+                                shape = IntakeShape.Button,
+                                modifier = Modifier.heightIn(min = 56.dp),
+                            ) { Text("Search") }
+                        }
+                        Text(
+                            "A zip code is searched with AI on your key (a cent or so), because the free map search needs your location.",
+                            style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        TextButton(onClick = { useZip = false }) { Text("Use my location instead") }
+                    }
+                    TextButton(onClick = onOpenRadiusSetting) { Text("Change how far in Settings (${nearby.budget.label})") }
+                }
+            }
+            if (pipeline.rows.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    pipeline.rows.forEach { r ->
+                        Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
+                            Column(Modifier.weight(1f)) {
+                                Text(r.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    "%.1f mi".format(java.util.Locale.US, com.zeroindex.intake.domain.nearby.TravelRadius.metersToMiles(r.distanceM)) +
+                                        (r.origin?.let { " · from ${it.label}" } ?: ""),
+                                    style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Text(
+                                r.statusText,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = if (r.picks > 0) FontWeight.Bold else FontWeight.Normal,
+                                color = if (r.phase == com.zeroindex.intake.domain.nearby.RowPhase.NO_MENU) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
+                }
+            }
+            if (!working && !nearby.searching && nearby.hasKey && nearby.aiPending > 0) {
+                Button(onClick = onLookUpRest, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Look up the rest with AI") }
+                Text(
+                    com.zeroindex.intake.domain.nearby.NearbyAiBatch.costNote(nearby.aiPending) + " Runs only because you tapped it.",
+                    style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (pipeline.aiLookups > 0 || pipeline.costUsd > 0) {
+                Text(
+                    "AI lookups this search: ${pipeline.aiLookups}" + if (pipeline.costUsd > 0) ", about ${usd(pipeline.costUsd)} so far for the ones that report a cost." else ".",
+                    style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (!working && !nearby.searching && pipeline.stage != SearchStage.IDLE && pipeline.stage != SearchStage.FAILED) {
+                Text(NearbyPipeline.summary(pipeline), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            nearby.error?.let {
+                ErrorState(title = "Search did not finish", body = "$it Saved options still work.") {
+                    if (nearby.offerAiFallback) {
+                        Button(onClick = onSearchWithAi, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Search with AI instead") }
+                        Text("Runs only because you tapped it, on your own key (a cent or so).", style = MaterialTheme.typography.labelMedium)
+                    }
+                    if (!nearby.hasKey) TextButton(onClick = onOpenAiSettings) { Text("Open AI settings") }
+                }
+            }
+            if (pipeline.stage == SearchStage.DONE && pipeline.rows.isNotEmpty() && pipeline.picks == 0 && !nearby.searching) {
+                EmptyState(
+                    title = "No picks from these restaurants",
+                    body = "${pipeline.withoutMenu} of ${pipeline.rows.size} had no menu that could be read without AI. " +
+                        "Turn on the AI switch above, or import a menu in Menu import. Saved options above still work.",
+                )
+            }
+            if (nearby.foundAt != null && nearby.error == null && !nearby.searching && pipeline.stage == SearchStage.IDLE && nearby.resultCount == 0) {
+                EmptyState(title = "Nothing found", body = "No option within ${nearby.budget.label} fit. Saved options above still work.")
+            }
+        }
     }
 }

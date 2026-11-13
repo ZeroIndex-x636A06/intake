@@ -20,6 +20,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
@@ -184,6 +186,7 @@ fun ProgramBuilderScreen(
                     onEdit = { editingId = it },
                     onInfo = { infoFor = it },
                     standalone = program.isStandalone,
+                    unit = state.weightUnit,
                 )
             }
             if (!(state.program?.isStandalone ?: false)) {
@@ -317,6 +320,7 @@ private fun DayCard(
     onEdit: (String) -> Unit,
     onInfo: (String) -> Unit,
     standalone: Boolean,
+    unit: WeightUnit,
 ) {
     var menu by remember { mutableStateOf(false) }
     var weekdayDialog by remember { mutableStateOf(false) }
@@ -369,6 +373,7 @@ private fun DayCard(
                 item = item,
                 isFirst = index == 0,
                 isLast = index == day.rows.lastIndex,
+                unit = unit,
                 onEdit = { onEdit(item.row.id) },
                 onMove = { delta -> viewModel.moveExercise(item.row.id, delta) },
                 onInfo = { item.exercise?.let { onInfo(it.id) } },
@@ -431,48 +436,75 @@ private fun ExerciseSummaryRow(
     item: BuilderRow,
     isFirst: Boolean,
     isLast: Boolean,
+    unit: WeightUnit,
     onEdit: () -> Unit,
     onMove: (Int) -> Unit,
     onInfo: () -> Unit,
 ) {
     val pe = item.row
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        item.exercise?.let { ExerciseThumb(it.id, it.photoPath, size = 44.dp) }
-        Column(
-            Modifier.weight(1f).heightIn(min = 56.dp)
-                .padding(vertical = 8.dp),
-        ) {
-            TextButton(onClick = onEdit, contentPadding = PaddingValues(0.dp), modifier = Modifier.heightIn(min = 48.dp)) {
-                Column(Modifier.fillMaxWidth()) {
-                    Text(item.exercise?.name ?: "Removed exercise", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
-                    Text(
-                        text = summaryLine(pe.targetSets, pe.targetRepsMin, pe.targetRepsMax, pe.targetRpe, pe.restSec),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = item.rule?.let { ProgressionLabels.summary(it.type, it.params) } ?: "No progression: weight stays as you set it",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    pe.notes?.takeIf { it.isNotBlank() }?.let { note ->
-                        Text(
-                            text = note,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
+    var menu by remember { mutableStateOf(false) }
+    // The whole row opens the editor. The text has the row's full width: the less-used actions (about, move up, move
+    // down) sit behind one menu, and the long "why this exercise" note is kept to two lines here.
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 72.dp)
+            .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onEdit)
+            .padding(vertical = 10.dp),
+    ) {
+        item.exercise?.let { ExerciseThumb(it.id, it.photoPath, size = 52.dp) }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(item.exercise?.name ?: "Removed exercise", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+            Text(
+                text = summaryLine(pe.targetSets, pe.targetRepsMin, pe.targetRepsMax, pe.targetRpe, pe.restSec),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = item.rule?.let { ProgressionLabels.summary(it.type, it.params, unit) }
+                    ?: "No progression: weight stays as you set it",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            pe.notes?.takeIf { it.isNotBlank() }?.let { note ->
+                Text(
+                    text = com.zeroindex.intake.domain.units.WeightText.inUnit(note, unit),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
             }
         }
-        IconButton(onClick = onInfo, modifier = Modifier.size(44.dp)) {
-            Icon(Icons.Outlined.Info, contentDescription = "About ${item.exercise?.name ?: "this exercise"}: photos, muscles and how to")
-        }
-        IconButton(onClick = { onMove(-1) }, enabled = !isFirst, modifier = Modifier.size(44.dp)) {
-            Icon(Icons.Filled.ArrowUpward, contentDescription = "Move up")
-        }
-        IconButton(onClick = { onMove(1) }, enabled = !isLast, modifier = Modifier.size(44.dp)) {
-            Icon(Icons.Filled.ArrowDownward, contentDescription = "Move down")
+        Box {
+            IconButton(onClick = { menu = true }, modifier = Modifier.size(48.dp)) {
+                Icon(Icons.Filled.MoreVert, contentDescription = "More for ${item.exercise?.name ?: "this exercise"}")
+            }
+            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                DropdownMenuItem(
+                    text = { Text("Edit sets, reps and progression") },
+                    onClick = { menu = false; onEdit() },
+                )
+                DropdownMenuItem(
+                    text = { Text("Photos, muscles and how to") },
+                    leadingIcon = { Icon(Icons.Outlined.Info, contentDescription = null) },
+                    onClick = { menu = false; onInfo() },
+                )
+                DropdownMenuItem(
+                    text = { Text("Move up") },
+                    leadingIcon = { Icon(Icons.Filled.ArrowUpward, contentDescription = null) },
+                    enabled = !isFirst,
+                    onClick = { menu = false; onMove(-1) },
+                )
+                DropdownMenuItem(
+                    text = { Text("Move down") },
+                    leadingIcon = { Icon(Icons.Filled.ArrowDownward, contentDescription = null) },
+                    enabled = !isLast,
+                    onClick = { menu = false; onMove(1) },
+                )
+            }
         }
     }
 }

@@ -19,14 +19,14 @@ object CoachAdjustments {
             out = out.copy(
                 weightKg = max(0.0, lighter),
                 isDeload = true,
-                reason = "${out.reason} Coach deload week: ${state.deloadPercent}% lighter.",
+                reason = "${out.reason} Easy week (deload): ${state.deloadPercent}% lighter.",
             )
         }
         val easy = state.easyUntilMillis?.takeIf { nowMillis < it }
         if (easy != null && out.sets > 1) {
             out = out.copy(
                 sets = max(1, out.sets - state.easySetsLess),
-                reason = "${out.reason} Easier day from your coach: ${state.easySetsLess} set fewer.",
+                reason = "${out.reason} Easier session: ${state.easySetsLess} set fewer.",
             )
         }
         return out

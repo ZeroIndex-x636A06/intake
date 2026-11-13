@@ -23,7 +23,12 @@ class RecipeAiExtractor @Inject constructor(private val gateway: AiGateway) {
 
     fun isAvailable(): Boolean = gateway.isConfigured()
 
-    suspend fun extract(pageText: String, pageUrl: String): RecipeDraft? {
+    suspend fun extract(pageText: String, pageUrl: String): RecipeDraft? = extractCounted(pageText, pageUrl).draft
+
+    /** A draft (or null when the text had no recipe) and what the call cost, for callers that count it against a cap. */
+    data class Extracted(val draft: RecipeDraft?, val costUsd: Double?)
+
+    suspend fun extractCounted(pageText: String, pageUrl: String): Extracted {
         val outcome = gateway.structured(
             feature = AiFeature.RECIPE_TRY_AI,
             trigger = AiTrigger.USER_ACTION,
@@ -32,9 +37,10 @@ class RecipeAiExtractor @Inject constructor(private val gateway: AiGateway) {
             system = SYSTEM,
             parts = listOf(AiPart.Text("Page address: $pageUrl\n\nPage text:\n${pageText.take(20_000)}")),
         )
-        val r = outcome.value.recipes.firstOrNull() ?: return null
-        if (r.ingredients.isEmpty() && r.steps.isEmpty()) return null
-        return RecipeDraft(
+        val cost = outcome.response.costUsd
+        val r = outcome.value.recipes.firstOrNull() ?: return Extracted(null, cost)
+        if (r.ingredients.isEmpty() && r.steps.isEmpty()) return Extracted(null, cost)
+        val draft = RecipeDraft(
             name = r.title,
             servings = r.servings.takeIf { it > 0 },
             totalMinutes = r.totalMinutes?.toInt()?.takeIf { it > 0 },
@@ -50,6 +56,7 @@ class RecipeAiExtractor @Inject constructor(private val gateway: AiGateway) {
             url = pageUrl,
             source = RecipeSource.JSON_LD,
         )
+        return Extracted(draft, cost)
     }
 
     private companion object {

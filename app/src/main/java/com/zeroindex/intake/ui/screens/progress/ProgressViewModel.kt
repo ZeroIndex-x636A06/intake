@@ -2,7 +2,10 @@ package com.zeroindex.intake.ui.screens.progress
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zeroindex.intake.data.db.dao.HealthSummaryDao
 import com.zeroindex.intake.data.db.entity.BodyMetricEntity
+import com.zeroindex.intake.data.health.toDailyHealth
+import com.zeroindex.intake.domain.health.DailyHealth
 import com.zeroindex.intake.data.db.entity.TdeeEstimateEntity
 import com.zeroindex.intake.data.repository.BodyRepository
 import com.zeroindex.intake.data.repository.FoodLogRepository
@@ -59,6 +62,8 @@ data class ProgressUiState(
     val performance: List<OverlayWeek> = emptyList(),
     /** False only for the placeholder before the first database emission; the screen shows skeletons until then. */
     val loaded: Boolean = false,
+    /** Health Connect days in the range, oldest first. Empty without data or permission; nothing is filled in. */
+    val health: List<DailyHealth> = emptyList(),
 ) {
     val latestWeightKg: Double? get() = metrics.maxByOrNull { it.measuredAt }?.weightKg
     val trendWeightKg: Double? get() = trend.lastOrNull()?.trendKg
@@ -86,6 +91,7 @@ class ProgressViewModel @Inject constructor(
     private val tdeeRepository: TdeeRepository,
     private val settingsRepository: SettingsRepository,
     private val performanceRepository: PerformanceRepository,
+    private val healthDao: HealthSummaryDao,
     private val clock: Clock,
 ) : ViewModel() {
 
@@ -116,11 +122,13 @@ class ProgressViewModel @Inject constructor(
                     settingsRepository.settings,
                     bodyRepository.observeWithPhotos(),
                     adherence,
-                    combine(recalculating, performanceRepository.observeOverlay(from, today)) { busy, weeks ->
-                        busy to weeks
-                    },
-                ) { tdee, settings, photos, snapshot, busyAndWeeks ->
-                    Extras(tdee, settings, photos, snapshot, busyAndWeeks.first, busyAndWeeks.second)
+                    combine(
+                        recalculating,
+                        performanceRepository.observeOverlay(from, today),
+                        healthDao.observeInRange(clock.rangeFor(from).startInclusive, clock.rangeFor(today).endExclusive),
+                    ) { busy, weeks, health -> Triple(busy, weeks, health.map { it.toDailyHealth() }) },
+                ) { tdee, settings, photos, snapshot, busyWeeksHealth ->
+                    Extras(tdee, settings, photos, snapshot, busyWeeksHealth.first, busyWeeksHealth.second, busyWeeksHealth.third)
                 },
             ) { metrics, trend, intake, target, extras ->
                 val byDay = intake.associate {
@@ -153,6 +161,7 @@ class ProgressViewModel @Inject constructor(
                     photos = extras.photos,
                     isRecalculating = extras.busy,
                     performance = extras.performance,
+                    health = extras.health,
                     loaded = true,
                 )
             }
@@ -170,6 +179,7 @@ class ProgressViewModel @Inject constructor(
         val snapshot: AdherenceSnapshot,
         val busy: Boolean,
         val performance: List<OverlayWeek>,
+        val health: List<DailyHealth>,
     )
 
     init {

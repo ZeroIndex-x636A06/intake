@@ -22,7 +22,7 @@ import com.zeroindex.intake.ui.components.PillTone
 import com.zeroindex.intake.ui.components.PrivacyTag
 import com.zeroindex.intake.ui.components.SectionLine
 import com.zeroindex.intake.ui.components.StatusPill
-import com.zeroindex.intake.ui.components.SubHead
+import com.zeroindex.intake.ui.components.SubCopy
 
 /**
  * SPEC §13 and the amendments: every way data can leave this phone, grouped by
@@ -41,9 +41,8 @@ fun PrivacyScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        SubHead(
-            title = "What leaves this phone",
-            subcopy = "The app works fully offline and without any key. Nothing is sent unless a " +
+        SubCopy(
+            "The app works fully offline and without any key. Nothing is sent unless a " +
                 "feature you switched on needs it. No account, no analytics, no crash reports, no ads.",
         )
 
@@ -123,12 +122,20 @@ fun PrivacyScreen(
             whenSent = "When you press Find recipes.",
         )
         PathRow(
-            title = "Plan B",
+            title = "Nearby restaurants and their menus",
+            tag = "Sends a rounded location to OpenStreetMap's Overpass service",
+            pill = "No key needed",
+            sent = "Your location rounded to about 1 km and the search radius (your 10 or 15 minute walk or drive), in one request. Nothing about you, your allergens or your food. Then each restaurant's own nutrition page or website is fetched like any link you import, with no AI.",
+            where = "overpass-api.de, then the restaurants' own sites",
+            whenSent = "Only when you tap Search under \"Find healthier options nearby\" (Eating out) or in Swap. One map request per search; location is read only then. If you switch on \"Use AI to find menus I can't\" for that search, the restaurant name and website go to OpenRouter for places where nothing else worked.",
+        )
+        PathRow(
+            title = "Swap: eat out nearby (AI search)",
             tag = "Sends coarse location to OpenRouter",
             pill = "Needs your OpenRouter key",
-            sent = "Your location rounded to about 1 km, or the zip code you typed; what is left of today's calories and protein; the allergens you avoid. OpenRouter searches for nearby places and reads their menus.",
+            sent = "Your location rounded to about 1 km, or the zip code you typed; the search radius from Settings; what is left of today's calories and protein; the allergens you avoid. OpenRouter searches for nearby places and reads their menus.",
             where = "openrouter.ai, which fetches restaurant sites",
-            whenSent = "When you search for a place. Location needs the approximate-location permission and is read only then.",
+            whenSent = "Only when you tap Search under \"Find healthy options nearby\" in Swap. Location needs the approximate-location permission and is read only then.",
         )
         PathRow(
             title = "Menu import",
@@ -205,7 +212,7 @@ fun PrivacyScreen(
             tag = "Local only",
             sent = "A tag holds only a link to a meal template and this app's name. Tapping one logs that meal on the phone. No food data is written to the tag.",
             where = "The tag you tap",
-            whenSent = "When you write a tag from Meal prep tags, or tap one.",
+            whenSent = "When you write a tag from Meal templates, or tap one.",
         )
 
         SectionLine("Files and links you choose")

@@ -259,6 +259,7 @@ internal fun ModelPickerSheet(row: TaskRow, onPick: (String?) -> Unit, onDismiss
                         task = row.task,
                         isSuggested = candidate.model.id == row.suggestion.suggested?.model?.id,
                         isActive = candidate.model.id == row.active?.model?.id,
+                        unavailable = row.suggestion.unavailable[candidate.model.id],
                         onClick = { onPick(candidate.model.id) },
                     )
                 }
@@ -274,7 +275,14 @@ internal fun ModelPickerSheet(row: TaskRow, onPick: (String?) -> Unit, onDismiss
 }
 
 @Composable
-private fun CandidateRow(candidate: RankedModel, task: AiTask, isSuggested: Boolean, isActive: Boolean, onClick: () -> Unit) {
+private fun CandidateRow(
+    candidate: RankedModel,
+    task: AiTask,
+    isSuggested: Boolean,
+    isActive: Boolean,
+    unavailable: com.zeroindex.intake.domain.ai.benchmark.ExclusionReason?,
+    onClick: () -> Unit,
+) {
     Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(displayName(candidate.model), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
@@ -289,6 +297,17 @@ private fun CandidateRow(candidate: RankedModel, task: AiTask, isSuggested: Bool
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        if (unavailable != null) {
+            Text(
+                if (unavailable == com.zeroindex.intake.domain.ai.benchmark.ExclusionReason.PRIVACY) {
+                    "Not available with your privacy setting"
+                } else {
+                    "No provider accepts everything this task sends"
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
         Row(
             Modifier.fillMaxWidth().padding(top = 4.dp),
             verticalAlignment = Alignment.CenterVertically,

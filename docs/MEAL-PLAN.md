@@ -184,3 +184,28 @@ This is an **example**, not anyone's plan. The same file is in
 text names the week's protein (chicken, beef/steak, pork, fish, and so on) or names no
 protein at all. Options that name only a different protein are hidden behind "Show all
 options". It reads local data only and works offline; with no options it links to Plan B.
+
+## Using Intake with no meal plan
+
+A meal plan is optional. Feedback round 4 (item 11) found features that only worked through one. This is where each
+stands now. "Plan only" means it is about the plan by nature (a week of the plan, the plan's own list) and is hidden or
+says so with no plan; nothing a plan user had was removed.
+
+| Feature | Needs a plan? | Notes |
+| --- | --- | --- |
+| Meal templates: make, edit, delete (soft), log to a chosen slot | No (was only reachable from a logged Today meal) | **Nutrition, More, Meal templates, "New meal template"**: a name, then foods and recipes with amounts from the same on-phone search Log food uses. Also "Save as meal template" on any logged meal on Today. |
+| NFC tap-to-log tag | No | An optional extra on a template ("Write to an NFC tag (optional)"). The tag holds only the template id. Editing a template keeps its tag working. |
+| Shopping list | Was plan only (a row set per plan week) | **Nutrition, More, Shopping list**: pick recipes and meal templates, say how many times each is made, and amounts are added up like the plan's list. Ticks and picks are kept while the screen is open and across rotation; nothing is stored in the database. The plan's own list on the Plan screen is unchanged. |
+| Cook mode | Was only reachable from the Plan screen's dish card | A **Cook** button now sits beside "Log a serving" on every recipe screen. |
+| Recipes in Log food | No | Saved recipes show in search, in Mine and in recents with per-serving kcal and protein (or "not listed"). |
+| Swap | No | Works with no plan: it compares against a typical meal, and lists recipes, meal templates and saved eat-out options. Only the "instead of the planned meal" wording needs a plan. |
+| Eat-out options and Recipe Hunter, recipes library | No | Saved options and recipes live on their own. |
+| Today and Nutrition "Next up" planned-meal row | Plan only | Shows this week's main dish of the active plan; absent with no plan. |
+| Recipe menu "Add to this week" | Plan only | Says so when there is no active plan. |
+| "Can't eat what I cooked?" sheet, per-week shopping list, week strip, plan import and export | Plan only | They are about a plan week. |
+| Hidden-dairy checklist terms for the allergen check | Optional | Extra "check the label" words from a plan's file; without a plan the built-in carriers are used. Never clears a warning. |
+
+Meal template foods and recipes: a recipe is stored in a template as a food whose serving is 100 g, so "2 servings" is
+200 g. Figures the recipe never gave stay "not listed" (stored as unlisted, never 0). A recipe with no calorie figure
+cannot be added. The allergen scan runs every time a template is logged, against the profile as it is then, so a
+template saved before an allergen was added still stops at the warning.

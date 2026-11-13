@@ -1,0 +1,10 @@
+{"version":0.6,"generator":"Overpass API","elements":[
+{"type":"node","id":101,"lat":40.0010,"lon":-75.0000,"tags":{"amenity":"fast_food","name":"McDonald's","brand":"McDonald's","brand:wikidata":"Q38076","website":"http://www.mcdonalds.com/us/en-us/location/x.html","cuisine":"burger"}},
+{"type":"node","id":102,"lat":40.0100,"lon":-75.0000,"tags":{"amenity":"fast_food","name":"McDonalds","brand":"McDonald's","brand:wikidata":"Q38076"}},
+{"type":"way","id":201,"center":{"lat":40.0030,"lon":-75.0020},"tags":{"amenity":"fast_food","name":"Subway","website":"subway.com","cuisine":"sandwich"}},
+{"type":"node","id":103,"lat":40.0020,"lon":-75.0010,"tags":{"amenity":"cafe","name":"Corner Beans","website":"https://cornerbeans.example/","cuisine":"coffee_shop"}},
+{"type":"node","id":104,"lat":40.0005,"lon":-75.0003,"tags":{"amenity":"bar","name":"The Tap"}},
+{"type":"node","id":105,"lat":40.0006,"lon":-75.0001,"tags":{"amenity":"restaurant"}},
+{"type":"node","id":106,"lat":41.5,"lon":-75.0,"tags":{"amenity":"restaurant","name":"Far Away Grill"}},
+{"type":"node","id":107,"lat":40.0040,"lon":-75.0000,"tags":{"amenity":"restaurant","name":"Taj Garden","contact:website":"ftp://nope","cuisine":"indian"}}
+]}

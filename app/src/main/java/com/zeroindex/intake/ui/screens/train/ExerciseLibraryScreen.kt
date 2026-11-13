@@ -19,7 +19,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -67,9 +72,12 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
-/** Browse, search and filter the exercise library; add, edit and hide your own; see history. */
+/**
+ * Train > Exercises: search, "My equipment" and muscle filters, thumbnails, the detail sheet, and "Add your own exercise".
+ * Hiding an exercise is a soft delete and can be undone from the Hidden switch.
+ */
 @Composable
-fun ExerciseLibraryScreen(
+fun ExercisesSection(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
     viewModel: ExerciseLibraryViewModel = hiltViewModel(),
@@ -77,53 +85,84 @@ fun ExerciseLibraryScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     var detail by remember { mutableStateOf<ExerciseEntity?>(null) }
     var form by remember { mutableStateOf<FormTarget?>(null) }
+    // The library opens on what you can do with your own equipment; one tap on the chip shows everything.
+    LaunchedEffect(Unit) { viewModel.setMyEquipment(true) }
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(
-            top = contentPadding.calculateTopPadding(),
-            bottom = contentPadding.calculateBottomPadding() + 24.dp,
-            start = 16.dp,
-            end = 16.dp,
-        ),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = contentPadding,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        item(key = "heading") {
-            SubHead("Exercises", "${state.total} to choose from. Add your own, or hide ones you never use.")
+        item(key = "search") {
+            OutlinedTextField(
+                value = state.query,
+                onValueChange = viewModel::setQuery,
+                placeholder = { Text("Search ${state.total} exercises") },
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (state.query.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.setQuery("") }) { Icon(Icons.Filled.Close, contentDescription = "Clear the search") }
+                    }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        item(key = "filters") {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ChoiceChip("My equipment", selected = state.myEquipment, onClick = { viewModel.setMyEquipment(!state.myEquipment) })
+                    ChoiceChip("All muscles", selected = state.muscle == null, onClick = { viewModel.setMuscle(null) })
+                    Muscles.ALL.forEach { m ->
+                        ChoiceChip(Muscles.label(m), selected = state.muscle == m, onClick = { viewModel.setMuscle(if (state.muscle == m) null else m) })
+                    }
+                }
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ChoiceChip("Any equipment", selected = state.equipment == null, onClick = { viewModel.setEquipment(null) })
+                    (Equipment.ALL + state.equipmentOptions).distinct().forEach { e ->
+                        ChoiceChip(Equipment.label(e), selected = state.equipment == e, onClick = { viewModel.setEquipment(if (state.equipment == e) null else e) })
+                    }
+                }
+            }
+        }
+        item(key = "count-hidden") {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "${state.shown.size} ${if (state.showHidden) "hidden " else ""}${if (state.shown.size == 1) "exercise" else "exercises"}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                Text("Show hidden", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Switch(checked = state.showHidden, onCheckedChange = viewModel::setShowHidden, modifier = Modifier.padding(start = 8.dp))
+            }
         }
         item(key = "add") {
-            Button(
+            OutlinedButton(
                 onClick = { form = FormTarget.New },
                 shape = IntakeShape.Button,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-            ) { Text("Add your own exercise") }
+            ) {
+                Icon(Icons.Filled.Add, contentDescription = null)
+                Text("  Add your own exercise")
+            }
         }
-        item(key = "filters") { ExerciseFilterBar(state, viewModel) }
         if (state.shown.isEmpty()) {
             item(key = "empty") {
                 Text(
-                    text = if (state.showHidden) "Nothing is hidden." else "No exercise matches. Clear a filter, or add it as your own.",
+                    text = when {
+                        state.showHidden -> "Nothing is hidden."
+                        state.myEquipment -> "No exercise matches with your equipment. Tap \"My equipment\" to see them all, or add it as your own."
+                        else -> "No exercise matches. Clear a filter, or add it as your own."
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 16.dp),
                 )
             }
         } else {
-            item(key = "list") {
-                Surface(
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = IntakeShape.Card,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column {
-                        state.shown.forEachIndexed { i, exercise ->
-                            ExerciseRow(exercise, onClick = { detail = exercise })
-                            if (i != state.shown.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        }
-                    }
-                }
-            }
+            exerciseRows(state.shown) { exercise -> ExerciseRow(exercise, onClick = { detail = exercise }) }
         }
         item(key = "credit") {
             Text(
@@ -196,6 +235,26 @@ fun ExerciseFilterBar(state: ExerciseBrowseState, viewModel: ExerciseLibraryView
                 Switch(checked = state.showHidden, onCheckedChange = viewModel::setShowHidden)
             }
         }
+    }
+}
+
+/**
+ * The exercise list as lazy rows that together look like one outlined card. The catalog has a few hundred lifts, each
+ * with a thumbnail, so they must not all be composed at once inside a single list item.
+ */
+fun androidx.compose.foundation.lazy.LazyListScope.exerciseRows(
+    exercises: List<ExerciseEntity>,
+    row: @Composable (ExerciseEntity) -> Unit,
+) {
+    items(count = exercises.size, key = { "exercise-${exercises[it].id}" }) { i ->
+        val top = if (i == 0) 22.dp else 0.dp
+        val bottom = if (i == exercises.lastIndex) 22.dp else 0.dp
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            modifier = Modifier.fillMaxWidth(),
+        ) { row(exercises[i]) }
     }
 }
 

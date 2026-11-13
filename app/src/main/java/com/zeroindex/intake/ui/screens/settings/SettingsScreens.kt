@@ -87,7 +87,13 @@ internal fun groupSummary(group: SettingsGroup, s: AppSettings, hasOpenRouter: B
     SettingsGroup.HEALTH -> "Read and write switches per record type"
     SettingsGroup.FOOD_DB -> "Open Food Facts and offline USDA"
     SettingsGroup.VIDEOS -> (if (s.onlyWorkouts) "Workouts only" else "Everything") + if (hasYoutube) " · key set" else " · no key"
-    SettingsGroup.REMINDERS -> (if (s.coachNotify) "Check-in on" else "Check-in off") + (if (s.photoReminderWeeks > 0) " · photo ${s.photoReminderWeeks} wk" else "")
+    SettingsGroup.REMINDERS -> (if (s.coachNotify) "Check-in on" else "Check-in off") +
+        (if (s.photoReminderWeeks > 0) " · photo ${s.photoReminderWeeks} wk" else "") +
+        listOfNotNull(
+            "workout".takeIf { s.workoutReminderOn },
+            "meals".takeIf { s.mealReminderOn },
+            "water".takeIf { s.waterReminderOn },
+        ).let { if (it.isEmpty()) "" else " · " + it.joinToString(", ") }
     SettingsGroup.SYNC -> if (s.sync.paired) "Paired" else "Not paired · export to a file"
     SettingsGroup.AI -> if (s.aiEnabled) (if (hasOpenRouter) "On · \$${"%.0f".format(s.aiMonthlyBudgetUsd)} cap" else "On · no key") else "Off"
     SettingsGroup.KEYS -> listOf("OpenRouter" to hasOpenRouter, "USDA" to hasUsda, "YouTube" to hasYoutube).filter { it.second }.joinToString(" · ") { it.first }.ifEmpty { "No keys saved" }

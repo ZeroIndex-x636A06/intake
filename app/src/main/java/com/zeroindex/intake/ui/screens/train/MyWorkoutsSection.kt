@@ -68,6 +68,7 @@ class MyWorkoutsViewModel @Inject constructor(
 fun MyWorkoutsSection(
     onOpenSession: (String) -> Unit,
     onEditWorkout: (programId: String) -> Unit,
+    onOpenVideo: (videoId: String) -> Unit = {},
     viewModel: MyWorkoutsViewModel = hiltViewModel(),
 ) {
     val workouts by viewModel.workouts.collectAsStateWithLifecycle()
@@ -109,6 +110,7 @@ fun MyWorkoutsSection(
                         Icon(Icons.Filled.MoreVert, contentDescription = "More for ${w.name}")
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                             DropdownMenuItem(text = { Text("Edit exercises") }, onClick = { menu = false; onEditWorkout(w.programId) })
+                            w.videoId?.let { v -> DropdownMenuItem(text = { Text("Watch the video") }, onClick = { menu = false; onOpenVideo(v) }) }
                             DropdownMenuItem(text = { Text("Rename") }, onClick = { menu = false; renaming = w })
                             DropdownMenuItem(text = { Text("Duplicate") }, onClick = { menu = false; viewModel.duplicate(w.programId) })
                             DropdownMenuItem(text = { Text("Delete") }, onClick = { menu = false; deleting = w })

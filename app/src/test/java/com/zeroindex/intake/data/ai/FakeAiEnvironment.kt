@@ -16,6 +16,8 @@ class FakeAiEnvironment(
     /** Spend already logged this month before the test starts. */
     var priorSpendUsd: Double = 0.0,
     var models: Map<String, ModelInfo> = emptyMap(),
+    /** What [fallbackModels] offers, in order, minus what was already tried. */
+    var fallbacks: List<String> = emptyList(),
 ) : AiEnvironment {
     val records = mutableListOf<AiUsageRecord>()
     var failRecording = false
@@ -25,6 +27,7 @@ class FakeAiEnvironment(
 
     override suspend fun policy() = AiPolicy(enabled, budgetUsd, privacy, optIns)
     override suspend fun modelFor(task: AiTask): String = "test/${task.name.lowercase()}"
+    override suspend fun fallbackModels(task: AiTask, tried: Set<String>): List<String> = fallbacks.filter { it !in tried }
     override suspend fun priceOf(modelId: String): ModelInfo? = models[modelId]
     override suspend fun spentSince(startMillis: Long): Double =
         priorSpendUsd + records.filter { it.at >= startMillis }.sumOf { it.costUsd }

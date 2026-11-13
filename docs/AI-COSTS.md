@@ -49,14 +49,45 @@ row here.
 | # | Call site (file) | Feature | Trigger | Deterministic path first? | What is sent | Model task | Gated |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | `data/ai/vision/VisionTracker.kt` | `PHOTO_ESTIMATE` | **User action**: take or pick a photo and ask for an estimate | None can do this job (a photo of a plate has no barcode or label). Barcode scan, the offline USDA database, Open Food Facts search and manual entry are separate paths the person picks instead | The resized JPEG, "Estimate this meal.", names of avoided allergens in the system prompt | Photo estimates (vision) | Guard; entry hidden when AI is off or no key; allergens still decided locally |
-| 2 | `data/ai/recipes/RecipeHunter.kt` | `RECIPE_HUNTER` | **User action**: Find recipes. Up to 3 rounds, each guarded | Recipe import from a link reads the page's own data with no AI. Every result is filtered locally (allergens, macros, time) | Macro, time and cuisine limits, notes, avoided allergens, URLs already found. Web search and fetch run on OpenRouter's side | Recipe Hunter (tools) | Guard; entry hidden when AI is off |
-| 3 | `data/ai/planb/PlanBFinder.kt` | `PLAN_B` | **User action**: search for a place | Saved eat-out options and cleared menu items are ranked on the phone first, with no network (`offlineOptions`) | Location rounded to about 1 km (or a typed zip), calories and protein left today, avoided allergens | Plan B finder (tools) | Guard; the search entry is hidden when AI is off, the offline list stays |
+| 2 | `data/ai/recipes/RecipeHunter.kt` | `RECIPE_HUNTER` | **User action**: Search recipes, and each later "Find more" tap. Up to 4 rounds a tap, stopping at 12 kept or a $0.08 cap, each call guarded | Recipe import from a link reads the page's own data with no AI. The app downloads each candidate page itself (4 at a time) and reads it with `RecipePageParser`; every result is filtered locally (allergens, macros, time) Pages no local reader can parse (JSON-LD, microdata, WP Recipe Maker and Tasty Recipes card classes, an Ingredients list) are "Could not check" unless the per-search switch "Use AI to read pages the phone can't" is on | Macro, time and cuisine limits, notes, avoided allergens, and the titles and addresses already returned. Web search (2 searches a round) runs on OpenRouter's side; the model does not fetch or copy pages. With that switch on (off by default): the visible text of an unreadable page (up to 20,000 characters) goes through `RecipeAiExtractor` with `RECIPE_TRY_AI`, at most 6 pages a search and only while the search's $0.08 cap has room (about $0.003 a page predicted, the real cost counted), so it is inside the visible cost and cap. The ingredient lines it returns are scanned locally and the recipe is labelled "Read by AI" | Recipe Hunter (tools) | Guard; entry hidden when AI is off |
+| 3 | `data/ai/planb/PlanBFinder.kt` | `PLAN_B` | **User action**: search for a place, from Swap (ranked against the planned meal) or from Eating out > "Find healthier options nearby" (healthier ranking; imported menus are shown first with no AI, and the search runs only on its own Search tap) | Saved eat-out options and cleared menu items are ranked on the phone first, with no network (`offlineOptions`) | Location rounded to about 1 km (or a typed zip), calories and protein left today, avoided allergens and the allergen profile's free-text notes, the planned meal's calories and protein (Swap), and a list of options already shown when the person taps "Search again for more". Asks for 8 to 15 options (was 6), so a search costs a little more | Plan B finder (tools) | Guard; the search entry is hidden when AI is off, the offline list stays |
 | 4 | `data/ai/menu/MenuIngestor.kt` via `MenuSourcesViewModel` | `MENU_IMPORT` | **User action**: Import or Refresh on a source | A page that publishes schema.org `MenuItem` data is read directly (`domain/ai/MenuStructured.kt`) with **no** model call. Only pasted text, PDFs and pages without that data go to the model | Pasted text, PDF bytes, or the page text the phone fetched, restaurant name, avoided allergens | Menu import | Guard; entry hidden when AI is off |
 | 5 | `data/ai/menu/MenuIngestor.runScheduled` via `work/MenuIngestionWorker.kt` | `MENU_IMPORT` | **Opt-in schedule**: weekly, only after "Refresh saved menus weekly" is switched on. **Off by default** | Same as row 4: structured pages refresh with no model call | Same as row 4, for each enabled URL or PDF source | Menu import | Guard (`OPT_IN_SCHEDULE`, `menuAutoRefresh`); the job is not registered until the switch is on and does nothing if it is off |
 | 6 | `data/ai/insight/DailyInsights.kt` via `TodayViewModel` | `DAILY_INSIGHT` | **Opt-in schedule**: once a day when Today opens, only if "Daily insight" is on. **Off by default** | The digest is computed locally (`InsightDigest`); the model only words one suggestion. The coach engine's check-in is rules, no AI | Numbers-only digest of two weeks, avoided allergens | Daily insight | Guard (`OPT_IN_SCHEDULE`, `dailyInsightEnabled`) |
 | 7 | `data/coach/CoachReworder.kt` via `CoachWorker` and `CoachCheckInViewModel` | `COACH_REWORD` | **Opt-in schedule** (after the weekly check-in) or **user action** (Check in now, or switching the reword on). **Off by default** | Every suggestion, number and action comes from `CoachEngine` rules; a reword is accepted only if the numbers are unchanged and the allergen engine allows it | Each suggestion's title and one-line reason | Daily insight model | Guard (`coachAiReword`); the switch is disabled when AI is off |
-| 8 | `data/recipe/RecipeAiExtractor.kt` via `RecipeImportScreen` | `RECIPE_TRY_AI` | **User action**: the "Try with AI" button | JSON-LD, then microdata, then page text are read first (`RecipePageParser`); the button appears only when none found a recipe | Up to 20,000 characters of the page text and its address | Recipe Hunter model, no search | Guard; the button is hidden when AI is off or there is no key |
+| 8 | `data/recipe/RecipeAiExtractor.kt` via `RecipeImportScreen`, and from `RecipeHunter` (row 2) | `RECIPE_TRY_AI` | **User action**: the "Try with AI" button, or the Recipe Hunter search switch "Use AI to read pages the phone can't" (off by default; counted in the search cost and cap) | JSON-LD, then microdata, then page text are read first (`RecipePageParser`); the button appears only when none found a recipe | Up to 20,000 characters of the page text and its address | Recipe Hunter model, no search | Guard; the button is hidden when AI is off or there is no key |
+| 10 | `data/ai/video/VideoWorkoutAi.kt` via `MakeWorkoutViewModel` | `VIDEO_TO_WORKOUT` | **User action**: the "Improve with AI" button on Make this a workout | Chapters and description lines are read on the phone first (`VideoWorkoutDrafter`) and matched to the exercise library; the button is an optional second step the person taps after seeing that draft, or when nothing was found | The video's title, length, chapters and a trimmed description (up to 4,000 characters), no personal data | Daily insight model (text) | Guard; the button is hidden when AI is off or there is no key. The reply must fit a strict schema (one repair attempt); it only fills the review list, nothing is saved unseen |
+| 11 | `data/nearby/NearbyMenuSearch.kt` via the nearby search card (Eating out, Swap) | `MENU_IMPORT` | **User action**: the search card's "Use AI to find menus I can't" switch, **off by default and not remembered**, and then a tap on Search. Used only for a restaurant where the saved menu, the chain table and the restaurant's own website all found nothing. At most 6 lookups per search | One web-search call for the restaurant's nutrition page address; the page is then imported by the normal menu import. If there is no page, one call for labelled estimates | Restaurant name, its website address and cuisine from the map. No location, no allergens, no targets | Menu import | Guard; the switch is disabled with AI off or no key. Estimates are never "clear" (best case "check the label") and are marked as estimates |
 | 9 | `data/ai/benchmark/BenchmarkRunner.kt` | `BENCHMARK` | **User action**: Run benchmark, after the cost ceiling is shown and confirmed | n/a (it measures models) | The bundled fixtures, no personal data | per task | Guard (switch, budget); also has its own spend cap |
+
+### Which model, and what happens when it has no provider
+
+- **The suggestion is privacy-checked.** `ModelSuggester.suggest` takes the privacy setting and the endpoint data
+  (`domain/ai/ModelFit.kt`): a model with no healthy provider that meets the setting and accepts the parameters the task
+  sends is not suggested (and shows as unavailable in the picker). The request always sets `require_parameters`, so the
+  parameters count: a strict schema or JSON mode, `max_tokens`, `tools` for the web-search tasks, and `temperature` only
+  for a model that lists it. A request no longer sends `temperature` to a model whose providers do not list it (Claude
+  Haiku 5.5 and GPT-6 Luna list none); that mismatch is what made every task on those models fail with the privacy
+  message while the photo task, on a model that lists it, worked.
+- **Gateway fallback** (`AiGateway.sendWithFallback`): on a "no provider" answer (privacy or parameters) the gateway
+  tries the next models from `AiEnvironment.fallbackModels` (the suggestion, then the other shortlisted models, then any
+  other capable model, all provider-compatible), at most **3 models in all**, with the same privacy setting. Each attempt
+  is its own row in the usage log (failure kind "Privacy setting"). Any other error is reported at once. If all fail, the
+  message names the app's "Privacy for AI requests" and the OpenRouter account's privacy page. The benchmark does not
+  fall back: it measures one named model.
+- A call that fails over to another model can cost differently from the model the person chose; the model that actually
+  answered is what the usage log and the cost line record.
+
+### Photo estimate: questions and the follow-up
+
+When the photo model is not confident it returns up to three short questions (2 to 4 choices each). They show as chips
+above the estimate. Pressing "Update the estimate with my answers" sends **one** follow-up request (same feature, same
+user action, same guard and budget check, no photo: the first look, the answers and the note) and replaces the numbers.
+The cost line shows both calls summed. No questions are shown when the model says it is confident. A packaged product
+the model names offers "Find this product instead" (Log food search with the name filled in). Hidden-calorie sources carry
+a basis (seen in the photo, your note, your answer, or a guess); a guess is not shown as counted, and the prompt forbids
+adding butter, milk or oil by default. Allergen warnings raised by the first look are carried into the follow-up and can
+only be added to (`PhotoFollowUp.carryAllergens`).
 
 Two OpenRouter requests are not model calls and never send anything about you:
 
@@ -165,6 +196,7 @@ amounts ($0.0004, not $0.00).
 | Daily insight (`DAILY_INSIGHT`) | 4,000 | 400 | | **1**, but **0 while the switch is off** |
 | Coach reword (`COACH_REWORD`) | 700 | 500 | | **1/7**, but **0 while the switch is off** |
 | Recipe "Try with AI" (`RECIPE_TRY_AI`) | 6,700 | 1,500 | | **0.05** |
+| Video to workout (`VIDEO_TO_WORKOUT`) | 2,500 | 800 | | **0.05** |
 
 The benchmark is counted in the meter but is not part of the estimate (it is a one-off you start).
 
@@ -204,6 +236,7 @@ Cost of **one call** of each feature:
 | DAILY_INSIGHT | 4,000 / 400 | $0.0006 | $0.0006 | $0.0004 | $0.0050 | $0.0027 | `inclusionai/ling-3.0-tiny` <$0.0001 |
 | COACH_REWORD | 700 / 500 | $0.0003 | $0.0003 | $0.0003 | $0.0026 | $0.0008 | `inclusionai/ling-3.0-tiny` <$0.0001 |
 | RECIPE_TRY_AI | 6,700 / 1,500 | $0.0014 | $0.0014 | $0.0012 | $0.012 | $0.0051 | `inclusionai/ling-3.0-tiny` $0.0002 |
+| VIDEO_TO_WORKOUT | 2,500 / 800 | $0.0007 | $0.0007 | $0.0006 | $0.0060 | $0.0030 | `inclusionai/ling-3.0-tiny` <$0.0001 |
 
 Two things stand out. For the two search features **the search fee is most of the bill**: three
 searches at $0.007 are $0.021 of a $0.023 call, so a cheaper model barely helps. And a pricier
@@ -226,7 +259,9 @@ Recipe Hunter $0.024 x 0.3 = $0.0073; Plan B $0.023 x 0.2 = $0.0047; menu import
 $0.0008; "Try with AI" $0.0014 x 0.05 = $0.0001; insight and reword 0 because they are off. In
 scenario B insight adds $0.0006 and reword $0.0000(4). All four scenarios sit well under the
 default $2.00 monthly budget; scenario D, the priciest, uses about 65% of it at these defaults.
-Using Recipe Hunter and Plan B ten times as often (3 and 2 a day) would move scenario A from
+Recipe Hunter note: the table prices one round of one search call. A real search is up to four rounds
+(two searches each, about $0.02 a round, so $0.06 to $0.08 a search; the loop stops before a round that
+would pass the $0.08 cap, and each "Find more" tap starts a new cap). Using Recipe Hunter and Plan B ten times as often (3 and 2 a day) would move scenario A from
 about $0.41 to about $4 a month, which the cap would stop at $2.00.
 
 ## Reliability, retries and the spend they cause (B1)
@@ -264,3 +299,7 @@ about $0.41 to about $4 a month, which the cap would stop at $2.00.
 - No emulator: none of the new Settings → AI cards (switch, budget, meter, cost screen) has been
   seen on a screen.
 - Structured menu parsing is tested on hand-written JSON-LD, not on real restaurant pages.
+
+### Round 5 change to row 11 (nearby menus)
+
+The nearby search no longer makes one or two model calls per restaurant. Restaurants the free steps (saved menu, chain table, own website) found nothing for go to the model in batches: up to 8 restaurants per call, at most 3 calls per search (24 restaurants, nearest first). One call asks for each restaurant's nutrition page address (read afterwards with no AI) and labelled estimates, with the allergens the model knows each item contains. Estimates are never shown as free of an allergen. The search card states the cap before running; the calls and the cost so far are shown while it runs. "Look up the rest with AI" runs the next up-to-3 calls for the restaurants still missing, only on a tap, with its own cost line. Still the `MENU_IMPORT` feature, `USER_ACTION`, in `NearbyMenuSearch.kt`.

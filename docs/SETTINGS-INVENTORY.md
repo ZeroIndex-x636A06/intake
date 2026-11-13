@@ -6,25 +6,25 @@ Rules that apply to every row: use screens hold no configuration; one home per s
 
 ## Totals
 
-* **96 settings** (stored values) in **12 groups**, plus 16 action buttons (export, import, replay tour and so on) and 1 read-only line: **113 controls** in all.
-* 15 controls are **new** in v5 (not in the app today); 98 exist in the code.
+* **109 settings** (stored values) in **12 groups**, plus 16 action buttons (export, import, replay tour and so on) and 1 read-only line: **126 controls** in all.
+* 28 controls are **new** since v5 (15 from the v5 brief, plus Hide Shorts, number 114, and Food search language, number 115, both added after phone testing, plus the eight daily reminder controls, numbers 122 to 129, round 3 item D, plus Today card: Activity, number 116, and Older history, number 117, from the Health Connect round); 98 existed in the code before.
 * 25 controls sit in an **Advanced** disclosure on their page.
 
 | Group | Controls | Of which settings | Actions | New |
 | --- | ---: | ---: | ---: | ---: |
-| Appearance and units | 11 | 11 | 0 | 5 |
+| Appearance and units | 12 | 12 | 0 | 6 |
 | Nutrition | 15 | 14 | 1 | 2 |
 | Water and drinks | 11 | 10 | 1 | 0 |
 | Training | 8 | 8 | 0 | 2 |
-| Health Connect | 16 | 15 | 1 | 0 |
-| Food database | 5 | 5 | 0 | 0 |
-| Videos | 2 | 2 | 0 | 2 |
-| Reminders | 4 | 4 | 0 | 2 |
+| Health Connect | 17 | 16 | 1 | 1 |
+| Food database | 6 | 6 | 0 | 1 |
+| Videos | 4 | 4 | 0 | 4 |
+| Reminders | 12 | 12 | 0 | 10 |
 | Sync and export | 10 | 5 | 5 | 1 |
 | AI (optional) | 21 | 19 | 2 | 0 |
 | API keys | 3 | 3 | 0 | 1 |
 | About and help | 7 | 0 | 6 | 0 |
-| **Total** | **113** | **96** | **16** | **15** |
+| **Total** | **126** | **109** | **16** | **28** |
 
 Option C calls the Nutrition tab "Eat", so its settings group is "Eating targets"; the contents are identical.
 
@@ -45,6 +45,7 @@ How numbers and colours look. Nothing here changes your data.
 | 9 | Today card: Water **(new)** | `todayCard.water` (new) | Appearance and units | switch | planned "Edit Today" (use screen) | Appearance and units |
 | 10 | Today card: Weight **(new)** | `todayCard.weight` (new) | Appearance and units | switch | planned "Edit Today" (use screen) | Appearance and units |
 | 11 | Today card: Meals **(new)** | `todayCard.meals` (new) | Appearance and units | switch | planned "Edit Today" (use screen) | Appearance and units |
+| 116 | Today card: Activity **(new, round 3)** | `todayCard.activity` (new; SettingsRepository today_card_activity, portable) | Appearance and units | switch | none (new) | Appearance and units |
 
 ## B. Nutrition
 
@@ -58,7 +59,7 @@ How your targets are worked out and what the dashboard shows. Your allergens are
 | 15 | Fat | `fatPerKg` (SettingsRepository fat_g_per_kg) | Nutrition | number field | Settings, Profile Advanced, Your plan (3 homes) | Nutrition |
 | 16 | Add active calories to my target | `addActiveKcal` (SettingsRepository add_active_kcal) | Nutrition | switch | Settings advanced and Health Connect (2 homes) | Nutrition |
 | 17 | Show salt or sodium on the dashboard **(new)** | `showSodium` (new) | Nutrition | segmented (Off / Sodium / Salt) | none | Nutrition |
-| 18 | Eat out nearby: search radius **(new)** | `eatOutRadius` (new) | Nutrition | segmented (0.5 mi / 1 mi / 2 mi / 5 mi) | Plan B finder (fixed) | Nutrition |
+| 18 | Eat out nearby: how far **(new)** | `eatOutRadius` (eat_out_minutes and eat_out_travel; the old eat_out_radius_mi is read once to migrate) | Nutrition | two segmented rows (10 min / 15 min; Walk / Drive, default 10 min Drive) | Nearby finder: Eating out and Swap | Nutrition |
 | 19 | Recalculate from my data | `recalc` | Nutrition | button (action, not stored) | Settings | Nutrition |
 | 20 | Allow calories below the floor | `allowBelowFloor` (UserProfile.allowBelowFloor) | Nutrition | switch, Advanced | Profile Advanced | Nutrition |
 | 21 | Carb cycling | `carbCycling` (UserProfile.carbCycling) | Nutrition | switch, Advanced | Profile Advanced | Nutrition |
@@ -96,8 +97,8 @@ Rest timer, bar and plates, equipment and volume targets.
 | 39 | Vibrate when rest ends | `restVibrate` (SettingsRepository rest_vibrate) | Training | switch | Settings | Training |
 | 40 | Bar weight | `barWeight` (SettingsRepository bar_weight_kg) | Training | number field | Settings advanced | Training |
 | 41 | Plates available per side | `plates` (SettingsRepository available_plates_kg) | Training | chip set | Settings advanced | Training |
-| 42 | My equipment: preset | `equipmentPreset` (UserProfile.equipmentPreset) | Training | chip set | Profile "Training you can do" | Training |
-| 43 | My equipment: items | `equipment` (UserProfile.equipment) | Training | chip set | Profile "Training you can do" | Training |
+| 42 | My equipment: preset | `equipmentPreset` (UserProfile.equipmentPreset; quick picks Full gym, Home dumbbells, Bodyweight only fill the item list) | Training | chip set | Profile "Training you can do" | Training |
+| 43 | My equipment: items | `equipment` (UserProfile.equipmentItems, a JSON set of item ids in the existing profile value, plus UserProfile.dumbbellMaxKg; UserProfile.equipment still holds the five old kinds, kept in step) | Training | grouped checklist (40 items in four groups, heaviest dumbbell) | Profile "Training you can do" | Training |
 | 44 | Show jump tests in Progress **(new)** | `jumpTests` (new) | Training | switch | none (v4 default) | Training |
 | 45 | Weekly sets target per muscle region **(new)** | `weeklySets` (new) | Training | number field, Advanced | none (planned) | Training |
 
@@ -118,11 +119,12 @@ Which records Intake may read from and write to Health Connect. Last synced: 14 
 | 54 | Weight | `hc.read.Weight` (HealthConnectManager.TYPES, read permission) | Health Connect | switch | Health Connect screen | Health Connect |
 | 55 | Body fat | `hc.read.Bodyfat` (HealthConnectManager.TYPES, read permission) | Health Connect | switch | Health Connect screen | Health Connect |
 | 56 | Lean body mass | `hc.read.Leanbodymass` (HealthConnectManager.TYPES, read permission) | Health Connect | switch | Health Connect screen | Health Connect |
+| 117 | Older history **(new, round 3)** | `hc.read.Olderhistory` (HealthConnectManager.TYPES, READ_HEALTH_DATA_HISTORY; shown only where Health Connect supports it) | Health Connect | switch | Health Connect screen | Health Connect |
 | 57 | Nutrition | `hc.write.Nutrition` (HealthConnectManager.TYPES, write permission) | Health Connect | switch | Health Connect screen | Health Connect |
 | 58 | Weight | `hc.write.Weight` (HealthConnectManager.TYPES, write permission) | Health Connect | switch | Health Connect screen | Health Connect |
 | 59 | Hydration | `hc.write.Hydration` (HealthConnectManager.TYPES, write permission) | Health Connect | switch | Health Connect screen | Health Connect |
 | 60 | Workouts | `hc.write.Workouts` (HealthConnectManager.TYPES, write permission) | Health Connect | switch | Health Connect screen | Health Connect |
-| 61 | Health Connect permissions | `hcOpen` | Health Connect | button (action, not stored) | Health Connect screen | Health Connect |
+| 61 | Allow all Health Connect permissions | `hcOpen` | Health Connect | button (action, not stored): one system sheet for every read and write permission | Health Connect screen | Health Connect |
 
 ## F. Food database
 
@@ -131,6 +133,7 @@ Where food data comes from. The USDA key is under API keys. Licences and credits
 | # | Setting | Key (code) | Group | Control | Current home | New home |
 | ---: | --- | --- | --- | --- | --- | --- |
 | 62 | Search Open Food Facts while typing | `offSearch` (FoodDataPrefs off_search_enabled) | Food database | switch | Food database screen | Food database |
+| 115 | Food search language | `offLanguage` (FoodDataPrefs off_language) | Food database | chips: Phone language, English, Spanish, French, German, Italian, Portuguese, Dutch | none (new; also asked on the onboarding units step) | Food database |
 | 63 | Show products in other languages | `offOtherLanguages` (FoodDataPrefs off_other_languages) | Food database | switch | Food database screen | Food database |
 | 64 | Allow contributing to Open Food Facts | `offContribute` (FoodDataPrefs off_contribute_enabled) | Food database | switch | Food database screen | Food database |
 | 65 | Open Food Facts username | `offUsername` (ApiKeyStore off user) | Food database | text field | Food database screen | Food database |
@@ -144,6 +147,8 @@ Videos need internet and your own YouTube key (under API keys). Intake never dow
 | ---: | --- | --- | --- | --- | --- | --- |
 | 67 | Show only workouts by default **(new)** | `onlyWorkouts` (new) | Videos | switch | none | Videos |
 | 68 | Personalise Recommended from this phone's data **(new)** | `personalise` (new) | Videos | switch | none | Videos |
+| 114 | Hide Shorts **(new, round 3)** | `hideShorts` (new) | Videos | switch | none | Videos |
+| 130 | Offline downloads and direct playback **(new, round 5)** | `directVideos` (new; videos_direct_ytdlp) | Videos | switch, off by default, with a one-time terms warning | none | Videos |
 
 ## H. Reminders
 
@@ -155,6 +160,14 @@ When Intake may nudge you. Nothing is sent anywhere.
 | 70 | Check-in day | `coachWeekday` (SettingsRepository coach_weekday) | Reminders | weekday chips | Check-in gear (use screen) | Reminders |
 | 71 | Progress photo reminder **(new)** | `photoReminder` (new) | Reminders | segmented (Off / 2 wk / 3 wk / 4 wk) | none | Reminders |
 | 72 | Export reminder **(new)** | `exportReminder` (new) | Reminders | switch | none (v4 default) | Reminders |
+| 122 | Workout reminder **(new)** | `workoutRemind` (SettingsRepository workout_reminder_on) | Reminders | switch | none | Reminders |
+| 123 | Workout reminder time **(new)** | `workoutTime` (SettingsRepository workout_reminder_minute) | Reminders | chips: 6:00, 7:00, 12:00, 17:00, 18:00, 19:00, 20:00 | none | Reminders |
+| 124 | Meal reminders **(new)** | `mealRemind` (SettingsRepository meal_reminder_on) | Reminders | switch | none | Reminders |
+| 125 | Breakfast reminder time **(new)** | `breakfastTime` (SettingsRepository breakfast_reminder_minute) | Reminders | chips: 6:30, 7:00, 7:30, 8:00, 9:00, 10:00 | none | Reminders |
+| 126 | Lunch reminder time **(new)** | `lunchTime` (SettingsRepository lunch_reminder_minute) | Reminders | chips: 11:00, 11:30, 12:00, 12:30, 13:00, 14:00 | none | Reminders |
+| 127 | Dinner reminder time **(new)** | `dinnerTime` (SettingsRepository dinner_reminder_minute) | Reminders | chips: 17:00, 18:00, 18:30, 19:00, 20:00 | none | Reminders |
+| 128 | Water reminders **(new)** | `waterRemind` (SettingsRepository water_reminder_on) | Reminders | switch | none | Reminders |
+| 129 | Water reminder hours **(new)** | `waterHours` (SettingsRepository water_reminder_start_hour, water_reminder_end_hour) | Reminders | chips: start 7 to 12; end 16, 18, 20, 21, 22 | none | Reminders |
 
 ## I. Sync and export
 
@@ -252,18 +265,19 @@ Remote backup destination (protocol, host, port, user, password, private key), b
 
 ## Build status (Option A part 1)
 
-All 113 controls are built (`domain/settings/SettingsRegistry.kt`, drawn by `ui/screens/settings/SettingsControls.kt`). Per item marked "new":
+All 126 controls are built (`domain/settings/SettingsRegistry.kt`, drawn by `ui/screens/settings/SettingsControls.kt`). Per item marked "new":
 
 | Item | Built now | Consumer |
 | --- | --- | --- |
 | Food portions (`portionUnit`) | storage and control | Nutrition agent: the photo estimate and food detail must read `AppSettings.portionUnit` (today they follow the weight unit) |
 | Today card switches | yes, live | Today |
 | Show salt or sodium (`showSodium`) | storage and control | Nutrition dashboard |
-| Eat out nearby radius (`eatOutRadius`) | storage and control | Swap sheet |
+| Eat out nearby how far (`eatOutRadius`) | storage and control | Eating out and Swap |
 | Show jump tests (`jumpTests`) | yes, gates the Progress jump card | Progress |
 | Weekly sets per region (`weeklySets`) | storage and control (`WeeklySets`) | Train > Muscle volume |
 | Videos switches, YouTube key | storage, controls, key Save/Test/Remove (`videos.list` test) | Train > Videos |
-| Photo reminder | storage, control and an in-app line on You | none yet; no notification |
+| Photo reminder | storage, control and an in-app line on You | notification from `ReminderWorker` when a photo is due (from 10:00, once per photo cycle) |
+| Daily reminders (ids 122 to 129) | storage, controls, notifications from `ReminderWorker` (a 15-minute periodic job), once per slot per day | Reminders. Rules in `domain/reminders/ReminderRules.kt`; see `docs/REMINDERS.md` |
 | Export reminder | yes, a card on Today | Today |
 | Include progress photos in the export | yes, a zip of the files | Sync and export |
 | Export passphrase | asked per export, never stored | Sync and export |

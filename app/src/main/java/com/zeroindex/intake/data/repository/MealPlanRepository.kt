@@ -39,7 +39,6 @@ import com.zeroindex.intake.domain.model.PlanLoopMode
 import com.zeroindex.intake.domain.model.PlanRecipeRole
 import com.zeroindex.intake.domain.plan.PlanPosition
 import com.zeroindex.intake.domain.recipe.IngredientGroupsCodec
-import com.zeroindex.intake.domain.recipe.IngredientLineParser
 import com.zeroindex.intake.domain.plan.PlanSchedule
 import java.time.LocalDate
 import com.zeroindex.intake.domain.model.StoreCategory
@@ -52,7 +51,7 @@ import com.zeroindex.intake.domain.plan.PlanMeta
 import com.zeroindex.intake.domain.plan.PlanWeekExtras
 import com.zeroindex.intake.domain.plan.RecipeMacroResult
 import com.zeroindex.intake.domain.plan.RecipeMacros
-import com.zeroindex.intake.domain.plan.ShoppingIngredient
+import com.zeroindex.intake.domain.plan.ShoppingContribution
 import com.zeroindex.intake.domain.plan.ShoppingListBuilder
 import com.zeroindex.intake.domain.plan.compute
 import com.zeroindex.intake.domain.time.Clock
@@ -142,8 +141,14 @@ class MealPlanRepository @Inject constructor(
             plan?.let { positionOf(it, weeks.maxOfOrNull { w -> w.weekNumber } ?: 1) }
         }
 
-    private fun positionOf(plan: MealPlanEntity, length: Int): PlanPosition =
-        PlanSchedule.position(plan.startDate, today(), length, plan.loopMode, plan.loopCount)
+    /** Where [date] falls in the active plan (the Nutrition tab's day switcher), or null with no plan. */
+    fun observePositionOn(date: java.time.LocalDate): Flow<PlanPosition?> =
+        combine(planDao.observeActivePlan(), observeWeeks()) { plan, weeks ->
+            plan?.let { positionOf(it, weeks.maxOfOrNull { w -> w.weekNumber } ?: 1, date.toEpochDay()) }
+        }
+
+    private fun positionOf(plan: MealPlanEntity, length: Int, day: Long = today()): PlanPosition =
+        PlanSchedule.position(plan.startDate, day, length, plan.loopMode, plan.loopCount)
 
     fun observeCurrentWeekNumber(): Flow<Int> = observePosition().map { it?.week ?: 1 }
 
@@ -388,6 +393,15 @@ class MealPlanRepository @Inject constructor(
         return WeekContent(week, PlanWeekExtras.decode(week.notes), main, variations)
     }
 
+    /**
+     * Every saved recipe with its per-serving macros and its allergen status as of now (the Swap sheet's "Plan & recipes").
+     * Nothing leaves the phone.
+     */
+    suspend fun recipeContents(): List<RecipeContent> {
+        val scanner = scanner()
+        return recipeDao.all().map { contentOf(it, scanner) }
+    }
+
     private suspend fun contentOf(recipe: RecipeEntity, check: AllergenCheck): RecipeContent {
         val rows = recipeDao.ingredientsOf(recipe.id)
         val foods = rows.mapNotNull { row -> foodDao.findById(row.foodId)?.let { it to row.quantityGrams } }
@@ -534,26 +548,26 @@ class MealPlanRepository @Inject constructor(
 
     private suspend fun generateShopping(weekId: String, recipes: List<RecipeEntity>, force: Boolean) {
         val now = clock.nowMillis()
-        val ingredients = recipes.flatMap { r ->
+        // Lists made before amounts were added up by unit keep their rows: their ids were keyed differently, so
+        // generating again beside them would double every item.
+        if (!force && shoppingDao.idsForWeek(weekId).isNotEmpty()) return
+        // Every ingredient line of every recipe in the week, as text, so amounts can be added up by unit. The plan
+        // stores no servings of its own, so each recipe is cooked once as written (scale 1).
+        val contributions = recipes.flatMap { r ->
             val rows = recipeDao.ingredientsOf(r.id).mapNotNull { row ->
-                foodDao.findById(row.foodId)?.let { ShoppingIngredient(it.name, row.quantityGrams, row.groupLabel) }
+                foodDao.findById(row.foodId)?.let { ShoppingContribution("${row.quantityGrams} g ${it.name}", r.name, row.groupLabel) }
             }
             // Group labels are stored per line of the raw text, so they are read before blanks are dropped.
             val rawLines = r.ingredientsText.lines()
             val rawGroups = IngredientGroupsCodec.decode(r.ingredientGroups, rawLines.size)
             val lines = rawLines.indices.filter { rawLines[it].isNotBlank() }.map { i ->
-                val line = rawLines[i].trim()
-                // Plan-imported text lines carry a "250 g " prefix the import did not use in the item's name.
-                when (r.origin) {
-                    RecipeOrigin.PLAN -> ShoppingIngredient(line.replace(Regex("^\\d+(\\.\\d+)? g "), ""), null, rawGroups[i])
-                    // Typed or imported lines are "1 1/2 cups milk": shop for the item, with grams when the unit is a weight.
-                    else -> IngredientLineParser.parse(line).let { ShoppingIngredient(it.name, it.grams, rawGroups[i]) }
-                }
+                // Plan-imported lines keep their "250 g " prefix: it is the amount, and the line reader uses it.
+                ShoppingContribution(rawLines[i].trim(), r.name, rawGroups[i])
             }
             rows + lines
         }
         val have = if (force) emptySet() else shoppingDao.idsForWeek(weekId).toSet()
-        val fresh = ShoppingListBuilder.generate(ingredients).mapNotNull { g ->
+        val fresh = ShoppingListBuilder.generateFromLines(contributions).mapNotNull { g ->
             val id = seedId("shopping", "$weekId:${g.key}")
             if (id in have) null
             else ShoppingListItemEntity(
@@ -707,18 +721,18 @@ class MealPlanRepository @Inject constructor(
     /**
      * SPEC §9: one FoodLog for the recipe's per-serving macros. [override] is what the user
      * confirmed when the macros were incomplete or typed in by hand. A recipe that now matches
-     * the allergen profile is not logged.
+     * the allergen profile is not logged, unless the person chose it anyway ([allergenOverride], a user action).
      */
-    suspend fun logMeal(content: RecipeContent, slot: MealSlot, override: Macros? = null): MealLogResult {
+    suspend fun logMeal(content: RecipeContent, slot: MealSlot, override: Macros? = null, allergenOverride: Boolean = false, at: Long = clock.nowMillis()): MealLogResult {
         val live = scanner().scan(content.recipe.name, content.ingredientLines.joinToString("\n"))
         val status = PlanImportBuilder.statusOf(live)
-        if (status == AllergenStatus.CONTAINS) {
+        if (status == AllergenStatus.CONTAINS && !allergenOverride) {
             return MealLogResult.Blocked(live.contains.map { it.matchedTerm }.distinct())
         }
         val macros = override ?: content.macros.perServing
         val log = foodLog.logPrepared(
             name = content.recipe.name, macros = macros, slot = slot, servingLabel = "1 serving",
-            at = clock.nowMillis(),
+            at = at,
         )
         return MealLogResult.Logged(log, if (override == null) content.macros else null, status)
     }
@@ -737,6 +751,9 @@ class MealPlanRepository @Inject constructor(
     suspend fun undoLog(log: FoodLogEntity) = foodLog.softDelete(log.id)
 
     fun observeEatOutOptions(): Flow<List<EatOutOptionEntity>> = plan.observeAllEatOutOptions()
+
+    /** Soft delete: a saved eat-out option is hidden, never removed from the database. */
+    suspend fun deleteEatOutOption(id: String) = planDao.softDeleteEatOutOption(id, clock.nowMillis())
 
     suspend fun weekByNumber(n: Int): PlanWeekEntity? = planDao.activePlan()?.let { planDao.week(it.id, n) }
 }

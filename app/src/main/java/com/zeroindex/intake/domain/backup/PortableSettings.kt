@@ -46,10 +46,14 @@ object PortableSettings {
         "profile_json", "baseline_json", "plan_history_json", "week_pattern_json",
         // Round 3: You and Settings (all plain preferences; never a secret or a device id).
         "profile_display_name", "portion_unit", "today_card_next", "today_card_water", "today_card_weight",
-        "today_card_meals", "show_sodium", "eat_out_radius_mi", "jump_tests", "weekly_sets_csv",
-        "videos_only_workouts", "videos_personalise", "photo_reminder_weeks", "export_reminder",
+        "today_card_meals", "today_card_activity", "show_sodium", "eat_out_radius_mi", "eat_out_minutes", "eat_out_travel", "jump_tests", "weekly_sets_csv",
+        "videos_only_workouts", "videos_personalise", "videos_hide_shorts", "photo_reminder_weeks", "export_reminder",
         "export_include_photos",
-        "off_search_enabled", "off_contribute_enabled", "off_other_languages",
+        // Round 3, item D: daily reminders (the switches and times). NOT the last-sent markers: those are device-local.
+        "workout_reminder_on", "workout_reminder_minute", "meal_reminder_on", "breakfast_reminder_minute",
+        "lunch_reminder_minute", "dinner_reminder_minute", "water_reminder_on", "water_reminder_start_hour",
+        "water_reminder_end_hour",
+        "off_search_enabled", "off_contribute_enabled", "off_other_languages", "off_language",
         // Hydration v2 (its own store): the opt-in, the chosen place name, drink edits and the measured sweat rate.
         // NOT the coordinates, the cached forecast or the retry time: a restore asks for the location again.
         "weather_enabled", "weather_location_mode", "weather_place", "drink_overrides",
@@ -157,11 +161,12 @@ object PortableSettings {
             "units" to setOf("weight_unit", "length_unit", "volume_unit", "portion_unit"),
             "look and feel" to setOf(
                 "theme_mode", "dynamic_color", "reduce_motion", "today_card_next", "today_card_water",
-                "today_card_weight", "today_card_meals", "profile_display_name",
+                "today_card_weight", "today_card_meals", "today_card_activity", "profile_display_name",
             ),
             "reminders and videos" to setOf(
                 "photo_reminder_weeks", "export_reminder", "export_include_photos", "videos_only_workouts",
-                "videos_personalise", "show_sodium", "eat_out_radius_mi", "jump_tests", "weekly_sets_csv",
+                "videos_hide_shorts", "workout_reminder_on", "meal_reminder_on", "water_reminder_on",
+                "videos_personalise", "show_sodium", "eat_out_radius_mi", "eat_out_minutes", "eat_out_travel", "jump_tests", "weekly_sets_csv",
             ),
             "workout timer and plates" to setOf("default_rest_sec", "rest_vibrate", "bar_weight_kg", "available_plates_kg"),
             "targets" to setOf(
@@ -176,7 +181,7 @@ object PortableSettings {
                 "ai_privacy", "ai_allow_retaining", "daily_insight_enabled",
                 "ai_master_enabled", "ai_monthly_budget_usd", "ai_menu_auto_refresh",
             ),
-            "food database" to setOf("off_search_enabled", "off_contribute_enabled", "off_other_languages"),
+            "food database" to setOf("off_search_enabled", "off_contribute_enabled", "off_other_languages", "off_language"),
         )
         val present = groups.filter { (label, keys) ->
             when (label) {

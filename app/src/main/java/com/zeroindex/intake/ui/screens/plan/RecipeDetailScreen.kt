@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -52,6 +53,7 @@ import com.zeroindex.intake.data.repository.IngredientView
 import com.zeroindex.intake.domain.recipe.IngredientSections
 import com.zeroindex.intake.domain.recipe.LineAllergenTag
 import com.zeroindex.intake.domain.recipe.RecipeNutritionLabels
+import com.zeroindex.intake.domain.recipe.ResolvedRecipeNutrition
 import com.zeroindex.intake.domain.recipe.RecipeTimes
 import com.zeroindex.intake.ui.allergen.CheckLabelChip
 import com.zeroindex.intake.ui.components.IntakeCard
@@ -80,6 +82,8 @@ fun RecipeDetailScreen(
     contentPadding: PaddingValues,
     onDeleted: () -> Unit,
     onEdit: (String) -> Unit,
+    /** Opens cook mode for this recipe (it works with no meal plan). */
+    onCook: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: RecipeLibraryViewModel = hiltViewModel(),
 ) {
@@ -87,6 +91,8 @@ fun RecipeDetailScreen(
     val notice by viewModel.notice.collectAsStateWithLifecycle()
     val recipe = recipes.firstOrNull { it.id == recipeId } ?: return
     val view by remember(recipeId) { viewModel.viewOf(recipeId) }.collectAsStateWithLifecycle(null)
+    val estimate by remember(recipeId) { viewModel.estimateOf(recipeId) }.collectAsStateWithLifecycle(null)
+    val nutrition = resolveNutrition(recipe, estimate?.perServing)
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var picking by remember { mutableStateOf(false) }
@@ -139,19 +145,28 @@ fun RecipeDetailScreen(
             }
         }
         RecipePhoto(recipe.imageUrl)
-        if (recipe.kcalPerServing != null) {
+        if (nutrition.hasAnything) {
             MacroTiles(
                 listOf(
-                    Triple("${recipe.proteinPerServing?.roundToInt() ?: 0} g", "Protein", ProteinAccent),
-                    Triple("${recipe.carbsPerServing?.roundToInt() ?: 0} g", "Carbs", CarbAccent),
-                    Triple("${recipe.kcalPerServing.roundToInt()}", "kcal", FatAccent),
+                    Triple(ResolvedRecipeNutrition.text(nutrition.protein, "g"), "Protein", ProteinAccent),
+                    Triple(ResolvedRecipeNutrition.text(nutrition.carbs, "g"), "Carbs", CarbAccent),
+                    Triple(nutrition.kcal?.let { (if (it.estimated) "~" else "") + it.value.roundToInt() } ?: ResolvedRecipeNutrition.NOT_LISTED, "kcal", FatAccent),
                 ),
             )
             Text(
-                "Per serving · fat ${recipe.fatPerServing?.roundToInt() ?: 0} g",
+                "Per serving · fat ${ResolvedRecipeNutrition.text(nutrition.fat, "g")}" + if (nutrition.anyEstimated) " · ~ is estimated from ingredients" else "",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        } else {
+            Text(
+                "Nutrition: not listed. The page gave none and the ingredients could not be matched.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        estimate?.takeIf { nutrition.anyEstimated }?.let { est ->
+            RecipeEstimateCard(est, nutrition, onPick = { i, f -> viewModel.pickFood(recipeId, i, f) })
         }
         val extras = RecipeNutritionLabels.extras(
             recipe.fiberPerServing, recipe.sugarPerServing, recipe.saturatedFatPerServing, recipe.sodiumMgPerServing,
@@ -257,12 +272,21 @@ fun RecipeDetailScreen(
             }
         }
         Spacer(Modifier.height(6.dp))
-        Button(
-            onClick = { picking = true },
-            enabled = recipe.kcalPerServing != null,
-            shape = IntakeShape.Button,
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-        ) { Text(if (logged) "Logged · log another serving" else "Log a serving") }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (recipe.instructions.isNotBlank()) {
+                OutlinedButton(
+                    onClick = { onCook(recipe.id) },
+                    shape = IntakeShape.Button,
+                    modifier = Modifier.weight(1f).height(52.dp),
+                ) { Text("Cook") }
+            }
+            Button(
+                onClick = { picking = true },
+                enabled = nutrition.kcal != null,
+                shape = IntakeShape.Button,
+                modifier = Modifier.weight(if (recipe.instructions.isNotBlank()) 2f else 1f).height(52.dp),
+            ) { Text(if (logged) "Logged · log another" else "Log a serving") }
+        }
         notice?.let { SandNote(it) }
         Spacer(Modifier.height(24.dp))
     }
@@ -271,7 +295,7 @@ fun RecipeDetailScreen(
         SlotPickerSheet(
             title = "Log a serving to",
             onDismiss = { picking = false },
-            onPick = { slot -> viewModel.logServing(recipe, slot) { logged = true; picking = false } },
+            onPick = { slot -> viewModel.logServing(recipe, slot, estimate) { logged = true; picking = false } },
         )
     }
 

@@ -281,6 +281,11 @@ class OpenRouterClient(
             status == 402 -> AiError.InsufficientCredits
             status == 408 -> AiError.Timeout
             status == 429 -> AiError.RateLimited(retryAfterMs)
+            // "No endpoints found that can handle the requested parameters": a provider exists, but none accepts
+            // everything the request sends (the schema, tools, sampling settings).
+            (status == 404 || status == 400) &&
+                (message.contains("requested parameters", true) || message.contains("support the requested", true)) ->
+                AiError.NoEndpointForParameters
             // "No endpoints found matching your data policy" and its variants.
             (status == 404 || status == 400) &&
                 (message.contains("data policy", true) || message.contains("endpoints found", true)) ->
@@ -405,8 +410,18 @@ sealed class AiError(override val message: String) : Exception(message) {
         AiError("The provider refused this request. Try another model in Settings → AI.")
     /** No model can do this task with the catalog and settings as they are. */
     data class NoModel(val task: String) : AiError("No suitable model is available for $task. Check Settings → AI.")
+    /** No provider of the model could take the request under the privacy settings. Names both places that decide it. */
     data object NoEndpointForPrivacy : AiError(
-        "No provider for this model meets your privacy setting. Pick another model, or relax the setting.",
+        "No provider could take this request under your privacy settings. Two places decide that: the app's " +
+            "“Privacy for AI requests” in Settings → AI, and your OpenRouter account's own privacy page at " +
+            "openrouter.ai/settings/privacy, which can block providers too. Relax one of them, or pick another model in " +
+            "Settings → AI.",
+    )
+    /** A provider exists but none accepts everything this task sends, together with the privacy settings. */
+    data object NoEndpointForParameters : AiError(
+        "No provider for this model can do everything this task needs under your privacy settings. Check the app's " +
+            "“Privacy for AI requests” in Settings → AI and your OpenRouter account's privacy page at " +
+            "openrouter.ai/settings/privacy, or pick another model in Settings → AI.",
     )
     data class Network(val detail: String) : AiError("Could not reach OpenRouter. Everything else still works offline.")
     data class Server(val code: Int, val detail: String) : AiError("OpenRouter returned an error ($code). Try again shortly.")
@@ -427,7 +442,7 @@ sealed class AiError(override val message: String) : Exception(message) {
             is Network -> AiFailureKind.NETWORK
             is Unauthorized -> AiFailureKind.AUTH
             is InsufficientCredits -> AiFailureKind.CREDITS
-            is NoEndpointForPrivacy -> AiFailureKind.PRIVACY
+            is NoEndpointForPrivacy, is NoEndpointForParameters -> AiFailureKind.PRIVACY
             is Server -> AiFailureKind.SERVER
             is NoKey, is Off, is BudgetReached, is NotAllowed, is NoModel -> AiFailureKind.REFUSED
         }

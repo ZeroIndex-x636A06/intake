@@ -17,6 +17,12 @@ import androidx.health.connect.client.records.WeightRecord
 import com.zeroindex.intake.data.db.entity.BodyMetricEntity
 import com.zeroindex.intake.data.db.entity.HealthDailySummaryEntity
 import com.zeroindex.intake.domain.health.ActivityNetting
+import com.zeroindex.intake.domain.health.KnownWeighIn
+import com.zeroindex.intake.domain.health.OfferedWeighIn
+import com.zeroindex.intake.domain.health.SessionMath
+import com.zeroindex.intake.domain.health.SleepMath
+import com.zeroindex.intake.domain.health.SleepSpan
+import com.zeroindex.intake.domain.health.WeighInDedupe
 import com.zeroindex.intake.domain.health.BmrBasis
 import com.zeroindex.intake.domain.health.EnergySample
 import com.zeroindex.intake.domain.health.SessionWindow
@@ -102,6 +108,8 @@ data class DayDraft(
     val bmrKcalInWindows: Double?,
     val activeKcalNet: Double?,
     val totalKcalBurned: Double?,
+    /** All-day active calories, the figure a watch shows. Null when there is no data. */
+    val activeKcalDay: Double? = null,
     val steps: Long?,
     val sleepMinutes: Long?,
     val sleepStartMillis: Long?,
@@ -115,6 +123,7 @@ data class DayDraft(
         bmrKcalInWindows = bmrKcalInWindows,
         activeKcalNet = activeKcalNet,
         totalKcalBurned = totalKcalBurned,
+        activeKcalDay = activeKcalDay,
         steps = steps,
         sleepMinutes = sleepMinutes,
         sleepStartMillis = sleepStartMillis,
@@ -153,12 +162,21 @@ class HealthReader(private val source: HealthDataSource, private val clock: Cloc
         const val FIRST_SYNC_DAYS = 30
         /** Later syncs re-read at least this many days; summaries are rewritten, so overlap is safe. */
         const val MIN_SYNC_DAYS = 14
+        /**
+         * Weight, body fat and lean mass are sparse (a few readings a month), so every sync looks a year back. It is one
+         * paged read, and readings already imported are recognised by id and skipped.
+         */
+        const val WEIGHT_HISTORY_DAYS = 365
         private const val DAY_MS = 86_400_000L
-        private const val WEIGH_IN_MATCH_WINDOW_MS = 10 * 60 * 1000L
+        private const val WEIGH_IN_MATCH_WINDOW_MS = WeighInDedupe.MATCH_WINDOW_MS
 
-        /** Never synced: a full 30 days. Otherwise cover the gap since the last sync, between 14 and 30 days. */
-        fun historyDays(lastSyncAt: Long?, now: Long): Int {
-            if (lastSyncAt == null) return FIRST_SYNC_DAYS
+        /**
+         * Never synced: a full 30 days. Otherwise cover the gap since the last sync, between 14 and 30 days.
+         * [forceFull] is for a sync that follows one where some types had no permission yet: those types have no
+         * history in the database, so the short window would leave them with 14 days.
+         */
+        fun historyDays(lastSyncAt: Long?, now: Long, forceFull: Boolean = false): Int {
+            if (lastSyncAt == null || forceFull) return FIRST_SYNC_DAYS
             val gap = ((now - lastSyncAt) / DAY_MS).toInt() + 2
             return gap.coerceIn(MIN_SYNC_DAYS, FIRST_SYNC_DAYS)
         }
@@ -193,12 +211,12 @@ class HealthReader(private val source: HealthDataSource, private val clock: Cloc
     }
 
     /**
-     * Weight, body fat and lean mass from a smart scale become weigh-ins, matched by time.
-     * [alreadyKnown] says whether a weigh-in already exists near a time (the user may have
-     * typed the same reading), and those are left out of the result. The id comes from Health
-     * Connect's own record id, so two devices that read the same scale produce the same row.
+     * Weight, body fat and lean mass from a smart scale become weigh-ins, matched by time. Reads
+     * [WEIGHT_HISTORY_DAYS] back whatever the sync window is. [known] is every body row already in the database
+     * (deleted ones too): see [WeighInDedupe] for what is left out. The id comes from Health Connect's own record id,
+     * so two devices that read the same scale produce the same row.
      */
-    suspend fun readWeighIns(run: Run, days: Int, alreadyKnown: suspend (Long) -> Boolean): List<WeighInDraft> {
+    suspend fun readWeighIns(run: Run, known: List<KnownWeighIn> = emptyList(), days: Int = WEIGHT_HISTORY_DAYS): List<WeighInDraft> {
         val weightTally = run.tally("Weight", WeightRecord::class)
         val fatTally = run.tally("Body fat", BodyFatRecord::class)
         val leanTally = run.tally("Lean body mass", LeanBodyMassRecord::class)
@@ -213,9 +231,15 @@ class HealthReader(private val source: HealthDataSource, private val clock: Cloc
 
         val weights = attempt(weightTally) { read(WeightRecord::class, from, to) }.orEmpty()
         weightTally.records = weights.size
-        return weights.mapNotNull { w ->
-            val at = w.time.toEpochMilli()
-            if (alreadyKnown(at)) return@mapNotNull null
+        val byId = weights.associateBy { it.metadata.id }
+        val accepted = WeighInDedupe.toImport(
+            offered = weights.map { OfferedWeighIn(it.metadata.id, it.time.toEpochMilli()) },
+            known = known,
+            rowId = { "hc-weight-$it" },
+        )
+        return accepted.mapNotNull { o ->
+            val w = byId[o.id] ?: return@mapNotNull null
+            val at = o.measuredAt
             WeighInDraft(
                 healthConnectId = w.metadata.id,
                 measuredAt = at,
@@ -256,7 +280,9 @@ class HealthReader(private val source: HealthDataSource, private val clock: Cloc
             val to = Instant.ofEpochMilli(range.endExclusive)
             listOf(steps, sleepT, exerciseT, totalT, activeT, restingT, hrT).forEach { it.daysRead++ }
 
-            val sessions = if (run.can(ExerciseSessionRecord::class)) attempt(exerciseT) { read(ExerciseSessionRecord::class, from, to) }.orEmpty() else emptyList()
+            // Every tracked workout counts as a window, ours included (the energy inside it came from the watch), and
+            // windows two apps recorded for the same workout are merged so the energy is not counted twice.
+            val sessions = if (run.can(ExerciseSessionRecord::class)) attempt(exerciseT) { source.readAll(ExerciseSessionRecord::class, from, to) }.orEmpty() else emptyList()
             val totals = if (run.can(TotalCaloriesBurnedRecord::class)) attempt(totalT) { read(TotalCaloriesBurnedRecord::class, from, to) }.orEmpty() else emptyList()
             val actives = if (run.can(ActiveCaloriesBurnedRecord::class)) attempt(activeT) { read(ActiveCaloriesBurnedRecord::class, from, to) }.orEmpty() else emptyList()
             if (sessions.isNotEmpty()) { exerciseT.daysWithData++; exerciseT.records += sessions.size }
@@ -265,12 +291,14 @@ class HealthReader(private val source: HealthDataSource, private val clock: Cloc
 
             val net = bmr?.let { (perDay, _) ->
                 ActivityNetting.net(
-                    sessions = sessions.map { SessionWindow(it.startTime.toEpochMilli(), it.endTime.toEpochMilli()) },
+                    sessions = SessionMath.merge(sessions.map { SessionWindow(it.startTime.toEpochMilli(), it.endTime.toEpochMilli()) }),
                     totalSamples = totals.map { EnergySample(it.startTime.toEpochMilli(), it.endTime.toEpochMilli(), it.energy.inKilocalories) },
                     activeSamples = actives.map { EnergySample(it.startTime.toEpochMilli(), it.endTime.toEpochMilli(), it.energy.inKilocalories) },
                     bmrKcalPerDay = perDay,
                 )
             }
+
+            val activeDay = if (run.can(ActiveCaloriesBurnedRecord::class)) attempt(activeT) { source.totalActiveCalories(from, to) } else null
 
             val totalBurn = if (run.can(TotalCaloriesBurnedRecord::class)) attempt(totalT) { source.totalCaloriesBurned(from, to) } else null
             if (totalBurn != null && totalBurn > 0) totalT.daysWithData++
@@ -302,6 +330,8 @@ class HealthReader(private val source: HealthDataSource, private val clock: Cloc
                 emptyList()
             }
             if (sleep.isNotEmpty()) { sleepT.daysWithData++; sleepT.records += sleep.size }
+            // Overlapping sessions from a phone and a watch count once; a daytime nap is not last night.
+            val sleepSpans = sleep.map { SleepSpan(it.startTime.toEpochMilli(), it.endTime.toEpochMilli()) }
 
             val restingRecords = if (run.can(RestingHeartRateRecord::class)) attempt(restingT) { read(RestingHeartRateRecord::class, from, to) }.orEmpty() else emptyList()
             if (restingRecords.isNotEmpty()) { restingT.daysWithData++; restingT.records += restingRecords.size }
@@ -316,8 +346,9 @@ class HealthReader(private val source: HealthDataSource, private val clock: Cloc
                 bmrKcalInWindows = net?.bmrKcal,
                 activeKcalNet = net?.netKcal,
                 totalKcalBurned = totalBurn,
+                activeKcalDay = activeDay?.takeIf { it > 0 },
                 steps = stepCount,
-                sleepMinutes = sleep.sumOf { (it.endTime.toEpochMilli() - it.startTime.toEpochMilli()) / 60_000 }.takeIf { sleep.isNotEmpty() },
+                sleepMinutes = SleepMath.lastNight(sleepSpans, range.startInclusive, range.endExclusive, clock.zone()),
                 sleepStartMillis = sleep.minOfOrNull { it.startTime.toEpochMilli() },
                 restingHeartRate = resting,
                 avgHeartRate = avgHr,

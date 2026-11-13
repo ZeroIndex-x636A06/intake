@@ -3,62 +3,61 @@ package com.zeroindex.intake.ui.screens.hub
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.ui.unit.dp
-import com.zeroindex.intake.ui.motion.MoreDetail
-import com.zeroindex.intake.ui.motion.pressScale
-import com.zeroindex.intake.ui.theme.IntakeShape
-import com.zeroindex.intake.ui.components.EmptyState
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.itemsIndexed
-import com.zeroindex.intake.ui.motion.rememberStaggerGate
-import com.zeroindex.intake.ui.motion.staggerIn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.Nfc
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.RestaurantMenu
 import androidx.compose.material.icons.filled.Storefront
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewModelScope
+import com.zeroindex.intake.data.repository.MealPlanRepository
+import com.zeroindex.intake.data.swap.SwapEntry
+import com.zeroindex.intake.data.swap.SwapRepository
+import com.zeroindex.intake.data.swap.SwapSource
 import com.zeroindex.intake.domain.model.MealSlot
-import com.zeroindex.intake.ui.addfood.AddFoodSheet
-import com.zeroindex.intake.ui.addfood.AddFoodTab
-import androidx.compose.material.icons.filled.Fastfood
-import androidx.compose.material.icons.filled.QrCodeScanner
-import androidx.compose.material.icons.filled.Storage
-import com.zeroindex.intake.ui.components.AccentNote
+import com.zeroindex.intake.ui.allergen.AllergenChip
+import com.zeroindex.intake.ui.components.EmptyState
+import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.SectionLine
+import com.zeroindex.intake.ui.motion.rememberStaggerGate
+import com.zeroindex.intake.ui.motion.staggerIn
 import com.zeroindex.intake.ui.screens.plan.RecipeLibraryViewModel
 import com.zeroindex.intake.ui.screens.plan.RecipeRow
-import java.time.LocalTime
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import kotlin.math.roundToInt
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
-/** The meal slot a "Log food" from the hub starts in: by the clock, since the hub has no slot of its own. */
+/** The meal slot a "Log food" from a screen with no slot of its own starts in: by the clock. */
 fun defaultMealSlot(hourOfDay: Int): MealSlot = when (hourOfDay) {
     in 4..10 -> MealSlot.BREAKFAST
     in 11..14 -> MealSlot.LUNCH
@@ -66,141 +65,7 @@ fun defaultMealSlot(hourOfDay: Int): MealSlot = when (hourOfDay) {
     else -> MealSlot.SNACK
 }
 
-/**
- * The Food tab root (SPEC-v3 IA): every food feature behind one short list. Log food opens the
- * Add food flow in place; the other rows open their own screens.
- */
-@Composable
-fun FoodHubScreen(
-    contentPadding: PaddingValues,
-    onOpenMealTemplates: () -> Unit,
-    onOpenMealPlans: () -> Unit,
-    onOpenRecipes: () -> Unit,
-    onOpenEatingOut: () -> Unit,
-    onOpenAllergens: () -> Unit,
-    onOpenFoodScriptHelp: () -> Unit,
-    onOpenAiSettings: () -> Unit,
-    onOpenMyFoods: () -> Unit,
-    onOpenFood: (String) -> Unit,
-    onOpenDrinks: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var logging by rememberSaveable { mutableStateOf(false) }
-    // Which tab Add food opens on: Search for "Log food", Barcode for "Scan a barcode".
-    var scanning by rememberSaveable { mutableStateOf(false) }
-    HubScreen(
-        title = "Nutrition",
-        subtitle = "Log what you eat, plan your week, eat out safely.",
-        contentPadding = contentPadding,
-        modifier = modifier,
-        tip = {
-            com.zeroindex.intake.ui.onboarding.TabTip(
-                key = com.zeroindex.intake.domain.onboarding.TipKey.FOOD,
-                body = com.zeroindex.intake.ui.onboarding.TabTipCopy.FOOD,
-                actionLabel = "Log food",
-                onAction = { scanning = false; logging = true },
-            )
-        },
-        before = {
-            // The one obvious action on this screen.
-            item(key = "log-food") {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Button(
-                        onClick = { scanning = false; logging = true },
-                        shape = IntakeShape.Button,
-                        modifier = Modifier.fillMaxWidth().height(56.dp).pressScale(),
-                    ) { Text("Log food") }
-                    TextButton(
-                        onClick = { scanning = true; logging = true },
-                        modifier = Modifier.heightIn(min = 48.dp),
-                    ) {
-                        Icon(Icons.Filled.QrCodeScanner, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Scan a barcode instead")
-                    }
-                }
-            }
-        },
-        items = listOf(
-            HubItem(
-                title = "Meal plans",
-                description = "Plans of any length, shopping lists, import and export",
-                icon = Icons.Filled.CalendarMonth,
-                onClick = onOpenMealPlans,
-            ),
-            HubItem(
-                title = "Recipes",
-                description = "Your saved recipes and cook mode",
-                icon = Icons.Filled.Restaurant,
-                onClick = onOpenRecipes,
-            ),
-            HubItem(
-                title = "Meal templates",
-                description = "Saved meals that log in one tap, or from an NFC tag",
-                icon = Icons.Filled.Nfc,
-                onClick = onOpenMealTemplates,
-            ),
-            HubItem(
-                title = "Eating out",
-                description = "Plan B, saved options and restaurant menus",
-                icon = Icons.Filled.Storefront,
-                onClick = onOpenEatingOut,
-            ),
-            HubItem(
-                title = "Allergens",
-                description = "What you avoid, keywords and the hidden-ingredient reference",
-                icon = Icons.Filled.Warning,
-                onClick = onOpenAllergens,
-            ),
-            // PLACEHOLDER: the Nutrition rebuild replaces this row with the allergen strip at the top of the tab.
-            HubItem(
-                title = "Drinks",
-                description = "Log a drink and see today's",
-                icon = Icons.Filled.Restaurant,
-                onClick = onOpenDrinks,
-            ),
-        ),
-        after = {
-            // Rarely needed, so folded away instead of lengthening the list.
-            item(key = "more-food") {
-                MoreDetail(title = "More food tools") {
-                    HubList(
-                        listOf(
-                            HubItem(
-                                title = "My foods",
-                                description = "Every food on this phone: edit it or share it with Open Food Facts",
-                                icon = Icons.Filled.Fastfood,
-                                onClick = onOpenMyFoods,
-                            ),
-                            HubItem(
-                                title = "Food script help",
-                                description = "Write a meal plan by hand, with the full reference",
-                                icon = Icons.AutoMirrored.Filled.MenuBook,
-                                onClick = onOpenFoodScriptHelp,
-                            ),
-                        ),
-                    )
-                }
-            }
-        },
-    )
-    if (logging) {
-        val now = remember { System.currentTimeMillis() }
-        AddFoodSheet(
-            mealSlot = defaultMealSlot(LocalTime.now().hour),
-            loggedAtMillis = now,
-            onDismiss = { logging = false },
-            onOpenAiSettings = onOpenAiSettings,
-            initialTab = if (scanning) AddFoodTab.BARCODE else AddFoodTab.RECENTS,
-            onOpenFood = { id ->
-                logging = false
-                onOpenFood(id)
-            },
-        )
-    }
-}
-
-/** Food, Recipes: what you have saved, plus the optional AI finder. */
+/** Nutrition > Recipes: what you have saved, plus the optional AI finder. */
 @Composable
 fun RecipesScreen(
     contentPadding: PaddingValues,
@@ -214,7 +79,6 @@ fun RecipesScreen(
     val recipes by viewModel.recipes.collectAsStateWithLifecycle()
     val gate = rememberStaggerGate()
     HubScreen(
-        title = "Recipes",
         subtitle = "Saved recipes log a serving in one tap.",
         contentPadding = contentPadding,
         modifier = modifier,
@@ -259,26 +123,43 @@ fun RecipesScreen(
     )
 }
 
-/** Food, Eating out: everything for when the plan does not apply. */
+/** Saved eat-out options with today's allergen verdict on each, read once per change. */
+@OptIn(ExperimentalCoroutinesApi::class)
+@HiltViewModel
+class EatingOutViewModel @Inject constructor(
+    private val plans: MealPlanRepository,
+    swap: SwapRepository,
+) : ViewModel() {
+    /** Null until the first read finishes. */
+    val options: StateFlow<List<SwapEntry>?> = plans.observeEatOutOptions()
+        .mapLatest { swap.savedEatOut(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun remove(id: String) { viewModelScope.launch { plans.deleteEatOutOption(id) } }
+}
+
+/**
+ * Nutrition > Eating out: the options saved for when the plan does not apply (they work with no signal, and each carries
+ * its allergen verdict), the restaurant menu import, and "Find healthier options nearby" (imported menus first, then an
+ * optional AI search on tap). Swap is still the main home of nearby search, ranked against the planned meal.
+ */
 @Composable
 fun EatingOutScreen(
     contentPadding: PaddingValues,
-    onOpenPlanB: () -> Unit,
     onOpenMenuImport: () -> Unit,
+    onOpenAiSettings: () -> Unit,
+    onOpenRadiusSetting: () -> Unit,
     modifier: Modifier = Modifier,
+    viewModel: EatingOutViewModel = hiltViewModel(),
 ) {
+    val healthierBlock = rememberHealthierBlock(onOpenAiSettings, onOpenRadiusSetting)
+    val options by viewModel.options.collectAsStateWithLifecycle()
+    var removing by remember { mutableStateOf<SwapEntry?>(null) }
     HubScreen(
-        title = "Eating out",
-        subtitle = "A safer choice when you cannot eat what you cooked.",
+        subtitle = "Saved options, restaurant menus and healthier options near you.",
         contentPadding = contentPadding,
         modifier = modifier,
         items = listOf(
-            HubItem(
-                title = "Plan B",
-                description = "Find a safer place to eat nearby. Saved options work offline",
-                icon = Icons.Filled.RestaurantMenu,
-                onClick = onOpenPlanB,
-            ),
             HubItem(
                 title = "Menu import",
                 description = "Bring in restaurant menus, checked against your allergens",
@@ -286,6 +167,52 @@ fun EatingOutScreen(
                 onClick = onOpenMenuImport,
             ),
         ),
+        after = {
+            healthierBlock()
+            item(key = "saved-head") { SectionLine("Saved eat-out options", note = "works offline") }
+            val list = options
+            when {
+                list == null -> item(key = "loading") { Text("Reading your saved options…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                list.isEmpty() -> item(key = "none") {
+                    EmptyState(
+                        title = "Nothing saved yet",
+                        body = "Save an option from Swap's nearby search, or import a plan that has eat-out options. They stay on this phone and work with no signal.",
+                    )
+                }
+                else -> itemsIndexed(list, key = { _, e -> e.option.key }) { _, e ->
+                    val src = e.source as? SwapSource.EatOut
+                    IntakeCard {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text(src?.option?.venueName ?: e.option.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
+                                Text(e.option.title, style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    "${e.option.macros.kcal.roundToInt()} kcal · P ${e.option.macros.protein.roundToInt()} · C ${e.option.macros.carbs.roundToInt()} · F ${e.option.macros.fat.roundToInt()} · estimate",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                src?.option?.cautionNote?.takeIf { it.isNotBlank() }?.let {
+                                    Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                            IconButton(onClick = { removing = e }) { Icon(Icons.Filled.Delete, contentDescription = "Remove ${e.option.title}") }
+                        }
+                        Column(Modifier.padding(top = 6.dp)) {
+                            AllergenChip(e.option.allergen, label = if (e.option.allergen == com.zeroindex.intake.domain.swap.SwapAllergen.CLEAR) "No allergens found" else e.option.allergenReason)
+                        }
+                    }
+                }
+            }
+        },
     )
+    removing?.let { e ->
+        val src = e.source as? SwapSource.EatOut
+        AlertDialog(
+            onDismissRequest = { removing = null },
+            title = { Text("Remove this saved option?") },
+            text = { Text("${src?.option?.venueName ?: ""}: ${e.option.title}. It is hidden from Swap and this list. Nothing is deleted from your history.") },
+            confirmButton = { Button(onClick = { removing = null; src?.option?.id?.let(viewModel::remove) }) { Text("Remove") } },
+            dismissButton = { TextButton(onClick = { removing = null }) { Text("Cancel") } },
+        )
+    }
 }
-

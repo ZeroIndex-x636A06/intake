@@ -119,7 +119,7 @@ fun EatOutSheet(
     weekLabel: String,
     onToggleAll: () -> Unit,
     onLog: (EatOutRow) -> Unit,
-    onOpenPlanB: () -> Unit,
+    onOpenSwap: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
@@ -140,7 +140,7 @@ fun EatOutSheet(
             if (rows.isEmpty()) {
                 EmptyState(
                     title = "No saved options for this week",
-                    body = "Import a plan file with eat-out options, or find a place with Plan B.",
+                    body = "Import a plan file with eat-out options, or use Swap to find a place nearby.",
                 )
             }
             rows.forEach { row -> EatOutCard(row, onLog = { onLog(row) }) }
@@ -152,10 +152,10 @@ fun EatOutSheet(
                 ) { Text(if (showingAll) "Show only this week's protein" else "Show all options ($hiddenCount more)") }
             }
             OutlinedButton(
-                onClick = onOpenPlanB,
+                onClick = onOpenSwap,
                 shape = IntakeShape.Button,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-            ) { Text("Plan B · find a place nearby") }
+            ) { Text("Swap · find a place nearby") }
             Spacer(Modifier.height(16.dp))
         }
     }

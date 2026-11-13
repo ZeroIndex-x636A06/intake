@@ -15,7 +15,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 @Entity(
     tableName = "hydration_log",
-    indices = [Index("loggedAt"), Index("deletedAt")],
+    indices = [Index("loggedAt"), Index("deletedAt"), Index("foodLogId")],
 )
 data class HydrationLogEntity(
     @PrimaryKey override val id: String = newId(),
@@ -33,6 +33,11 @@ data class HydrationLogEntity(
     @ColumnInfo(defaultValue = "0.0") val caffeineMg: Double = 0.0,
     /** Millilitres of pure alcohol in the drink. */
     @ColumnInfo(defaultValue = "0.0") val alcoholMl: Double = 0.0,
+    /**
+     * The food-log row written with this drink so its calories and sugar count (Nutrition > Drinks). Null for plain
+     * water and for entries made before drinks joined the food database. Deleting either one soft-deletes both.
+     */
+    val foodLogId: String? = null,
     override val createdAt: Long,
     override val updatedAt: Long,
     override val deletedAt: Long? = null,

@@ -12,6 +12,7 @@ import androidx.health.connect.client.records.metadata.Metadata
 import androidx.health.connect.client.units.Mass
 import androidx.health.connect.client.units.Percentage
 import com.google.common.truth.Truth.assertThat
+import com.zeroindex.intake.domain.health.KnownWeighIn
 import com.zeroindex.intake.domain.time.Clock
 import java.time.Instant
 import java.time.ZoneId
@@ -63,6 +64,9 @@ private class FakeSource : HealthDataSource {
 
     override suspend fun totalCaloriesBurned(from: Instant, to: Instant): Double? = null
     override suspend fun averageHeartRate(from: Instant, to: Instant): Double? = null
+    var activeKcalPerDay: Double? = null
+    override suspend fun totalActiveCalories(from: Instant, to: Instant): Double? = activeKcalPerDay
+    override suspend fun historyPermissionSupported() = true
     override suspend fun insert(records: List<Record>) = Unit
     override suspend fun delete(type: KClass<out Record>, clientRecordIds: List<String>) = Unit
 
@@ -123,7 +127,7 @@ class HealthReaderTest {
             (1..5L).forEach { records += weight(minutesAgo = it * 60, kg = 80.0 + it, id = "w$it") }
         }
         val run = HealthReader.Run(src.granted)
-        val drafts = HealthReader(src, clock).readWeighIns(run, 30) { false }
+        val drafts = HealthReader(src, clock).readWeighIns(run)
 
         assertThat(drafts).hasSize(5)
         assertThat(src.readsOf(WeightRecord::class)).hasSize(3) // 2 + 2 + 1
@@ -140,7 +144,7 @@ class HealthReaderTest {
         }
         val reader = HealthReader(src, clock)
         val run = HealthReader.Run(src.granted)
-        val weighIns = reader.readWeighIns(run, 30) { false }
+        val weighIns = reader.readWeighIns(run)
         val days = reader.readDays(run, 3, null)
         val report = run.report(0, 3)
 
@@ -157,7 +161,7 @@ class HealthReaderTest {
     @Test fun `a granted type with no data says none found, not no permission`() = runTest {
         val src = FakeSource().apply { granted = read(WeightRecord::class) }
         val run = HealthReader.Run(src.granted)
-        HealthReader(src, clock).readWeighIns(run, 30) { false }
+        HealthReader(src, clock).readWeighIns(run)
         assertThat(run.report(0, 30).outcomes.first { it.label == "Weight" }.describe()).isEqualTo("Weight: none found")
     }
 
@@ -177,7 +181,7 @@ class HealthReaderTest {
         }
         val reader = HealthReader(src, clock)
         val run = HealthReader.Run(src.granted)
-        val weighIn = reader.readWeighIns(run, 30) { false }.single()
+        val weighIn = reader.readWeighIns(run).single()
         val today = reader.readDays(run, 1, null).single()
 
         val entity = weighIn.toEntity(now = 99L)
@@ -201,9 +205,72 @@ class HealthReaderTest {
             records += weight(60, 80.0, "a")
             records += weight(120, 81.0, "b")
         }
-        val known = now.minusSeconds(60 * 60).toEpochMilli()
-        val drafts = HealthReader(src, clock).readWeighIns(HealthReader.Run(src.granted), 30) { it == known }
+        // The person logged a weigh-in in the app four minutes off the scale's reading of "a".
+        val known = listOf(KnownWeighIn("typed", now.minusSeconds(60 * 60 + 240).toEpochMilli(), deleted = false))
+        val drafts = HealthReader(src, clock).readWeighIns(HealthReader.Run(src.granted), known)
         assertThat(drafts.map { it.healthConnectId }).containsExactly("b")
+    }
+
+    @Test fun `a weigh-in already imported, or one the person deleted, is not brought back`() = runTest {
+        val src = FakeSource().apply {
+            granted = read(WeightRecord::class)
+            records += weight(60, 80.0, "a")
+            records += weight(24 * 60, 81.0, "b")
+            records += weight(48 * 60, 82.0, "c")
+        }
+        val known = listOf(
+            KnownWeighIn("hc-weight-a", now.minusSeconds(60 * 60).toEpochMilli(), deleted = false),
+            KnownWeighIn("hc-weight-b", now.minusSeconds(24 * 3_600).toEpochMilli(), deleted = true),
+        )
+        val drafts = HealthReader(src, clock).readWeighIns(HealthReader.Run(src.granted), known)
+        assertThat(drafts.map { it.healthConnectId }).containsExactly("c")
+    }
+
+    @Test fun `weigh-ins from before connecting come in on the first sync, up to a year back`() = runTest {
+        val src = FakeSource().apply {
+            granted = read(WeightRecord::class)
+            records += weight(minutesAgo = 200L * 24 * 60, kg = 84.0, id = "old")
+            records += weight(minutesAgo = 31L * 24 * 60, kg = 83.0, id = "last-month")
+            records += weight(minutesAgo = 400L * 24 * 60, kg = 90.0, id = "too-old")
+        }
+        val run = HealthReader.Run(src.granted)
+        val drafts = HealthReader(src, clock).readWeighIns(run)
+        assertThat(drafts.map { it.healthConnectId }).containsExactly("old", "last-month")
+        assertThat(drafts.map { it.toEntity(1).source }.toSet()).containsExactly("HEALTH_CONNECT")
+        val weightRead = src.readsOf(WeightRecord::class).first()
+        assertThat(weightRead.from).isEqualTo(now.minusSeconds(365L * 86_400))
+    }
+
+    @Test fun `two apps reporting the same scale reading give one weigh-in`() = runTest {
+        val src = FakeSource().apply {
+            granted = read(WeightRecord::class)
+            records += weight(60, 80.0, "samsung", pkg = "com.samsung")
+            records += weight(59, 80.0, "scale-app", pkg = "com.scale")
+        }
+        val drafts = HealthReader(src, clock).readWeighIns(HealthReader.Run(src.granted))
+        assertThat(drafts).hasSize(1)
+    }
+
+    @Test fun `a sync after one with no permission reads the full window again`() {
+        val last = now.minusSeconds(3_600).toEpochMilli()
+        assertThat(HealthReader.historyDays(last, now.toEpochMilli(), forceFull = true)).isEqualTo(30)
+        assertThat(HealthReader.historyDays(last, now.toEpochMilli(), forceFull = false)).isEqualTo(14)
+    }
+
+    @Test fun `all-day active calories are kept for the day and absent without data`() = runTest {
+        val src = FakeSource().apply {
+            granted = read(androidx.health.connect.client.records.ActiveCaloriesBurnedRecord::class)
+            activeKcalPerDay = 412.0
+        }
+        val withData = HealthReader(src, clock).readDays(HealthReader.Run(src.granted), 1, null).single()
+        assertThat(withData.activeKcalDay).isEqualTo(412.0)
+        src.activeKcalPerDay = null
+        val none = HealthReader(src, clock).readDays(HealthReader.Run(src.granted), 1, null).single()
+        assertThat(none.activeKcalDay).isNull()
+        src.granted = emptySet()
+        src.activeKcalPerDay = 500.0
+        val noPermission = HealthReader(src, clock).readDays(HealthReader.Run(src.granted), 1, null).single()
+        assertThat(noPermission.activeKcalDay).isNull()
     }
 
     @Test fun `weigh-ins written by this app are not read back`() = runTest {
@@ -212,7 +279,7 @@ class HealthReaderTest {
             records += weight(60, 80.0, "mine", pkg = "com.zeroindex.intake")
             records += weight(120, 81.0, "scale")
         }
-        val drafts = HealthReader(src, clock).readWeighIns(HealthReader.Run(src.granted), 30) { false }
+        val drafts = HealthReader(src, clock).readWeighIns(HealthReader.Run(src.granted))
         assertThat(drafts.map { it.healthConnectId }).containsExactly("scale")
     }
 

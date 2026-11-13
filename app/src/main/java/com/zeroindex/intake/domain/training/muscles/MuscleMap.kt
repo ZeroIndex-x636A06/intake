@@ -1,9 +1,6 @@
 package com.zeroindex.intake.domain.training.muscles
 
 import com.zeroindex.intake.domain.training.generator.Muscles
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
 
 /**
  * The muscle map (exercise detail, custom exercise form, profile focus picker). Pure Kotlin: the
@@ -176,62 +173,32 @@ object MuscleMap {
         return inside
     }
 
-    // --- Authoring helpers. Everything below is drawn for the right half of the body (x >= 50)
-    // and mirrored, so left and right always match.
+    // The figure itself is generated data (tools/musclemap/build_musclemap.py -> MuscleGeometry.kt): an original
+    // anatomical-style front and back drawing, both sides listed.
+    private val SILHOUETTE: List<List<Pt>> = MuscleGeometry.SILHOUETTE
+    private val FRONT: List<Outline> = MuscleGeometry.FRONT
+    private val BACK: List<Outline> = MuscleGeometry.BACK
 
-    private fun pts(vararg xy: Double): List<Pt> = List(xy.size / 2) { Pt(xy[it * 2], xy[it * 2 + 1]) }
+    /** Thin anatomy lines (collarbone, ab lines, kneecap): open strokes drawn over the regions, to be smoothed with [smoothOpen]. */
+    fun lines(view: BodyView): List<List<Pt>> = if (view == BodyView.FRONT) MuscleGeometry.FRONT_LINES else MuscleGeometry.BACK_LINES
 
-    private fun ellipse(cx: Double, cy: Double, rx: Double, ry: Double, n: Int = 14): List<Pt> =
-        List(n) { Pt(cx + rx * cos(2 * PI * it / n), cy + ry * sin(2 * PI * it / n)) }
-
-    /** A half outline from the top centre to the bottom centre, joined to its mirror image. */
-    private fun joined(half: List<Pt>): List<Pt> = half + half.drop(1).dropLast(1).reversed().map { it.mirrored() }
-
-    private fun both(region: MuscleRegion, half: List<Pt>): List<Outline> =
-        listOf(Outline(region, half), Outline(region, half.map { it.mirrored() }.reversed()))
-
-    private val SILHOUETTE: List<List<Pt>> = run {
-        val torso = joined(
-            pts(50.0, 26.0, 57.0, 27.0, 67.0, 30.0, 69.0, 37.0, 68.0, 47.0, 66.0, 60.0, 64.0, 76.0, 63.0, 92.0, 67.0, 102.0, 68.0, 110.0, 50.0, 111.0),
-        )
-        val arm = pts(66.0, 31.0, 74.0, 29.0, 80.0, 33.0, 82.0, 42.0, 82.0, 58.0, 83.0, 74.0, 84.0, 92.0, 85.0, 106.0, 86.0, 116.0, 82.0, 120.0, 78.0, 117.0, 76.0, 108.0, 74.0, 92.0, 72.0, 76.0, 71.0, 62.0, 70.0, 50.0, 68.0, 42.0)
-        val leg = pts(51.0, 108.0, 68.0, 108.0, 69.0, 124.0, 66.0, 146.0, 65.0, 160.0, 65.0, 174.0, 62.0, 188.0, 64.0, 197.0, 52.0, 197.0, 54.0, 188.0, 54.5, 174.0, 54.0, 160.0, 54.0, 146.0, 52.0, 126.0)
-        buildList {
-            add(ellipse(50.0, 12.0, 7.5, 9.5))
-            add(pts(45.5, 20.0, 54.5, 20.0, 56.0, 28.0, 44.0, 28.0))
-            add(torso)
-            add(arm); add(arm.map { it.mirrored() }.reversed())
-            add(leg); add(leg.map { it.mirrored() }.reversed())
+    /** Turns corner points into an open, rounded stroke (the end points are repeated, so it passes through all of them). */
+    fun smoothOpen(points: List<Pt>): List<Cubic> {
+        val n = points.size
+        if (n < 2) return emptyList()
+        val ext = listOf(points.first()) + points + listOf(points.last())
+        return List(n - 1) { i ->
+            val p0 = ext[i]
+            val p1 = ext[i + 1]
+            val p2 = ext[i + 2]
+            val p3 = ext[i + 3]
+            Cubic(
+                p1.x, p1.y,
+                p1.x + (p2.x - p0.x) / 6.0, p1.y + (p2.y - p0.y) / 6.0,
+                p2.x - (p3.x - p1.x) / 6.0, p2.y - (p3.y - p1.y) / 6.0,
+                p2.x, p2.y,
+            )
         }
-    }
-
-    private val FRONT: List<Outline> = buildList {
-        addAll(both(MuscleRegion.QUADS, pts(54.0, 111.0, 61.0, 108.5, 67.0, 112.0, 66.5, 128.0, 64.0, 146.0, 59.0, 150.0, 55.5, 146.0, 54.5, 128.0)))
-        addAll(both(MuscleRegion.HIP_ADDUCTORS, pts(50.8, 109.0, 53.2, 112.0, 53.8, 128.0, 55.0, 143.0, 52.5, 141.0, 50.8, 125.0)))
-        addAll(both(MuscleRegion.CALVES, pts(54.5, 156.0, 61.0, 155.0, 64.0, 162.0, 63.0, 176.0, 60.0, 186.0, 56.0, 186.0, 55.0, 172.0)))
-        addAll(both(MuscleRegion.CHEST_UPPER, pts(51.0, 34.0, 61.0, 33.0, 67.0, 36.0, 67.5, 40.5, 60.0, 41.0, 51.0, 41.0)))
-        addAll(both(MuscleRegion.CHEST_MID_LOWER, pts(51.0, 42.5, 60.0, 42.5, 67.5, 42.0, 65.0, 49.0, 57.0, 51.0, 51.0, 49.0)))
-        addAll(both(MuscleRegion.HIP_ABDUCTORS, pts(65.5, 104.0, 68.5, 107.0, 69.0, 115.0, 66.0, 118.5, 64.0, 112.0, 64.5, 106.0)))
-        addAll(both(MuscleRegion.ABS, pts(50.8, 53.0, 55.0, 53.0, 56.0, 66.0, 55.5, 82.0, 53.5, 95.0, 50.8, 98.0)))
-        addAll(both(MuscleRegion.OBLIQUES, pts(57.5, 54.0, 62.5, 52.0, 64.0, 64.0, 63.0, 82.0, 59.5, 92.0, 57.0, 86.0, 57.5, 66.0)))
-        addAll(both(MuscleRegion.FRONT_DELT, pts(67.0, 34.0, 73.0, 31.5, 76.0, 33.0, 76.0, 47.0, 72.0, 48.0, 68.5, 43.0)))
-        addAll(both(MuscleRegion.SIDE_DELT, pts(76.5, 33.0, 80.0, 36.0, 81.5, 42.0, 80.0, 50.0, 76.5, 47.0)))
-        addAll(both(MuscleRegion.BICEPS, pts(73.0, 50.0, 77.0, 49.5, 80.5, 51.0, 80.0, 68.0, 77.0, 71.0, 73.5, 68.0)))
-        addAll(both(MuscleRegion.FOREARMS, pts(73.5, 76.0, 78.0, 75.0, 82.5, 78.0, 83.5, 98.0, 82.0, 108.0, 78.0, 108.0, 75.5, 98.0, 74.0, 84.0)))
-    }
-
-    private val BACK: List<Outline> = buildList {
-        addAll(both(MuscleRegion.HAMSTRINGS, pts(52.0, 120.0, 58.0, 119.0, 65.0, 118.0, 66.0, 130.0, 64.0, 146.0, 59.0, 150.0, 55.0, 146.0, 53.0, 130.0)))
-        addAll(both(MuscleRegion.CALVES, pts(54.5, 155.0, 61.0, 153.0, 65.0, 160.0, 64.0, 176.0, 60.0, 187.0, 56.0, 187.0, 54.5, 172.0)))
-        addAll(both(MuscleRegion.GLUTES, pts(50.8, 98.0, 58.0, 96.0, 66.0, 100.0, 68.0, 108.0, 64.0, 116.0, 57.0, 118.0, 50.8, 116.0)))
-        addAll(both(MuscleRegion.UPPER_TRAPS, pts(50.8, 24.0, 57.0, 26.0, 66.0, 31.0, 64.0, 37.0, 57.0, 40.0, 50.8, 42.0)))
-        addAll(both(MuscleRegion.MID_BACK, pts(50.8, 44.0, 58.0, 41.5, 64.5, 40.0, 59.0, 52.0, 56.0, 66.0, 50.8, 68.0)))
-        addAll(both(MuscleRegion.LATS, pts(60.5, 53.0, 65.5, 43.5, 69.5, 47.0, 68.5, 62.0, 63.0, 80.0, 58.0, 87.0, 57.5, 72.0, 58.0, 62.0)))
-        addAll(both(MuscleRegion.LOWER_BACK, pts(50.8, 70.0, 55.5, 70.0, 57.0, 84.0, 56.0, 97.0, 50.8, 99.0)))
-        addAll(both(MuscleRegion.HIP_ABDUCTORS, pts(61.0, 94.5, 66.0, 97.5, 68.0, 103.5, 64.0, 105.0, 60.0, 100.5)))
-        addAll(both(MuscleRegion.REAR_DELT, pts(67.0, 34.0, 74.0, 31.5, 79.0, 35.0, 80.0, 44.0, 76.0, 48.0, 70.0, 43.0)))
-        addAll(both(MuscleRegion.TRICEPS, pts(72.5, 47.0, 77.0, 46.5, 81.5, 49.0, 80.5, 69.0, 77.0, 72.0, 73.0, 69.0)))
-        addAll(both(MuscleRegion.FOREARMS, pts(73.5, 76.0, 78.0, 75.0, 82.5, 78.0, 83.5, 98.0, 82.0, 108.0, 78.0, 108.0, 75.5, 98.0, 74.0, 84.0)))
     }
 
     /** Every region that appears on at least one view. */

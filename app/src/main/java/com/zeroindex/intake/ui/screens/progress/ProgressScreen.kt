@@ -46,6 +46,11 @@ import com.zeroindex.intake.domain.units.UnitConverter
 import com.zeroindex.intake.ui.adaptive.LocalWindowSizeClass
 import com.zeroindex.intake.ui.adaptive.isExpanded
 import com.zeroindex.intake.ui.components.AdherenceHeatmap
+import com.zeroindex.intake.domain.charts.ChartMath
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import com.zeroindex.intake.domain.health.DayPoint
+import com.zeroindex.intake.domain.health.HealthSeries
 import com.zeroindex.intake.ui.components.ChartLegend
 import com.zeroindex.intake.ui.components.ChartPoint
 import com.zeroindex.intake.ui.components.ChoiceChip
@@ -118,6 +123,7 @@ fun ProgressScreen(
                         item(key = "loading") { SkeletonList(rows = 2, rowHeight = 150.dp, label = "Loading your progress") }
                     } else {
                         item(key = "weight") { WeightCard(state, onAddMeasurement) }
+                        healthItem(state)
                         item(key = "adherence") { AdherenceCard(state) }
                         detailItems(state)
                     }
@@ -149,9 +155,6 @@ fun ProgressScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            item(key = "heading") {
-                SubHead("Progress", "Patterns over time, without the noise.")
-            }
             item(key = "tip") {
                 com.zeroindex.intake.ui.onboarding.TabTip(
                     key = com.zeroindex.intake.domain.onboarding.TipKey.PROGRESS,
@@ -168,6 +171,7 @@ fun ProgressScreen(
                 item(key = "loading") { SkeletonList(rows = 3, rowHeight = 150.dp, label = "Loading your progress") }
             } else {
                 item(key = "weight") { WeightCard(state, onAddMeasurement) }
+                healthItem(state)
                 item(key = "summary") { WeeklySummaryCard(state, viewModel) }
                 item(key = "adherence") { AdherenceCard(state) }
                 item(key = "calories") { CaloriesCard(state) }
@@ -233,9 +237,11 @@ private fun RangeSelector(
 private fun WeightCard(state: ProgressUiState, onAddMeasurement: () -> Unit) {
     val unit = state.settings.weightUnit
     SectionCard(title = "Weight trend", caption = state.range.caption) {
-        // The headline figure is the latest raw weigh-in, labelled as
-        // such; the trend it sits on is the line in the chart below.
+        // The headline figure is the latest raw weigh-in, and says so with its date; the smoothed trend value is
+        // named beside it, because the two differ and the line in the chart is the trend.
         state.metrics.lastOrNull()?.let { latest ->
+            val zone = ZoneId.systemDefault()
+            val date = ChartMath.localDate(latest.measuredAt, zone).format(HEADLINE_DATE)
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     text = format(unit.fromKg(latest.weightKg)),
@@ -244,29 +250,38 @@ private fun WeightCard(state: ProgressUiState, onAddMeasurement: () -> Unit) {
                 )
                 Spacer(Modifier.width(5.dp))
                 Text(
-                    text = "${unit.label} · raw weigh-ins",
+                    text = "${unit.label} · latest weigh-in, $date",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 3.dp),
                 )
             }
+            state.trendWeightKg?.let { trendKg ->
+                Text(
+                    text = "Trend ${format(unit.fromKg(trendKg))} ${unit.label}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
         }
         // SPEC §8: the trend line is what is shown, with raw points
         // behind it rather than instead of it.
+        // One message when there is nothing to draw; the Log weight button above the card is the way in.
         if (state.metrics.isEmpty()) {
-            EmptyState(
-                body = "No weigh-ins in this range yet. Log your weight and the trend line appears here.",
-                action = { Button(onClick = onAddMeasurement, modifier = Modifier.heightIn(min = 48.dp)) { Text("Log weight") } },
-            )
+            EmptyState(body = "No weigh-ins in this range yet. Log your weight and the trend line appears here.")
+            return@SectionCard
         }
+        // Dots and trend share one time base: real instants, the trend at the start of its local day (not UTC midnight).
+        val zone = ZoneId.systemDefault()
         TrendLineChart(
             raw = state.metrics.map {
-                ChartPoint(it.measuredAt.toDouble(), unit.fromKg(it.weightKg))
+                ChartPoint(it.measuredAt.toDouble(), unit.fromKg(it.weightKg), ChartMath.sourceLabel(it.source))
             },
             trend = state.trend.map {
-                ChartPoint(it.dayIndex.toDouble() * 86_400_000.0, unit.fromKg(it.trendKg))
+                ChartPoint(ChartMath.localDayStartMillis(it.dayIndex, zone).toDouble(), unit.fromKg(it.trendKg))
             },
             description = weightDescription(state, unit.label),
+            valueSuffix = unit.label,
         )
         val weekly = state.weeklyChangeKg
         ChartLegend(
@@ -284,6 +299,54 @@ private fun WeightCard(state: ProgressUiState, onAddMeasurement: () -> Unit) {
                     isLine = true,
                 ),
             ),
+        )
+    }
+}
+
+/**
+ * Sleep, steps and resting heart rate over the selected range, from Health Connect. The whole card is absent when none of
+ * the three has a day with data (no permission, no watch): days with no reading are left out of the lines, not drawn as zero.
+ */
+private fun LazyListScope.healthItem(state: ProgressUiState) {
+    val sleep = HealthSeries.sleepHours(state.health)
+    val steps = HealthSeries.steps(state.health)
+    val resting = HealthSeries.restingHeartRate(state.health)
+    if (sleep.isEmpty() && steps.isEmpty() && resting.isEmpty()) return
+    item(key = "health") {
+        SectionCard(title = "Sleep, steps and heart rate", caption = "from Health Connect · ${state.range.caption}") {
+            HealthSeriesChart("Sleep", sleep, "h a night") { "%.1f".format(it) }
+            HealthSeriesChart("Steps", steps, "a day", { v, d -> "%,.${d}f".format(v) }) { "%,d".format(it.roundToInt()) }
+            HealthSeriesChart("Resting heart rate", resting, "bpm") { it.roundToInt().toString() }
+        }
+    }
+}
+
+@Composable
+private fun HealthSeriesChart(
+    label: String,
+    points: List<DayPoint>,
+    unit: String,
+    formatY: (Double, Int) -> String = { v, d -> "%.${d}f".format(v) },
+    show: (Double) -> String,
+) {
+    if (points.isEmpty()) return
+    val average = points.map { it.value }.average()
+    Eyebrow(text = label, modifier = Modifier.padding(top = 10.dp, bottom = 2.dp))
+    Text(
+        text = "${show(average)} $unit on average · latest ${show(points.last().value)} · ${points.size} ${if (points.size == 1) "day" else "days"} with data",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    if (points.size >= 2) {
+        val chart = points.map { ChartPoint(it.dayStartMillis.toDouble(), it.value, "Health Connect") }
+        TrendLineChart(
+            raw = chart,
+            trend = chart,
+            description = "$label over time, from Health Connect. Average ${show(average)} $unit, latest ${show(points.last().value)}.",
+            modifier = Modifier.height(120.dp),
+            valueSuffix = unit,
+            formatValue = show,
+            formatY = formatY,
         )
     }
 }
@@ -475,7 +538,7 @@ private fun MeasurementLines(state: ProgressUiState) {
 
     sites.forEach { (label, selector, suffix) ->
         val points = state.metrics.mapNotNull { metric ->
-            selector(metric)?.let { ChartPoint(metric.measuredAt.toDouble(), unit.fromCm(it)) }
+            selector(metric)?.let { ChartPoint(metric.measuredAt.toDouble(), unit.fromCm(it), ChartMath.sourceLabel(metric.source)) }
         }
         if (points.size < 2) return@forEach
         Eyebrow(
@@ -488,6 +551,8 @@ private fun MeasurementLines(state: ProgressUiState) {
             description = "$label over time, in $suffix. " +
                 "Latest ${format(points.last().y)} $suffix.",
             modifier = Modifier.height(120.dp),
+            valueSuffix = suffix,
+            gapDays = null,
         )
     }
 }
@@ -529,6 +594,8 @@ private fun intakeDescription(state: ProgressUiState): String {
 }
 
 private fun format(value: Double): String = UnitConverter.round(value, 1).toString()
+
+private val HEADLINE_DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM")
 
 /**
  * Amendment §2: does more training volume come with a better jump, or a

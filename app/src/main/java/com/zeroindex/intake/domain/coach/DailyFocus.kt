@@ -1,5 +1,6 @@
 package com.zeroindex.intake.domain.coach
 
+import com.zeroindex.intake.domain.units.VolumeUnit
 import kotlin.math.roundToInt
 
 /** Where the Today card's one button goes. */
@@ -26,6 +27,8 @@ data class FocusInputs(
     val workoutDoneToday: Boolean = false,
     val waterSoFarMl: Double = 0.0,
     val waterTargetMl: Double = 0.0,
+    /** The unit the water line is written in; the amounts stay in millilitres. */
+    val volumeUnit: VolumeUnit = VolumeUnit.MILLILITRES,
     val baselineMissing: String? = null,
     /** Consecutive days with food logged, counting today if it has some. */
     val loggingStreakDays: Int = 0,
@@ -86,7 +89,7 @@ object DailyFocusPicker {
             if (share < expected - WATER_GAP) {
                 return DailyFocus(
                     "Drink some water",
-                    "${i.waterSoFarMl.roundToInt()} of ${i.waterTargetMl.roundToInt()} ml so far, a little behind for this time of day.",
+                    "${i.volumeUnit.formatNumber(i.waterSoFarMl)} of ${i.volumeUnit.format(i.waterTargetMl)} so far, a little behind for this time of day.",
                     "Log water", FocusTarget.WATER,
                 )
             }

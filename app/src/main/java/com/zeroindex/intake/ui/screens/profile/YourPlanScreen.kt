@@ -41,7 +41,7 @@ import com.zeroindex.intake.ui.components.MacroTiles
 import com.zeroindex.intake.ui.components.PillTone
 import com.zeroindex.intake.ui.components.SandNote
 import com.zeroindex.intake.ui.components.StatusPill
-import com.zeroindex.intake.ui.components.SubHead
+import com.zeroindex.intake.ui.components.SubCopy
 import com.zeroindex.intake.ui.components.SwitchRow
 import java.util.Locale
 
@@ -72,7 +72,7 @@ fun YourPlanScreen(
         ),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        item(key = "head") { SubHead("Your plan", "Every number says why. Change any of them before you apply.") }
+        item(key = "head") { SubCopy("Every number says why. Change any of them before you apply.") }
 
         val plan = state.plan
         when {

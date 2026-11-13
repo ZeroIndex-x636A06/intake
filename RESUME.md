@@ -1,7 +1,311 @@
 # Where this build is up to
 
-Read this first when picking the work back up. Branch:
-`claude/app-build-k2ag1d`.
+Read this first when picking the work back up. Latest work: branch
+`claude/optimistic-noether-fullk5` (not yet merged into `claude/app-build-k2ag1d`).
+
+## Round 5 merge (branch `claude/optimistic-noether-fullk5`, schema v6)
+
+Seven round-5 branches merged with `--no-ff`, in order: ripple clip fixes, Drinks, Nutrition per-meal screen and day switcher, Recipe Hunter, menu allergen evidence and nearby AI batch, body diagram / equipment / training log, Videos (yt-dlp opt-in, Media3, schema v6 `MIGRATION_5_6`).
+Conflicts were only in RESUME.md, docs/TASKS.md and docs/ALLERGENS.md (kept both sides); the code merged without conflicts. Settings registry totals stay 126 controls / 109 settings (branch 6 reworded rows 42 and 43, branch 7 added id 130).
+The per-branch notes below are still "branch, not pushed": they are now merged, but only compiled, unit-tested and linted except where the smoke note says otherwise. The debug APK is about 187 MB with Media3 and yt-dlp.
+Emulator smoke (Android 30, software emulation, debug build; upgrade from cfcacb4 with a food and a drink logged, then `adb install -r` of the merged build): launched with the data intact and the crash log empty; Today, Nutrition with the day switcher and the per-meal screen, the new Drinks page, Train Workout (body map), an exercise with history, Videos (key prompt), Training log (empty), Recipes, Recipe Hunter (AI-off state), Eating out, Menu import, nearby search start, Settings Training with the equipment checklist and Settings Videos all opened. Screenshots: `design/r5-smoke/`. Not exercised: Shorts player, yt-dlp, downloads, any AI path, real device. The Videos copy still says "Intake never downloads a video" in several places (VideosSection, VideoDetailScreen, SettingsRegistry group note) although the opt-in downloads exist; wording to fix.
+
+## Round 5, Drinks: wrong tea numbers and a simpler page (items 12 and 13; branch `worktree-agent-adf99e3f71c45bf4e`, not pushed)
+
+Compiled, unit-tested and linted only; no emulator, nothing seen on a phone. No schema change (still v5).
+
+- **Item 13.** The base "Hot Tea" row carried numbers no brew has (about 0.5 g protein, a few kcal per 100 ml); `domain/drinks/PlainBrew.kt` now swaps in the USDA brewed values for a plain tea or coffee
+  whose numbers are out of range, makes its sugar/fibre/saturated fat known zeros (so "Total Sugars" is no longer "not listed"), and Customise says so. Saved My drinks built on such a base are rebuilt when Drinks opens
+  (`DrinkRepository.repairCustomDrinks`). Drink tiles use the label's FDA rounding (65 vs 70 kcal). A drink's icon comes from its stored category (no cookie). A sugar teaspoon is 4.2 g.
+  Tests: `CustomDrinkRegressionTest`, `PlainBrewTest`, `OwnerTeaTest`. **Not verified:** the actual base row the owner used (not available here, so the cause is the likeliest one, stated as such); the repair on a real database.
+- **Item 12.** `DrinksScreen`/`DrinksViewModel` rewritten as one list (summary strip, one search, category chips as a filter, My drinks and Recent quick cards, one size sheet). New `FoodLogDao.observeRecentDrinkLogs`. Mockup: `design/mockup-r5/drinks.html` and `.png`.
+  **Not verified:** the layout, the long-press, the sheet, on a device; the old "scroll to search from Log food" jump is gone (the search is at the top).
+- Details: `docs/HYDRATION.md`, "Round 5 corrections".
+
+## Round 5, Nutrition: per-meal screen, day switcher, template lookup (FEEDBACK-R5 items 9 to 11; worktree branch, not pushed)
+
+No schema change. Not run on an emulator or a phone: only compiled, unit-tested and linted.
+- **Per-meal screen** (`ui/screens/nutrition/NutritionMealScreen.kt` and `NutritionMealViewModel.kt`, route `Route.NutritionMeal(slot, epochDay)` in the Nutrition graph).
+  Header with a meal dropdown, the day and an overflow (Clear meal, Save as meal template); a time pill for new entries (default now on today, the meal's usual
+  time on a past day); totals card (kcal, protein/carbs/fat, `MacroSplitBar`; a macro no entry listed reads "not listed", a partly listed one "at least N g",
+  `domain/nutrition/MealSummary.kt`); Foods card with − and + (portion steps 5/10/25 g, `PortionStep`), tap for the existing edit sheet, an info button to food
+  detail, swipe or long-press to remove (soft delete, Undo through `FoodLogRepository.restore`), and the local allergen chip. Buttons: Add food (opens Log food
+  for this meal and time, back returns here), Quick add calories (kcal only, protein/carbs/fat stored as not listed), Save as meal template, Done.
+  The meal row on the Nutrition tab opens it; the row's "+" still goes straight to Log food. Today's meal cards were not changed.
+  Items without a gram amount (quick adds, recipe servings) have no − and +; tap them to edit. Items sit in one `forEach` inside the Foods card (a meal is short).
+- **Day switcher** (`NutritionDayBar.kt`, `NutritionHomeViewModel`, `domain/nutrition/NutritionDay.kt`): ‹ date › with a date picker and "Today". The ring, macros, nutrients,
+  meals list, water and planned meal follow the day (the planned meal is the plan week that day falls in, `MealPlanRepository.observePositionOn`; `logMeal` got an `at`
+  argument). Logging from a past day is stamped on that day (meal's usual time or the entered time). **Future days are blocked**: next stops at today, the picker greys
+  them out, and anything asking for one is clamped to today with a short message. Day boundary is local midnight; stored values stay UTC epoch millis.
+- **Template editor lookup**: empty search shows "Recent" (last-logged foods and recipes, latest first, max 8) then "All saved" (every food and recipe, alphabetical);
+  no recents shows only "All saved"; typing filters both, then the offline USDA hits as before. Tests: `TemplatePickerTest`, `NutritionDayTest`, `MealSummaryTest`.
+- **Unverified**: how any of this looks and feels on a device (swipe, long-press, pickers), the logged-from-meal-screen round trip through Log food, a day left open past midnight.
+
+## Recipe Hunter, round 5 items 4 to 8 (worktree branch, not pushed, schema stays v5)
+
+- **Cuisines:** 22 multi-select chips in a wrapping row ("Any" first: it clears the others, and choosing a specific one clears it). Chosen cuisines go into the prompt ("any one of these is fine", "Any" is dropped).
+- **Layout:** `HuntSection` in `RecipeHunterScreen.kt` puts a section's note on its own line under the title (the shared `SectionLine` is untouched, so other screens are unchanged). Removed and adaptable cards show short chips (`HuntedRecipe.reasonChips`: "Contains dairy", "Under protein goal", "Over calorie cap", "Over time limit"); the body text has every full reason. The thumbnail takes space only when a picture exists and loads (an image that fails collapses its gap).
+- **Reasons:** `RecipeFit.assess` returns every missed limit (`FitResult.reasons`, `issues`); `RecipeVerdict.Rejected` carries `reasons` (the old single-string constructor still works). An allergen block now also lists protein, calories and time misses. A limit missed by more than 10% still removes the recipe.
+- **Burrito bowl:** `SubstitutionsTest` and `HuntedRecipeTest` cover a "Healthy Ground Beef Burrito Bowls" ingredient list: with cheddar and sour cream as toppings and numbers inside the limits it is adaptable. The one the owner saw was removed because its published protein was 32 g against a goal of 40 g, which is more than 10% under, so it is correctly "Removed" and now says both reasons. Allergen-only was not the cause.
+- **Page readers:** `domain/recipe/HtmlRecipeFallbacks.kt`, after JSON-LD and microdata: WP Recipe Maker classes (ingredients, steps, nutrition, servings, time), Tasty Recipes classes, and a generic "Ingredients" heading followed by lists (at least two items). One fixture and test each in `RecipePageParserTest`; the microdata test gained an `http://schema.org` variant.
+- **AI page reading:** `RecipeQuery.aiReadPages`, a switch on the form, off by default. Only a page no local reader could parse, only while the search cap has room (`AiReadBudget`, about $0.003 a page predicted, real cost counted, at most 6 pages a search). It goes through the existing `RecipeAiExtractor` (`RECIPE_TRY_AI`), so `AiAuditTest` still lists the same call sites. Lines it returns are scanned locally and the card says "Read by AI"; a clean scan gives "Check allergens" (read by AI), never "Passed", since a model can omit a line.
+- **Recent searches:** `RecentHuntsStore` (own preferences file `intake_recipe_hunts`, one JSON value; **not** in the settings store the backup reads, so excluded from backups and sync; no schema change) and `domain/ai/SavedHunts.kt` (20 live entries, newest first, soft delete leaves a payload-free marker, 60 markers kept at most). Open re-judges every stored recipe locally against the current allergen profile and re-reads "Saved"; no network and no AI. "Run again" fills the form with the saved parameters and searches (costs). "Find more" on a reopened search updates that entry.
+- **Roadmap:** `docs/ROADMAP-allergen-cooking.md` and a Roadmap section in `docs/TASKS.md`. Design only.
+- **Not verified:** nothing seen on a device or emulator; the AI reading path and the search itself were not run against OpenRouter; the generic and card readers are tested on small invented fixtures, not real sites. Layout (wrapping headings, chips, no image gap) was not looked at, only compiled and linted.
+
+## Round 5 items 15 to 17: body diagram, equipment, Training log (branch `worktree-agent-a96ef628ee9862072`, not pushed)
+
+Details in `docs/WORKOUTS.md` (last section). Original front/back figure generated by `tools/musclemap/build_musclemap.py` into `MuscleGeometry.kt`; per-muscle weighted volume (`WeeklyVolume.computeMuscles`); 40 equipment items stored as a JSON set in the profile (no schema change, still v5) with requirement rules used by the generator, swap ranking and the library; welcome flow gained an Equipment step (10 steps now); Training log is a weekly session list with PR counts, the exercise page has Your history, the session summary shows every set and Repeat this workout. **Unverified:** everything is unit-tested only; no emulator or phone look at the figure, the checklist, the new onboarding step or the log. The preview PNG is rendered from the same coordinates in a browser, not from Compose. Settings registry totals are unchanged (125 / 108): items 42 and 43 were reworded, not added.
+
+## Videos tab: layout, paging, Hide Shorts, players, downloads (FEEDBACK-R5 item 14; branch `worktree-agent-a03c7ea740999eae8`, not pushed, schema v6)
+
+Layout: search box + overflow menu (searches left today, Downloaded videos, How Videos works, Clear cached video information), one filter row (Workouts only, Hide Shorts, Filters with a count; the sheet holds muscle group, style, duration), a compact "Saved · N" row with See all and a More like this action, then Recommended (3 rows, equal cards, 2-line titles) or results. Paging: `VideoRepository.searchPage` with `nextPageToken`, pages and tokens cached in `video_search` rows, caps of 5 pages per search and 3 per Recommended row, stop when 5 or fewer searches are left; about 101 units per uncached page. Similar-to-saved: `SavedSimilarity` (channels and title keywords).
+
+**Schema v6 (`MIGRATION_5_6`, `MigrationSchemaTest` case added, `schemas/.../6.json`):** `video_cache.embedWidth/embedHeight` and a new `downloaded_video` table. Any other branch that also moves to v6 must renumber.
+
+**Hide Shorts by orientation** (`ShortsRule`): vertical player (`part=player`, `maxWidth/maxHeight` sent) is a Short; #shorts/#short/#ytshorts is a backup; 60 s or less only when the size is unknown. No 3-minute rule. Shorts open in `ShortsPlayerScreen` (vertical pager through the Shorts of the list they came from); long-form stays on `VideoDetailScreen`.
+
+**Opt-in yt-dlp downloads and direct playback** (Settings > Videos, off by default, one-time terms warning; `data/video/direct/`): youtubedl-android 0.18.1 (resolves from Maven Central through the mirror) and Media3 ExoPlayer 1.11.1 (Google Maven). The app's own debug APK is now about 186 MB: the library adds about 14 MB per ABI of native payload (55 MB for the four ABIs) and `useLegacyPackaging` stores every native library uncompressed; consider ABI splits or a flavour for release. Download to app-private storage with progress, Cancel and size; Downloaded view in the Videos tab with total storage and Delete (file, then soft-delete). Setting `videos_direct_ytdlp` is device-local (not exported). Registry/inventory now 126 controls (id 130).
+
+**Not verified (no device or emulator):** the Compose layout and scroll-triggered loading; real `nextPageToken` paging; whether YouTube returns a taller-than-wide player size for Shorts; yt-dlp actually starting, resolving a stream, downloading and cancelling on a phone (it was only compiled, linted and packaged); ExoPlayer playback of a stream or file; the Shorts pager. A download stops if Android ends the app process (no foreground service). Quality is limited to single-file formats (often 360p) because ffmpeg is not bundled.
+
+## Round 4 merge and emulator smoke (branch `claude/optimistic-noether-fullk5`, schema v5)
+
+Six `--no-ff` merges on this branch: navigation transitions, Progress charts, drinks (schema v5, `MIGRATION_4_5`), recipes in Log food / Cook / meal templates, Recipe Hunter substitutions, and nearby menus (last; only `RESUME.md` conflicted, both sides kept). Verified at the last merge: `:app:compileDebugKotlin :app:testDebugUnitTest :app:lintDebug :wearprotocol:test :wear:lintDebug` all pass (app 1908 tests, 3 skipped, 0 failed; wearprotocol 14; app lint 0 errors, wear lint 0 errors).
+
+**Seen on the Android 11 emulator (software rendering, so slow):** upgrade from the bc8e5e4 debug build (a quick-add food and 8 fl oz of water logged) to the merged debug build with `adb install -r`: data kept, `user_version` 5, no crash. Back animation, captured with screenrecord at 30x animator scale (`design/r3-smoke/r4-back-anim-*.png`): the leaving screen stays on top and slides right while the screen beneath is revealed. Progress: weight chart has y-axis labels (178, 180, 182 lb) and a long press-and-drag shows the scrub tooltip with date, weight and source (`r4-progress-*.png`, 14 weigh-ins seeded into the emulator DB). Today shows the Water (hydration) card with the logged drink; Nutrition tab has a Drinks meal slot and no Drinks entry under More; Log food has the Drinks chip and a saved recipe in search; Drinks > Customise opens. Recipe screen: Cook beside Log when the recipe has steps (it is hidden without steps); Cook mode shows the ingredient checklist. Meal templates: the editor and the Shopping list open. Recipe Hunter opens with no key and shows the gate with "Set up AI tools". Eating out: Settings shows "Eat out nearby: how far" (10 / 15 min, Walk / Drive); the nearby card has "Use AI to find menus I can't"; tapping search with location denied returns to the idle card with no message, with location allowed the emulator has no network and shows "Could not reach the map service". No entries for `com.zeroindex.intake` in the crash log.
+
+**Still needs a phone:** the real back/push feel at 60 fps, predictive back; Overpass and chain-page results with a real position and network; the OpenRouter paths (menu AI, Recipe Hunter search); real PDFs through `PdfRenderer`; Health Connect; the watch pair. A recipe with no listed calories still logs as "kcal not listed" (not changed). Denying location gives no explanation text, only the idle card (worth a look).
+
+## Navigation transitions (FEEDBACK-R4 item 8, branch `worktree-agent-acb080647531a0b9a`)
+
+- Push and back are now mirrors in `ui/navigation/NavTransitions.kt` (`NavSpecs`, 300 ms FastOutSlowIn both ways; the screen underneath moves a quarter width left and dims to 0.85). Tab switches cross-fade in 150 ms. Predictive back uses the same back motion via `predictivePopEnterTransition`/`predictivePopExitTransition`. Checked by `NavTransitionsTest`. Not seen on a device; the owner's phone is the test.
+
+## Progress charts: weight trend and scrubbing (FEEDBACK-R4 items 4 and 5; branch `worktree-agent-a7ca2649551f0d88b`, not pushed)
+
+What was off, found by reading the code and pinned with tests in `domain/charts/ChartMathTest.kt` (the owner's actual data was not available):
+- **The trend lagged months behind the dots.** `WeightTrend.smooth` steps the average once per weigh-in, whatever the gap. After 20 daily weigh-ins near
+  100 kg and a 150-day silence, two readings near 95 kg moved the trend only to about 99.5. That is the owner's "cluster, flat line, two points at the
+  edge", and it also understated "−0.2 lb/week". `WeightTrend.smoothByTime` now makes alpha the pull of one day (after g days it is 1 − 0.9^g); with a
+  weigh-in every day it equals the old result exactly. Only the Progress chart uses it (`BodyRepository.observeTrend`); the TDEE and coach code still call `smooth`.
+- **The trend line was drawn straight across the gap.** It now breaks at more than 14 days (`ChartMath.runs`) and a faint dashed bridge joins the runs.
+- **Dots and trend were on different time bases.** Dots used the real instant, the trend used day index × 86 400 000 (UTC midnight), so it sat up to
+  half a day off in US zones. Both are real instants now (`ChartMath.localDayStartMillis`). Axis is by date, not index (it already was).
+- **The headline "195.0" was the latest raw weigh-in, labelled "raw weigh-ins".** It now says "latest weigh-in, <date>" and a "Trend X" line sits under it.
+- **No y-axis labels.** Gridlines now fall on round values with labels in the display unit (`ChartMath.niceTicks`).
+- Checked and fine: kg to lb uses 0.45359237 and displays after a single rounding (tested over 1000.0 to 4000.0 in 0.1 lb steps, and a test shows why
+  rounding the kilograms first would shift 195.0 to 195.1); day bucketing uses the clock's zone, not UTC (tested).
+- **Not changed, only noted:** `WeighInDedupe` keeps the earliest of two readings inside 10 minutes, with no preference for a source, and a second
+  app that stamps the same weigh-in more than 10 minutes apart would show as two points (both are then averaged into one day for the trend). Which app
+  wrote a row is not stored (only `HEALTH_CONNECT` or `MANUAL`), so the tooltip says "Health Connect", not the app name; adding it needs a v5 migration.
+
+Scrubbing (`TrendLineChart` in `ui/components/Charts.kt`, used by weight, sleep, steps, resting HR, the measurement lines and the 1RM chart): press and
+drag sideways to get a guide line, the nearest dot enlarged and a tooltip (date, value and unit, source). The gesture claims only a horizontal move
+(`awaitHorizontalTouchSlopOrCancellation`), so a vertical drag still scrolls the page. A haptic tick (`TextHandleMove`) fires when the nearest point
+changes. Nearest-point maths is `ChartMath.nearestIndex`. Not seen on a phone or an emulator: gesture feel, haptics and tooltip placement are unverified.
+The Overlay chart (bars plus line) and the calorie bars have no scrubbing.
+
+## Drinks: no meal, off the Nutrition tab, custom drinks (round 4 items 7, 9, 10)
+
+Worktree branch, compiled, linted and unit-tested only; nothing was run on an emulator or a phone.
+
+- **Item 7, root cause.** `DrinkRepository.log` defaulted its slot to `slotAt(at)`, which is `TemplateLink.slotFor(time of day)`, and
+  `logOfType` (Today's water card, the watch, quick sizes) always used it. Food detail did the same when opened with no meal (it is opened from
+  Drinks with none). So a 12:30 coffee from Drinks was a Lunch row. Now those paths write `MealSlot.DRINKS` and Food detail picks it for a drink with
+  no meal given. Logging from a meal's Log food still passes that meal and stays in it. `MealSlot` is stored by name in a TEXT column, so the new value
+  needed **no schema change**; existing rows keep their slot. Today lists the four meals and a "Drinks" card only once it has an entry (its row opens
+  Drinks, not Log food). The day's kcal and sugar still sum over every row. Meal pickers use `MealSlot.MEALS`; the move/copy sheet also offers Drinks.
+- **Item 9.** The Drinks row is gone from the Nutrition meals card and from Nutrition > More (and `NutritionActions.onOpenDrinks`). Drinks is reached from
+  Today's water/drinks card and from a "Drinks" chip next to Mine and Quick add in Log food. Nothing else in Log food changed.
+- **Item 10.** `domain/drinks/CustomDrink.kt` holds the maths (add-in list, volume, per-100 ml, caffeine and strength after dilution, allergen union);
+  `data/repository/CustomDrinkFood.kt` turns a draft into a food row; `ui/screens/drinks/CustomDrinkScreen.kt` and `CustomDrinkViewModel` are the screen
+  (`Route.CustomDrink`, root). A saved "My drink" is a food row with `customDrink` (recipe JSON) set and its nutrition per 100 ml, so it shows in Drinks
+  (a "My drinks" section on top, with Edit and Delete) and in the drinks search. **Schema v5** (`MIGRATION_4_5`, `MigrationSchemaTest` case).
+  Built-in add-in values are USDA FoodData Central reference figures typed into the catalog, not looked up in the bundled database at run time; any food from
+  the search (the person's own or the bundled USDA file) can also be an add-in.
+- **Not verified:** any of the screens on an emulator or phone; the layout of the My drinks section and the scroll index on the Drinks page; the
+  watch path (it goes through `logOfType`, covered only by the source guard and `DrinkLoggerTest`); the effect on an install upgraded from v4 (covered by the
+  migration test only). Another branch that also bumps the schema to 5 will conflict with `MIGRATION_4_5`; renumber one of them.
+
+## Round 4, items 6, 11 and 14 (branch `worktree-agent-aa92edb758b4dbe50`)
+
+Built on `claude/optimistic-noether-fullk5` at bc8e5e4 (merged in first). No schema change (no MIGRATION_4_5): everything uses the
+existing tables; the one new DAO query (`FoodLogDao.observeRecentPrepared`) is a read.
+
+- **Item 6, recipes in Log food.** `RecipeSearchViewModel` (own view model, so `AddFoodViewModel` is untouched) feeds three places in
+  `LogFoodScreen`: a "Recipes (saved on this phone)" section in search results, "Recipe" rows in Mine, and "Recent recipes" with Recent.
+  Ranking and recents are pure (`RecipeSearch`, `RecipeSearchTest`). A row shows per-serving kcal and protein or "not listed". The "+" logs one
+  serving through `RecipeLogger.logServings` (the recipe screen's `logServing` now delegates to it): unknown protein, carbs or fat stay
+  unlisted, and the local allergen scan runs first (`RecipeLogger.scan`, over every ingredient line); a match waits behind the warning sheet.
+  A recipe with no calorie figure cannot be logged from search (it says to open it in Recipes). Recents come from logged rows with no food
+  behind them, matched to recipes by name, so a quick add with the same name counts.
+- **Item 14, Cook.** Cook mode already existed (timers, wake lock, big controls) but only the Plan screen opened it. There is now a **Cook** button
+  beside "Log a serving" on the recipe screen (shown when the recipe has steps). Cook mode got a checklist at the top (ticks, group headers,
+  hide/show) scaled by a servings stepper (`IngredientScaling`, `IngredientScalingTest`), and "Done cooking" on the last step offers "Log a
+  serving" (slot picker, allergen scan, Undo). Timers (`CookSteps.durations`, "1-2 hrs" and "10 minutes" tests added) and the notification
+  service were already there and are unchanged.
+- **Item 11, templates without a plan.** `MealTemplateEditorScreen` makes and edits templates (name, then foods, USDA database foods and
+  recipes with amounts); Meal templates has "New meal template", Edit, and a confirmed soft delete; Log to a chosen slot and the optional NFC
+  tag are as before. A recipe goes in as a 100 g "1 serving" food (`RecipeFood`), unknown figures stay unlisted. `saveSlotAsTemplate` now
+  carries a logged meal's unlisted figures into the template's foods (before, an unknown protein became 0 g). "Meal prep" wording is "meal
+  template" on Today, Meal templates, More, Swap and Privacy. **Shopping list** (Nutrition, More): `StandaloneShopping` builds a list from
+  chosen recipes and templates with the plan list's own quantity adding; ticks and picks live in saved UI state only, not the database.
+  Audit of what needs a plan: `docs/MEAL-PLAN.md`, last section.
+
+Not verified: none of this has been run on a phone or an emulator. Unit tests and lint only. Not seen: the Log food rows and sheets, the editor
+and its search, cook mode's checklist and Done dialog, the shopping list screen. The shopping list does not survive leaving the app for long
+(process death keeps it through saved state; clearing the app does not). Recipe foods made for templates appear in Mine and search like the
+prepared-meal foods `saveSlotAsTemplate` always made. Wear's "Saved meals" label is unchanged.
+
+## Recipe Hunter: Could be adapted, Saved badge, images (agent F, round 4 items 12, 13, 15; not pushed)
+
+- Item 12: `domain/allergen/Substitutions.kt` (rules in docs/ALLERGENS.md) plus a "Could be adapted" section and "Save adapted copy". Recipe Hunter now scans the
+  title with the free-text rules and the lines strictly, so "Vegan Mac and Cheese" with clean lines stays in the main results. No schema change.
+- Item 13: "Saved" chip on cards, matched by URL (`HuntKeys.urlKey`) against My recipes when results load.
+- Item 15: `RecipeImages` (og:image, twitter:image, first large img) behind the JSON-LD image (string, array, ImageObject, @graph reference); thumbnail on the card, saved with the recipe.
+- Existing matcher gap, NOT changed (outside this task): an ingredient line "non-dairy milk" scans CONTAINS (milk), while "vegan", "oat", "dairy-free <x>" lines scan check-the-label. Titles like "Vegan Mac and Cheese" are already check-the-label. A one-rule fix in `AllergenMatcher` (treat "non-dairy" before a keyword as NON_DAIRY check-the-label, when claims apply) is proposed; the owner of the matcher should decide.
+- Not verified: on a phone or emulator; real pages; the swaps are text rules, so odd ingredient wording can be missed (it then refuses, the safe side). Step text of an adapted copy is the original's.
+
+## Round 4, items 1 to 3: nearby finder, nutrition-menu AI offer, OSU PDF (branch `worktree-agent-a3df9485fbad45854`)
+
+**Item 3, the OSU McDonald's PDF.** The text is selectable (26 pages, 463 items). `NutritionTableParser` read lines and could not use it:
+the column headings are rotated (no heading line), every gram column is followed by a "% Daily Value" column (21 numbers a row, not 12),
+and a name wraps over up to seven lines centred on the numbers, mixed with "9.7 oz" and "(274 g)". New `domain/menu/PositionedNutritionTable.kt`
+reads by word position: number runs give the columns, the rotated headings name them, name lines go to the nearest row, section headings
+are kept. All 463 rows of the file read with none skipped (checked offline with `pdftotext -bbox` words fed to it). `MenuIngestor` runs both readers
+and keeps the one with more rows. A table with no allergen column gives `allergensStated = false`: its items are at best "check the label", never
+"no allergens listed". Fixture: page 1 words in `test/resources/menu/mcdonalds-usa-nutrition-page1-fragments.tsv`; values asserted were read off the PDF.
+
+**Item 2.** The nutrition follow-up card shows "Read it with AI" (tap only, key needed, says what is sent and that it is billed on the person's key) when the phone's reader finds no table in a chosen PDF or a linked PDF. It reuses the AI menu path and merges through `MenuNutritionMerge` as before.
+
+**Item 1, nearby rebuilt.** Radius is now a travel time (Settings > Nutrition, one registry row `eatOutRadius`, stored as `eat_out_minutes` 10/15 and
+`eat_out_travel` walk/drive, default 10 min drive; the old `eat_out_radius_mi` is read once to migrate). Search: Overpass (one request, honest User-Agent, no key) ->
+nearest first, one row per chain -> per restaurant, two at a time (max 30): saved source, bundled chain table (`assets/nearby_chains.json`), the restaurant's website links
+(`MenuLinkScorer`), then AI only if the card switch is on (nutrition page address with web search, else labelled estimates; max 6 lookups). Every menu goes through the normal menu import
+and is saved as a source. The live list shows each row's state; picks join the list as each menu arrives; Stop works at any point. If the map service fails the card offers "Search with AI instead" (a tap).
+A zip code still uses the old AI search. Pure parts are in `domain/nearby/` with `NearbyDomainTest` (radius, Overpass JSON fixture, chain match, link scoring, saved-source match, pipeline).
+Chain table status: see below. Docs: PRIVACY.md (3 new rows), AI-COSTS.md (row 11), SETTINGS-INVENTORY.md row 18.
+
+**Not verified.** Overpass could not be reached from the cloud container (the proxy closed the connection), so the live request and answer shape are
+written to the documented API and tested on a hand-made fixture only. The OSU PDF was parsed from word boxes made by poppler, not from Android's `PdfRenderer`
+(its fragment shapes are not seen on a device; the reader assumes word or line fragments with boxes). Chain pages: many are script-driven pages and may need AI; the table was
+checked from a cloud container only. Nothing was run on an emulator or phone.
+
+## Merge of three agent branches (branch `claude/optimistic-noether-fullk5`)
+
+Merged with `--no-ff`, one at a time, each followed by compile and the unit tests: recipe nutrition (`worktree-agent-a2198826f8ff9a2b4`), Recipe
+Hunter list pages and Find more (`worktree-agent-a413caf0d3be660a6`), eating-out healthier nearby and Choose anyway
+(`worktree-agent-a4d8ea88c7c1d444a`). Only RESUME.md and docs/AI-COSTS.md conflicted (kept both sides). No code conflicts; the nearby/menu work did
+not touch the menu scanner or MenuLogRepository, so the allergen-chart reader and MenuItemMatcher are unchanged. Duplicate in-screen headings removed
+from the Recipes and Eating out hubs, Your plan, What leaves this phone, Log weight, the Recipe editor and the not-found Food screen (subtitles kept).
+PRIVACY.md now lists the Recipe Hunter page fetch. Seen on the debug build on the emulator (screens in `design/r3-smoke/merge-*.png`): Today,
+Nutrition, More, Eating out with the healthier-nearby block (no imported menus, AI not set up), Recipes, Recipe Hunter (AI not set up), the recipe editor, a
+hand-made recipe showing "Nutrition: not listed", Menu import. Not seen: Recipe Hunter and nearby searches with a key, Choose anyway, shopping totals,
+any of it on a phone.
+
+## Recipe nutrition and shopping amounts (branch `worktree-agent-a2198826f8ff9a2b4`)
+
+Root cause of "0 g protein, 0 g carbs, 444 kcal": the page's JSON-LD gives only `"calories":"444 calories"`; the parser correctly left the macros
+null, but the recipe screen, the import preview and "Log a serving" turned null into 0. Now: unknown shows "not listed"; a log row for an unknown
+macro stores 0 plus `protein`/`carbs`/`fat` in `unlistedNutrients` (no migration; `CoreMacro`); the schema.org parser also reads
+`@id`-referenced and array nutrition, "12g"/"12 grams"/"1,200"/"3,5 g" strings, and prefers kcal over kJ. Missing macros are estimated offline from the
+ingredient lines against the bundled USDA file and shown as "Estimated from ingredients" with per-line matches behind a tap. Shopping list:
+quantities are summed per item across the week's recipes by the same line reader. Not verified on a device or emulator. Corrections to
+the estimate's matches last only while the recipe screen is open. The plan stores no servings, so shopping amounts use each recipe as written.
+
+## Find nearby, two modes (branch `worktree-agent-a4d8ea88c7c1d444a`)
+
+One finder (`PlanBFinder.search`, `NearbyMode`) with two rankings in `domain/swap/NearbyRanking.kt`. Swap ranks by closeness to the planned meal's calories and protein (deltas shown as chips); Eating out has a new "Find healthier options nearby" button (`ui/screens/hub/HealthierNearby.kt`) that shows imported menus and saved options first (no AI), then an optional AI search on tap, ranked by a healthier score with a short reason. No schema change; no new AI feature. Compiled, unit-tested and linted only; not seen on an emulator or a device.
+
+**Nearby follow-up.** The AI prompt (both modes) now sends allergens and the profile notes, asks for 8 to 15 options across many restaurants with the usual modifications, and "Search again for more" sends what is shown so results add rather than repeat. Orders and modification notes are read as free text, so "Whopper without cheese" is not a cheese hit (shown as "Check with the restaurant" when that was the only finding). "Choose anyway" on blocked options (Swap, Eating out nearby, imported menus) opens a warning dialog and logs with "Logged despite: dairy" on the entry's name and serving label; no schema change. Unit-tested and linted only. Imported menu items stored as CONTAINS at import time are still excluded from the healthier and swap menu lists (the stored status is not re-derived).
+
+## Round 3 (phone feedback), branch `claude/optimistic-noether-fullk5`
+
+Head `06871e3`. What the owner sent from the phone is in `docs/FEEDBACK-R3.md` and `docs/R3-BACKLOG.md` (the status section
+at the top lists what is done and what is left). Verified: 1599 unit tests and 0 lint errors (app and wear).
+
+- **Recipe Hunter yields 10 to 20 results (branch `worktree-agent-a413caf0d3be660a6`).** Old loop: target 5, 3 rounds, the model searched, fetched and copied full recipes in one reply capped at 6,000 tokens, so about one recipe a round came back (the owner saw "3 kept of 3 reviewed" for $0.098). Now the model returns only page addresses (10 a round, 2 searches); the app fetches and reads each page (`RecipePageParser`, 4 at a time), checks allergens and the page's published protein, kcal and time locally, and loops until 12 are kept, 4 rounds or the $0.08 cap. "Find more" (a tap) continues with exclusions. Close matches (within 10%), "Nutrition not stated on the page" and "Could not check" groups; a legend explains Check the label and Check allergens. Rules and tests: `domain/ai/HuntRules.kt`, `HuntRulesTest`. Unit-tested only; no live AI call and not seen on a device or emulator. Pages that need JavaScript or have no recipe data land in "Could not check".
+- **Menu import download checks (partial; McDonald's Ireland PDF).** A link now fails clearly when the site answers 401, 403 or 429, or sends HTML where a PDF was expected (`domain/menu/DownloadClassifier.kt`, `Fetched.Refused`): "<host> refused the download (HTTP 403). Open the link in your browser, save the PDF, then choose it with 'Choose a PDF'", with a Choose a PDF button on the error card. The PDF marker is looked for in the first 1 KB. The menu screen shows one error card (not two) and no second "Menu import" heading. The client still sends the honest User-Agent. The McDonald's file itself is an allergen chart with no nutrition values and our PDF parser reads it; see docs/TASKS.md. Unit-tested; not seen on a device.
+- **Allergen charts (McDonald's Ireland PDF).** That file is an allergen chart (tick glyphs in a grid, no calories or macros), so there is no nutrition table to read. `domain/menu/AllergenChartParser.kt` reads such charts from positioned text (PdfRenderer fragments, Android 15+): the 19 allergen columns are matched to the headings by a regular grid, a tick is Contains and an asterisk May contain, Vegetarian/VE is a tag, a blank cell never clears anything (every item is at best "check the label"), no kcal or macros are invented. On the real file: 156 items, 411 marks, 0 skipped tables (JVM test on positioned words from `pdftotext -bbox`; PdfRenderer's own fragments for the tick glyph are not seen on a device). After saving a chart the screen asks for the nutrition menu (Choose a PDF, Paste a link, Skip; skip is stored per source in a device-local setting, and the row keeps an Add nutrition menu action). `MenuItemMatcher` + `MenuNutritionMerge` merge the two files: nutrition from the nutrition file, allergens the union, harder verdict wins, "Matched N of M items". A weekly refresh of the chart keeps the nutrition. The AI PDF path now shows the real failed request's message instead of "No menu items", and its prompt forbids inventing nutrition. **Root cause of "page list could not be found":** `PdfDocument.valueAt` read a reference with the backslash-G regex anchor plus `find(start)`. Android's regex engine anchors that at the start of the text, the JVM at `start`, so on a phone every `15 0 R` came back as `15` and the catalog's /Pages was never found, while every JVM test passed. Reproduced by running the compiled parser on the Android 11 emulator (d8 + app_process): failed before, `pages=2` after. Fixed with `Regex.matchAt`; a test now bans that anchor in main sources. It only showed on the AI path, because the phone's own PdfRenderer text path never calls our parser.
+- **Launch crash after updating a preview (fixed).** Version 3 had been edited in place (`deloadEveryWeeks`, `activeKcalDay`, and others earlier) after preview builds had already created a v3 file on the phone, so the next build died on open with Room's "cannot verify the data integrity" on every launch. Reproduced on the emulator (preview from 9344e7f, then the head build); upgrades from 06871e3 never crashed. The database is now version 4: `MIGRATION_3_4` (`migrateRepair_3_4`) replays the structural half of 2 -> 3 and skips what the file already has. `MigrationSchemaTest` covers an older v3 file, a current one and a repeat run. **Rule from now on: a preview APK counts as shipped, so schema changes after one went out need a new version, never an edit to the last one.** WearBridge feeds and PhoneWearListener requests also catch and log failures now. Confirmed on the emulator (upgrade and fresh install); not on the owner's phone.
+- **Ring percentages.** Labels were centred at a fixed radius, so wide ones overlapped the ring. `domain/nutrition/RingLabelLayout.kt` places each measured label 6 dp outside the ring and nudges it outward if two touch; the ring's box is wider. Unit-tested; seen on the emulator with a held press (`design/r3-smoke/nutrition-v3-held-fixed.png`), not on a phone.
+- **Quick add limits.** A typed value such as 348416 g of protein was saved. Per-entry limits now live in `domain/nutrition/QuickAddLimits.kt` (kcal 5000, protein/carbs/fat 500 g, fibre/sugar 300 g, sodium 20000 mg): the form shows an inline error and disables Log it, the save path refuses, and the watch's calorie request is refused with a message. Unit-tested; not seen on a device.
+- **AI.** The real cause of "No provider for this model meets your privacy setting" was `temperature` sent together with
+  `require_parameters` to models whose providers do not accept it. Fixed. Added a fallback to the other compatible models
+  and a clearer message.
+- **Photo estimate.** Asks up to three short questions with choices when it is unsure. No questions when it is confident.
+- **Health Connect.** Allow all button; permission for older history; weigh-ins read back a year; Activity card on Today;
+  sleep, steps and resting HR charts on Progress; sleep no longer counted twice. Schema `migrateHealthActive_2_3`.
+- **Reminders.** Workout, meals, water and progress photo notifications (settings 122 to 129).
+- **Tour.** Waits for scrolling to settle before moving the highlight.
+- **Recipe import.** Reads recipe data wrapped in CDATA; strips tracking parameters (`utm_*`) before fetching.
+- **Food.** Servings read as "1 serving (43 g)" style. Macro split bar on the food page, Today's meals and the Nutrition
+  dashboard.
+- **Restaurant menus.** In Swap and in Log food. Nutrition PDFs are read on the phone on Android 15 and newer; older phones use AI.
+- **Nutrition tab v3** (`design/mockup-r3/nutrition-tab-v3.html`, option 1 "Day at a glance"). The root is now: compact
+  "Avoiding: ... >" chip; one overview card (124 dp calorie ring, "N kcal left", "of X kcal", "N eaten"; Protein, Carbs and
+  Fat cards with grams, target, bar and kcal; Fibre, Sat fat, Sugar and Sodium or Salt in a 2x2 grid, "not listed" never 0;
+  "More nutrients" holding the reference-limit note); a Meals card (Breakfast, Lunch, Dinner, Snacks, Drinks, each with
+  an icon tile, foods and kcal, a mini macro bar, a "+" to Log food for that slot, "Planned: ... Log it / Swap" for the
+  planned meal when the slot is empty); and a "More: plan, recipes, eating out, nutrients" row to the new pushed
+  `Route.NutritionMore` (Plan, Recipes, Meals, Eating out, Drinks). Holding the round pie button on the card draws the
+  eaten arc as protein, carbs and fat segments with each percentage just outside the ring, and adds "P% of kcal" to the
+  macro cards. Pure maths: `domain/nutrition/MacroSplit.kt` `MacroRingSplit` (9 tests). No schema change. The old Search,
+  Scan, Photo tiles, planned-meal card, Drinks card and the four-section switch were removed from the root; Search, Scan
+  and Photo are reached from each meal's "+" (Log food). Tapping a meal row opens Log food for that slot (there is no
+  per-slot screen; entries are edited from Today). Verified: 1608 unit tests, 0 lint errors.
+  Seen on the emulator (debug build): chip, ring, cards, grid, meal rows with mini bars, "Nothing yet", Drinks row,
+  the held state (ring segments 26/48/26 with labels, "% of kcal" on the cards) and the More screen; screenshots
+  `design/r3-smoke/nutrition-v3-*.png`. Not seen on the emulator: the "Planned: ... Log it / Swap" row (no plan loaded),
+  the haptic, the held press with a finger on a phone, the Salt setting. Not on a phone at all yet.
+- **Earlier round-3 items** are listed in `docs/FEEDBACK-R3.md`.
+
+**Seen on an emulator** (Android 11 image, software emulation; see `docs/HANDOFF.md` section 4), debug build: setup skipped,
+then Today, Nutrition, Train, Progress, You and Settings opened; the Reminders group and the Health Connect group opened;
+Log food search for "cheddar" returned USDA results with the allergen chip. No crash and no "not responding" kill in logcat.
+The Health Connect group says "Health Connect needs an update" on this image, so its switches were not seen. Screenshots:
+`design/r3-smoke/`. Not seen: the tour, the photo estimate questions, the food page macro bar, reminders firing.
+
+**Not seen anywhere yet:** nothing in round 3 has run on a physical phone. The Health Connect data, reminders, the photo
+questions, the PDF reader and the video playback are unit-tested or compiled only.
+
+## Option A parts 2 and 3, and the first emulator pass (branch `claude/optimistic-noether-fullk5`)
+
+Both WIP branches (`agent/nutrition-wip`, `agent/train-wip`) are merged and finished. Verified on the merged result:
+1440 unit tests, 0 lint errors (app and wear), `MigrationSchemaTest`, and the sync server tests.
+
+- **Nutrition (part 2).** New Nutrition home (allergen strip, Search/Scan/Photo, today's planned meal, dashboard, Drinks row,
+  Plan/Recipes/Meals/Eating out); Log food is a full screen with Search, Scan, Photo, Mine and Quick add; Food detail with the
+  Nutrition Facts label; Drinks from the food database with one log flow (`DrinkLogger`); the Swap sheet replaces Plan B.
+  Removed: the old Food hub, `Route.PlanB`, `Route.MyFoods`. No schema change beyond `migrateDrinks_2_3` and
+  `migrateNutrientsListed_2_3`.
+- **Train and Videos (part 3).** Train home with Workout, Exercises and Videos; Programs area; rebuilt active workout (previous
+  sets, rest strip, plate line, swap, live PR, minimised session bar); post-workout summary; Videos with the user's YouTube key,
+  cache and purge, paste-a-link without a key, the iframe player, and Make this a workout. Weighted muscles use the **fallback**
+  (main 1.0, helpers 0.5); there is no `exercise_muscle` table. No schema change beyond `migrateTraining_2_3`.
+- **Not built, from the briefs:** micronutrient totals (foods only store macros, fibre, sugar, sodium and saturated fat); a nutrition
+  label photo for Open Food Facts; the extra USDA portions in Log food; a separate muscle volume page with a week picker;
+  player fullscreen; a "last result" column in Exercises.
+
+**Seen on an emulator** (Android 11 image, software emulation, so slow; see `docs/HANDOFF.md` section 4). Walked: all nine
+onboarding steps, the Today tour, Today, Nutrition home, Log food (search, scan permission, photo off state, quick add), Food
+detail and logging, the allergen block and "Log anyway" confirmation for a dairy food, Drinks and a drink log, the Swap sheet,
+Train (all three sections), the program generator, an empty workout from start to summary, Programs, Progress, You, every
+Settings group, Allergens, the weekly check-in and Profile. Fixed from that pass:
+
+- Crash when the Today tour was skipped or finished (`Tour.kt` measured a child that was gone).
+- Freeze opening the exercise picker and the Exercises tab: every catalog row was composed inside one list item. They are lazy
+  rows now (`exerciseRows`); the photo index loads off the main thread; a catalog id is hashed once.
+- Freeze while typing a food search: ranking ran on the main thread and re-tokenised names inside the sort. Allergen matching
+  for rows also moved off the main thread.
+- Search results stayed scrolled to the bottom when results arrived above the Open Food Facts section.
+- Summary and Make-a-workout bottom buttons sat under the system navigation bar.
+- lb users got a 44.1 lb bar and kg plates; defaults now follow the weight unit (`PlateDefaults`).
+- Next up showed water in ml whatever the unit; Drinks listed Sparkling water before Water; Progress repeated its title and
+  had three Log weight buttons; "1 sets"; "1 1 slice"; the generated program's Save button was under a very long preview.
+
+**Not seen anywhere:** Android 12+ behaviour (pill blur, predictive back), a real camera or barcode, YouTube playback and search
+(no key, no network from the emulator), AI calls, Health Connect, the watch app, sync, light/dark theme switching, tablets.
 
 ## Option A part 1 (branch `worktree-agent-ad4c01822a3a47d62`)
 
@@ -294,7 +598,10 @@ docs describe them. A phone already on an earlier v3 debug build must be reinsta
   (fake HTTP layer); the Settings -> AI switch, budget, meter and cost cards have not been seen on a
   screen, and structured menu parsing has only been run on hand-written JSON-LD, not real restaurant pages.
   PDF menus still go to the model (no PDF text extractor without a new dependency).
-- No real watch and phone pairing. The Data Layer path has not run on devices.
+- No real watch and phone pairing. The Data Layer path has not run on devices. The watch's workout link was fixed and a
+  quick remote added (`docs/WEAR.md`): the cause was a missing `preview` build type in `wear/`, so the watch could not pair
+  with the owner's Intake Preview phone app. All of it is compiled, linted and unit-tested (`RemoteProtocolTest`, 14 wearprotocol
+  tests) only. The pair must be installed as the same variant; `docs/WEAR.md` has the tasks and APK paths.
 - No NFC hardware. Tag writing and reading are untested on a device.
 - Health Connect has not run on a device.
 - Vision (photo estimate) is not benchmarked. No photos with known answers are
@@ -352,3 +659,13 @@ docs describe them. A phone already on an earlier v3 debug build must be reinsta
 - `TrainingRepository.consecutiveFailures` looks only at the last session.
 - The sync server stores rows as plaintext SQLite, by design.
 - The MCP server from the amendments roadmap is not built.
+- Nutrition meals card lists only Breakfast, Lunch, Dinner, Snacks (no Drinks row; day totals still include drinks). Denied location on the nearby card shows a note and an Open app settings button. Unit-tested only, not seen on a device.
+- Feedback R5 item 18 (branch `worktree-agent-a65d6d2a107e6b2eb`): press ripple now clipped to the shape on the shared Segmented, ChoiceChip, IntakeCard and AvatarButton, and on the Train Workout/Exercises/Videos switch. Guarded by ClickableClipOrderTest. Unit-tested only, not seen on a device; inline screen clickables on rounded Surfaces are still square (listed in the commit message).
+
+
+## Round 5 items 1 to 3: nearby chains, batched AI, staged imports (branch `worktree-agent-a2bb1c5265e1024f0`, not pushed)
+
+- **Safety (item 2).** Root cause: AI estimates carried a model-written ingredient list, so `MenuSearch.hasNoIngredientInfo` said the item had ingredient information and a clean scan drew the green chip. Now `MenuAllergenEvidence.statesNothing` (description marker "AI estimate", or no ingredient text) forces "Check with the restaurant" in `PlanBFinder.menuOptions`, `menuOptionsOfSource`, `option()` (saved and AI-found options), `SwapRepository.savedEatOut` and Log food. `stageItems` saves CHECK_LABEL for any item with no ingredient text (was CLEAR when read by AI). Model claims are stored as a stated "May contain" line on estimates.
+- **Missed restaurants (item 1).** Popeyes matched the table but its only page is a JavaScript shell, and the 6 AI lookups (2 per restaurant) were spent on the nearest three. DQ: "DQ Grill & Chill" was not an alias. Added 26 chains, alt_name/short_name matching and name-prefix matching with descriptor words, batched AI (`NearbyAiBatch`, `NearbyMenuSearch.lookupBatch`, `NearbySearchRunner.aiPhase`), the "Look up the rest with AI" button. URL checks (honest user agent, once each, 2026-11-13): statuses are in the JSON notes. New chains carry no Wikidata id because it could not be checked (the Wikidata API rate-limited the container); they match by name and brand.
+- **Staged imports (item 3).** No migration: staged items are menu_item rows under a hidden source `staged:<id>`, the source status is the new `MenuRunStatus.TO_REVIEW` (stored by name). MenuDao queries leave staging rows out. Closing the sheet keeps the import; "Discard import" (confirmed) soft deletes it. The weekly refresh skips a source waiting for review.
+- **Not verified:** everything on a device; the real behaviour of the batched model call (schema, web search, cost per call); which URLs a phone can reach; reopening a review restores default accept/reject choices, not the person's earlier toggles, and not the import's warnings.

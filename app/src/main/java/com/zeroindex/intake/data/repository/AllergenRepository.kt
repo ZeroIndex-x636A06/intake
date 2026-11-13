@@ -9,6 +9,7 @@ import com.zeroindex.intake.data.db.entity.AllergenProfileEntity
 import com.zeroindex.intake.data.db.entity.FoodEntity
 import com.zeroindex.intake.data.db.entity.seedId
 import com.zeroindex.intake.domain.allergen.AllergenAlias
+import com.zeroindex.intake.data.remote.openfoodfacts.FoodIngredients
 import com.zeroindex.intake.domain.allergen.AllergenMatcher
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
 import com.zeroindex.intake.domain.allergen.CheckLabelTerm
@@ -228,25 +229,39 @@ class AllergenRepository @Inject constructor(
         structuredTraces: List<String> = emptyList(),
         /** True when [ingredients] is free-text recipe lines rather than a label panel. */
         checkLabelInIngredients: Boolean = false,
+        /**
+         * True when [name] (and [ingredients], with [checkLabelInIngredients]) is wording a person or a menu wrote
+         * about an order ("Whopper without cheese"), so a clearly negated mention is not counted as the ingredient.
+         * It never applies to ingredient panels, Open Food Facts tags or stated allergen lists.
+         */
+        freeText: Boolean = false,
     ): AllergenScanResult {
         val avoided = allergenDao.profile().avoidedSet()
         if (avoided.isEmpty()) return AllergenScanResult.CLEAN
         val aliases = allergenDao.aliases().map {
             AllergenAlias(allergen = it.allergen, aliasTerm = it.aliasTerm, level = it.level)
         }
-        return AllergenMatcher.scan(
-            aliases = aliases,
-            avoidedAllergens = avoided,
-            name = name,
-            brand = brand,
-            ingredients = ingredients,
-            structuredContains = structuredContains,
-            structuredTraces = structuredTraces,
-            checkLabelTerms = HiddenCarriers.forAllergens(avoided) +
-                PlanWatchTerms.extract(PlanMeta.decode(planDao.activePlan()?.metaJson).hiddenDairyChecklist),
-            checkLabelInIngredients = checkLabelInIngredients,
-        )
+        val checkTerms = HiddenCarriers.forAllergens(avoided) +
+            PlanWatchTerms.extract(PlanMeta.decode(planDao.activePlan()?.metaJson).hiddenDairyChecklist)
+        // The matching is pure text work over every keyword; lists scan a row at a time, so it stays off the main thread.
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            AllergenMatcher.scan(
+                aliases = aliases,
+                avoidedAllergens = avoided,
+                name = name,
+                brand = brand,
+                ingredients = ingredients,
+                structuredContains = structuredContains,
+                structuredTraces = structuredTraces,
+                checkLabelTerms = checkTerms,
+                checkLabelInIngredients = checkLabelInIngredients,
+                freeText = freeText,
+            )
+        }
     }
+
+    /** The free-text notes on the allergen profile ("no pork either"), trimmed, or blank. Sent to the model only on a tap. */
+    suspend fun profileNotes(): String = allergenDao.profile()?.notes.orEmpty().trim()
 
     /**
      * One engine setup for many short texts, so a recipe's ingredient lines do not each reload the profile
@@ -273,11 +288,76 @@ class AllergenRepository @Inject constructor(
         }
     }
 
+    /**
+     * One engine setup for a whole list of foods (search results, a drink category), so a list of fifty rows reads the
+     * profile and keyword table once. Each food is scanned exactly as [scan] does it.
+     */
+    suspend fun foodScanner(): (FoodEntity) -> AllergenScanResult {
+        val avoided = allergenDao.profile().avoidedSet()
+        if (avoided.isEmpty()) return { AllergenScanResult.CLEAN }
+        val aliases = allergenDao.aliases().map {
+            AllergenAlias(allergen = it.allergen, aliasTerm = it.aliasTerm, level = it.level)
+        }
+        val checkTerms = HiddenCarriers.forAllergens(avoided) +
+            PlanWatchTerms.extract(PlanMeta.decode(planDao.activePlan()?.metaJson).hiddenDairyChecklist)
+        return { food ->
+            AllergenMatcher.scan(
+                aliases = aliases,
+                avoidedAllergens = avoided,
+                name = food.name,
+                brand = food.brand,
+                ingredients = food.allergenTags.takeIf { it.isNotBlank() },
+                structuredContains = storedTags(food),
+                checkLabelTerms = checkTerms,
+            )
+        }
+    }
+
+    /**
+     * One engine setup for many imported menu items. Each item is scanned by its name, description and ingredient
+     * text, and the "Contains: ... ; May contain: ..." line a restaurant's chart stated for it is also handed over as
+     * structured allergens (`StatedAllergens`). A stated list can only raise the result.
+     */
+    suspend fun menuScanner(): (name: String, description: String, ingredients: String) -> AllergenScanResult {
+        val avoided = allergenDao.profile().avoidedSet()
+        if (avoided.isEmpty()) return { _, _, _ -> AllergenScanResult.CLEAN }
+        val aliases = allergenDao.aliases().map {
+            AllergenAlias(allergen = it.allergen, aliasTerm = it.aliasTerm, level = it.level)
+        }
+        val checkTerms = HiddenCarriers.forAllergens(avoided) +
+            PlanWatchTerms.extract(PlanMeta.decode(planDao.activePlan()?.metaJson).hiddenDairyChecklist)
+        return { name, description, ingredients ->
+            val stated = com.zeroindex.intake.domain.menu.StatedAllergens.parse(ingredients)
+            AllergenMatcher.scan(
+                aliases = aliases,
+                avoidedAllergens = avoided,
+                name = name,
+                ingredients = listOf(description, com.zeroindex.intake.domain.menu.StatedAllergens.textForScan(ingredients).orEmpty())
+                    .filter { it.isNotBlank() }.joinToString("\n").ifBlank { null },
+                structuredContains = stated.contains,
+                structuredTraces = stated.mayContain,
+                checkLabelTerms = checkTerms,
+                // Only the item's name is read for negation ("Whopper without cheese"); the description and the stated
+                // allergen list are label-like and are never downgraded.
+                freeText = true,
+            )
+        }
+    }
+
     suspend fun scan(food: FoodEntity): AllergenScanResult = scan(
         name = food.name,
         brand = food.brand,
         ingredients = food.allergenTags.takeIf { it.isNotBlank() },
+        structuredContains = storedTags(food),
     )
+
+    /**
+     * The Open Food Facts tags kept on a food ("en:milk,en:nuts"), handed to the engine as the product's own
+     * allergen list as well as being read as text. Allergen and trace tags are stored together, so a trace counts
+     * as "contains" here: stricter than the product, never weaker.
+     */
+    private fun storedTags(food: FoodEntity): List<String> =
+        FoodIngredients.tags(food.allergenTags).split(',').map { it.trim() }.filter { it.isNotEmpty() }
 
     /**
      * SPEC §7.5: any food logged three or more times with no allergen flag gets

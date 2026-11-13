@@ -59,7 +59,7 @@ import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.PillTone
 import com.zeroindex.intake.ui.components.SandNote
 import com.zeroindex.intake.ui.components.StatusPill
-import com.zeroindex.intake.ui.components.SubHead
+import com.zeroindex.intake.ui.components.SubCopy
 import com.zeroindex.intake.ui.theme.IntakeShape
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -220,7 +220,7 @@ fun RecipeEditorScreen(
         modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(contentPadding).padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        SubHead(if (state.id == null) "New recipe" else "Edit recipe", "Add the ingredients and steps. Nothing is filled in for you.")
+        SubCopy("Add the ingredients and steps. Nothing is filled in for you.")
         OutlinedTextField(state.name, viewModel::setName, label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(

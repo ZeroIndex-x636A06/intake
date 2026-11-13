@@ -69,11 +69,16 @@ class TrainingAnswersTest {
     private val week = listOf(ScheduleDay(0, "Upper A", 1), ScheduleDay(1, "Lower A", 3), ScheduleDay(2, "Upper B", 5))
 
     @Test
-    fun `today's workout follows the weekday plan`() {
+    fun `weekdays say when to train and the rotation says which workout`() {
+        // A new program made on a Wednesday starts with its first day, not the one "scheduled" for Wednesday.
+        assertThat(WorkoutSchedule.planFor(week, rotationIndex = 0, isoToday = 3)).isEqualTo(TodayPlan.Train(week[0], byWeekday = true))
+        // After one finished workout the pointer has moved on; a discarded one leaves it where it was.
+        assertThat(WorkoutSchedule.planFor(week, rotationIndex = 1, isoToday = 5)).isEqualTo(TodayPlan.Train(week[1], byWeekday = true))
         val monday = WorkoutSchedule.planFor(week, rotationIndex = 2, isoToday = 1)
-        assertThat(monday).isEqualTo(TodayPlan.Train(week[0], byWeekday = true))
-        val tuesday = WorkoutSchedule.planFor(week, 0, isoToday = 2) as TodayPlan.Rest
+        assertThat(monday).isEqualTo(TodayPlan.Train(week[2], byWeekday = true))
+        val tuesday = WorkoutSchedule.planFor(week, 1, isoToday = 2) as TodayPlan.Rest
         assertThat(tuesday.next.name).isEqualTo("Lower A")
+        assertThat(tuesday.next.weekday).isEqualTo(3)
         assertThat(tuesday.daysAway).isEqualTo(1)
         val sunday = WorkoutSchedule.planFor(week, 0, isoToday = 7) as TodayPlan.Rest
         assertThat(sunday.next.name).isEqualTo("Upper A")
@@ -81,6 +86,18 @@ class TrainingAnswersTest {
         val saturday = WorkoutSchedule.planFor(week, 0, isoToday = 6) as TodayPlan.Rest
         assertThat(saturday.next.name).isEqualTo("Upper A")
         assertThat(saturday.daysAway).isEqualTo(2)
+    }
+
+    @Test
+    fun `after today's workout the card points at the next training day`() {
+        val done = WorkoutSchedule.planFor(week, rotationIndex = 1, isoToday = 1, trainedToday = true) as TodayPlan.Rest
+        assertThat(done.next.name).isEqualTo("Lower A")
+        assertThat(done.next.weekday).isEqualTo(3)
+        assertThat(done.daysAway).isEqualTo(2)
+        // Friday done: the next training day is Monday, three days on.
+        val friday = WorkoutSchedule.planFor(week, rotationIndex = 0, isoToday = 5, trainedToday = true) as TodayPlan.Rest
+        assertThat(friday.next.weekday).isEqualTo(1)
+        assertThat(friday.daysAway).isEqualTo(3)
     }
 
     @Test

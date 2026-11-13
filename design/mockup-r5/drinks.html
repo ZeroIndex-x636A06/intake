@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drinks, before and after</title>
+<style>
+  :root { --bg:#f6f4ef; --surface:#fff; --ink:#1d1b16; --mute:#6b665b; --line:#ddd8cc; --accent:#1f6f5c; --accentbg:#d8ece5; --water:#2f7fb5; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:24px; background:#e9e6de; font:14px/1.35 system-ui, sans-serif; color:var(--ink); }
+  h1 { font-size:18px; margin:0 0 4px; }
+  p.lede { margin:0 0 18px; color:var(--mute); }
+  .row { display:flex; gap:28px; align-items:flex-start; flex-wrap:wrap; }
+  .col h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:0 0 8px; color:var(--mute); }
+  .phone { width:360px; height:760px; background:var(--bg); border:1px solid var(--line); border-radius:22px; overflow:hidden; padding:14px; position:relative; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:12px; margin-bottom:10px; }
+  .label { font-size:11px; letter-spacing:.07em; text-transform:uppercase; color:var(--mute); margin:12px 0 6px; font-weight:600; }
+  .big { font-size:26px; font-weight:800; } .mid { font-size:14px; }
+  .bar { height:6px; background:#e4e0d4; border-radius:3px; margin-top:8px; overflow:hidden; } .bar i { display:block; height:100%; background:var(--water); width:48%; }
+  .small { font-size:12px; color:var(--mute); }
+  .stats { display:flex; gap:6px; margin-top:8px; } .stat { flex:1; background:#efece3; border-radius:10px; text-align:center; padding:6px 2px; } .stat b { display:block; font-size:14px; }
+  .chips { display:flex; gap:8px; overflow:hidden; margin:10px 0; } .chip { padding:8px 14px; border:1px solid var(--line); border-radius:12px; background:var(--surface); white-space:nowrap; }
+  .chip.on { background:var(--accentbg); border-color:var(--accent); font-weight:700; }
+  .cat { padding:10px 16px; border:1px solid var(--line); border-radius:14px; background:var(--surface); text-align:center; min-width:84px; } .cat.on { border:2px solid var(--accent); background:var(--accentbg); }
+  .field { border:1px solid var(--line); border-radius:12px; padding:11px 12px; background:var(--surface); color:var(--mute); margin:8px 0; }
+  .item { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); } .item b { display:block; }
+  .dot { width:16px; height:16px; border-radius:50%; border:2px solid var(--mute); } .dot.on { border-color:var(--accent); background:radial-gradient(var(--accent) 45%, transparent 50%); }
+  .tiles { display:grid; grid-template-columns:1fr 1fr; gap:8px; } .tile { background:var(--accentbg); border:1px solid var(--accent); border-radius:12px; padding:10px; text-align:center; font-weight:800; }
+  .tile.d { background:var(--surface); border-color:var(--line); color:var(--accent); }
+  .btn { border:1px solid var(--accent); border-radius:12px; padding:10px 14px; display:inline-block; } .btn.p { background:var(--accent); color:#fff; }
+  .quick { display:flex; gap:8px; overflow:hidden; } .qc { width:150px; flex:none; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:10px 12px; } .qc b { display:block; }
+  .scrim { position:absolute; inset:0; background:rgba(0,0,0,.32); } .sheet { position:absolute; left:0; right:0; bottom:0; background:var(--surface); border-radius:22px 22px 0 0; padding:18px 16px 20px; }
+  .sheet h3 { margin:0 0 10px; font-size:20px; } .chiprow { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; } .acts { display:flex; gap:8px; margin-top:12px; } .acts .btn { flex:1; text-align:center; }
+</style>
+</head>
+<body>
+<h1>Drinks: before and after</h1>
+<p class="lede">Round 5, item 12. Mockup of the layout only; the numbers are placeholders.</p>
+<div class="row">
+
+  <div class="col">
+    <h2>Before: jumbled</h2>
+    <div class="phone">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><span class="big">1.2 L</span> <span class="mid">of 2.4 L</span><div class="small">Counts caffeine and alcohol too</div></div>
+          <div style="width:56px;height:56px;border-radius:50%;border:7px solid var(--water);border-right-color:#e4e0d4;display:flex;align-items:center;justify-content:center;font-weight:700">48%</div>
+        </div>
+        <div class="stats"><div class="stat"><b>40 mg</b>Caffeine</div><div class="stat"><b>12 g</b>Sugar</div><div class="stat"><b>51</b>Calories</div><div class="stat"><b>0 std</b>Alcohol</div></div>
+      </div>
+      <div class="label">My drinks</div>
+      <div class="item"><span class="dot"></span><div><b>Tea + 3 tsp sugar</b><span class="small">11 kcal / 100 ml</span></div></div>
+      <div class="chips" style="gap:6px"><div class="cat">Water</div><div class="cat on">Coffee</div><div class="cat">Tea</div><div class="cat">Soda</div></div>
+      <div class="label">Coffee</div>
+      <div class="item"><span class="dot on"></span><div><b>Coffee, black</b><span class="small">1 kcal / 100 ml · 40 mg caffeine</span></div></div>
+      <div class="label">Coffee, black · tap a size to log it</div>
+      <div class="tiles"><div class="tile">8 fl oz<br><small>2 kcal</small></div><div class="tile">12 fl oz can<br><small>4 kcal</small></div><div class="tile">16.9 fl oz<br><small>5 kcal</small></div><div class="tile d">+ Custom size</div></div>
+      <div class="label">Find another drink</div>
+      <div class="field">Search all drinks</div>
+    </div>
+  </div>
+
+  <div class="col">
+    <h2>After: one calm list</h2>
+    <div class="phone">
+      <div class="card">
+        <div style="display:flex;align-items:baseline;gap:6px"><span style="font-size:22px;font-weight:800">1.2 L</span><span class="mid">of 2.4 L</span><span style="margin-left:auto;font-weight:700">48%</span></div>
+        <div class="bar"><i></i></div>
+        <div class="small" style="margin-top:6px">40 mg caffeine · 12 g sugar · 51 kcal · 0 std alcohol</div>
+      </div>
+      <div class="field">Search drinks</div>
+      <div class="chips"><div class="chip on">All</div><div class="chip">Water</div><div class="chip">Coffee</div><div class="chip">Tea</div><div class="chip">Soda</div></div>
+      <div class="label" style="margin-top:4px">My drinks</div>
+      <div class="quick"><div class="qc"><b>Tea + 3 tsp sugar</b><span class="small">16 fl oz · 53 kcal</span></div><div class="qc"><b>Latte, oat</b><span class="small">12 fl oz · 90 kcal</span></div></div>
+      <div class="label">Recent</div>
+      <div class="quick"><div class="qc"><b>Coffee, black</b><span class="small">8 fl oz · 2 kcal</span></div><div class="qc"><b>Water</b><span class="small">16.9 fl oz · 0 kcal</span></div></div>
+      <div class="small" style="margin-top:8px">Tap to log the last size. Press and hold for options.</div>
+      <div class="item" style="margin-top:6px"><div><b>Water</b><span class="small">0 kcal / 100 ml</span></div></div>
+      <div class="item"><div><b>Coffee, black</b><span class="small">1 kcal / 100 ml · 40 mg caffeine</span></div></div>
+      <div class="item"><div><b>Black tea</b><span class="small">1 kcal / 100 ml · 20 mg caffeine</span></div></div>
+    </div>
+  </div>
+
+  <div class="col">
+    <h2>After: a drink chosen</h2>
+    <div class="phone">
+      <div class="card"><span style="font-size:22px;font-weight:800">1.2 L</span> <span class="mid">of 2.4 L</span><div class="bar"><i></i></div></div>
+      <div class="field">Search drinks</div>
+      <div class="item"><div><b>Water</b><span class="small">0 kcal / 100 ml</span></div></div>
+      <div class="item"><div><b>Coffee, black</b><span class="small">1 kcal / 100 ml · 40 mg caffeine</span></div></div>
+      <div class="scrim"></div>
+      <div class="sheet">
+        <h3>Black tea</h3>
+        <div class="chiprow"><div class="chip">8 fl oz glass</div><div class="chip on">12 fl oz can</div><div class="chip">16.9 fl oz bottle</div><div class="chip">20 fl oz bottle</div><div class="chip">Custom amount</div></div>
+        <div class="small">12 fl oz · 4 kcal · 7 mg caffeine</div>
+        <div class="acts"><div class="btn">Customise</div><div class="btn p">Log</div></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

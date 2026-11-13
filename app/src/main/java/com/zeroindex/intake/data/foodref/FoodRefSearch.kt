@@ -39,7 +39,9 @@ object FoodRefSearch {
 
     /** Lower-cased letter and digit runs: "Greek yogurt, 2%" becomes [greek, yogurt, 2]. */
     fun tokenize(text: String): List<String> =
-        text.lowercase().split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }
+        text.lowercase().split(NOT_LETTER_OR_DIGIT).filter { it.isNotEmpty() }
+
+    private val NOT_LETTER_OR_DIGIT = Regex("[^\\p{L}\\p{N}]+")
 
     /**
      * Query tokens, at most [MAX_TOKENS]. A one-letter token matches too much to be
@@ -74,12 +76,11 @@ object FoodRefSearch {
                 val lower = entity.name.lowercase()
                 tokens.all { lower.contains(it) }
             }
-            .sortedWith(
-                compareBy<RefFoodEntity> { tier(it.name, tokens) }
-                    .thenBy { it.name.length }
-                    .thenBy { it.name.lowercase() },
-            )
+            // The tier is worked out once per food, not on every comparison of the sort.
+            .map { Triple(tier(it.name, tokens), it.name.lowercase(), it) }
+            .sortedWith(compareBy<Triple<Int, String, RefFoodEntity>> { it.first }.thenBy { it.second.length }.thenBy { it.second })
             .take(limit)
+            .map { it.third }
     }
 
     /** "1 cup, diced|132;1 slice|28" -> two portions. Malformed pieces are skipped. */

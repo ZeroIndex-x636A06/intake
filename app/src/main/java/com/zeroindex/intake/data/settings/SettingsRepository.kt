@@ -3,6 +3,7 @@ package com.zeroindex.intake.data.settings
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
+import com.zeroindex.intake.domain.model.MealSlot
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.doublePreferencesKey
@@ -17,6 +18,9 @@ import com.zeroindex.intake.domain.ai.AiTask
 import com.zeroindex.intake.domain.ai.cost.AiBudget
 import com.zeroindex.intake.domain.units.LengthUnit
 import com.zeroindex.intake.domain.units.PortionUnit
+import com.zeroindex.intake.domain.nearby.TravelBudget
+import com.zeroindex.intake.domain.nearby.TravelMode
+import com.zeroindex.intake.domain.nearby.TravelRadius
 import com.zeroindex.intake.domain.settings.SodiumDisplay
 import com.zeroindex.intake.domain.coach.CoachState
 import com.zeroindex.intake.domain.goals.AppliedPlan
@@ -124,16 +128,24 @@ data class AppSettings(
     val todayCardWater: Boolean = true,
     val todayCardWeight: Boolean = true,
     val todayCardMeals: Boolean = true,
+    val todayCardActivity: Boolean = true,
     /** Settings > Nutrition: show salt or sodium on the dashboard (consumed by the Nutrition rebuild). */
     val showSodium: SodiumDisplay = SodiumDisplay.OFF,
-    /** Settings > Nutrition: Swap > Eat out nearby search radius in miles (consumed by the Swap sheet). */
-    val eatOutRadiusMi: Double = 1.0,
+    /**
+     * Settings > Nutrition: how far the nearby restaurant search reaches, as a travel time (10 or 15 minutes) and how
+     * the trip is made. Replaces the old radius in miles, which is read once to pick these when they are not set yet.
+     */
+    val eatOutTravel: TravelBudget = TravelBudget.DEFAULT,
     /** Settings > Training: show jump tests in Progress. Hidden until enabled. */
     val jumpTests: Boolean = false,
     /** Settings > Training > Advanced: weekly sets per region (six numbers, chest..core) or empty = suggested. */
     val weeklySetsCsv: String = "",
     /** Settings > Videos (consumed by the Videos feature). */
     val onlyWorkouts: Boolean = true,
+    /** Videos: leave YouTube Shorts out of search results and Recommended. */
+    val hideShorts: Boolean = true,
+    /** Videos: the opt-in for yt-dlp direct playback and downloads. Off by default; not an official YouTube feature. */
+    val directVideos: Boolean = false,
     val personaliseVideos: Boolean = true,
     /** Settings > Reminders: progress photo reminder in weeks (0 = off, else 2, 3 or 4). */
     val photoReminderWeeks: Int = 0,
@@ -141,6 +153,17 @@ data class AppSettings(
     val exportReminder: Boolean = true,
     /** Settings > Sync and export: include progress photo files in an export (opt-in). */
     val exportIncludePhotos: Boolean = false,
+    /** Settings > Reminders (opt-in). Times are minutes after midnight, local time. The once-per-day memory is device-local. */
+    val workoutReminderOn: Boolean = false,
+    val workoutReminderMinute: Int = 17 * 60,
+    val mealReminderOn: Boolean = false,
+    val breakfastReminderMinute: Int = 7 * 60 + 30,
+    val lunchReminderMinute: Int = 12 * 60,
+    val dinnerReminderMinute: Int = 18 * 60 + 30,
+    val waterReminderOn: Boolean = false,
+    /** Water slots run every two hours from the start hour up to and including the end hour. */
+    val waterReminderStartHour: Int = 8,
+    val waterReminderEndHour: Int = 20,
     /** When the app was first used (millis); starts the export reminder clock. Device-local, never exported. */
     val firstUseAtMillis: Long? = null,
 ) {
@@ -181,6 +204,7 @@ class SettingsRepository @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
     private object Keys {
+        val menuNutritionSkipped = stringPreferencesKey("menu_nutrition_prompt_skipped")
         val weightUnit = stringPreferencesKey("weight_unit")
         val lengthUnit = stringPreferencesKey("length_unit")
         val themeMode = stringPreferencesKey("theme_mode")
@@ -238,22 +262,38 @@ class SettingsRepository @Inject constructor(
         val todayWater = booleanPreferencesKey("today_card_water")
         val todayWeight = booleanPreferencesKey("today_card_weight")
         val todayMeals = booleanPreferencesKey("today_card_meals")
+        val todayActivity = booleanPreferencesKey("today_card_activity")
         val showSodium = stringPreferencesKey("show_sodium")
+        /** The old radius in miles. Never written now; read only to migrate. */
         val eatOutRadius = doublePreferencesKey("eat_out_radius_mi")
+        val eatOutMinutes = intPreferencesKey("eat_out_minutes")
+        val eatOutTravel = stringPreferencesKey("eat_out_travel")
         val jumpTests = booleanPreferencesKey("jump_tests")
         val weeklySets = stringPreferencesKey("weekly_sets_csv")
         val onlyWorkouts = booleanPreferencesKey("videos_only_workouts")
+        val hideShorts = booleanPreferencesKey("videos_hide_shorts")
+        val directVideos = booleanPreferencesKey("videos_direct_ytdlp")
         val personalise = booleanPreferencesKey("videos_personalise")
         val photoReminder = intPreferencesKey("photo_reminder_weeks")
         val exportReminder = booleanPreferencesKey("export_reminder")
         val exportPhotos = booleanPreferencesKey("export_include_photos")
+        val workoutReminderOn = booleanPreferencesKey("workout_reminder_on")
+        val workoutReminderMinute = intPreferencesKey("workout_reminder_minute")
+        val mealReminderOn = booleanPreferencesKey("meal_reminder_on")
+        val breakfastReminderMinute = intPreferencesKey("breakfast_reminder_minute")
+        val lunchReminderMinute = intPreferencesKey("lunch_reminder_minute")
+        val dinnerReminderMinute = intPreferencesKey("dinner_reminder_minute")
+        val waterReminderOn = booleanPreferencesKey("water_reminder_on")
+        val waterReminderStartHour = intPreferencesKey("water_reminder_start_hour")
+        val waterReminderEndHour = intPreferencesKey("water_reminder_end_hour")
         val firstUseAt = longPreferencesKey("first_use_at_ms")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
+        val weightUnit = p[Keys.weightUnit]?.let { runCatching { WeightUnit.valueOf(it) }.getOrNull() }
+            ?: WeightUnit.POUNDS
         AppSettings(
-            weightUnit = p[Keys.weightUnit]?.let { runCatching { WeightUnit.valueOf(it) }.getOrNull() }
-                ?: WeightUnit.POUNDS,
+            weightUnit = weightUnit,
             lengthUnit = p[Keys.lengthUnit]?.let { runCatching { LengthUnit.valueOf(it) }.getOrNull() }
                 ?: LengthUnit.INCHES,
             themeMode = p[Keys.themeMode]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
@@ -261,8 +301,9 @@ class SettingsRepository @Inject constructor(
             dynamicColor = p[Keys.dynamicColor] ?: false,
             defaultRestSec = p[Keys.defaultRestSec] ?: 120,
             restTimerVibrate = p[Keys.restVibrate] ?: true,
-            barWeightKg = p[Keys.barWeight] ?: 20.0,
-            availablePlatesKg = p[Keys.plates] ?: "25,20,15,10,5,2.5,1.25",
+            // Until the person sets their own, the bar and plates are the ones a gym in their unit has.
+            barWeightKg = p[Keys.barWeight] ?: com.zeroindex.intake.domain.training.PlateDefaults.barKg(weightUnit),
+            availablePlatesKg = p[Keys.plates] ?: com.zeroindex.intake.domain.training.PlateDefaults.platesCsvKg(weightUnit),
             goalWeightKg = p[Keys.goalWeight],
             goalRateKgPerWeek = p[Keys.goalRate] ?: 0.0,
             proteinGramsPerKg = p[Keys.proteinPerKg] ?: 2.0,
@@ -320,15 +361,31 @@ class SettingsRepository @Inject constructor(
             todayCardWater = p[Keys.todayWater] ?: true,
             todayCardWeight = p[Keys.todayWeight] ?: true,
             todayCardMeals = p[Keys.todayMeals] ?: true,
+            todayCardActivity = p[Keys.todayActivity] ?: true,
             showSodium = p[Keys.showSodium]?.let { runCatching { SodiumDisplay.valueOf(it) }.getOrNull() } ?: SodiumDisplay.OFF,
-            eatOutRadiusMi = p[Keys.eatOutRadius]?.takeIf { it > 0 } ?: 1.0,
+            eatOutTravel = if (p[Keys.eatOutMinutes] != null || p[Keys.eatOutTravel] != null) {
+                TravelBudget(TravelRadius.clampMinutes(p[Keys.eatOutMinutes]), TravelMode.fromId(p[Keys.eatOutTravel]))
+            } else {
+                TravelRadius.fromLegacyMiles(p[Keys.eatOutRadius])
+            },
             jumpTests = p[Keys.jumpTests] ?: false,
             weeklySetsCsv = p[Keys.weeklySets].orEmpty(),
             onlyWorkouts = p[Keys.onlyWorkouts] ?: true,
+            hideShorts = p[Keys.hideShorts] ?: true,
+            directVideos = p[Keys.directVideos] ?: false,
             personaliseVideos = p[Keys.personalise] ?: true,
             photoReminderWeeks = p[Keys.photoReminder]?.takeIf { it in setOf(0, 2, 3, 4) } ?: 0,
             exportReminder = p[Keys.exportReminder] ?: true,
             exportIncludePhotos = p[Keys.exportPhotos] ?: false,
+            workoutReminderOn = p[Keys.workoutReminderOn] ?: false,
+            workoutReminderMinute = (p[Keys.workoutReminderMinute] ?: (17 * 60)).coerceIn(0, MINUTES_PER_DAY - 1),
+            mealReminderOn = p[Keys.mealReminderOn] ?: false,
+            breakfastReminderMinute = (p[Keys.breakfastReminderMinute] ?: (7 * 60 + 30)).coerceIn(0, MINUTES_PER_DAY - 1),
+            lunchReminderMinute = (p[Keys.lunchReminderMinute] ?: (12 * 60)).coerceIn(0, MINUTES_PER_DAY - 1),
+            dinnerReminderMinute = (p[Keys.dinnerReminderMinute] ?: (18 * 60 + 30)).coerceIn(0, MINUTES_PER_DAY - 1),
+            waterReminderOn = p[Keys.waterReminderOn] ?: false,
+            waterReminderStartHour = (p[Keys.waterReminderStartHour] ?: 8).coerceIn(0, 23),
+            waterReminderEndHour = (p[Keys.waterReminderEndHour] ?: 20).coerceIn(0, 23),
             firstUseAtMillis = p[Keys.firstUseAt],
         )
     }
@@ -378,6 +435,15 @@ class SettingsRepository @Inject constructor(
     }
     suspend fun setReduceMotion(enabled: Boolean) = put { it[Keys.reduceMotion] = enabled }
     suspend fun setCelebratedProteinDay(epochDay: Long) = put { it[Keys.celebratedProteinDay] = epochDay }
+    /** Menu sources (by id) whose "add the nutrition menu" prompt the person skipped. Stays on this phone. */
+    val menuNutritionPromptSkipped: Flow<Set<String>> =
+        context.dataStore.data.map { p -> p[Keys.menuNutritionSkipped].orEmpty().split(',').filter { it.isNotBlank() }.toSet() }
+
+    suspend fun skipMenuNutritionPrompt(sourceId: String) = put {
+        val now = it[Keys.menuNutritionSkipped].orEmpty().split(',').filter { s -> s.isNotBlank() }.toSet()
+        it[Keys.menuNutritionSkipped] = (now + sourceId).joinToString(",")
+    }
+
     val celebratedProteinDay: Flow<Long?> = context.dataStore.data.map { it[Keys.celebratedProteinDay] }
     suspend fun setCoachNotify(enabled: Boolean) = put { it[Keys.coachNotify] = enabled }
     suspend fun setCoachAiReword(enabled: Boolean) = put { it[Keys.coachAiReword] = enabled }
@@ -419,18 +485,42 @@ class SettingsRepository @Inject constructor(
             com.zeroindex.intake.domain.settings.TodayCard.WATER -> Keys.todayWater
             com.zeroindex.intake.domain.settings.TodayCard.WEIGHT -> Keys.todayWeight
             com.zeroindex.intake.domain.settings.TodayCard.MEALS -> Keys.todayMeals
+            com.zeroindex.intake.domain.settings.TodayCard.ACTIVITY -> Keys.todayActivity
         }
         it[key] = shown
     }
     suspend fun setShowSodium(mode: SodiumDisplay) = put { it[Keys.showSodium] = mode.name }
-    suspend fun setEatOutRadiusMi(miles: Double) = put { it[Keys.eatOutRadius] = miles }
+    suspend fun setEatOutTravel(budget: TravelBudget) = put {
+        it[Keys.eatOutMinutes] = budget.minutes
+        it[Keys.eatOutTravel] = budget.mode.id
+    }
     suspend fun setJumpTests(on: Boolean) = put { it[Keys.jumpTests] = on }
     suspend fun setWeeklySetsCsv(csv: String) = put { if (csv.isBlank()) it.remove(Keys.weeklySets) else it[Keys.weeklySets] = csv }
     suspend fun setOnlyWorkouts(on: Boolean) = put { it[Keys.onlyWorkouts] = on }
+    suspend fun setHideShorts(on: Boolean) = put { it[Keys.hideShorts] = on }
+    suspend fun setDirectVideos(on: Boolean) = put { it[Keys.directVideos] = on }
     suspend fun setPersonaliseVideos(on: Boolean) = put { it[Keys.personalise] = on }
     suspend fun setPhotoReminderWeeks(weeks: Int) = put { it[Keys.photoReminder] = if (weeks in setOf(2, 3, 4)) weeks else 0 }
     suspend fun setExportReminder(on: Boolean) = put { it[Keys.exportReminder] = on }
     suspend fun setExportIncludePhotos(on: Boolean) = put { it[Keys.exportPhotos] = on }
+    suspend fun setWorkoutReminder(on: Boolean) = put { it[Keys.workoutReminderOn] = on }
+    suspend fun setWorkoutReminderMinute(minute: Int) = put { it[Keys.workoutReminderMinute] = minute.coerceIn(0, MINUTES_PER_DAY - 1) }
+    suspend fun setMealReminder(on: Boolean) = put { it[Keys.mealReminderOn] = on }
+    /** Breakfast, lunch or dinner time. Snacks have no reminder. */
+    suspend fun setMealReminderMinute(slot: MealSlot, minute: Int) = put {
+        val m = minute.coerceIn(0, MINUTES_PER_DAY - 1)
+        when (slot) {
+            MealSlot.BREAKFAST -> it[Keys.breakfastReminderMinute] = m
+            MealSlot.LUNCH -> it[Keys.lunchReminderMinute] = m
+            MealSlot.DINNER -> it[Keys.dinnerReminderMinute] = m
+            MealSlot.SNACK, MealSlot.DRINKS -> Unit
+        }
+    }
+    suspend fun setWaterReminder(on: Boolean) = put { it[Keys.waterReminderOn] = on }
+    suspend fun setWaterReminderHours(startHour: Int, endHour: Int) = put {
+        it[Keys.waterReminderStartHour] = startHour.coerceIn(0, 23)
+        it[Keys.waterReminderEndHour] = endHour.coerceIn(0, 23)
+    }
     /** Records the first use once; later calls change nothing. */
     suspend fun ensureFirstUse(now: Long) = put { if (it[Keys.firstUseAt] == null) it[Keys.firstUseAt] = now }
 
@@ -468,6 +558,7 @@ class SettingsRepository @Inject constructor(
 
     private companion object {
         const val PLAN_HISTORY_LIMIT = 12
+        const val MINUTES_PER_DAY = 24 * 60
     }
 
     private suspend fun put(block: (MutablePreferences) -> Unit) {

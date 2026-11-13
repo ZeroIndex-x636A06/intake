@@ -35,6 +35,12 @@ import com.zeroindex.intake.data.db.entity.SetLogEntity
 import com.zeroindex.intake.data.db.entity.WorkoutSessionEntity
 import com.zeroindex.intake.data.db.entity.newId
 import com.zeroindex.intake.data.db.projection.MuscleSetCount
+import com.zeroindex.intake.data.db.projection.SessionStat
+import com.zeroindex.intake.data.db.projection.SetWithExercise
+import com.zeroindex.intake.domain.training.VolumeSet
+import com.zeroindex.intake.domain.training.generator.GeneratedDay
+import com.zeroindex.intake.domain.training.generator.GeneratedExercise
+import com.zeroindex.intake.domain.videos.DraftItem
 import com.zeroindex.intake.data.db.projection.SetPoint
 import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.model.ProgressionType
@@ -48,6 +54,7 @@ import com.zeroindex.intake.domain.training.RuleParams
 import com.zeroindex.intake.domain.training.SetResult
 import com.zeroindex.intake.domain.training.StartingWeight
 import com.zeroindex.intake.domain.training.PastSet
+import com.zeroindex.intake.domain.training.ScheduledDeload
 import com.zeroindex.intake.domain.training.StartingWeightContext
 import com.zeroindex.intake.domain.training.StartingWeightEstimate
 import com.zeroindex.intake.domain.training.StartingWeightEstimator
@@ -57,6 +64,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -519,7 +527,13 @@ class TrainingRepository @Inject constructor(
      * (or spread out if they chose none), and a starting weight for each lift that has a rule for one
      * (see [StartingWeightEstimator]). Anything the blueprint already carries is kept.
      */
-    suspend fun finish(blueprint: GeneratedProgram): GeneratedProgram {
+    suspend fun finish(
+        blueprint: GeneratedProgram,
+        /** "Know your numbers?" answers by exercise id; used only where the lift has no logged sets. */
+        knownLifts: Map<String, List<PastSet>> = emptyMap(),
+        /** The experience the person just chose, when it is newer than the profile's. */
+        experience: com.zeroindex.intake.domain.training.generator.Experience? = null,
+    ): GeneratedProgram {
         val settings = settingsRepository.settings.first()
         val profile = settings.profile
         val scheduled = if (blueprint.days.any { it.weekday != null }) {
@@ -528,16 +542,18 @@ class TrainingRepository @Inject constructor(
             WorkoutSchedule.schedule(blueprint, profile.trainingWeekdays)
         }
         val context = StartingWeightContext(
-            experience = profile.experience,
+            experience = experience ?: profile.experience,
             bodyweightKg = bodyRepository.latest()?.weightKg,
             sex = profile.sex,
             barWeightKg = settings.barWeightKg,
             platesKg = settings.platesKgList.ifEmpty { listOf(25.0, 20.0, 15.0, 10.0, 5.0, 2.5, 1.25) },
+            // Dumbbells, machines and cables go up in 5 lb steps in a pound gym and 2.5 kg steps in a kilogram one.
+            smallStepKg = if (settings.weightUnit == com.zeroindex.intake.domain.units.WeightUnit.POUNDS) settings.weightUnit.toKg(5.0) else 2.5,
         )
         val ids = scheduled.days.flatMap { d -> d.exercises.map { it.exerciseId } }.distinct()
             .flatMap { StartingWeightEstimator.relevantIds(it) }.distinct()
         val history = ids.associateWith { id ->
-            workoutDao.lastWorkingSetsFor(id, null).map { PastSet(it.weightKg, it.reps) }
+            workoutDao.lastWorkingSetsFor(id, null).map { PastSet(it.weightKg, it.reps) }.ifEmpty { knownLifts[id].orEmpty() }
         }
         return StartingWeightEstimator.apply(scheduled, context) { id -> history[id].orEmpty() }
     }
@@ -731,6 +747,12 @@ class TrainingRepository @Inject constructor(
     fun observeSessions(): Flow<List<WorkoutSessionEntity>> = workoutDao.observeSessions()
     fun observeInProgress(): Flow<WorkoutSessionEntity?> = workoutDao.observeInProgress()
     fun observeSets(sessionId: String): Flow<List<SetLogEntity>> = workoutDao.observeSets(sessionId)
+
+    fun observeAllSets(): Flow<List<SetLogEntity>> = workoutDao.observeAllSets()
+
+    fun observeDayLabels(): Flow<List<com.zeroindex.intake.data.db.projection.DayLabel>> = workoutDao.observeDayLabels()
+
+    fun observeSetsForExercise(exerciseId: String): Flow<List<SetLogEntity>> = workoutDao.observeSetsForExercise(exerciseId)
     fun observeSetPoints(exerciseId: String): Flow<List<SetPoint>> =
         workoutDao.observeSetPoints(exerciseId)
 
@@ -776,6 +798,20 @@ class TrainingRepository @Inject constructor(
         val nextIndex = (days.indexOfFirst { it.id == dayId } + 1) % days.size
         val nextWeek = if (nextIndex == 0) program.currentWeek + 1 else program.currentWeek
         programDao.updatePosition(program.id, nextWeek, nextIndex, clock.nowMillis())
+        // The program's planned easy week starts by itself when its week comes round (see ScheduledDeload).
+        if (nextIndex == 0 && ScheduledDeload.startsWith(nextWeek, program.deloadEveryWeeks)) {
+            val now = clock.nowMillis()
+            val until = now + ScheduledDeload.DAYS * 24L * 60 * 60 * 1000
+            settingsRepository.updateCoachState {
+                it.copy(
+                    deloadUntilMillis = until,
+                    deloadPercent = ScheduledDeload.PERCENT,
+                    easyUntilMillis = until,
+                    easySetsLess = ScheduledDeload.SETS_LESS,
+                    lastDeloadDay = clock.today().toEpochDay(),
+                )
+            }
+        }
     }
 
     suspend fun logSet(
@@ -1004,7 +1040,9 @@ class TrainingRepository @Inject constructor(
             runCatching { obj[key]?.jsonPrimitive?.content }.getOrNull()
 
         return defaults.copy(
-            incrementKg = num("incrementKg") ?: defaults.incrementKg,
+            // The stock rules say 2.5 kg. That stands for "the smallest step this gym can load": 2.5 kg with kilogram
+            // plates, 5 lb with pound plates. A step the person set themselves is used as it is.
+            incrementKg = num("incrementKg")?.takeIf { it != ProgressionLabels.STOCK_INCREMENT_KG } ?: defaults.incrementKg,
             deloadPercent = num("deloadPercent") ?: defaults.deloadPercent,
             failuresBeforeDeload = num("failuresBeforeDeload")?.toInt()
                 ?: defaults.failuresBeforeDeload,
@@ -1018,4 +1056,102 @@ class TrainingRepository @Inject constructor(
         if (previous.isEmpty()) return 0
         return if (previous.any { it.reps < targetReps }) 1 else 0
     }
+
+    // ------------------------------------------- Train home, summary, videos
+
+    fun observeArchivedPrograms(): Flow<List<ProgramEntity>> = programDao.observeArchived()
+
+    /** Brings an archived program back (as an inactive program). */
+    suspend fun restoreProgram(id: String) = programDao.restoreProgram(id, clock.nowMillis())
+
+    /** Finished sessions with totals, newest first, for Recent sessions. */
+    fun observeSessionStats(limit: Int): Flow<List<SessionStat>> = workoutDao.observeSessionStats(limit)
+
+    /** Every logged set in [range] (a calendar week) with its muscles: the input of the weekly volume. */
+    fun observeVolumeSets(range: LongRange): Flow<List<VolumeSet>> =
+        workoutDao.observeSetsWithExercise(range.first, range.last + 1).map { rows -> rows.map { it.toVolumeSet() } }
+
+    suspend fun sessionSets(sessionId: String): List<SetWithExercise> = workoutDao.setsWithExerciseOf(sessionId)
+
+    /**
+     * Working sets of earlier sessions for [exerciseIds]: what a record is measured against, and the "Previous" the live PR
+     * flag compares with. Sessions before [sessionId] started; [sessionId] itself never counts.
+     */
+    suspend fun historyBefore(sessionId: String, exerciseIds: Collection<String>): Map<String, List<SetResult>> {
+        if (exerciseIds.isEmpty()) return emptyMap()
+        val before = workoutDao.findSession(sessionId)?.startedAt ?: clock.nowMillis()
+        return workoutDao.historyBefore(sessionId, before, exerciseIds.toList())
+            .groupBy({ it.exerciseId }, { SetResult(it.weightKg, it.reps, it.rpe, it.isFailure) })
+    }
+
+    /** "Discard workout": hides the session and its sets (soft delete), and stops the program rotation from moving. */
+    suspend fun discardSession(sessionId: String) = db.withTransaction {
+        val now = clock.nowMillis()
+        workoutDao.softDeleteSetsOfSession(sessionId, now)
+        workoutDao.softDeleteSession(sessionId, now)
+    }
+
+    suspend fun dayName(dayId: String): String? = programDao.findDay(dayId)?.name
+
+    /** The program a day belongs to (for "Week 3 of ..." lines). */
+    suspend fun programOfDay(dayId: String): ProgramEntity? = programDao.findDay(dayId)?.let { programDao.findById(it.programId) }
+
+    /**
+     * "Make this a workout" > Save: the reviewed draft becomes a My workout linked to the video. Rows the person turned off
+     * are left out; rows that are not in the library are added to it first (a custom exercise they can edit later).
+     * Returns the workout, or null when nothing was included.
+     */
+    suspend fun saveVideoWorkout(name: String, videoId: String, items: List<DraftItem>): ProgramEntity? = db.withTransaction {
+        val included = items.filter { it.include && it.exerciseName.isNotBlank() }
+        if (included.isEmpty()) return@withTransaction null
+        val exercises = included.map { item ->
+            val id = item.exerciseId ?: createExercise(
+                name = item.exerciseName.trim(),
+                primaryMuscle = item.primaryMuscle,
+                defaultRestSec = item.restSec.coerceAtLeast(0),
+            ).id
+            GeneratedExercise(
+                exerciseId = id,
+                name = item.exerciseName,
+                muscle = item.primaryMuscle,
+                sets = item.sets.coerceIn(1, 20),
+                repsMin = item.reps.coerceIn(1, 100),
+                repsMax = item.reps.coerceIn(1, 100),
+                rpe = null,
+                restSec = item.restSec.coerceIn(0, 600),
+                progression = null,
+                why = item.seconds?.let { "Timed: $it seconds per set." }.orEmpty(),
+            )
+        }
+        val taken = programDao.all().map { it.name }
+        val wanted = name.trim().ifBlank { "Video workout" }
+        val finalName = if (wanted in taken) WorkoutBuilder.duplicateName(wanted, taken) else wanted
+        val day = GeneratedDay(name = finalName, exercises = exercises, estimatedMinutes = 0, why = "")
+        val rows = WorkoutBuilder.fromGeneratedDay(finalName, day, emptyMap(), clock.nowMillis())
+        val program = rows.program.copy(videoId = videoId)
+        insertRows(rows.copy(program = program))
+        program
+    }
+
+    /** "Add by hand" on Make this a workout: an empty workout linked to the video, ready for the builder. */
+    suspend fun createVideoWorkout(name: String, videoId: String): ProgramEntity = db.withTransaction {
+        val taken = programDao.all().map { it.name }
+        val wanted = name.trim().ifBlank { "Video workout" }
+        val rows = WorkoutBuilder.blank(if (wanted in taken) WorkoutBuilder.duplicateName(wanted, taken) else wanted, clock.nowMillis())
+        val program = rows.program.copy(videoId = videoId)
+        insertRows(rows.copy(program = program))
+        program
+    }
+
+    /** Links (or unlinks) the video a workout was made from. */
+    suspend fun setWorkoutVideo(programId: String, videoId: String?) = programDao.setVideo(programId, videoId, clock.nowMillis())
 }
+
+private fun SetWithExercise.toVolumeSet() = VolumeSet(
+    exerciseId = exerciseId,
+    exerciseName = exerciseName,
+    primaryMuscle = primaryMuscle,
+    secondaryMuscles = secondaryMuscles.split(',').map { it.trim() }.filter { it.isNotEmpty() },
+    completedAt = completedAt,
+    isWarmup = isWarmup,
+)

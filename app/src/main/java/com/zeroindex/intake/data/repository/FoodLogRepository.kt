@@ -2,6 +2,7 @@ package com.zeroindex.intake.data.repository
 
 import com.zeroindex.intake.data.db.dao.FoodDao
 import com.zeroindex.intake.data.db.dao.FoodLogDao
+import com.zeroindex.intake.data.db.dao.HydrationDao
 import com.zeroindex.intake.data.db.entity.FoodEntity
 import com.zeroindex.intake.data.db.entity.FoodLogEntity
 import com.zeroindex.intake.data.db.entity.newId
@@ -9,7 +10,9 @@ import com.zeroindex.intake.data.db.projection.DailyIntake
 import com.zeroindex.intake.data.db.projection.SlotTotals
 import com.zeroindex.intake.domain.model.AiConfidence
 import com.zeroindex.intake.domain.model.MealSlot
+import com.zeroindex.intake.domain.nutrition.CoreMacro
 import com.zeroindex.intake.domain.nutrition.Macros
+import com.zeroindex.intake.domain.nutrition.Unlisted
 import com.zeroindex.intake.domain.time.Clock
 import com.zeroindex.intake.domain.time.localDateOf
 import java.time.LocalDate
@@ -22,6 +25,7 @@ import kotlinx.coroutines.flow.map
 class FoodLogRepository @Inject constructor(
     private val foodLogDao: FoodLogDao,
     private val foodDao: FoodDao,
+    private val hydrationDao: HydrationDao,
     private val clock: Clock,
 ) {
     fun observeDay(date: LocalDate): Flow<List<FoodLogEntity>> {
@@ -110,6 +114,7 @@ class FoodLogRepository @Inject constructor(
             slot = slot,
             macros = macros,
             at = at,
+            unlisted = food.unlistedNutrients,
         )
         foodLogDao.upsert(log)
         foodDao.incrementTimesLogged(food.id, clock.nowMillis())
@@ -146,6 +151,11 @@ class FoodLogRepository @Inject constructor(
         photoUri: String? = null,
         aiConfidence: AiConfidence? = null,
         at: Long = clock.nowMillis(),
+        /**
+         * Protein, carbs or fat nobody gave a number for. The row stores 0 (its columns are not nullable) and lists
+         * them as unlisted, so the screens say "not listed" rather than "0 g".
+         */
+        unknownMacros: Set<CoreMacro> = emptySet(),
     ): FoodLogEntity {
         val log = newLog(
             foodId = null,
@@ -157,9 +167,21 @@ class FoodLogRepository @Inject constructor(
             at = at,
             photoUri = photoUri,
             aiConfidence = aiConfidence,
+            unlisted = if (unknownMacros.isEmpty()) null else Unlisted.encode(Unlisted.forTypedMacros(macros), unknownMacros),
         )
         foodLogDao.upsert(log)
         return log
+    }
+
+    /**
+     * Keeps the person's override on the entry: the note ("Logged despite: dairy") is added to its name and serving
+     * label. The allergen warning itself is never cleared; this only records that the person chose it anyway.
+     */
+    suspend fun markOverridden(log: FoodLogEntity, note: String): FoodLogEntity {
+        val (name, label) = com.zeroindex.intake.domain.allergen.AllergenOverride.annotate(log.foodNameAtLog, log.servingLabelAtLog, note)
+        val marked = log.copy(foodNameAtLog = name, servingLabelAtLog = label, updatedAt = clock.nowMillis())
+        foodLogDao.upsert(marked)
+        return marked
     }
 
     /** Rescales an entry to a new gram amount, proportionally to what was logged. */
@@ -197,7 +219,21 @@ class FoodLogRepository @Inject constructor(
         foodLogDao.upsert(log.copy(mealSlot = slot, updatedAt = clock.nowMillis()))
     }
 
-    suspend fun softDelete(id: String) = foodLogDao.softDelete(id, clock.nowMillis())
+    /**
+     * Soft delete. A drink's food row has a hydration row beside it (the one drink flow), so removing it here removes
+     * that too: the water total and the meals never disagree.
+     */
+    suspend fun softDelete(id: String) {
+        val now = clock.nowMillis()
+        foodLogDao.softDelete(id, now)
+        hydrationDao.softDeleteByFoodLog(id, now)
+    }
+
+    /** Undo of [softDelete]: brings the rows back as they were. Nothing is ever hard-deleted. */
+    suspend fun restore(logs: List<FoodLogEntity>) {
+        val now = clock.nowMillis()
+        logs.forEach { foodLogDao.upsert(it.copy(deletedAt = null, updatedAt = now)) }
+    }
 
     private fun newLog(
         foodId: String?,
@@ -209,6 +245,7 @@ class FoodLogRepository @Inject constructor(
         at: Long,
         photoUri: String? = null,
         aiConfidence: AiConfidence? = null,
+        unlisted: String? = null,
     ) = FoodLogEntity(
         id = newId(),
         foodId = foodId,
@@ -227,6 +264,8 @@ class FoodLogRepository @Inject constructor(
         saturatedFat = macros.saturatedFat,
         sourcePhotoUri = photoUri,
         aiConfidence = aiConfidence,
+        // A food's own list, or for typed-in rows (quick add, recipes, estimates) whatever was left at zero.
+        unlistedNutrients = unlisted ?: Unlisted.encode(Unlisted.forTypedMacros(macros)),
         createdAt = at,
         updatedAt = at,
     )

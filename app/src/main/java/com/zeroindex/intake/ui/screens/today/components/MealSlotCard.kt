@@ -1,5 +1,7 @@
 package com.zeroindex.intake.ui.screens.today.components
 
+import com.zeroindex.intake.domain.nutrition.CoreMacro
+import com.zeroindex.intake.domain.nutrition.Unlisted
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -31,6 +33,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.data.db.entity.FoodLogEntity
+import com.zeroindex.intake.domain.model.MealSlot
+import com.zeroindex.intake.ui.components.MacroSplitBar
 import com.zeroindex.intake.ui.motion.pressScale
 import com.zeroindex.intake.ui.screens.today.MealSlotUi
 import com.zeroindex.intake.ui.screens.today.displayName
@@ -83,6 +87,14 @@ fun MealSlotCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            if (slotUi.entries.isNotEmpty()) {
+                MacroSplitBar(
+                    proteinGrams = slotUi.entries.sumOf { it.protein },
+                    carbGrams = slotUi.entries.sumOf { it.carbs },
+                    fatGrams = slotUi.entries.sumOf { it.fat },
+                    modifier = Modifier.padding(bottom = 7.dp),
+                )
+            }
 
             slotUi.entries.forEach { entry ->
                 SwipeableEntryRow(
@@ -94,12 +106,13 @@ fun MealSlotCard(
 
             AddFoodRow(
                 slotName = slotName,
+                addLabel = if (slotUi.slot == MealSlot.DRINKS) "Log a drink" else "Log food",
                 isEmpty = slotUi.entries.isEmpty(),
                 onAdd = onAdd,
             )
             if (onSaveAsTemplate != null && slotUi.entries.isNotEmpty()) {
                 TextButton(onClick = onSaveAsTemplate, modifier = Modifier.heightIn(min = 48.dp)) {
-                    Text("Save as meal prep", style = MaterialTheme.typography.labelSmall)
+                    Text("Save as meal template", style = MaterialTheme.typography.labelSmall)
                 }
             }
         }
@@ -111,13 +124,13 @@ fun MealSlotCard(
  * filled slots too so adding to a specific meal is always one tap.
  */
 @Composable
-private fun AddFoodRow(slotName: String, isEmpty: Boolean, onAdd: () -> Unit) {
+private fun AddFoodRow(slotName: String, addLabel: String, isEmpty: Boolean, onAdd: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .pressScale()
             .heightIn(min = 48.dp)
-            .clickable(onClickLabel = "Log food in ${slotName.lowercase()}", onClick = onAdd),
+            .clickable(onClickLabel = if (addLabel == "Log food") "Log food in ${slotName.lowercase()}" else addLabel, onClick = onAdd),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (isEmpty) {
@@ -138,7 +151,7 @@ private fun AddFoodRow(slotName: String, isEmpty: Boolean, onAdd: () -> Unit) {
         )
         Spacer(Modifier.width(5.dp))
         Text(
-            text = "Log food",
+            text = addLabel,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.primary,
         )
@@ -222,7 +235,8 @@ private fun EntryRow(entry: FoodLogEntity, onLongPress: () -> Unit) {
             modifier = Modifier.weight(1f).padding(end = 8.dp),
         )
         Text(
-            text = "${entry.kcal.roundToInt()} kcal · ${entry.protein.roundToInt()} g protein",
+            text = "${entry.kcal.roundToInt()} kcal · " +
+                if (CoreMacro.PROTEIN in Unlisted.decodeMacros(entry.unlistedNutrients)) "protein not listed" else "${entry.protein.roundToInt()} g protein",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

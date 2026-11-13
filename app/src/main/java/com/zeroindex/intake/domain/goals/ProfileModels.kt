@@ -1,6 +1,7 @@
 package com.zeroindex.intake.domain.goals
 
 import com.zeroindex.intake.domain.training.generator.BodyArea
+import com.zeroindex.intake.domain.training.equipment.EquipmentItems
 import com.zeroindex.intake.domain.training.generator.Equipment
 import com.zeroindex.intake.domain.training.generator.EquipmentPreset
 import com.zeroindex.intake.domain.training.generator.Experience
@@ -144,6 +145,14 @@ data class UserProfile(
     val sessionMinutes: Int = 60,
     val equipment: Set<String> = Equipment.FULL_GYM,
     val equipmentPreset: EquipmentPreset = EquipmentPreset.FULL_GYM,
+    /**
+     * The specific items the person has (ids from [EquipmentItems]). Null on a profile saved before the checklist existed:
+     * [effectiveEquipmentItems] then works them out from [equipment] and [equipmentPreset]. [equipment] (the old five kinds)
+     * is kept in step with the items, because other screens still read it.
+     */
+    val equipmentItems: Set<String>? = null,
+    /** The heaviest dumbbell they can use, in kg. Null when not given. */
+    val dumbbellMaxKg: Double? = null,
     val experience: Experience = Experience.SOME,
     /** Null means "pick one that fits the phase". */
     val trainingGoal: TrainingGoal? = null,
@@ -177,6 +186,21 @@ data class UserProfile(
 
     val isAdvanced: Boolean get() = mode == ProfileMode.ADVANCED
 
+    /** The items to use: the person's list, else the move from the old kinds and preset. */
+    val effectiveEquipmentItems: Set<String>
+        get() = equipmentItems?.let { EquipmentItems.normalize(it) } ?: EquipmentItems.fromLegacy(equipment, equipmentPreset)
+
+    /** A quick pick: fills the item list (and the old kinds) from the preset. CUSTOM keeps what is ticked. */
+    fun withEquipmentPreset(preset: EquipmentPreset): UserProfile =
+        if (preset == EquipmentPreset.CUSTOM) copy(equipmentPreset = preset, equipmentItems = effectiveEquipmentItems)
+        else withEquipmentItems(EquipmentItems.presetItems(preset))
+
+    /** Ticks exactly [items]; the preset chip follows (a list that matches a quick pick selects it). */
+    fun withEquipmentItems(items: Set<String>): UserProfile {
+        val clean = EquipmentItems.normalize(items)
+        return copy(equipmentItems = clean, equipment = EquipmentItems.kindsOf(clean), equipmentPreset = EquipmentItems.presetFor(clean))
+    }
+
     /** The training goal to use: the person's choice, else one that fits the phase. */
     val effectiveTrainingGoal: TrainingGoal get() = trainingGoal ?: GoalDefaults.trainingGoalFor(phase)
 
@@ -202,6 +226,7 @@ data class UserProfile(
         daysPerWeek = effectiveTrainingDays,
         sessionMinutes = sessionMinutes,
         equipment = equipment,
+        equipmentItems = effectiveEquipmentItems,
         focusMuscles = focusMuscles.filter { it in Muscles.PROGRAMMED }.toSet(),
         avoid = avoidAreas,
         hiddenExerciseIds = hiddenExerciseIds,

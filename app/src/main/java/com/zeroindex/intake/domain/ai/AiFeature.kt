@@ -45,6 +45,12 @@ enum class AiFeature(
         profileOverride = TokenProfile(inputTokens = 6_700, outputTokens = 1_500),
     ),
 
+    VIDEO_TO_WORKOUT(
+        "Video to workout", AiTask.DAILY_INSIGHT, 0.05,
+        // Title, chapters and a trimmed description in; a list of exercises out. Rides the daily-insight text model.
+        profileOverride = TokenProfile(inputTokens = 2_500, outputTokens = 800),
+    ),
+
     /** The in-app benchmark: the person's own spend, counted in the meter but not in the estimate. */
     BENCHMARK("Benchmark", null, 0.0),
     ;
@@ -69,7 +75,7 @@ enum class AiFeature(
     val timeout: AiTimeout
         get() = when (this) {
             PHOTO_ESTIMATE, RECIPE_HUNTER, PLAN_B, MENU_IMPORT -> AiTimeout.LONG
-            RECIPE_TRY_AI, BENCHMARK -> AiTimeout.MEDIUM
+            RECIPE_TRY_AI, VIDEO_TO_WORKOUT, BENCHMARK -> AiTimeout.MEDIUM
             DAILY_INSIGHT, COACH_REWORD -> AiTimeout.TEXT
         }
 

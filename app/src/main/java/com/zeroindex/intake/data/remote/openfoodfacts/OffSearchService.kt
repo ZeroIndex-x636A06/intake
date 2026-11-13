@@ -27,9 +27,19 @@ interface OffSearchService {
 
     companion object {
         const val BASE_URL = "https://search.openfoodfacts.org/"
-        const val PAGE_SIZE = 20
+        /** More than a screenful, because the language rule and the food / drink split both leave rows out. */
+        const val PAGE_SIZE = 40
+
+        /**
+         * `traces_tags` and the ingredient text are asked for so the allergen engine sees everything a hit carries.
+         * (The search index returned no ingredient text when this was written; the barcode lookup does.)
+         */
         const val FIELDS =
-            "code,product_name,brands,quantity,serving_size,serving_quantity,allergens_tags,nutriments"
+            "code,product_name,brands,quantity,serving_size,serving_quantity,allergens_tags,traces_tags," +
+                "ingredients_text,nutriments,categories_tags"
+
+        /** Added to the query text for the Drinks search: only products Open Food Facts files under beverages. */
+        const val BEVERAGES_FILTER = "categories_tags:\"en:beverages\""
     }
 }
 
@@ -51,13 +61,20 @@ data class OffSearchHit(
     @SerialName("serving_quantity") val servingQuantity: Double? = null,
     @SerialName("allergens_tags") val allergensTags: List<String>? = null,
     val nutriments: OffNutriments? = null,
-    /** The product's main language as tagged by contributors; unreliable, so the name's script decides. */
+    /** The product's main language as tagged by contributors (`lc` is the same thing under its older name). */
     val lang: String? = null,
+    val lc: String? = null,
+    @SerialName("traces_tags") val tracesTags: List<String>? = null,
+    @SerialName("ingredients_text") val ingredientsText: String? = null,
     /** `product_name_<code>` for each language asked for, keyed by code: `{"en": "Milk", "fr": "Lait"}`. */
     val names: Map<String, String> = emptyMap(),
     @SerialName("image_front_small_url") val imageFrontSmallUrl: String? = null,
     @SerialName("image_front_thumb_url") val imageFrontThumbUrl: String? = null,
+    @SerialName("categories_tags") val categoriesTags: List<String>? = null,
 ) {
+    /** The language the plain `product_name` is in. */
+    val mainLanguage: String? get() = lang?.takeIf { it.isNotBlank() } ?: lc
+
     /** The first brand, whichever shape [brands] arrived in. */
     val firstBrand: String?
         get() = when (val b = brands) {

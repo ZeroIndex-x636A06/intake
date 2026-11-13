@@ -48,4 +48,37 @@ data class WorkoutSummary(
     val dayId: String?,
     val exerciseCount: Int,
     val updatedAt: Long,
+    /** The YouTube video this workout was made from, if any. */
+    val videoId: String? = null,
 )
+
+/** One logged set with its exercise's name and muscles, for the weekly volume and the post-workout summary. */
+data class SetWithExercise(
+    val exerciseId: String,
+    val exerciseName: String,
+    val primaryMuscle: String,
+    val secondaryMuscles: String,
+    val weightKg: Double,
+    val reps: Int,
+    val completedAt: Long,
+    val isWarmup: Boolean,
+)
+
+/** A program day's name and its program's, for titling a session in the Training log. Soft-deleted rows are included on purpose. */
+data class DayLabel(val dayId: String, val dayName: String, val programName: String, val standalone: Boolean)
+
+/** One finished session with its totals, for the recent sessions list on Train. */
+data class SessionStat(
+    val sessionId: String,
+    val startedAt: Long,
+    val finishedAt: Long?,
+    val dayName: String?,
+    val volumeKg: Double,
+    val workingSets: Int,
+)
+
+/** A drink logged before: which drink, the size (millilitres) it was last logged at, and when. */
+data class RecentDrinkLog(val foodId: String, val ml: Double, val at: Long)
+
+/** A logged row with no food behind it (a recipe serving, a quick add, a template): its name and the latest time. */
+data class RecentPrepared(val name: String, val at: Long)
