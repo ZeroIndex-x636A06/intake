@@ -3,6 +3,25 @@
 Read this first when picking the work back up. Latest work: branch
 `claude/optimistic-noether-fullk5` (not yet merged into `claude/app-build-k2ag1d`).
 
+## Round 5, Nutrition: per-meal screen, day switcher, template lookup (FEEDBACK-R5 items 9 to 11; worktree branch, not pushed)
+
+No schema change. Not run on an emulator or a phone: only compiled, unit-tested and linted.
+- **Per-meal screen** (`ui/screens/nutrition/NutritionMealScreen.kt` and `NutritionMealViewModel.kt`, route `Route.NutritionMeal(slot, epochDay)` in the Nutrition graph).
+  Header with a meal dropdown, the day and an overflow (Clear meal, Save as meal template); a time pill for new entries (default now on today, the meal's usual
+  time on a past day); totals card (kcal, protein/carbs/fat, `MacroSplitBar`; a macro no entry listed reads "not listed", a partly listed one "at least N g",
+  `domain/nutrition/MealSummary.kt`); Foods card with − and + (portion steps 5/10/25 g, `PortionStep`), tap for the existing edit sheet, an info button to food
+  detail, swipe or long-press to remove (soft delete, Undo through `FoodLogRepository.restore`), and the local allergen chip. Buttons: Add food (opens Log food
+  for this meal and time, back returns here), Quick add calories (kcal only, protein/carbs/fat stored as not listed), Save as meal template, Done.
+  The meal row on the Nutrition tab opens it; the row's "+" still goes straight to Log food. Today's meal cards were not changed.
+  Items without a gram amount (quick adds, recipe servings) have no − and +; tap them to edit. Items sit in one `forEach` inside the Foods card (a meal is short).
+- **Day switcher** (`NutritionDayBar.kt`, `NutritionHomeViewModel`, `domain/nutrition/NutritionDay.kt`): ‹ date › with a date picker and "Today". The ring, macros, nutrients,
+  meals list, water and planned meal follow the day (the planned meal is the plan week that day falls in, `MealPlanRepository.observePositionOn`; `logMeal` got an `at`
+  argument). Logging from a past day is stamped on that day (meal's usual time or the entered time). **Future days are blocked**: next stops at today, the picker greys
+  them out, and anything asking for one is clamped to today with a short message. Day boundary is local midnight; stored values stay UTC epoch millis.
+- **Template editor lookup**: empty search shows "Recent" (last-logged foods and recipes, latest first, max 8) then "All saved" (every food and recipe, alphabetical);
+  no recents shows only "All saved"; typing filters both, then the offline USDA hits as before. Tests: `TemplatePickerTest`, `NutritionDayTest`, `MealSummaryTest`.
+- **Unverified**: how any of this looks and feels on a device (swipe, long-press, pickers), the logged-from-meal-screen round trip through Log food, a day left open past midnight.
+
 ## Round 4 merge and emulator smoke (branch `claude/optimistic-noether-fullk5`, schema v5)
 
 Six `--no-ff` merges on this branch: navigation transitions, Progress charts, drinks (schema v5, `MIGRATION_4_5`), recipes in Log food / Cook / meal templates, Recipe Hunter substitutions, and nearby menus (last; only `RESUME.md` conflicted, both sides kept). Verified at the last merge: `:app:compileDebugKotlin :app:testDebugUnitTest :app:lintDebug :wearprotocol:test :wear:lintDebug` all pass (app 1908 tests, 3 skipped, 0 failed; wearprotocol 14; app lint 0 errors, wear lint 0 errors).

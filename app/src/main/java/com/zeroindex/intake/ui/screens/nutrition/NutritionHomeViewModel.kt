@@ -19,6 +19,7 @@ import com.zeroindex.intake.domain.nutrition.DayNutrition
 import com.zeroindex.intake.domain.nutrition.DashboardModel
 import com.zeroindex.intake.domain.nutrition.Macros
 import com.zeroindex.intake.domain.nutrition.NutritionDashboard
+import com.zeroindex.intake.domain.nutrition.NutritionDay
 import com.zeroindex.intake.domain.nutrition.Unlisted
 import com.zeroindex.intake.domain.settings.SodiumDisplay
 import com.zeroindex.intake.domain.time.Clock
@@ -28,7 +29,10 @@ import com.zeroindex.intake.ui.screens.today.NextMealUi
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -83,37 +87,61 @@ internal fun nutritionSlotRows(rows: List<FoodLogEntity>): List<SlotRowUi> = Mea
 data class NutritionHomeState(
     /** False until the first read of the day finishes, so the card does not flash an empty day. */
     val ready: Boolean = false,
+    /** The day every card shows, and today (so the screen can say "Today" and stop the next arrow). */
+    val date: LocalDate = LocalDate.ofEpochDay(0),
+    val today: LocalDate = LocalDate.ofEpochDay(0),
     val dashboard: DashboardModel? = null,
     val hydration: HydrationDay? = null,
     val settings: AppSettings = AppSettings(),
     val next: NextMealUi? = null,
-    /** Breakfast, lunch, dinner and snack, in that order, from today's log. */
+    /** Breakfast, lunch, dinner and snack, in that order, from the chosen day's log. */
     val slots: List<SlotRowUi> = MealSlot.MEALS.map { SlotRowUi(it) },
     val sections: SectionsUi = SectionsUi(),
-    /** Today's drinks in a phrase: "water, coffee, tea". */
+    /** The chosen day's drinks in a phrase: "water, coffee, tea". */
     val drinkNames: String = "",
-)
+) {
+    val isToday: Boolean get() = date == today
+    val canGoNext: Boolean get() = NutritionDay.canGoNext(date, today)
+    val dateLabel: String get() = NutritionDay.label(date, today)
+}
 
 /**
- * The Nutrition tab's data (IA 5a, Option A): today's whole nutrition, the planned meal with Log it, the hydration line and
- * the counts behind the sections. Today only; the Today tab has the day arrows.
+ * The Nutrition tab's data (IA 5a, Option A): one day's whole nutrition (today until the day switcher moves it), the planned
+ * meal with Log it, the hydration line and the counts behind the sections.
+ *
+ * Every card follows [selectedDate]. The date maths (steps, the picker, the day boundary, the logging time) is
+ * [NutritionDay], tested on its own. Future days are blocked: see its doc.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class NutritionHomeViewModel @Inject constructor(
-    foodLog: FoodLogRepository,
-    targets: TargetRepository,
-    hydration: HydrationRepository,
+    private val foodLog: FoodLogRepository,
+    private val targets: TargetRepository,
+    private val hydration: HydrationRepository,
     private val plans: MealPlanRepository,
     templates: MealTemplateRepository,
-    settingsRepository: SettingsRepository,
+    private val settingsRepository: SettingsRepository,
     private val messages: AppMessages,
     private val clock: Clock,
 ) : ViewModel() {
 
-    private val today = clock.today()
+    private val selectedDate = MutableStateFlow(clock.today())
 
-    private val dayEntries = foodLog.observeDay(today).map { rows ->
+    /** Moves the tab to [date], never past today. Blocked future days are explained once, in a short message. */
+    fun showDate(date: LocalDate) {
+        val today = clock.today()
+        if (NutritionDay.isFuture(date, today)) messages.post(AppMessage(NutritionDay.FUTURE_NOTE))
+        selectedDate.value = NutritionDay.clamp(date, today)
+    }
+
+    fun showPreviousDay() { selectedDate.value = NutritionDay.shift(selectedDate.value, -1, clock.today()) }
+    fun showNextDay() { selectedDate.value = NutritionDay.shift(selectedDate.value, 1, clock.today()) }
+    fun showToday() { selectedDate.value = clock.today() }
+
+    /** The date picker's answer (the UTC midnight of the chosen calendar date). */
+    fun showPickerDate(utcMillis: Long) { showDate(NutritionDay.fromPickerMillis(utcMillis, clock.today())) }
+
+    private val dayEntries = selectedDate.flatMapLatest { foodLog.observeDay(it) }.map { rows ->
         rows.map { r ->
             DayEntry(
                 Macros(r.kcal, r.protein, r.carbs, r.fat, r.fiber, r.sugar, r.sodium, r.saturatedFat),
@@ -122,15 +150,23 @@ class NutritionHomeViewModel @Inject constructor(
         }
     }
 
-    private val slotRows = foodLog.observeDay(today).map { nutritionSlotRows(it) }
+    private val slotRows = selectedDate.flatMapLatest { foodLog.observeDay(it) }.map { nutritionSlotRows(it) }
 
-    private val dashboard: Flow<DashboardModel?> = combine(dayEntries, targets.observeTargetFor(today), settingsRepository.settings) { entries, target, s ->
+    private val dashboard: Flow<DashboardModel?> = combine(
+        dayEntries,
+        selectedDate.flatMapLatest { targets.observeTargetFor(it) },
+        settingsRepository.settings,
+    ) { entries, target, s ->
         NutritionDashboard.build(DayNutrition.aggregate(entries), target, saltInsteadOfSodium = s.showSodium == SodiumDisplay.SALT)
     }
 
-    private val next = plans.observeCurrentWeekNumber().flatMapLatest { plans.observeWeekContent(it) }.map { week ->
-        week?.main?.let { NextMealUi(it, TemplateLink.slotFor(java.time.LocalTime.now(clock.zone()))) }
-    }
+    /** The planned meal for the chosen day: the plan week that day falls in. */
+    private val next = selectedDate
+        .flatMapLatest { plans.observePositionOn(it) }
+        .map { it?.week ?: 1 }
+        .distinctUntilChanged()
+        .flatMapLatest { plans.observeWeekContent(it) }
+        .map { week -> week?.main?.let { NextMealUi(it, TemplateLink.slotFor(java.time.LocalTime.now(clock.zone()))) } }
 
     private val sections = combine(
         plans.observeActivePlan(),
@@ -150,11 +186,14 @@ class NutritionHomeViewModel @Inject constructor(
         )
     }
 
-    private val partial = combine(dashboard, hydration.observeDay(today), settingsRepository.settings) { d, h, s -> Triple(d, h, s) }
+    private val partial = combine(dashboard, selectedDate.flatMapLatest { hydration.observeDay(it) }, settingsRepository.settings) { d, h, s -> Triple(d, h, s) }
 
-    val state: StateFlow<NutritionHomeState> = combine(partial, next, sections, slotRows) { (d, h, s), n, sec, slots ->
+    val state: StateFlow<NutritionHomeState> = combine(combine(partial, selectedDate) { p, date -> p to date }, next, sections, slotRows) { (pd, date), n, sec, slots ->
+        val (d, h, s) = pd
         NutritionHomeState(
             ready = true,
+            date = date,
+            today = clock.today(),
             dashboard = d,
             hydration = h,
             settings = s,
@@ -165,14 +204,15 @@ class NutritionHomeViewModel @Inject constructor(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NutritionHomeState())
 
-    /** "Log it": one tap logs the planned meal. An allergen match blocks it, exactly as on Today and the Plan screen. */
+    /** "Log it": one tap logs the planned meal onto the chosen day. An allergen match blocks it, exactly as on Today and the Plan screen. */
     fun logNextMeal(next: NextMealUi) {
         viewModelScope.launch {
-            when (val r = plans.logMeal(next.content, next.slot)) {
+            val at = loggingMillis(next.slot)
+            when (val r = plans.logMeal(next.content, next.slot, at = at)) {
                 is MealLogResult.Blocked -> messages.post(AppMessage("Not logged: ${r.terms.joinToString()} matches your allergen profile."))
                 is MealLogResult.Logged -> messages.post(
                     AppMessage(
-                        text = "Logged ${next.content.recipe.name} to ${next.slot.name.lowercase()}",
+                        text = "Logged ${next.content.recipe.name} to ${next.slot.name.lowercase()}" + if (selectedDate.value == clock.today()) "" else " on ${NutritionDay.label(selectedDate.value, clock.today())}",
                         actionLabel = "Undo",
                         onAction = { plans.undoLog(r.log) },
                     ),
@@ -183,4 +223,10 @@ class NutritionHomeViewModel @Inject constructor(
 
     /** The meal slot a "Log food" starts in: by the clock, since the tab has no slot of its own. */
     fun currentSlot(): MealSlot = TemplateLink.slotFor(java.time.LocalTime.now(clock.zone()))
+
+    /** When an entry logged from this tab is stamped: now for today, otherwise the meal's usual time on the chosen day. */
+    fun loggingMillis(slot: MealSlot): Long = NutritionDay.loggingMillis(selectedDate.value, slot, clock.nowMillis(), clock.zone())
+
+    /** The chosen day as an epoch day, for routes that carry it. */
+    fun selectedEpochDay(): Long = selectedDate.value.toEpochDay()
 }

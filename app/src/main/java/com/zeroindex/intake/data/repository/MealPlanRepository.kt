@@ -141,8 +141,14 @@ class MealPlanRepository @Inject constructor(
             plan?.let { positionOf(it, weeks.maxOfOrNull { w -> w.weekNumber } ?: 1) }
         }
 
-    private fun positionOf(plan: MealPlanEntity, length: Int): PlanPosition =
-        PlanSchedule.position(plan.startDate, today(), length, plan.loopMode, plan.loopCount)
+    /** Where [date] falls in the active plan (the Nutrition tab's day switcher), or null with no plan. */
+    fun observePositionOn(date: java.time.LocalDate): Flow<PlanPosition?> =
+        combine(planDao.observeActivePlan(), observeWeeks()) { plan, weeks ->
+            plan?.let { positionOf(it, weeks.maxOfOrNull { w -> w.weekNumber } ?: 1, date.toEpochDay()) }
+        }
+
+    private fun positionOf(plan: MealPlanEntity, length: Int, day: Long = today()): PlanPosition =
+        PlanSchedule.position(plan.startDate, day, length, plan.loopMode, plan.loopCount)
 
     fun observeCurrentWeekNumber(): Flow<Int> = observePosition().map { it?.week ?: 1 }
 
@@ -717,7 +723,7 @@ class MealPlanRepository @Inject constructor(
      * confirmed when the macros were incomplete or typed in by hand. A recipe that now matches
      * the allergen profile is not logged, unless the person chose it anyway ([allergenOverride], a user action).
      */
-    suspend fun logMeal(content: RecipeContent, slot: MealSlot, override: Macros? = null, allergenOverride: Boolean = false): MealLogResult {
+    suspend fun logMeal(content: RecipeContent, slot: MealSlot, override: Macros? = null, allergenOverride: Boolean = false, at: Long = clock.nowMillis()): MealLogResult {
         val live = scanner().scan(content.recipe.name, content.ingredientLines.joinToString("\n"))
         val status = PlanImportBuilder.statusOf(live)
         if (status == AllergenStatus.CONTAINS && !allergenOverride) {
@@ -726,7 +732,7 @@ class MealPlanRepository @Inject constructor(
         val macros = override ?: content.macros.perServing
         val log = foodLog.logPrepared(
             name = content.recipe.name, macros = macros, slot = slot, servingLabel = "1 serving",
-            at = clock.nowMillis(),
+            at = at,
         )
         return MealLogResult.Logged(log, if (override == null) content.macros else null, status)
     }

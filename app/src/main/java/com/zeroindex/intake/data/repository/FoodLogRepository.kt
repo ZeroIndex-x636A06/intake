@@ -229,6 +229,12 @@ class FoodLogRepository @Inject constructor(
         hydrationDao.softDeleteByFoodLog(id, now)
     }
 
+    /** Undo of [softDelete]: brings the rows back as they were. Nothing is ever hard-deleted. */
+    suspend fun restore(logs: List<FoodLogEntity>) {
+        val now = clock.nowMillis()
+        logs.forEach { foodLogDao.upsert(it.copy(deletedAt = null, updatedAt = now)) }
+    }
+
     private fun newLog(
         foodId: String?,
         name: String,

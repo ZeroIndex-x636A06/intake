@@ -48,6 +48,11 @@ sealed interface Route {
     @Serializable data class MealTemplateEditor(val templateId: String? = null) : Route
     /** A shopping list built from chosen recipes and meal templates. Needs no meal plan. */
     @Serializable data object ShoppingList : Route
+    /**
+     * One meal of one day (opened from a meal row on the Nutrition tab): its totals, what is logged in it, and the ways to add
+     * more. [slot] is a `MealSlot` name, [epochDay] the local calendar day (`LocalDate.toEpochDay`, never later than today).
+     */
+    @Serializable data class NutritionMeal(val slot: String, val epochDay: Long) : Route
     /** The pushed list behind the Nutrition tab's "More" row: Plan, Recipes, Meals, Eating out and Drinks. */
     @Serializable data object NutritionMore : Route
     /**

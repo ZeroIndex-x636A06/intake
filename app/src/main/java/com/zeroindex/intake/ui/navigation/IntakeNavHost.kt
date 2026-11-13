@@ -36,6 +36,7 @@ import com.zeroindex.intake.ui.addfood.LogFoodScreen
 import com.zeroindex.intake.ui.screens.hub.EatingOutScreen
 import com.zeroindex.intake.ui.screens.hub.defaultMealSlot
 import com.zeroindex.intake.ui.screens.nutrition.NutritionActions
+import com.zeroindex.intake.ui.screens.nutrition.NutritionMealScreen
 import com.zeroindex.intake.ui.screens.nutrition.NutritionMoreScreen
 import com.zeroindex.intake.ui.screens.nutrition.NutritionHomeScreen
 import com.zeroindex.intake.ui.screens.hub.RecipesScreen
@@ -184,7 +185,8 @@ fun IntakeNavHost(
         navigation<TabGraph.Nutrition>(startDestination = Route.Nutrition) {
             val nutritionActions = NutritionActions(
                 onOpenAllergens = { navController.navigate(Route.Allergens) },
-                onLogFood = { mode, slot -> navController.navigate(Route.LogFood(slot = slot, mode = mode)) },
+                onLogFood = { mode, slot, at -> navController.navigate(Route.LogFood(slot = slot, atMillis = at, mode = mode)) },
+                onOpenMeal = { slot, epochDay -> navController.navigate(Route.NutritionMeal(slot, epochDay)) },
                 onSwap = { slot -> navController.navigate(Route.SwapSheet(slot)) },
                 onOpenMealPlans = { navController.navigate(Route.MealPlans) },
                 onOpenRecipes = { navController.navigate(Route.Recipes) },
@@ -304,6 +306,16 @@ fun IntakeNavHost(
             }
             composable<Route.ShoppingList> {
                 PushedScreen("Shopping list", back) { pad -> ShoppingListScreen(contentPadding = pad) }
+            }
+            composable<Route.NutritionMeal> {
+                PushedScreen("Meal", back) { pad ->
+                    NutritionMealScreen(
+                        contentPadding = pad,
+                        onDone = back,
+                        onAddFood = { slot, at -> navController.navigate(Route.LogFood(slot = slot, atMillis = at)) },
+                        onOpenFood = { id, slot, at -> navController.navigate(Route.FoodDetail(id, slot, at)) },
+                    )
+                }
             }
             // Add new Nutrition routes above this line.
         }
