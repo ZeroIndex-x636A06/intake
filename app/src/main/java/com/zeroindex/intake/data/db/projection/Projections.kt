@@ -64,6 +64,9 @@ data class SetWithExercise(
     val isWarmup: Boolean,
 )
 
+/** A program day's name and its program's, for titling a session in the Training log. Soft-deleted rows are included on purpose. */
+data class DayLabel(val dayId: String, val dayName: String, val programName: String, val standalone: Boolean)
+
 /** One finished session with its totals, for the recent sessions list on Train. */
 data class SessionStat(
     val sessionId: String,

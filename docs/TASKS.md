@@ -214,3 +214,9 @@ screens are in RESUME.md. Still needs a phone with an OpenRouter key: Recipe Hun
 - 12 "Could be adapted" (substitution engine, section, Save adapted copy), 13 "Saved" chip by URL, 15 recipe images. Rules in docs/ALLERGENS.md. Unit-tested only.
 
 Nutrition meals card without Drinks, and a location-denied note with an app-settings button on the nearby card: done on `claude/optimistic-noether-fullk5`, unit-tested, not seen on a device.
+
+## Round 5 items 15 to 17: done on branch `worktree-agent-a96ef628ee9862072` (not pushed, not seen on a device)
+- 15 Body diagram: original anatomical front/back figure with 20 muscle regions, weighted per-muscle week volume, tap a muscle for its contributing exercises. Preview `design/mockup-r5/muscle-map.png`.
+- 16 Equipment: 40 specific items in four groups, quick picks, requirements per exercise used by the generator, swaps and the library, legacy migration, Settings checklist, welcome-flow Equipment step with "Advanced: pick each item", wizard step. No schema change (JSON set in the profile).
+- 17 Training log lists all sessions by week with PR counts; session detail shows every set, notes and Repeat; exercise detail has "Your history".
+- Unit-tested only; not seen on an emulator or a phone. See `docs/WORKOUTS.md`.

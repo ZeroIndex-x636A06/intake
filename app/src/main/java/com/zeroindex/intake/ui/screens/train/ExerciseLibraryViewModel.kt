@@ -70,8 +70,9 @@ class ExerciseLibraryViewModel @Inject constructor(
         val e = filters[2] as String?
         val mine = filters[4] as Boolean
         val owned = settings.profile.equipment
+        val ownedItems = settings.profile.effectiveEquipmentItems
         ExerciseBrowseState(
-            shown = ExerciseFilter.apply(list, q, m, e).filter { !mine || SwapRanking.owns(it.equipment, owned) },
+            shown = ExerciseFilter.apply(list, q, m, e).filter { !mine || SwapRanking.owns(it.name, it.equipment, owned, ownedItems) },
             myEquipment = mine,
             total = visible.size,
             query = q,

@@ -9,6 +9,7 @@ import com.zeroindex.intake.data.repository.TrainingRepository
 import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.settings.WeeklySets
 import com.zeroindex.intake.domain.time.Clock
+import com.zeroindex.intake.domain.training.MuscleVolume
 import com.zeroindex.intake.domain.training.RegionVolume
 import com.zeroindex.intake.domain.training.ScheduleDay
 import com.zeroindex.intake.domain.training.SessionEstimate
@@ -70,6 +71,7 @@ data class TrainHomeState(
     val today: TodayCard = TodayCard.Loading,
     val running: RunningWorkout? = null,
     val volume: List<RegionVolume> = emptyList(),
+    val muscles: List<MuscleVolume> = emptyList(),
     val hint: String? = null,
     val weekSessions: Int = 0,
     val weekVolumeKg: Double = 0.0,
@@ -154,10 +156,10 @@ class TrainHomeViewModel @Inject constructor(
         s?.let { RunningWorkout(it.id, it.programDayId?.let { d -> repository.dayName(d) } ?: "Workout", it.startedAt) }
     }
 
-    private val volume: Flow<Pair<List<RegionVolume>, WeightUnit>> = settingsRepository.settings.flatMapLatest { app ->
+    private val volume: Flow<Triple<List<RegionVolume>, List<MuscleVolume>, WeightUnit>> = settingsRepository.settings.flatMapLatest { app ->
         val range = WeeklyVolume.weekRange(clock.nowMillis(), clock.zone())
         val targets = WeeklySets.parse(app.weeklySetsCsv).mapKeys { (k, _) -> BodyRegion.valueOf(k.name) }
-        repository.observeVolumeSets(range).mapLatest { sets -> WeeklyVolume.compute(sets, targets, range) to app.weightUnit }
+        repository.observeVolumeSets(range).mapLatest { sets -> Triple(WeeklyVolume.compute(sets, targets, range), WeeklyVolume.computeMuscles(sets, targets, range), app.weightUnit) }
     }
 
     private val repeatLast: Flow<RepeatLast?> = repository.observeSessions().mapLatest { sessions ->
@@ -172,13 +174,14 @@ class TrainHomeViewModel @Inject constructor(
         volume,
         repository.observeSessionStats(40),
         combine(repeatLast, repository.observeWorkouts(), busy) { r, w, b -> Triple(r, w, b) },
-    ) { (program, card), run, (vol, unit), stats, (repeat, workouts, isBusy) ->
+    ) { (program, card), run, (vol, fine, unit), stats, (repeat, workouts, isBusy) ->
         val week = WeeklyVolume.weekRange(clock.nowMillis(), clock.zone())
         val thisWeek = stats.filter { it.startedAt in week }
         TrainHomeState(
             today = card,
             running = run,
             volume = vol,
+            muscles = fine,
             hint = WeeklyVolume.hint(vol),
             weekSessions = thisWeek.size,
             weekVolumeKg = thisWeek.sumOf { it.volumeKg },

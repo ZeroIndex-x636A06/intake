@@ -97,8 +97,8 @@ Rest timer, bar and plates, equipment and volume targets.
 | 39 | Vibrate when rest ends | `restVibrate` (SettingsRepository rest_vibrate) | Training | switch | Settings | Training |
 | 40 | Bar weight | `barWeight` (SettingsRepository bar_weight_kg) | Training | number field | Settings advanced | Training |
 | 41 | Plates available per side | `plates` (SettingsRepository available_plates_kg) | Training | chip set | Settings advanced | Training |
-| 42 | My equipment: preset | `equipmentPreset` (UserProfile.equipmentPreset) | Training | chip set | Profile "Training you can do" | Training |
-| 43 | My equipment: items | `equipment` (UserProfile.equipment) | Training | chip set | Profile "Training you can do" | Training |
+| 42 | My equipment: preset | `equipmentPreset` (UserProfile.equipmentPreset; quick picks Full gym, Home dumbbells, Bodyweight only fill the item list) | Training | chip set | Profile "Training you can do" | Training |
+| 43 | My equipment: items | `equipment` (UserProfile.equipmentItems, a JSON set of item ids in the existing profile value, plus UserProfile.dumbbellMaxKg; UserProfile.equipment still holds the five old kinds, kept in step) | Training | grouped checklist (40 items in four groups, heaviest dumbbell) | Profile "Training you can do" | Training |
 | 44 | Show jump tests in Progress **(new)** | `jumpTests` (new) | Training | switch | none (v4 default) | Training |
 | 45 | Weekly sets target per muscle region **(new)** | `weeklySets` (new) | Training | number field, Advanced | none (planned) | Training |
 

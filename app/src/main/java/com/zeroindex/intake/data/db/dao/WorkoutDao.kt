@@ -5,6 +5,7 @@ import androidx.room.Query
 import androidx.room.Upsert
 import com.zeroindex.intake.data.db.entity.SetLogEntity
 import com.zeroindex.intake.data.db.entity.WorkoutSessionEntity
+import com.zeroindex.intake.data.db.projection.DayLabel
 import com.zeroindex.intake.data.db.projection.MuscleSetCount
 import com.zeroindex.intake.data.db.projection.SessionStat
 import com.zeroindex.intake.data.db.projection.SetPoint
@@ -85,6 +86,18 @@ interface WorkoutDao {
         """,
     )
     fun observeSetPoints(exerciseId: String): Flow<List<SetPoint>>
+
+    /** Every non-deleted set, for the Training log (queries only; no schema change). */
+    @Query("SELECT * FROM set_log WHERE deletedAt IS NULL ORDER BY completedAt")
+    fun observeAllSets(): Flow<List<SetLogEntity>>
+
+    @Query(
+        """
+        SELECT d.id AS dayId, d.name AS dayName, p.name AS programName, p.isStandalone AS standalone
+        FROM program_day d JOIN program p ON p.id = d.programId
+        """,
+    )
+    fun observeDayLabels(): Flow<List<DayLabel>>
 
     /** Every non-deleted set for an exercise, newest first. */
     @Query("SELECT * FROM set_log WHERE exerciseId = :exerciseId AND deletedAt IS NULL ORDER BY completedAt DESC")

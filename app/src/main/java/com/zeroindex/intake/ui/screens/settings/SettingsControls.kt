@@ -53,14 +53,14 @@ import com.zeroindex.intake.domain.settings.WeeklySets
 import com.zeroindex.intake.domain.settings.ControlKind
 import com.zeroindex.intake.domain.food.OffLanguage
 import com.zeroindex.intake.domain.settings.SettingSpec
-import com.zeroindex.intake.domain.training.generator.Equipment
-import com.zeroindex.intake.domain.training.generator.EquipmentPreset
 import com.zeroindex.intake.domain.units.LengthUnit
 import com.zeroindex.intake.domain.units.PortionUnit
 import com.zeroindex.intake.domain.units.UnitConverter
 import com.zeroindex.intake.domain.units.VolumeUnit
 import com.zeroindex.intake.domain.units.WeightUnit
 import com.zeroindex.intake.ui.components.ChoiceChip
+import com.zeroindex.intake.ui.components.EquipmentChecklist
+import com.zeroindex.intake.ui.components.EquipmentPresetChips
 import com.zeroindex.intake.ui.components.LabeledField
 import com.zeroindex.intake.ui.components.SandNote
 import com.zeroindex.intake.ui.components.Segmented
@@ -209,13 +209,22 @@ fun SettingControl(
                 "equipmentPreset" -> Column(Modifier.fillMaxWidth().padding(top = 6.dp)) {
                     Text("My equipment", style = MaterialTheme.typography.titleSmall)
                     Text(
-                        "One list for the generator, swaps and the exercise library. Pick a preset, then adjust the items.",
+                        "One list for the generator, swaps and the exercise library. Pick a quick pick, then tick or untick any item below.",
                         style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = 6.dp),
                     )
-                    EquipmentPresetRow(s.profile.equipmentPreset) { p -> viewModel.updateProfile { it.copy(equipmentPreset = p, equipment = if (p == EquipmentPreset.CUSTOM) it.equipment else p.kinds) } }
+                    EquipmentPresetChips(s.profile.equipmentPreset, { p -> viewModel.updateProfile { it.withEquipmentPreset(p) } }, Modifier.padding(bottom = 6.dp))
                 }
-                "equipment" -> EquipmentItemsRow(s.profile.equipment) { kinds -> viewModel.updateProfile { it.copy(equipment = kinds, equipmentPreset = EquipmentPreset.CUSTOM) } }
+                "equipment" -> {
+                    EquipmentChecklist(
+                        selected = s.profile.effectiveEquipmentItems,
+                        onChange = { items -> viewModel.updateProfile { it.withEquipmentItems(items) } },
+                        dumbbellMaxKg = s.profile.dumbbellMaxKg,
+                        onDumbbellMax = { kg -> viewModel.updateProfile { it.copy(dumbbellMaxKg = kg) } },
+                        unit = s.weightUnit,
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                }
                 "jumpTests" -> SwitchSetting("Show jump tests in Progress", "Hidden until you switch it on.", s.jumpTests, viewModel::setJumpTests)
                 "weeklySets" -> WeeklySetsRow(s.weeklySetsCsv, viewModel::setWeeklySets)
 
@@ -542,23 +551,6 @@ private fun PlatesRow(csvKg: String, unit: com.zeroindex.intake.domain.units.Wei
             supporting = "The plates on your rack. The plate maths and the smallest step up use them.",
         )
     }
-}
-
-@Composable
-private fun EquipmentPresetRow(selected: EquipmentPreset, onSelect: (EquipmentPreset) -> Unit) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(bottom = 6.dp)) {
-        EquipmentPreset.entries.forEach { p -> ChoiceChip(p.label, p == selected, { onSelect(p) }) }
-    }
-}
-
-@Composable
-private fun EquipmentItemsRow(selected: Set<String>, onChange: (Set<String>) -> Unit) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(bottom = 6.dp)) {
-        Equipment.ALL.forEach { kind ->
-            ChoiceChip(Equipment.label(kind), kind in selected, { onChange(if (kind in selected) selected - kind else selected + kind) })
-        }
-    }
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 }
 
 @Composable

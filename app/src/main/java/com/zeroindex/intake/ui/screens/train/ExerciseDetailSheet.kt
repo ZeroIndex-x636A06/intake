@@ -38,7 +38,15 @@ import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.data.training.ExerciseFilter
 import com.zeroindex.intake.data.training.ExerciseHistory
 import com.zeroindex.intake.data.training.ExerciseHistoryCalc
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.zeroindex.intake.domain.training.ExerciseGuideIndex
+import com.zeroindex.intake.domain.training.OneRepMax
+import com.zeroindex.intake.domain.training.log.ExerciseStats
+import com.zeroindex.intake.domain.training.log.ExerciseStatsBuilder
+import com.zeroindex.intake.domain.training.log.LogSet
+import com.zeroindex.intake.ui.components.ChartPoint
+import com.zeroindex.intake.ui.components.TrendLineChart
 import com.zeroindex.intake.domain.training.generator.Equipment
 import com.zeroindex.intake.domain.training.generator.Muscles
 import com.zeroindex.intake.domain.training.muscles.MuscleMap
@@ -69,6 +77,7 @@ import kotlinx.coroutines.flow.stateIn
 data class ExerciseDetailState(
     val exercise: ExerciseEntity? = null,
     val history: ExerciseHistory = ExerciseHistory(emptyList(), null, null, 0),
+    val stats: ExerciseStats = ExerciseStatsBuilder.build(emptyList()),
     val unit: WeightUnit = WeightUnit.KILOGRAMS,
 )
 
@@ -91,8 +100,11 @@ class ExerciseDetailViewModel @Inject constructor(
                 flow { emit(repository.exerciseAnyState(exerciseId)) },
                 repository.observeExerciseSets(exerciseId)
                     .map { ExerciseHistoryCalc.summarize(it, java.util.TimeZone.getDefault().rawOffset.toLong()) },
+                repository.observeSetsForExercise(exerciseId).map { rows ->
+                    ExerciseStatsBuilder.build(rows.map { LogSet(it.sessionId, it.exerciseId, it.setIndex, it.weightKg, it.reps, it.isWarmup, it.completedAt) })
+                },
                 settings.settings,
-            ) { exercise, history, s -> ExerciseDetailState(exercise, history, s.weightUnit) }
+            ) { exercise, history, stats, s -> ExerciseDetailState(exercise, history, stats, s.weightUnit) }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ExerciseDetailState())
 }
@@ -202,37 +214,7 @@ fun ExerciseDetailSheet(
             }
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Eyebrow("Estimated max")
-                        InfoTip(Glossary.ESTIMATED_MAX)
-                    }
-                    Text(
-                        text = history.bestEstimatedMaxKg?.let { "${weightText(unit.fromKg(it))} ${unit.label}" } ?: "Not enough data yet",
-                        style = MaterialTheme.typography.titleLarge,
-                    )
-                }
-                Column(Modifier.weight(1f)) {
-                    Eyebrow("Sets logged")
-                    Text("${history.totalSets}", style = MaterialTheme.typography.titleLarge)
-                }
-            }
-            Eyebrow("Your history")
-            if (history.days.isEmpty()) {
-                Text("You have not logged this exercise yet.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            } else {
-                history.days.take(8).forEach { day ->
-                    Column {
-                        Text(dateText(day.startedAt), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
-                        Text(
-                            day.sets.joinToString("  ·  ") { "${weightText(unit.fromKg(it.weightKg))} × ${it.reps}" },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
+            YourHistory(state.stats, unit)
 
             if ((onEdit != null && custom && !hidden) || onHideToggle != null) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
@@ -255,6 +237,86 @@ fun ExerciseDetailSheet(
             }
             if (!custom && ExerciseImages.index(context).has(exercise.id)) {
                 Text(ExerciseGuideIndex.CREDIT, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+/** "Your history": the numbers, the estimated max over time, best reps at each weight and the last sessions. */
+@Composable
+private fun YourHistory(stats: ExerciseStats, unit: WeightUnit) {
+    Eyebrow("Your history")
+    if (stats.isEmpty) {
+        Text("No history yet. Log this exercise in a workout and your best sets, estimated max and past sessions show up here.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        return
+    }
+    fun w(kg: Double) = "${weightText(unit.fromKg(kg))} ${unit.label}"
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Eyebrow("Best set")
+                InfoTip(Glossary.ESTIMATED_MAX)
+            }
+            Text(stats.bestSet?.let { "${w(it.weightKg)} × ${it.reps}" } ?: "Reps only", style = MaterialTheme.typography.titleMedium)
+            stats.bestSet?.let { Text("est. max ${w(it.estimatedMaxKg)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        }
+        Column(Modifier.weight(1f)) {
+            Eyebrow("Heaviest")
+            Text(stats.heaviestKg?.let { w(it) } ?: "No weight", style = MaterialTheme.typography.titleMedium)
+        }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.weight(1f)) {
+            Eyebrow("Total volume")
+            Text(w(stats.totalVolumeKg), style = MaterialTheme.typography.titleMedium)
+        }
+        Column(Modifier.weight(1f)) {
+            Eyebrow("Sessions")
+            Text("${stats.sessionCount} · ${stats.totalSets} sets", style = MaterialTheme.typography.titleMedium)
+        }
+    }
+    if (stats.estimatedMaxSeries.isNotEmpty()) {
+        Text("Estimated max over time", style = MaterialTheme.typography.titleSmall)
+        Text(OneRepMax.FORMULA, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        val points = stats.estimatedMaxSeries.map { ChartPoint(it.first.toDouble(), unit.fromKg(it.second)) }
+        TrendLineChart(
+            raw = points,
+            trend = points,
+            description = "Estimated one-rep max over ${points.size} sessions, latest ${weightText(points.last().y)} ${unit.label}.",
+            valueSuffix = unit.label,
+            gapDays = null,
+        )
+    }
+    if (stats.bestRepsAtWeight.isNotEmpty()) {
+        Text("Best reps at each weight", style = MaterialTheme.typography.titleSmall)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            stats.bestRepsAtWeight.take(12).forEach { (kg, reps) ->
+                Text(
+                    "${w(kg)} × $reps",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier
+                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                )
+            }
+        }
+    }
+    Text(
+        "Last ${stats.sessions.size} ${if (stats.sessions.size == 1) "session" else "sessions"}" + if (stats.recordCount > 0) " · ${stats.recordCount} records so far" else "",
+        style = MaterialTheme.typography.titleSmall,
+    )
+    stats.sessions.forEach { session ->
+        Column {
+            Text(dateText(session.at), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
+            var n = 0
+            session.sets.forEachIndexed { i, set ->
+                val label = if (set.isWarmup) "Warm-up" else "Set ${++n}"
+                val record = i in session.records
+                Text(
+                    "$label: ${if (set.weightKg > 0) "${w(set.weightKg)} × ${set.reps}" else "${set.reps} reps"}" + if (record) " (PR)" else "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (record) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
