@@ -3,6 +3,9 @@ package com.zeroindex.intake.ui.screens.videos
 import com.zeroindex.intake.domain.videos.YoutubeIds
 import androidx.compose.foundation.BorderStroke
 import androidx.activity.compose.BackHandler
+import com.zeroindex.intake.data.video.direct.DownloadState
+import com.zeroindex.intake.data.video.direct.DownloadedVideo
+import com.zeroindex.intake.domain.videos.DirectPlayback
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -103,12 +106,14 @@ fun VideosSection(
     modifier: Modifier = Modifier,
     viewModel: VideosViewModel = hiltViewModel(),
 ) {
+    val openVideo: (String) -> Unit = { id -> viewModel.opening(); onOpenVideo(id) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val focus = LocalFocusManager.current
     var cleared by remember { mutableStateOf(false) }
     var showFilters by remember { mutableStateOf(false) }
     var showNote by remember { mutableStateOf(false) }
     var allSaved by rememberSaveable { mutableStateOf(false) }
+    var showDownloads by rememberSaveable { mutableStateOf(false) }
     val listState = rememberLazyListState()
 
     // On first show and every time the page comes back to the front (a key may have been added in Settings).
@@ -127,7 +132,14 @@ fun VideosSection(
             .collect { (last, total) -> if (VideoPaging.nearEnd(last, total)) viewModel.loadMore() }
     }
 
-    BackHandler(enabled = allSaved) { allSaved = false }
+    BackHandler(enabled = allSaved || showDownloads) { allSaved = false; showDownloads = false }
+    val downloads = SavedDownloads(
+        directOn = state.directOn,
+        done = state.downloaded.map { it.videoId }.toSet(),
+        running = state.downloading,
+        onDownload = viewModel::download,
+        onCancel = viewModel::cancelDownload,
+    )
 
     if (showFilters) {
         FiltersSheet(
@@ -157,11 +169,22 @@ fun VideosSection(
         contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        if (showDownloads) {
+            downloadedItems(
+                items = state.downloaded,
+                usedBytes = state.downloadedBytes,
+                onBack = { showDownloads = false },
+                onOpen = openVideo,
+                onDelete = viewModel::deleteDownload,
+            )
+            return@LazyColumn
+        }
         if (allSaved) {
             savedAllItems(
+                downloads = downloads,
                 saved = state.saved,
                 onBack = { allSaved = false },
-                onOpen = onOpenVideo,
+                onOpen = openVideo,
                 onMake = onMakeWorkout,
                 onMoreLikeThis = { v -> allSaved = false; viewModel.moreLikeThis(v) },
                 onRemove = viewModel::unsave,
@@ -191,6 +214,8 @@ fun VideosSection(
                     VideosOverflow(
                         searchesLeft = state.searchesLeft,
                         cleared = cleared,
+                        showDownloads = state.directOn || state.downloaded.isNotEmpty(),
+                        onDownloads = { showDownloads = true },
                         onHow = { showNote = true },
                         onClear = { viewModel.clearCache { cleared = true } },
                     )
@@ -208,9 +233,10 @@ fun VideosSection(
         if (state.saved.isNotEmpty()) {
             item(key = "saved-strip") {
                 SavedStrip(
+                    downloads = downloads,
                     saved = state.saved,
                     onSeeAll = { allSaved = true },
-                    onOpen = onOpenVideo,
+                    onOpen = openVideo,
                     onMake = onMakeWorkout,
                     onMoreLikeThis = viewModel::moreLikeThis,
                     onRemove = viewModel::unsave,
@@ -225,7 +251,7 @@ fun VideosSection(
                     linkBusy = state.linkBusy,
                     linkError = state.linkError,
                     onLink = viewModel::setLink,
-                    onOpenLink = { viewModel.openLink(onOpenVideo) },
+                    onOpenLink = { viewModel.openLink(openVideo) },
                     onOpenKeySettings = onOpenKeySettings,
                 )
             }
@@ -276,7 +302,7 @@ fun VideosSection(
                     }
                 } else {
                     items(results.shown, key = { "r-${it.video.id}" }) { scored ->
-                        VideoRow(scored, onClick = { onOpenVideo(scored.video.id) })
+                        VideoRow(scored, onClick = { openVideo(scored.video.id) })
                     }
                 }
                 item(key = "results-foot") {
@@ -302,19 +328,20 @@ fun VideosSection(
                 }
             }
 
-            else -> recommendedItems(state, viewModel, onOpenVideo)
+            else -> recommendedItems(state, viewModel, openVideo)
         }
     }
 }
 
 /** The overflow menu next to the search box: the quota estimate, how Videos works, and clearing the cache. */
 @Composable
-private fun VideosOverflow(searchesLeft: Int, cleared: Boolean, onHow: () -> Unit, onClear: () -> Unit) {
+private fun VideosOverflow(searchesLeft: Int, cleared: Boolean, showDownloads: Boolean, onDownloads: () -> Unit, onHow: () -> Unit, onClear: () -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More for Videos") }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             DropdownMenuItem(text = { Text("About $searchesLeft searches left today") }, onClick = {}, enabled = false)
+            if (showDownloads) DropdownMenuItem(text = { Text("Downloaded videos") }, onClick = { open = false; onDownloads() })
             DropdownMenuItem(text = { Text("How Videos works") }, onClick = { open = false; onHow() })
             DropdownMenuItem(
                 text = { Text(if (cleared) "Cached video information cleared" else "Clear cached video information") },
@@ -378,6 +405,7 @@ private fun FiltersSheet(
 /** "Saved · N" with "See all", then a compact horizontal row of saved videos. */
 @Composable
 private fun SavedStrip(
+    downloads: SavedDownloads,
     saved: List<VideoMeta>,
     onSeeAll: () -> Unit,
     onOpen: (String) -> Unit,
@@ -406,7 +434,7 @@ private fun SavedStrip(
                         )
                         Box {
                             IconButton(onClick = { menu = true }, modifier = Modifier.size(40.dp)) { Icon(Icons.Filled.MoreVert, contentDescription = "More for ${v.title}") }
-                            SavedMenu(menu, { menu = false }, onOpen = { onOpen(v.id) }, onMake = { onMake(v.id) }, onMoreLikeThis = { onMoreLikeThis(v) }, onRemove = { onRemove(v.id) })
+                            SavedMenu(menu, { menu = false }, downloads, v, onOpen = { onOpen(v.id) }, onMake = { onMake(v.id) }, onMoreLikeThis = { onMoreLikeThis(v) }, onRemove = { onRemove(v.id) })
                         }
                     }
                 }
@@ -422,6 +450,8 @@ private val CARD_WIDTH = 240.dp
 private fun SavedMenu(
     expanded: Boolean,
     onDismiss: () -> Unit,
+    downloads: SavedDownloads,
+    video: VideoMeta,
     onOpen: () -> Unit,
     onMake: () -> Unit,
     onMoreLikeThis: () -> Unit,
@@ -431,12 +461,21 @@ private fun SavedMenu(
         DropdownMenuItem(text = { Text("Open") }, onClick = { onDismiss(); onOpen() })
         DropdownMenuItem(text = { Text("More like this") }, onClick = { onDismiss(); onMoreLikeThis() })
         DropdownMenuItem(text = { Text("Make this a workout") }, onClick = { onDismiss(); onMake() })
+        if (downloads.directOn) {
+            when {
+                downloads.running[video.id] is DownloadState.Running ->
+                    DropdownMenuItem(text = { Text("Cancel download") }, onClick = { onDismiss(); downloads.onCancel(video.id) })
+                video.id in downloads.done -> DropdownMenuItem(text = { Text("Downloaded") }, onClick = {}, enabled = false)
+                else -> DropdownMenuItem(text = { Text("Download to this phone") }, onClick = { onDismiss(); downloads.onDownload(video) })
+            }
+        }
         DropdownMenuItem(text = { Text("Remove from saved") }, onClick = { onDismiss(); onRemove() })
     }
 }
 
 /** The full Saved list ("See all"). */
 private fun androidx.compose.foundation.lazy.LazyListScope.savedAllItems(
+    downloads: SavedDownloads,
     saved: List<VideoMeta>,
     onBack: () -> Unit,
     onOpen: (String) -> Unit,
@@ -462,7 +501,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.savedAllItems(
             ) {
                 Column {
                     saved.forEachIndexed { i, v ->
-                        SavedRow(v, onOpen = { onOpen(v.id) }, onMake = { onMake(v.id) }, onMoreLikeThis = { onMoreLikeThis(v) }, onRemove = { onRemove(v.id) })
+                        SavedRow(v, downloads, onOpen = { onOpen(v.id) }, onMake = { onMake(v.id) }, onMoreLikeThis = { onMoreLikeThis(v) }, onRemove = { onRemove(v.id) })
                         if (i != saved.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
                 }
@@ -596,7 +635,7 @@ private fun VideoCard(v: ScoredVideo, onClick: () -> Unit) {
 }
 
 @Composable
-private fun SavedRow(v: VideoMeta, onOpen: () -> Unit, onMake: () -> Unit, onMoreLikeThis: () -> Unit, onRemove: () -> Unit) {
+private fun SavedRow(v: VideoMeta, downloads: SavedDownloads, onOpen: () -> Unit, onMake: () -> Unit, onMoreLikeThis: () -> Unit, onRemove: () -> Unit) {
     var menu by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
@@ -608,13 +647,18 @@ private fun SavedRow(v: VideoMeta, onOpen: () -> Unit, onMake: () -> Unit, onMor
         }
         Column(Modifier.weight(1f)) {
             Text(v.title, style = MaterialTheme.typography.titleSmall, maxLines = 2, color = MaterialTheme.colorScheme.onSurface)
+            when (val d = downloads.running[v.id]) {
+                is DownloadState.Running -> Text(DirectPlayback.progressText(d.percent), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                is DownloadState.Failed -> Text(d.message, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                null -> if (v.id in downloads.done) Text("Downloaded", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+            }
             TextButton(onClick = onMake, contentPadding = PaddingValues(0.dp), modifier = Modifier.heightIn(min = 48.dp)) {
                 Text("Make this a workout", style = MaterialTheme.typography.titleSmall)
             }
         }
         Column {
             IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More for ${v.title}") }
-            SavedMenu(menu, { menu = false }, onOpen = onOpen, onMake = onMake, onMoreLikeThis = onMoreLikeThis, onRemove = onRemove)
+            SavedMenu(menu, { menu = false }, downloads, v, onOpen = onOpen, onMake = onMake, onMoreLikeThis = onMoreLikeThis, onRemove = onRemove)
         }
     }
 }
@@ -693,6 +737,65 @@ fun KeySteps(modifier: Modifier = Modifier) {
                 }
             }
             section.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        }
+    }
+}
+
+/** What the saved lists need to show and start downloads. Downloads only appear with the opt-in on. */
+private class SavedDownloads(
+    val directOn: Boolean,
+    val done: Set<String>,
+    val running: Map<String, DownloadState>,
+    val onDownload: (VideoMeta) -> Unit,
+    val onCancel: (String) -> Unit,
+)
+
+/** The Downloaded screen: every download with its size, the storage used, and Delete (file and row). Tap to play offline. */
+private fun androidx.compose.foundation.lazy.LazyListScope.downloadedItems(
+    items: List<DownloadedVideo>,
+    usedBytes: Long,
+    onBack: () -> Unit,
+    onOpen: (String) -> Unit,
+    onDelete: (DownloadedVideo) -> Unit,
+) {
+    item(key = "dl-head") {
+        Column {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("Downloaded · ${items.size}", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                TextButton(onClick = onBack, modifier = Modifier.heightIn(min = 48.dp)) { Text("Back") }
+            }
+            Text(
+                "${DirectPlayback.size(usedBytes)} used on this phone. These files are in Intake's private storage, play offline, and are never uploaded or backed up.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+    if (items.isEmpty()) {
+        item(key = "dl-empty") { EmptyState(body = "Nothing downloaded yet. Use Download on a video's page or in the menu of a saved video.") }
+    }
+    items(items, key = { "dl-${it.id}" }) { d ->
+        var confirm by remember { mutableStateOf(false) }
+        Row(
+            Modifier.fillMaxWidth().clickable(role = Role.Button, onClickLabel = "Play ${d.title}") { onOpen(d.videoId) },
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            VideoThumbnail(d.thumbnailUrl ?: YoutubeIds.thumbnailUrl(d.videoId), d.durationSec ?: 0, modifier = Modifier.width(120.dp), corner = 12.dp, showPlay = false)
+            Column(Modifier.weight(1f)) {
+                Text(d.title, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(DirectPlayback.size(d.sizeBytes), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            TextButton(onClick = { confirm = true }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Delete") }
+        }
+        if (confirm) {
+            AlertDialog(
+                onDismissRequest = { confirm = false },
+                title = { Text("Delete this download?") },
+                text = { Text("The file on this phone (${DirectPlayback.size(d.sizeBytes)}) is removed. The video stays saved if you saved it.") },
+                confirmButton = { TextButton(onClick = { confirm = false; onDelete(d) }) { Text("Delete") } },
+                dismissButton = { TextButton(onClick = { confirm = false }) { Text("Keep") } },
+            )
         }
     }
 }

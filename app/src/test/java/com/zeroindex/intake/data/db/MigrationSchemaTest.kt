@@ -236,6 +236,36 @@ class MigrationSchemaTest {
     }
 
     @Test
+    fun migrationFiveToSixKeepsCachedVideosAddsTheirPlayerSizeAndCreatesDownloads() {
+        val v5 = createAt(5)
+        assertThat(entities(5)).doesNotContainKey("downloaded_video")
+        v5.exec(
+            "INSERT INTO video_cache (videoId, title, description, channelTitle, categoryId, durationSec, thumbnailUrl, publishedAt, viewCount, fetchedAt) " +
+                "VALUES ('dQw4w9WgXcQ', 'Back day', '', 'Coach', '17', 62, NULL, '', NULL, 9)",
+        )
+        v5.exec("INSERT INTO saved_video (id, videoId, title, createdAt, updatedAt, deletedAt) VALUES ('s1', 'dQw4w9WgXcQ', 'Back day', 5, 5, NULL)")
+        MIGRATION_5_6_STATEMENTS.forEach { v5.exec(it) }
+        // The cached row is kept, its player size is unknown (so Hide Shorts falls back to the length rule), and saves are untouched.
+        val cached = v5.rows("SELECT title, durationSec, embedWidth, embedHeight FROM video_cache").single()
+        assertThat(cached["title"]).isEqualTo("Back day")
+        assertThat(cached["durationSec"]).isEqualTo(62)
+        assertThat(cached["embedWidth"]).isNull()
+        assertThat(cached["embedHeight"]).isNull()
+        assertThat(v5.rows("SELECT title FROM saved_video").single()["title"]).isEqualTo("Back day")
+        // The downloads table is empty and usable, and a new cached row can carry a player size.
+        assertThat(v5.rows("SELECT COUNT(*) AS n FROM downloaded_video").single()["n"]).isEqualTo(0)
+        v5.exec(
+            "INSERT INTO downloaded_video (id, videoId, title, channelTitle, durationSec, thumbnailUrl, fileName, sizeBytes, createdAt, updatedAt, deletedAt) " +
+                "VALUES ('d1', 'dQw4w9WgXcQ', 'Back day', 'Coach', 62, NULL, 'dQw4w9WgXcQ.mp4', 1048576, 7, 7, NULL)",
+        )
+        assertThat(v5.rows("SELECT sizeBytes FROM downloaded_video").single()["sizeBytes"]).isEqualTo(1048576)
+        v5.exec("UPDATE video_cache SET embedWidth = 360, embedHeight = 640")
+        assertThat(v5.rows("SELECT embedHeight FROM video_cache").single()["embedHeight"]).isEqualTo(640)
+        assertMatches(v5, 6)
+        v5.close()
+    }
+
+    @Test
     fun migrationTwoToThreeCreatesTheAiUsageLogEmptyAndUsable() {
         val v2 = createAt(2)
         assertThat(entities(2)).doesNotContainKey("ai_usage")
@@ -547,7 +577,10 @@ class MigrationSchemaTest {
         // 4 -> 5 adds the saved custom drinks' recipe column.
         statementsFrom(4, c).forEach { c.exec(it) }
         assertMatches(c, 5)
-        assertThat(IntakeDatabase.VERSION).isEqualTo(5)
+        // 5 -> 6 adds the video player size and the downloaded videos table.
+        statementsFrom(5, c).forEach { c.exec(it) }
+        assertMatches(c, 6)
+        assertThat(IntakeDatabase.VERSION).isEqualTo(6)
         c.close()
     }
 

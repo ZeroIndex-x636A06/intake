@@ -68,6 +68,8 @@ object YoutubeJson {
                 thumbnailUrl = thumb,
                 publishedAt = snippet["publishedAt"]?.jsonPrimitive?.contentOrNull.orEmpty(),
                 viewCount = (o["statistics"] as? JsonObject)?.get("viewCount")?.jsonPrimitive?.longOrNull,
+                embedWidth = (o["player"] as? JsonObject)?.get("embedWidth")?.jsonPrimitive?.longOrNull?.toInt(),
+                embedHeight = (o["player"] as? JsonObject)?.get("embedHeight")?.jsonPrimitive?.longOrNull?.toInt(),
             )
         }
     }
@@ -132,12 +134,18 @@ class YoutubeApi @Inject constructor(
         return SearchPage(YoutubeJson.searchIds(body), YoutubeJson.nextPageToken(body))
     }
 
-    /** `videos.list` with snippet, contentDetails and statistics for up to 50 ids. About 1 quota unit. */
+    /**
+     * `videos.list` with snippet, contentDetails, statistics and player for up to 50 ids. About 1 quota unit: the cost of a
+     * list call is per call, not per part, so `player` adds nothing. `maxWidth` and `maxHeight` make `player.embedWidth` and
+     * `embedHeight` follow the video's aspect ratio, which is how Hide Shorts tells a vertical video from a horizontal one.
+     */
     suspend fun videos(ids: List<String>): List<VideoMeta> {
         if (ids.isEmpty()) return emptyList()
         val key = keys.youtubeKey() ?: throw VideoError.NoKey
         val url = "https://www.googleapis.com/youtube/v3/videos".toHttpUrl().newBuilder()
-            .addQueryParameter("part", "snippet,contentDetails,statistics")
+            .addQueryParameter("part", "snippet,contentDetails,statistics,player")
+            .addQueryParameter("maxWidth", "720")
+            .addQueryParameter("maxHeight", "720")
             .addQueryParameter("id", ids.take(50).joinToString(","))
             .addQueryParameter("key", key)
             .build()

@@ -6,6 +6,10 @@ import com.zeroindex.intake.data.remote.youtube.VideoError
 import com.zeroindex.intake.data.repository.TrainingRepository
 import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.data.video.VideoRepository
+import com.zeroindex.intake.data.video.direct.DownloadState
+import com.zeroindex.intake.data.video.direct.DownloadedVideo
+import com.zeroindex.intake.data.video.direct.PlaybackSources
+import com.zeroindex.intake.data.video.direct.VideoDownloads
 import com.zeroindex.intake.domain.settings.WeeklySets
 import com.zeroindex.intake.domain.time.Clock
 import com.zeroindex.intake.domain.training.VolumeStatus
@@ -84,6 +88,11 @@ data class VideosUiState(
     val saved: List<VideoMeta> = emptyList(),
     val quotaHint: String = "",
     val searchesLeft: Int = 0,
+    /** The opt-in for yt-dlp downloads and direct playback (Settings > Videos). */
+    val directOn: Boolean = false,
+    val downloaded: List<DownloadedVideo> = emptyList(),
+    val downloadedBytes: Long = 0,
+    val downloading: Map<String, DownloadState> = emptyMap(),
     val link: String = "",
     val linkBusy: Boolean = false,
     val linkError: String? = null,
@@ -100,6 +109,8 @@ class VideosViewModel @Inject constructor(
     private val training: TrainingRepository,
     private val settings: SettingsRepository,
     private val clock: Clock,
+    private val downloads: VideoDownloads,
+    private val sources: PlaybackSources,
 ) : ViewModel() {
 
     private data class Raw(
@@ -125,6 +136,8 @@ class VideosViewModel @Inject constructor(
         val linkError: String? = null,
     )
 
+    private class Extra(val names: List<String>, val rows: List<RawRow>, val done: List<DownloadedVideo>, val active: Map<String, DownloadState>)
+
     private val raw = MutableStateFlow(Raw())
     private val recommended = MutableStateFlow<RecommendedUi>(RecommendedUi.Idle)
     private val rows = MutableStateFlow<List<RawRow>>(emptyList())
@@ -138,9 +151,12 @@ class VideosViewModel @Inject constructor(
         recommended,
         settings.settings,
         videos.observeSavedMeta(),
-        combine(catalog, keyTick, rows) { names, _, rawRows -> names to rawRows },
-    ) { r, rec, app, saved, namesAndRows ->
-        val (names, rawRows) = namesAndRows
+        combine(catalog, keyTick, rows, downloads.observe(), downloads.active) { names, _, rawRows, done, active ->
+            Extra(names, rawRows, done, active)
+        },
+    ) { r, rec, app, saved, extra ->
+        val names = extra.names
+        val rawRows = extra.rows
         val only = r.onlyOverride ?: app.onlyWorkouts
         val noShorts = r.shortsOverride ?: app.hideShorts
         val filtered = r.results?.let { list ->
@@ -169,6 +185,10 @@ class VideosViewModel @Inject constructor(
             saved = saved,
             quotaHint = videos.quotaHint(),
             searchesLeft = videos.searchesLeft(),
+            directOn = app.directVideos,
+            downloaded = extra.done,
+            downloadedBytes = downloads.usedBytes(extra.done),
+            downloading = extra.active,
             link = r.link,
             linkBusy = r.linkBusy,
             linkError = r.linkError,
@@ -291,6 +311,26 @@ class VideosViewModel @Inject constructor(
             }
         }
     }
+
+    /**
+     * Called when a video is opened: remembers the Shorts in the list on screen, so the Shorts player can swipe through them
+     * (in memory only).
+     */
+    fun opening() {
+        val r = raw.value
+        val list = r.results ?: rows.value.flatMap { it.videos }
+        sources.shortsInView = list.filter { VideoBrowse.isShort(it) }.map { it.id }.distinct()
+    }
+
+    /** Download a saved video (only offered with the opt-in on). */
+    fun download(video: VideoMeta) = downloads.start(video)
+
+    fun cancelDownload(videoId: String) = downloads.cancel(videoId)
+
+    fun dismissDownloadFailure(videoId: String) = downloads.dismissFailure(videoId)
+
+    /** Delete a download: the file and then the row (soft delete). */
+    fun deleteDownload(item: DownloadedVideo) = viewModelScope.launch { downloads.delete(item.id, item.videoId) }
 
     /** "More like this" on a saved video: a search from its channel and title words. */
     fun moreLikeThis(video: VideoMeta) {

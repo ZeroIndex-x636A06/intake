@@ -12,7 +12,14 @@ data class VideoMeta(
     val thumbnailUrl: String? = null,
     val publishedAt: String = "",
     val viewCount: Long? = null,
-)
+    /** `player.embedWidth` / `embedHeight` from `part=player` (they follow the video's aspect ratio), or null when unknown. */
+    val embedWidth: Int? = null,
+    val embedHeight: Int? = null,
+) {
+    /** True when the video is taller than wide, false when not, null when the player size is unknown. */
+    val isVertical: Boolean?
+        get() = if (embedWidth != null && embedHeight != null && embedWidth > 0 && embedHeight > 0) embedHeight > embedWidth else null
+}
 
 /** Plain-words verdict on a video, with the number behind it. Never stored: it is recomputed from the metadata. */
 enum class VideoLabel(val label: String) {

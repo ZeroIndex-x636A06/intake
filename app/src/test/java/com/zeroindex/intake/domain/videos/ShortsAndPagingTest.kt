@@ -7,51 +7,58 @@ import org.junit.Test
 
 class ShortsAndPagingTest {
 
-    private fun v(title: String, sec: Int, description: String = "", channel: String = "Coach") =
-        VideoMeta(id = title.hashCode().toString(), title = title, description = description, channelTitle = channel, categoryId = "17", durationSec = sec)
+    private fun v(title: String, sec: Int, description: String = "", channel: String = "Coach", w: Int? = null, h: Int? = null) =
+        VideoMeta(id = title.hashCode().toString(), title = title, description = description, channelTitle = channel, categoryId = "17", durationSec = sec, embedWidth = w, embedHeight = h)
 
     @Test
-    fun `the owner's 1 minute 2 seconds back workout is a Short`() {
-        val owner = v("The COMPLETE Back Workout (under 1 minute)", 62)
+    fun `a vertical 1 minute 2 seconds video is a Short`() {
+        val owner = v("The COMPLETE Back Workout (under 1 minute)", 62, w = 360, h = 640)
         assertThat(ShortsRule.isShort(owner)).isTrue()
-        assertThat(ShortsRule.reason(owner)).isEqualTo("says it is a Short")
+        assertThat(ShortsRule.reason(owner)).isEqualTo("vertical video")
         val hidden = VideoBrowse.apply(VideoBrowse.score(listOf(owner), emptyList()), onlyWorkouts = false, showEverything = false, length = null, hideShorts = true)
         assertThat(hidden.shown).isEmpty()
         assertThat(hidden.hiddenShorts).isEqualTo(1)
     }
 
     @Test
-    fun `sixty seconds or less is always a Short`() {
-        assertThat(ShortsRule.isShort(v("Abs", 60))).isTrue()
-        assertThat(ShortsRule.isShort(v("Abs", 1))).isTrue()
-        assertThat(ShortsRule.isShort(v("Abs", 0))).isFalse()
+    fun `a horizontal 2 minute 30 second video is not a Short`() {
+        assertThat(ShortsRule.isShort(v("Quick core burner", 150, w = 640, h = 360))).isFalse()
+        // Words and length do not make a Short any more once the shape is known to be horizontal.
+        assertThat(ShortsRule.isShort(v("Back workout (under 1 minute)", 150, w = 640, h = 360))).isFalse()
+        assertThat(ShortsRule.isShort(v("Abs", 45, w = 640, h = 360))).isFalse()
     }
 
     @Test
-    fun `hashtags make a Short at any length`() {
-        assertThat(ShortsRule.isShort(v("Core #shorts", 900))).isTrue()
+    fun `a vertical video is a Short at any length`() {
+        assertThat(ShortsRule.isShort(v("Long vertical", 170, w = 360, h = 640))).isTrue()
+        assertThat(ShortsRule.isShort(v("Square", 100, w = 500, h = 500))).isFalse()
+    }
+
+    @Test
+    fun `hashtags are a backup signal at any length and with any shape`() {
+        assertThat(ShortsRule.isShort(v("Core #shorts", 900, w = 640, h = 360))).isTrue()
         assertThat(ShortsRule.isShort(v("Core", 900, "Follow along #Short"))).isTrue()
         assertThat(ShortsRule.isShort(v("Core #ytshorts", 120))).isTrue()
-        assertThat(ShortsRule.isShort(v("Core #shortsvideo", 120))).isTrue()
         assertThat(ShortsRule.isShort(v("Shortstop drills", 900))).isFalse()
     }
 
     @Test
-    fun `up to three minutes a Short is told by its words`() {
-        assertThat(ShortsRule.isShort(v("Leg day in 60 seconds", 90))).isTrue()
-        assertThat(ShortsRule.isShort(v("Biceps in 2 minutes", 150))).isTrue()
-        assertThat(ShortsRule.isShort(v("45-second ab finisher", 170))).isTrue()
-        assertThat(ShortsRule.isShort(v("Chest", 120, "A YouTube Short for your push day"))).isTrue()
-        assertThat(ShortsRule.isShort(v("Back", 100, "back day, under a minute"))).isTrue()
+    fun `with no player size only 60 seconds or less counts by length`() {
+        assertThat(ShortsRule.isShort(v("Abs", 60))).isTrue()
+        assertThat(ShortsRule.isShort(v("Abs", 1))).isTrue()
+        assertThat(ShortsRule.isShort(v("Abs", 62))).isFalse()
+        assertThat(ShortsRule.isShort(v("Abs", 0))).isFalse()
+        assertThat(ShortsRule.isShort(v("Back workout (under 1 minute)", 150))).isFalse()
     }
 
     @Test
-    fun `those words do not count over three minutes or at an unknown length`() {
-        assertThat(ShortsRule.isShort(v("Back workout (under 1 minute)", 181))).isFalse()
-        assertThat(ShortsRule.isShort(v("Back workout (under 1 minute)", 0))).isFalse()
-        assertThat(ShortsRule.isShort(v("Full body in 20 minutes", 150))).isFalse()
-        assertThat(ShortsRule.isShort(v("30 minute full body workout", 1800))).isFalse()
-        assertThat(ShortsRule.isShort(v("Rest 90 seconds between sets", 1800))).isFalse()
+    fun `the player size is read from videos list`() {
+        val body = """{"items":[{"id":"abcdefghijk","snippet":{"title":"t"},"contentDetails":{"duration":"PT1M2S"},"player":{"embedHeight":"640","embedWidth":360}}]}"""
+        val meta = YoutubeJson.videos(body).single()
+        assertThat(meta.embedHeight).isEqualTo(640)
+        assertThat(meta.embedWidth).isEqualTo(360)
+        assertThat(meta.isVertical).isTrue()
+        assertThat(YoutubeJson.videos("""{"items":[{"id":"abcdefghijk","snippet":{"title":"t"}}]}""").single().isVertical).isNull()
     }
 
     @Test

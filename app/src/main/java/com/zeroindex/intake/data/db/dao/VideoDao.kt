@@ -36,6 +36,18 @@ interface VideoDao {
     @Query("DELETE FROM video_search")
     suspend fun clearSearches(): Int
 
+    // ---- downloaded videos (device-local; the file is in app-private storage)
+    @Upsert suspend fun upsertDownloaded(row: com.zeroindex.intake.data.db.entity.DownloadedVideoEntity)
+
+    @Query("SELECT * FROM downloaded_video WHERE deletedAt IS NULL ORDER BY createdAt DESC")
+    fun observeDownloaded(): Flow<List<com.zeroindex.intake.data.db.entity.DownloadedVideoEntity>>
+
+    @Query("SELECT * FROM downloaded_video WHERE videoId = :videoId AND deletedAt IS NULL ORDER BY createdAt DESC LIMIT 1")
+    suspend fun downloadedByVideoId(videoId: String): com.zeroindex.intake.data.db.entity.DownloadedVideoEntity?
+
+    @Query("UPDATE downloaded_video SET deletedAt = :now, updatedAt = :now WHERE id = :id AND deletedAt IS NULL")
+    suspend fun softDeleteDownloaded(id: String, now: Long)
+
     // ---- saved videos
     @Upsert suspend fun upsertSaved(row: SavedVideoEntity)
 

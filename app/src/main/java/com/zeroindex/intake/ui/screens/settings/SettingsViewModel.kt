@@ -185,6 +185,7 @@ class SettingsViewModel @Inject constructor(
     // ---- Videos / reminders / sync and export ----
     fun setOnlyWorkouts(on: Boolean) = launchSetting { setOnlyWorkouts(on) }
     fun setHideShorts(on: Boolean) = launchSetting { setHideShorts(on) }
+    fun setDirectVideos(on: Boolean) = launchSetting { setDirectVideos(on) }
     fun setPersonalise(on: Boolean) = launchSetting { setPersonaliseVideos(on) }
     fun setCoachNotify(on: Boolean) = launchSetting { setCoachNotify(on) }
     fun setCoachWeekday(isoWeekday: Int?) = launchSetting { setCoachWeekday(isoWeekday) }

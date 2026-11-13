@@ -22,6 +22,9 @@ data class VideoCacheEntity(
     val publishedAt: String,
     val viewCount: Long?,
     val fetchedAt: Long,
+    /** `player.embedWidth` / `embedHeight` (schema v6): the video's shape, for Hide Shorts. Null on rows cached before v6. */
+    val embedWidth: Int? = null,
+    val embedHeight: Int? = null,
 )
 
 /** The result of one search (the words and the filters), as video ids in order, so a repeat costs no quota for 6 hours. */
@@ -49,6 +52,27 @@ data class SavedVideoEntity(
     val durationSec: Int? = null,
     val thumbnailUrl: String? = null,
     val metaFetchedAt: Long? = null,
+    override val createdAt: Long,
+    override val updatedAt: Long,
+    override val deletedAt: Long? = null,
+) : Audited
+
+/**
+ * A video downloaded to this phone with yt-dlp (opt-in, Settings > Videos; see docs/VIDEOS.md). The file lives in the app's
+ * private storage ([filePath]); this row is the list on the Downloaded screen. Deleting removes the file and soft-deletes the
+ * row. It is device-local: not in backups, exports or sync, because the file would not come with it. Schema v6.
+ */
+@Entity(tableName = "downloaded_video", indices = [Index(value = ["videoId"]), Index("deletedAt")])
+data class DownloadedVideoEntity(
+    @PrimaryKey override val id: String = newId(),
+    val videoId: String,
+    val title: String,
+    val channelTitle: String,
+    val durationSec: Int?,
+    val thumbnailUrl: String?,
+    /** File name inside the downloads folder (never a full path, so it survives a storage move). */
+    val fileName: String,
+    val sizeBytes: Long,
     override val createdAt: Long,
     override val updatedAt: Long,
     override val deletedAt: Long? = null,

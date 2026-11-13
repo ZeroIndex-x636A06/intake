@@ -187,11 +187,13 @@ class VideoRepository @Inject constructor(
     private fun VideoMeta.toCache(now: Long) = VideoCacheEntity(
         videoId = id, title = title, description = description, channelTitle = channelTitle, categoryId = categoryId,
         durationSec = durationSec, thumbnailUrl = thumbnailUrl, publishedAt = publishedAt, viewCount = viewCount, fetchedAt = now,
+        embedWidth = embedWidth, embedHeight = embedHeight,
     )
 
     private fun VideoCacheEntity.toMeta() = VideoMeta(
         id = videoId, title = title, description = description, channelTitle = channelTitle, categoryId = categoryId,
         durationSec = durationSec, thumbnailUrl = thumbnailUrl, publishedAt = publishedAt, viewCount = viewCount,
+        embedWidth = embedWidth, embedHeight = embedHeight,
     )
 
     private fun SavedVideoEntity.toMeta() = VideoMeta(
