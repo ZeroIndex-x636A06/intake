@@ -9,11 +9,18 @@ import com.zeroindex.intake.data.db.entity.AllergenStatus
 import com.zeroindex.intake.data.db.entity.RecipeEntity
 import com.zeroindex.intake.data.db.entity.RecipeOrigin
 import com.zeroindex.intake.data.recipe.FetchResult
+import com.zeroindex.intake.data.recipe.RecipeAiExtractor
 import com.zeroindex.intake.data.recipe.RecipeFetcher
 import com.zeroindex.intake.data.repository.AllergenRepository
 import com.zeroindex.intake.domain.ai.AiFeature
 import com.zeroindex.intake.domain.ai.AiTrigger
+import com.zeroindex.intake.domain.ai.AiReadBudget
 import com.zeroindex.intake.domain.ai.Fit
+import com.zeroindex.intake.domain.ai.FitIssue
+import com.zeroindex.intake.domain.ai.SavedHunt
+import com.zeroindex.intake.domain.ai.SavedHuntCounts
+import com.zeroindex.intake.domain.ai.SavedHuntQuery
+import com.zeroindex.intake.domain.ai.SavedHuntRecipe
 import com.zeroindex.intake.domain.ai.HuntDedupe
 import com.zeroindex.intake.domain.ai.HuntPolicy
 import com.zeroindex.intake.domain.ai.HuntKeys
@@ -54,6 +61,11 @@ data class HuntRecipe(
     val fatPerServing: Double?,
     /** The recipe photo's address, made absolute; null when the page has none this app could find. */
     val imageUrl: String? = null,
+    /** True when no local reader could parse the page and the model copied the recipe out of its text ("read by AI"). */
+    val aiRead: Boolean = false,
+    /** What the search snippet hinted; kept so a reopened search re-judges the recipe with the same hint. */
+    val possibleAllergens: List<String> = emptyList(),
+    val allergenNote: String = "",
 ) {
     val nutritionStated: Boolean get() = kcalPerServing != null || proteinPerServing != null
 }
@@ -66,6 +78,8 @@ data class HuntedRecipe(
     val fit: Fit,
     /** Why it is a near miss or removed, when the numbers are the reason. */
     val fitReason: String? = null,
+    /** Which limits the numbers miss, for the short chips; [fitReason] has the full wording of all of them. */
+    val fitIssues: List<FitIssue> = emptyList(),
     /**
      * For a recipe the allergen scan blocked: whether the allergen is a small, swappable part of it
      * ([com.zeroindex.intake.domain.allergen.Substitutions]). A suggestion only: [verdict] and [scan] keep the
@@ -92,6 +106,22 @@ data class HuntedRecipe(
     val isRemoved get() = verdict is RecipeVerdict.Rejected && !isAdaptable
     val isUnverified get() = verdict is RecipeVerdict.Unverified
     val isSavable get() = checked || isAdaptable
+
+    /**
+     * Short chip labels for a recipe that is removed or only adaptable ("Contains dairy", "Under protein goal"), one
+     * per count against it. The full reasons are in the verdict and shown in the card's body text.
+     */
+    val reasonChips: List<String>
+        get() {
+            val rejected = verdict as? RecipeVerdict.Rejected ?: return emptyList()
+            val chips = mutableListOf<String>()
+            if (scan.blocks) chips += "Contains " + scan.contains.map { it.allergen }.distinct().joinToString(" and ")
+            chips += fitIssues.map { it.chip }
+            if (chips.isEmpty()) {
+                chips += if (rejected.reasons.firstOrNull()?.startsWith("No ingredient") == true) "No ingredient list" else "No source link"
+            }
+            return chips
+        }
 }
 
 data class HuntProgress(
@@ -112,6 +142,8 @@ data class HuntResult(
     /** What the last run (the search or the latest "Find more") spent against [HuntPolicy.capUsd]. */
     val lastRunCostUsd: Double,
     val candidatesSeen: Int,
+    /** Pages the model read because no local reader could ("Use AI to read pages the phone can't"), over the search and every "Find more". */
+    val aiReads: Int = 0,
 ) {
     val kept: List<HuntedRecipe> get() = results.filter { it.isKept }
     val close: List<HuntedRecipe> get() = results.filter { it.isClose }
@@ -145,6 +177,7 @@ class RecipeHunter @Inject constructor(
     private val recipeDao: RecipeDao,
     private val fetcher: RecipeFetcher,
     private val clock: Clock,
+    private val pageReader: RecipeAiExtractor,
 ) {
     companion object {
         /** Pages read at once. Kind to the sites and to the phone. */
@@ -159,6 +192,12 @@ class RecipeHunter @Inject constructor(
 
         /** Most exclusions shown to the model, newest last, so the prompt stays small on a long hunt. */
         const val MAX_EXCLUSIONS = 60
+
+        /** Predicted price of one AI page read (about 6,700 tokens in, 1,500 out), until the response says what it cost. */
+        const val ASSUMED_AI_READ_USD = 0.003
+
+        /** Most pages the model may read in one search or "Find more", so the toggle cannot spend the whole cap. */
+        const val MAX_AI_READS_PER_RUN = 6
     }
 
     /**
@@ -178,6 +217,7 @@ class RecipeHunter @Inject constructor(
         val keptAtStart = results.count { it.isKept }
         var seen = previous?.candidatesSeen ?: 0
         var cost = 0.0
+        var aiReadsThisRun = 0
         var model = previous?.model.orEmpty()
         var round = 0
         var lastRoundCost = 0.0
@@ -229,8 +269,22 @@ class RecipeHunter @Inject constructor(
             onProgress(HuntProgress("Reading ${fresh.size} recipe pages and checking them on this phone…", round, cost, keptNow))
 
             val gate = Semaphore(FETCH_CONCURRENCY)
+            // AI page reading, when the person turned it on for this search, spends only what is left of the cap
+            // after this round's search call, and counts toward the cost shown.
+            val reading = if (query.aiReadPages) {
+                AiReadBudget(
+                    remainingUsd = (policy.capUsd - cost).coerceAtLeast(0.0),
+                    remainingReads = (MAX_AI_READS_PER_RUN - aiReadsThisRun).coerceAtLeast(0),
+                )
+            } else {
+                null
+            }
             val judged = coroutineScope {
-                fresh.map { c -> async { gate.withPermit { investigate(c, query, avoided) } } }.awaitAll()
+                fresh.map { c -> async { gate.withPermit { investigate(c, query, avoided, reading) } } }.awaitAll()
+            }
+            if (reading != null) {
+                cost += reading.spentUsd
+                aiReadsThisRun += reading.reads
             }
             results += judged
             onProgress(HuntProgress("Checked ${judged.size} more", round, cost, results.count { it.isKept }))
@@ -244,11 +298,22 @@ class RecipeHunter @Inject constructor(
             policy = policy,
             lastRunCostUsd = cost,
             candidatesSeen = seen,
+            aiReads = (previous?.aiReads ?: 0) + aiReadsThisRun,
         )
     }
 
-    /** Downloads and reads one candidate's page, then judges it locally. Never throws for a bad page. */
-    internal suspend fun investigate(c: HuntCandidate, query: RecipeQuery, avoided: Set<String>): HuntedRecipe {
+    /**
+     * Downloads and reads one candidate's page, then judges it locally. Never throws for a bad page. The local readers
+     * run first (structured data, microdata, recipe-card classes, an Ingredients list); only when none can read the page,
+     * and only if [reading] allows it (the search's AI toggle is on and the cap has room), is the page's text sent to the
+     * model to copy the recipe out. Either way the ingredient lines are scanned here, locally.
+     */
+    internal suspend fun investigate(
+        c: HuntCandidate,
+        query: RecipeQuery,
+        avoided: Set<String>,
+        reading: AiReadBudget? = null,
+    ): HuntedRecipe {
         val bare = HuntRecipe(c.title, c.sourceUrl, c.sourceName, query.servings, null, emptyList(), emptyList(), null, null, null, null)
         fun unverified(why: String) = HuntedRecipe(bare, RecipeVerdict.Unverified(why), AllergenScanResult.CLEAN, Fit.UNCHECKED)
 
@@ -256,9 +321,26 @@ class RecipeHunter @Inject constructor(
             is FetchResult.Failed -> return unverified("Could not open the page. ${f.message}")
             is FetchResult.Page -> f
         }
+        var aiRead = false
         val draft = when (val parsed = RecipePageParser.parse(page.html, page.finalUrl)) {
-            is PageParse.NoRecipe -> return unverified("The page has no recipe data this app can read")
             is PageParse.Found -> parsed.recipe
+            is PageParse.NoRecipe -> {
+                val plain = "The page has no recipe data this app can read"
+                if (reading == null || parsed.pageText.isBlank()) return unverified(plain)
+                if (!reading.tryReserve(ASSUMED_AI_READ_USD)) {
+                    return unverified("$plain, and the AI reading limit for this search is used up")
+                }
+                val extracted = try {
+                    pageReader.extractCounted(parsed.pageText, page.finalUrl)
+                } catch (e: AiError) {
+                    reading.record(ASSUMED_AI_READ_USD, 0.0)
+                    return unverified("$plain, and the AI could not read it (${e.message})")
+                }
+                reading.record(ASSUMED_AI_READ_USD, extracted.costUsd ?: ASSUMED_AI_READ_USD)
+                val read = extracted.draft ?: return unverified("$plain, and the AI found no recipe in its text")
+                aiRead = true
+                read.copy(imageUrl = runCatching { com.zeroindex.intake.domain.recipe.RecipeImages.fromHtml(page.html, page.finalUrl) }.getOrNull())
+            }
         }
         val n = draft.nutrition
         val recipe = HuntRecipe(
@@ -274,6 +356,9 @@ class RecipeHunter @Inject constructor(
             carbsPerServing = n?.carbsG,
             fatPerServing = n?.fatG,
             imageUrl = draft.imageUrl,
+            aiRead = aiRead,
+            possibleAllergens = c.possibleAllergens,
+            allergenNote = c.allergenNote,
         )
         return judge(recipe, c, query, avoided)
     }
@@ -302,7 +387,12 @@ class RecipeHunter @Inject constructor(
             proteinPerServing = recipe.proteinPerServing,
             totalMinutes = recipe.totalMinutes,
         )
-        val verdict = RecipeFilter.evaluate(candidate, query, scan)
+        var verdict = RecipeFilter.evaluate(candidate, query, scan)
+        // Ingredient lines copied by a model are scanned like any, but a model can leave a line out, so a clean scan is
+        // never shown as "Passed": it asks for a look at the original page first. A warning is never cleared.
+        if (recipe.aiRead && verdict is RecipeVerdict.Passed) {
+            verdict = RecipeVerdict.NeedsReview("Read by AI from the page text, so check the ingredient list on the original page before cooking")
+        }
         val fit = RecipeFilter.fitOf(candidate, query)
         var adaptation: Adaptation? = null
         var adaptedScan: AllergenScanResult? = null
@@ -330,7 +420,7 @@ class RecipeHunter @Inject constructor(
                 }
             }
         }
-        return HuntedRecipe(recipe, verdict, scan, fit.fit, fit.reason, adaptation, adaptedScan)
+        return HuntedRecipe(recipe, verdict, scan, fit.fit, fit.reason, fit.issues, adaptation, adaptedScan)
     }
 
     /**
@@ -411,6 +501,73 @@ class RecipeHunter @Inject constructor(
         return entity
     }
 
+    /**
+     * The Recent searches entry for a finished search: the parameters, the counts, the cost and every result's recipe as
+     * the page gave it. Not the verdicts: [rebuild] works those out again.
+     */
+    fun toSaved(id: String, query: RecipeQuery, result: HuntResult, createdAt: Long): SavedHunt = SavedHunt(
+        id = id,
+        createdAt = createdAt,
+        query = SavedHuntQuery.of(query),
+        counts = SavedHuntCounts(
+            kept = result.kept.size,
+            close = result.close.size,
+            adaptable = result.adaptable.size,
+            removed = result.removed.size,
+            unverified = result.unverified.size,
+        ),
+        costUsd = result.costUsd,
+        rounds = result.rounds,
+        model = result.model,
+        stop = result.stop.name,
+        candidatesSeen = result.candidatesSeen,
+        aiReads = result.aiReads,
+        results = result.results.map { h ->
+            val r = h.recipe
+            SavedHuntRecipe(
+                title = r.title, sourceUrl = r.sourceUrl, sourceName = r.sourceName, servings = r.servings,
+                totalMinutes = r.totalMinutes, ingredients = r.ingredients, steps = r.steps,
+                kcalPerServing = r.kcalPerServing, proteinPerServing = r.proteinPerServing,
+                carbsPerServing = r.carbsPerServing, fatPerServing = r.fatPerServing, imageUrl = r.imageUrl,
+                aiRead = r.aiRead, unverifiedReason = (h.verdict as? RecipeVerdict.Unverified)?.reason,
+                possibleAllergens = r.possibleAllergens, allergenNote = r.allergenNote,
+            )
+        },
+    )
+
+    /** The current time, for stamping a saved search. */
+    fun now(): Long = clock.nowMillis()
+
+    /**
+     * Reopens a saved search with no network and no AI: every stored recipe is judged again on this phone, against the
+     * allergen profile as it is now, so a recipe is never shown as safe on a stored verdict. A page that could not be
+     * read stays "Could not check".
+     */
+    suspend fun rebuild(saved: SavedHunt): Pair<RecipeQuery, HuntResult> {
+        val avoided = allergens.avoidedAllergens()
+        val query = saved.query.toQuery(avoided)
+        val results = saved.results.map { s ->
+            val recipe = HuntRecipe(
+                title = s.title, sourceUrl = s.sourceUrl, sourceName = s.sourceName, servings = s.servings,
+                totalMinutes = s.totalMinutes, ingredients = s.ingredients, steps = s.steps,
+                kcalPerServing = s.kcalPerServing, proteinPerServing = s.proteinPerServing,
+                carbsPerServing = s.carbsPerServing, fatPerServing = s.fatPerServing, imageUrl = s.imageUrl,
+                aiRead = s.aiRead, possibleAllergens = s.possibleAllergens, allergenNote = s.allergenNote,
+            )
+            if (s.unverifiedReason != null) {
+                HuntedRecipe(recipe, RecipeVerdict.Unverified(s.unverifiedReason), AllergenScanResult.CLEAN, Fit.UNCHECKED)
+            } else {
+                val hint = HuntCandidate(s.title, s.sourceUrl, s.sourceName, s.possibleAllergens, s.allergenNote)
+                judge(recipe, hint, query, avoided)
+            }
+        }
+        val stop = HuntStop.entries.firstOrNull { it.name == saved.stop } ?: HuntStop.TARGET
+        return query to HuntResult(
+            results = results, rounds = saved.rounds, costUsd = saved.costUsd, model = saved.model, stop = stop,
+            policy = HuntPolicy(), lastRunCostUsd = 0.0, candidatesSeen = saved.candidatesSeen, aiReads = saved.aiReads,
+        )
+    }
+
     /** The addresses (as [HuntKeys.urlKey]) of recipes already in My recipes, so cards can say "Saved" when results load. */
     suspend fun savedKeys(): Set<String> =
         recipeDao.all().mapNotNull { it.sourceUrl }.map { HuntKeys.urlKey(it) }.toSet()
@@ -421,7 +578,9 @@ class RecipeHunter @Inject constructor(
         q.maxKcalPerServing?.let { appendLine("Aim for at most $it kcal per serving.") }
         appendLine("About ${q.servings} servings, good for batch cooking and reheating.")
         q.maxMinutes?.let { appendLine("Total time at most $it minutes.") }
-        if (q.cuisines.isNotEmpty()) appendLine("Cuisines: ${q.cuisines.joinToString()}.")
+        // "Any" means no preference. Otherwise every chosen cuisine is an acceptable one, not all at once.
+        val cuisines = q.cuisines.filterNot { it.equals("Any", ignoreCase = true) }
+        if (cuisines.isNotEmpty()) appendLine("Cuisines (any one of these is fine, and spread results over them): ${cuisines.joinToString()}.")
         if (avoided.isNotEmpty()) appendLine("Must be free of: ${avoided.joinToString()}.")
         if (q.notes.isNotBlank()) appendLine("Also: ${q.notes.trim()}")
         if (seen.isNotEmpty()) {

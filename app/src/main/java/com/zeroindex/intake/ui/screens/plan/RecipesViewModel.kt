@@ -6,7 +6,9 @@ import com.zeroindex.intake.data.ai.AiError
 import com.zeroindex.intake.data.ai.recipes.HuntResult
 import com.zeroindex.intake.data.ai.recipes.HuntProgress
 import com.zeroindex.intake.data.ai.recipes.HuntedRecipe
+import com.zeroindex.intake.data.ai.recipes.RecentHuntsStore
 import com.zeroindex.intake.data.ai.recipes.RecipeHunter
+import com.zeroindex.intake.domain.ai.SavedHunt
 import com.zeroindex.intake.domain.ai.HuntKeys
 import com.zeroindex.intake.data.db.dao.RecipeDao
 import com.zeroindex.intake.data.db.entity.RecipeEntity
@@ -109,6 +111,8 @@ sealed interface HuntStage {
         val saved: Set<String> = emptySet(),
         val working: HuntProgress? = null,
         val error: String? = null,
+        /** The Recent searches entry this result is saved under, so "Find more" updates it. */
+        val huntId: String? = null,
     ) : HuntStage
     data class Failed(val message: String) : HuntStage
 }
@@ -116,13 +120,16 @@ sealed interface HuntStage {
 data class HuntUiState(
     val stage: HuntStage = HuntStage.Form,
     val query: RecipeQuery = RecipeQuery(),
+    /** Recent searches, newest first, for the bottom of the start screen. */
+    val recent: List<SavedHunt> = emptyList(),
 )
 
 @HiltViewModel
 class RecipeHunterViewModel @Inject constructor(
     private val hunter: RecipeHunter,
     private val allergens: AllergenRepository,
-    gateway: AiGateway,
+    private val recentStore: RecentHuntsStore,
+    private val gateway: AiGateway,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
@@ -135,6 +142,9 @@ class RecipeHunterViewModel @Inject constructor(
             val avoided = allergens.avoidedAllergens()
             _state.update { it.copy(query = it.query.copy(avoidedAllergens = avoided)) }
         }
+        viewModelScope.launch {
+            recentStore.recent.collect { list -> _state.update { it.copy(recent = list) } }
+        }
     }
 
     fun updateQuery(block: (RecipeQuery) -> RecipeQuery) = _state.update {
@@ -145,6 +155,7 @@ class RecipeHunterViewModel @Inject constructor(
     fun hunt() {
         val query = _state.value.query
         _state.update { it.copy(stage = HuntStage.Running(emptyList())) }
+        val huntId = "hunt-${hunter.now()}"
         viewModelScope.launch {
             runCatching {
                 hunter.hunt(query) { progress ->
@@ -155,7 +166,8 @@ class RecipeHunterViewModel @Inject constructor(
                 }
             }.onSuccess { result ->
                 val saved = runCatching { hunter.savedKeys() }.getOrDefault(emptySet())
-                _state.update { it.copy(stage = HuntStage.Done(result, saved = saved)) }
+                remember(huntId, query, result)
+                _state.update { it.copy(stage = HuntStage.Done(result, saved = saved, huntId = huntId)) }
             }
                 .onFailure { e ->
                     _state.update {
@@ -181,6 +193,7 @@ class RecipeHunterViewModel @Inject constructor(
                 }
             }.onSuccess { result ->
                 val saved = runCatching { hunter.savedKeys() }.getOrDefault(emptySet())
+                done.huntId?.let { remember(it, query, result) }
                 _state.update { s ->
                     val cur = s.stage as? HuntStage.Done ?: return@update s
                     s.copy(stage = cur.copy(result = result, working = null, saved = cur.saved + saved))
@@ -202,5 +215,51 @@ class RecipeHunterViewModel @Inject constructor(
         }
     }
 
-    fun backToForm() = _state.update { it.copy(stage = HuntStage.Form) }
+    fun backToForm() = _state.update { it.copy(stage = if (gateway.isConfigured()) HuntStage.Form else HuntStage.NeedsKey) }
+
+    /**
+     * Writes a finished search to Recent searches (the list keeps the newest 20). A failure to save never costs the person
+     * the results on screen. The first save of a search is stamped now; a "Find more" keeps the original time.
+     */
+    private fun remember(huntId: String, query: RecipeQuery, result: HuntResult) {
+        viewModelScope.launch {
+            runCatching {
+                val now = hunter.now()
+                val created = recentStore.find(huntId)?.createdAt ?: now
+                recentStore.save(hunter.toSaved(huntId, query, result, created), now)
+            }
+        }
+    }
+
+    /**
+     * Reopens a saved search from what was stored: no search, no AI, no page downloads, nothing spent. Every recipe is
+     * judged again on this phone against the allergen profile as it is now, and "Saved" is re-read from My recipes.
+     */
+    fun openRecent(id: String) {
+        val saved = _state.value.recent.firstOrNull { it.id == id } ?: return
+        if (_state.value.stage is HuntStage.Running) return
+        _state.update { it.copy(stage = HuntStage.Running(listOf(HuntProgress("Reopening the saved results…", 0)))) }
+        viewModelScope.launch {
+            runCatching {
+                val (query, result) = hunter.rebuild(saved)
+                val keys = runCatching { hunter.savedKeys() }.getOrDefault(emptySet())
+                query to HuntStage.Done(result, saved = keys, huntId = saved.id)
+            }.onSuccess { (query, done) ->
+                _state.update { it.copy(query = query, stage = done) }
+            }.onFailure {
+                _state.update { it.copy(stage = HuntStage.Form) }
+            }
+        }
+    }
+
+    /** Puts a saved search's parameters in the form and runs it again. Spends money, so the screen asks with a visible button. */
+    fun runAgain(id: String) {
+        val saved = _state.value.recent.firstOrNull { it.id == id } ?: return
+        _state.update { it.copy(query = saved.query.toQuery(it.query.avoidedAllergens)) }
+        hunt()
+    }
+
+    fun deleteRecent(id: String) {
+        viewModelScope.launch { runCatching { recentStore.softDelete(id, hunter.now()) } }
+    }
 }

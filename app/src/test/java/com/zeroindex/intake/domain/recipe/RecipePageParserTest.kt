@@ -66,6 +66,54 @@ class RecipePageParserTest {
         assertThat(r.nutrition).isEqualTo(PageNutrition(310.0, 11.0, 54.0, 6.0))
     }
 
+    @Test fun `microdata with an http schema address and one element per step`() {
+        val r = found("microdata-http.html")
+        assertThat(r.source).isEqualTo(RecipeSource.MICRODATA)
+        assertThat(r.name).isEqualTo("Garlic Green Beans")
+        assertThat(r.servings).isEqualTo(4)
+        assertThat(r.ingredients).containsExactly("1 lb green beans", "3 cloves garlic").inOrder()
+        assertThat(r.steps).containsExactly("Blanch the beans.", "Saute with the garlic.").inOrder()
+    }
+
+    @Test fun `wp recipe maker card classes are read when the page has no structured data`() {
+        val r = found("wprm-nojsonld.html")
+        assertThat(r.source).isEqualTo(RecipeSource.WPRM_HTML)
+        assertThat(r.name).isEqualTo("Slow Cooker Chicken Chili")
+        assertThat(r.servings).isEqualTo(6)
+        assertThat(r.totalMinutes).isEqualTo(90)
+        assertThat(r.ingredients).containsExactly("1.5 pounds chicken breast", "2 cans white beans (drained)", "1 cup salsa verde").inOrder()
+        assertThat(r.steps).containsExactly("Put everything in the slow cooker.", "Cook on low for 6 hours, then shred the chicken.").inOrder()
+        assertThat(r.nutrition).isEqualTo(PageNutrition(320.0, 41.0, 22.0, 7.0))
+    }
+
+    @Test fun `tasty recipes card classes are read when the page has no structured data`() {
+        val r = found("tasty-nojsonld.html")
+        assertThat(r.source).isEqualTo(RecipeSource.TASTY_HTML)
+        assertThat(r.name).isEqualTo("Lemon Herb Salmon")
+        assertThat(r.servings).isEqualTo(4)
+        assertThat(r.totalMinutes).isEqualTo(25)
+        assertThat(r.ingredients).containsExactly("4 fillets salmon", "2 tbsp olive oil", "1 lemon, sliced", "1 tbsp chopped dill").inOrder()
+        assertThat(r.steps).hasSize(2)
+        assertThat(r.nutrition).isEqualTo(PageNutrition(310.0, 34.0, 2.0, 18.0))
+    }
+
+    @Test fun `an ingredients heading followed by lists is read as a last resort`() {
+        val r = found("generic-ingredients.html")
+        assertThat(r.source).isEqualTo(RecipeSource.HEURISTIC)
+        assertThat(r.name).isEqualTo("Grandma's Beef Stew")
+        assertThat(r.servings).isEqualTo(6)
+        // The sub-headings do not end the list; the Instructions heading does, so notes and related links stay out.
+        assertThat(r.ingredients).containsExactly(
+            "2 lb beef chuck, cubed", "4 carrots, sliced", "3 potatoes, diced", "2 tbsp flour", "2 cups beef broth",
+        ).inOrder()
+        assertThat(r.steps).containsExactly("Brown the beef in a large pot.", "Add the vegetables and broth and simmer for two hours.").inOrder()
+    }
+
+    @Test fun `a lone ingredients heading with no real list is not a recipe`() {
+        val html = "<h2>Ingredients</h2><p>Coming soon</p><ul><li>Home</li></ul>"
+        assertThat(RecipePageParser.parse(html)).isInstanceOf(PageParse.NoRecipe::class.java)
+    }
+
     @Test fun `a page with no recipe data keeps its visible text for the optional ai step`() {
         val p = RecipePageParser.parse(fixture("nodata.html"), null) as PageParse.NoRecipe
         assertThat(p.pageText).contains("My trip to Italy")

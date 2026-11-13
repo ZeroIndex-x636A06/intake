@@ -12,6 +12,11 @@ data class RecipeQuery(
     val notes: String = "",
     /** Always the user's avoided allergens; the form shows them locked on. */
     val avoidedAllergens: Set<String> = emptySet(),
+    /**
+     * "Use AI to read pages the phone can't": off by default. On, a page none of the local readers could parse has its
+     * text sent to the model to copy out the recipe, counted in the search's cost and cap.
+     */
+    val aiReadPages: Boolean = false,
 )
 
 /** A recipe as read from its page, reduced to what the filter checks. Null numbers are "not stated". */
@@ -30,7 +35,12 @@ sealed interface RecipeVerdict {
     /** Passed, but an allergen review is needed before it can be saved or logged. */
     data class NeedsReview(val reason: String) : RecipeVerdict
 
-    data class Rejected(val reason: String) : RecipeVerdict
+    /** [reasons] is every count against the recipe (allergen, protein, calories, time); [reason] reads them as one line. */
+    data class Rejected(val reasons: List<String>) : RecipeVerdict {
+        constructor(reason: String) : this(listOf(reason))
+
+        val reason: String get() = reasons.joinToString("; ")
+    }
 
     /** The page could not be read, so nothing (allergens included) was checked. Never saved, never "kept". */
     data class Unverified(val reason: String) : RecipeVerdict
@@ -46,15 +56,18 @@ sealed interface RecipeVerdict {
 object RecipeFilter {
 
     fun evaluate(candidate: RecipeCandidate, query: RecipeQuery, scan: AllergenScanResult): RecipeVerdict {
+        val fit = fitOf(candidate, query)
         if (scan.blocks) {
+            // Every count against the recipe, not only the first: the allergen and any missed limit.
             val terms = scan.contains.map { it.matchedTerm }.distinct().joinToString(", ")
-            return RecipeVerdict.Rejected("Contains $terms")
+            return RecipeVerdict.Rejected(
+                listOf("Contains $terms") + fit.reasons,
+            )
         }
         if (!candidate.sourceUrl.startsWith("http")) return RecipeVerdict.Rejected("No source link to check it against")
         if (candidate.ingredients.isEmpty()) return RecipeVerdict.Rejected("No ingredient list")
 
-        val fit = fitOf(candidate, query)
-        if (fit.fit == Fit.OUT) return RecipeVerdict.Rejected(fit.reason.orEmpty())
+        if (fit.fit == Fit.OUT) return RecipeVerdict.Rejected(fit.reasons)
         if (scan.mayContain.isNotEmpty()) {
             return RecipeVerdict.NeedsReview(scan.mayContain.first().note)
         }

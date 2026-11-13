@@ -282,4 +282,24 @@ class SubstitutionsTest {
         )
         assertThat(a.swaps.map { it.original }).containsExactly("1/2 cup grated parmesan")
     }
+
+    // "Healthy Ground Beef Burrito Bowls": cheese and sour cream are toppings, so the dairy is a swappable part.
+    private val burritoBowl = listOf(
+        "1 lb lean ground beef", "1 tablespoon olive oil", "1 packet taco seasoning", "2 cups cooked brown rice",
+        "1 can (15 oz) black beans, drained", "1 cup frozen corn", "1 cup salsa", "2 romaine hearts, chopped",
+        "1 avocado, diced", "1/2 cup shredded cheddar cheese", "1/4 cup sour cream", "1/4 cup chopped cilantro", "1 lime, juiced",
+    )
+
+    @Test fun `a burrito bowl with cheese and sour cream as toppings is adaptable`() {
+        val a = adaptable(assess("Healthy Ground Beef Burrito Bowls", burritoBowl, "dairy"))
+        assertThat(a.swaps.map { it.original }).containsExactly("1/2 cup shredded cheddar cheese", "1/4 cup sour cream")
+        assertThat(a.adaptedIngredients).hasSize(burritoBowl.size)
+        assertThat(a.adaptedIngredients).doesNotContain("1/2 cup shredded cheddar cheese")
+    }
+
+    @Test fun `a burrito bowl is adaptable with the toppings left out too when they are optional`() {
+        val lines = burritoBowl.dropLast(3) + listOf("1/2 cup shredded cheddar cheese, optional", "1/4 cup sour cream, for serving")
+        val a = adaptable(assess("Burrito Bowls", lines, "dairy"))
+        assertThat(a.swaps).isNotEmpty()
+    }
 }
