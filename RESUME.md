@@ -3,6 +3,15 @@
 Read this first when picking the work back up. Latest work: branch
 `claude/optimistic-noether-fullk5` (not yet merged into `claude/app-build-k2ag1d`).
 
+## Recipe Hunter: Could be adapted, Saved badge, images (agent F, round 4 items 12, 13, 15; not pushed)
+
+- Item 12: `domain/allergen/Substitutions.kt` (rules in docs/ALLERGENS.md) plus a "Could be adapted" section and "Save adapted copy". Recipe Hunter now scans the
+  title with the free-text rules and the lines strictly, so "Vegan Mac and Cheese" with clean lines stays in the main results. No schema change.
+- Item 13: "Saved" chip on cards, matched by URL (`HuntKeys.urlKey`) against My recipes when results load.
+- Item 15: `RecipeImages` (og:image, twitter:image, first large img) behind the JSON-LD image (string, array, ImageObject, @graph reference); thumbnail on the card, saved with the recipe.
+- Existing matcher gap, NOT changed (outside this task): an ingredient line "non-dairy milk" scans CONTAINS (milk), while "vegan", "oat", "dairy-free <x>" lines scan check-the-label. Titles like "Vegan Mac and Cheese" are already check-the-label. A one-rule fix in `AllergenMatcher` (treat "non-dairy" before a keyword as NON_DAIRY check-the-label, when claims apply) is proposed; the owner of the matcher should decide.
+- Not verified: on a phone or emulator; real pages; the swaps are text rules, so odd ingredient wording can be missed (it then refuses, the safe side). Step text of an adapted copy is the original's.
+
 ## Merge of three agent branches (branch `claude/optimistic-noether-fullk5`)
 
 Merged with `--no-ff`, one at a time, each followed by compile and the unit tests: recipe nutrition (`worktree-agent-a2198826f8ff9a2b4`), Recipe
