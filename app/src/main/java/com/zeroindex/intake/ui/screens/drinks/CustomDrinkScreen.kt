@@ -106,6 +106,14 @@ fun CustomDrinkScreen(
                     shape = IntakeShape.Field,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                if (state.baseReplaced) {
+                    Text(
+                        "The numbers saved for ${base.name} are too high for plain brewed tea or coffee, so the USDA brewed values are used here.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
             }
         }
 

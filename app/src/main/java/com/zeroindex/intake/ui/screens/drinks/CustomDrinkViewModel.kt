@@ -53,6 +53,8 @@ data class CustomDrinkUi(
 ) {
     val draft: CustomDrinkDraft? get() = base?.let { CustomDrinkDraft(it, baseVolumeMl, addIns) }
     val result: CustomDrinkResult? get() = draft?.let(CustomDrinkFood::result)
+    /** True when the base is a plain tea or coffee whose saved numbers were impossible for a brew (see `PlainBrew`). */
+    val baseReplaced: Boolean get() = base?.let(CustomDrinkFood::baseReplaced) ?: false
     val shownName: String get() = typedName.trim().ifBlank { draft?.let(CustomDrinkFood::defaultName).orEmpty() }
 }
 

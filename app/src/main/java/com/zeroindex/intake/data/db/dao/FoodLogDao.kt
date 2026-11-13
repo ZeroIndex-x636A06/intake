@@ -6,6 +6,7 @@ import androidx.room.Upsert
 import com.zeroindex.intake.data.db.entity.FoodLogEntity
 import com.zeroindex.intake.data.db.projection.DailyIntake
 import com.zeroindex.intake.data.db.projection.MacroTotals
+import com.zeroindex.intake.data.db.projection.RecentDrinkLog
 import com.zeroindex.intake.data.db.projection.RecentPrepared
 import com.zeroindex.intake.data.db.projection.SlotTotals
 import com.zeroindex.intake.domain.model.MealSlot
@@ -107,6 +108,16 @@ interface FoodLogDao {
         zoneOffsetMillis: Long,
         dayLengthMillis: Long = 86_400_000L,
     ): List<DailyIntake>
+
+    /** Each drink logged to a slot (Drinks), latest first, with the size it was last logged at: the Drinks page's Recent row. */
+    @Query(
+        """
+        SELECT foodId AS foodId, quantityGrams AS ml, MAX(loggedAt) AS at FROM food_log
+        WHERE foodId IS NOT NULL AND quantityGrams IS NOT NULL AND mealSlot = :slot AND deletedAt IS NULL
+        GROUP BY foodId ORDER BY at DESC LIMIT :limit
+        """,
+    )
+    fun observeRecentDrinkLogs(slot: MealSlot, limit: Int): Flow<List<RecentDrinkLog>>
 
     /** Names of rows logged without a food (recipe servings among them), latest first: Log food's recent recipes. */
     @Query(

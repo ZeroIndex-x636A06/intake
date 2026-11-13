@@ -3,6 +3,18 @@
 Read this first when picking the work back up. Latest work: branch
 `claude/optimistic-noether-fullk5` (not yet merged into `claude/app-build-k2ag1d`).
 
+## Round 5, Drinks: wrong tea numbers and a simpler page (items 12 and 13; branch `worktree-agent-adf99e3f71c45bf4e`, not pushed)
+
+Compiled, unit-tested and linted only; no emulator, nothing seen on a phone. No schema change (still v5).
+
+- **Item 13.** The base "Hot Tea" row carried numbers no brew has (about 0.5 g protein, a few kcal per 100 ml); `domain/drinks/PlainBrew.kt` now swaps in the USDA brewed values for a plain tea or coffee
+  whose numbers are out of range, makes its sugar/fibre/saturated fat known zeros (so "Total Sugars" is no longer "not listed"), and Customise says so. Saved My drinks built on such a base are rebuilt when Drinks opens
+  (`DrinkRepository.repairCustomDrinks`). Drink tiles use the label's FDA rounding (65 vs 70 kcal). A drink's icon comes from its stored category (no cookie). A sugar teaspoon is 4.2 g.
+  Tests: `CustomDrinkRegressionTest`, `PlainBrewTest`, `OwnerTeaTest`. **Not verified:** the actual base row the owner used (not available here, so the cause is the likeliest one, stated as such); the repair on a real database.
+- **Item 12.** `DrinksScreen`/`DrinksViewModel` rewritten as one list (summary strip, one search, category chips as a filter, My drinks and Recent quick cards, one size sheet). New `FoodLogDao.observeRecentDrinkLogs`. Mockup: `design/mockup-r5/drinks.html` and `.png`.
+  **Not verified:** the layout, the long-press, the sheet, on a device; the old "scroll to search from Log food" jump is gone (the search is at the top).
+- Details: `docs/HYDRATION.md`, "Round 5 corrections".
+
 ## Round 4 merge and emulator smoke (branch `claude/optimistic-noether-fullk5`, schema v5)
 
 Six `--no-ff` merges on this branch: navigation transitions, Progress charts, drinks (schema v5, `MIGRATION_4_5`), recipes in Log food / Cook / meal templates, Recipe Hunter substitutions, and nearby menus (last; only `RESUME.md` conflicted, both sides kept). Verified at the last merge: `:app:compileDebugKotlin :app:testDebugUnitTest :app:lintDebug :wearprotocol:test :wear:lintDebug` all pass (app 1908 tests, 3 skipped, 0 failed; wearprotocol 14; app lint 0 errors, wear lint 0 errors).

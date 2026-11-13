@@ -53,6 +53,9 @@ import kotlinx.coroutines.withContext
 /** One drink in the list: the food row and the engine's verdict (null when the person avoids nothing). */
 data class DrinkRowUi(val food: FoodEntity, val allergen: RowAllergen?)
 
+/** A drink logged before, with the size (millilitres) it was last logged at: one tap logs that again. */
+data class RecentDrinkUi(val row: DrinkRowUi, val lastMl: Double)
+
 /** Where a drinks-search result comes from: the same four sources as Log food, in the same order. */
 enum class DrinkOrigin { MINE, USDA_OFFLINE, OPEN_FOOD_FACTS, USDA_ONLINE }
 
@@ -103,10 +106,13 @@ data class DrinksUiState(
     val day: HydrationDay? = null,
     val presets: List<HydrationPresetEntity> = emptyList(),
     val volumeUnit: VolumeUnit = VolumeUnit.US_FLUID_OUNCES,
-    val category: DrinkCategory = DrinkCategory.WATER,
+    /** The category chip that filters the list; null is "All". */
+    val category: DrinkCategory? = null,
     val drinks: List<DrinkRowUi> = emptyList(),
     /** The saved custom drinks ("My drinks"), shown at the top. */
     val myDrinks: List<DrinkRowUi> = emptyList(),
+    /** Drinks logged before, latest first. */
+    val recent: List<RecentDrinkUi> = emptyList(),
     val selected: FoodEntity? = null,
     /** True when [selected] was chosen from the search results rather than the category list. */
     val selectedFromSearch: Boolean = false,
@@ -135,7 +141,7 @@ class DrinksViewModel @Inject constructor(
     private val apiKeyStore: ApiKeyStore,
 ) : ViewModel() {
 
-    private val category = MutableStateFlow(DrinkCategory.WATER)
+    private val category = MutableStateFlow<DrinkCategory?>(null)
     private val query = MutableStateFlow("")
     private val selectedId = MutableStateFlow<String?>(null)
     private val pending = MutableStateFlow<PendingDrink?>(null)
@@ -148,7 +154,7 @@ class DrinksViewModel @Inject constructor(
 
     init {
         // The generic drinks are food rows; make sure they exist before the first list is read.
-        viewModelScope.launch { runCatching { drinks.ensureSeeded() } }
+        viewModelScope.launch { runCatching { drinks.ensureSeeded() }; runCatching { drinks.repairCustomDrinks() } }
     }
 
     // The predefined list: the chosen category's drinks (the saved ones are listed at the top instead). The search sits underneath.
@@ -248,13 +254,23 @@ class DrinksViewModel @Inject constructor(
         Triple(day, rowsUi, linked)
     }
 
+    /** The drinks logged before with the size each was last logged at, for the Recent row. */
+    private val recentRows = combine(drinks.observeRecentDrinks(), allergens.observeAvoidedAllergens(), allergens.observeAliases()) { l, _, _ -> l }.mapLatest { recents ->
+        if (allergens.avoidedAllergens().isEmpty()) {
+            recents.map { RecentDrinkUi(DrinkRowUi(it.food, null), it.lastMl) }
+        } else {
+            val scan = allergens.foodScanner()
+            withContext(Dispatchers.Default) { recents.map { r -> RecentDrinkUi(DrinkRowUi(r.food, rowAllergenOf(r.food, scan(r.food))), r.lastMl) } }
+        }
+    }
+
     val state: StateFlow<DrinksUiState> = combine(
         combine(entries, hydration.observePresets(), settingsRepository.settings) { e, p, s -> Triple(e, p, s) },
         combine(category, rows, selectedId, pending) { c, r, sel, p -> Quad(c, r, sel, p) },
         search,
         picked,
-        myRows,
-    ) { (e, presets, settings), q, found, chosen, mine ->
+        combine(myRows, recentRows) { m, r -> m to r },
+    ) { (e, presets, settings), q, found, chosen, (mine, recent) ->
         val (day, entryRows, linked) = e
         DrinksUiState(
             day = day,
@@ -263,7 +279,10 @@ class DrinksViewModel @Inject constructor(
             category = q.category,
             drinks = q.rows,
             myDrinks = mine,
-            selected = chosen ?: mine.firstOrNull { it.food.id == q.selectedId }?.food ?: q.rows.firstOrNull { it.food.id == q.selectedId }?.food ?: q.rows.firstOrNull()?.food,
+            recent = recent,
+            // Nothing is chosen until the person taps a drink: the size sheet opens for the choice.
+            selected = chosen ?: mine.firstOrNull { it.food.id == q.selectedId }?.food ?: recent.firstOrNull { it.row.food.id == q.selectedId }?.row?.food
+                ?: q.rows.firstOrNull { it.food.id == q.selectedId }?.food,
             selectedFromSearch = chosen != null,
             search = found,
             entries = entryRows,
@@ -273,9 +292,12 @@ class DrinksViewModel @Inject constructor(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DrinksUiState())
 
-    private data class Quad(val category: DrinkCategory, val rows: List<DrinkRowUi>, val selectedId: String?, val pending: PendingDrink?)
+    private data class Quad(val category: DrinkCategory?, val rows: List<DrinkRowUi>, val selectedId: String?, val pending: PendingDrink?)
 
-    fun selectCategory(c: DrinkCategory) { category.value = c; selectedId.value = null; picked.value = null }
+    fun selectCategory(c: DrinkCategory?) { category.value = c }
+
+    /** Closes the size sheet. */
+    fun clearSelection() { selectedId.value = null; picked.value = null }
 
     fun setQuery(q: String) {
         if (q.trim() != query.value.trim()) online.value = Online()

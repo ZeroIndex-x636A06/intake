@@ -84,7 +84,7 @@ data class AddInOption(
 /**
  * The small built-in list. Nutrition per 100 g (100 ml for liquids) is the USDA FoodData Central (SR Legacy) value for
  * the generic food, rounded; a plant milk or a syrup, which USDA lists by brand, is a typical figure. Spoon sizes: a
- * teaspoon of sugar is 4 g (the label teaspoon), of honey 7 g; a tablespoon of a liquid is 15 ml; one syrup pump is
+ * teaspoon of sugar is 4.2 g (the USDA household measure for granulated sugar), of honey 7 g; a tablespoon of a liquid is 15 ml; one syrup pump is
  * 10 ml. Dairy add-ins carry the `en:milk` tag, so the allergen engine raises dairy without any help.
  */
 object AddInCatalog {
@@ -93,7 +93,7 @@ object AddInCatalog {
     private fun liquidUnits(): Map<AddInUnit, Double> = mapOf(AddInUnit.TBSP to 15.0, AddInUnit.ML to 1.0)
 
     val ALL: List<AddInOption> = listOf(
-        AddInOption("sugar", "Sugar", "Sweeteners", Macros(387.0, 0.0, 99.98, 0.0, 0.0, 99.8, 1.0, 0.0), mapOf(AddInUnit.TSP to 4.0, AddInUnit.GRAM to 1.0), 1.0, liquid = false),
+        AddInOption("sugar", "Sugar", "Sweeteners", Macros(387.0, 0.0, 99.98, 0.0, 0.0, 99.8, 1.0, 0.0), mapOf(AddInUnit.TSP to 4.2, AddInUnit.GRAM to 1.0), 1.0, liquid = false),
         AddInOption("honey", "Honey", "Sweeteners", Macros(304.0, 0.3, 82.4, 0.0, 0.2, 82.1, 4.0, 0.0), mapOf(AddInUnit.TSP to 7.0, AddInUnit.GRAM to 1.0), 1.0, liquid = false),
         AddInOption("syrup", "Flavoured syrup", "Sweeteners", Macros(260.0, 0.0, 65.0, 0.0, 0.0, 65.0, 10.0, 0.0), mapOf(AddInUnit.PUMP to 10.0, AddInUnit.ML to 1.0), 1.0, liquid = true),
         AddInOption("sweetener", "Sweetener", "Sweeteners", Macros(), mapOf(AddInUnit.PACKET to 1.0), 1.0, liquid = false),
