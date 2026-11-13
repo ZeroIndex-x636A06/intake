@@ -58,7 +58,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.db.projection.SessionStat
+import com.zeroindex.intake.domain.training.MuscleVolume
 import com.zeroindex.intake.domain.training.RegionVolume
+import com.zeroindex.intake.domain.training.muscles.MuscleRegion
 import com.zeroindex.intake.domain.training.TrainText
 import com.zeroindex.intake.domain.training.VolumeStatus
 import com.zeroindex.intake.domain.training.WeeklyVolume
@@ -96,6 +98,7 @@ fun WorkoutSection(
     var programSheet by remember { mutableStateOf(false) }
     var workoutSheet by remember { mutableStateOf(false) }
     var openRegion by remember { mutableStateOf<BodyRegion?>(null) }
+    var openMuscle by remember { mutableStateOf<MuscleRegion?>(null) }
     val running = state.running
 
     LazyColumn(
@@ -168,7 +171,16 @@ fun WorkoutSection(
             }
         }
         item(key = "week") {
-            WeekVolumeCard(volumes = state.volume, hint = state.hint, unit = state.unit, selected = openRegion, onSelect = { openRegion = if (openRegion == it) null else it })
+            WeekVolumeCard(
+                volumes = state.volume,
+                muscles = state.muscles,
+                hint = state.hint,
+                unit = state.unit,
+                selected = openRegion,
+                onSelect = { openRegion = if (openRegion == it) null else it },
+                selectedMuscle = openMuscle,
+                onSelectMuscle = { openMuscle = if (openMuscle == it) null else it },
+            )
         }
 
         item(key = "recent-head") {
@@ -336,10 +348,13 @@ private fun TodayCard(card: TodayCard, busy: Boolean, onStart: (dayId: String?) 
 @Composable
 private fun WeekVolumeCard(
     volumes: List<RegionVolume>,
+    muscles: List<MuscleVolume>,
     hint: String?,
     unit: WeightUnit,
     selected: BodyRegion?,
     onSelect: (BodyRegion) -> Unit,
+    selectedMuscle: MuscleRegion?,
+    onSelectMuscle: (MuscleRegion) -> Unit,
 ) {
     IntakeCard {
         if (volumes.isEmpty()) {
@@ -347,7 +362,20 @@ private fun WeekVolumeCard(
             return@IntakeCard
         }
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            RegionBodyMap(volumes = volumes, selected = selected, onRegionTap = onSelect, modifier = Modifier.widthIn(max = 260.dp).fillMaxWidth())
+            RegionBodyMap(muscles = muscles, selected = selectedMuscle, onRegionTap = onSelectMuscle, modifier = Modifier.widthIn(max = 340.dp).fillMaxWidth())
+        }
+        val pickedMuscle = muscles.firstOrNull { it.region == selectedMuscle }
+        if (pickedMuscle != null) {
+            Spacer(Modifier.height(8.dp))
+            MuscleContributors(pickedMuscle)
+        } else {
+            Text(
+                "Tap a muscle to see which exercises counted for it.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+            )
         }
         Spacer(Modifier.height(6.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
@@ -370,6 +398,44 @@ private fun WeekVolumeCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp),
+            )
+        }
+    }
+}
+
+/** What counted for one tapped muscle this week: its sets against its share of the target, and the exercises behind them. */
+@Composable
+private fun MuscleContributors(v: MuscleVolume) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(12.dp).clip(RoundedCornerShape(4.dp)).background(volumeColor(v.status, v.sets > 0.0)))
+            Text("  ${v.region.label}", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+            Text(
+                "${v.summary()}, ${WeeklyVolume.words(v.status)}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (v.contributors.isEmpty()) {
+            Text("Nothing logged for ${v.region.label.lowercase()} this week.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            v.contributors.forEach { c ->
+                Text(
+                    "${c.exerciseName}: ${WeeklyVolume.formatSets(c.effectiveSets)} ${if (c.effectiveSets == 1.0) "set" else "sets"} counted (${c.loggedSets} logged)",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            Text(
+                "A set counts fully for its main muscle and by half for the helpers.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

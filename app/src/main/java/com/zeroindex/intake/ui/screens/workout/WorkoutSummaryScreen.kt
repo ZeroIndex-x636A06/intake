@@ -67,6 +67,7 @@ fun WorkoutSummaryScreen(
     contentPadding: PaddingValues,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
+    onRepeat: (sessionId: String) -> Unit = {},
     viewModel: WorkoutSummaryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -126,6 +127,9 @@ fun WorkoutSummaryScreen(
                                             Column(Modifier.weight(1f)) {
                                                 Text(e.name, style = MaterialTheme.typography.titleMedium)
                                                 Text(e.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                e.setLines.forEach { line ->
+                                                    Text(line, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 1.dp))
+                                                }
                                             }
                                             if (e.records.isNotEmpty()) Tag("PR")
                                         }
@@ -133,6 +137,15 @@ fun WorkoutSummaryScreen(
                                     }
                                 }
                             }
+                        }
+                    }
+                    if (state.canRepeat) {
+                        item(key = "repeat") {
+                            OutlinedButton(
+                                onClick = { viewModel.repeat(onRepeat) },
+                                shape = IntakeShape.Button,
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                            ) { Text("Repeat this workout") }
                         }
                     }
                     if (state.nextTime.isNotEmpty()) {

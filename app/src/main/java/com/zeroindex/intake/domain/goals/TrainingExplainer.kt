@@ -61,7 +61,8 @@ object TrainingExplainer {
             if (trimmed) "Some days were trimmed to fit." else "Every day fits."
 
         val kinds = Equipment.ALL.filter { it in inputs.equipment }
-        used += "Equipment: ${kinds.joinToString(", ").ifBlank { "none" }}. Only lifts you can do with it are used."
+        val gear = inputs.equipmentItems?.let { com.zeroindex.intake.domain.training.equipment.EquipmentItems.summary(it) } ?: kinds.joinToString(", ").ifBlank { "none" }
+        used += "Equipment: $gear. Only lifts you can do with it are used."
 
         if (inputs.focusMuscles.isNotEmpty()) {
             used += "Focus muscles: ${inputs.focusMuscles.sortedBy { Muscles.PROGRAMMED.indexOf(it) }.joinToString(", ")}. About 25% more sets, trained early in the session."

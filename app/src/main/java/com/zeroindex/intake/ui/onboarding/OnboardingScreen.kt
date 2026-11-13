@@ -2,6 +2,8 @@
 
 package com.zeroindex.intake.ui.onboarding
 
+import com.zeroindex.intake.domain.training.generator.EquipmentPreset
+import com.zeroindex.intake.ui.components.EquipmentChecklist
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -176,6 +178,7 @@ fun OnboardingScreen(
                     OnboardingStep.UNITS -> UnitsStep(viewModel)
                     OnboardingStep.ABOUT_YOU -> AboutYouStep(profileViewModel)
                     OnboardingStep.GOAL -> GoalStep(profileViewModel) { viewModel.goTo(OnboardingStep.ABOUT_YOU) }
+                    OnboardingStep.EQUIPMENT -> EquipmentStep(profileViewModel)
                     OnboardingStep.ALLERGENS -> AllergensStep()
                     OnboardingStep.HOW_TO_START -> HowToStartStep(viewModel) { viewModel.goTo(OnboardingStep.ABOUT_YOU) }
                     OnboardingStep.PLANS -> PlansStep(viewModel)
@@ -548,6 +551,47 @@ private fun GoalStep(viewModel: ProfileViewModel, onNeedAbout: () -> Unit) {
             "Add your sex, birth year, height and weight on the About you step to see your daily calories and protein here.",
         )
         TextButton(onClick = onNeedAbout, modifier = Modifier.heightIn(min = 48.dp)) { Text("Go to About you") }
+    }
+}
+
+// ------------------------------------------------------------------------------------ Equipment
+
+/** The simple choice first (three quick picks); "Advanced: pick each item" opens the grouped checklist. */
+@Composable
+private fun EquipmentStep(viewModel: ProfileViewModel) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val profile = state.profile
+    var advanced by remember { mutableStateOf(false) }
+    StepHeading("What can you train with?", "Used to pick exercises and swaps that fit. You can change it later in Settings.")
+    listOf(EquipmentPreset.FULL_GYM, EquipmentPreset.HOME_DUMBBELLS, EquipmentPreset.BODYWEIGHT_ONLY).forEach { p ->
+        OptionTile(
+            title = p.label,
+            description = when (p) {
+                EquipmentPreset.FULL_GYM -> "Barbells, racks, dumbbells, machines and cables"
+                EquipmentPreset.HOME_DUMBBELLS -> "Adjustable dumbbells, a bench and a pull-up bar"
+                else -> "Your own bodyweight and a pull-up bar"
+            },
+            selected = profile.equipmentPreset == p,
+            onClick = { viewModel.update { it.withEquipmentPreset(p) } },
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+    OptionTile(
+        title = "Advanced: pick each item",
+        description = if (profile.equipmentPreset == EquipmentPreset.CUSTOM) "Your own list: ${profile.effectiveEquipmentItems.size} items" else "Tick every barbell, bench, machine and extra you have",
+        selected = advanced || profile.equipmentPreset == EquipmentPreset.CUSTOM,
+        onClick = { advanced = !advanced },
+        modifier = Modifier.fillMaxWidth(),
+        secondary = "Advanced",
+    )
+    if (advanced) {
+        EquipmentChecklist(
+            selected = profile.effectiveEquipmentItems,
+            onChange = { items -> viewModel.update { it.withEquipmentItems(items) } },
+            dumbbellMaxKg = profile.dumbbellMaxKg,
+            onDumbbellMax = { kg -> viewModel.update { it.copy(dumbbellMaxKg = kg) } },
+            unit = state.settings.weightUnit,
+        )
     }
 }
 

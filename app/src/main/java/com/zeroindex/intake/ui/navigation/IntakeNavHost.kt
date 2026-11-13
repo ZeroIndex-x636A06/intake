@@ -561,7 +561,12 @@ fun IntakeNavHost(
             }
         }
         composable<Route.WorkoutSummary> {
-            PushedScreen("Workout summary", back) { pad -> WorkoutSummaryScreen(contentPadding = pad, onDone = back) }
+            PushedScreen("Workout summary", back) { pad -> WorkoutSummaryScreen(
+                    contentPadding = pad,
+                    onDone = back,
+                    onRepeat = { id -> navController.navigate(Route.ActiveWorkout(id)) { popUpTo<Route.WorkoutSummary> { inclusive = true } } },
+                )
+            }
         }
         composable<Route.WorkoutHistory> {
             PushedScreen("Training log", back) { pad ->

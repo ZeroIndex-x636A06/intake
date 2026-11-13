@@ -13,6 +13,7 @@ enum class OnboardingStep {
     UNITS,
     ABOUT_YOU,
     GOAL,
+    EQUIPMENT,
     ALLERGENS,
     HOW_TO_START,
     PLANS,

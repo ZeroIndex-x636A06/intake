@@ -207,13 +207,15 @@ class ActiveWorkoutViewModel @Inject constructor(
     /** The exercises that could stand in for [exerciseId], best first: same muscles, then what the person owns. */
     suspend fun swapOptions(exerciseId: String): List<RankedSwap> {
         val current = prescriptions.value.firstOrNull { it.exercise.id == exerciseId }?.exercise ?: return emptyList()
-        val owned = settingsRepository.settings.first().profile.equipment
+        val profile = settingsRepository.settings.first().profile
+        val owned = profile.equipment
         val inSession = prescriptions.value.map { it.exercise.id }.toSet()
         return SwapRanking.rank(
             current = current.toCandidate(),
             candidates = repository.exercises().map { it.toCandidate() },
             owned = owned,
             excludeIds = inSession,
+            ownedItems = profile.effectiveEquipmentItems,
         )
     }
 

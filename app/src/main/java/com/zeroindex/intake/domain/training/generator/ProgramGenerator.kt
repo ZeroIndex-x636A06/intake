@@ -1,5 +1,6 @@
 package com.zeroindex.intake.domain.training.generator
 
+import com.zeroindex.intake.domain.training.equipment.EquipmentRequirements
 import com.zeroindex.intake.domain.model.ProgressionType
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -223,9 +224,15 @@ private class ProgramGenerator(raw: GeneratorInputs) {
 
     private class Pool(val compounds: Map<String, List<CatalogExercise>>, val isolations: Map<String, List<CatalogExercise>>, val explosive: List<CatalogExercise>)
 
+    /** Equipment filter: the specific items when given, else the old kinds. */
+    private fun canUse(ex: CatalogExercise): Boolean {
+        val items = inputs.equipmentItems ?: return ex.equipment in inputs.equipment
+        return EquipmentRequirements.canDo(ex.name, ex.equipment, items)
+    }
+
     private fun candidatePool(): Pool {
         val usable = ExerciseCatalog.ALL.filter { ex ->
-            ex.equipment in inputs.equipment &&
+            canUse(ex) &&
                 ex.minExperience.ordinal <= exp.ordinal &&
                 ex.id !in inputs.hiddenExerciseIds &&
                 ex.loads.none { it in inputs.avoid }

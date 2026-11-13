@@ -2,6 +2,7 @@ package com.zeroindex.intake.domain.training
 
 import com.zeroindex.intake.domain.training.muscles.BodyRegion
 import com.zeroindex.intake.domain.training.muscles.MuscleMap
+import com.zeroindex.intake.domain.training.muscles.MuscleRegion
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.ZoneId
@@ -61,8 +62,42 @@ object MuscleWeights {
         return out
     }
 
+    /**
+     * Credit for one set per drawn muscle region (the body diagram's 20 regions). The main muscle's regions (narrowed by the
+     * exercise name: a lateral raise is the side delt) get [PRIMARY], helper regions [SECONDARY]; a region is never both.
+     */
+    fun muscleCredit(exerciseName: String, primaryMuscle: String, secondaryMuscles: List<String>): Map<MuscleRegion, Double> {
+        val h = MuscleMap.highlightFor(exerciseName, primaryMuscle, secondaryMuscles)
+        val out = linkedMapOf<MuscleRegion, Double>()
+        h.primary.forEach { out[it] = PRIMARY }
+        h.secondary.forEach { if (it !in out) out[it] = SECONDARY }
+        return out
+    }
+
+    /**
+     * How much of its body region's weekly target one diagram region is asked to carry. The big movers carry all of it;
+     * the small or hard-to-isolate muscles carry half, so a normal week can fill them.
+     */
+    fun targetShare(region: MuscleRegion): Double = when (region) {
+        MuscleRegion.UPPER_TRAPS, MuscleRegion.LOWER_BACK, MuscleRegion.FOREARMS, MuscleRegion.OBLIQUES,
+        MuscleRegion.CALVES, MuscleRegion.HIP_ADDUCTORS, MuscleRegion.HIP_ABDUCTORS,
+        -> 0.5
+        else -> 1.0
+    }
+
     /** The coarse region a library muscle name belongs to (traps and lower back count with the back). */
     fun regionOf(muscle: String): BodyRegion? = MuscleMap.regionsOf(muscle).firstOrNull()?.body
+}
+
+/** One diagram region's week: weighted sets against its share of the body region's target. */
+data class MuscleVolume(
+    val region: MuscleRegion,
+    val sets: Double,
+    val target: Int,
+    val status: VolumeStatus,
+    val contributors: List<VolumeContributor>,
+) {
+    fun summary(): String = "${WeeklyVolume.formatSets(sets)} of $target sets"
 }
 
 /**
@@ -120,6 +155,27 @@ object WeeklyVolume {
             val target = (targets[region] ?: 10).coerceAtLeast(1)
             val (low, high) = band(target)
             RegionVolume(region, total, target, low, high, status(total, target), contributors)
+        }
+    }
+
+    /** All twenty diagram regions, in map order, for the sets inside [range]. Warm-ups never count. */
+    fun computeMuscles(sets: List<VolumeSet>, targets: Map<BodyRegion, Int>, range: LongRange): List<MuscleVolume> {
+        val inWeek = sets.filter { !it.isWarmup && it.completedAt in range }
+        val byRegion = MuscleRegion.entries.associateWith { mutableMapOf<String, Triple<String, Double, Int>>() }
+        for (s in inWeek) {
+            for ((region, weight) in MuscleWeights.muscleCredit(s.exerciseName, s.primaryMuscle, s.secondaryMuscles)) {
+                val m = byRegion.getValue(region)
+                val old = m[s.exerciseId]
+                m[s.exerciseId] = Triple(s.exerciseName, (old?.second ?: 0.0) + weight, (old?.third ?: 0) + 1)
+            }
+        }
+        return MuscleRegion.entries.map { region ->
+            val contributors = byRegion.getValue(region).map { (id, t) -> VolumeContributor(id, t.first, t.second, t.third) }
+                .sortedWith(compareByDescending<VolumeContributor> { it.effectiveSets }.thenBy { it.exerciseName })
+            val total = contributors.sumOf { it.effectiveSets }
+            val coarse = (targets[region.body] ?: 10).coerceAtLeast(1)
+            val target = Math.round(coarse * MuscleWeights.targetShare(region)).toInt().coerceAtLeast(1)
+            MuscleVolume(region, total, target, status(total, target), contributors)
         }
     }
 

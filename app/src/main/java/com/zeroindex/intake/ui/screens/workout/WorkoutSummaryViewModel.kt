@@ -28,7 +28,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /** One exercise of the session on the summary: "3 × 8 @ 140", with its records. */
-data class SummaryExercise(val name: String, val sets: Int, val detail: String, val records: List<PrKind>)
+data class SummaryExercise(val name: String, val sets: Int, val detail: String, val records: List<PrKind>, val setLines: List<String> = emptyList())
 
 data class WorkoutSummaryState(
     val loading: Boolean = true,
@@ -46,6 +46,8 @@ data class WorkoutSummaryState(
     val kept: String? = null,
     val notes: String = "",
     val hint: String? = null,
+    /** A session that was started from a program day can be started again on the same day. */
+    val canRepeat: Boolean = false,
 )
 
 /**
@@ -108,7 +110,13 @@ class WorkoutSummaryViewModel @Inject constructor(
                 top.weightKg > 0 -> "${list.size} sets · best ${fmt(unit.fromKg(top.weightKg))} × ${top.reps}"
                 else -> "${list.size} sets · ${list.sumOf { it.reps }} reps"
             }
-            SummaryExercise(name, list.size, detail, summary.records.filter { it.exerciseName == name }.map { it.kind })
+            val every = sets.filter { it.exerciseId == list.first().exerciseId }
+            var n = 0
+            val lines = every.map { s ->
+                val weight = if (s.weightKg > 0) "${fmt(unit.fromKg(s.weightKg))} ${unit.label} × ${s.reps}" else "${s.reps} reps"
+                if (s.isWarmup) "Warm-up: $weight" else "Set ${++n}: $weight"
+            }
+            SummaryExercise(name, list.size, detail, summary.records.filter { it.exerciseName == name }.map { it.kind }, lines)
         }
 
         val nextTime = nextTimeChanges(session, working)
@@ -124,6 +132,7 @@ class WorkoutSummaryViewModel @Inject constructor(
             canKeep = session.programDayId == null && working.isNotEmpty(),
             notes = session.notes.orEmpty(),
             hint = WeeklyVolume.hint(week),
+            canRepeat = session.programDayId != null,
         )
     }
 
@@ -138,6 +147,12 @@ class WorkoutSummaryViewModel @Inject constructor(
             val next = p.prescription ?: return@mapNotNull null
             SessionSummaries.nextTime(p.exercise.name, usedKg, next.weightKg, next.repsMin, next.reason)
         }
+    }
+
+    /** Starts a new session on the same program day ("Repeat this workout"). */
+    fun repeat(onStarted: (String) -> Unit) = viewModelScope.launch {
+        val dayId = _state.value.session?.programDayId ?: return@launch
+        onStarted(repository.startSession(dayId).id)
     }
 
     fun setNotes(text: String) { _state.value = _state.value.copy(notes = text) }

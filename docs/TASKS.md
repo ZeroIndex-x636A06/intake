@@ -246,3 +246,9 @@ questions. **Do not start building before the open questions are answered and th
 ## Round 5 items 1 to 3: nearby chains, batched AI lookups, imports waiting for review (branch `worktree-agent-a2bb1c5265e1024f0`)
 
 Done and unit-tested, not run on a device, no schema change. Safety: estimates and sources that state no allergen information never read as clear (`MenuAllergenEvidence`, docs/ALLERGENS.md). Missed restaurants: 26 chains added to `nearby_chains.json`, alias and name-prefix matching (DQ Grill & Chill, Popeyes Louisiana Kitchen), batched AI lookups (8 places a call, 3 calls), "Look up the rest with AI". Imports: every import is kept as "To review" with "Review import" and a confirmed "Discard import" (`StagedImports`).
+
+## Round 5 items 15 to 17: done on branch `worktree-agent-a96ef628ee9862072` (not pushed, not seen on a device)
+- 15 Body diagram: original anatomical front/back figure with 20 muscle regions, weighted per-muscle week volume, tap a muscle for its contributing exercises. Preview `design/mockup-r5/muscle-map.png`.
+- 16 Equipment: 40 specific items in four groups, quick picks, requirements per exercise used by the generator, swaps and the library, legacy migration, Settings checklist, welcome-flow Equipment step with "Advanced: pick each item", wizard step. No schema change (JSON set in the profile).
+- 17 Training log lists all sessions by week with PR counts; session detail shows every set, notes and Repeat; exercise detail has "Your history".
+- Unit-tested only; not seen on an emulator or a phone. See `docs/WORKOUTS.md`.

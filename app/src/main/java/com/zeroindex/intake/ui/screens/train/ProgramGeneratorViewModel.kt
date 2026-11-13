@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.train
 
+import com.zeroindex.intake.domain.training.equipment.EquipmentItems
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroindex.intake.data.repository.TrainingRepository
@@ -78,13 +79,21 @@ class ProgramGeneratorViewModel @Inject constructor(
     fun setMinutes(minutes: Int) = edit { it.copy(sessionMinutes = minutes) }
 
     fun setPreset(preset: EquipmentPreset) = _state.update {
-        val equipment = if (preset == EquipmentPreset.CUSTOM) it.inputs.equipment else preset.kinds
-        it.copy(preset = preset, inputs = it.inputs.copy(equipment = equipment))
+        if (preset == EquipmentPreset.CUSTOM) {
+            val items = it.inputs.equipmentItems ?: EquipmentItems.fromLegacy(it.inputs.equipment)
+            return@update it.copy(preset = preset, inputs = it.inputs.copy(equipmentItems = items))
+        }
+        val items = EquipmentItems.presetItems(preset)
+        it.copy(preset = preset, inputs = it.inputs.copy(equipment = EquipmentItems.kindsOf(items), equipmentItems = items))
     }
 
-    fun toggleEquipment(kind: String) = _state.update {
-        val next = if (kind in it.inputs.equipment) it.inputs.equipment - kind else it.inputs.equipment + kind
-        it.copy(preset = EquipmentPreset.CUSTOM, inputs = it.inputs.copy(equipment = next))
+    /** The checklist: tick exactly [items]; the preset card follows. */
+    fun setEquipmentItems(items: Set<String>) = _state.update {
+        val clean = EquipmentItems.normalize(items)
+        it.copy(
+            preset = EquipmentItems.presetFor(clean),
+            inputs = it.inputs.copy(equipment = EquipmentItems.kindsOf(clean), equipmentItems = clean),
+        )
     }
 
     fun toggleFocus(muscle: String) = edit {

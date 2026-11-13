@@ -100,3 +100,67 @@ they affect calories.").
 - **Summary**: records, minutes, volume, sets, PRs, muscles worked against this week's targets, the exercises, next-time changes (latest session of a program day only) and, for an empty workout, Keep this workout. It is also the read-only view of an older session.
 - A workout made from a video keeps the video id on its program row (`program.videoId`); My workouts offers "Watch the video". See `docs/VIDEOS.md`.
 - The watch Data Layer feed (`WearBridge`) is unchanged. A swap or added exercise is phone-only until a set is logged.
+
+## Round 5: body diagram, specific equipment, Training log and exercise history
+
+### The body diagram (item 15)
+
+An original front and back anatomical-style figure replaces the 6-region map. Twenty muscle regions are separate paths:
+upper and mid/lower chest, front, side and rear delts, biceps, triceps, forearms, abs, obliques, upper traps, mid back, lats,
+lower back, glutes, quads, hamstrings, calves, inner thighs (adductors) and hip abductors, plus thin anatomy lines
+(collarbone, spine, ab lines, kneecap). It is drawn by `tools/musclemap/build_musclemap.py`, which writes
+`domain/training/muscles/MuscleGeometry.kt` (generated; do not hand-edit) and an SVG preview. `MuscleMap` smooths the corner
+points with Catmull-Rom, the same maths as the preview. `design/mockup-r5/muscle-map.png` is that preview, coloured to show the
+three statuses. Licence: original work for this app, no third-party art (see `docs/EXERCISE-IMAGES.md`).
+
+- **Weighted muscles.** `MuscleWeights.muscleCredit` credits a set per region: the main muscle's regions (narrowed by the
+  exercise name, so a lateral raise is the side delt) 1.0, helper regions 0.5, never both for one region. A region's target is
+  its body region's weekly target times `MuscleWeights.targetShare` (1.0 for the big movers, 0.5 for traps, lower back, forearms,
+  obliques, calves, inner thighs and abductors). `WeeklyVolume.computeMuscles` returns all 20 with contributors and the same
+  under / in range / over bands as before. The six-region rows, hint and targets are unchanged.
+- **Where it shows.** Train > Workout week card: tap any muscle to list the exercises that counted for it. Exercise detail and
+  the post-workout summary use the same figure (`MuscleMapView`) with the exercise's or session's muscles lit.
+- Tests: `MuscleVolumeTest`, `MuscleMapTest`.
+
+### Specific equipment (item 16)
+
+`domain/training/equipment/EquipmentItems.kt`: 40 items in four groups (free weights, racks and benches, machines, other).
+Stored as a JSON set of item ids in the existing profile value (`UserProfile.equipmentItems`, plus `dumbbellMaxKg`), so there is
+no schema change. `UserProfile.equipment` (the five old kinds) is kept in step with `EquipmentItems.kindsOf`, because the video
+suggestions and older code read it.
+
+- **Quick picks** fill the list: Full gym is every item; Home dumbbells is adjustable dumbbells, an adjustable bench and a
+  pull-up bar; Bodyweight only is a pull-up bar. Ticking items by hand moves the chip to "My own list" (or back to a quick pick
+  when the list matches one).
+- **Requirements.** `EquipmentRequirements.forExercise(name, oldKind)` returns groups; each group needs any one of its items
+  (a bench press needs a bar, plates and a flat or adjustable bench; a back squat needs a rack, squat stand or Smith machine;
+  a pulldown needs a lat pulldown or a cable stack; a leg press needs a leg press). Names win over kinds, so custom exercises
+  and "Kettlebell ..." or "Resistance band ..." work. The generator (`GeneratorInputs.equipmentItems`) and swap ranking
+  (`SwapRanking.rank(ownedItems)`) and the library's "My equipment" chip use it. With no item list they use the old kinds.
+- **Migration.** A profile saved before the checklist has `equipmentItems = null` and reads through
+  `EquipmentItems.fromLegacy`: a saved preset gives its items; custom kinds add what each used to allow (barbell: a barbell,
+  plates, a power rack and benches; dumbbell: dumbbells and an adjustable bench; machine: the machines, Smith machine and
+  preacher bench; cable: the cable items; bodyweight: pull-up bar and dip station). A test proves no catalog exercise that
+  was allowed under the old rule is lost. Nothing is written until the person changes something.
+- **UI.** Settings > Training > Equipment: quick-pick chips, then the grouped checklist (all / none per group, heaviest
+  dumbbell). The welcome flow has a new Equipment step (three quick picks, then "Advanced: pick each item"); the program wizard
+  step 4 has the same three cards plus "Advanced: pick each item". The heaviest dumbbell is stored but not yet used to cap
+  suggested weights.
+- Extra items beyond the brief: a hip abduction machine (the library has one). A machine lateral raise maps to the shoulder
+  press machine item.
+
+### Training log and exercise history (item 17)
+
+- **Training log** (Train > Workout > All sessions): every session newest first, grouped by calendar week (Monday start;
+  "This week", "Last week", then date ranges), each row with date, day or workout name (program as the subtitle), minutes,
+  sets, volume and a PR count (`TrainingLog`, counted in the order the sets were done with `PrDetector`). The exercise picker
+  and the estimated max chart are gone from this screen. Watch-started sessions are ordinary sessions on the phone
+  (`RemoteRequestHandler.startWorkout` calls `startSession`), so they are listed; one that was never finished still shows if it
+  has sets ("Unfinished"), and an empty unfinished one is hidden.
+- **Session detail** (the existing summary screen): every exercise with every set (warm-ups marked), the notes box, the
+  records, and **Repeat this workout** (starts a new session on the same program day; a freestyle session offers Keep this
+  workout instead).
+- **Exercise detail** (Train > Exercises > an exercise) has **Your history**: best set with its estimated max, heaviest weight,
+  total volume, sessions and sets, the estimated max over time on the scrub-able `TrendLineChart`, best reps at each weight,
+  the last 10 sessions with their sets and (PR) markers, and "No history yet" when empty (`ExerciseStatsBuilder`).
+- Tests: `TrainingLogTest`, `EquipmentItemsTest`, `OnboardingFlowTest`.

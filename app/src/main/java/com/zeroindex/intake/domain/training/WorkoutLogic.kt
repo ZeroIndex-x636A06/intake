@@ -1,5 +1,6 @@
 package com.zeroindex.intake.domain.training
 
+import com.zeroindex.intake.domain.training.equipment.EquipmentRequirements
 import com.zeroindex.intake.domain.training.muscles.BodyRegion
 import com.zeroindex.intake.domain.training.muscles.MuscleHighlight
 import com.zeroindex.intake.domain.training.muscles.MuscleMap
@@ -95,14 +96,19 @@ object SwapRanking {
         return e.isEmpty() || e == "bodyweight" || e == "none" || owned.any { it.lowercase() == e }
     }
 
+    /** Whether the person can do [name]: by the specific items when given, else by the old kinds. */
+    fun owns(name: String, equipment: String, owned: Set<String>, ownedItems: Set<String>?): Boolean =
+        if (ownedItems != null) EquipmentRequirements.canDo(name, equipment, ownedItems) else owns(equipment, owned)
+
     fun rank(
         current: SwapCandidate,
         candidates: List<SwapCandidate>,
         owned: Set<String>,
         excludeIds: Set<String> = emptySet(),
+        ownedItems: Set<String>? = null,
     ): List<RankedSwap> = candidates
         .filter { it.id != current.id && it.id !in excludeIds }
-        .map { RankedSwap(it, similarity(current, it), owns(it.equipment, owned)) }
+        .map { RankedSwap(it, similarity(current, it), owns(it.name, it.equipment, owned, ownedItems)) }
         .filter { it.similarity > 0 }
         .sortedWith(
             compareByDescending<RankedSwap> { it.similarity }

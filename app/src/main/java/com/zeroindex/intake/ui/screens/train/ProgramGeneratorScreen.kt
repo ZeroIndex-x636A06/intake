@@ -1,5 +1,7 @@
 package com.zeroindex.intake.ui.screens.train
 
+import com.zeroindex.intake.domain.training.equipment.EquipmentItems
+import com.zeroindex.intake.ui.components.EquipmentChecklist
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -116,7 +118,7 @@ fun ProgramGeneratorScreen(
                     }
                     Button(
                         onClick = { if (state.step == LAST_STEP) viewModel.generate() else viewModel.next() },
-                        enabled = state.step != 4 || state.inputs.equipment.isNotEmpty(),
+                        enabled = true,
                         shape = IntakeShape.Button,
                         modifier = Modifier.weight(1f).heightIn(min = 52.dp),
                     ) {
@@ -213,14 +215,24 @@ private fun Question(state: GeneratorUiState, vm: ProgramGeneratorViewModel) {
             }
             4 -> {
                 QuestionTitle("What can you train with?")
-                EquipmentPreset.entries.forEach { p ->
+                EquipmentPreset.entries.filter { it != EquipmentPreset.CUSTOM }.forEach { p ->
                     OptionCard(p.label, equipmentBlurb(p), p == state.preset) { vm.setPreset(p) }
                 }
-                if (state.preset == EquipmentPreset.CUSTOM) {
-                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Equipment.ALL.forEach { k -> TrainChip(Equipment.label(k), k in inputs.equipment) { vm.toggleEquipment(k) } }
-                    }
-                    if (inputs.equipment.isEmpty()) Hint("Pick at least one.")
+                var advanced by remember { mutableStateOf(state.preset == EquipmentPreset.CUSTOM) }
+                OptionCard(
+                    "Advanced: pick each item",
+                    if (state.preset == EquipmentPreset.CUSTOM) "Your own list: ${inputs.equipmentItems?.size ?: 0} items" else equipmentBlurb(EquipmentPreset.CUSTOM),
+                    advanced,
+                ) { advanced = !advanced }
+                if (advanced) {
+                    EquipmentChecklist(
+                        selected = inputs.equipmentItems ?: EquipmentItems.fromLegacy(inputs.equipment),
+                        onChange = vm::setEquipmentItems,
+                        dumbbellMaxKg = null,
+                        onDumbbellMax = { },
+                        unit = state.unit,
+                        showDumbbellMax = false,
+                    )
                 }
             }
             5 -> {
@@ -243,10 +255,10 @@ private fun Question(state: GeneratorUiState, vm: ProgramGeneratorViewModel) {
 }
 
 private fun equipmentBlurb(p: EquipmentPreset) = when (p) {
-    EquipmentPreset.FULL_GYM -> "Barbells, dumbbells, machines and cables"
+    EquipmentPreset.FULL_GYM -> "Every item: barbells, racks, dumbbells, machines and cables"
     EquipmentPreset.HOME_DUMBBELLS -> "Dumbbells and your own bodyweight"
-    EquipmentPreset.BODYWEIGHT_ONLY -> "No equipment"
-    EquipmentPreset.CUSTOM -> "Choose exactly what you have"
+    EquipmentPreset.BODYWEIGHT_ONLY -> "Your own bodyweight and a pull-up bar"
+    EquipmentPreset.CUSTOM -> "Tick every barbell, bench, machine and extra you have"
 }
 
 @Composable

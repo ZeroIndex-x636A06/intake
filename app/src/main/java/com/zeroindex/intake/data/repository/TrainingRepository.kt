@@ -747,6 +747,12 @@ class TrainingRepository @Inject constructor(
     fun observeSessions(): Flow<List<WorkoutSessionEntity>> = workoutDao.observeSessions()
     fun observeInProgress(): Flow<WorkoutSessionEntity?> = workoutDao.observeInProgress()
     fun observeSets(sessionId: String): Flow<List<SetLogEntity>> = workoutDao.observeSets(sessionId)
+
+    fun observeAllSets(): Flow<List<SetLogEntity>> = workoutDao.observeAllSets()
+
+    fun observeDayLabels(): Flow<List<com.zeroindex.intake.data.db.projection.DayLabel>> = workoutDao.observeDayLabels()
+
+    fun observeSetsForExercise(exerciseId: String): Flow<List<SetLogEntity>> = workoutDao.observeSetsForExercise(exerciseId)
     fun observeSetPoints(exerciseId: String): Flow<List<SetPoint>> =
         workoutDao.observeSetPoints(exerciseId)
 
