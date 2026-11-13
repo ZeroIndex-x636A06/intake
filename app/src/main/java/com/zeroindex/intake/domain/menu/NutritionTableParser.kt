@@ -19,6 +19,8 @@ data class MenuTableRow(
     val proteinG: Double,
     /** True when a "†" or footnote star says the item shares a fryer or a facility, which the chart cannot name. */
     val sharedFacility: Boolean = false,
+    /** False when the file has no allergen information at all (a nutrition-only table): the item must not read as "no allergens listed". */
+    val allergensStated: Boolean = true,
 )
 
 /**
@@ -266,7 +268,7 @@ object NutritionTableParser {
     }
 
     /** Do these numbers describe one real serving? Rounding on a label allows a little give. */
-    private fun fits(
+    internal fun fits(
         kcal: Double, kcalFat: Double?, fat: Double, sat: Double, trans: Double?, carb: Double, fiber: Double,
         sugars: Double, protein: Double, sodium: Double,
     ): Boolean {
@@ -278,13 +280,13 @@ object NutritionTableParser {
         return kotlin.math.abs(kcal - atwater) <= maxOf(40.0, 0.25 * kcal)
     }
 
-    private fun cleanName(raw: String): String = raw
+    internal fun cleanName(raw: String): String = raw
         .replace(Regex("[®™°†]"), "")
         .replace(Regex("\\s+u$"), "")
         .replace(Regex("\\s+"), " ")
         .trim(' ', '-', '–', '*')
 
-    private fun titleCase(heading: String): String = heading.lowercase().split(' ').joinToString(" ") { w ->
+    internal fun titleCase(heading: String): String = heading.lowercase().split(' ').joinToString(" ") { w ->
         w.replaceFirstChar(Char::titlecase)
     }
 }

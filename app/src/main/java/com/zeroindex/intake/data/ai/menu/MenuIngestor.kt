@@ -25,6 +25,7 @@ import com.zeroindex.intake.domain.menu.ChartItem
 import com.zeroindex.intake.domain.menu.MenuTableParse
 import com.zeroindex.intake.domain.menu.NutritionPrompt
 import com.zeroindex.intake.domain.menu.NutritionTableParser
+import com.zeroindex.intake.domain.menu.PositionedNutritionTable
 import com.zeroindex.intake.domain.menu.StatedAllergens
 import com.zeroindex.intake.domain.pdf.PdfChunkPlanner
 import com.zeroindex.intake.domain.pdf.PdfDocument
@@ -296,7 +297,11 @@ class MenuIngestor @Inject constructor(
         val why: String = when (val read = phonePdf.read(bytes)) {
             is PhonePdfText.Result.Pages -> {
                 onProgress(MenuProgress("Looking for a nutrition table…"))
-                val table = NutritionTableParser.parse(read.pages)
+                // Two readers: the line reader, and one that works from where each word sits on the page, for wide tables
+                // whose headings are rotated and whose names wrap round the numbers. The one that reads more rows wins.
+                val lineTable = NutritionTableParser.parse(read.pages)
+                val placedTable = if (read.fragments.isNotEmpty()) PositionedNutritionTable.parse(read.fragments) else null
+                val table = if (placedTable != null && placedTable.rows.size > lineTable.rows.size) placedTable else lineTable
                 if (table.foundTable) {
                     onProgress(MenuProgress("Checking allergens on this phone…", 1f))
                     val warnings = if (table.skipped > 0) {
@@ -338,7 +343,8 @@ class MenuIngestor @Inject constructor(
             coroutineContext.ensureActive()
             // A chart lists the major allergens an item contains. An item it lists none for says so in words, so the
             // item carries ingredient information and is not shown as "ingredients not listed".
-            val ingredients = row.stated.toText().ifBlank { CHART_LISTS_NONE }
+            // A table with no allergen column says nothing about allergens: the item keeps "ingredients not listed".
+            val ingredients = if (row.allergensStated) row.stated.toText().ifBlank { CHART_LISTS_NONE } else ""
             val description = listOfNotNull(
                 row.category,
                 row.servingWeightG?.let { "${num(it)} g serving" } ?: row.servingLabel,
@@ -364,7 +370,7 @@ class MenuIngestor @Inject constructor(
                     allergenStatus = when {
                         verdict.blocks -> AllergenStatus.CONTAINS
                         verdict.mayContain.isNotEmpty() -> AllergenStatus.MAY_CONTAIN
-                        verdict.checkLabel.isNotEmpty() -> AllergenStatus.CHECK_LABEL
+                        verdict.checkLabel.isNotEmpty() || !row.allergensStated -> AllergenStatus.CHECK_LABEL
                         else -> AllergenStatus.CLEAR
                     },
                     allergenMatches = verdict.matches.map { it.matchedTerm }.distinct().joinToString(", "),
