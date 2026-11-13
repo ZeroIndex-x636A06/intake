@@ -24,7 +24,7 @@ data class PageNutrition(
             fiberG == null && sugarG == null && sodiumMg == null && saturatedFatG == null
 }
 
-enum class RecipeSource { JSON_LD, MICRODATA }
+enum class RecipeSource { JSON_LD, MICRODATA, WPRM_HTML, TASTY_HTML, HEURISTIC }
 
 /** A recipe read from a page. Nothing here has been checked for allergens or saved. */
 data class RecipeDraft(
@@ -61,7 +61,7 @@ sealed interface PageParse {
 
 /**
  * Reads a recipe out of a web page's HTML without a DOM library: JSON-LD first, then schema.org
- * microdata. Deterministic, total (malformed input gives [PageParse.NoRecipe], never an
+ * microdata, then WP Recipe Maker and Tasty Recipes cards, then an "Ingredients" heading and list ([HtmlRecipeFallbacks]). Deterministic, total (malformed input gives [PageParse.NoRecipe], never an
  * exception) and offline.
  */
 object RecipePageParser {
@@ -70,9 +70,19 @@ object RecipePageParser {
     private val json = Json { isLenient = true; ignoreUnknownKeys = true }
 
     fun parse(html: String, pageUrl: String? = null): PageParse = try {
-        val fromLd = jsonLdRecipe(html, pageUrl)
-        val found = fromLd ?: Microdata(html, pageUrl).recipe()
-        if (found != null && (found.ingredients.isNotEmpty() || found.steps.isNotEmpty())) {
+        // Structured data first, then the visible card of the common recipe plugins, then a heading-and-list guess.
+        // A step that finds nothing usable hands over to the next one; none of these uses the network or AI.
+        val readers: List<() -> RecipeDraft?> = listOf(
+            { jsonLdRecipe(html, pageUrl) },
+            { Microdata(html, pageUrl).recipe() },
+            { HtmlRecipeFallbacks.wprm(html, pageUrl) },
+            { HtmlRecipeFallbacks.tasty(html, pageUrl) },
+            { HtmlRecipeFallbacks.generic(html, pageUrl) },
+        )
+        val found = readers.firstNotNullOfOrNull { read ->
+            runCatching(read).getOrNull()?.takeIf { it.ingredients.isNotEmpty() || it.steps.isNotEmpty() }
+        }
+        if (found != null) {
             PageParse.Found(enrich(found, html, pageUrl))
         } else {
             PageParse.NoRecipe(pageText(html))

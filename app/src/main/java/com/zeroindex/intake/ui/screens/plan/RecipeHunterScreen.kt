@@ -11,6 +11,11 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
+import com.zeroindex.intake.domain.ai.SavedHunt
+import com.zeroindex.intake.domain.ai.SavedHuntQuery
+import com.zeroindex.intake.ui.components.SwitchRow
+import java.text.DateFormat
+import java.util.Date
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
@@ -58,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.ai.recipes.HuntedRecipe
+import com.zeroindex.intake.data.ai.recipes.RecipeHunter
 import com.zeroindex.intake.ui.allergen.CheckLabelChip
 import com.zeroindex.intake.domain.ai.HuntPolicy
 import com.zeroindex.intake.domain.ai.RecipeVerdict
@@ -70,7 +76,19 @@ import com.zeroindex.intake.ui.screens.ai.usd
 import com.zeroindex.intake.ui.theme.IntakeShape
 import kotlin.math.roundToInt
 
-private val CUISINES = listOf("Mediterranean", "Mexican", "East Asian", "Indian", "Middle Eastern", "American", "Thai")
+/** "Any" first: it means no preference and clears the others; picking a specific cuisine clears it. */
+private const val ANY_CUISINE = "Any"
+private val CUISINES = listOf(
+    ANY_CUISINE, "American", "BBQ", "Cajun/Southern", "Caribbean", "Chinese", "East Asian", "Filipino", "French", "Greek",
+    "Indian", "Italian", "Japanese", "Korean", "Latin American", "Mediterranean", "Mexican", "Middle Eastern", "Spanish",
+    "Thai", "Vietnamese", "African",
+)
+
+private fun toggleCuisine(current: List<String>, c: String): List<String> = when {
+    c == ANY_CUISINE -> if (ANY_CUISINE in current) emptyList() else listOf(ANY_CUISINE)
+    c in current -> current - c
+    else -> (current - ANY_CUISINE) + c
+}
 
 @Composable
 fun RecipeHunterScreen(
@@ -91,7 +109,7 @@ fun RecipeHunterScreen(
     )
 
     when (val stage = state.stage) {
-        HuntStage.NeedsKey -> Column(modifier.padding(pad)) {
+        HuntStage.NeedsKey -> Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(pad)) {
             HuntSubtitle("Searches the web with AI, so it needs “Use AI features” on and an OpenRouter key (Settings → AI).")
             OutlinedButton(onClick = onOpenImport, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(52.dp)) {
                 Text("Have a link? Import it with no AI")
@@ -100,6 +118,7 @@ fun RecipeHunterScreen(
             Button(onClick = onOpenAiSettings, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(52.dp)) {
                 Text("Set up AI tools")
             }
+            RecentSearches(state.recent, canRunAgain = false, onOpen = viewModel::openRecent, onRunAgain = {}, onDelete = viewModel::deleteRecent)
         }
 
         HuntStage.Form -> Column(
@@ -143,7 +162,7 @@ fun RecipeHunterScreen(
                             label = c,
                             selected = c in q.cuisines,
                             onClick = {
-                                viewModel.updateQuery { it.copy(cuisines = if (c in it.cuisines) it.cuisines - c else it.cuisines + c) }
+                                viewModel.updateQuery { it.copy(cuisines = toggleCuisine(it.cuisines, c)) }
                             },
                         )
                     }
@@ -164,20 +183,35 @@ fun RecipeHunterScreen(
                     placeholder = "One-pan, no fish, freezer-friendly…",
                     modifier = Modifier.padding(top = 4.dp),
                 )
+                SwitchRow(
+                    title = "Use AI to read pages the phone can't",
+                    subtitle = "Off by default. Sends the text of a page this phone cannot read to OpenRouter to copy out its recipe, " +
+                        "about ${usd(RecipeHunter.ASSUMED_AI_READ_USD)} a page and at most ${RecipeHunter.MAX_AI_READS_PER_RUN} pages a search. " +
+                        "It counts in the cost and cap below. Those recipes are labelled “Read by AI” and still need a look at the original page.",
+                    on = q.aiReadPages,
+                    onToggle = { viewModel.updateQuery { it.copy(aiReadPages = !it.aiReadPages) } },
+                    onLabel = "On",
+                    offLabel = "Off",
+                    modifier = Modifier.padding(top = 4.dp),
+                )
                 Button(
                     onClick = viewModel::hunt,
                     shape = IntakeShape.Button,
                     modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(52.dp),
                 ) { Text("Search recipes") }
                 Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    PrivacyTag("Sends goals to OpenRouter")
-                    Text(
-                        "  About ${usd(HuntPolicy().capUsd)} at most per search, and you see the running cost. Ingredients are checked on this phone.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    PrivacyTag(if (q.aiReadPages) "Sends goals and some page text to OpenRouter" else "Sends goals to OpenRouter")
                 }
+                Text(
+                    "About ${usd(HuntPolicy().capUsd)} at most per search" +
+                        (if (q.aiReadPages) ", AI page reading included" else "") +
+                        ", and you see the running cost. Ingredients are checked on this phone.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
             }
+            RecentSearches(state.recent, canRunAgain = true, onOpen = viewModel::openRecent, onRunAgain = viewModel::runAgain, onDelete = viewModel::deleteRecent)
         }
 
         is HuntStage.Running -> Column(modifier.padding(pad), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -210,7 +244,8 @@ fun RecipeHunterScreen(
             item(key = "head") {
                 HuntSubtitle(
                     "${result.rounds} round${if (result.rounds == 1) "" else "s"} · ${usd(result.costUsd)} spent · " +
-                        "${result.candidatesSeen} pages read · ${result.stop.label.replaceFirstChar(Char::lowercase)}",
+                        "${result.candidatesSeen} pages read · ${result.stop.label.replaceFirstChar(Char::lowercase)}" +
+                        (if (result.aiReads > 0) " · ${result.aiReads} read by AI" else ""),
                 )
             }
             item(key = "legend") {
@@ -224,7 +259,7 @@ fun RecipeHunterScreen(
                 )
             }
             item(key = "results-head") {
-                SectionLine("Results · ${result.kept.size} kept", note = "of ${result.results.size} reviewed")
+                HuntSection("Results · ${result.kept.size} kept", note = "of ${result.results.size} reviewed")
             }
             if (result.kept.isEmpty()) {
                 item(key = "none") {
@@ -239,14 +274,14 @@ fun RecipeHunterScreen(
                 HuntedCard(hunted, saved = isSaved(hunted), onClick = { onCard(hunted) }, onSave = { viewModel.save(hunted) })
             }
             if (result.close.isNotEmpty()) {
-                item(key = "close-head") { SectionLine("Close matches · ${result.close.size}", note = "within 10% of a limit") }
+                item(key = "close-head") { HuntSection("Close matches · ${result.close.size}", note = "within 10% of a limit") }
                 items(result.close, key = { "c" + it.recipe.sourceUrl + it.recipe.title }) { hunted ->
                     HuntedCard(hunted, saved = isSaved(hunted), onClick = { onCard(hunted) }, onSave = { viewModel.save(hunted) })
                 }
             }
             if (result.adaptable.isNotEmpty()) {
                 item(key = "adapt-head") {
-                    SectionLine(
+                    HuntSection(
                         "Could be adapted · ${result.adaptable.size}",
                         note = "contain something you avoid, but only as a swappable part",
                     )
@@ -265,14 +300,14 @@ fun RecipeHunterScreen(
                 }
             }
             if (result.unverified.isNotEmpty()) {
-                item(key = "unverified-head") { SectionLine("Could not check · ${result.unverified.size}", note = "page unreadable, not saved") }
+                item(key = "unverified-head") { HuntSection("Could not check · ${result.unverified.size}", note = "page unreadable, not saved") }
                 items(result.unverified, key = { "u" + it.recipe.sourceUrl + it.recipe.title }) { hunted ->
                     HuntedCard(hunted, saved = false, onClick = { onCard(hunted) }, onSave = {})
                 }
             }
             if (result.removed.isNotEmpty()) {
                 item(key = "removed-head") {
-                    SectionLine(
+                    HuntSection(
                         "Removed · ${result.removed.size}",
                         note = "allergen or well outside a limit",
                         trailing = { TextButton(onClick = { showRemoved = !showRemoved }) { Text(if (showRemoved) "Hide" else "Show") } },
@@ -322,6 +357,97 @@ fun RecipeHunterScreen(
     }
 }
 
+/**
+ * A section heading with its explanation on its own line below, so a long note can never squeeze the title into a
+ * column of single letters. [trailing] (a Show/Hide button) sits at the end of the title line.
+ */
+@Composable
+private fun HuntSection(title: String, note: String? = null, trailing: @Composable (() -> Unit)? = null) {
+    Column(Modifier.fillMaxWidth().padding(top = 13.dp, bottom = 8.dp, start = 1.dp, end = 1.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+            )
+            trailing?.invoke()
+        }
+        if (note != null) {
+            Text(note, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+/** The bottom of the start screen: earlier searches, newest first. Opening one spends nothing; "Run again" searches anew. */
+@Composable
+private fun RecentSearches(
+    recent: List<SavedHunt>,
+    canRunAgain: Boolean,
+    onOpen: (String) -> Unit,
+    onRunAgain: (String) -> Unit,
+    onDelete: (String) -> Unit,
+) {
+    if (recent.isEmpty()) return
+    val stamp = remember { DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT) }
+    Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+        HuntSection(
+            "Recent searches",
+            note = "Open one to see its results again with nothing spent. Run again searches the web anew and costs the usual amount.",
+        )
+        recent.forEach { h ->
+            val c = h.counts
+            ResultCard(modifier = Modifier.padding(vertical = 4.dp)) {
+                Text(recentTitle(h.query), style = MaterialTheme.typography.titleSmall)
+                Text(
+                    stamp.format(Date(h.createdAt)) + " · ${usd(h.costUsd)}" + if (h.aiReads > 0) " · ${h.aiReads} read by AI" else "",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    listOfNotNull(
+                        "${c.kept} kept",
+                        if (c.close > 0) "${c.close} close" else null,
+                        if (c.adaptable > 0) "${c.adaptable} adaptable" else null,
+                        if (c.unverified > 0) "${c.unverified} not checked" else null,
+                    ).joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+                val titles = h.results.take(3).joinToString(", ") { it.title }
+                if (titles.isNotEmpty()) {
+                    Text(
+                        titles,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    TextButton(onClick = { onOpen(h.id) }, modifier = Modifier.semantics { contentDescription = "Open results: ${recentTitle(h.query)}" }) {
+                        Text("Open results")
+                    }
+                    if (canRunAgain) {
+                        TextButton(onClick = { onRunAgain(h.id) }, modifier = Modifier.semantics { contentDescription = "Run again: ${recentTitle(h.query)}" }) {
+                            Text("Run again")
+                        }
+                    }
+                    TextButton(onClick = { onDelete(h.id) }, modifier = Modifier.semantics { contentDescription = "Delete saved search: ${recentTitle(h.query)}" }) {
+                        Text("Delete")
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun recentTitle(q: SavedHuntQuery): String {
+    val cuisines = q.cuisines.filterNot { it == ANY_CUISINE }
+    val what = if (cuisines.isEmpty()) "Any cuisine" else cuisines.joinToString(", ")
+    return what + (q.minProteinPerServing?.let { " · ≥ $it g protein" } ?: "")
+}
+
 @Composable
 private fun HuntSubtitle(text: String) {
     Text(
@@ -341,11 +467,14 @@ private fun HuntedCard(hunted: HuntedRecipe, saved: Boolean, onClick: () -> Unit
     val unverified = hunted.verdict as? RecipeVerdict.Unverified
     ResultCard(dimmed = rejected != null || unverified != null, modifier = Modifier.padding(vertical = 4.dp)) {
         Row(verticalAlignment = Alignment.Top) {
-            r.imageUrl?.let { url ->
+            // Space is reserved only for a picture that exists and loads; a missing or broken one leaves no gap.
+            var imageFailed by remember(r.imageUrl) { mutableStateOf(false) }
+            r.imageUrl?.takeIf { !imageFailed }?.let { url ->
                 AsyncImage(
                     model = url,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
+                    onError = { imageFailed = true },
                     modifier = Modifier.padding(end = 10.dp).size(76.dp).clip(RoundedCornerShape(12.dp)),
                 )
             }
@@ -357,14 +486,16 @@ private fun HuntedCard(hunted: HuntedRecipe, saved: Boolean, onClick: () -> Unit
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     if (saved) StatusPill("\u2713 Saved")
+                    if (r.aiRead) StatusPill("Read by AI", tone = PillTone.Wait)
                     when (val v = hunted.verdict) {
                         RecipeVerdict.Passed ->
                             if (hunted.scan.hasCheckLabel) CheckLabelChip(hunted.scan.checkLabel.first().note, showReason = false)
                             else StatusPill("Passed allergen check")
                         is RecipeVerdict.NeedsReview -> StatusPill("Check allergens", tone = PillTone.Wait)
-                        is RecipeVerdict.Rejected ->
-                            if (adaptable != null) StatusPill("Original: ${v.reason.replaceFirstChar(Char::lowercase)}", tone = PillTone.Bad)
-                            else StatusPill("Removed: ${v.reason.replaceFirstChar(Char::lowercase).let { if (it.length > 28) it.take(27) + "\u2026" else it }}", tone = PillTone.Bad)
+                        // Short chips only, one per count against the recipe; the full reasons are in the text below.
+                        is RecipeVerdict.Rejected -> hunted.reasonChips.forEach { chip ->
+                            StatusPill(if (adaptable != null) "Original: ${chip.replaceFirstChar(Char::lowercase)}" else chip, tone = PillTone.Bad)
+                        }
                         is RecipeVerdict.Unverified -> StatusPill("Not checked", tone = PillTone.Wait)
                     }
                 }
@@ -389,7 +520,7 @@ private fun HuntedCard(hunted: HuntedRecipe, saved: Boolean, onClick: () -> Unit
         }
         Text(
             when {
-                rejected != null -> "${rejected.reason}. This result is excluded from saving."
+                rejected != null -> "Removed because: ${rejected.reasons.joinToString("; ")}. This result is excluded from saving."
                 unverified != null -> "${unverified.reason}. Allergens were not checked, so it cannot be saved. Source: ${r.sourceName}."
                 adaptable != null -> listOfNotNull(
                     adaptable.confidence.label,

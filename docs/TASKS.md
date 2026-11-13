@@ -38,6 +38,13 @@ Nothing. Option A parts 1 to 3 are built and merged on `claude/optimistic-noethe
 (`SettingsRegistryTest` fails otherwise). Register a screen only one tab opens inside that tab's graph; a screen two tabs open
 goes once at the root of `IntakeNavHost`. Lists that can be long must be lazy rows, never a `forEach` inside one `item`.
 
+**Recipe Hunter, round 5 items 4 to 8** (this worktree branch, not pushed, not seen on a device). Cuisines (22 chips including Any, Japanese, Korean...),
+section headings with the note on its own line and short "Contains dairy" / "Under protein goal" chips (the full reasons in the body text), every reason
+listed when a recipe fails on several counts, non-AI page readers (WP Recipe Maker, Tasty Recipes, an Ingredients list; microdata already existed),
+the optional "Use AI to read pages the phone can't" per-search switch (counted in cost and cap, results labelled "Read by AI", never plain "Passed"),
+and "Recent searches" (last 20, own preferences file, not in backups, soft delete, open without spending or Run again). **No schema change.**
+Item 8 is design only: `docs/ROADMAP-allergen-cooking.md`. See `RESUME.md`.
+
 ## Round 4 merge on `claude/optimistic-noether-fullk5`: done, emulator-checked
 
 Navigation transitions, Progress charts, drinks (schema v5), recipes in Log food / Cook / meal templates, Recipe Hunter substitutions and nearby menus are merged and verified (unit tests, `MigrationSchemaTest`, lint 0 errors, 4 to 5 upgrade on the emulator). Details and what still needs a phone: RESUME.md, "Round 4 merge and emulator smoke". Open: on-device check of the above.
@@ -214,3 +221,15 @@ screens are in RESUME.md. Still needs a phone with an OpenRouter key: Recipe Hun
 - 12 "Could be adapted" (substitution engine, section, Save adapted copy), 13 "Saved" chip by URL, 15 recipe images. Rules in docs/ALLERGENS.md. Unit-tested only.
 
 Nutrition meals card without Drinks, and a location-denied note with an app-settings button on the nearby card: done on `claude/optimistic-noether-fullk5`, unit-tested, not seen on a device.
+
+## Roadmap
+
+Ideas that are designed or wanted but not started. Nothing here is claimed. A roadmap entry is not a promise to build it: each says what has to be true first.
+
+**Allergen-aware cooking guide** (design note only: `docs/ROADMAP-allergen-cooking.md`; from phone feedback round 5, item 8). Given a dish or recipe,
+suggest how to make it safely for the user's allergens. The owner: "This will need to be VERY WELL dialed in and will likely need to use AI. This is a
+feature that MUST work correctly." The note sets out the goals, the non-negotiable safety rules (local deterministic scanning has the final say; AI may
+only propose; every proposed ingredient is re-scanned; cross-contact warnings; never clear a warning; label checks on substitutes), the pipeline
+(deterministic `Substitutions` first, then AI proposals for what it cannot place, then a local verification pass, then a confidence level or a refusal),
+an evaluation plan (a fixed dish set per allergen, a 100% safety pass target before release, regression tests), the refusal states in the UI, and the open
+questions. **Do not start building before the open questions are answered and the evaluation set exists.**

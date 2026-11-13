@@ -61,7 +61,24 @@ enum class Fit {
     UNCHECKED,
 }
 
-data class FitResult(val fit: Fit, val reason: String?)
+/** Which limit a recipe misses. [chip] is the short label for a card; the full wording is in [FitResult.reasons]. */
+enum class FitIssue(val chip: String) {
+    PROTEIN("Under protein goal"),
+    KCAL("Over calorie cap"),
+    TIME("Over time limit"),
+}
+
+/**
+ * [reasons] lists every limit the recipe misses, near misses included, so a recipe that fails on several counts says
+ * so. [fit] is the worst of them; [reason] is all of them joined, or null when none.
+ */
+data class FitResult(
+    val fit: Fit,
+    val reasons: List<String> = emptyList(),
+    val issues: List<FitIssue> = emptyList(),
+) {
+    val reason: String? get() = reasons.takeIf { it.isNotEmpty() }?.joinToString("; ")
+}
 
 object RecipeFit {
     /** How far past a limit still counts as a near miss. */
@@ -69,40 +86,40 @@ object RecipeFit {
 
     /**
      * Compares a page's own published numbers with the search. A null number is "not stated": it is not
-     * checked and never counted against the recipe. Any OUT wins over any CLOSE.
+     * checked and never counted against the recipe. Any OUT wins over any CLOSE, and every miss is listed.
      */
     fun assess(protein: Double?, kcal: Double?, minutes: Int?, query: RecipeQuery): FitResult {
         var worst = Fit.MATCH
-        var reason: String? = null
-        fun note(level: Fit, text: String) {
-            if (level.ordinal > worst.ordinal) {
-                worst = level
-                reason = text
-            }
+        val reasons = mutableListOf<String>()
+        val issues = mutableListOf<FitIssue>()
+        fun note(level: Fit, issue: FitIssue, text: String) {
+            if (level.ordinal > worst.ordinal) worst = level
+            reasons += text
+            issues += issue
         }
         query.minProteinPerServing?.let { goal ->
             if (protein != null && protein < goal) {
                 val text = "${protein.roundToInt()} g protein per serving, goal ≥ $goal g"
-                note(if (protein >= goal * (1 - NEAR_MISS)) Fit.CLOSE else Fit.OUT, text)
+                note(if (protein >= goal * (1 - NEAR_MISS)) Fit.CLOSE else Fit.OUT, FitIssue.PROTEIN, text)
             }
         }
         query.maxKcalPerServing?.let { cap ->
             if (kcal != null && kcal > cap) {
                 val text = "${kcal.roundToInt()} kcal per serving, goal ≤ $cap"
-                note(if (kcal <= cap * (1 + NEAR_MISS)) Fit.CLOSE else Fit.OUT, text)
+                note(if (kcal <= cap * (1 + NEAR_MISS)) Fit.CLOSE else Fit.OUT, FitIssue.KCAL, text)
             }
         }
         query.maxMinutes?.let { cap ->
             if (minutes != null && minutes > cap) {
                 val text = "Takes $minutes min, goal ≤ $cap"
-                note(if (minutes <= cap * (1 + NEAR_MISS)) Fit.CLOSE else Fit.OUT, text)
+                note(if (minutes <= cap * (1 + NEAR_MISS)) Fit.CLOSE else Fit.OUT, FitIssue.TIME, text)
             }
         }
         val checkedSomething = protein != null || kcal != null
         return when {
-            worst != Fit.MATCH -> FitResult(worst, reason)
-            !checkedSomething -> FitResult(Fit.UNCHECKED, null)
-            else -> FitResult(Fit.MATCH, null)
+            worst != Fit.MATCH -> FitResult(worst, reasons, issues)
+            !checkedSomething -> FitResult(Fit.UNCHECKED)
+            else -> FitResult(Fit.MATCH)
         }
     }
 }
@@ -145,5 +162,34 @@ object HuntRules {
         roundsDone > 0 && costUsd + lastRoundCostUsd > policy.capUsd -> HuntStop.COST
         lastRoundNewCandidates == 0 -> HuntStop.DRIED_UP
         else -> null
+    }
+}
+
+/**
+ * What "Use AI to read pages the phone can't" may still spend: the part of the search's cap not already used,
+ * and a count of pages. Shared by the pages of one round, which are read a few at a time, so it is thread safe.
+ * The estimate is a prediction; [record] adds what the call really cost.
+ */
+class AiReadBudget(private var remainingUsd: Double, private var remainingReads: Int) {
+    var spentUsd: Double = 0.0
+        private set
+    var reads: Int = 0
+        private set
+
+    /** True, and the estimate is held back, when one more read fits under the cap and the page limit. */
+    @Synchronized
+    fun tryReserve(estimateUsd: Double): Boolean {
+        if (remainingReads <= 0 || estimateUsd > remainingUsd) return false
+        remainingReads--
+        remainingUsd -= estimateUsd
+        return true
+    }
+
+    /** Settles a reserved read: [actualUsd] replaces its [estimateUsd]. A failed call still cost what the provider billed. */
+    @Synchronized
+    fun record(estimateUsd: Double, actualUsd: Double) {
+        remainingUsd += estimateUsd - actualUsd
+        spentUsd += actualUsd
+        reads++
     }
 }

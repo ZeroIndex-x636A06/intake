@@ -107,4 +107,31 @@ class HuntRulesTest {
     fun `reaching the target wins over the other reasons`() {
         assertThat(stop(12, 4, 0.5, new = 0)).isEqualTo(HuntStop.TARGET)
     }
+
+    @Test
+    fun `every missed limit is listed with a short chip each`() {
+        val r = RecipeFit.assess(32.0, 760.0, 45, query)
+        assertThat(r.fit).isEqualTo(Fit.OUT)
+        assertThat(r.reasons).hasSize(2)
+        assertThat(r.issues.map { it.chip }).containsExactly("Under protein goal", "Over calorie cap").inOrder()
+        assertThat(r.reason).contains("32 g protein").also { assertThat(r.reason).contains("760 kcal") }
+    }
+
+    @Test
+    fun `the ai read budget holds the cap and the page limit`() {
+        val b = AiReadBudget(remainingUsd = 0.007, remainingReads = 5)
+        assertThat(b.tryReserve(0.003)).isTrue()
+        assertThat(b.tryReserve(0.003)).isTrue()
+        // 0.001 is left: another 0.003 read does not fit under the cap.
+        assertThat(b.tryReserve(0.003)).isFalse()
+        b.record(0.003, 0.001)
+        b.record(0.003, 0.0025)
+        assertThat(b.spentUsd).isWithin(1e-9).of(0.0035)
+        assertThat(b.reads).isEqualTo(2)
+        // A cheaper real cost frees room.
+        assertThat(b.tryReserve(0.003)).isTrue()
+        val few = AiReadBudget(1.0, 1)
+        assertThat(few.tryReserve(0.001)).isTrue()
+        assertThat(few.tryReserve(0.001)).isFalse()
+    }
 }
