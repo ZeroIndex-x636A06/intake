@@ -6,6 +6,7 @@ import androidx.room.Upsert
 import com.zeroindex.intake.data.db.entity.FoodLogEntity
 import com.zeroindex.intake.data.db.projection.DailyIntake
 import com.zeroindex.intake.data.db.projection.MacroTotals
+import com.zeroindex.intake.data.db.projection.RecentPrepared
 import com.zeroindex.intake.data.db.projection.SlotTotals
 import com.zeroindex.intake.domain.model.MealSlot
 import kotlinx.coroutines.flow.Flow
@@ -106,6 +107,16 @@ interface FoodLogDao {
         zoneOffsetMillis: Long,
         dayLengthMillis: Long = 86_400_000L,
     ): List<DailyIntake>
+
+    /** Names of rows logged without a food (recipe servings among them), latest first: Log food's recent recipes. */
+    @Query(
+        """
+        SELECT foodNameAtLog AS name, MAX(loggedAt) AS at FROM food_log
+        WHERE foodId IS NULL AND deletedAt IS NULL
+        GROUP BY foodNameAtLog ORDER BY at DESC LIMIT :limit
+        """,
+    )
+    fun observeRecentPrepared(limit: Int): Flow<List<RecentPrepared>>
 
     @Query("UPDATE food_log SET deletedAt = :now, updatedAt = :now WHERE id = :id")
     suspend fun softDelete(id: String, now: Long)

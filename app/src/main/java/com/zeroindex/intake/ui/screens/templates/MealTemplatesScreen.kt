@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material3.Button
@@ -36,6 +37,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -75,6 +77,9 @@ import kotlin.math.roundToInt
 @Composable
 fun MealTemplatesScreen(
     contentPadding: PaddingValues,
+    /** Opens the editor for a new template. Needs no meal plan. */
+    onNew: () -> Unit,
+    onEdit: (templateId: String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MealTemplatesViewModel = hiltViewModel(),
 ) {
@@ -83,6 +88,7 @@ fun MealTemplatesScreen(
     val context = LocalContext.current
     val nfc = remember { NfcAdapter.getDefaultAdapter(context) }
     var logging by remember { mutableStateOf<TemplateSummary?>(null) }
+    var deleting by remember { mutableStateOf<TemplateSummary?>(null) }
     val dates = remember { DateTimeFormatter.ofPattern("d MMM") }
 
     LazyColumn(
@@ -96,12 +102,17 @@ fun MealTemplatesScreen(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item(key = "head") {
-            SubHead("Tap to log", "One tap logs a meal template from a tag on its container, to whatever meal it is now.")
+            SubHead(
+                "Meal templates",
+                "Meals you eat often, saved so one tap logs them. Make one here, or save a meal you logged on Today. No meal plan needed.",
+            )
         }
-        if (nfc == null) {
-            item(key = "nonfc") {
-                EmptyState(body = "This phone has no NFC. Templates still log in one tap from here.")
-            }
+        item(key = "new") {
+            Button(
+                onClick = onNew,
+                shape = IntakeShape.Button,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+            ) { Text("New meal template") }
         }
         state.message?.let { item(key = "msg") { SandNote(it) } }
         item(key = "list-head") { SectionLine("Meal templates", note = "${templates.size} saved") }
@@ -109,24 +120,21 @@ fun MealTemplatesScreen(
             item(key = "empty") {
                 EmptyState(
                     title = "No meal templates yet",
-                    body = "On Today, log a prepped meal once, then choose \"Save as meal prep\" on that meal.",
+                    body = "Tap \"New meal template\" to build one from foods and recipes. Or, on Today, log a meal once, then choose \"Save as meal template\" on it.",
                 )
             }
         } else {
-            item(key = "list") {
-                IntakeCard {
-                    templates.forEachIndexed { i, t ->
-                        TemplateRow(
-                            t = t,
-                            written = t.template.nfcWrittenAt?.let { dates.format(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault())) },
-                            canWrite = nfc != null,
-                            onLog = { logging = t },
-                            onWrite = { viewModel.startWrite(t) },
-                            onDelete = { viewModel.delete(t) },
-                        )
-                        if (i != templates.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    }
-                }
+            items(items = templates, key = { "t-${it.template.id}" }) { t ->
+                TemplateRow(
+                    t = t,
+                    written = t.template.nfcWrittenAt?.let { dates.format(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault())) },
+                    canWrite = nfc != null,
+                    onLog = { logging = t },
+                    onWrite = { viewModel.startWrite(t) },
+                    onEdit = { onEdit(t.template.id) },
+                    onDelete = { deleting = t },
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }
         }
     }
@@ -136,6 +144,15 @@ fun MealTemplatesScreen(
             title = "Log ${t.template.name} to",
             onDismiss = { logging = null },
             onPick = { slot -> viewModel.logNow(t, slot); logging = null },
+        )
+    }
+    deleting?.let { t ->
+        AlertDialog(
+            onDismissRequest = { deleting = null },
+            title = { Text("Delete this meal template?") },
+            text = { Text("\"${t.template.name}\" leaves your list. Meals you already logged from it stay logged. A tag written for it stops logging anything.") },
+            confirmButton = { TextButton(onClick = { viewModel.delete(t); deleting = null }) { Text("Delete", color = MaterialTheme.colorScheme.error) } },
+            dismissButton = { TextButton(onClick = { deleting = null }) { Text("Keep it") } },
         )
     }
     state.writingFor?.let { t -> WriteSheet(t, state.write, nfc, viewModel) }
@@ -148,6 +165,7 @@ private fun TemplateRow(
     canWrite: Boolean,
     onLog: () -> Unit,
     onWrite: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
@@ -164,8 +182,8 @@ private fun TemplateRow(
         Column(Modifier.weight(1f)) {
             Text(t.template.name, style = MaterialTheme.typography.titleSmall)
             Text(
-                "${t.kcal.safeRound()} kcal · ${t.protein.safeRound()} g protein · " +
-                    (written?.let { "Tag written $it" } ?: "Not on a tag"),
+                "${t.totals.kcal.safeRound()} kcal · ${t.totals.proteinText} · " +
+                    (written?.let { "NFC tag written $it" } ?: "No NFC tag"),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -176,9 +194,10 @@ private fun TemplateRow(
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 DropdownMenuItem(text = { Text("Log now") }, onClick = { menu = false; onLog() })
+                DropdownMenuItem(text = { Text("Edit") }, onClick = { menu = false; onEdit() })
                 if (canWrite) {
                     DropdownMenuItem(
-                        text = { Text(if (written != null) "Write to another tag" else "Write to a tag") },
+                        text = { Text(if (written != null) "Write to another NFC tag" else "Write to an NFC tag (optional)") },
                         onClick = { menu = false; onWrite() },
                     )
                 }

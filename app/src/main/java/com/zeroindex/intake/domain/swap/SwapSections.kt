@@ -6,7 +6,7 @@ import com.zeroindex.intake.domain.nutrition.Macros
 data class SwapSection(val kind: SwapKind, val title: String, val options: List<SwapOption>)
 
 /**
- * Groups swap options into the sheet's sections: Plan and recipes, Saved meals, Saved eat-out options (they work
+ * Groups swap options into the sheet's sections: Plan and recipes, Meal templates, Saved eat-out options (they work
  * offline) and the nearby results. Inside a section, choosable options come first, nearest to the planned calories
  * first, and blocked ones (a "contains" verdict) last. The first three sections are always returned so the sheet can say
  * what is missing; NEARBY is returned only when it has results.
@@ -14,7 +14,7 @@ data class SwapSection(val kind: SwapKind, val title: String, val options: List<
 object SwapSections {
     private val titles = mapOf(
         SwapKind.PLAN_RECIPE to "Plan & recipes",
-        SwapKind.SAVED_MEAL to "Saved meals",
+        SwapKind.SAVED_MEAL to "Meal templates",
         SwapKind.SAVED_EAT_OUT to "Saved eat-out options",
         SwapKind.NEARBY to "Found nearby",
     )

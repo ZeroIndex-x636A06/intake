@@ -117,6 +117,11 @@ fun LogFoodScreen(
     viewModel: AddFoodViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    // Saved recipes are found here too (kept in their own view model, so the food search is untouched).
+    val recipeVm: RecipeSearchViewModel = hiltViewModel()
+    val recipes by recipeVm.state.collectAsStateWithLifecycle()
+    val pendingRecipe by recipeVm.pending.collectAsStateWithLifecycle()
+    LaunchedEffect(state.query) { recipeVm.setQuery(state.query) }
     var mealSlot by rememberSaveable { mutableStateOf(slot) }
     var slotMenu by remember { mutableStateOf(false) }
 
@@ -162,6 +167,8 @@ fun LogFoodScreen(
                         onChooseRef = { ref -> viewModel.chooseRef(ref) { food, _ -> openEntity(food) } },
                         onChooseOff = { food -> viewModel.chooseOff(food, openEntity) },
                         onLogMenu = { row -> viewModel.logMenuItem(row, mealSlot, loggedAtMillis) },
+                        recipes = recipes,
+                        onLogRecipe = { row -> recipeVm.requestLog(row, mealSlot, loggedAtMillis) },
                         onOpenDrinks = onOpenDrinks,
                         onCreate = { name, brand, grams, label, k, p, c, f ->
                             viewModel.createFood(name, brand, grams, label, k, p, c, f, onCreated = openEntity)
@@ -208,6 +215,8 @@ fun LogFoodScreen(
 
                     AddFoodTab.MY_FOODS -> MyFoodsTab(
                         state = state,
+                        recipes = recipes.all,
+                        onLogRecipe = { row -> recipeVm.requestLog(row, mealSlot, loggedAtMillis) },
                         onOpen = openEntity,
                         onQuickAdd = { food -> viewModel.quickAddDefault(food, mealSlot, loggedAtMillis) },
                         onToggleFavorite = viewModel::toggleFavorite,
@@ -224,6 +233,17 @@ fun LogFoodScreen(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
             )
         }
+    }
+
+    // A recipe serving that matches the allergen profile waits here, exactly as a food does.
+    pendingRecipe?.let { pending ->
+        AllergenWarningSheet(
+            foodName = pending.name,
+            scan = pending.scan,
+            ingredientText = pending.ingredientText,
+            onDismiss = recipeVm::dismissPending,
+            onLogAnyway = { recipeVm.confirmPending(mealSlot, loggedAtMillis) },
+        )
     }
 
     // SPEC §7.2: nothing is written until this is answered.
@@ -356,6 +376,8 @@ private fun SearchTab(
     onChooseRef: (RefFood) -> Unit,
     onChooseOff: (FoodEntity) -> Unit,
     onLogMenu: (MenuRow) -> Unit,
+    recipes: RecipeSearchUi,
+    onLogRecipe: (RecipeRowUi) -> Unit,
     onOpenDrinks: (String) -> Unit,
     onCreate: (String, String?, Double, String, Double, Double, Double, Double) -> Unit,
 ) {
@@ -401,7 +423,7 @@ private fun SearchTab(
 
         if (state.query.isBlank()) {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
-                if (state.recents.isEmpty()) {
+                if (state.recents.isEmpty() && recipes.recents.isEmpty()) {
                     item(key = "no-recents") {
                         Column(Modifier.padding(horizontal = 16.dp)) {
                             EmptyState(
@@ -416,6 +438,10 @@ private fun SearchTab(
                         FoodRow(food, food.id in state.safeFoodIds, state.rowAllergens[food.id], onOpen, onQuickAdd)
                     }
                 }
+                if (recipes.recents.isNotEmpty()) {
+                    item(key = "h-recent-recipes") { RecipeSourceHeader("Recent recipes") }
+                    items(items = recipes.recents, key = { "recent-recipe-${it.recipe.id}" }) { row -> RecipeLogRow(row, onLogRecipe) }
+                }
                 item(key = "drinks-row") { DrinksRow("Categories, a drinks search and size buttons") { onOpenDrinks("") } }
             }
             return@Column
@@ -425,7 +451,7 @@ private fun SearchTab(
         val offResults = (state.offState as? OffUiState.Results)?.foods.orEmpty()
         val usdaApiResults = (state.searchState as? SearchState.Remote)?.results.orEmpty()
         val nothingYet = state.localResults.isEmpty() && state.refResults.isEmpty() &&
-            offResults.isEmpty() && usdaApiResults.isEmpty() && state.menuRows.isEmpty()
+            offResults.isEmpty() && usdaApiResults.isEmpty() && state.menuRows.isEmpty() && recipes.results.isEmpty()
 
         // Results arrive above rows that are already on screen (the phone's own foods and the offline database come in
         // over the Open Food Facts section), and a lazy list stays on the row it was showing. Without this the best
@@ -441,6 +467,12 @@ private fun SearchTab(
                 items(items = state.localResults, key = { "l-${it.id}" }) { food ->
                     FoodRow(food, food.id in state.safeFoodIds, state.rowAllergens[food.id], onOpen, onQuickAdd)
                 }
+            }
+
+            // Saved recipes: on this phone, one serving through the recipe logging path.
+            if (recipes.results.isNotEmpty()) {
+                item(key = "h-recipes") { RecipeSourceHeader("Recipes (saved on this phone)") }
+                items(items = recipes.results, key = { "rcp-${it.recipe.id}" }) { row -> RecipeLogRow(row, onLogRecipe) }
             }
 
             // Imported restaurant menus: on this phone, logged per serving with the item's own numbers.
@@ -581,6 +613,8 @@ private fun DrinksRow(note: String, onOpenDrinks: () -> Unit) {
 @Composable
 private fun MyFoodsTab(
     state: AddFoodUiState,
+    recipes: List<RecipeRowUi>,
+    onLogRecipe: (RecipeRowUi) -> Unit,
     onOpen: (FoodEntity) -> Unit,
     onQuickAdd: (FoodEntity) -> Unit,
     onToggleFavorite: (FoodEntity) -> Unit,
@@ -608,6 +642,7 @@ private fun MyFoodsTab(
     fun matches(f: FoodEntity) = needle.isEmpty() || (f.name + " " + f.brand.orEmpty()).lowercase().contains(needle)
     val favorites = state.favorites.filter(::matches)
     val mine = state.myFoods.filter { m -> state.favorites.none { it.id == m.id } && matches(m) }
+    val myRecipes = recipes.filter { needle.isEmpty() || it.recipe.name.lowercase().contains(needle) }
     LazyColumn(Modifier.fillMaxSize()) {
         item(key = "add") {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -621,7 +656,7 @@ private fun MyFoodsTab(
                 OutlinedButton(onClick = { creating = true }, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Add a food by hand") }
             }
         }
-        if (favorites.isEmpty() && mine.isEmpty()) {
+        if (favorites.isEmpty() && mine.isEmpty() && myRecipes.isEmpty()) {
             item(key = "empty") {
                 Column(Modifier.padding(horizontal = 16.dp)) {
                     EmptyState(
@@ -646,6 +681,10 @@ private fun MyFoodsTab(
             items(items = mine, key = { "mine-${it.id}" }) { food ->
                 FoodRow(food, food.id in state.safeFoodIds, state.rowAllergens[food.id], onOpen, onQuickAdd, onToggleFavorite)
             }
+        }
+        if (myRecipes.isNotEmpty()) {
+            item(key = "recipes-header") { RecipeSourceHeader("Recipes") }
+            items(items = myRecipes, key = { "mine-recipe-${it.recipe.id}" }) { row -> RecipeLogRow(row, onLogRecipe) }
         }
     }
 }

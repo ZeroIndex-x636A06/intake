@@ -71,13 +71,20 @@ fun NutritionMoreScreen(
         }
         item {
             NavCard(
-                title = "Meals",
+                title = "Meal templates",
                 body = if (s.templateCount == 0) {
-                    "No saved meals yet. Save a meal you eat often and log it in one tap, or from an NFC tag."
+                    "No meal templates yet. Make one from foods and recipes, or save a meal you logged, then log it in one tap. An NFC tag is optional."
                 } else {
                     "${s.templateCount} saved · ${s.templateNames.joinToString(", ")}" + if (s.templateCount > 3) " and more" else ""
                 },
                 onClick = actions.onOpenMealTemplates,
+            )
+        }
+        item {
+            NavCard(
+                title = "Shopping list",
+                body = "Pick recipes and meal templates and get one list with the amounts added up. No meal plan needed.",
+                onClick = actions.onOpenShopping,
             )
         }
         item {

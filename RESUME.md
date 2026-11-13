@@ -53,6 +53,36 @@ Worktree branch, compiled, linted and unit-tested only; nothing was run on an em
   watch path (it goes through `logOfType`, covered only by the source guard and `DrinkLoggerTest`); the effect on an install upgraded from v4 (covered by the
   migration test only). Another branch that also bumps the schema to 5 will conflict with `MIGRATION_4_5`; renumber one of them.
 
+## Round 4, items 6, 11 and 14 (branch `worktree-agent-aa92edb758b4dbe50`)
+
+Built on `claude/optimistic-noether-fullk5` at bc8e5e4 (merged in first). No schema change (no MIGRATION_4_5): everything uses the
+existing tables; the one new DAO query (`FoodLogDao.observeRecentPrepared`) is a read.
+
+- **Item 6, recipes in Log food.** `RecipeSearchViewModel` (own view model, so `AddFoodViewModel` is untouched) feeds three places in
+  `LogFoodScreen`: a "Recipes (saved on this phone)" section in search results, "Recipe" rows in Mine, and "Recent recipes" with Recent.
+  Ranking and recents are pure (`RecipeSearch`, `RecipeSearchTest`). A row shows per-serving kcal and protein or "not listed". The "+" logs one
+  serving through `RecipeLogger.logServings` (the recipe screen's `logServing` now delegates to it): unknown protein, carbs or fat stay
+  unlisted, and the local allergen scan runs first (`RecipeLogger.scan`, over every ingredient line); a match waits behind the warning sheet.
+  A recipe with no calorie figure cannot be logged from search (it says to open it in Recipes). Recents come from logged rows with no food
+  behind them, matched to recipes by name, so a quick add with the same name counts.
+- **Item 14, Cook.** Cook mode already existed (timers, wake lock, big controls) but only the Plan screen opened it. There is now a **Cook** button
+  beside "Log a serving" on the recipe screen (shown when the recipe has steps). Cook mode got a checklist at the top (ticks, group headers,
+  hide/show) scaled by a servings stepper (`IngredientScaling`, `IngredientScalingTest`), and "Done cooking" on the last step offers "Log a
+  serving" (slot picker, allergen scan, Undo). Timers (`CookSteps.durations`, "1-2 hrs" and "10 minutes" tests added) and the notification
+  service were already there and are unchanged.
+- **Item 11, templates without a plan.** `MealTemplateEditorScreen` makes and edits templates (name, then foods, USDA database foods and
+  recipes with amounts); Meal templates has "New meal template", Edit, and a confirmed soft delete; Log to a chosen slot and the optional NFC
+  tag are as before. A recipe goes in as a 100 g "1 serving" food (`RecipeFood`), unknown figures stay unlisted. `saveSlotAsTemplate` now
+  carries a logged meal's unlisted figures into the template's foods (before, an unknown protein became 0 g). "Meal prep" wording is "meal
+  template" on Today, Meal templates, More, Swap and Privacy. **Shopping list** (Nutrition, More): `StandaloneShopping` builds a list from
+  chosen recipes and templates with the plan list's own quantity adding; ticks and picks live in saved UI state only, not the database.
+  Audit of what needs a plan: `docs/MEAL-PLAN.md`, last section.
+
+Not verified: none of this has been run on a phone or an emulator. Unit tests and lint only. Not seen: the Log food rows and sheets, the editor
+and its search, cook mode's checklist and Done dialog, the shopping list screen. The shopping list does not survive leaving the app for long
+(process death keeps it through saved state; clearing the app does not). Recipe foods made for templates appear in Mine and search like the
+prepared-meal foods `saveSlotAsTemplate` always made. Wear's "Saved meals" label is unchanged.
+
 ## Merge of three agent branches (branch `claude/optimistic-noether-fullk5`)
 
 Merged with `--no-ff`, one at a time, each followed by compile and the unit tests: recipe nutrition (`worktree-agent-a2198826f8ff9a2b4`), Recipe

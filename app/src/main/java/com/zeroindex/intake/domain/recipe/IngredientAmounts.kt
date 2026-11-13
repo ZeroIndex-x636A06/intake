@@ -58,6 +58,9 @@ object IngredientAmounts {
     /** Units that hold a stated weight each: "2 (14 oz) cans" is two cans of 14 oz. */
     private val CONTAINERS = setOf("can", "jar", "package", "packet", "stick", "bunch", "head", "piece", "fillet", "cube")
 
+    /** True for units that hold a stated weight each ("2 (14 oz) cans"): the bracket is per can, not the total. */
+    fun isContainerUnit(unit: String?): Boolean = unit != null && unit in CONTAINERS
+
     fun parse(line: String): IngredientAmount {
         val text = IngredientLineParser.normalise(IngredientCleaner.clean(line)).lowercase()
         val optional = Regex("""\boptional\b""").containsMatchIn(text)

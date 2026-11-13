@@ -39,7 +39,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class RecipeLibraryViewModel @Inject constructor(
     private val recipeDao: RecipeDao,
-    private val foodLog: FoodLogRepository,
+    private val recipeLogger: com.zeroindex.intake.data.repository.RecipeLogger,
     private val plans: MealPlanRepository,
     private val recipeRepo: RecipeRepository,
     private val estimator: RecipeNutritionEstimator,
@@ -91,26 +91,7 @@ class RecipeLibraryViewModel @Inject constructor(
      * the estimate when there is one (and the row says so), and otherwise are stored as unlisted, not as 0 g.
      */
     fun logServing(recipe: RecipeEntity, slot: MealSlot, estimate: RecipeEstimate?, onDone: () -> Unit) = viewModelScope.launch {
-        val n = resolveNutrition(recipe, estimate?.perServing)
-        val kcal = n.kcal?.value ?: return@launch
-        foodLog.logPrepared(
-            name = recipe.name,
-            macros = Macros(
-                kcal = kcal,
-                protein = n.protein?.value ?: 0.0,
-                carbs = n.carbs?.value ?: 0.0,
-                fat = n.fat?.value ?: 0.0,
-                fiber = n.fiber?.value ?: 0.0,
-                sugar = n.sugar?.value ?: 0.0,
-                sodium = n.sodiumMg?.value ?: 0.0,
-                saturatedFat = n.saturatedFat?.value ?: 0.0,
-            ),
-            slot = slot,
-            servingLabel = if (n.anyEstimated) "1 serving · macros estimated" else "1 serving",
-            at = clock.nowMillis(),
-            unknownMacros = n.unknownMacros,
-        )
-        onDone()
+        if (recipeLogger.logServings(recipe, slot, estimate?.perServing) != null) onDone()
     }
 
     fun delete(recipe: RecipeEntity) = viewModelScope.launch { recipeDao.softDeleteRecipe(recipe.id, clock.nowMillis()) }

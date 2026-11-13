@@ -204,7 +204,7 @@ fun PrivacyScreen(
             tag = "Local only",
             sent = "A tag holds only a link to a meal template and this app's name. Tapping one logs that meal on the phone. No food data is written to the tag.",
             where = "The tag you tap",
-            whenSent = "When you write a tag from Meal prep tags, or tap one.",
+            whenSent = "When you write a tag from Meal templates, or tap one.",
         )
 
         SectionLine("Files and links you choose")
