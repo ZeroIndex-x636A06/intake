@@ -46,6 +46,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.swap.PlannedMeal
+import com.zeroindex.intake.domain.nearby.NearbyPipeline
+import com.zeroindex.intake.domain.nearby.SearchStage
 import com.zeroindex.intake.domain.nutrition.Macros
 import com.zeroindex.intake.domain.swap.SwapKind
 import com.zeroindex.intake.domain.swap.SwapMath
@@ -134,6 +136,9 @@ fun SwapSheet(
                         if (nearby.hasLocation) viewModel.searchNearby() else locationLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
                     },
                     onPostalCode = viewModel::searchPostalCode,
+                    onToggleAi = viewModel::setUseAi,
+                    onStop = viewModel::stopSearch,
+                    onSearchWithAi = viewModel::searchWithAi,
                     onOpenAiSettings = onOpenAiSettings,
                     onOpenRadiusSetting = onOpenRadiusSetting,
                 )
@@ -324,12 +329,16 @@ internal fun NearbyCard(
     foundTime: String?,
     onUseLocation: () -> Unit,
     onPostalCode: (String) -> Unit,
+    onToggleAi: (Boolean) -> Unit,
+    onStop: () -> Unit,
+    onSearchWithAi: () -> Unit,
     onOpenAiSettings: () -> Unit,
     onOpenRadiusSetting: () -> Unit,
 ) {
     var zip by remember { mutableStateOf("") }
     var useZip by remember { mutableStateOf(false) }
-    val radius = "%.1f".format(java.util.Locale.US, nearby.radiusMi).removeSuffix(".0")
+    val pipeline = nearby.pipeline
+    val working = pipeline.running
     Surface(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), shape = IntakeShape.Card, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
@@ -341,22 +350,36 @@ internal fun NearbyCard(
                 Column(Modifier.weight(1f)) {
                     Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
                     Text(
-                        if (nearby.foundAt != null && foundTime != null) {
-                            "Within $radius mi. Found at $foundTime with AI on your key" +
-                                (nearby.costUsd?.takeIf { it > 0 }?.let { ", about ${usd(it)}" } ?: "") +
-                                ". Macros are estimates. Your allergens are checked on this phone." + blurb
-                        } else {
-                            "Within $radius mi. Runs only when you tap Search, with AI on your own key (a cent or so). Your allergens are checked on this phone, and the place is rounded to about a kilometre." + blurb
-                        },
+                        "Restaurants within a ${nearby.budget.label} of you, from OpenStreetMap (free, no key). Each one's menu is found for you: " +
+                            "your saved menu, then the chain's own page, then its website, one at a time, nearest first. " +
+                            "Your allergens are checked on this phone. Your place is rounded to about a kilometre and sent once, when you tap." + blurb,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
+            if (!working && nearby.searching.not()) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Use AI to find menus I can't", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                        Text(
+                            if (nearby.hasKey) {
+                                "Off by default. Only for places where the steps above found nothing, up to ${NearbyPipeline.MAX_AI_LOOKUPS} lookups a search on your own key " +
+                                    "(a few cents each; the cost so far is shown). It looks the nutrition page up, or gives estimates that are marked as estimates."
+                            } else {
+                                "Needs “Use AI features” on and an OpenRouter key. The search works without it."
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    androidx.compose.material3.Switch(checked = nearby.useAi && nearby.hasKey, onCheckedChange = onToggleAi, enabled = nearby.hasKey)
+                }
+            }
             when {
-                !nearby.hasKey -> {
-                    Text("Needs “Use AI features” on and an OpenRouter key. Saved options above work with no signal.", style = MaterialTheme.typography.bodySmall)
-                    OutlinedButton(onClick = onOpenAiSettings, shape = IntakeShape.Button, modifier = Modifier.heightIn(min = 48.dp)) { Text("Set up AI") }
+                working -> {
+                    LoadingState(listOf(NearbyPipeline.summary(pipeline)))
+                    OutlinedButton(onClick = onStop, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Stop searching") }
                 }
                 nearby.searching -> LoadingState(listOfNotNull(nearby.status, "Checking allergens on this phone"))
                 else -> {
@@ -366,13 +389,13 @@ internal fun NearbyCard(
                             Spacer(Modifier.size(8.dp))
                             Text(
                                 when {
-                                    nearby.foundAt != null -> "Search again for more"
+                                    pipeline.stage != SearchStage.IDLE || nearby.foundAt != null -> "Search again"
                                     nearby.hasLocation -> "Search near me"
                                     else -> "Allow location once and search"
                                 },
                             )
                         }
-                        TextButton(onClick = { useZip = true }) { Text("Use a zip code instead") }
+                        if (nearby.hasKey) TextButton(onClick = { useZip = true }) { Text("Use a zip code instead (AI search)") }
                     } else {
                         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             LabeledField(label = "Zip code", value = zip, onValueChange = { zip = it.take(10) }, keyboardType = KeyboardType.Number, modifier = Modifier.weight(1f))
@@ -383,18 +406,64 @@ internal fun NearbyCard(
                                 modifier = Modifier.heightIn(min = 56.dp),
                             ) { Text("Search") }
                         }
+                        Text(
+                            "A zip code is searched with AI on your key (a cent or so), because the free map search needs your location.",
+                            style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                         TextButton(onClick = { useZip = false }) { Text("Use my location instead") }
                     }
-                    TextButton(onClick = onOpenRadiusSetting) { Text("Change the radius in Settings") }
+                    TextButton(onClick = onOpenRadiusSetting) { Text("Change how far in Settings (${nearby.budget.label})") }
                 }
+            }
+            if (pipeline.rows.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    pipeline.rows.forEach { r ->
+                        Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
+                            Column(Modifier.weight(1f)) {
+                                Text(r.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    "%.1f mi".format(java.util.Locale.US, com.zeroindex.intake.domain.nearby.TravelRadius.metersToMiles(r.distanceM)) +
+                                        (r.origin?.let { " · from ${it.label}" } ?: ""),
+                                    style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Text(
+                                r.statusText,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = if (r.picks > 0) FontWeight.Bold else FontWeight.Normal,
+                                color = if (r.phase == com.zeroindex.intake.domain.nearby.RowPhase.NO_MENU) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
+                }
+            }
+            if (pipeline.aiLookups > 0 || pipeline.costUsd > 0) {
+                Text(
+                    "AI lookups this search: ${pipeline.aiLookups}" + if (pipeline.costUsd > 0) ", about ${usd(pipeline.costUsd)} so far for the ones that report a cost." else ".",
+                    style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (!working && !nearby.searching && pipeline.stage != SearchStage.IDLE && pipeline.stage != SearchStage.FAILED) {
+                Text(NearbyPipeline.summary(pipeline), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             nearby.error?.let {
                 ErrorState(title = "Search did not finish", body = "$it Saved options still work.") {
-                    TextButton(onClick = onOpenAiSettings) { Text("Open AI settings") }
+                    if (nearby.offerAiFallback) {
+                        Button(onClick = onSearchWithAi, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Search with AI instead") }
+                        Text("Runs only because you tapped it, on your own key (a cent or so).", style = MaterialTheme.typography.labelMedium)
+                    }
+                    if (!nearby.hasKey) TextButton(onClick = onOpenAiSettings) { Text("Open AI settings") }
                 }
             }
-            if (nearby.foundAt != null && nearby.error == null && !nearby.searching && nearby.resultCount == 0) {
-                EmptyState(title = "Nothing found", body = "No option within $radius mi fit. Saved options above still work.")
+            if (pipeline.stage == SearchStage.DONE && pipeline.rows.isNotEmpty() && pipeline.picks == 0 && !nearby.searching) {
+                EmptyState(
+                    title = "No picks from these restaurants",
+                    body = "${pipeline.withoutMenu} of ${pipeline.rows.size} had no menu that could be read without AI. " +
+                        "Turn on the AI switch above, or import a menu in Menu import. Saved options above still work.",
+                )
+            }
+            if (nearby.foundAt != null && nearby.error == null && !nearby.searching && pipeline.stage == SearchStage.IDLE && nearby.resultCount == 0) {
+                EmptyState(title = "Nothing found", body = "No option within ${nearby.budget.label} fit. Saved options above still work.")
             }
         }
     }

@@ -135,6 +135,11 @@ class MenuIngestor @Inject constructor(
         trigger: AiTrigger,
         onProgress: (MenuProgress) -> Unit = {},
         pdfRoute: PdfRoute = PdfRoute.PHONE_THEN_AI,
+        /**
+         * False for the no-AI step of the nearby search: a page that publishes no structured menu, which would go to
+         * the model, stops with [MenuNoTableException] instead. PDFs are governed by [pdfRoute].
+         */
+        allowAi: Boolean = true,
     ): StageOutcome = withContext(Dispatchers.Default) {
         val avoided = allergens.avoidedAllergens()
         val parts: List<AiPart>
@@ -169,6 +174,9 @@ class MenuIngestor @Inject constructor(
                 if (structured.isNotEmpty()) {
                     return@withContext StageOutcome(stageItems(source, structured.map(::toParsed), avoided, structured = true))
                 }
+                if (!allowAi) {
+                    throw MenuNoTableException("That page does not publish its menu in a form that can be read without AI.")
+                }
                 val text = page?.text
                 if (text != null && !MenuText.looksBlocked(text)) {
                     parts = listOf(AiPart.Text("Menu page text from ${source.location}:\n\n$text"))
@@ -198,6 +206,25 @@ class MenuIngestor @Inject constructor(
 
         onProgress(MenuProgress("Checking allergens on this phone…"))
         StageOutcome(stageItems(source, parsed.items, avoided, structured = false))
+    }
+
+    /**
+     * Items an AI model estimated from a menu's wording when no nutrition page could be found. They are labelled as
+     * estimates, never as published nutrition, and no estimate is ever "clear": with no ingredient list the verdict is
+     * at best "check the label". The local allergen engine and the raise-only model policy still apply.
+     */
+    suspend fun stageEstimates(source: MenuSourceEntity, items: List<ParsedItem>): List<StagedItem> {
+        val avoided = allergens.avoidedAllergens()
+        val marked = items.filter { it.kcal != null && it.protein != null }.map {
+            it.copy(
+                macrosPublished = false,
+                description = listOf("AI estimate from the menu's wording, not published nutrition", it.description).filter { d -> d.isNotBlank() }.joinToString(" · "),
+            )
+        }
+        return stageItems(source, marked, avoided, structured = true).map { st ->
+            val e = st.entity
+            st.copy(entity = e.copy(allergenStatus = com.zeroindex.intake.data.db.entity.worseOf(AllergenStatus.CHECK_LABEL, e.allergenStatus) ?: AllergenStatus.CHECK_LABEL))
+        }
     }
 
     /**

@@ -21,6 +21,12 @@ Nothing. Option A parts 1 to 3 are built and merged on `claude/optimistic-noethe
 (`SettingsRegistryTest` fails otherwise). Register a screen only one tab opens inside that tab's graph; a screen two tabs open
 goes once at the root of `IntakeNavHost`. Lists that can be long must be lazy rows, never a `forEach` inside one `item`.
 
+## Round 4 items 1 to 3: nearby by travel time, menu discovery, nutrition PDF (branch `worktree-agent-a3df9485fbad45854`)
+
+Done and unit-tested, linted (0 errors); not run on a device. (1) Nearby search rebuilt: radius in minutes (walk or drive), Overpass restaurants with no AI, per-restaurant menu discovery
+(saved, chain table, website links, optional AI), streamed list with Stop. (2) "Read it with AI" on the nutrition-menu follow-up card. (3) McDonald's USA PDF: position-based table reader.
+Open: Overpass live check and the chain URLs from a phone (see RESUME.md); a schema change would still be needed to store fibre, sat fat, sugar and sodium for imported items.
+
 ## Find nearby: Swap and Eating out
 
 Branch `worktree-agent-a4d8ea88c7c1d444a`. Swap ranks nearby and local options by closeness to the planned meal (kcal and protein). Eating out has "Find healthier options nearby": imported menus first, AI search only on tap, a deterministic healthier score (`NearbyRanking`). Unit-tested and linted; nothing run on a device. Imported menus have no fibre, sat fat, sugar or sodium columns, so those are unknown for them (a schema change would be needed to store them).

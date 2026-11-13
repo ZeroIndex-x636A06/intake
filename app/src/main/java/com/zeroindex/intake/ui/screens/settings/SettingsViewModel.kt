@@ -122,7 +122,7 @@ class SettingsViewModel @Inject constructor(
     fun setProteinPerKg(value: Double) = launchSetting { setProteinPerKg(value) }
     fun setFatPerKg(value: Double) = launchSetting { setFatPerKg(value) }
     fun setShowSodium(mode: SodiumDisplay) = launchSetting { setShowSodium(mode) }
-    fun setEatOutRadius(miles: Double) = launchSetting { setEatOutRadiusMi(miles) }
+    fun setEatOutTravel(budget: com.zeroindex.intake.domain.nearby.TravelBudget) = launchSetting { setEatOutTravel(budget) }
     fun updateProfile(block: (UserProfile) -> UserProfile) { viewModelScope.launch { profileRepository.update(block) } }
 
     /** Manual calorie entry, which switches auto-calculation off (SPEC §13). */

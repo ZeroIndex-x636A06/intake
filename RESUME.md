@@ -3,6 +3,31 @@
 Read this first when picking the work back up. Latest work: branch
 `claude/optimistic-noether-fullk5` (not yet merged into `claude/app-build-k2ag1d`).
 
+## Round 4, items 1 to 3: nearby finder, nutrition-menu AI offer, OSU PDF (branch `worktree-agent-a3df9485fbad45854`)
+
+**Item 3, the OSU McDonald's PDF.** The text is selectable (26 pages, 463 items). `NutritionTableParser` read lines and could not use it:
+the column headings are rotated (no heading line), every gram column is followed by a "% Daily Value" column (21 numbers a row, not 12),
+and a name wraps over up to seven lines centred on the numbers, mixed with "9.7 oz" and "(274 g)". New `domain/menu/PositionedNutritionTable.kt`
+reads by word position: number runs give the columns, the rotated headings name them, name lines go to the nearest row, section headings
+are kept. All 463 rows of the file read with none skipped (checked offline with `pdftotext -bbox` words fed to it). `MenuIngestor` runs both readers
+and keeps the one with more rows. A table with no allergen column gives `allergensStated = false`: its items are at best "check the label", never
+"no allergens listed". Fixture: page 1 words in `test/resources/menu/mcdonalds-usa-nutrition-page1-fragments.tsv`; values asserted were read off the PDF.
+
+**Item 2.** The nutrition follow-up card shows "Read it with AI" (tap only, key needed, says what is sent and that it is billed on the person's key) when the phone's reader finds no table in a chosen PDF or a linked PDF. It reuses the AI menu path and merges through `MenuNutritionMerge` as before.
+
+**Item 1, nearby rebuilt.** Radius is now a travel time (Settings > Nutrition, one registry row `eatOutRadius`, stored as `eat_out_minutes` 10/15 and
+`eat_out_travel` walk/drive, default 10 min drive; the old `eat_out_radius_mi` is read once to migrate). Search: Overpass (one request, honest User-Agent, no key) ->
+nearest first, one row per chain -> per restaurant, two at a time (max 30): saved source, bundled chain table (`assets/nearby_chains.json`), the restaurant's website links
+(`MenuLinkScorer`), then AI only if the card switch is on (nutrition page address with web search, else labelled estimates; max 6 lookups). Every menu goes through the normal menu import
+and is saved as a source. The live list shows each row's state; picks join the list as each menu arrives; Stop works at any point. If the map service fails the card offers "Search with AI instead" (a tap).
+A zip code still uses the old AI search. Pure parts are in `domain/nearby/` with `NearbyDomainTest` (radius, Overpass JSON fixture, chain match, link scoring, saved-source match, pipeline).
+Chain table status: see below. Docs: PRIVACY.md (3 new rows), AI-COSTS.md (row 11), SETTINGS-INVENTORY.md row 18.
+
+**Not verified.** Overpass could not be reached from the cloud container (the proxy closed the connection), so the live request and answer shape are
+written to the documented API and tested on a hand-made fixture only. The OSU PDF was parsed from word boxes made by poppler, not from Android's `PdfRenderer`
+(its fragment shapes are not seen on a device; the reader assumes word or line fragments with boxes). Chain pages: many are script-driven pages and may need AI; the table was
+checked from a cloud container only. Nothing was run on an emulator or phone.
+
 ## Merge of three agent branches (branch `claude/optimistic-noether-fullk5`)
 
 Merged with `--no-ff`, one at a time, each followed by compile and the unit tests: recipe nutrition (`worktree-agent-a2198826f8ff9a2b4`), Recipe

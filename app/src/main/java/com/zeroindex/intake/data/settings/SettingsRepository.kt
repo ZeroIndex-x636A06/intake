@@ -18,6 +18,9 @@ import com.zeroindex.intake.domain.ai.AiTask
 import com.zeroindex.intake.domain.ai.cost.AiBudget
 import com.zeroindex.intake.domain.units.LengthUnit
 import com.zeroindex.intake.domain.units.PortionUnit
+import com.zeroindex.intake.domain.nearby.TravelBudget
+import com.zeroindex.intake.domain.nearby.TravelMode
+import com.zeroindex.intake.domain.nearby.TravelRadius
 import com.zeroindex.intake.domain.settings.SodiumDisplay
 import com.zeroindex.intake.domain.coach.CoachState
 import com.zeroindex.intake.domain.goals.AppliedPlan
@@ -128,8 +131,11 @@ data class AppSettings(
     val todayCardActivity: Boolean = true,
     /** Settings > Nutrition: show salt or sodium on the dashboard (consumed by the Nutrition rebuild). */
     val showSodium: SodiumDisplay = SodiumDisplay.OFF,
-    /** Settings > Nutrition: Swap > Eat out nearby search radius in miles (consumed by the Swap sheet). */
-    val eatOutRadiusMi: Double = 1.0,
+    /**
+     * Settings > Nutrition: how far the nearby restaurant search reaches, as a travel time (10 or 15 minutes) and how
+     * the trip is made. Replaces the old radius in miles, which is read once to pick these when they are not set yet.
+     */
+    val eatOutTravel: TravelBudget = TravelBudget.DEFAULT,
     /** Settings > Training: show jump tests in Progress. Hidden until enabled. */
     val jumpTests: Boolean = false,
     /** Settings > Training > Advanced: weekly sets per region (six numbers, chest..core) or empty = suggested. */
@@ -256,7 +262,10 @@ class SettingsRepository @Inject constructor(
         val todayMeals = booleanPreferencesKey("today_card_meals")
         val todayActivity = booleanPreferencesKey("today_card_activity")
         val showSodium = stringPreferencesKey("show_sodium")
+        /** The old radius in miles. Never written now; read only to migrate. */
         val eatOutRadius = doublePreferencesKey("eat_out_radius_mi")
+        val eatOutMinutes = intPreferencesKey("eat_out_minutes")
+        val eatOutTravel = stringPreferencesKey("eat_out_travel")
         val jumpTests = booleanPreferencesKey("jump_tests")
         val weeklySets = stringPreferencesKey("weekly_sets_csv")
         val onlyWorkouts = booleanPreferencesKey("videos_only_workouts")
@@ -351,7 +360,11 @@ class SettingsRepository @Inject constructor(
             todayCardMeals = p[Keys.todayMeals] ?: true,
             todayCardActivity = p[Keys.todayActivity] ?: true,
             showSodium = p[Keys.showSodium]?.let { runCatching { SodiumDisplay.valueOf(it) }.getOrNull() } ?: SodiumDisplay.OFF,
-            eatOutRadiusMi = p[Keys.eatOutRadius]?.takeIf { it > 0 } ?: 1.0,
+            eatOutTravel = if (p[Keys.eatOutMinutes] != null || p[Keys.eatOutTravel] != null) {
+                TravelBudget(TravelRadius.clampMinutes(p[Keys.eatOutMinutes]), TravelMode.fromId(p[Keys.eatOutTravel]))
+            } else {
+                TravelRadius.fromLegacyMiles(p[Keys.eatOutRadius])
+            },
             jumpTests = p[Keys.jumpTests] ?: false,
             weeklySetsCsv = p[Keys.weeklySets].orEmpty(),
             onlyWorkouts = p[Keys.onlyWorkouts] ?: true,
@@ -473,7 +486,10 @@ class SettingsRepository @Inject constructor(
         it[key] = shown
     }
     suspend fun setShowSodium(mode: SodiumDisplay) = put { it[Keys.showSodium] = mode.name }
-    suspend fun setEatOutRadiusMi(miles: Double) = put { it[Keys.eatOutRadius] = miles }
+    suspend fun setEatOutTravel(budget: TravelBudget) = put {
+        it[Keys.eatOutMinutes] = budget.minutes
+        it[Keys.eatOutTravel] = budget.mode.id
+    }
     suspend fun setJumpTests(on: Boolean) = put { it[Keys.jumpTests] = on }
     suspend fun setWeeklySetsCsv(csv: String) = put { if (csv.isBlank()) it.remove(Keys.weeklySets) else it[Keys.weeklySets] = csv }
     suspend fun setOnlyWorkouts(on: Boolean) = put { it[Keys.onlyWorkouts] = on }

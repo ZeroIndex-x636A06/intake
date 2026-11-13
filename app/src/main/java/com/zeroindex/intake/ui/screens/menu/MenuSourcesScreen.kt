@@ -174,6 +174,29 @@ fun MenuSourcesScreen(
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(top = 6.dp),
                         ) { Text("Paste a link") }
                     }
+                    state.nutritionAiOffer?.let { offer ->
+                        Text("No table read on this phone", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 10.dp))
+                        Text(offer.reason, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+                        Text(
+                            if (state.hasKey) {
+                                "Nothing was sent anywhere. If you read it with AI, the file is sent to your AI provider on your own key. " +
+                                    "A PDF is read a few pages at a time, so a long one costs a few cents; the cost is added to AI usage in Settings. " +
+                                    "The AI reads the numbers as printed and never invents any; allergens from it can only add warnings."
+                            } else {
+                                "Nothing was sent anywhere. AI is off or has no key: turn on “Use AI features” and add a key in Settings → AI to use it."
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 6.dp),
+                        )
+                        Button(
+                            onClick = viewModel::readNutritionWithAi,
+                            enabled = state.hasKey,
+                            shape = IntakeShape.Button,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(top = 8.dp),
+                        ) { Text("Read it with AI") }
+                        TextButton(onClick = viewModel::dismissNutritionAiOffer, modifier = Modifier.fillMaxWidth()) { Text("Not now") }
+                    }
                     TextButton(onClick = { askingLink = false; viewModel.skipNutritionPrompt() }, modifier = Modifier.fillMaxWidth()) { Text("Skip") }
                 }
             }

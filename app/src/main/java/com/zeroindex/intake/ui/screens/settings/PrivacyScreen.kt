@@ -122,7 +122,15 @@ fun PrivacyScreen(
             whenSent = "When you press Find recipes.",
         )
         PathRow(
-            title = "Swap: eat out nearby",
+            title = "Nearby restaurants and their menus",
+            tag = "Sends a rounded location to OpenStreetMap's Overpass service",
+            pill = "No key needed",
+            sent = "Your location rounded to about 1 km and the search radius (your 10 or 15 minute walk or drive), in one request. Nothing about you, your allergens or your food. Then each restaurant's own nutrition page or website is fetched like any link you import, with no AI.",
+            where = "overpass-api.de, then the restaurants' own sites",
+            whenSent = "Only when you tap Search under \"Find healthier options nearby\" (Eating out) or in Swap. One map request per search; location is read only then. If you switch on \"Use AI to find menus I can't\" for that search, the restaurant name and website go to OpenRouter for places where nothing else worked.",
+        )
+        PathRow(
+            title = "Swap: eat out nearby (AI search)",
             tag = "Sends coarse location to OpenRouter",
             pill = "Needs your OpenRouter key",
             sent = "Your location rounded to about 1 km, or the zip code you typed; the search radius from Settings; what is left of today's calories and protein; the allergens you avoid. OpenRouter searches for nearby places and reads their menus.",

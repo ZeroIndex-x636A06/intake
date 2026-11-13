@@ -70,7 +70,7 @@ object SettingsRegistry {
         SettingSpec(15, "fatPerKg", SettingsGroup.NUTRITION, ControlKind.NUMBER, "Fat", advanced = false, isNew = false),
         SettingSpec(16, "addActiveKcal", SettingsGroup.NUTRITION, ControlKind.SWITCH, "Add active calories to my target", advanced = false, isNew = false),
         SettingSpec(17, "showSodium", SettingsGroup.NUTRITION, ControlKind.SEGMENTED, "Show salt or sodium on the dashboard", advanced = false, isNew = true),
-        SettingSpec(18, "eatOutRadius", SettingsGroup.NUTRITION, ControlKind.SEGMENTED, "Eat out nearby: search radius", advanced = false, isNew = true),
+        SettingSpec(18, "eatOutRadius", SettingsGroup.NUTRITION, ControlKind.SEGMENTED, "Eat out nearby: how far", advanced = false, isNew = true),
         SettingSpec(19, "recalc", SettingsGroup.NUTRITION, ControlKind.ACTION, "Recalculate from my data", advanced = false, isNew = false),
         SettingSpec(20, "allowBelowFloor", SettingsGroup.NUTRITION, ControlKind.SWITCH, "Allow calories below the floor", advanced = true, isNew = false),
         SettingSpec(21, "carbCycling", SettingsGroup.NUTRITION, ControlKind.SWITCH, "Carb cycling", advanced = true, isNew = false),
