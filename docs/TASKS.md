@@ -199,3 +199,6 @@ Each task links to the section of `docs/SPEC-v3.md` that defines it.
 
 Done on `claude/optimistic-noether-fullk5`: all three branches merged, duplicate in-screen headings removed, PRIVACY.md updated. Emulator-checked
 screens are in RESUME.md. Still needs a phone with an OpenRouter key: Recipe Hunter Search and Find more, nearby search, Choose anyway, shopping totals.
+
+## Recipe Hunter round 4 items 12, 13, 15: done on branch `worktree-agent-a7d55e0a2707dbac5` (not pushed, not seen on a device)
+- 12 "Could be adapted" (substitution engine, section, Save adapted copy), 13 "Saved" chip by URL, 15 recipe images. Rules in docs/ALLERGENS.md. Unit-tested only.

@@ -7,6 +7,7 @@ import com.zeroindex.intake.data.ai.recipes.HuntResult
 import com.zeroindex.intake.data.ai.recipes.HuntProgress
 import com.zeroindex.intake.data.ai.recipes.HuntedRecipe
 import com.zeroindex.intake.data.ai.recipes.RecipeHunter
+import com.zeroindex.intake.domain.ai.HuntKeys
 import com.zeroindex.intake.data.db.dao.RecipeDao
 import com.zeroindex.intake.data.db.entity.RecipeEntity
 import com.zeroindex.intake.data.ai.AiGateway
@@ -104,6 +105,7 @@ sealed interface HuntStage {
     /** [working] is set while "Find more" runs, [error] when it failed and the earlier results are still shown. */
     data class Done(
         val result: HuntResult,
+        /** [HuntKeys.urlKey] of every result already in My recipes, from the start and after each save. */
         val saved: Set<String> = emptySet(),
         val working: HuntProgress? = null,
         val error: String? = null,
@@ -151,7 +153,10 @@ class RecipeHunterViewModel @Inject constructor(
                         s.copy(stage = HuntStage.Running(steps + progress))
                     }
                 }
-            }.onSuccess { result -> _state.update { it.copy(stage = HuntStage.Done(result)) } }
+            }.onSuccess { result ->
+                val saved = runCatching { hunter.savedKeys() }.getOrDefault(emptySet())
+                _state.update { it.copy(stage = HuntStage.Done(result, saved = saved)) }
+            }
                 .onFailure { e ->
                     _state.update {
                         it.copy(stage = HuntStage.Failed((e as? AiError)?.message ?: "The search failed. Try again."))
@@ -175,9 +180,10 @@ class RecipeHunterViewModel @Inject constructor(
                     }
                 }
             }.onSuccess { result ->
+                val saved = runCatching { hunter.savedKeys() }.getOrDefault(emptySet())
                 _state.update { s ->
                     val cur = s.stage as? HuntStage.Done ?: return@update s
-                    s.copy(stage = cur.copy(result = result, working = null))
+                    s.copy(stage = cur.copy(result = result, working = null, saved = cur.saved + saved))
                 }
             }.onFailure { e ->
                 _state.update { s ->
@@ -192,7 +198,7 @@ class RecipeHunterViewModel @Inject constructor(
         hunter.save(hunted)
         _state.update { s ->
             val done = s.stage as? HuntStage.Done ?: return@update s
-            s.copy(stage = done.copy(saved = done.saved + hunted.recipe.sourceUrl))
+            s.copy(stage = done.copy(saved = done.saved + HuntKeys.urlKey(hunted.recipe.sourceUrl)))
         }
     }
 

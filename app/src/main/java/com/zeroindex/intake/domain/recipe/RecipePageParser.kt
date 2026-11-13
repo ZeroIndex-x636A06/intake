@@ -73,7 +73,7 @@ object RecipePageParser {
         val fromLd = jsonLdRecipe(html, pageUrl)
         val found = fromLd ?: Microdata(html, pageUrl).recipe()
         if (found != null && (found.ingredients.isNotEmpty() || found.steps.isNotEmpty())) {
-            PageParse.Found(enrich(found, html))
+            PageParse.Found(enrich(found, html, pageUrl))
         } else {
             PageParse.NoRecipe(pageText(html))
         }
@@ -87,7 +87,7 @@ object RecipePageParser {
      * Tidies the ingredient lines and adds what only the page's HTML has: the Notes section and the
      * ingredient group headers. Never throws; if the HTML pass fails the structured data stands alone.
      */
-    private fun enrich(found: RecipeDraft, html: String): RecipeDraft {
+    private fun enrich(found: RecipeDraft, html: String, pageUrl: String?): RecipeDraft {
         val ingredients = found.ingredients.map(IngredientCleaner::clean).filter { it.isNotEmpty() }
         val extras = runCatching { RecipeHtmlExtras.read(html) }.getOrDefault(HtmlExtras())
         val labels = RecipeHtmlExtras.labelsFor(ingredients, extras.groups)
@@ -95,6 +95,9 @@ object RecipePageParser {
             ingredients = ingredients,
             ingredientGroups = if (labels.any { it != null }) labels else emptyList(),
             notes = found.notes ?: extras.notes,
+            // The structured data's own photo first, then og:image, twitter:image and the first large picture.
+            imageUrl = RecipeImages.absolute(found.imageUrl, pageUrl)
+                ?: runCatching { RecipeImages.fromHtml(html, pageUrl) }.getOrNull(),
         )
     }
 
@@ -185,7 +188,7 @@ object RecipePageParser {
             ingredients = ingredients,
             steps = steps,
             nutrition = nutrition(o["nutrition"], index),
-            imageUrl = imageUrl(o["image"]),
+            imageUrl = imageUrl(o["image"], index, pageUrl) ?: imageUrl(o["thumbnailUrl"], index, pageUrl),
             url = text(o["url"]) ?: pageUrl,
             source = RecipeSource.JSON_LD,
         )
@@ -251,11 +254,28 @@ object RecipePageParser {
         return n.takeIf { it in 1..999 }
     }
 
-    private fun imageUrl(e: JsonElement?): String? = when (e) {
-        is JsonPrimitive -> e.contentOrNull?.trim()?.takeIf { it.startsWith("http") }
-        is JsonArray -> e.firstNotNullOfOrNull { imageUrl(it) }
-        is JsonObject -> imageUrl(e["url"]) ?: imageUrl(e["contentUrl"])
-        else -> null
+    /**
+     * Recipe.image in every form schema.org allows: a string, an array of strings or objects, an ImageObject
+     * (its url or contentUrl), or a reference by "@id" to an ImageObject elsewhere in the @graph. Relative
+     * addresses are made absolute against the page.
+     */
+    private fun imageUrl(e: JsonElement?, index: Map<String, JsonObject>, pageUrl: String?, depth: Int = 0): String? {
+        if (depth > 5) return null
+        return when (e) {
+            is JsonPrimitive -> {
+                val raw = e.contentOrNull?.trim().orEmpty()
+                RecipeImages.absolute(raw, pageUrl)?.takeIf { raw.isNotEmpty() && index[raw] == null }
+                    ?: index[raw]?.let { imageUrl(it, index, pageUrl, depth + 1) }
+            }
+            is JsonArray -> e.firstNotNullOfOrNull { imageUrl(it, index, pageUrl, depth + 1) }
+            is JsonObject -> {
+                val ref = (e["@id"] as? JsonPrimitive)?.contentOrNull
+                imageUrl(e["url"], index, pageUrl, depth + 1)
+                    ?: imageUrl(e["contentUrl"], index, pageUrl, depth + 1)
+                    ?: if (e.size == 1 && ref != null) index[ref]?.let { imageUrl(it, index, pageUrl, depth + 1) } else null
+            }
+            else -> null
+        }
     }
 
     /** Every object that carries an "@id", so a Recipe's `"nutrition": {"@id": "#nutrition"}` can be followed inside an @graph. */

@@ -16,6 +16,7 @@ import com.zeroindex.intake.domain.ai.AiTrigger
 import com.zeroindex.intake.domain.ai.Fit
 import com.zeroindex.intake.domain.ai.HuntDedupe
 import com.zeroindex.intake.domain.ai.HuntPolicy
+import com.zeroindex.intake.domain.ai.HuntKeys
 import com.zeroindex.intake.domain.ai.HuntRules
 import com.zeroindex.intake.domain.ai.HuntStop
 import com.zeroindex.intake.domain.ai.RecipeCandidate
@@ -23,6 +24,8 @@ import com.zeroindex.intake.domain.ai.RecipeFilter
 import com.zeroindex.intake.domain.ai.RecipeQuery
 import com.zeroindex.intake.domain.ai.RecipeVerdict
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
+import com.zeroindex.intake.domain.allergen.Adaptation
+import com.zeroindex.intake.domain.allergen.Substitutions
 import com.zeroindex.intake.domain.allergen.ModelAllergenClaim
 import com.zeroindex.intake.domain.allergen.ModelAllergenPolicy
 import com.zeroindex.intake.domain.recipe.PageParse
@@ -49,6 +52,8 @@ data class HuntRecipe(
     val proteinPerServing: Double?,
     val carbsPerServing: Double?,
     val fatPerServing: Double?,
+    /** The recipe photo's address, made absolute; null when the page has none this app could find. */
+    val imageUrl: String? = null,
 ) {
     val nutritionStated: Boolean get() = kcalPerServing != null || proteinPerServing != null
 }
@@ -61,17 +66,32 @@ data class HuntedRecipe(
     val fit: Fit,
     /** Why it is a near miss or removed, when the numbers are the reason. */
     val fitReason: String? = null,
+    /**
+     * For a recipe the allergen scan blocked: whether the allergen is a small, swappable part of it
+     * ([com.zeroindex.intake.domain.allergen.Substitutions]). A suggestion only: [verdict] and [scan] keep the
+     * original recipe's warning.
+     */
+    val adaptation: Adaptation? = null,
+    /** The re-scan of the adapted title and lines, never blocking when [adaptation] is adaptable. */
+    val adaptedScan: AllergenScanResult? = null,
 ) {
     private val checked get() = verdict is RecipeVerdict.Passed || verdict is RecipeVerdict.NeedsReview
+
+    /** The swaps, when the recipe is blocked only by allergens that can be swapped and its numbers are not far off. */
+    val adaptable: Adaptation.Adaptable?
+        get() = (adaptation as? Adaptation.Adaptable)?.takeIf {
+            verdict is RecipeVerdict.Rejected && fit != Fit.OUT && adaptedScan?.blocks == false
+        }
+    val isAdaptable get() = adaptable != null
 
     /** Inside every limit the page lets us check, or nothing to check. */
     val isKept get() = checked && (fit == Fit.MATCH || fit == Fit.UNCHECKED)
 
     /** Over a limit by 10% or less. */
     val isClose get() = checked && fit == Fit.CLOSE
-    val isRemoved get() = verdict is RecipeVerdict.Rejected
+    val isRemoved get() = verdict is RecipeVerdict.Rejected && !isAdaptable
     val isUnverified get() = verdict is RecipeVerdict.Unverified
-    val isSavable get() = checked
+    val isSavable get() = checked || isAdaptable
 }
 
 data class HuntProgress(
@@ -95,6 +115,8 @@ data class HuntResult(
 ) {
     val kept: List<HuntedRecipe> get() = results.filter { it.isKept }
     val close: List<HuntedRecipe> get() = results.filter { it.isClose }
+    /** Blocked by an allergen that can be swapped: shown in "Could be adapted", not in Removed. */
+    val adaptable: List<HuntedRecipe> get() = results.filter { it.isAdaptable }
     val removed: List<HuntedRecipe> get() = results.filter { it.isRemoved }
     val unverified: List<HuntedRecipe> get() = results.filter { it.isUnverified }
 }
@@ -251,16 +273,22 @@ class RecipeHunter @Inject constructor(
             proteinPerServing = n?.proteinG,
             carbsPerServing = n?.carbsG,
             fatPerServing = n?.fatG,
+            imageUrl = draft.imageUrl,
         )
         return judge(recipe, c, query, avoided)
     }
 
     internal suspend fun judge(recipe: HuntRecipe, c: HuntCandidate?, query: RecipeQuery, avoided: Set<String>): HuntedRecipe {
-        val local = allergens.scan(
-            name = recipe.title,
+        // The title is wording a person wrote, so it is read with the negation-aware free-text rules ("Dairy-free
+        // alfredo", "Vegan mac and cheese" are not evidence). The ingredient lines are scanned on their own, with the
+        // strict rules: they decide, and a product that says it is free of something is still "check the label".
+        val titleScan = allergens.scan(name = recipe.title, freeText = true)
+        val linesScan = allergens.scan(
+            name = null,
             ingredients = recipe.ingredients.joinToString("\n"),
             checkLabelInIngredients = true,
         )
+        val local = AllergenScanResult(titleScan.matches + linesScan.matches)
         // The model's snippet hint can only add a warning; the local scan is the authority and is never overridden.
         val claims = c?.takeIf { it.possibleAllergens.isNotEmpty() }
             ?.let { listOf(ModelAllergenClaim(recipe.title, it.possibleAllergens, it.allergenNote)) }
@@ -276,12 +304,42 @@ class RecipeHunter @Inject constructor(
         )
         val verdict = RecipeFilter.evaluate(candidate, query, scan)
         val fit = RecipeFilter.fitOf(candidate, query)
-        return HuntedRecipe(recipe, verdict, scan, fit.fit, fit.reason)
+        var adaptation: Adaptation? = null
+        var adaptedScan: AllergenScanResult? = null
+        if (verdict is RecipeVerdict.Rejected && scan.blocks && recipe.ingredients.isNotEmpty()) {
+            val lineScans = recipe.ingredients.map { line ->
+                allergens.scan(name = null, ingredients = line, checkLabelInIngredients = true)
+            }
+            adaptation = Substitutions.assess(recipe.title, recipe.ingredients, avoided, lineScans, scan)
+            if (adaptation is Adaptation.Adaptable) {
+                // The suggestion is only as good as the local scan of what it produces: a swapped copy that still
+                // blocks, or that a model flagged, is not offered as safe.
+                val rescan = allergens.scan(
+                    name = adaptation.adaptedTitle,
+                    ingredients = adaptation.adaptedIngredients.joinToString("\n"),
+                    checkLabelInIngredients = true,
+                )
+                val merged = ModelAllergenPolicy.merge(
+                    local = listOf(rescan), claims = claims, avoided = avoided, source = "Recipe Hunter",
+                ).scan
+                if (merged.blocks) {
+                    val terms = merged.contains.map { it.matchedTerm }.distinct().joinToString(", ")
+                    adaptation = Adaptation.NotAdaptable(listOf("After the swaps the recipe would still read as containing $terms"))
+                } else {
+                    adaptedScan = merged
+                }
+            }
+        }
+        return HuntedRecipe(recipe, verdict, scan, fit.fit, fit.reason, adaptation, adaptedScan)
     }
 
-    /** Saves a result to My recipes. Removed and unchecked recipes cannot be saved. */
+    /**
+     * Saves a result to My recipes. Removed and unchecked recipes cannot be saved. A "could be adapted" result is
+     * saved as an adapted copy ([saveAdapted]); the original recipe is never saved with its warning cleared.
+     */
     suspend fun save(hunted: HuntedRecipe): RecipeEntity {
         require(hunted.isSavable) { "A removed or unchecked recipe cannot be saved" }
+        hunted.adaptable?.let { return saveAdapted(hunted, it) }
         val r = hunted.recipe
         val now = clock.nowMillis()
         val entity = RecipeEntity(
@@ -300,12 +358,62 @@ class RecipeHunter @Inject constructor(
                 is RecipeVerdict.NeedsReview -> AllergenStatus.MAY_CONTAIN
                 else -> if (hunted.scan.hasCheckLabel) AllergenStatus.CHECK_LABEL else AllergenStatus.CLEAR
             },
+            imageUrl = r.imageUrl,
             createdAt = now,
             updatedAt = now,
         )
         recipeDao.upsertRecipe(entity)
         return entity
     }
+
+    /**
+     * The edited copy: the swapped ingredient lines, saved with the status of their own local re-scan (a plant
+     * cheese is "check the label", never "clear"). Nutrition is the page's published figure for the original
+     * recipe, kept and labelled as an estimate, or not listed when the page gave none. The original's warning is
+     * not touched: it still shows on the Recipe Hunter card.
+     */
+    private suspend fun saveAdapted(hunted: HuntedRecipe, adapted: Adaptation.Adaptable): RecipeEntity {
+        val r = hunted.recipe
+        val scan = checkNotNull(hunted.adaptedScan)
+        val now = clock.nowMillis()
+        val swaps = adapted.swaps.joinToString("\n") { "- ${it.summary}" + (it.note?.let { n -> " ($n)" } ?: "") }
+        val notes = buildString {
+            appendLine("Adapted copy of \"${r.title}\" (${r.sourceName}). The original recipe contains an ingredient you avoid.")
+            appendLine("Swaps made:")
+            appendLine(swaps)
+            appendLine("The steps are the original page's and may still name the swapped ingredients.")
+            if (r.nutritionStated) appendLine("Nutrition is the original recipe's published figure, so it is an estimate after the swaps.")
+            else appendLine("Nutrition is not listed.")
+        }.trim()
+        val entity = RecipeEntity(
+            name = adapted.adaptedTitle + " (adapted)",
+            servings = r.servings.coerceAtLeast(1),
+            instructions = r.steps.mapIndexed { i, s -> "${i + 1}. $s" }.joinToString("\n"),
+            totalTimeMinutes = r.totalMinutes ?: 0,
+            origin = RecipeOrigin.HUNTER,
+            sourceUrl = r.sourceUrl,
+            ingredientsText = adapted.adaptedIngredients.joinToString("\n"),
+            kcalPerServing = r.kcalPerServing,
+            proteinPerServing = r.proteinPerServing,
+            carbsPerServing = r.carbsPerServing,
+            fatPerServing = r.fatPerServing,
+            allergenStatus = when {
+                scan.mayContain.isNotEmpty() -> AllergenStatus.MAY_CONTAIN
+                scan.hasCheckLabel -> AllergenStatus.CHECK_LABEL
+                else -> AllergenStatus.CLEAR
+            },
+            notes = notes,
+            imageUrl = r.imageUrl,
+            createdAt = now,
+            updatedAt = now,
+        )
+        recipeDao.upsertRecipe(entity)
+        return entity
+    }
+
+    /** The addresses (as [HuntKeys.urlKey]) of recipes already in My recipes, so cards can say "Saved" when results load. */
+    suspend fun savedKeys(): Set<String> =
+        recipeDao.all().mapNotNull { it.sourceUrl }.map { HuntKeys.urlKey(it) }.toSet()
 
     private fun userPrompt(q: RecipeQuery, avoided: Set<String>, wanted: Int, seen: List<HuntedRecipe>) = buildString {
         appendLine("Find $wanted new recipe pages.")

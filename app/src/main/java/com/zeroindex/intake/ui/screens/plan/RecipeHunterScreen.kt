@@ -10,6 +10,12 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import coil3.compose.AsyncImage
+import com.zeroindex.intake.domain.ai.HuntKeys
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -200,6 +206,7 @@ fun RecipeHunterScreen(
         is HuntStage.Done -> LazyColumn(modifier.fillMaxWidth(), contentPadding = pad, verticalArrangement = Arrangement.spacedBy(2.dp)) {
             val result = stage.result
             val onCard: (HuntedRecipe) -> Unit = { open = it }
+            fun isSaved(h: HuntedRecipe) = HuntKeys.urlKey(h.recipe.sourceUrl) in stage.saved
             item(key = "head") {
                 HuntSubtitle(
                     "${result.rounds} round${if (result.rounds == 1) "" else "s"} · ${usd(result.costUsd)} spent · " +
@@ -229,18 +236,38 @@ fun RecipeHunterScreen(
                 }
             }
             items(result.kept, key = { "k" + it.recipe.sourceUrl + it.recipe.title }) { hunted ->
-                HuntedCard(hunted, saved = hunted.recipe.sourceUrl in stage.saved, onClick = { onCard(hunted) })
+                HuntedCard(hunted, saved = isSaved(hunted), onClick = { onCard(hunted) }, onSave = { viewModel.save(hunted) })
             }
             if (result.close.isNotEmpty()) {
                 item(key = "close-head") { SectionLine("Close matches · ${result.close.size}", note = "within 10% of a limit") }
                 items(result.close, key = { "c" + it.recipe.sourceUrl + it.recipe.title }) { hunted ->
-                    HuntedCard(hunted, saved = hunted.recipe.sourceUrl in stage.saved, onClick = { onCard(hunted) })
+                    HuntedCard(hunted, saved = isSaved(hunted), onClick = { onCard(hunted) }, onSave = { viewModel.save(hunted) })
+                }
+            }
+            if (result.adaptable.isNotEmpty()) {
+                item(key = "adapt-head") {
+                    SectionLine(
+                        "Could be adapted · ${result.adaptable.size}",
+                        note = "contain something you avoid, but only as a swappable part",
+                    )
+                }
+                item(key = "adapt-legend") {
+                    Text(
+                        "These recipes still carry their allergen warning. The swaps are a suggestion: saving makes a separate " +
+                            "copy with the swapped ingredients, checked again on this phone. Check every swapped product's label.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 4.dp),
+                    )
+                }
+                items(result.adaptable, key = { "a" + it.recipe.sourceUrl + it.recipe.title }) { hunted ->
+                    HuntedCard(hunted, saved = isSaved(hunted), onClick = { onCard(hunted) }, onSave = { viewModel.save(hunted) })
                 }
             }
             if (result.unverified.isNotEmpty()) {
                 item(key = "unverified-head") { SectionLine("Could not check · ${result.unverified.size}", note = "page unreadable, not saved") }
                 items(result.unverified, key = { "u" + it.recipe.sourceUrl + it.recipe.title }) { hunted ->
-                    HuntedCard(hunted, saved = false, onClick = { onCard(hunted) })
+                    HuntedCard(hunted, saved = false, onClick = { onCard(hunted) }, onSave = {})
                 }
             }
             if (result.removed.isNotEmpty()) {
@@ -253,7 +280,7 @@ fun RecipeHunterScreen(
                 }
                 if (showRemoved) {
                     items(result.removed, key = { "r" + it.recipe.sourceUrl + it.recipe.title }) { hunted ->
-                        HuntedCard(hunted, saved = false, onClick = { onCard(hunted) })
+                        HuntedCard(hunted, saved = false, onClick = { onCard(hunted) }, onSave = {})
                     }
                 }
             }
@@ -290,7 +317,7 @@ fun RecipeHunterScreen(
     }
 
     open?.let { hunted ->
-        val saved = (state.stage as? HuntStage.Done)?.saved?.contains(hunted.recipe.sourceUrl) == true
+        val saved = (state.stage as? HuntStage.Done)?.saved?.contains(HuntKeys.urlKey(hunted.recipe.sourceUrl)) == true
         HuntedDetailSheet(hunted, saved, onSave = { viewModel.save(hunted) }, onDismiss = { open = null })
     }
 }
@@ -306,21 +333,41 @@ private fun HuntSubtitle(text: String) {
 }
 
 @Composable
-private fun HuntedCard(hunted: HuntedRecipe, saved: Boolean, onClick: () -> Unit) {
+private fun HuntedCard(hunted: HuntedRecipe, saved: Boolean, onClick: () -> Unit, onSave: () -> Unit) {
     val context = LocalContext.current
     val r = hunted.recipe
-    val rejected = hunted.verdict as? RecipeVerdict.Rejected
+    val adaptable = hunted.adaptable
+    val rejected = (hunted.verdict as? RecipeVerdict.Rejected)?.takeIf { adaptable == null }
     val unverified = hunted.verdict as? RecipeVerdict.Unverified
     ResultCard(dimmed = rejected != null || unverified != null, modifier = Modifier.padding(vertical = 4.dp)) {
         Row(verticalAlignment = Alignment.Top) {
-            Text(r.title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f).padding(end = 6.dp))
-            when (val v = hunted.verdict) {
-                RecipeVerdict.Passed ->
-                    if (hunted.scan.hasCheckLabel) CheckLabelChip(hunted.scan.checkLabel.first().note, showReason = false)
-                    else StatusPill("Passed allergen check")
-                is RecipeVerdict.NeedsReview -> StatusPill("Check allergens", tone = PillTone.Wait)
-                is RecipeVerdict.Rejected -> StatusPill("Removed: ${v.reason.replaceFirstChar(Char::lowercase).let { if (it.length > 28) it.take(27) + "…" else it }}", tone = PillTone.Bad)
-                is RecipeVerdict.Unverified -> StatusPill("Not checked", tone = PillTone.Wait)
+            r.imageUrl?.let { url ->
+                AsyncImage(
+                    model = url,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.padding(end = 10.dp).size(76.dp).clip(RoundedCornerShape(12.dp)),
+                )
+            }
+            Column(Modifier.weight(1f)) {
+                Text(r.title, style = MaterialTheme.typography.titleSmall)
+                FlowRow(
+                    modifier = Modifier.padding(top = 5.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    if (saved) StatusPill("\u2713 Saved")
+                    when (val v = hunted.verdict) {
+                        RecipeVerdict.Passed ->
+                            if (hunted.scan.hasCheckLabel) CheckLabelChip(hunted.scan.checkLabel.first().note, showReason = false)
+                            else StatusPill("Passed allergen check")
+                        is RecipeVerdict.NeedsReview -> StatusPill("Check allergens", tone = PillTone.Wait)
+                        is RecipeVerdict.Rejected ->
+                            if (adaptable != null) StatusPill("Original: ${v.reason.replaceFirstChar(Char::lowercase)}", tone = PillTone.Bad)
+                            else StatusPill("Removed: ${v.reason.replaceFirstChar(Char::lowercase).let { if (it.length > 28) it.take(27) + "\u2026" else it }}", tone = PillTone.Bad)
+                        is RecipeVerdict.Unverified -> StatusPill("Not checked", tone = PillTone.Wait)
+                    }
+                }
             }
         }
         if (unverified == null) {
@@ -330,29 +377,45 @@ private fun HuntedCard(hunted: HuntedRecipe, saved: Boolean, onClick: () -> Unit
                     r.kcalPerServing?.let { "${it.roundToInt()} kcal" },
                     if (!r.nutritionStated) "Nutrition not stated on the page" else null,
                     r.totalMinutes?.let { "$it min" },
-                ).joinToString(" · "),
+                ).joinToString(" \u00b7 "),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 5.dp),
             )
+        }
+        if (adaptable != null) {
+            Column(Modifier.padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                adaptable.swaps.forEach { swap -> Text("\u2022 ${swap.summary}", style = MaterialTheme.typography.bodySmall) }
+            }
         }
         Text(
             when {
                 rejected != null -> "${rejected.reason}. This result is excluded from saving."
                 unverified != null -> "${unverified.reason}. Allergens were not checked, so it cannot be saved. Source: ${r.sourceName}."
+                adaptable != null -> listOfNotNull(
+                    adaptable.confidence.label,
+                    "The original keeps its warning",
+                    "Source: ${r.sourceName}",
+                ).joinToString(" \u00b7 ")
                 else -> listOfNotNull(
                     if (hunted.isClose) "Close: ${hunted.fitReason}" else null,
                     "Source: ${r.sourceName}",
                     "Ingredients checked locally",
-                    if (saved) "saved" else null,
-                ).joinToString(" · ")
+                ).joinToString(" \u00b7 ")
             },
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 5.dp),
         )
         if (rejected == null && unverified == null) {
-            TextButton(onClick = onClick, modifier = Modifier.semantics { contentDescription = "View recipe: ${r.title}" }) {
-                Text("View recipe")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = onClick, modifier = Modifier.semantics { contentDescription = "View recipe: ${r.title}" }) {
+                    Text("View recipe")
+                }
+                if (adaptable != null && !saved) {
+                    TextButton(onClick = onSave, modifier = Modifier.semantics { contentDescription = "Save adapted copy: ${r.title}" }) {
+                        Text("Save adapted copy")
+                    }
+                }
             }
         }
         if (unverified != null) {
@@ -379,8 +442,19 @@ private fun HuntedDetailSheet(hunted: HuntedRecipe, saved: Boolean, onSave: () -
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            val adaptable = hunted.adaptable
+            if (adaptable != null) {
+                AccentNote(
+                    lead = "Could be adapted",
+                    body = "The original recipe says: ${(hunted.verdict as RecipeVerdict.Rejected).reason}. It keeps that warning. " +
+                        "Saving makes a separate copy with these swaps, checked again on this phone:\n" +
+                        adaptable.swaps.joinToString("\n") { "\u2022 ${it.summary}" + (it.note?.let { n -> " ($n)" } ?: "") },
+                    container = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            }
             when (val v = hunted.verdict) {
-                is RecipeVerdict.Rejected -> AccentNote(
+                is RecipeVerdict.Rejected -> if (adaptable == null) AccentNote(
                     lead = "Removed by your checks", body = v.reason,
                     container = MaterialTheme.colorScheme.tertiaryContainer,
                     contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
@@ -410,14 +484,24 @@ private fun HuntedDetailSheet(hunted: HuntedRecipe, saved: Boolean, onSave: () -
                     ).joinToString(" · ") + " (as published on the page)",
                 style = MaterialTheme.typography.bodySmall,
             )
-            SectionLine("Ingredients")
+            SectionLine(if (adaptable != null) "Ingredients (original)" else "Ingredients")
             r.ingredients.forEach { Text("• $it", style = MaterialTheme.typography.bodySmall) }
+            if (adaptable != null) {
+                SectionLine("Ingredients (adapted copy)")
+                adaptable.adaptedIngredients.forEach { Text("• $it", style = MaterialTheme.typography.bodySmall) }
+            }
             SectionLine("Steps")
             r.steps.forEachIndexed { i, s -> Text("${i + 1}. $s", style = MaterialTheme.typography.bodySmall) }
             Spacer(Modifier.height(6.dp))
             if (hunted.isSavable) {
                 Button(onClick = onSave, enabled = !saved, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(52.dp)) {
-                    Text(if (saved) "Saved to My recipes" else "Save to My recipes")
+                    Text(
+                        when {
+                            saved -> "\u2713 Saved to My recipes"
+                            adaptable != null -> "Save adapted copy"
+                            else -> "Save to My recipes"
+                        },
+                    )
                 }
             }
             OutlinedButton(
