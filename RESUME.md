@@ -3,6 +3,10 @@
 Read this first when picking the work back up. Latest work: branch
 `claude/optimistic-noether-fullk5` (not yet merged into `claude/app-build-k2ag1d`).
 
+## Navigation transitions (FEEDBACK-R4 item 8, branch `worktree-agent-acb080647531a0b9a`)
+
+- Push and back are now mirrors in `ui/navigation/NavTransitions.kt` (`NavSpecs`, 300 ms FastOutSlowIn both ways; the screen underneath moves a quarter width left and dims to 0.85). Tab switches cross-fade in 150 ms. Predictive back uses the same back motion via `predictivePopEnterTransition`/`predictivePopExitTransition`. Checked by `NavTransitionsTest`. Not seen on a device; the owner's phone is the test.
+
 ## Merge of three agent branches (branch `claude/optimistic-noether-fullk5`)
 
 Merged with `--no-ff`, one at a time, each followed by compile and the unit tests: recipe nutrition (`worktree-agent-a2198826f8ff9a2b4`), Recipe

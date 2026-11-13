@@ -91,7 +91,7 @@ private fun AnimatedContentTransitionScope<NavBackStackEntry>.isTabSwitch(): Boo
  * in two graphs, so the pill never jumps tabs. See [Route] for the rule feature agents follow.
  *
  * Every pushed screen is wrapped in [PushedScreen] (top bar with a back arrow, no pill) and every tab root in
- * [TabRootScreen]. Motion: pushes slide horizontally, tabs cross-fade ([Motion]).
+ * [TabRootScreen]. Motion: pushes slide and backs slide the reverse, tabs cross-fade ([NavSpecs]).
  */
 @Composable
 fun IntakeNavHost(
@@ -107,11 +107,15 @@ fun IntakeNavHost(
         navController = navController,
         startDestination = start,
         modifier = modifier,
-        // Moving between tabs fades through; pushing is a horizontal slide, reversed on back.
-        enterTransition = { if (isTabSwitch()) Motion.fadeThroughIn(reduce) else Motion.pushEnter(reduce) },
-        exitTransition = { if (isTabSwitch()) Motion.fadeThroughOut(reduce) else Motion.pushExit(reduce) },
-        popEnterTransition = { if (isTabSwitch()) Motion.fadeThroughIn(reduce) else Motion.popEnter(reduce) },
-        popExitTransition = { if (isTabSwitch()) Motion.fadeThroughOut(reduce) else Motion.popExit(reduce) },
+        // Every transition comes from NavTransitions.kt. Tabs cross-fade; a push slides and a back slides the
+        // exact reverse. The nested tab graphs inherit these, so no graph or route overrides them.
+        enterTransition = { if (isTabSwitch()) tabIn(reduce) else pushIn(reduce) },
+        exitTransition = { if (isTabSwitch()) tabOut(reduce) else pushOut(reduce) },
+        popEnterTransition = { if (isTabSwitch()) tabIn(reduce) else backIn(reduce) },
+        popExitTransition = { if (isTabSwitch()) tabOut(reduce) else backOut(reduce) },
+        // Predictive back (the Android 14+ gesture) follows the same back motion as the button.
+        predictivePopEnterTransition = { _ -> backIn(reduce) },
+        predictivePopExitTransition = { _ -> backOut(reduce) },
     ) {
         val back: () -> Unit = { navController.popBackStack() }
         val openScriptReference = { page: String, anchor: String? ->
