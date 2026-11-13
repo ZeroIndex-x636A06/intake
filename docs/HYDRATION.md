@@ -211,7 +211,7 @@ The maths is `domain/drinks/CustomDrink.kt` (tested); a millilitre is counted as
 
 | Add-in | Units | Per 100 g or ml (USDA reference figures, rounded) |
 | --- | --- | --- |
-| Sugar | tsp = 4 g | 387 kcal, 99.8 g sugar |
+| Sugar | tsp = 4.2 g (USDA household measure) | 387 kcal, 99.8 g sugar |
 | Honey | tsp = 7 g | 304 kcal, 82.1 g sugar |
 | Flavoured syrup | pump = 10 ml, or ml | 260 kcal, 65 g sugar (typical, brands vary) |
 | Sweetener | packet | 0 kcal |
@@ -223,7 +223,7 @@ The maths is `domain/drinks/CustomDrink.kt` (tested); a millilitre is counted as
 Any food from the search (the person's own, or the bundled USDA file) can also be an add-in, by grams (millilitres for a drink).
 
 - **Nutrition** is the base drink at its volume plus each add-in. The glass is the base volume plus the liquid add-ins (sugar dissolves and adds none).
-  A saved drink stores the glass **per 100 ml**, so logging 240 ml of it gives the glass back. Black coffee 240 ml + 3 tsp sugar is about 48 kcal and 12 g sugar.
+  A saved drink stores the glass **per 100 ml**, so logging 240 ml of it gives the glass back. Black coffee 240 ml + 3 tsp sugar is about 51 kcal and 12.6 g sugar.
 - **Hydration factor** comes from the base drink and is stored on the saved drink. Caffeine and strength keep the same amount in the glass, so they read lower per 100 ml when milk is added.
 - **Allergens** are the union of the base drink's and every add-in's (milk, cream and half-and-half carry `en:milk`, soy milk `en:soybeans`, plus each add-in's name as ingredient
   text), read by the same local engine, and nothing removes a warning. A log is checked on the finished drink first.
@@ -234,3 +234,29 @@ Any food from the search (the person's own, or the bundled USDA file) can also b
 **Allergens.** Every drink goes through the local allergen engine before it is written (the red sheet on a match), and
 each row on the Drinks page, search results included, shows its verdict. The quick sizes, the target and the drink values are Settings, not part
 of the Drinks page.
+
+## Round 5 corrections (items 12 and 13)
+
+**The Drinks page is one list.** From the top: a compact strip (today's total against the target, a thin bar, then caffeine, sugar, calories and
+alcohol on one line); one search field (this phone, the offline USDA file, Open Food Facts, the USDA API, drinks only); category chips (All and the
+nine categories) that filter the list; "My drinks" and "Recent" as quick-tap cards (a tap logs the card's size, the last size that drink was logged at;
+a long press opens the options); the drinks; and "Logged today" with a remove. Choosing a drink opens one bottom sheet: the quick sizes from Settings, a
+"Custom amount" chip, what that size comes to, then **Customise** (Edit for a saved drink, with Delete) and **Log**. Logging still writes the water row and
+the food-log row (Drinks slot) together, after the local allergen check. "Recent" reads the Drinks-slot food-log rows (`FoodLogDao.observeRecentDrinkLogs`); no schema change.
+
+**The tea with 3 tsp sugar (item 13).** Root causes:
+
+- **Protein and the extra calories.** The base was a packaged or searched "Hot Tea" row whose own numbers were not a brew's (about 0.5 g protein and a few kcal per 100 ml),
+  so every glass carried them. The add-ins were fine (the sugar add-in has no protein and is not scaled by the glass). `domain/drinks/PlainBrew.kt` now checks a plain tea or coffee
+  base (name with no milk, cream, syrup, flavour or mix; no milk in its allergen text; carbohydrate at most 0.5 g per 100 ml): above 0.35 g protein, 0.3 g fat or 10 kcal per 100 ml it
+  is not a brew's numbers, and the USDA SR Legacy brewed values stand in (tea 1 kcal, 0 g protein, 0.3 g carbohydrate, 3 mg sodium; coffee 1 kcal, 0.12 g protein, 2 mg sodium). Customise says so. A saved
+  "My drink" made on such a base is rebuilt from its recipe when Drinks opens (`DrinkRepository.repairCustomDrinks`); nothing is deleted. Milky, sweetened and flavoured drinks are never touched.
+- **Sugars "not listed".** A base from Open Food Facts or USDA search keeps "sugar" in its unlisted list, and the finished drink inherits the union. A plain brew has no sugar, so for it sugar,
+  fibre and saturated fat are known zeros. The seeded drinks already list them (their sugars are 0, not unknown), and the sugar add-in carries 99.8 g per 100 g. A non-plain base that does not list sugar still leaves it unlisted.
+- **65 against 70 kcal.** The tiles rounded 65.4 to 65; the label applies the FDA rounding (calories to the nearest 5 up to 50, the nearest 10 above), which gives 70. A drink's tiles now use the
+  label's rounding (`LabelFormat`), so they agree, and Food detail says how the label rounds.
+- **The cookie.** The icon came from guessing a food category from the name, and "sugar" is a sweet. A drink's icon now comes from its stored drink category (a tea cup for tea, a coffee cup, a glass, a bar glass, a water drop).
+- **Teaspoon.** A teaspoon of sugar is now 4.2 g (the USDA household measure), so 3 tsp is 12.6 g of sugar and 48.8 kcal. Recipes saved before keep the 4 g they were saved with.
+
+The owner's tea, 16 fl oz (473 ml) with 3 tsp sugar: about 53 kcal, 14 g carbohydrate (12.6 g of it sugars, 1.4 g from the brew), 0 g protein, 0 g fat. Regression tests are
+`CustomDrinkRegressionTest`, `PlainBrewTest` and `OwnerTeaTest` (tea, coffee and milk at 8 and 16 fl oz; the seeds against USDA).

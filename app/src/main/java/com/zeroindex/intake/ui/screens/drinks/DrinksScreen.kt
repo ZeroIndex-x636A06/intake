@@ -1,7 +1,10 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.zeroindex.intake.ui.screens.drinks
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,6 +16,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -26,18 +30,19 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,10 +52,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -62,6 +67,7 @@ import com.zeroindex.intake.domain.units.VolumeUnit
 import com.zeroindex.intake.ui.addfood.RowAllergen
 import com.zeroindex.intake.ui.addfood.RowAllergenChip
 import com.zeroindex.intake.ui.allergen.AllergenWarningSheet
+import com.zeroindex.intake.ui.components.ChoiceChip
 import com.zeroindex.intake.ui.components.EmptyState
 import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.SectionLine
@@ -71,17 +77,17 @@ import com.zeroindex.intake.ui.theme.WaterAccent
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
-private fun DrinkCategory.chipIcon(): ImageVector = fallbackType.icon()
-
 /**
- * The Drinks page (IA 5d, Option A frame): today's water against the target with caffeine, sugar, calories and alcohol
- * from drinks; category chips (Soda lists every soda) with the category's drinks and the quick sizes from Settings (and
- * Custom); directly under those, a search over every source Log food uses (this phone, the offline USDA database, Open
- * Food Facts, the USDA API) that lists drinks only; and today's drinks with a remove. A drink is a food: one tap on a size writes the water entry and
- * the food-log entry together, and the allergen check runs before it does. Settings for all of this (target, sizes,
- * drink values, units) live in Settings > Water and drinks, never here.
+ * The Drinks page, one calm list: today's total against the water target in a compact strip; one search field (over
+ * every source Log food uses: this phone, the offline USDA database, Open Food Facts, the USDA API; drinks only);
+ * category chips that filter the list; "My drinks" and "Recent" as quick-tap cards (a tap logs the last size, a long
+ * press opens the options); the drinks; and today's drinks with a remove. Choosing a drink opens one bottom sheet with
+ * the size chips plus a custom amount, then Customise and Log. A drink is a food: logging writes the water entry and the
+ * food-log entry (Drinks slot) together, and the allergen check runs first. Settings for all of it (target, sizes, drink
+ * values, units) live in Settings > Water and drinks, never here.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -91,57 +97,28 @@ fun DrinksScreen(
     /** Opens the customise screen for this drink (or edits it, for a saved "My drink"). */
     onCustomise: (String) -> Unit,
     modifier: Modifier = Modifier,
-    /** Words carried over from Log food ("coke"), so the search under the predefined drinks starts with them. */
+    /** Words carried over from Log food ("coke"), so the search starts with them. */
     initialQuery: String = "",
     viewModel: DrinksViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val unit = state.volumeUnit
-    var customOpen by remember { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf(initialQuery) }
     LaunchedEffect(query) { viewModel.setQuery(query) }
     val search = state.search
     val listState = rememberLazyListState()
-    // The search field sits under the category's drinks and (when one of them is chosen) its size buttons.
-    val searchIndex = 3 + state.drinks.size.coerceAtLeast(1) + (if (state.selected != null && !state.selectedFromSearch) 3 else 0) +
-        (if (state.myDrinks.isEmpty()) 0 else 1 + state.myDrinks.size)
-    // Opened with words from Log food: start at the search, not at the top of the page.
-    var jumped by rememberSaveable { mutableStateOf(initialQuery.isBlank()) }
-    LaunchedEffect(state.drinks.isNotEmpty()) {
-        if (!jumped && state.drinks.isNotEmpty()) { jumped = true; listState.scrollToItem(searchIndex) }
-    }
-    // A result was chosen: its size buttons appear right under the search field, so bring that into view.
-    LaunchedEffect(state.selected?.id, state.selectedFromSearch) {
-        if (state.selectedFromSearch) listState.animateScrollToItem(searchIndex)
-    }
 
     val selected = state.selected
     val sizes = remember(unit, state.presets) { DrinkSizes.buttons(unit, state.presets.map { DrinkSize(unit.format(it.volumeMl), it.volumeMl) }) }
     val time = remember { DateTimeFormatter.ofPattern("h:mm a") }
+    val cat = state.category
 
-    val sizeTiles: androidx.compose.foundation.lazy.LazyListScope.(FoodEntity) -> Unit = { drink ->
-        item(key = "size-head") { SectionLine("${drink.name.uppercase()} · TAP A SIZE TO LOG IT") }
-        item(key = "sizes") {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), maxItemsInEachRow = 2) {
-                sizes.forEach { s ->
-                    SizeTile(s.label, kcalLabel(drink, s.ml), Modifier.weight(1f)) {
-                        viewModel.log(drink, s.ml)
-                    }
-                }
-                SizeTile("+ Custom size", "type any amount", Modifier.weight(1f), dashed = true) { customOpen = true }
-            }
-        }
-        item(key = "drink-actions") {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (drink.customDrink != null) {
-                    OutlinedButton(onClick = { onCustomise(drink.id) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Edit") }
-                    TextButton(onClick = { viewModel.deleteMyDrink(drink) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Delete") }
-                } else {
-                    OutlinedButton(onClick = { onCustomise(drink.id) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Customise") }
-                }
-            }
-        }
-    }
+    // The quick cards follow the category chip: a drink of another category is hidden, not removed.
+    fun inCategory(f: FoodEntity) = cat == null || f.drinkCategory == cat.name
+    val mine = state.myDrinks.filter { inCategory(it.food) }
+    val mineIds = state.myDrinks.map { it.food.id }.toSet()
+    val recent = state.recent.filter { inCategory(it.row.food) && it.row.food.id !in mineIds }
+    val lastSizes = state.recent.associate { it.row.food.id to it.lastMl }
 
     LazyColumn(
         state = listState,
@@ -154,60 +131,13 @@ fun DrinksScreen(
         ),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        item(key = "summary") { SummaryCard(state, unit) }
+        item(key = "summary") { SummaryStrip(state, unit) }
 
-        // ---- My drinks: the saved custom versions, at the top ----
-        if (state.myDrinks.isNotEmpty()) {
-            item(key = "my-head") { SectionLine("MY DRINKS") }
-            items(state.myDrinks, key = { "my-${it.food.id}" }) { row ->
-                DrinkRow(
-                    food = row.food,
-                    allergen = row.allergen,
-                    selected = row.food.id == selected?.id,
-                    onSelect = { viewModel.select(row.food.id) },
-                    onInfo = { onOpenFood(row.food.id) },
-                )
-            }
-            if (selected != null && !state.selectedFromSearch && state.myDrinks.any { it.food.id == selected.id }) sizeTiles(selected)
-        }
-
-        // ---- The predefined options: categories, the category's drinks, the quick sizes ----
-        item(key = "categories") {
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                DrinkCategory.entries.forEach { c ->
-                    CategoryChip(c.label, c.chipIcon(), c == state.category) { viewModel.selectCategory(c) }
-                }
-            }
-        }
-        item(key = "list-head") { SectionLine(state.category.label.uppercase()) }
-        if (state.drinks.isEmpty()) {
-            item(key = "none") {
-                EmptyState(
-                    title = "No ${state.category.label.lowercase()} drinks yet",
-                    body = "Drinks you find with the search below, or scan, land in their category here.",
-                )
-            }
-        } else {
-            items(state.drinks, key = { "cat-${it.food.id}" }) { row ->
-                DrinkRow(
-                    food = row.food,
-                    allergen = row.allergen,
-                    selected = row.food.id == selected?.id,
-                    onSelect = { viewModel.select(row.food.id) },
-                    onInfo = { onOpenFood(row.food.id) },
-                )
-            }
-        }
-
-        if (selected != null && !state.selectedFromSearch && state.myDrinks.none { it.food.id == selected.id }) sizeTiles(selected)
-
-        // ---- The search, directly under the predefined options: every source Log food searches, drinks only ----
-        item(key = "search-head") { SectionLine("FIND ANOTHER DRINK") }
         item(key = "search") {
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
-                placeholder = { Text("Search all drinks") },
+                placeholder = { Text("Search drinks") },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                 trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Icons.Filled.Close, contentDescription = "Clear the search") } },
                 singleLine = true,
@@ -215,10 +145,46 @@ fun DrinksScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-        // A result that was tapped is on the phone now: its sizes come first, where the tap can be followed.
-        if (selected != null && state.selectedFromSearch) sizeTiles(selected)
 
-        if (query.isNotBlank()) {
+        if (query.isBlank()) {
+            item(key = "categories") {
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ChoiceChip("All", cat == null, { viewModel.selectCategory(null) })
+                    DrinkCategory.entries.forEach { c -> ChoiceChip(c.label, c == cat, { viewModel.selectCategory(c) }) }
+                }
+            }
+
+            if (mine.isNotEmpty()) {
+                item(key = "my") { QuickRow("My drinks", mine.map { QuickItem(it.food, lastSizes[it.food.id] ?: it.food.servingSizeGrams) }, unit, viewModel::log, viewModel::select) }
+            }
+            if (recent.isNotEmpty()) {
+                item(key = "recent") { QuickRow("Recent", recent.map { QuickItem(it.row.food, it.lastMl) }, unit, viewModel::log, viewModel::select) }
+            }
+            if (mine.isNotEmpty() || recent.isNotEmpty()) {
+                item(key = "hint") {
+                    Text("Tap to log the last size. Press and hold for options.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            if (state.drinks.isEmpty()) {
+                item(key = "none") {
+                    EmptyState(
+                        title = if (cat == null) "No drinks yet" else "No ${cat.label.lowercase()} drinks yet",
+                        body = "Drinks you find with the search, or scan, land in their category here.",
+                    )
+                }
+            } else {
+                items(state.drinks, key = { "cat-${it.food.id}" }) { row ->
+                    DrinkRow(
+                        food = row.food,
+                        allergen = row.allergen,
+                        selected = row.food.id == selected?.id,
+                        onSelect = { viewModel.select(row.food.id) },
+                        onInfo = { onOpenFood(row.food.id) },
+                    )
+                }
+            }
+        } else {
             fun isChosen(row: DrinkSearchRow) = state.selectedFromSearch && selected != null &&
                 (row.food.id == selected.id || (row.food.barcode != null && row.food.barcode == selected.barcode))
             val section: androidx.compose.foundation.lazy.LazyListScope.(String, List<DrinkSearchRow>) -> Unit = { title, rows ->
@@ -236,7 +202,7 @@ fun DrinksScreen(
                     }
                 }
             }
-            section("YOUR DRINKS (INCLUDING MY DRINKS)", search.mine)
+            section("ON THIS PHONE", search.mine)
             section("FOOD DATABASE (USDA, WORKS OFFLINE)", search.usda)
             when (search.offStatus) {
                 OffDrinksStatus.HIDDEN -> Unit
@@ -273,7 +239,7 @@ fun DrinksScreen(
 
         item(key = "today-head") { SectionLine("LOGGED TODAY", note = if (state.entries.isEmpty()) null else "${state.entries.size} drink${if (state.entries.size == 1) "" else "s"}") }
         if (state.entries.isEmpty()) {
-            item(key = "today-none") { EmptyState(body = "Nothing logged yet today. Pick a drink and tap a size.") }
+            item(key = "today-none") { Text("Nothing logged yet today.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         } else {
             items(state.entries, key = { it.log.id }) { e ->
                 IntakeCard {
@@ -302,8 +268,21 @@ fun DrinksScreen(
         }
     }
 
-    if (customOpen && selected != null) {
-        CustomSizeDialog(selected.name, unit, onDismiss = { customOpen = false }, onLog = { ml -> customOpen = false; viewModel.log(selected, ml) })
+    if (selected != null) {
+        val allergen = (state.myDrinks.map { it.food.id to it.allergen } + state.recent.map { it.row.food.id to it.row.allergen } +
+            state.drinks.map { it.food.id to it.allergen } + (search.mine + search.usda + search.off + search.online).map { it.food.id to it.allergen })
+            .firstOrNull { it.first == selected.id }?.second
+        DrinkSheet(
+            drink = selected,
+            allergen = allergen,
+            unit = unit,
+            sizes = sizes,
+            startMl = lastSizes[selected.id] ?: selected.servingSizeGrams.takeIf { it > 0 } ?: sizes.first().ml,
+            onDismiss = viewModel::clearSelection,
+            onCustomise = { id -> viewModel.clearSelection(); onCustomise(id) },
+            onDelete = { viewModel.deleteMyDrink(selected); viewModel.clearSelection() },
+            onLog = { ml -> viewModel.log(selected, ml); viewModel.clearSelection() },
+        )
     }
 
     state.pending?.let { p ->
@@ -318,80 +297,85 @@ fun DrinksScreen(
     }
 }
 
-private fun kcalLabel(food: FoodEntity, ml: Double): String {
-    val k = food.kcalPer100g * ml / 100.0
-    return if (k < 1.0) "0 kcal" else "${k.roundToInt()} kcal"
-}
+private fun kcalOf(food: FoodEntity, ml: Double): Int = (food.kcalPer100g * ml / 100.0).roundToInt()
 
+/** Today against the target in one compact strip, with the day's caffeine, sugar, calories and alcohol on one line under it. */
 @Composable
-private fun SummaryCard(state: DrinksUiState, unit: VolumeUnit) {
+private fun SummaryStrip(state: DrinksUiState, unit: VolumeUnit) {
     val day = state.day
     IntakeCard {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                if (day == null) {
-                    Text("Reading today's drinks…", style = MaterialTheme.typography.titleMedium)
-                } else {
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(unit.formatNumber(day.consumedMl), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
-                        Text(" of ${unit.format(day.target.totalMl)}", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(bottom = 4.dp))
-                    }
-                    Text(
-                        "Counts caffeine and alcohol too",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+        if (day == null) {
+            Text("Reading today's drinks…", style = MaterialTheme.typography.titleMedium)
+        } else {
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(unit.formatNumber(day.consumedMl), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+                Text(" of ${unit.format(day.target.totalMl)}", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(bottom = 2.dp).weight(1f))
+                Text("${(day.progress * 100).roundToInt().coerceAtLeast(0)}%", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
             }
-            if (day != null) {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(64.dp)) {
-                    CircularProgressIndicator(progress = { day.progress.coerceIn(0f, 1f) }, color = WaterAccent, trackColor = MaterialTheme.colorScheme.surfaceVariant, strokeWidth = 7.dp, modifier = Modifier.size(64.dp))
-                    Text("${(day.progress * 100).roundToInt().coerceAtLeast(0)}%", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-        if (day != null) {
-            Spacer(Modifier.size(10.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Stat("Caffeine", "${day.totals.caffeineMg.roundToInt()} mg", Modifier.weight(1f))
-                Stat("Sugar", "${state.sugarG.roundToInt()} g", Modifier.weight(1f))
-                Stat("Calories", "${state.kcal.roundToInt()}", Modifier.weight(1f))
-                Stat("Alcohol", "%.1f".format(java.util.Locale.US, day.totals.standardDrinks).removeSuffix(".0") + " std", Modifier.weight(1f))
-            }
-            day.notes.forEach { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp)) }
+            LinearProgressIndicator(
+                progress = { day.progress.coerceIn(0f, 1f) },
+                color = WaterAccent,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp).heightIn(min = 6.dp),
+            )
+            Text(
+                "${day.totals.caffeineMg.roundToInt()} mg caffeine · ${state.sugarG.roundToInt()} g sugar · ${state.kcal.roundToInt()} kcal · " +
+                    "%.1f".format(java.util.Locale.US, day.totals.standardDrinks).removeSuffix(".0") + " std alcohol",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+            day.notes.forEach { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp)) }
         }
     }
 }
 
+private data class QuickItem(val food: FoodEntity, val ml: Double)
+
+/** A short label over a row of quick-tap cards: one tap logs the card's size, a long press opens the options. */
 @Composable
-private fun Stat(label: String, value: String, modifier: Modifier) {
-    Surface(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f), shape = IntakeShape.Tile, modifier = modifier) {
-        Column(Modifier.padding(vertical = 8.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(value, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold, maxLines = 1)
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+private fun QuickRow(
+    title: String,
+    items: List<QuickItem>,
+    unit: VolumeUnit,
+    onLog: (FoodEntity, Double) -> Unit,
+    onOptions: (String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items.forEach { QuickCard(it, unit, onLog = { onLog(it.food, it.ml) }, onOptions = { onOptions(it.food.id) }) }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun CategoryChip(label: String, icon: ImageVector, selected: Boolean, onClick: () -> Unit) {
+private fun QuickCard(item: QuickItem, unit: VolumeUnit, onLog: () -> Unit, onOptions: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     Surface(
-        onClick = onClick,
-        color = if (selected) scheme.primaryContainer else scheme.surface,
-        contentColor = if (selected) scheme.onPrimaryContainer else scheme.onSurface,
+        color = scheme.surface,
         shape = IntakeShape.Card,
-        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) scheme.primary else scheme.outlineVariant),
-        modifier = Modifier.heightIn(min = 72.dp),
+        border = BorderStroke(1.dp, scheme.outlineVariant),
+        modifier = Modifier
+            .width(156.dp)
+            .heightIn(min = 64.dp)
+            .combinedClickable(onClick = onLog, onLongClick = onOptions, onClickLabel = "Log ${unit.format(item.ml)} of ${item.food.name}", onLongClickLabel = "Options"),
     ) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp))
-            Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp), maxLines = 1)
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.Center) {
+            Text(item.food.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                "${unit.format(item.ml)} · ${kcalOf(item.food, item.ml)} kcal",
+                style = MaterialTheme.typography.labelMedium,
+                color = scheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
 
-/** One drink, from the category list or the search. Drinks are liquids: its numbers read per 100 ml, whatever the source. */
+/** One drink, from the list or the search. Drinks are liquids: its numbers read per 100 ml, whatever the source. */
 @Composable
 private fun DrinkRow(food: FoodEntity, allergen: RowAllergen?, selected: Boolean, onSelect: () -> Unit, onInfo: (() -> Unit)?) {
     val f = food
@@ -399,12 +383,11 @@ private fun DrinkRow(food: FoodEntity, allergen: RowAllergen?, selected: Boolean
         Modifier
             .fillMaxWidth()
             .heightIn(min = 60.dp)
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
+            .selectable(selected = selected, role = Role.Button, onClick = onSelect)
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        RadioButton(selected = selected, onClick = null, modifier = Modifier.padding(horizontal = 10.dp))
-        Column(Modifier.weight(1f)) {
+        Column(Modifier.weight(1f).padding(horizontal = 4.dp)) {
             Text(f.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
             Text(
                 buildString {
@@ -427,42 +410,70 @@ private fun DrinkRow(food: FoodEntity, allergen: RowAllergen?, selected: Boolean
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+/**
+ * The one sheet a chosen drink opens: its size chips plus a custom amount, then Customise (Edit for a saved drink) and Log.
+ * What the chosen size comes to (calories, sugar, caffeine) is shown above the buttons.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SizeTile(title: String, sub: String, modifier: Modifier, dashed: Boolean = false, onClick: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    Surface(
-        onClick = onClick,
-        color = if (dashed) scheme.surface else scheme.primaryContainer,
-        contentColor = if (dashed) scheme.primary else scheme.onPrimaryContainer,
-        shape = IntakeShape.Card,
-        border = BorderStroke(1.dp, if (dashed) scheme.outline else scheme.primary),
-        modifier = modifier.heightIn(min = 64.dp),
-    ) {
-        Column(Modifier.padding(12.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold)
-            Text(sub, style = MaterialTheme.typography.labelMedium)
+private fun DrinkSheet(
+    drink: FoodEntity,
+    allergen: RowAllergen?,
+    unit: VolumeUnit,
+    sizes: List<DrinkSize>,
+    startMl: Double,
+    onDismiss: () -> Unit,
+    onCustomise: (String) -> Unit,
+    onDelete: () -> Unit,
+    onLog: (Double) -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var ml by remember(drink.id) { mutableStateOf(startMl) }
+    var custom by remember(drink.id) { mutableStateOf(false) }
+    var text by remember(drink.id) { mutableStateOf("") }
+    val saved = drink.customDrink != null
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(
+            Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp).padding(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(drink.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            allergen?.let { RowAllergenChip(it) }
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                sizes.forEach { s -> ChoiceChip(s.label, !custom && abs(ml - s.ml) < 1.0, { custom = false; ml = s.ml }) }
+                ChoiceChip("Custom amount", custom, { custom = true })
+            }
+            if (custom) {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { v ->
+                        text = v.filter { c -> c.isDigit() || c == '.' || c == ',' }.take(7)
+                        text.replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 && it.isFinite() }?.let { ml = DrinkSizes.toMl(unit, it) }
+                    },
+                    label = { Text("Amount (${unit.label})") },
+                    singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    shape = IntakeShape.Field,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            Text(
+                buildString {
+                    append(unit.format(ml)).append(" · ").append(kcalOf(drink, ml)).append(" kcal")
+                    if (drink.sugarPer100g * ml / 100.0 >= 0.5) append(" · ${(drink.sugarPer100g * ml / 100.0).roundToInt()} g sugar")
+                    val caffeine = (drink.caffeineMgPer100ml ?: 0.0) * ml / 100.0
+                    if (caffeine >= 1) append(" · ${caffeine.roundToInt()} mg caffeine")
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(onClick = { onCustomise(drink.id) }, modifier = Modifier.weight(1f).heightIn(min = 52.dp)) { Text(if (saved) "Edit" else "Customise") }
+                Button(onClick = { onLog(ml) }, enabled = ml > 0, modifier = Modifier.weight(1f).heightIn(min = 52.dp)) { Text("Log") }
+            }
+            if (saved) {
+                TextButton(onClick = onDelete, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Delete this drink") }
+            }
         }
     }
-}
-
-@Composable
-private fun CustomSizeDialog(drinkName: String, unit: VolumeUnit, onDismiss: () -> Unit, onLog: (Double) -> Unit) {
-    var text by remember { mutableStateOf("") }
-    val typed = text.replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 && it.isFinite() }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Custom size") },
-        text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it.filter { c -> c.isDigit() || c == '.' || c == ',' }.take(7) },
-                label = { Text("Amount of $drinkName (${unit.label})") },
-                singleLine = true,
-                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            )
-        },
-        confirmButton = { Button(enabled = typed != null, onClick = { typed?.let { onLog(DrinkSizes.toMl(unit, it)) } }) { Text("Log it") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
 }

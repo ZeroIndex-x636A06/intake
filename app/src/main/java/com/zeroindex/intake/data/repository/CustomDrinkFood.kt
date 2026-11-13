@@ -9,6 +9,7 @@ import com.zeroindex.intake.domain.drinks.CustomDrinkResult
 import com.zeroindex.intake.domain.drinks.DrinkBase
 import com.zeroindex.intake.domain.drinks.DrinkCategory
 import com.zeroindex.intake.domain.drinks.DrinkKinds
+import com.zeroindex.intake.domain.drinks.PlainBrew
 import com.zeroindex.intake.domain.hydration.DrinkType
 import com.zeroindex.intake.domain.hydration.Drinks
 import com.zeroindex.intake.domain.model.FoodSource
@@ -32,19 +33,30 @@ object CustomDrinkFood {
     fun typeOf(food: FoodEntity): DrinkType =
         DrinkKinds.typeOf(DrinkCategory.fromStored(food.drinkCategory) ?: DrinkCategory.OTHER, food.name, food.abvPercent)
 
+    private fun rawPer100(food: FoodEntity) = Macros(
+        food.kcalPer100g, food.proteinPer100g, food.carbsPer100g, food.fatPer100g,
+        food.fiberPer100g, food.sugarPer100g, food.sodiumPer100g, food.saturatedFatPer100g,
+    )
+
+    /** The plain-brew check of a base (see [PlainBrew]): its numbers, what is still unlisted, and whether they were replaced. */
+    fun checked(food: FoodEntity): PlainBrew.Checked = PlainBrew.check(
+        DrinkCategory.fromStored(food.drinkCategory), food.name, food.allergenTags, rawPer100(food), food.unlistedNutrients,
+    )
+
+    /** True when a plain tea or coffee's own numbers were impossible for a brew and the USDA brewed values stand in. */
+    fun baseReplaced(food: FoodEntity): Boolean = checked(food).replaced
+
     /** The base drink's own numbers, with the drink type's defaults where the row has none. */
     fun baseOf(food: FoodEntity): DrinkBase {
         val type = typeOf(food)
+        val c = checked(food)
         return DrinkBase(
             name = food.name,
-            per100 = Macros(
-                food.kcalPer100g, food.proteinPer100g, food.carbsPer100g, food.fatPer100g,
-                food.fiberPer100g, food.sugarPer100g, food.sodiumPer100g, food.saturatedFatPer100g,
-            ),
+            per100 = c.per100,
             caffeineMgPer100ml = food.caffeineMgPer100ml ?: (type.caffeineMgPer250 / 2.5),
             abvPercent = food.abvPercent ?: type.abvPercent,
             allergenTags = food.allergenTags,
-            unlisted = food.unlistedNutrients,
+            unlisted = c.unlisted,
         )
     }
 

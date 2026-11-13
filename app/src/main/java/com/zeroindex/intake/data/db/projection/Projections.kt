@@ -74,5 +74,8 @@ data class SessionStat(
     val workingSets: Int,
 )
 
+/** A drink logged before: which drink, the size (millilitres) it was last logged at, and when. */
+data class RecentDrinkLog(val foodId: String, val ml: Double, val at: Long)
+
 /** A logged row with no food behind it (a recipe serving, a quick add, a template): its name and the latest time. */
 data class RecentPrepared(val name: String, val at: Long)

@@ -16,7 +16,13 @@ import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.time.Clock
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.zeroindex.intake.domain.drinks.CustomDrinkRecipe
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+
+/** A drink the person has logged, and the size it was last logged at (millilitres). */
+data class RecentDrink(val food: FoodEntity, val lastMl: Double)
 
 /**
  * Drinks in the food database, and the one flow that logs them. A drink is a [FoodEntity] with `drinkCategory` set;
@@ -40,6 +46,30 @@ class DrinkRepository @Inject constructor(
         val missing = DrinkSeed.foods().filter { foodDao.idCount(it.id) == 0 }
         if (missing.isNotEmpty()) foodDao.upsertAll(missing)
     }
+
+    /**
+     * Re-works a saved "My drink" made on a plain tea or coffee whose own numbers were impossible for a brew (see
+     * `PlainBrew`): the drink is rebuilt from its recipe with the USDA brewed values, so one saved before the check existed
+     * stops showing protein that was never in the tea. Drinks that were fine are not touched. Nothing is deleted.
+     */
+    suspend fun repairCustomDrinks() {
+        val now = clock.nowMillis()
+        for (saved in foodDao.observeMyDrinks().first()) {
+            val recipe = CustomDrinkRecipe.decode(saved.customDrink) ?: continue
+            val base = foodDao.findById(recipe.baseFoodId) ?: continue
+            if (!CustomDrinkFood.baseReplaced(base)) continue
+            val rebuilt = CustomDrinkFood.build(CustomDrinkDraft(base, recipe.baseVolumeMl, recipe.addIns), saved.name, saved.id, now, saved)
+            if (kotlin.math.abs(rebuilt.kcalPer100g - saved.kcalPer100g) > 0.05 || kotlin.math.abs(rebuilt.proteinPer100g - saved.proteinPer100g) > 0.005) foodDao.upsert(rebuilt)
+        }
+    }
+
+    /** The drinks logged before, latest first, each with the size it was last logged at: the Drinks page's Recent row. */
+    fun observeRecentDrinks(limit: Int = 12): Flow<List<RecentDrink>> =
+        foodLogDao.observeRecentDrinkLogs(MealSlot.DRINKS, limit * 2).map { logs ->
+            logs.mapNotNull { l ->
+                foodDao.findById(l.foodId)?.takeIf { it.deletedAt == null && it.drinkCategory != null }?.let { RecentDrink(it, l.ml) }
+            }.take(limit)
+        }
 
     fun observeDrinks(category: DrinkCategory?): Flow<List<FoodEntity>> = foodDao.observeDrinks(category?.name)
 

@@ -15,11 +15,12 @@ class CustomDrinkTest {
     private fun option(key: String) = AddInCatalog.byKey(key)!!
 
     @Test
-    fun `black coffee with three teaspoons of sugar is about 48 kcal and 12 g sugar`() {
+    fun `black coffee with three teaspoons of sugar is about 51 kcal and 12_6 g sugar`() {
         val r = CustomDrink.compute(blackCoffee, 240.0, listOf(sugar(3.0)))
-        assertThat(r.total.kcal).isWithin(1.5).of(48.0)
-        assertThat(r.total.sugar).isWithin(0.1).of(12.0)
-        assertThat(r.total.carbs).isWithin(0.1).of(12.0)
+        // 3 tsp is 12.6 g of sugar (4.2 g a teaspoon): 48.8 kcal, plus 2.4 kcal of coffee.
+        assertThat(r.total.kcal).isWithin(1.5).of(51.2)
+        assertThat(r.total.sugar).isWithin(0.1).of(12.6)
+        assertThat(r.total.carbs).isWithin(0.1).of(12.6)
         // Sugar dissolves: the glass is still 240 ml.
         assertThat(r.totalVolumeMl).isEqualTo(240.0)
     }
@@ -34,9 +35,9 @@ class CustomDrinkTest {
     @Test
     fun `the saved drink stores the glass per 100 ml`() {
         val r = CustomDrink.compute(blackCoffee, 240.0, listOf(sugar(3.0)))
-        // 12 g of sugar in 240 ml is 5 g per 100 ml.
+        // 12.6 g of sugar in 240 ml is 5.25 g per 100 ml.
         assertThat(r.per100ml.kcal).isWithin(1e-9).of(r.total.kcal / 2.4)
-        assertThat(r.per100ml.sugar).isWithin(0.01).of(5.0)
+        assertThat(r.per100ml.sugar).isWithin(0.03).of(5.25)
         // And logging 240 ml of that saved drink reproduces the glass.
         assertThat(r.per100ml.kcal * 2.4).isWithin(1e-9).of(r.total.kcal)
     }

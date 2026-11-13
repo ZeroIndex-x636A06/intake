@@ -25,9 +25,9 @@ class CustomDrinkFoodTest {
         val saved = CustomDrinkFood.build(threeSugars, "", id = "mine-1", now = 5L)
         assertThat(saved.name).isEqualTo("Coffee, black + 3 tsp sugar")
         assertThat(saved.servingSizeGrams).isEqualTo(240.0)
-        // 240 ml holds about 48.8 kcal and 12 g sugar: per 100 ml that is a 100/240 share.
-        assertThat(saved.kcalPer100g * 2.4).isWithin(1.5).of(48.0)
-        assertThat(saved.sugarPer100g).isWithin(0.01).of(5.0)
+        // 240 ml holds about 51 kcal and 12.6 g sugar: per 100 ml that is a 100/240 share.
+        assertThat(saved.kcalPer100g * 2.4).isWithin(1.5).of(51.2)
+        assertThat(saved.sugarPer100g).isWithin(0.03).of(5.25)
         assertThat(saved.drinkCategory).isEqualTo(coffee.drinkCategory)
         assertThat(saved.customDrink).isNotNull()
         assertThat(saved.deletedAt).isNull()
@@ -101,8 +101,8 @@ class CustomDrinkFoodTest {
         assertThat(row.mealSlot).isEqualTo(MealSlot.DRINKS)
         assertThat(row.foodId).isEqualTo(coffee.id) // rides on the base drink's row; no My drink is created
         assertThat(row.foodNameAtLog).isEqualTo("Coffee, black + 3 tsp sugar")
-        assertThat(row.kcal).isWithin(1.5).of(48.0)
-        assertThat(row.sugar).isWithin(0.1).of(12.0)
+        assertThat(row.kcal).isWithin(1.5).of(51.2)
+        assertThat(row.sugar).isWithin(0.1).of(12.6)
         assertThat(logged.hydration.volumeMl).isEqualTo(240.0)
         assertThat(logged.hydration.hydrationFactor).isEqualTo(1.0)
         assertThat(logged.hydration.drinkType).isEqualTo(DrinkType.COFFEE)

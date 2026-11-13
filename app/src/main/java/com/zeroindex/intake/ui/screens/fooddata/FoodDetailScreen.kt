@@ -52,6 +52,7 @@ import com.zeroindex.intake.domain.food.ServingText
 import com.zeroindex.intake.domain.model.FoodSource
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nfc.TemplateLink
+import com.zeroindex.intake.domain.nutrition.LabelFormat
 import com.zeroindex.intake.domain.nutrition.LabelMode
 import com.zeroindex.intake.domain.nutrition.NutrientKey
 import com.zeroindex.intake.domain.nutrition.NutrientsPer100
@@ -255,12 +256,15 @@ fun FoodDetailScreen(
                             DrinkSizes.defaults(volumeUnit).forEach { s -> ChoiceChip(s.label, kotlin.math.abs(amount - s.ml) < 1.0, { setAmount(s.ml) }) }
                         }
                     }
+                    // A drink's tiles and its label read the same numbers the same way (the label's rounding), so 50 kcal
+                    // on the tile is 50 on the label. Food keeps whole-number tiles.
+                    fun grams(v: Double) = if (isDrink) "${LabelFormat.grams(v)} g" else "${v.roundToInt()} g"
                     MacroTiles(
                         listOf(
-                            Triple("${(food.proteinPer100g * f).roundToInt()} g", "protein", ProteinAccent),
-                            Triple("${(food.carbsPer100g * f).roundToInt()} g", "carbs", CarbAccent),
-                            Triple("${(food.fatPer100g * f).roundToInt()} g", "fat", FatAccent),
-                            Triple("${(food.kcalPer100g * f).roundToInt()}", "kcal", MaterialTheme.colorScheme.onSurface),
+                            Triple(grams(food.proteinPer100g * f), "protein", ProteinAccent),
+                            Triple(grams(food.carbsPer100g * f), "carbs", CarbAccent),
+                            Triple(grams(food.fatPer100g * f), "fat", FatAccent),
+                            Triple(if (isDrink) LabelFormat.calories(food.kcalPer100g * f).toString() else "${(food.kcalPer100g * f).roundToInt()}", "kcal", MaterialTheme.colorScheme.onSurface),
                         ),
                     )
                     MacroSplitBar(food.proteinPer100g * f, food.carbsPer100g * f, food.fatPer100g * f)
@@ -269,6 +273,11 @@ fun FoodDetailScreen(
 
             Segmented(LabelMode.entries.map { if (it == LabelMode.PER_100) (if (isDrink) "Per 100 ml" else it.label) else it.label }, LabelMode.entries.indexOf(mode), { mode = LabelMode.entries[it] })
             NutritionFactsLabel(label)
+            Text(
+                "The label rounds the way a printed Nutrition Facts panel does: calories to the nearest 5 (10 above 50), grams to the nearest half under 5.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
 
             val ingredients = FoodIngredients.text(food.allergenTags)
             if (ingredients.isNotBlank()) {
