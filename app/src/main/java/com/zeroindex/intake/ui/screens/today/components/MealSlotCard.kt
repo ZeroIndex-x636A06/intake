@@ -110,7 +110,7 @@ fun MealSlotCard(
             )
             if (onSaveAsTemplate != null && slotUi.entries.isNotEmpty()) {
                 TextButton(onClick = onSaveAsTemplate, modifier = Modifier.heightIn(min = 48.dp)) {
-                    Text("Save as meal prep", style = MaterialTheme.typography.labelSmall)
+                    Text("Save as meal template", style = MaterialTheme.typography.labelSmall)
                 }
             }
         }

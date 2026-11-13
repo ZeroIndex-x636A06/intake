@@ -26,6 +26,13 @@ class CookStepsTest {
         assertThat(secs("Chill 1–2 hours")).containsExactly(7200)
     }
 
+    @Test fun `abbreviations and en dash ranges from real recipe pages`() {
+        assertThat(secs("Marinate 1–2 hrs in the fridge")).containsExactly(7200)
+        assertThat(secs("Simmer 10-12 mins, stirring")).containsExactly(720)
+        assertThat(secs("Bake 1 hr 15 min until golden")).containsExactly(4500)
+        assertThat(secs("Let it sit 10 minutes")).containsExactly(600)
+    }
+
     @Test fun `decimals`() {
         assertThat(secs("Rest 1.5 hours")).containsExactly(5400)
     }

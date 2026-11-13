@@ -112,7 +112,7 @@ fun SwapSheet(
             state.notice?.let { n -> item(key = "notice") { SandNote(n) } }
 
             if (state.loading) {
-                item(key = "loading") { LoadingState(listOf("Reading your plan, recipes and saved meals")) }
+                item(key = "loading") { LoadingState(listOf("Reading your plan, recipes and meal templates")) }
             }
 
             val planned = state.planned?.macros
@@ -160,7 +160,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.section(
             Text(
                 when (section.kind) {
                     SwapKind.PLAN_RECIPE -> "No other recipes yet. Recipes you save, and the week's variations, show up here."
-                    SwapKind.SAVED_MEAL -> "No saved meals yet. Save what you ate as a meal on Today and it shows up here."
+                    SwapKind.SAVED_MEAL -> "No meal templates yet. Make one in Nutrition, More, or save a meal you logged on Today, and it shows up here."
                     else -> "Nothing here."
                 },
                 style = MaterialTheme.typography.bodySmall,

@@ -44,6 +44,10 @@ sealed interface Route {
     @Serializable data class CookMode(val recipeId: String) : Route
     @Serializable data object MenuSources : Route
     @Serializable data object MealTemplates : Route
+    /** Make or edit a meal template: name, then foods and recipes with amounts. [templateId] null starts a new one. */
+    @Serializable data class MealTemplateEditor(val templateId: String? = null) : Route
+    /** A shopping list built from chosen recipes and meal templates. Needs no meal plan. */
+    @Serializable data object ShoppingList : Route
     /** The pushed list behind the Nutrition tab's "More" row: Plan, Recipes, Meals, Eating out and Drinks. */
     @Serializable data object NutritionMore : Route
     /**

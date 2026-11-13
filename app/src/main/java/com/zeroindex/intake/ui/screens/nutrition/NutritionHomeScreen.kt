@@ -89,6 +89,8 @@ class NutritionActions(
     val onOpenMealPlans: () -> Unit,
     val onOpenRecipes: () -> Unit,
     val onOpenMealTemplates: () -> Unit,
+    /** The shopping list built from chosen recipes and meal templates (works with no meal plan). */
+    val onOpenShopping: () -> Unit,
     val onOpenEatingOut: () -> Unit,
     /** The pushed "More" list: Plan, Recipes, Meals, Eating out and Drinks. */
     val onOpenMore: () -> Unit,

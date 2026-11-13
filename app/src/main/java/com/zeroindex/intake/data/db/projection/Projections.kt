@@ -73,3 +73,6 @@ data class SessionStat(
     val volumeKg: Double,
     val workingSets: Int,
 )
+
+/** A logged row with no food behind it (a recipe serving, a quick add, a template): its name and the latest time. */
+data class RecentPrepared(val name: String, val at: Long)

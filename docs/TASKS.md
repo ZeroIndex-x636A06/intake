@@ -8,6 +8,14 @@ with its merge commit. Read `CLAUDE.md` before you claim anything.
 
 ## In progress
 
+**Round 4, Agent E: recipes in Log food, cook mode everywhere, meal templates without a plan** (branch `worktree-agent-aa92edb758b4dbe50`,
+not pushed, not seen on a device). Items 6, 11 and 14 of `docs/FEEDBACK-R4.md`. Saved recipes show in Log food search, Mine and
+recents (`domain/recipe/RecipeSearch.kt`, `ui/addfood/RecipeSearchViewModel.kt`); one `RecipeLogger` is the only recipe logging path.
+Cook button on every recipe screen; cook mode has a servings-scaled ingredient checklist (`domain/recipe/IngredientScaling.kt`),
+steps one at a time, tap-to-start timers, and "Done cooking" offers "Log a serving". Meal templates are made and edited on their own
+screen (`MealTemplateEditorScreen`), "meal prep" wording is now "meal template", and Nutrition, More has a plan-free Shopping list.
+The plan-dependency audit is in `docs/MEAL-PLAN.md`. No schema change.
+
 **Recipe nutrition and shopping amounts** (branch `worktree-agent-a2198826f8ff9a2b4`, not pushed, not seen on a device). A recipe page that
 lists only calories no longer shows 0 g protein, carbs and fat: they read "not listed", or an offline estimate from the ingredient lines
 (`domain/recipe/IngredientEstimator.kt`) labelled as such. The meal-plan shopping list now adds up quantities by unit

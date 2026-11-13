@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -81,6 +82,8 @@ fun RecipeDetailScreen(
     contentPadding: PaddingValues,
     onDeleted: () -> Unit,
     onEdit: (String) -> Unit,
+    /** Opens cook mode for this recipe (it works with no meal plan). */
+    onCook: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: RecipeLibraryViewModel = hiltViewModel(),
 ) {
@@ -269,12 +272,21 @@ fun RecipeDetailScreen(
             }
         }
         Spacer(Modifier.height(6.dp))
-        Button(
-            onClick = { picking = true },
-            enabled = nutrition.kcal != null,
-            shape = IntakeShape.Button,
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-        ) { Text(if (logged) "Logged · log another serving" else "Log a serving") }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (recipe.instructions.isNotBlank()) {
+                OutlinedButton(
+                    onClick = { onCook(recipe.id) },
+                    shape = IntakeShape.Button,
+                    modifier = Modifier.weight(1f).height(52.dp),
+                ) { Text("Cook") }
+            }
+            Button(
+                onClick = { picking = true },
+                enabled = nutrition.kcal != null,
+                shape = IntakeShape.Button,
+                modifier = Modifier.weight(if (recipe.instructions.isNotBlank()) 2f else 1f).height(52.dp),
+            ) { Text(if (logged) "Logged · log another" else "Log a serving") }
+        }
         notice?.let { SandNote(it) }
         Spacer(Modifier.height(24.dp))
     }

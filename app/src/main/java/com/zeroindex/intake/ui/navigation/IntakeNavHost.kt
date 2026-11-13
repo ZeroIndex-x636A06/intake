@@ -56,7 +56,9 @@ import com.zeroindex.intake.ui.screens.settings.PrivacyScreen
 import com.zeroindex.intake.ui.screens.settings.SettingsGroupScreen
 import com.zeroindex.intake.ui.screens.settings.SettingsHomeScreen
 import com.zeroindex.intake.ui.screens.swap.SwapSheet
+import com.zeroindex.intake.ui.screens.templates.MealTemplateEditorScreen
 import com.zeroindex.intake.ui.screens.templates.MealTemplatesScreen
+import com.zeroindex.intake.ui.screens.shopping.ShoppingListScreen
 import com.zeroindex.intake.ui.screens.today.TodayScreen
 import com.zeroindex.intake.ui.screens.train.ProgramBuilderScreen
 import com.zeroindex.intake.ui.screens.train.ProgramGeneratorScreen
@@ -183,6 +185,7 @@ fun IntakeNavHost(
                 onOpenMealPlans = { navController.navigate(Route.MealPlans) },
                 onOpenRecipes = { navController.navigate(Route.Recipes) },
                 onOpenMealTemplates = { navController.navigate(Route.MealTemplates) },
+                onOpenShopping = { navController.navigate(Route.ShoppingList) },
                 onOpenEatingOut = { navController.navigate(Route.EatingOut) },
                 onOpenMore = { navController.navigate(Route.NutritionMore) },
             )
@@ -252,6 +255,7 @@ fun IntakeNavHost(
                         contentPadding = pad,
                         onDeleted = { navController.popBackStack() },
                         onEdit = { id -> navController.navigate(Route.RecipeEditor(id)) },
+                        onCook = { id -> navController.navigate(Route.CookMode(id)) },
                     )
                 }
             }
@@ -276,7 +280,27 @@ fun IntakeNavHost(
                 }
             }
             composable<Route.MenuSources> { PushedScreen("Menu import", back) { pad -> MenuSourcesScreen(pad) } }
-            composable<Route.MealTemplates> { PushedScreen("Meal templates", back) { pad -> MealTemplatesScreen(pad) } }
+            composable<Route.MealTemplates> {
+                PushedScreen("Meal templates", back) { pad ->
+                    MealTemplatesScreen(
+                        pad,
+                        onNew = { navController.navigate(Route.MealTemplateEditor()) },
+                        onEdit = { id -> navController.navigate(Route.MealTemplateEditor(id)) },
+                    )
+                }
+            }
+            composable<Route.MealTemplateEditor> { entry ->
+                PushedScreen("Meal template", back) { pad ->
+                    MealTemplateEditorScreen(
+                        templateId = entry.toRoute<Route.MealTemplateEditor>().templateId,
+                        contentPadding = pad,
+                        onDone = { navController.popBackStack() },
+                    )
+                }
+            }
+            composable<Route.ShoppingList> {
+                PushedScreen("Shopping list", back) { pad -> ShoppingListScreen(contentPadding = pad) }
+            }
             // Add new Nutrition routes above this line.
         }
 

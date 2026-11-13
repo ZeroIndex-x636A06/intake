@@ -496,7 +496,7 @@ private fun NameTemplateDialog(suggested: String, onDismiss: () -> Unit, onSave:
     var name by remember { mutableStateOf(suggested) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Save as meal prep") },
+        title = { Text("Save as meal template") },
         text = {
             OutlinedTextField(value = name, onValueChange = { name = it }, singleLine = true, label = { Text("Name") })
         },
