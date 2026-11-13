@@ -49,7 +49,10 @@ object MenuNutritionMerge {
 
     private fun combine(chart: MenuItemEntity, nutrition: MenuItemEntity, sourceId: String, now: Long): MenuItemEntity {
         val stated = MenuItemMatcher.union(StatedAllergens.parse(chart.ingredientsText), StatedAllergens.parse(nutrition.ingredientsText))
-        val ingredients = listOfNotNull(StatedAllergens.textForScan(nutrition.ingredientsText), stated.toText().ifBlank { null })
+        // A chart that lists no major allergens for the item says so in words; that statement must survive the merge,
+        // because it is what lets a clean scan of the merged item count as clear.
+        val chartNone = CHART_LISTS_NONE.takeIf { stated.isEmpty && chart.ingredientsText.contains(CHART_LISTS_NONE) }
+        val ingredients = listOfNotNull(StatedAllergens.textForScan(nutrition.ingredientsText), stated.toText().ifBlank { null }, chartNone)
             .joinToString("; ")
         val matches = (chart.allergenMatches.split(',') + nutrition.allergenMatches.split(','))
             .map { it.trim() }.filter { it.isNotEmpty() }.distinctBy { it.lowercase() }.joinToString(", ")

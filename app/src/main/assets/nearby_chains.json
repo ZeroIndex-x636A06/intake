@@ -1,13 +1,14 @@
 {
- "version": 1,
+ "version": 2,
  "checkedOn": "2026-11-13",
  "note": "Entry points to each chain's own nutrition or menu pages. A page is read with the normal menu import; a refusal or an empty page falls through to the restaurant's own website. Status is what a check from a cloud container saw, not what a phone will see.",
  "chains": [
   {
    "name": "McDonald's",
    "aliases": [
+    "mcdonald",
     "mcdonalds",
-    "mcdonald"
+    "mcdonaldsrestaurant"
    ],
    "urls": [
     {
@@ -22,8 +23,9 @@
   {
    "name": "Burger King",
    "aliases": [
+    "bk",
     "burgerking",
-    "bk"
+    "burgerkingrestaurant"
    ],
    "urls": [
     {
@@ -114,7 +116,8 @@
   {
    "name": "Arby's",
    "aliases": [
-    "arbys"
+    "arbys",
+    "arbysroastbeef"
    ],
    "urls": [
     {
@@ -209,6 +212,10 @@
    "name": "Popeyes",
    "aliases": [
     "popeyes",
+    "popeyeschicken",
+    "popeyeschickenandbiscuits",
+    "popeyesfamouschicken",
+    "popeyeslouisianachicken",
     "popeyeslouisianakitchen"
    ],
    "urls": [
@@ -241,7 +248,17 @@
    "name": "Dairy Queen",
    "aliases": [
     "dairyqueen",
-    "dq"
+    "dairyqueenbrazier",
+    "dairyqueengrillandchill",
+    "dairyqueengrillchill",
+    "dairyqueentreat",
+    "dairyqueentreats",
+    "dq",
+    "dqbrazier",
+    "dqgrillandchill",
+    "dqgrillchill",
+    "dqtreat",
+    "dqtreats"
    ],
    "urls": [
     {
@@ -256,7 +273,8 @@
   {
    "name": "Panda Express",
    "aliases": [
-    "pandaexpress"
+    "pandaexpress",
+    "pandaexpresschinesekitchen"
    ],
    "urls": [
     {
@@ -348,7 +366,9 @@
   {
    "name": "Zaxby's",
    "aliases": [
-    "zaxbys"
+    "zaxbys",
+    "zaxbyschickenfingersandbuffalowings",
+    "zaxbyschickenfingersbuffalowings"
    ],
    "urls": [
     {
@@ -356,6 +376,369 @@
      "kind": "page",
      "status": "blocked",
      "note": "GET returned 403 (the site refuses automated requests) on 2026-11-13; tried once, a refusal falls through"
+    }
+   ]
+  },
+  {
+   "name": "Hardee's",
+   "aliases": [
+    "hardees",
+    "hardeesrestaurant",
+    "hardeesrestaurants"
+   ],
+   "urls": [
+    {
+     "url": "https://www.hardees.com/menu",
+     "kind": "page",
+     "status": "shell",
+     "note": "GET returned 200 but a small app shell or a page with no menu text on 2026-11-13; may need AI"
+    }
+   ]
+  },
+  {
+   "name": "Carl's Jr.",
+   "aliases": [
+    "carlsjr",
+    "carls",
+    "carlsjunior"
+   ],
+   "urls": [
+    {
+     "url": "https://www.carlsjr.com/menu",
+     "kind": "page",
+     "status": "shell",
+     "note": "GET returned 200 but a page with no menu text on 2026-11-13 (the /nutrition address returned 404); may need AI"
+    }
+   ]
+  },
+  {
+   "name": "Krystal",
+   "aliases": [
+    "krystal",
+    "krystalcompany",
+    "krystalrestaurant"
+   ],
+   "urls": [
+    {
+     "url": "https://www.krystal.com/nutrition",
+     "kind": "page",
+     "status": "verified",
+     "note": "GET returned 200 with menu text (calories or nutrition) on 2026-11-13"
+    }
+   ]
+  },
+  {
+   "name": "Huddle House",
+   "aliases": [
+    "huddlehouse"
+   ],
+   "urls": [
+    {
+     "url": "https://www.huddlehouse.com/menu",
+     "kind": "page",
+     "status": "verified",
+     "note": "GET returned 200 with menu text (calories or nutrition) on 2026-11-13"
+    }
+   ]
+  },
+  {
+   "name": "Waffle House",
+   "aliases": [
+    "wafflehouse"
+   ],
+   "urls": [
+    {
+     "url": "https://www.wafflehouse.com/nutrition",
+     "kind": "page",
+     "status": "blocked",
+     "note": "GET returned 403 (the site refuses automated requests) on 2026-11-13; tried once, a refusal falls through"
+    }
+   ]
+  },
+  {
+   "name": "Bojangles",
+   "aliases": [
+    "bojangles",
+    "bojanglesfamouschickenandbiscuits"
+   ],
+   "urls": [
+    {
+     "url": "https://www.bojangles.com/nutrition",
+     "kind": "page",
+     "status": "blocked",
+     "note": "GET returned 403 (the site refuses automated requests) on 2026-11-13; tried once, a refusal falls through"
+    }
+   ]
+  },
+  {
+   "name": "Cook Out",
+   "aliases": [
+    "cookout"
+   ],
+   "urls": [
+    {
+     "url": "https://www.cookout.com/menu/",
+     "kind": "page",
+     "status": "shell",
+     "note": "GET returned 200 but a small app shell or a page with no menu text on 2026-11-13; may need AI"
+    }
+   ]
+  },
+  {
+   "name": "Whataburger",
+   "aliases": [
+    "whataburger"
+   ],
+   "urls": [
+    {
+     "url": "https://whataburger.com/menu",
+     "kind": "page",
+     "status": "shell",
+     "note": "GET returned 200 but a small app shell or a page with no menu text on 2026-11-13; may need AI"
+    }
+   ]
+  },
+  {
+   "name": "Jack in the Box",
+   "aliases": [
+    "jackinthebox",
+    "jackbox"
+   ],
+   "urls": [
+    {
+     "url": "https://www.jackinthebox.com/menu",
+     "kind": "page",
+     "status": "shell",
+     "note": "GET returned 200 but a small app shell or a page with no menu text on 2026-11-13; may need AI"
+    }
+   ]
+  },
+  {
+   "name": "Raising Cane's",
+   "aliases": [
+    "raisingcanes",
+    "raisingcaneschickenfingers"
+   ],
+   "urls": [
+    {
+     "url": "https://www.raisingcanes.com/menu",
+     "kind": "page",
+     "status": "blocked",
+     "note": "GET returned 403 (the site refuses automated requests) on 2026-11-13; tried once, a refusal falls through"
+    }
+   ]
+  },
+  {
+   "name": "Wingstop",
+   "aliases": [
+    "wingstop"
+   ],
+   "urls": [
+    {
+     "url": "https://www.wingstop.com/menu",
+     "kind": "page",
+     "status": "shell",
+     "note": "GET returned 200 but a small app shell or a page with no menu text on 2026-11-13; may need AI"
+    }
+   ]
+  },
+  {
+   "name": "Buffalo Wild Wings",
+   "aliases": [
+    "buffalowildwings",
+    "bww",
+    "bdubs",
+    "buffalowildwingsgrillandbar"
+   ],
+   "urls": [
+    {
+     "url": "https://www.buffalowildwings.com/nutrition/",
+     "kind": "page",
+     "status": "verified",
+     "note": "GET returned 200 with menu text (calories or nutrition) on 2026-11-13"
+    }
+   ]
+  },
+  {
+   "name": "Little Caesars",
+   "aliases": [
+    "littlecaesars",
+    "littlecaesarspizza"
+   ],
+   "urls": [
+    {
+     "url": "https://littlecaesars.com/en-us/nutrition/",
+     "kind": "page",
+     "status": "shell",
+     "note": "GET returned 200 but a small app shell or a page with no menu text on 2026-11-13; may need AI"
+    }
+   ]
+  },
+  {
+   "name": "Papa John's",
+   "aliases": [
+    "papajohns",
+    "papajohnspizza"
+   ],
+   "urls": [
+    {
+     "url": "https://www.papajohns.com/order/nutritional-info",
+     "kind": "page",
+     "status": "shell",
+     "note": "GET returned 200 but a small app shell or a page with no menu text on 2026-11-13; may need AI"
+    }
+   ]
+  },
+  {
+   "name": "IHOP",
+   "aliases": [
+    "ihop",
+    "internationalhouseofpancakes"
+   ],
+   "urls": [
+    {
+     "url": "https://www.ihop.com/en/nutrition",
+     "kind": "page",
+     "status": "blocked",
+     "note": "GET returned 403 (the site refuses automated requests) on 2026-11-13; tried once, a refusal falls through"
+    }
+   ]
+  },
+  {
+   "name": "Denny's",
+   "aliases": [
+    "dennys",
+    "dennysrestaurant"
+   ],
+   "urls": [
+    {
+     "url": "https://www.dennys.com/nutrition",
+     "kind": "page",
+     "status": "blocked",
+     "note": "GET returned 403 (the site refuses automated requests) on 2026-11-13; tried once, a refusal falls through"
+    }
+   ]
+  },
+  {
+   "name": "Applebee's",
+   "aliases": [
+    "applebees",
+    "applebeesgrillandbar",
+    "applebeesneighborhoodgrillandbar"
+   ],
+   "urls": [
+    {
+     "url": "https://www.applebees.com/en/menu",
+     "kind": "page",
+     "status": "verified",
+     "note": "GET returned 200 with menu text (calories or nutrition) on 2026-11-13"
+    }
+   ]
+  },
+  {
+   "name": "Chili's",
+   "aliases": [
+    "chilis",
+    "chilisgrillandbar",
+    "chilisgrillbar"
+   ],
+   "urls": [
+    {
+     "url": "https://www.chilis.com/menu",
+     "kind": "page",
+     "status": "verified",
+     "note": "GET returned 200 with menu text (calories or nutrition) on 2026-11-13"
+    }
+   ]
+  },
+  {
+   "name": "Olive Garden",
+   "aliases": [
+    "olivegarden",
+    "olivegardenitalianrestaurant"
+   ],
+   "urls": [
+    {
+     "url": "https://www.olivegarden.com/menu",
+     "kind": "page",
+     "status": "shell",
+     "note": "GET returned 200 but a small app shell or a page with no menu text on 2026-11-13; may need AI"
+    }
+   ]
+  },
+  {
+   "name": "Texas Roadhouse",
+   "aliases": [
+    "texasroadhouse"
+   ],
+   "urls": [
+    {
+     "url": "https://www.texasroadhouse.com/nutrition",
+     "kind": "page",
+     "status": "blocked",
+     "note": "GET returned 403 (the site refuses automated requests) on 2026-11-13; tried once, a refusal falls through"
+    }
+   ]
+  },
+  {
+   "name": "Cracker Barrel",
+   "aliases": [
+    "crackerbarrel",
+    "crackerbarreloldcountrystore"
+   ],
+   "urls": [
+    {
+     "url": "https://www.crackerbarrel.com/menu",
+     "kind": "page",
+     "status": "blocked",
+     "note": "GET returned 429 (the site refuses automated requests) on 2026-11-13; tried once, a refusal falls through"
+    }
+   ]
+  },
+  {
+   "name": "Qdoba",
+   "aliases": [
+    "qdoba",
+    "qdobamexicaneats",
+    "qdobamexicangrill"
+   ],
+   "urls": [
+    {
+     "url": "https://www.qdoba.com/nutrition",
+     "kind": "page",
+     "status": "blocked",
+     "note": "GET returned 403 (the site refuses automated requests) on 2026-11-13; tried once, a refusal falls through"
+    }
+   ]
+  },
+  {
+   "name": "Moe's Southwest Grill",
+   "aliases": [
+    "moes",
+    "moessouthwestgrill",
+    "moessw"
+   ],
+   "urls": [
+    {
+     "url": "https://www.moes.com/nutrition",
+     "kind": "page",
+     "status": "blocked",
+     "note": "GET returned 403 (the site refuses automated requests) on 2026-11-13; tried once, a refusal falls through"
+    }
+   ]
+  },
+  {
+   "name": "Firehouse Subs",
+   "aliases": [
+    "firehousesubs",
+    "firehouse"
+   ],
+   "urls": [
+    {
+     "url": "https://www.firehousesubs.com/menu",
+     "kind": "page",
+     "status": "shell",
+     "note": "GET returned 200 but a small app shell or a page with no menu text on 2026-11-13; may need AI"
     }
    ]
   }

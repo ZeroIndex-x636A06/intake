@@ -242,3 +242,7 @@ only propose; every proposed ingredient is re-scanned; cross-contact warnings; n
 (deterministic `Substitutions` first, then AI proposals for what it cannot place, then a local verification pass, then a confidence level or a refusal),
 an evaluation plan (a fixed dish set per allergen, a 100% safety pass target before release, regression tests), the refusal states in the UI, and the open
 questions. **Do not start building before the open questions are answered and the evaluation set exists.**
+
+## Round 5 items 1 to 3: nearby chains, batched AI lookups, imports waiting for review (branch `worktree-agent-a2bb1c5265e1024f0`)
+
+Done and unit-tested, not run on a device, no schema change. Safety: estimates and sources that state no allergen information never read as clear (`MenuAllergenEvidence`, docs/ALLERGENS.md). Missed restaurants: 26 chains added to `nearby_chains.json`, alias and name-prefix matching (DQ Grill & Chill, Popeyes Louisiana Kitchen), batched AI lookups (8 places a call, 3 calls), "Look up the rest with AI". Imports: every import is kept as "To review" with "Review import" and a confirmed "Discard import" (`StagedImports`).

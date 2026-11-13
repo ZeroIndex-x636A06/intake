@@ -129,14 +129,15 @@ class SwapRepository @Inject constructor(
      */
     suspend fun savedEatOut(options: List<EatOutOptionEntity>): List<SwapEntry> = options.map { o ->
         val live = allergens.scan(name = o.whatToOrder, freeText = true)
-        val verdict = SwapMath.raise(live.verdict(), o.allergenStatus.toSwap())
+        // A saved option has no ingredient text: nothing states it is free of an allergen, so at best "check with the restaurant".
+        val verdict = SwapMath.raise(SwapMath.raise(live.verdict(), o.allergenStatus.toSwap()), SwapAllergen.CHECK_LABEL)
         val terms = (live.contains + live.mayContain + live.checkLabel).map { it.matchedTerm }.distinct()
         SwapEntry(
             SwapOption(
                 key = "eatout:${o.id}", title = o.whatToOrder, subtitle = "Saved eat-out · ${o.venueName} · works offline",
                 kind = SwapKind.SAVED_EAT_OUT,
                 macros = Macros(o.estimatedKcal.toDouble(), o.estimatedProtein.toDouble(), o.estimatedCarbs.toDouble(), o.estimatedFat.toDouble()),
-                estimate = true, allergen = verdict, allergenReason = reasonFor(verdict, terms),
+                estimate = true, allergen = verdict, allergenReason = reasonFor(verdict, terms) ?: "Check with the restaurant",
                 matchedAllergens = live.contains.map { it.allergen }.distinct(), evidence = live.contains.map { it.reason }.distinct().ifEmpty { terms },
             ),
             SwapSource.EatOut(o),

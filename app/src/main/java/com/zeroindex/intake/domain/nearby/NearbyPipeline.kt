@@ -6,7 +6,7 @@ enum class MenuOrigin(val label: String) {
     CHAIN("the chain's own page"),
     WEBSITE("the restaurant's website"),
     AI_PAGE("found with AI"),
-    AI_ESTIMATE("AI estimate"),
+    AI_ESTIMATE("an AI estimate, not published nutrition"),
 }
 
 enum class RowPhase { WAITING, LOOKING, READING, DONE, NO_MENU }
@@ -29,7 +29,7 @@ data class RestaurantRow(
     val statusText: String
         get() = when (phase) {
             RowPhase.WAITING -> "waiting"
-            RowPhase.LOOKING -> "looking for menu…"
+            RowPhase.LOOKING -> note ?: "looking for menu…"
             RowPhase.READING -> "reading menu…"
             RowPhase.DONE -> when (picks) {
                 0 -> "menu read, no picks that fit"
@@ -65,6 +65,8 @@ sealed interface PipelineEvent {
     data class Menu(val key: String, val origin: MenuOrigin, val picks: Int) : PipelineEvent
     data class NoMenu(val key: String, val note: String?) : PipelineEvent
     data class AiUsed(val costUsd: Double) : PipelineEvent
+    /** The person tapped "Look up the rest with AI": these restaurants go back to looking, and the search is running again. */
+    data class Resume(val keys: Set<String>, val note: String?) : PipelineEvent
     data object Stopped : PipelineEvent
 }
 
@@ -82,8 +84,8 @@ object NearbyPipeline {
     /** At most this many restaurants are looked up in one search, nearest first, so a big city does not run for an hour. */
     const val MAX_RESTAURANTS = 30
 
-    /** At most this many AI menu lookups in one search, when the person turned them on. */
-    const val MAX_AI_LOOKUPS = 6
+    /** At most this many batched AI calls (of [NearbyAiBatch.BATCH_SIZE] restaurants each) in one search or one "Look up the rest" tap. */
+    const val MAX_AI_LOOKUPS = NearbyAiBatch.MAX_BATCHES
 
     fun reduce(state: PipelineState, event: PipelineEvent): PipelineState {
         if (state.stage == SearchStage.STOPPED || state.stage == SearchStage.FAILED) return state
@@ -100,6 +102,10 @@ object NearbyPipeline {
             is PipelineEvent.Menu -> update(state, event.key) { it.copy(phase = RowPhase.DONE, picks = event.picks, origin = event.origin, note = null) }
             is PipelineEvent.NoMenu -> update(state, event.key) { it.copy(phase = RowPhase.NO_MENU, note = event.note) }
             is PipelineEvent.AiUsed -> state.copy(aiLookups = state.aiLookups + 1, costUsd = state.costUsd + event.costUsd)
+            is PipelineEvent.Resume -> state.copy(
+                stage = SearchStage.WORKING,
+                rows = state.rows.map { if (it.key in event.keys) it.copy(phase = RowPhase.LOOKING, note = event.note) else it },
+            )
             PipelineEvent.Stopped -> state.copy(stage = SearchStage.STOPPED)
         }
     }

@@ -49,7 +49,7 @@ class MenuLogRepository @Inject constructor(
         val scanner = allergens.menuScanner()
         return withContext(Dispatchers.Default) {
             MenuSearch.search(all, query, name = { it.name }, restaurant = { it.restaurantName }, limit = limit).map { m ->
-                MenuHit(m, scanner(m.name, m.description, m.ingredientsText), MenuSearch.hasNoIngredientInfo(m.ingredientsText))
+                MenuHit(m, scanner(m.name, m.description, m.ingredientsText), com.zeroindex.intake.domain.menu.MenuAllergenEvidence.statesNothing(m.description, m.ingredientsText))
             }
         }
     }

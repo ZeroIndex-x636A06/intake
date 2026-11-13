@@ -124,6 +124,9 @@ class HealthierNearbyViewModel @Inject constructor(
 
     fun stopSearch() = host.stop()
 
+    /** The card's "Look up the rest with AI" button: batched AI calls for the restaurants still without a menu. */
+    fun lookUpRest() = host.lookUpRest()
+
     /** The map service failed and the person tapped "Search with AI instead". */
     fun searchWithAi() {
         _state.update { it.copy(notice = null, nearby = it.nearby.copy(searching = true, error = null, offerAiFallback = false, status = "Finding where you are…")) }
@@ -307,6 +310,7 @@ fun rememberHealthierBlock(
                     onPostalCode = viewModel::searchPostalCode,
                     onToggleAi = viewModel::setUseAi,
                     onStop = viewModel::stopSearch,
+                    onLookUpRest = viewModel::lookUpRest,
                     onSearchWithAi = viewModel::searchWithAi,
                     onOpenAiSettings = onOpenAiSettings,
                     onOpenRadiusSetting = onOpenRadiusSetting,
