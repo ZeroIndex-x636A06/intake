@@ -2,6 +2,7 @@ package com.zeroindex.intake.ui.screens.nutrition
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zeroindex.intake.data.db.entity.FoodLogEntity
 import com.zeroindex.intake.data.repository.FoodLogRepository
 import com.zeroindex.intake.data.repository.HydrationDay
 import com.zeroindex.intake.data.repository.HydrationRepository
@@ -62,6 +63,23 @@ data class SlotRowUi(
     val logged: Boolean get() = foods.isNotEmpty()
 }
 
+/**
+ * The four meal rows of the Nutrition tab's meals card. [MealSlot.DRINKS] is deliberately left out: drinks have no row here
+ * (they live on the water card and in Log food). Their kcal and sugar still count in the day totals, which are built from
+ * every row, not from these rows.
+ */
+internal fun nutritionSlotRows(rows: List<FoodLogEntity>): List<SlotRowUi> = MealSlot.MEALS.map { slot ->
+    val mine = rows.filter { it.mealSlot == slot }.sortedBy { it.loggedAt }
+    SlotRowUi(
+        slot = slot,
+        foods = mine.map { it.foodNameAtLog },
+        kcal = mine.sumOf { it.kcal }.roundToInt(),
+        protein = mine.sumOf { it.protein },
+        carbs = mine.sumOf { it.carbs },
+        fat = mine.sumOf { it.fat },
+    )
+}
+
 data class NutritionHomeState(
     /** False until the first read of the day finishes, so the card does not flash an empty day. */
     val ready: Boolean = false,
@@ -104,19 +122,7 @@ class NutritionHomeViewModel @Inject constructor(
         }
     }
 
-    private val slotRows = foodLog.observeDay(today).map { rows ->
-        MealSlot.entries.map { slot ->
-            val mine = rows.filter { it.mealSlot == slot }.sortedBy { it.loggedAt }
-            SlotRowUi(
-                slot = slot,
-                foods = mine.map { it.foodNameAtLog },
-                kcal = mine.sumOf { it.kcal }.roundToInt(),
-                protein = mine.sumOf { it.protein },
-                carbs = mine.sumOf { it.carbs },
-                fat = mine.sumOf { it.fat },
-            )
-        }
-    }
+    private val slotRows = foodLog.observeDay(today).map { nutritionSlotRows(it) }
 
     private val dashboard: Flow<DashboardModel?> = combine(dayEntries, targets.observeTargetFor(today), settingsRepository.settings) { entries, target, s ->
         NutritionDashboard.build(DayNutrition.aggregate(entries), target, saltInsteadOfSodium = s.showSodium == SodiumDisplay.SALT)

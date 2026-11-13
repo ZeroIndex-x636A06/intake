@@ -40,7 +40,7 @@ goes once at the root of `IntakeNavHost`. Lists that can be long must be lazy ro
 
 ## Round 4 merge on `claude/optimistic-noether-fullk5`: done, emulator-checked
 
-Navigation transitions, Progress charts, drinks (schema v5), recipes in Log food / Cook / meal templates, Recipe Hunter substitutions and nearby menus are merged and verified (unit tests, `MigrationSchemaTest`, lint 0 errors, 4 to 5 upgrade on the emulator). Details and what still needs a phone: RESUME.md, "Round 4 merge and emulator smoke". Open: on-device check of the above, and a message when location is denied on the nearby card.
+Navigation transitions, Progress charts, drinks (schema v5), recipes in Log food / Cook / meal templates, Recipe Hunter substitutions and nearby menus are merged and verified (unit tests, `MigrationSchemaTest`, lint 0 errors, 4 to 5 upgrade on the emulator). Details and what still needs a phone: RESUME.md, "Round 4 merge and emulator smoke". Open: on-device check of the above.
 
 ## Round 4 items 1 to 3: nearby by travel time, menu discovery, nutrition PDF (branch `worktree-agent-a3df9485fbad45854`)
 
@@ -212,3 +212,5 @@ screens are in RESUME.md. Still needs a phone with an OpenRouter key: Recipe Hun
 
 ## Recipe Hunter round 4 items 12, 13, 15: done on branch `worktree-agent-a7d55e0a2707dbac5` (not pushed, not seen on a device)
 - 12 "Could be adapted" (substitution engine, section, Save adapted copy), 13 "Saved" chip by URL, 15 recipe images. Rules in docs/ALLERGENS.md. Unit-tested only.
+
+Nutrition meals card without Drinks, and a location-denied note with an app-settings button on the nearby card: done on `claude/optimistic-noether-fullk5`, unit-tested, not seen on a device.

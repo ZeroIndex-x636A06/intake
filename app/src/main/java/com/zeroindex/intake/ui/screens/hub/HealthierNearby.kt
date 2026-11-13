@@ -18,7 +18,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -242,8 +244,10 @@ fun rememberHealthierBlock(
     viewModel: HealthierNearbyViewModel = hiltViewModel(),
 ): LazyListScope.() -> Unit {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    var locationDenied by remember { mutableStateOf(false) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         viewModel.refreshPermissions()
+        locationDenied = !granted
         if (granted) viewModel.searchNearby()
     }
     state.pendingOverride?.let { p ->
@@ -296,6 +300,7 @@ fun rememberHealthierBlock(
                     title = "Find healthier options nearby",
                     blurb = " Healthier orders on the menus near you, by protein for the calories, fibre, saturated fat, sugar and salt.",
                     foundTime = state.nearby.foundAt?.let { timeFmt.format(Instant.ofEpochMilli(it)) },
+                    locationDenied = locationDenied,
                     onUseLocation = {
                         if (state.nearby.hasLocation) viewModel.searchNearby() else launcher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
                     },

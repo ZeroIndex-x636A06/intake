@@ -1,6 +1,9 @@
 package com.zeroindex.intake.ui.screens.swap
 
 import android.Manifest
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -38,6 +41,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
@@ -89,8 +93,10 @@ fun SwapSheet(
     LaunchedEffect(slot) { viewModel.load(slot) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val nearby = state.nearby
+    var locationDenied by remember { mutableStateOf(false) }
     val locationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         viewModel.refreshPermissions()
+        locationDenied = !granted
         if (granted) viewModel.searchNearby()
     }
     state.pendingOverride?.let { p ->
@@ -132,6 +138,7 @@ fun SwapSheet(
                     nearby = nearby,
                     blurb = if (planned != null) " Ranked by how close each is to your planned meal." else "",
                     foundTime = nearby.foundAt?.let { timeFmt.format(Instant.ofEpochMilli(it)) },
+                    locationDenied = locationDenied,
                     onUseLocation = {
                         if (nearby.hasLocation) viewModel.searchNearby() else locationLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
                     },
@@ -327,6 +334,8 @@ internal fun NearbyCard(
     title: String = "Find healthy options nearby",
     blurb: String = "",
     foundTime: String?,
+    /** The last location request was refused: say so on the card and offer the app's settings page. */
+    locationDenied: Boolean = false,
     onUseLocation: () -> Unit,
     onPostalCode: (String) -> Unit,
     onToggleAi: (Boolean) -> Unit,
@@ -337,6 +346,7 @@ internal fun NearbyCard(
 ) {
     var zip by remember { mutableStateOf("") }
     var useZip by remember { mutableStateOf(false) }
+    val context = LocalContext.current
     val pipeline = nearby.pipeline
     val working = pipeline.running
     Surface(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), shape = IntakeShape.Card, modifier = Modifier.fillMaxWidth()) {
@@ -384,6 +394,13 @@ internal fun NearbyCard(
                 nearby.searching -> LoadingState(listOfNotNull(nearby.status, "Checking allergens on this phone"))
                 else -> {
                     if (!useZip) {
+                        if (locationDenied) {
+                            Text(
+                                "Location is off for Intake. Allow it, or use a zip code instead.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
                         Button(onClick = onUseLocation, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
                             Icon(Icons.Filled.SwapHoriz, contentDescription = null, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.size(8.dp))
@@ -395,7 +412,16 @@ internal fun NearbyCard(
                                 },
                             )
                         }
-                        if (nearby.hasKey) TextButton(onClick = { useZip = true }) { Text("Use a zip code instead (AI search)") }
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            if (nearby.hasKey) TextButton(onClick = { useZip = true }) { Text("Use a zip code instead (AI search)") }
+                            if (locationDenied) {
+                                TextButton(onClick = {
+                                    context.startActivity(
+                                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)),
+                                    )
+                                }) { Text("Open app settings") }
+                            }
+                        }
                     } else {
                         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             LabeledField(label = "Zip code", value = zip, onValueChange = { zip = it.take(10) }, keyboardType = KeyboardType.Number, modifier = Modifier.weight(1f))
