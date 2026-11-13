@@ -38,6 +38,10 @@ Nothing. Option A parts 1 to 3 are built and merged on `claude/optimistic-noethe
 (`SettingsRegistryTest` fails otherwise). Register a screen only one tab opens inside that tab's graph; a screen two tabs open
 goes once at the root of `IntakeNavHost`. Lists that can be long must be lazy rows, never a `forEach` inside one `item`.
 
+## Round 4 merge on `claude/optimistic-noether-fullk5`: done, emulator-checked
+
+Navigation transitions, Progress charts, drinks (schema v5), recipes in Log food / Cook / meal templates, Recipe Hunter substitutions and nearby menus are merged and verified (unit tests, `MigrationSchemaTest`, lint 0 errors, 4 to 5 upgrade on the emulator). Details and what still needs a phone: RESUME.md, "Round 4 merge and emulator smoke". Open: on-device check of the above, and a message when location is denied on the nearby card.
+
 ## Round 4 items 1 to 3: nearby by travel time, menu discovery, nutrition PDF (branch `worktree-agent-a3df9485fbad45854`)
 
 Done and unit-tested, linted (0 errors); not run on a device. (1) Nearby search rebuilt: radius in minutes (walk or drive), Overpass restaurants with no AI, per-restaurant menu discovery
