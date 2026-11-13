@@ -85,7 +85,6 @@ class NutritionActions(
     /** Opens Log food on the named mode (an `AddFoodTab` name) for the meal slot named (a `MealSlot` name). */
     val onLogFood: (mode: String, slot: String) -> Unit,
     val onSwap: (slot: String?) -> Unit,
-    val onOpenDrinks: () -> Unit,
     val onOpenMealPlans: () -> Unit,
     val onOpenRecipes: () -> Unit,
     val onOpenMealTemplates: () -> Unit,
@@ -97,7 +96,7 @@ class NutritionActions(
 /**
  * The Nutrition tab root (round 3, "Nutrition tab v3"): the compact allergen chip; the overview card (calorie ring with a
  * hold-to-split button, macro cards, fibre, saturated fat, sugar and salt or sodium, and "More nutrients"), where a value
- * no logged food listed reads "not listed" and never 0; the Meals card (Breakfast, Lunch, Dinner, Snacks and Drinks, each
+ * no logged food listed reads "not listed" and never 0; the Meals card (Breakfast, Lunch, Dinner and Snacks, each
  * with a "+" that opens Log food with Search, Scan and Photo); and a row to the pushed More list. The content clears the
  * status bar and the pill through [contentPadding].
  */
@@ -410,7 +409,6 @@ private fun SmallBar(row: DashRow) {
 
 @Composable
 private fun MealsCard(state: NutritionHomeState, actions: NutritionActions, onLogIt: (NextMealUi) -> Unit) {
-    val unit = state.settings.volumeUnit
     IntakeCard {
         state.slots.forEach { row ->
             val planned = state.next?.takeIf { it.slot == row.slot && !row.logged }
@@ -434,20 +432,6 @@ private fun MealsCard(state: NutritionHomeState, actions: NutritionActions, onLo
                 }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        }
-        val day = state.hydration
-        MealRow(
-            emoji = "\uD83D\uDCA7",
-            name = "Drinks",
-            onClick = actions.onOpenDrinks,
-            onAdd = actions.onOpenDrinks,
-            addDescription = "Open drinks",
-        ) {
-            Text(
-                if (day == null) "Log a drink" else "${unit.formatNumber(day.consumedMl)} of ${unit.format(day.target.totalMl)}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }
@@ -532,6 +516,7 @@ private fun slotLabel(slot: MealSlot): String = when (slot) {
     MealSlot.LUNCH -> "Lunch"
     MealSlot.DINNER -> "Dinner"
     MealSlot.SNACK -> "Snacks"
+    MealSlot.DRINKS -> "Drinks"
 }
 
 private fun slotEmoji(slot: MealSlot): String = when (slot) {
@@ -539,6 +524,7 @@ private fun slotEmoji(slot: MealSlot): String = when (slot) {
     MealSlot.LUNCH -> "\u2600\uFE0F"
     MealSlot.DINNER -> "\uD83C\uDF19"
     MealSlot.SNACK -> "\uD83C\uDF4E"
+    MealSlot.DRINKS -> "\uD83E\uDD64"
 }
 
 /** "Oatmeal, banana" for the first two foods, then "+N" for the rest; the Text ellipsises anything still too long. */

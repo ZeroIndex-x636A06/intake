@@ -13,9 +13,7 @@ import com.zeroindex.intake.data.settings.HydrationPrefs
 import com.zeroindex.intake.domain.drinks.DrinkCategory
 import com.zeroindex.intake.domain.hydration.DrinkType
 import com.zeroindex.intake.domain.model.MealSlot
-import com.zeroindex.intake.domain.nfc.TemplateLink
 import com.zeroindex.intake.domain.time.Clock
-import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
@@ -52,7 +50,7 @@ class DrinkRepository @Inject constructor(
         food: FoodEntity,
         volumeMl: Double,
         at: Long = clock.nowMillis(),
-        slot: MealSlot = slotAt(at),
+        slot: MealSlot = MealSlot.DRINKS,
         presetId: String? = null,
     ): DrinkLogged {
         val spec = DrinkSpec.of(food)
@@ -67,17 +65,47 @@ class DrinkRepository @Inject constructor(
     suspend fun logOfType(type: DrinkType, volumeMl: Double, at: Long, presetId: String?): HydrationLogEntity {
         val food = DrinkSeed.nameForType(type)?.let { foodDao.findById(DrinkSeed.idFor(it)) }
         val spec = DrinkSpec(type)
-        return logger.log(food, spec, volumeMl, at, slotAt(at), clock.nowMillis(), presetId, overrideFor(type)).hydration
+        return logger.log(food, spec, volumeMl, at, MealSlot.DRINKS, clock.nowMillis(), presetId, overrideFor(type)).hydration
     }
+
+    /** The saved custom drinks, for the top of the Drinks page. */
+    fun observeMyDrinks(): Flow<List<FoodEntity>> = foodDao.observeMyDrinks()
+
+    suspend fun findFood(id: String): FoodEntity? = foodDao.findById(id)
+
+    /**
+     * Logs a custom drink once, without saving it. Water counts the glass (the base plus any liquid add-ins) at the BASE
+     * drink's hydration factor; the food-log row carries the computed calories and sugar. Like every drink log it is
+     * "no meal" unless the caller gives a slot.
+     */
+    suspend fun logCustom(draft: CustomDrinkDraft, at: Long = clock.nowMillis(), slot: MealSlot = MealSlot.DRINKS): DrinkLogged {
+        val now = clock.nowMillis()
+        val food = CustomDrinkFood.oneOff(draft, now)
+        val type = CustomDrinkFood.typeOf(draft.base)
+        val spec = DrinkSpec(type, food.hydrationFactor, food.caffeineMgPer100ml, food.abvPercent ?: 0.0)
+        val volume = CustomDrinkFood.result(draft).totalVolumeMl
+        return logger.log(food, spec, volume, at, slot, now, null, overrideFor(type))
+    }
+
+    /** Saves the draft as a "My drink" (a new one, or [existingId] edited in place). Returns the saved row. */
+    suspend fun saveCustom(draft: CustomDrinkDraft, name: String, existingId: String? = null): FoodEntity {
+        val now = clock.nowMillis()
+        val existing = existingId?.let { foodDao.findById(it) }
+        val food = CustomDrinkFood.build(draft, name, existing?.id ?: CustomDrinkFood.newSavedId(), now, existing)
+        foodDao.upsert(food)
+        return food
+    }
+
+    /** Soft delete: the row stays, hidden everywhere, and past logs keep their numbers. */
+    suspend fun deleteMyDrink(id: String) = foodDao.softDelete(id, clock.nowMillis())
+
+    suspend fun restoreMyDrink(id: String) = foodDao.restore(id, clock.nowMillis())
 
     suspend fun delete(hydrationId: String) = logger.delete(hydrationId, clock.nowMillis())
 
     suspend fun restore(hydrationId: String) = logger.restore(hydrationId, clock.nowMillis())
 
     private suspend fun overrideFor(type: DrinkType) = hydrationPrefs.current().drinkOverrides[type]
-
-    private fun slotAt(at: Long): MealSlot =
-        TemplateLink.slotFor(Instant.ofEpochMilli(at).atZone(clock.zone()).toLocalTime())
 
     // ---- DrinkLogStore ------------------------------------------------------------------------------------------
 

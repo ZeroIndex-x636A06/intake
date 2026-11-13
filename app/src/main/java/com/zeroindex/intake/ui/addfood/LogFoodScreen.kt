@@ -90,6 +90,7 @@ internal fun slotWord(slot: MealSlot): String = when (slot) {
     MealSlot.LUNCH -> "Lunch"
     MealSlot.DINNER -> "Dinner"
     MealSlot.SNACK -> "Snacks"
+    MealSlot.DRINKS -> "Drinks"
 }
 
 /**
@@ -139,13 +140,14 @@ fun LogFoodScreen(
                 Box {
                     ChoiceChip("${slotWord(mealSlot)}  ▾", false, { slotMenu = true })
                     DropdownMenu(expanded = slotMenu, onDismissRequest = { slotMenu = false }) {
-                        MealSlot.entries.forEach { s ->
+                        MealSlot.MEALS.forEach { s ->
                             DropdownMenuItem(text = { Text(slotWord(s)) }, onClick = { mealSlot = s; slotMenu = false })
                         }
                     }
                 }
                 ChoiceChip("Mine", state.tab == AddFoodTab.MY_FOODS, { viewModel.selectTab(AddFoodTab.MY_FOODS) })
                 ChoiceChip("Quick add", state.tab == AddFoodTab.QUICK_ADD, { viewModel.selectTab(AddFoodTab.QUICK_ADD) })
+                ChoiceChip("Drinks", false, { onOpenDrinks("") })
             }
             HorizontalDivider(Modifier.padding(top = 10.dp), color = MaterialTheme.colorScheme.outlineVariant)
 

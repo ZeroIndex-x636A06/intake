@@ -544,7 +544,44 @@ class MigrationSchemaTest {
         // 3 -> 4 repairs a file from an earlier build of 3 and changes nothing on a current one.
         statementsFrom(3, c).forEach { c.exec(it) }
         assertMatches(c, 4)
-        assertThat(IntakeDatabase.VERSION).isEqualTo(4)
+        // 4 -> 5 adds the saved custom drinks' recipe column.
+        statementsFrom(4, c).forEach { c.exec(it) }
+        assertMatches(c, 5)
+        assertThat(IntakeDatabase.VERSION).isEqualTo(5)
+        c.close()
+    }
+
+    /** 4 -> 5 (round 4, custom drinks): one nullable column on `food`; every existing food is kept and has no recipe. */
+    @Test
+    fun migrationFourToFiveAddsTheCustomDrinkColumnAndKeepsEveryFood() {
+        fun foodColumns(v: Int) = entities(v).getValue("food")["fields"]!!.jsonArray.map { it.jsonObject["columnName"]!!.jsonPrimitive.content }
+        assertThat(foodColumns(4)).doesNotContain("customDrink")
+        assertThat(foodColumns(5)).contains("customDrink")
+        assertThat(entities(5).keys).isEqualTo(entities(4).keys)
+
+        val c = createAt(4)
+        c.exec(
+            "INSERT INTO food (id, name, servingSizeGrams, servingLabel, kcalPer100g, proteinPer100g, carbsPer100g, fatPer100g, " +
+                "fiberPer100g, sugarPer100g, sodiumPer100g, saturatedFatPer100g, source, allergenTags, isVerified, isFavorite, timesLogged, " +
+                "unlistedNutrients, drinkCategory, createdAt, updatedAt) VALUES ('f1', 'Coffee, black', 240, '1 cup', 1, 0.1, 0, 0, 0, 0, 2, 0, " +
+                "'DATABASE', '', 1, 0, 3, '', 'COFFEE', 1, 1)",
+        )
+        c.exec(
+            "INSERT INTO food_log (id, foodId, loggedAt, mealSlot, quantityGrams, foodNameAtLog, servingLabelAtLog, kcal, protein, carbs, fat, " +
+                "fiber, sugar, sodium, saturatedFat, unlistedNutrients, wasEdited, createdAt, updatedAt) VALUES " +
+                "('l1', 'f1', 1000, 'LUNCH', 240, 'Coffee, black', '240 ml', 2, 0, 0, 0, 0, 0, 5, 0, '', 0, 1, 1)",
+        )
+        statementsFrom(4, c).forEach { c.exec(it) }
+        assertMatches(c, 5)
+        val food = c.rows("SELECT * FROM food WHERE id = 'f1'").single()
+        assertThat(food["name"]).isEqualTo("Coffee, black")
+        assertThat(food["timesLogged"]).isEqualTo(3)
+        assertThat(food["customDrink"]).isNull()
+        // Existing history keeps its meal: nothing is rewritten, and the new slot value is only ever added.
+        assertThat(c.rows("SELECT mealSlot AS s FROM food_log WHERE id = 'l1'").single()["s"]).isEqualTo("LUNCH")
+        // A saved custom drink fits the column.
+        c.exec("UPDATE food SET customDrink = '{\"baseFoodId\":\"f1\"}' WHERE id = 'f1'")
+        assertThat(c.rows("SELECT customDrink AS d FROM food").single()["d"]).isEqualTo("{\"baseFoodId\":\"f1\"}")
         c.close()
     }
 

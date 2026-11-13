@@ -70,7 +70,7 @@ data class NutritionHomeState(
     val settings: AppSettings = AppSettings(),
     val next: NextMealUi? = null,
     /** Breakfast, lunch, dinner and snack, in that order, from today's log. */
-    val slots: List<SlotRowUi> = MealSlot.entries.map { SlotRowUi(it) },
+    val slots: List<SlotRowUi> = MealSlot.MEALS.map { SlotRowUi(it) },
     val sections: SectionsUi = SectionsUi(),
     /** Today's drinks in a phrase: "water, coffee, tea". */
     val drinkNames: String = "",

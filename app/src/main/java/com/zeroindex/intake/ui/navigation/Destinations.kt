@@ -64,6 +64,8 @@ sealed interface Route {
     @Serializable data object Drinks : Route
     /** Drinks opened from Log food with the words typed there, so its search starts with them. */
     @Serializable data class DrinksSearch(val query: String) : Route
+    /** Customise a drink (add-ins with amounts), or edit a saved "My drink"; [foodId] is that drink's food row. Opened from Drinks. */
+    @Serializable data class CustomDrink(val foodId: String) : Route
     /**
      * Swap the planned meal: a bottom sheet (dialog destination) with Plan & recipes, Saved, Saved eat-out options and the
      * optional "Find healthy options nearby" (AI, on tap). It replaces Plan B as a destination.

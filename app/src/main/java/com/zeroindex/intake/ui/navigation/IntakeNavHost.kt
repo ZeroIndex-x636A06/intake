@@ -27,6 +27,7 @@ import com.zeroindex.intake.ui.screens.allergen.AllergenKeywordsScreen
 import com.zeroindex.intake.ui.screens.allergen.AllergensScreen
 import com.zeroindex.intake.ui.screens.body.BodyMetricsScreen
 import com.zeroindex.intake.ui.screens.checkin.WeeklyCheckInScreen
+import com.zeroindex.intake.ui.screens.drinks.CustomDrinkScreen
 import com.zeroindex.intake.ui.screens.drinks.DrinksScreen
 import com.zeroindex.intake.ui.screens.fooddata.FoodDetailScreen
 import com.zeroindex.intake.domain.model.MealSlot
@@ -179,7 +180,6 @@ fun IntakeNavHost(
                 onOpenAllergens = { navController.navigate(Route.Allergens) },
                 onLogFood = { mode, slot -> navController.navigate(Route.LogFood(slot = slot, mode = mode)) },
                 onSwap = { slot -> navController.navigate(Route.SwapSheet(slot)) },
-                onOpenDrinks = { navController.navigate(Route.Drinks) },
                 onOpenMealPlans = { navController.navigate(Route.MealPlans) },
                 onOpenRecipes = { navController.navigate(Route.Recipes) },
                 onOpenMealTemplates = { navController.navigate(Route.MealTemplates) },
@@ -486,13 +486,18 @@ fun IntakeNavHost(
         }
         composable<Route.Drinks> {
             PushedScreen("Drinks", back) { pad ->
-                DrinksScreen(pad, onOpenFood = { id -> navController.navigate(Route.FoodDetail(id)) })
+                DrinksScreen(pad, onOpenFood = { id -> navController.navigate(Route.FoodDetail(id)) }, onCustomise = { id -> navController.navigate(Route.CustomDrink(id)) })
             }
         }
         composable<Route.DrinksSearch> { entry ->
             val typed = entry.toRoute<Route.DrinksSearch>().query
             PushedScreen("Drinks", back) { pad ->
-                DrinksScreen(pad, onOpenFood = { id -> navController.navigate(Route.FoodDetail(id)) }, initialQuery = typed)
+                DrinksScreen(pad, onOpenFood = { id -> navController.navigate(Route.FoodDetail(id)) }, onCustomise = { id -> navController.navigate(Route.CustomDrink(id)) }, initialQuery = typed)
+            }
+        }
+        composable<Route.CustomDrink> { entry ->
+            PushedScreen("Customise drink", back) { pad ->
+                CustomDrinkScreen(entry.toRoute<Route.CustomDrink>().foodId, pad, onDone = back)
             }
         }
         dialog<Route.SwapSheet> { entry ->

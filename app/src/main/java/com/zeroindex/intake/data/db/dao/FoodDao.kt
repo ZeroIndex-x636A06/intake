@@ -62,6 +62,10 @@ interface FoodDao {
     @Query("SELECT * FROM food WHERE deletedAt IS NULL ORDER BY updatedAt DESC")
     fun observeAll(): Flow<List<FoodEntity>>
 
+    /** Undo of a soft delete. */
+    @Query("UPDATE food SET deletedAt = NULL, updatedAt = :now WHERE id = :id")
+    suspend fun restore(id: String, now: Long)
+
     /** SPEC §3.8: soft delete only. */
     @Query("UPDATE food SET deletedAt = :now, updatedAt = :now WHERE id = :id")
     suspend fun softDelete(id: String, now: Long)
@@ -74,6 +78,10 @@ interface FoodDao {
     suspend fun idCount(id: String): Int
 
     /** Every drink, or one category's, most-used first, then the plainest name (so Water comes before Sparkling water). */
+    /** The saved custom drinks ("My drinks"), most used first. */
+    @Query("SELECT * FROM food WHERE deletedAt IS NULL AND customDrink IS NOT NULL ORDER BY timesLogged DESC, name")
+    fun observeMyDrinks(): Flow<List<FoodEntity>>
+
     @Query(
         """
         SELECT * FROM food

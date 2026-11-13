@@ -8,6 +8,11 @@ with its merge commit. Read `CLAUDE.md` before you claim anything.
 
 ## In progress
 
+**Drinks, round 4 items 7, 9, 10** (this worktree branch, not pushed, not seen on a device). A drink logged from Drinks, Today's water card
+or the watch belongs to no meal (new `MealSlot.DRINKS`, shown as a "Drinks" group on Today); Drinks left the Nutrition meals card and the More
+list (still one tap from Today's water card, and a "Drinks" chip in Log food); custom versions of drinks with add-ins, saved as "My drinks".
+**Schema v5** (`MIGRATION_4_5`: `food.customDrink`). See `docs/HYDRATION.md`, "Drinks have no meal" and "Custom drinks".
+
 **Recipe nutrition and shopping amounts** (branch `worktree-agent-a2198826f8ff9a2b4`, not pushed, not seen on a device). A recipe page that
 lists only calories no longer shows 0 g protein, carbs and fat: they read "not listed", or an offline estimate from the ingredient lines
 (`domain/recipe/IngredientEstimator.kt`) labelled as such. The meal-plan shopping list now adds up quantities by unit

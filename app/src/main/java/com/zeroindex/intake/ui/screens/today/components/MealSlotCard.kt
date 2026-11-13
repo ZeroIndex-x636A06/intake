@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.data.db.entity.FoodLogEntity
+import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.ui.components.MacroSplitBar
 import com.zeroindex.intake.ui.motion.pressScale
 import com.zeroindex.intake.ui.screens.today.MealSlotUi
@@ -105,6 +106,7 @@ fun MealSlotCard(
 
             AddFoodRow(
                 slotName = slotName,
+                addLabel = if (slotUi.slot == MealSlot.DRINKS) "Log a drink" else "Log food",
                 isEmpty = slotUi.entries.isEmpty(),
                 onAdd = onAdd,
             )
@@ -122,13 +124,13 @@ fun MealSlotCard(
  * filled slots too so adding to a specific meal is always one tap.
  */
 @Composable
-private fun AddFoodRow(slotName: String, isEmpty: Boolean, onAdd: () -> Unit) {
+private fun AddFoodRow(slotName: String, addLabel: String, isEmpty: Boolean, onAdd: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .pressScale()
             .heightIn(min = 48.dp)
-            .clickable(onClickLabel = "Log food in ${slotName.lowercase()}", onClick = onAdd),
+            .clickable(onClickLabel = if (addLabel == "Log food") "Log food in ${slotName.lowercase()}" else addLabel, onClick = onAdd),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (isEmpty) {
@@ -149,7 +151,7 @@ private fun AddFoodRow(slotName: String, isEmpty: Boolean, onAdd: () -> Unit) {
         )
         Spacer(Modifier.width(5.dp))
         Text(
-            text = "Log food",
+            text = addLabel,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.primary,
         )

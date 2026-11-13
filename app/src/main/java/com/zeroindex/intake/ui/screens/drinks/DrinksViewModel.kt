@@ -44,6 +44,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -104,6 +105,8 @@ data class DrinksUiState(
     val volumeUnit: VolumeUnit = VolumeUnit.US_FLUID_OUNCES,
     val category: DrinkCategory = DrinkCategory.WATER,
     val drinks: List<DrinkRowUi> = emptyList(),
+    /** The saved custom drinks ("My drinks"), shown at the top. */
+    val myDrinks: List<DrinkRowUi> = emptyList(),
     val selected: FoodEntity? = null,
     /** True when [selected] was chosen from the search results rather than the category list. */
     val selectedFromSearch: Boolean = false,
@@ -148,8 +151,19 @@ class DrinksViewModel @Inject constructor(
         viewModelScope.launch { runCatching { drinks.ensureSeeded() } }
     }
 
-    // The predefined list: the chosen category's drinks. The search no longer replaces it; it sits underneath.
-    private val list = category.flatMapLatest { c -> drinks.observeDrinks(c) }
+    // The predefined list: the chosen category's drinks (the saved ones are listed at the top instead). The search sits underneath.
+    private val list = category.flatMapLatest { c -> drinks.observeDrinks(c) }.map { l -> l.filter { it.customDrink == null } }
+
+    private val myList = drinks.observeMyDrinks()
+
+    private val myRows = combine(myList, allergens.observeAvoidedAllergens(), allergens.observeAliases()) { l, _, _ -> l }.mapLatest { foods ->
+        if (allergens.avoidedAllergens().isEmpty()) {
+            foods.map { DrinkRowUi(it, null) }
+        } else {
+            val scan = allergens.foodScanner()
+            withContext(Dispatchers.Default) { foods.map { f -> DrinkRowUi(f, rowAllergenOf(f, scan(f))) } }
+        }
+    }
 
     private val rows = combine(list, allergens.observeAvoidedAllergens(), allergens.observeAliases()) { l, _, _ -> l }.mapLatest { foods ->
         if (allergens.avoidedAllergens().isEmpty()) {
@@ -239,7 +253,8 @@ class DrinksViewModel @Inject constructor(
         combine(category, rows, selectedId, pending) { c, r, sel, p -> Quad(c, r, sel, p) },
         search,
         picked,
-    ) { (e, presets, settings), q, found, chosen ->
+        myRows,
+    ) { (e, presets, settings), q, found, chosen, mine ->
         val (day, entryRows, linked) = e
         DrinksUiState(
             day = day,
@@ -247,7 +262,8 @@ class DrinksViewModel @Inject constructor(
             volumeUnit = settings.volumeUnit,
             category = q.category,
             drinks = q.rows,
-            selected = chosen ?: q.rows.firstOrNull { it.food.id == q.selectedId }?.food ?: q.rows.firstOrNull()?.food,
+            myDrinks = mine,
+            selected = chosen ?: mine.firstOrNull { it.food.id == q.selectedId }?.food ?: q.rows.firstOrNull { it.food.id == q.selectedId }?.food ?: q.rows.firstOrNull()?.food,
             selectedFromSearch = chosen != null,
             search = found,
             entries = entryRows,
@@ -318,6 +334,15 @@ class DrinksViewModel @Inject constructor(
     }
 
     fun dismissPending() { pending.value = null }
+
+    /** Soft delete of a saved custom drink, with an Undo. */
+    fun deleteMyDrink(food: FoodEntity) {
+        viewModelScope.launch {
+            drinks.deleteMyDrink(food.id)
+            if (selectedId.value == food.id) selectedId.value = null
+            messages.post(AppMessage("Removed ${food.name}", "Undo") { drinks.restoreMyDrink(food.id) })
+        }
+    }
 
     fun confirmPending() {
         val p = pending.value ?: return

@@ -88,6 +88,8 @@ private fun DrinkCategory.chipIcon(): ImageVector = fallbackType.icon()
 fun DrinksScreen(
     contentPadding: PaddingValues,
     onOpenFood: (String) -> Unit,
+    /** Opens the customise screen for this drink (or edits it, for a saved "My drink"). */
+    onCustomise: (String) -> Unit,
     modifier: Modifier = Modifier,
     /** Words carried over from Log food ("coke"), so the search under the predefined drinks starts with them. */
     initialQuery: String = "",
@@ -101,7 +103,8 @@ fun DrinksScreen(
     val search = state.search
     val listState = rememberLazyListState()
     // The search field sits under the category's drinks and (when one of them is chosen) its size buttons.
-    val searchIndex = 3 + state.drinks.size.coerceAtLeast(1) + (if (state.selected != null && !state.selectedFromSearch) 2 else 0)
+    val searchIndex = 3 + state.drinks.size.coerceAtLeast(1) + (if (state.selected != null && !state.selectedFromSearch) 3 else 0) +
+        (if (state.myDrinks.isEmpty()) 0 else 1 + state.myDrinks.size)
     // Opened with words from Log food: start at the search, not at the top of the page.
     var jumped by rememberSaveable { mutableStateOf(initialQuery.isBlank()) }
     LaunchedEffect(state.drinks.isNotEmpty()) {
@@ -116,6 +119,30 @@ fun DrinksScreen(
     val sizes = remember(unit, state.presets) { DrinkSizes.buttons(unit, state.presets.map { DrinkSize(unit.format(it.volumeMl), it.volumeMl) }) }
     val time = remember { DateTimeFormatter.ofPattern("h:mm a") }
 
+    val sizeTiles: androidx.compose.foundation.lazy.LazyListScope.(FoodEntity) -> Unit = { drink ->
+        item(key = "size-head") { SectionLine("${drink.name.uppercase()} · TAP A SIZE TO LOG IT") }
+        item(key = "sizes") {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), maxItemsInEachRow = 2) {
+                sizes.forEach { s ->
+                    SizeTile(s.label, kcalLabel(drink, s.ml), Modifier.weight(1f)) {
+                        viewModel.log(drink, s.ml)
+                    }
+                }
+                SizeTile("+ Custom size", "type any amount", Modifier.weight(1f), dashed = true) { customOpen = true }
+            }
+        }
+        item(key = "drink-actions") {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (drink.customDrink != null) {
+                    OutlinedButton(onClick = { onCustomise(drink.id) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Edit") }
+                    TextButton(onClick = { viewModel.deleteMyDrink(drink) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Delete") }
+                } else {
+                    OutlinedButton(onClick = { onCustomise(drink.id) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Customise") }
+                }
+            }
+        }
+    }
+
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxWidth(),
@@ -128,6 +155,21 @@ fun DrinksScreen(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item(key = "summary") { SummaryCard(state, unit) }
+
+        // ---- My drinks: the saved custom versions, at the top ----
+        if (state.myDrinks.isNotEmpty()) {
+            item(key = "my-head") { SectionLine("MY DRINKS") }
+            items(state.myDrinks, key = { "my-${it.food.id}" }) { row ->
+                DrinkRow(
+                    food = row.food,
+                    allergen = row.allergen,
+                    selected = row.food.id == selected?.id,
+                    onSelect = { viewModel.select(row.food.id) },
+                    onInfo = { onOpenFood(row.food.id) },
+                )
+            }
+            if (selected != null && !state.selectedFromSearch && state.myDrinks.any { it.food.id == selected.id }) sizeTiles(selected)
+        }
 
         // ---- The predefined options: categories, the category's drinks, the quick sizes ----
         item(key = "categories") {
@@ -157,20 +199,7 @@ fun DrinksScreen(
             }
         }
 
-        val sizeTiles: androidx.compose.foundation.lazy.LazyListScope.(FoodEntity) -> Unit = { drink ->
-            item(key = "size-head") { SectionLine("${drink.name.uppercase()} · TAP A SIZE TO LOG IT") }
-            item(key = "sizes") {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), maxItemsInEachRow = 2) {
-                    sizes.forEach { s ->
-                        SizeTile(s.label, kcalLabel(drink, s.ml), Modifier.weight(1f)) {
-                            viewModel.log(drink, s.ml)
-                        }
-                    }
-                    SizeTile("+ Custom size", "type any amount", Modifier.weight(1f), dashed = true) { customOpen = true }
-                }
-            }
-        }
-        if (selected != null && !state.selectedFromSearch) sizeTiles(selected)
+        if (selected != null && !state.selectedFromSearch && state.myDrinks.none { it.food.id == selected.id }) sizeTiles(selected)
 
         // ---- The search, directly under the predefined options: every source Log food searches, drinks only ----
         item(key = "search-head") { SectionLine("FIND ANOTHER DRINK") }
@@ -207,7 +236,7 @@ fun DrinksScreen(
                     }
                 }
             }
-            section("YOUR DRINKS", search.mine)
+            section("YOUR DRINKS (INCLUDING MY DRINKS)", search.mine)
             section("FOOD DATABASE (USDA, WORKS OFFLINE)", search.usda)
             when (search.offStatus) {
                 OffDrinksStatus.HIDDEN -> Unit

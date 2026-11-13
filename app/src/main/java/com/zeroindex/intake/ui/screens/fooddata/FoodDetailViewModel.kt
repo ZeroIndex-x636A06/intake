@@ -108,7 +108,8 @@ class FoodDetailViewModel @Inject constructor(
             needsConfirm.value = false
             val at = if (atMillis > 0) atMillis else clock.nowMillis()
             val slot = slotName?.let { n -> MealSlot.entries.firstOrNull { it.name == n } }
-                ?: TemplateLink.slotFor(java.time.Instant.ofEpochMilli(at).atZone(clock.zone()).toLocalTime())
+                ?: if (food.drinkCategory != null) MealSlot.DRINKS
+                else TemplateLink.slotFor(java.time.Instant.ofEpochMilli(at).atZone(clock.zone()).toLocalTime())
             if (food.drinkCategory != null) {
                 val logged = drinks.log(food, amount, at, slot)
                 messages.post(
