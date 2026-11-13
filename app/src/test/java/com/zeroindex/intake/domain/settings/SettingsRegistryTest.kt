@@ -75,7 +75,7 @@ class SettingsRegistryTest {
     fun `new keys are classified portable or device-local`() {
         listOf(
             "profile_display_name", "portion_unit", "today_card_next", "today_card_water", "today_card_weight", "today_card_meals", "today_card_activity",
-            "show_sodium", "eat_out_radius_mi", "jump_tests", "weekly_sets_csv", "videos_only_workouts", "videos_personalise", "videos_hide_shorts",
+            "show_sodium", "eat_out_radius_mi", "eat_out_minutes", "eat_out_travel", "jump_tests", "weekly_sets_csv", "videos_only_workouts", "videos_personalise", "videos_hide_shorts",
             "photo_reminder_weeks", "export_reminder", "export_include_photos",
             "workout_reminder_on", "workout_reminder_minute", "meal_reminder_on", "breakfast_reminder_minute",
             "lunch_reminder_minute", "dinner_reminder_minute", "water_reminder_on", "water_reminder_start_hour",

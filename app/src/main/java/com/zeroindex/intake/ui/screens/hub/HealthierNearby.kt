@@ -37,6 +37,9 @@ import com.zeroindex.intake.data.swap.SwapSource
 import com.zeroindex.intake.domain.nfc.TemplateLink
 import com.zeroindex.intake.domain.allergen.AllergenOverride
 import com.zeroindex.intake.domain.allergen.OverridePrompt
+import com.zeroindex.intake.domain.nearby.PipelineState
+import com.zeroindex.intake.domain.nearby.SearchStage
+import com.zeroindex.intake.domain.nearby.TravelRadius
 import com.zeroindex.intake.domain.swap.NearbyMode
 import com.zeroindex.intake.domain.swap.NearbyRanking
 import com.zeroindex.intake.domain.time.Clock
@@ -46,6 +49,7 @@ import com.zeroindex.intake.ui.components.EmptyState
 import com.zeroindex.intake.ui.components.SandNote
 import com.zeroindex.intake.ui.components.SectionLine
 import com.zeroindex.intake.ui.screens.swap.NearbyCard
+import com.zeroindex.intake.ui.screens.swap.NearbySearchHost
 import com.zeroindex.intake.ui.screens.swap.NearbyState
 import com.zeroindex.intake.ui.screens.swap.OptionCard
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -58,6 +62,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 
 data class HealthierUiState(
     /** False until the person taps "Find healthier options nearby". Nothing is read or sent before that. */
@@ -89,19 +94,55 @@ class HealthierNearbyViewModel @Inject constructor(
     private val settings: SettingsRepository,
     private val messages: AppMessages,
     private val clock: Clock,
+    runner: com.zeroindex.intake.data.nearby.NearbySearchRunner,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HealthierUiState(zone = clock.zone()))
     val state: StateFlow<HealthierUiState> = _state.asStateFlow()
+
+    private val foundLock = kotlinx.coroutines.sync.Mutex()
+
+    /** Each restaurant's picks join the list, ranked with everything already there, as soon as its menu is in. */
+    private val host = NearbySearchHost(
+        scope = viewModelScope, runner = runner, clock = clock, mode = NearbyMode.HEALTHIER,
+        planned = { null },
+        read = { _state.value.nearby },
+        write = { f -> _state.update { it.copy(nearby = f(it.nearby)) } },
+        onEntries = { entries ->
+            foundLock.withLock {
+                val merged = NearbyRanking.mergeMore(_state.value.found, entries) { it.option.key }
+                val ranked = repo.healthierRank(merged)
+                _state.update { it.copy(found = ranked) }
+            }
+        },
+        afterRun = {},
+    )
+
+    fun setUseAi(on: Boolean) = _state.update { it.copy(nearby = it.nearby.copy(useAi = on)) }
+
+    fun stopSearch() = host.stop()
+
+    /** The map service failed and the person tapped "Search with AI instead". */
+    fun searchWithAi() {
+        _state.update { it.copy(notice = null, nearby = it.nearby.copy(searching = true, error = null, offerAiFallback = false, status = "Finding where you are…")) }
+        viewModelScope.launch {
+            val area = finder.currentArea()
+            if (area == null) {
+                _state.update { it.copy(nearby = it.nearby.copy(searching = false, status = null, error = "Could not get a location fix. Try a zip code instead.")) }
+                return@launch
+            }
+            run(area)
+        }
+    }
 
     /** The button: shows the healthier options from imported menus and saved options. Offline; no AI. */
     fun open() {
         if (_state.value.open) return
         _state.update { it.copy(open = true, loading = true, notice = null) }
         viewModelScope.launch {
-            val radius = settings.settings.first().eatOutRadiusMi
+            val budget = settings.settings.first().eatOutTravel
             val local = repo.healthierOffline()
-            _state.update { it.copy(local = local, loading = false, nearby = it.nearby.copy(radiusMi = radius)) }
+            _state.update { it.copy(local = local, loading = false, nearby = it.nearby.copy(budget = budget)) }
             refreshPermissions()
         }
     }
@@ -112,14 +153,16 @@ class HealthierNearbyViewModel @Inject constructor(
 
     /** One location fix, rounded to about a kilometre, used for this search only. */
     fun searchNearby() {
-        _state.update { it.copy(notice = null, nearby = it.nearby.copy(searching = true, error = null, status = "Finding where you are…")) }
+        if (host.running) return
+        _state.update { it.copy(notice = null, nearby = it.nearby.copy(error = null, status = null)) }
         viewModelScope.launch {
+            _state.update { it.copy(nearby = it.nearby.copy(pipeline = PipelineState(stage = SearchStage.LOCATING))) }
             val area = finder.currentArea()
             if (area == null) {
-                _state.update { it.copy(nearby = it.nearby.copy(searching = false, status = null, error = "Could not get a location fix. Try a zip code instead.")) }
+                _state.update { it.copy(nearby = it.nearby.copy(pipeline = PipelineState(), error = "Could not get a location fix. Try a zip code instead.")) }
                 return@launch
             }
-            run(area)
+            host.start(area)
         }
     }
 
@@ -131,7 +174,7 @@ class HealthierNearbyViewModel @Inject constructor(
     }
 
     private suspend fun run(area: SearchArea) {
-        val radius = _state.value.nearby.radiusMi
+        val radius = TravelRadius.metersToMiles(_state.value.nearby.budget.meters.toDouble())
         _state.update { it.copy(nearby = it.nearby.copy(status = "Searching nearby menus for healthier orders and checking your allergens…")) }
         val shown = _state.value.found.mapNotNull { (it.source as? SwapSource.Found)?.option }.map { NearbyRanking.excludeLine(it.restaurant, it.order) }
         runCatching { finder.search(area, radius, NearbyMode.HEALTHIER, planned = null, exclude = shown) }
@@ -257,6 +300,9 @@ fun rememberHealthierBlock(
                         if (state.nearby.hasLocation) viewModel.searchNearby() else launcher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
                     },
                     onPostalCode = viewModel::searchPostalCode,
+                    onToggleAi = viewModel::setUseAi,
+                    onStop = viewModel::stopSearch,
+                    onSearchWithAi = viewModel::searchWithAi,
                     onOpenAiSettings = onOpenAiSettings,
                     onOpenRadiusSetting = onOpenRadiusSetting,
                 )

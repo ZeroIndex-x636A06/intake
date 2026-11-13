@@ -160,9 +160,17 @@ fun SettingControl(
                     Segmented(SodiumDisplay.entries.map { it.label }, SodiumDisplay.entries.indexOf(s.showSodium), { viewModel.setShowSodium(SodiumDisplay.entries[it]) })
                 }
                 "eatOutRadius" -> {
-                    val miles = listOf(0.5, 1.0, 2.0, 5.0)
-                    SettingRow("Eat out nearby: search radius", "Used by Swap > Eat out nearby. Uses the weather location, never a live track.") {
-                        Segmented(miles.map { "${if (it % 1.0 == 0.0) it.toInt() else it} mi" }, miles.indexOf(s.eatOutRadiusMi).coerceAtLeast(1), { viewModel.setEatOutRadius(miles[it]) })
+                    val minutes = com.zeroindex.intake.domain.nearby.TravelRadius.MINUTES_CHOICES
+                    val modes = com.zeroindex.intake.domain.nearby.TravelMode.entries
+                    val travel = s.eatOutTravel
+                    SettingRow(
+                        "Eat out nearby: how far",
+                        "How far the nearby restaurant search reaches, as a travel time. Walking is about 5 km/h and driving about 40 km/h, with allowance for roads being longer than a straight line (about ${"%.1f".format(java.util.Locale.US, travel.meters / 1000.0)} km out for ${travel.label}). Uses your location once, when you tap search.",
+                    ) {
+                        androidx.compose.foundation.layout.Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp)) {
+                            Segmented(minutes.map { "$it min" }, minutes.indexOf(travel.minutes).coerceAtLeast(0), { viewModel.setEatOutTravel(travel.copy(minutes = minutes[it])) })
+                            Segmented(modes.map { it.label }, modes.indexOf(travel.mode), { viewModel.setEatOutTravel(travel.copy(mode = modes[it])) })
+                        }
                     }
                 }
                 "recalc" -> SettingRow("Recalculate from my data", "Runs the target maths again with today's weight trend.") {

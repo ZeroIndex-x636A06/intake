@@ -134,7 +134,7 @@ class PlanBFinder @Inject constructor(
     private val clock: Clock,
 ) {
     companion object {
-        const val DEFAULT_RADIUS_MI = 1.0
+        const val DEFAULT_RADIUS_MI = 3.2
         const val MENU_OPTION_LIMIT = 60
     }
 
@@ -184,6 +184,33 @@ class PlanBFinder @Inject constructor(
                     nameOnly = !scan.hasAnything && !scan.hasCheckLabel && MenuSearch.hasNoIngredientInfo(m.ingredientsText),
                 )
             }.sortedByDescending { it.fit.score }.take(limit)
+        }
+    }
+
+    /**
+     * The items of one saved menu source, scanned now against what the person avoids, as options for the nearby list:
+     * every item with calories and protein, including ones that contain an allergen (shown disabled, never hidden).
+     * [distanceMiles] is how far the restaurant is, when known.
+     */
+    suspend fun menuOptionsOfSource(sourceId: String, distanceMiles: Double?): List<PlanBOption> {
+        val left = remaining()
+        val items = menuDao.itemsOf(sourceId).filter { it.kcal != null && it.proteinG != null }
+        if (items.isEmpty()) return emptyList()
+        val scanner = allergens.menuScanner()
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            items.map { m ->
+                val scan = scanner(m.name, m.description, m.ingredientsText)
+                val macros = Macros(m.kcal ?: 0.0, m.proteinG ?: 0.0, m.carbsG ?: 0.0, m.fatG ?: 0.0)
+                PlanBOption(
+                    key = "menu:${m.id}", restaurant = m.restaurantName, address = null, distanceMiles = distanceMiles,
+                    order = m.name, modifications = "", macros = macros, sayThis = "",
+                    caution = "From an imported menu - confirm current ingredients when ordering.",
+                    crossContactRisk = null, scan = scan,
+                    fit = PlanBFit.score(macros.kcal, macros.protein, left.kcalRemaining, left.proteinRemaining),
+                    offline = true, menuItemId = m.id,
+                    nameOnly = !scan.hasAnything && !scan.hasCheckLabel && MenuSearch.hasNoIngredientInfo(m.ingredientsText),
+                )
+            }
         }
     }
 

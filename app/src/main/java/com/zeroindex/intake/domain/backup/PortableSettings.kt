@@ -46,7 +46,7 @@ object PortableSettings {
         "profile_json", "baseline_json", "plan_history_json", "week_pattern_json",
         // Round 3: You and Settings (all plain preferences; never a secret or a device id).
         "profile_display_name", "portion_unit", "today_card_next", "today_card_water", "today_card_weight",
-        "today_card_meals", "today_card_activity", "show_sodium", "eat_out_radius_mi", "jump_tests", "weekly_sets_csv",
+        "today_card_meals", "today_card_activity", "show_sodium", "eat_out_radius_mi", "eat_out_minutes", "eat_out_travel", "jump_tests", "weekly_sets_csv",
         "videos_only_workouts", "videos_personalise", "videos_hide_shorts", "photo_reminder_weeks", "export_reminder",
         "export_include_photos",
         // Round 3, item D: daily reminders (the switches and times). NOT the last-sent markers: those are device-local.
@@ -166,7 +166,7 @@ object PortableSettings {
             "reminders and videos" to setOf(
                 "photo_reminder_weeks", "export_reminder", "export_include_photos", "videos_only_workouts",
                 "videos_hide_shorts", "workout_reminder_on", "meal_reminder_on", "water_reminder_on",
-                "videos_personalise", "show_sodium", "eat_out_radius_mi", "jump_tests", "weekly_sets_csv",
+                "videos_personalise", "show_sodium", "eat_out_radius_mi", "eat_out_minutes", "eat_out_travel", "jump_tests", "weekly_sets_csv",
             ),
             "workout timer and plates" to setOf("default_rest_sec", "rest_vibrate", "bar_weight_kg", "available_plates_kg"),
             "targets" to setOf(

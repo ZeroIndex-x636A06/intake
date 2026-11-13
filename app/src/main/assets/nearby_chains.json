@@ -1,0 +1,363 @@
+{
+ "version": 1,
+ "checkedOn": "2026-11-13",
+ "note": "Entry points to each chain's own nutrition or menu pages. A page is read with the normal menu import; a refusal or an empty page falls through to the restaurant's own website. Status is what a check from a cloud container saw, not what a phone will see.",
+ "chains": [
+  {
+   "name": "McDonald's",
+   "aliases": [
+    "mcdonalds",
+    "mcdonald"
+   ],
+   "urls": [
+    {
+     "url": "https://www.mcdonalds.com/us/en-us/about-our-food/nutrition-calculator.html",
+     "kind": "page",
+     "status": "blocked",
+     "note": "GET returned 403 (the site refuses automated requests) on 2026-11-13; tried once, a refusal falls through"
+    }
+   ],
+   "wikidata": "Q38076"
+  },
+  {
+   "name": "Burger King",
+   "aliases": [
+    "burgerking",
+    "bk"
+   ],
+   "urls": [
+    {
+     "url": "https://www.bk.com/nutrition-explorer",
+     "kind": "page",
+     "status": "shell",
+     "note": "200 but a small app shell with no menu text; may need AI"
+    }
+   ],
+   "wikidata": "Q177054"
+  },
+  {
+   "name": "Wendy's",
+   "aliases": [
+    "wendys"
+   ],
+   "urls": [
+    {
+     "url": "https://www.wendys.com/nutrition",
+     "kind": "page",
+     "status": "verified",
+     "note": "GET returned 200 with a real page on 2026-11-13"
+    }
+   ],
+   "wikidata": "Q550258"
+  },
+  {
+   "name": "Taco Bell",
+   "aliases": [
+    "tacobell"
+   ],
+   "urls": [
+    {
+     "url": "https://www.tacobell.com/nutrition/info",
+     "kind": "page",
+     "status": "unreachable",
+     "note": "transport error through the test proxy on 2026-11-13; not confirmed"
+    }
+   ],
+   "wikidata": "Q752941"
+  },
+  {
+   "name": "Chick-fil-A",
+   "aliases": [
+    "chickfila"
+   ],
+   "urls": [
+    {
+     "url": "https://www.chick-fil-a.com/nutrition-allergens",
+     "kind": "page",
+     "status": "verified",
+     "note": "GET returned 200 with a real page on 2026-11-13"
+    }
+   ],
+   "wikidata": "Q491516"
+  },
+  {
+   "name": "Subway",
+   "aliases": [
+    "subway"
+   ],
+   "urls": [
+    {
+     "url": "https://www.subway.com/en-us/menunutrition/nutrition",
+     "kind": "page",
+     "status": "verified",
+     "note": "GET returned 200 with a real page on 2026-11-13"
+    }
+   ],
+   "wikidata": "Q244457"
+  },
+  {
+   "name": "Chipotle",
+   "aliases": [
+    "chipotle",
+    "chipotlemexicangrill"
+   ],
+   "urls": [
+    {
+     "url": "https://www.chipotle.com/nutrition-calculator",
+     "kind": "page",
+     "status": "verified",
+     "note": "GET returned 200 with a real page on 2026-11-13"
+    }
+   ],
+   "wikidata": "Q465751"
+  },
+  {
+   "name": "Arby's",
+   "aliases": [
+    "arbys"
+   ],
+   "urls": [
+    {
+     "url": "https://www.arbys.com/nutrition/",
+     "kind": "page",
+     "status": "verified",
+     "note": "GET returned 200 with a real page on 2026-11-13"
+    }
+   ],
+   "wikidata": "Q630866"
+  },
+  {
+   "name": "Panera Bread",
+   "aliases": [
+    "panera",
+    "panerabread"
+   ],
+   "urls": [
+    {
+     "url": "https://www.panerabread.com/en-us/menu-nutrition.html",
+     "kind": "page",
+     "status": "blocked",
+     "note": "GET returned 403 (the site refuses automated requests) on 2026-11-13; tried once, a refusal falls through"
+    }
+   ],
+   "wikidata": "Q7130852"
+  },
+  {
+   "name": "Starbucks",
+   "aliases": [
+    "starbucks",
+    "starbuckscoffee"
+   ],
+   "urls": [
+    {
+     "url": "https://www.starbucks.com/menu/nutrition",
+     "kind": "page",
+     "status": "verified",
+     "note": "GET returned 200 with a real page on 2026-11-13"
+    }
+   ],
+   "wikidata": "Q37158"
+  },
+  {
+   "name": "Domino's",
+   "aliases": [
+    "dominos",
+    "dominospizza"
+   ],
+   "urls": [
+    {
+     "url": "https://www.dominos.com/content/ingredients",
+     "kind": "page",
+     "status": "verified",
+     "note": "GET returned 200 with a real page on 2026-11-13"
+    }
+   ],
+   "wikidata": "Q839466"
+  },
+  {
+   "name": "Pizza Hut",
+   "aliases": [
+    "pizzahut"
+   ],
+   "urls": [
+    {
+     "url": "https://www.pizzahut.com/c/nutritional",
+     "kind": "page",
+     "status": "unreachable",
+     "note": "transport error through the test proxy on 2026-11-13; not confirmed"
+    }
+   ],
+   "wikidata": "Q191615"
+  },
+  {
+   "name": "KFC",
+   "aliases": [
+    "kfc",
+    "kentuckyfriedchicken"
+   ],
+   "urls": [
+    {
+     "url": "https://www.kfc.com/nutrition",
+     "kind": "page",
+     "status": "blocked",
+     "note": "GET returned 403 (the site refuses automated requests) on 2026-11-13; tried once, a refusal falls through"
+    }
+   ],
+   "wikidata": "Q524757"
+  },
+  {
+   "name": "Popeyes",
+   "aliases": [
+    "popeyes",
+    "popeyeslouisianakitchen"
+   ],
+   "urls": [
+    {
+     "url": "https://www.popeyes.com/nutrition",
+     "kind": "page",
+     "status": "shell",
+     "note": "200 but a small app shell with no menu text; may need AI"
+    }
+   ],
+   "wikidata": "Q1330910"
+  },
+  {
+   "name": "Sonic Drive-In",
+   "aliases": [
+    "sonic",
+    "sonicdrivein"
+   ],
+   "urls": [
+    {
+     "url": "https://www.sonicdrivein.com/nutrition",
+     "kind": "page",
+     "status": "unreachable",
+     "note": "transport error through the test proxy on 2026-11-13; not confirmed"
+    }
+   ],
+   "wikidata": "Q7561808"
+  },
+  {
+   "name": "Dairy Queen",
+   "aliases": [
+    "dairyqueen",
+    "dq"
+   ],
+   "urls": [
+    {
+     "url": "https://www.dairyqueen.com/en-us/nutrition/",
+     "kind": "page",
+     "status": "blocked",
+     "note": "GET returned 403 (the site refuses automated requests) on 2026-11-13; tried once, a refusal falls through"
+    }
+   ],
+   "wikidata": "Q1141226"
+  },
+  {
+   "name": "Panda Express",
+   "aliases": [
+    "pandaexpress"
+   ],
+   "urls": [
+    {
+     "url": "https://www.pandaexpress.com/nutritioninformation",
+     "kind": "page",
+     "status": "blocked",
+     "note": "GET returned 403 (the site refuses automated requests) on 2026-11-13; tried once, a refusal falls through"
+    }
+   ],
+   "wikidata": "Q1358690"
+  },
+  {
+   "name": "Five Guys",
+   "aliases": [
+    "fiveguys",
+    "fiveguysburgersandfries"
+   ],
+   "urls": [
+    {
+     "url": "https://www.fiveguys.com/menu",
+     "kind": "page",
+     "status": "verified",
+     "note": "GET returned 200 with a real page on 2026-11-13"
+    }
+   ],
+   "wikidata": "Q1131810"
+  },
+  {
+   "name": "Jimmy John's",
+   "aliases": [
+    "jimmyjohns"
+   ],
+   "urls": [
+    {
+     "url": "https://www.jimmyjohns.com/nutrition/",
+     "kind": "page",
+     "status": "verified",
+     "note": "GET returned 200 with a real page on 2026-11-13"
+    }
+   ],
+   "wikidata": "Q1689380"
+  },
+  {
+   "name": "Jersey Mike's",
+   "aliases": [
+    "jerseymikes",
+    "jerseymikessubs"
+   ],
+   "urls": [
+    {
+     "url": "https://www.jerseymikes.com/nutrition",
+     "kind": "page",
+     "status": "blocked",
+     "note": "GET returned 403 (the site refuses automated requests) on 2026-11-13; tried once, a refusal falls through"
+    }
+   ]
+  },
+  {
+   "name": "Dunkin'",
+   "aliases": [
+    "dunkin",
+    "dunkindonuts"
+   ],
+   "urls": [
+    {
+     "url": "https://www.dunkindonuts.com/menu/",
+     "kind": "page",
+     "status": "verified",
+     "note": "GET returned 200 with a real page on 2026-11-13"
+    }
+   ],
+   "wikidata": "Q847743"
+  },
+  {
+   "name": "Culver's",
+   "aliases": [
+    "culvers"
+   ],
+   "urls": [
+    {
+     "url": "https://www.culvers.com/menu",
+     "kind": "page",
+     "status": "verified",
+     "note": "GET returned 200 with a real page on 2026-11-13"
+    }
+   ],
+   "wikidata": "Q1143589"
+  },
+  {
+   "name": "Zaxby's",
+   "aliases": [
+    "zaxbys"
+   ],
+   "urls": [
+    {
+     "url": "https://zaxbys.com/nutrition",
+     "kind": "page",
+     "status": "blocked",
+     "note": "GET returned 403 (the site refuses automated requests) on 2026-11-13; tried once, a refusal falls through"
+    }
+   ]
+  }
+ ]
+}

@@ -17,6 +17,8 @@ import com.zeroindex.intake.domain.nfc.TemplateLink
 import com.zeroindex.intake.domain.nutrition.Macros
 import com.zeroindex.intake.domain.allergen.AllergenOverride
 import com.zeroindex.intake.domain.allergen.OverridePrompt
+import com.zeroindex.intake.domain.nearby.PipelineState
+import com.zeroindex.intake.domain.nearby.TravelBudget
 import com.zeroindex.intake.domain.swap.NearbyMode
 import com.zeroindex.intake.domain.swap.NearbyRanking
 import com.zeroindex.intake.domain.swap.SwapSection
@@ -32,12 +34,21 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 
 /** The nearby search's state. It starts idle and only ever runs on a tap. */
 data class NearbyState(
     val hasKey: Boolean = false,
     val hasLocation: Boolean = false,
-    val radiusMi: Double = 1.0,
+    /** How far to look, as a travel time (Settings > Nutrition). */
+    val budget: TravelBudget = TravelBudget.DEFAULT,
+    /** The card's "Use AI to find menus I can't" switch. Off at every start; never remembered. */
+    val useAi: Boolean = false,
+    /** The menu-by-menu search: its stage and the live list of restaurants. */
+    val pipeline: PipelineState = PipelineState(),
+    /** The map service failed: the card offers the AI search instead, on a tap. */
+    val offerAiFallback: Boolean = false,
+    /** The AI-only search (zip code, or after the map failed) is running. */
     val searching: Boolean = false,
     val status: String? = null,
     val error: String? = null,
@@ -73,10 +84,44 @@ class SwapViewModel @Inject constructor(
     private val settings: SettingsRepository,
     private val messages: AppMessages,
     private val clock: Clock,
+    runner: com.zeroindex.intake.data.nearby.NearbySearchRunner,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SwapUiState(zone = clock.zone()))
     val state: StateFlow<SwapUiState> = _state.asStateFlow()
+
+    private val foundLock = kotlinx.coroutines.sync.Mutex()
+
+    private val host = NearbySearchHost(
+        scope = viewModelScope, runner = runner, clock = clock, mode = NearbyMode.SWAP_VS_PLANNED,
+        planned = { _state.value.planned?.macros },
+        read = { _state.value.nearby },
+        write = { f -> _state.update { it.copy(nearby = f(it.nearby)) } },
+        onEntries = { entries ->
+            foundLock.withLock {
+                found = NearbyRanking.mergeMore(found, entries) { it.option.key }
+                publish()
+            }
+        },
+        afterRun = {},
+    )
+
+    fun setUseAi(on: Boolean) = _state.update { it.copy(nearby = it.nearby.copy(useAi = on)) }
+
+    fun stopSearch() = host.stop()
+
+    /** The map service failed and the person tapped "Search with AI instead". */
+    fun searchWithAi() {
+        _state.update { it.copy(notice = null, nearby = it.nearby.copy(searching = true, error = null, offerAiFallback = false, status = "Finding where you are…")) }
+        viewModelScope.launch {
+            val area = finder.currentArea()
+            if (area == null) {
+                _state.update { it.copy(nearby = it.nearby.copy(searching = false, status = null, error = "Could not get a location fix. Try a zip code instead.")) }
+                return@launch
+            }
+            run(area)
+        }
+    }
 
     private var offline: List<SwapEntry> = emptyList()
     private var found: List<SwapEntry> = emptyList()
@@ -92,8 +137,8 @@ class SwapViewModel @Inject constructor(
         viewModelScope.launch {
             val planned = repo.planned()
             offline = repo.offlineEntries(planned)
-            val radius = settings.settings.first().eatOutRadiusMi
-            _state.update { it.copy(planned = planned, loading = false, nearby = it.nearby.copy(radiusMi = radius)) }
+            val budget = settings.settings.first().eatOutTravel
+            _state.update { it.copy(planned = planned, loading = false, nearby = it.nearby.copy(budget = budget)) }
             refreshPermissions()
             publish()
         }
@@ -111,14 +156,16 @@ class SwapViewModel @Inject constructor(
 
     /** "Search near me": one location fix, rounded to about a kilometre, used for this search only. */
     fun searchNearby() {
-        _state.update { it.copy(notice = null, nearby = it.nearby.copy(searching = true, error = null, status = "Finding where you are…")) }
+        if (host.running) return
+        _state.update { it.copy(notice = null, nearby = it.nearby.copy(error = null, status = null)) }
         viewModelScope.launch {
+            _state.update { it.copy(nearby = it.nearby.copy(pipeline = PipelineState(stage = com.zeroindex.intake.domain.nearby.SearchStage.LOCATING))) }
             val area = finder.currentArea()
             if (area == null) {
-                _state.update { it.copy(nearby = it.nearby.copy(searching = false, status = null, error = "Could not get a location fix. Try a zip code instead.")) }
+                _state.update { it.copy(nearby = it.nearby.copy(pipeline = PipelineState(), error = "Could not get a location fix. Try a zip code instead.")) }
                 return@launch
             }
-            run(area)
+            host.start(area)
         }
     }
 
@@ -130,7 +177,7 @@ class SwapViewModel @Inject constructor(
     }
 
     private suspend fun run(area: SearchArea) {
-        val radius = _state.value.nearby.radiusMi
+        val radius = com.zeroindex.intake.domain.nearby.TravelRadius.metersToMiles(_state.value.nearby.budget.meters.toDouble())
         _state.update { it.copy(nearby = it.nearby.copy(status = "Searching nearby menus and checking them against your allergens…")) }
         // A repeat search sends what is already shown, so it brings different options, which are added to the list.
         val shown = found.mapNotNull { (it.source as? SwapSource.Found)?.option }.map { NearbyRanking.excludeLine(it.restaurant, it.order) }

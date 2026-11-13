@@ -57,6 +57,12 @@ data class Review(
 /** The phone's reader found no table in a PDF: [reason] says why, and the person may choose to use AI instead. */
 data class AiOffer(val source: MenuSourceEntity, val reason: String)
 
+/**
+ * The phone's reader found no table in the nutrition menu the person gave (a picked PDF, or a link to one). Nothing was
+ * sent anywhere. [chart] is the allergen chart it was for and [staging] the unsaved source; the person may choose AI.
+ */
+data class NutritionAiOffer(val chart: MenuSourceEntity, val staging: MenuSourceEntity, val reason: String)
+
 data class MenuUiState(
     /** Where the import in flight is up to; null when none is running. */
     val running: MenuProgress? = null,
@@ -67,6 +73,8 @@ data class MenuUiState(
     val refusedSource: MenuSourceEntity? = null,
     /** An allergen chart was just saved: ask for the nutrition menu (Choose a PDF, Paste a link, Skip). */
     val nutritionPrompt: MenuSourceEntity? = null,
+    /** The nutrition menu could not be read on the phone: the follow-up card offers "Read it with AI" (a tap, never automatic). */
+    val nutritionAiOffer: NutritionAiOffer? = null,
     val hasKey: Boolean = false,
     val openSourceId: String? = null,
 )
@@ -195,6 +203,7 @@ class MenuSourcesViewModel @Inject constructor(
     /** Skip: dismiss the card for this source. The row keeps a small "Add nutrition menu" action. */
     fun skipNutritionPrompt() {
         val source = _state.value.nutritionPrompt ?: return
+        _state.update { it.copy(nutritionAiOffer = null) }
         viewModelScope.launch { settings.skipMenuNutritionPrompt(source.id) }
         _state.update { it.copy(nutritionPrompt = null) }
     }
@@ -214,14 +223,34 @@ class MenuSourcesViewModel @Inject constructor(
      */
     private fun addNutrition(kind: MenuSourceKind, location: String) {
         val chart = _state.value.nutritionPrompt ?: return
-        if (importJob?.isActive == true) return
         val staging = chart.copy(id = com.zeroindex.intake.data.db.entity.newId(), kind = kind, location = location, pastedText = null)
-        _state.update { it.copy(running = MenuProgress("Starting…"), error = null, refusedSource = null, aiOffer = null) }
+        stageNutrition(chart, staging, PdfRoute.PHONE_ONLY)
+    }
+
+    /**
+     * "Read it with AI" on the follow-up card: the same file or link, straight to the AI path. Only runs from this tap;
+     * the model's numbers are read as the main import reads them (nothing invented, allergens can only be raised).
+     */
+    fun readNutritionWithAi() {
+        val offer = _state.value.nutritionAiOffer ?: return
+        gateway.unavailableReason()?.let { reason ->
+            _state.update { it.copy(error = reason.message) }
+            return
+        }
+        _state.update { it.copy(nutritionPrompt = offer.chart) }
+        stageNutrition(offer.chart, offer.staging, PdfRoute.AI_ONLY)
+    }
+
+    fun dismissNutritionAiOffer() = _state.update { it.copy(nutritionAiOffer = null) }
+
+    private fun stageNutrition(chart: MenuSourceEntity, staging: MenuSourceEntity, route: PdfRoute) {
+        if (importJob?.isActive == true) return
+        _state.update { it.copy(running = MenuProgress("Starting…"), error = null, refusedSource = null, aiOffer = null, nutritionAiOffer = null) }
         importJob = viewModelScope.launch {
             try {
                 val outcome = ingestor.stage(staging, AiTrigger.USER_ACTION, onProgress = { progress ->
                     _state.update { s -> if (s.running != null) s.copy(running = progress) else s }
-                }, pdfRoute = PdfRoute.PHONE_ONLY)
+                }, pdfRoute = route)
                 val nutrition = outcome.items.map { it.entity }
                 if (NutritionPrompt.isAllergenOnly(nutrition.map { it.kcal })) {
                     _state.update { it.copy(running = null, error = "That file has no calories either: it is another allergen chart. Choose the nutrition menu.") }
@@ -240,6 +269,9 @@ class MenuSourcesViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 _state.update { it.copy(running = null) }
                 throw e
+            } catch (e: MenuNoTableException) {
+                // Nothing was sent anywhere. Say why, and let the person choose the AI path.
+                _state.update { it.copy(running = null, nutritionAiOffer = NutritionAiOffer(chart, staging, e.message ?: "No nutrition table was found.")) }
             } catch (e: Exception) {
                 val reason = (e as? AiError)?.message ?: (e as? MenuImportException)?.message ?: "The nutrition menu could not be read. Try again."
                 _state.update { it.copy(running = null, error = reason) }

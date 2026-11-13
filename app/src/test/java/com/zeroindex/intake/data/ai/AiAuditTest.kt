@@ -27,6 +27,7 @@ class AiAuditTest {
         "data/coach/CoachReworder.kt" to setOf(AiFeature.COACH_REWORD),
         "data/recipe/RecipeAiExtractor.kt" to setOf(AiFeature.RECIPE_TRY_AI),
         "data/ai/video/VideoWorkoutAi.kt" to setOf(AiFeature.VIDEO_TO_WORKOUT),
+        "data/nearby/NearbyMenuSearch.kt" to setOf(AiFeature.MENU_IMPORT),
         "data/ai/benchmark/BenchmarkRunner.kt" to setOf(AiFeature.BENCHMARK),
     )
 

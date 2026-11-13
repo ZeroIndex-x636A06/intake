@@ -59,7 +59,7 @@ How your targets are worked out and what the dashboard shows. Your allergens are
 | 15 | Fat | `fatPerKg` (SettingsRepository fat_g_per_kg) | Nutrition | number field | Settings, Profile Advanced, Your plan (3 homes) | Nutrition |
 | 16 | Add active calories to my target | `addActiveKcal` (SettingsRepository add_active_kcal) | Nutrition | switch | Settings advanced and Health Connect (2 homes) | Nutrition |
 | 17 | Show salt or sodium on the dashboard **(new)** | `showSodium` (new) | Nutrition | segmented (Off / Sodium / Salt) | none | Nutrition |
-| 18 | Eat out nearby: search radius **(new)** | `eatOutRadius` (new) | Nutrition | segmented (0.5 mi / 1 mi / 2 mi / 5 mi) | Plan B finder (fixed) | Nutrition |
+| 18 | Eat out nearby: how far **(new)** | `eatOutRadius` (eat_out_minutes and eat_out_travel; the old eat_out_radius_mi is read once to migrate) | Nutrition | two segmented rows (10 min / 15 min; Walk / Drive, default 10 min Drive) | Nearby finder: Eating out and Swap | Nutrition |
 | 19 | Recalculate from my data | `recalc` | Nutrition | button (action, not stored) | Settings | Nutrition |
 | 20 | Allow calories below the floor | `allowBelowFloor` (UserProfile.allowBelowFloor) | Nutrition | switch, Advanced | Profile Advanced | Nutrition |
 | 21 | Carb cycling | `carbCycling` (UserProfile.carbCycling) | Nutrition | switch, Advanced | Profile Advanced | Nutrition |
@@ -271,7 +271,7 @@ All 125 controls are built (`domain/settings/SettingsRegistry.kt`, drawn by `ui/
 | Food portions (`portionUnit`) | storage and control | Nutrition agent: the photo estimate and food detail must read `AppSettings.portionUnit` (today they follow the weight unit) |
 | Today card switches | yes, live | Today |
 | Show salt or sodium (`showSodium`) | storage and control | Nutrition dashboard |
-| Eat out nearby radius (`eatOutRadius`) | storage and control | Swap sheet |
+| Eat out nearby how far (`eatOutRadius`) | storage and control | Eating out and Swap |
 | Show jump tests (`jumpTests`) | yes, gates the Progress jump card | Progress |
 | Weekly sets per region (`weeklySets`) | storage and control (`WeeklySets`) | Train > Muscle volume |
 | Videos switches, YouTube key | storage, controls, key Save/Test/Remove (`videos.list` test) | Train > Videos |
