@@ -3,6 +3,12 @@
 Read this first when picking the work back up. Latest work: branch
 `claude/optimistic-noether-fullk5` (not yet merged into `claude/app-build-k2ag1d`).
 
+## Round 5 merge (branch `claude/optimistic-noether-fullk5`, schema v6)
+
+Seven round-5 branches merged with `--no-ff`, in order: ripple clip fixes, Drinks, Nutrition per-meal screen and day switcher, Recipe Hunter, menu allergen evidence and nearby AI batch, body diagram / equipment / training log, Videos (yt-dlp opt-in, Media3, schema v6 `MIGRATION_5_6`).
+Conflicts were only in RESUME.md, docs/TASKS.md and docs/ALLERGENS.md (kept both sides); the code merged without conflicts. Settings registry totals stay 126 controls / 109 settings (branch 6 reworded rows 42 and 43, branch 7 added id 130).
+The per-branch notes below are still "branch, not pushed": they are now merged, but only compiled, unit-tested and linted except where the smoke note says otherwise. The debug APK is about 187 MB with Media3 and yt-dlp.
+
 ## Round 5, Drinks: wrong tea numbers and a simpler page (items 12 and 13; branch `worktree-agent-adf99e3f71c45bf4e`, not pushed)
 
 Compiled, unit-tested and linted only; no emulator, nothing seen on a phone. No schema change (still v5).

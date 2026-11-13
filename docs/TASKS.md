@@ -8,6 +8,8 @@ with its merge commit. Read `CLAUDE.md` before you claim anything.
 
 ## In progress
 
+**Round 5 merge done** on `claude/optimistic-noether-fullk5` (all seven round-5 branches merged, schema v6). The entries below say "not pushed"; they are merged now. Phone testing still to do.
+
 **Round 5 Drinks, items 12 and 13** (branch `worktree-agent-adf99e3f71c45bf4e`, not pushed, not seen on a device). Tea/sugar numbers fixed (plain-brew check, sugars known, tile and label rounding, drink icon, 4.2 g teaspoon);
 Drinks page simplified to one list with a size sheet. No schema change. See `RESUME.md` and `docs/HYDRATION.md`, "Round 5 corrections".
 
