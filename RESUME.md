@@ -31,6 +31,28 @@ drag sideways to get a guide line, the nearest dot enlarged and a tooltip (date,
 changes. Nearest-point maths is `ChartMath.nearestIndex`. Not seen on a phone or an emulator: gesture feel, haptics and tooltip placement are unverified.
 The Overlay chart (bars plus line) and the calorie bars have no scrubbing.
 
+## Drinks: no meal, off the Nutrition tab, custom drinks (round 4 items 7, 9, 10)
+
+Worktree branch, compiled, linted and unit-tested only; nothing was run on an emulator or a phone.
+
+- **Item 7, root cause.** `DrinkRepository.log` defaulted its slot to `slotAt(at)`, which is `TemplateLink.slotFor(time of day)`, and
+  `logOfType` (Today's water card, the watch, quick sizes) always used it. Food detail did the same when opened with no meal (it is opened from
+  Drinks with none). So a 12:30 coffee from Drinks was a Lunch row. Now those paths write `MealSlot.DRINKS` and Food detail picks it for a drink with
+  no meal given. Logging from a meal's Log food still passes that meal and stays in it. `MealSlot` is stored by name in a TEXT column, so the new value
+  needed **no schema change**; existing rows keep their slot. Today lists the four meals and a "Drinks" card only once it has an entry (its row opens
+  Drinks, not Log food). The day's kcal and sugar still sum over every row. Meal pickers use `MealSlot.MEALS`; the move/copy sheet also offers Drinks.
+- **Item 9.** The Drinks row is gone from the Nutrition meals card and from Nutrition > More (and `NutritionActions.onOpenDrinks`). Drinks is reached from
+  Today's water/drinks card and from a "Drinks" chip next to Mine and Quick add in Log food. Nothing else in Log food changed.
+- **Item 10.** `domain/drinks/CustomDrink.kt` holds the maths (add-in list, volume, per-100 ml, caffeine and strength after dilution, allergen union);
+  `data/repository/CustomDrinkFood.kt` turns a draft into a food row; `ui/screens/drinks/CustomDrinkScreen.kt` and `CustomDrinkViewModel` are the screen
+  (`Route.CustomDrink`, root). A saved "My drink" is a food row with `customDrink` (recipe JSON) set and its nutrition per 100 ml, so it shows in Drinks
+  (a "My drinks" section on top, with Edit and Delete) and in the drinks search. **Schema v5** (`MIGRATION_4_5`, `MigrationSchemaTest` case).
+  Built-in add-in values are USDA FoodData Central reference figures typed into the catalog, not looked up in the bundled database at run time; any food from
+  the search (the person's own or the bundled USDA file) can also be an add-in.
+- **Not verified:** any of the screens on an emulator or phone; the layout of the My drinks section and the scroll index on the Drinks page; the
+  watch path (it goes through `logOfType`, covered only by the source guard and `DrinkLoggerTest`); the effect on an install upgraded from v4 (covered by the
+  migration test only). Another branch that also bumps the schema to 5 will conflict with `MIGRATION_4_5`; renumber one of them.
+
 ## Merge of three agent branches (branch `claude/optimistic-noether-fullk5`)
 
 Merged with `--no-ff`, one at a time, each followed by compile and the unit tests: recipe nutrition (`worktree-agent-a2198826f8ff9a2b4`), Recipe

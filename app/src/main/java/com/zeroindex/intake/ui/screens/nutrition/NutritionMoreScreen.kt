@@ -26,8 +26,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.ui.theme.IntakeShape
 
 /**
- * The pushed "More" list behind the Nutrition tab's last row: Plan, Recipes, Meals (saved templates), Eating out and
- * Drinks, each with the one-line summary the old section blocks had, each opening the screen it opened before.
+ * The pushed "More" list behind the Nutrition tab's last row: Plan, Recipes, Meals (saved templates), and Eating out, each with the one-line summary the old section blocks had, each opening the screen it opened before.
  */
 @Composable
 fun NutritionMoreScreen(
@@ -38,8 +37,6 @@ fun NutritionMoreScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val s = state.sections
-    val day = state.hydration
-    val unit = state.settings.volumeUnit
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(
@@ -89,18 +86,6 @@ fun NutritionMoreScreen(
                 body = (if (s.eatOutCount == 0) "No saved options yet. " else "${s.eatOutCount} saved option${if (s.eatOutCount == 1) "" else "s"}. ") +
                     "Saved places, restaurant menus and healthier options nearby.",
                 onClick = actions.onOpenEatingOut,
-            )
-        }
-        item {
-            NavCard(
-                title = "Drinks",
-                body = if (day == null) {
-                    "Log a drink, with sizes and categories"
-                } else {
-                    "${unit.formatNumber(day.consumedMl)} of ${unit.format(day.target.totalMl)} today" +
-                        (state.drinkNames.takeIf { it.isNotBlank() }?.let { " · $it" } ?: "")
-                },
-                onClick = actions.onOpenDrinks,
             )
         }
     }

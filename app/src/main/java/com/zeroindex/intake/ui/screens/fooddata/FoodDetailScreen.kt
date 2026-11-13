@@ -150,7 +150,7 @@ fun FoodDetailScreen(
     }
     var mode by remember { mutableStateOf(LabelMode.PER_PORTION) }
     var menu by remember { mutableStateOf(false) }
-    var slotChoice by remember(slot) { mutableStateOf(slot?.let { s -> MealSlot.entries.firstOrNull { it.name == s } } ?: TemplateLink.slotFor(java.time.LocalTime.now())) }
+    var slotChoice by remember(slot) { mutableStateOf(slot?.let { s -> MealSlot.entries.firstOrNull { it.name == s } } ?: if (isDrink) MealSlot.DRINKS else TemplateLink.slotFor(java.time.LocalTime.now())) }
     var slotMenu by remember { mutableStateOf(false) }
     var confirming by remember { mutableStateOf(false) }
     var quantity by remember { mutableStateOf("") }
@@ -305,7 +305,7 @@ fun FoodDetailScreen(
                     Box {
                         TextButton(onClick = { slotMenu = true }) { Text("To: ${slotLabel(slotChoice)}  ▾") }
                         DropdownMenu(expanded = slotMenu, onDismissRequest = { slotMenu = false }) {
-                            MealSlot.entries.forEach { s -> DropdownMenuItem(text = { Text(slotLabel(s)) }, onClick = { slotChoice = s; slotMenu = false }) }
+                            (if (isDrink) MealSlot.entries else MealSlot.MEALS).forEach { s -> DropdownMenuItem(text = { Text(slotLabel(s)) }, onClick = { slotChoice = s; slotMenu = false }) }
                         }
                     }
                 }
@@ -388,6 +388,7 @@ private fun slotLabel(slot: MealSlot): String = when (slot) {
     MealSlot.LUNCH -> "Lunch"
     MealSlot.DINNER -> "Dinner"
     MealSlot.SNACK -> "Snacks"
+    MealSlot.DRINKS -> "Drinks"
 }
 
 /** The old detail screen, now behind "Edit": every value per 100 g, the serving only sets the default portion. */

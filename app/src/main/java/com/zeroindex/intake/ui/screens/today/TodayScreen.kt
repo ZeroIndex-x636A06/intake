@@ -277,7 +277,7 @@ private fun TodayContent(
                 mainItems(state, extras, actions, extrasViewModel, ringEvents, gate, onShowToday, onWaterMinus, onWaterPlus, onDismissInsight)
             }
             LazyColumn(Modifier.weight(1f).fillMaxHeight(), contentPadding = PaddingValues(top = top, bottom = bottom), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                mealItems(state, gate, onAddToSlot, onEntryLongPress, onEntrySwipedToCopy, onSaveTemplate)
+                mealItems(state, gate, onAddToSlot, onEntryLongPress, onEntrySwipedToCopy, onSaveTemplate, actions.onOpenDrinks)
             }
         }
     } else {
@@ -290,7 +290,7 @@ private fun TodayContent(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             mainItems(state, extras, actions, extrasViewModel, ringEvents, gate, onShowToday, onWaterMinus, onWaterPlus, onDismissInsight)
-            mealItems(state, gate, onAddToSlot, onEntryLongPress, onEntrySwipedToCopy, onSaveTemplate)
+            mealItems(state, gate, onAddToSlot, onEntryLongPress, onEntrySwipedToCopy, onSaveTemplate, actions.onOpenDrinks)
         }
     }
 }
@@ -418,6 +418,7 @@ private fun LazyListScope.mealItems(
     onEntryLongPress: (FoodLogEntity) -> Unit,
     onEntrySwipedToCopy: (FoodLogEntity) -> Unit,
     onSaveTemplate: (MealSlot) -> Unit,
+    onOpenDrinks: () -> Unit,
 ) {
     if (!state.settings.todayCardMeals) return
     item(key = "meals-heading") {
@@ -428,10 +429,11 @@ private fun LazyListScope.mealItems(
         MealSlotCard(
             modifier = Modifier.staggerIn(gate, "slot-${slotUi.slot.name}", slotUi.slot.ordinal),
             slotUi = slotUi,
-            onAdd = { onAddToSlot(slotUi.slot) },
+            // Drinks belong to no meal: its row opens the Drinks page, not Log food for a meal.
+            onAdd = { if (slotUi.slot == MealSlot.DRINKS) onOpenDrinks() else onAddToSlot(slotUi.slot) },
             onEntryLongPress = onEntryLongPress,
             onEntrySwipedToCopy = onEntrySwipedToCopy,
-            onSaveAsTemplate = { onSaveTemplate(slotUi.slot) },
+            onSaveAsTemplate = if (slotUi.slot == MealSlot.DRINKS) null else ({ onSaveTemplate(slotUi.slot) }),
         )
     }
 }

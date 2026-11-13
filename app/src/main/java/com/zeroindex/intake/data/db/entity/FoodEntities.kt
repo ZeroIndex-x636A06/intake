@@ -67,6 +67,11 @@ data class FoodEntity(
     val abvPercent: Double? = null,
     /** What one ml counts for toward the day's water, or null to use the drink type's default. */
     val hydrationFactor: Double? = null,
+    /**
+     * Set for a saved "My drink" (a custom version of a drink): the JSON of its recipe, a `CustomDrinkRecipe` (the base
+     * drink, its volume and the add-ins). The nutrition columns above are that recipe's result per 100 ml. Null otherwise.
+     */
+    val customDrink: String? = null,
     override val createdAt: Long,
     override val updatedAt: Long,
     override val deletedAt: Long? = null,

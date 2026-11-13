@@ -492,7 +492,7 @@ class SettingsRepository @Inject constructor(
             MealSlot.BREAKFAST -> it[Keys.breakfastReminderMinute] = m
             MealSlot.LUNCH -> it[Keys.lunchReminderMinute] = m
             MealSlot.DINNER -> it[Keys.dinnerReminderMinute] = m
-            MealSlot.SNACK -> Unit
+            MealSlot.SNACK, MealSlot.DRINKS -> Unit
         }
     }
     suspend fun setWaterReminder(on: Boolean) = put { it[Keys.waterReminderOn] = on }

@@ -338,6 +338,6 @@ class HealthConnectManager @Inject constructor(
         MealSlot.BREAKFAST -> MealType.MEAL_TYPE_BREAKFAST
         MealSlot.LUNCH -> MealType.MEAL_TYPE_LUNCH
         MealSlot.DINNER -> MealType.MEAL_TYPE_DINNER
-        MealSlot.SNACK -> MealType.MEAL_TYPE_SNACK
+        MealSlot.SNACK, MealSlot.DRINKS -> MealType.MEAL_TYPE_SNACK
     }
 }

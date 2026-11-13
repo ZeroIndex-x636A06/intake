@@ -342,11 +342,26 @@ internal val MIGRATION_3_4 = object : Migration(3, 4) {
     }
 }
 
+/**
+ * 4 -> 5: saved custom drinks ("Black coffee + 3 tsp sugar"). One nullable column on `food` that holds the drink's recipe;
+ * existing foods keep null, so nothing is rewritten. Purely additive.
+ */
+internal val MIGRATION_4_5_STATEMENTS: List<String> = listOf(
+    "ALTER TABLE `food` ADD COLUMN `customDrink` TEXT",
+)
+
+internal val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        MIGRATION_4_5_STATEMENTS.forEach(db::execSQL)
+    }
+}
+
 /** Every migration, in order. [IntakeDatabase] registers all of them. */
-internal val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+internal val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
 
 /** Statement lists by starting version, for `MigrationSchemaTest`. Version 3 is computed: see [migrateRepair_3_4]. */
 internal val MIGRATION_STATEMENTS: Map<Int, List<String>> = mapOf(
     1 to MIGRATION_1_2_STATEMENTS,
     2 to MIGRATION_2_3_STATEMENTS,
+    4 to MIGRATION_4_5_STATEMENTS,
 )
