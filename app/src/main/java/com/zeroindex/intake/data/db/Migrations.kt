@@ -356,12 +356,32 @@ internal val MIGRATION_4_5 = object : Migration(4, 5) {
     }
 }
 
+/**
+ * 5 -> 6: Videos. Two nullable columns on `video_cache` hold the video's player size (`part=player`), which is how Hide Shorts
+ * tells a vertical video from a horizontal one (rows cached before this keep null and fall back to the length rule), and
+ * `downloaded_video` lists the videos downloaded with yt-dlp (opt-in). Purely additive.
+ */
+internal val MIGRATION_5_6_STATEMENTS: List<String> = listOf(
+    "ALTER TABLE `video_cache` ADD COLUMN `embedWidth` INTEGER",
+    "ALTER TABLE `video_cache` ADD COLUMN `embedHeight` INTEGER",
+    "CREATE TABLE IF NOT EXISTS `downloaded_video` (`id` TEXT NOT NULL, `videoId` TEXT NOT NULL, `title` TEXT NOT NULL, `channelTitle` TEXT NOT NULL, `durationSec` INTEGER, `thumbnailUrl` TEXT, `fileName` TEXT NOT NULL, `sizeBytes` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+    "CREATE INDEX IF NOT EXISTS `index_downloaded_video_videoId` ON `downloaded_video` (`videoId`)",
+    "CREATE INDEX IF NOT EXISTS `index_downloaded_video_deletedAt` ON `downloaded_video` (`deletedAt`)",
+)
+
+internal val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        MIGRATION_5_6_STATEMENTS.forEach(db::execSQL)
+    }
+}
+
 /** Every migration, in order. [IntakeDatabase] registers all of them. */
-internal val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+internal val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
 
 /** Statement lists by starting version, for `MigrationSchemaTest`. Version 3 is computed: see [migrateRepair_3_4]. */
 internal val MIGRATION_STATEMENTS: Map<Int, List<String>> = mapOf(
     1 to MIGRATION_1_2_STATEMENTS,
     2 to MIGRATION_2_3_STATEMENTS,
     4 to MIGRATION_4_5_STATEMENTS,
+    5 to MIGRATION_5_6_STATEMENTS,
 )

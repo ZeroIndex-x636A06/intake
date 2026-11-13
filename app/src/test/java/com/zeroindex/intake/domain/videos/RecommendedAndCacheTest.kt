@@ -33,8 +33,8 @@ class RecommendedAndCacheTest {
     @Test
     fun `a saved pilates video leads to a pilates query`() {
         val q = RecommendedQueries.build(true, RecommendInput(savedTitles = listOf("Leg day, no barbell", "Beginner Pilates Class")))
-        assertThat(q.map { it.query }).contains("pilates workout")
-        assertThat(q.first { it.query == "pilates workout" }.reason).isEqualTo("Because you saved a pilates video")
+        val row = q.first { it.reason == "Because you saved a pilates video" }
+        assertThat(row.query).contains("pilates")
     }
 
     @Test

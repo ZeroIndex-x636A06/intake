@@ -131,6 +131,9 @@ android {
     }
 
     packaging {
+        // yt-dlp's Python runtime ships as zipped native libraries that are unpacked at run time, so they must be stored
+        // extracted (the youtubedl-android requirement).
+        jniLibs { useLegacyPackaging = true }
         resources {
             excludes += setOf(
                 "/META-INF/{AL2.0,LGPL2.1}",
@@ -233,6 +236,9 @@ dependencies {
     implementation(libs.retrofit)
     implementation(libs.retrofit.kotlinx.serialization)
     implementation(libs.okhttp)
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.ui)
+    implementation(libs.youtubedl.library)
     // Wear OS companion (amendment §2): the shared protocol and the Data Layer.
     implementation(project(":wearprotocol"))
     implementation(libs.play.services.wearable)

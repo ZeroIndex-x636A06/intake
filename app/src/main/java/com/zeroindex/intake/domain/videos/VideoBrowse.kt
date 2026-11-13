@@ -1,5 +1,7 @@
 package com.zeroindex.intake.domain.videos
 
+import com.zeroindex.intake.domain.training.muscles.BodyRegion
+
 /** The style chips under the Videos search box. [word] is added to the words sent to YouTube. */
 enum class VideoStyle(val label: String, val word: String) {
     PUSH("Push", "push day workout"),
@@ -43,9 +45,9 @@ data class FilteredVideos(val shown: List<ScoredVideo>, val hiddenAsNotWorkouts:
 /** The pure rules of the Videos home: the words sent, and the filters applied afterwards. */
 object VideoBrowse {
     /** The text sent to `search.list`: the person's words plus the style chip's word. Only this leaves the phone. */
-    fun searchQuery(typed: String, style: VideoStyle?): String {
+    fun searchQuery(typed: String, style: VideoStyle?, muscle: BodyRegion? = null): String {
         val words = typed.trim().replace(Regex("\\s+"), " ")
-        val extra = style?.word.orEmpty()
+        val extra = listOfNotNull(style?.word, muscle?.let { muscleWord(it) }).joinToString(" ")
         return when {
             words.isEmpty() -> extra
             extra.isEmpty() -> words
@@ -56,7 +58,22 @@ object VideoBrowse {
     }
 
     /** The cache key part for the chips that change what is asked of YouTube (only the style does). */
-    fun cacheFilters(style: VideoStyle?): String = style?.name.orEmpty()
+    fun cacheFilters(style: VideoStyle?, muscle: BodyRegion? = null): String =
+        listOfNotNull(style?.name, muscle?.name).joinToString("+")
+
+    /** The word a muscle group adds to the search. */
+    fun muscleWord(region: BodyRegion): String = when (region) {
+        BodyRegion.CHEST -> "chest workout"
+        BodyRegion.BACK -> "back workout"
+        BodyRegion.SHOULDERS -> "shoulder workout"
+        BodyRegion.ARMS -> "arm workout"
+        BodyRegion.LEGS -> "leg workout"
+        BodyRegion.CORE -> "core workout"
+    }
+
+    /** The number on the "Filters" chip: the style, the muscle group and the length when set. (The two toggles show on their own.) */
+    fun activeFilterCount(style: VideoStyle?, muscle: BodyRegion?, length: VideoLength?): Int =
+        listOfNotNull(style, muscle, length).size
 
     fun score(videos: List<VideoMeta>, catalogNames: Collection<String>): List<ScoredVideo> =
         videos.map { ScoredVideo(it, WorkoutVideoClassifier.classify(it, catalogNames)) }
@@ -79,20 +96,8 @@ object VideoBrowse {
         return FilteredVideos(kept, if (filterOn) byLength.size - kept.size else 0, byLength.size, hiddenShorts = scored.size - long.size)
     }
 
-    /** The longest a video can be and still count as a Short by its length alone. */
-    const val SHORT_MAX_SEC = 60
-
-    /**
-     * Is this a YouTube Short? YouTube's API has no field for it, so this goes by what it does give: a video of a
-     * minute or less, or one that tags itself #shorts in its title or description. A video with no known length
-     * (a pasted link) is never called a Short.
-     */
-    fun isShort(video: VideoMeta): Boolean {
-        if (video.durationSec in 1..SHORT_MAX_SEC) return true
-        return SHORTS_TAG.containsMatchIn(video.title) || SHORTS_TAG.containsMatchIn(video.description.take(400))
-    }
-
-    private val SHORTS_TAG = Regex("#shorts?\\b", RegexOption.IGNORE_CASE)
+    /** Is this a YouTube Short? The rule is in [ShortsRule] and docs/VIDEOS.md. */
+    fun isShort(video: VideoMeta): Boolean = ShortsRule.isShort(video)
 
     /** How many chapters the description has (shown as a "Chapters" badge on the card). */
     fun chapterCount(video: VideoMeta): Int = ChapterParser.chapters(video.description).size

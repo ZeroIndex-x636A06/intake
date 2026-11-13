@@ -3,6 +3,12 @@ package com.zeroindex.intake.ui.screens.videos
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import com.zeroindex.intake.data.video.direct.DownloadState
+import com.zeroindex.intake.domain.videos.DirectPlayback
+import com.zeroindex.intake.domain.videos.PlayerKind
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -68,6 +74,12 @@ fun VideoDetailScreen(
         return
     }
 
+    // A vertical video (a Short) opens in the full-height Shorts player, which swipes through the Shorts of the list it came from.
+    if (meta != null && com.zeroindex.intake.domain.videos.ShortsRule.isShort(meta)) {
+        ShortsPlayerScreen(contentPadding = contentPadding, modifier = modifier)
+        return
+    }
+
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(
@@ -79,7 +91,17 @@ fun VideoDetailScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item(key = "player") {
-            if (YoutubeEmbed.isValidId(state.videoId)) {
+            val source = state.source
+            if (source != null && source.kind != PlayerKind.YOUTUBE && source.location != null) {
+                // Downloaded file or yt-dlp stream: the in-app player, landscape-capable, no ads.
+                DirectVideoPlayer(
+                    kind = source.kind,
+                    location = source.location,
+                    startSec = startSec,
+                    modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(16.dp)),
+                    playing = startSec > 0,
+                )
+            } else if (YoutubeEmbed.isValidId(state.videoId)) {
                 YoutubePlayer(videoId = state.videoId, startSec = startSec, thumbnailUrl = meta?.thumbnailUrl, durationSec = meta?.durationSec ?: 0)
             } else {
                 ErrorState(title = "Not a YouTube video", body = "That link does not have a video id Intake can play.")
@@ -169,6 +191,14 @@ fun VideoDetailScreen(
                 }
             }
         }
+        state.source?.note?.let { note ->
+            item(key = "source-note") { Text(note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        }
+        if (state.directOn || state.downloadedBytes != null) {
+            item(key = "download") {
+                DownloadControls(state.download, state.downloadedBytes, onDownload = viewModel::download, onCancel = viewModel::cancelDownload, directOn = state.directOn)
+            }
+        }
         item(key = "open-youtube") {
             // Its own full-width button: as the middle of three it had no room for its words, and it is the way out
             // when a video cannot be played inside another app.
@@ -217,10 +247,40 @@ fun VideoDetailScreen(
         }
         item(key = "credit") {
             Text(
-                "Video and information from YouTube. Intake streams it through YouTube's own player and never downloads it.",
+                if (state.directOn) {
+                    "Video and information from YouTube. Direct playback and downloads use yt-dlp and are not an official YouTube feature."
+                } else {
+                    "Video and information from YouTube. Intake streams it through YouTube's own player and never downloads it."
+                },
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+    }
+}
+
+/** Download, progress with Cancel, or the size of what is on the phone. Shown only with direct playback on (or when a file exists). */
+@Composable
+private fun DownloadControls(download: DownloadState?, downloadedBytes: Long?, onDownload: () -> Unit, onCancel: () -> Unit, directOn: Boolean) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        when {
+            download is DownloadState.Running -> {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(DirectPlayback.progressText(download.percent), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    TextButton(onClick = onCancel, modifier = Modifier.heightIn(min = 48.dp)) { Text("Cancel") }
+                }
+                if (download.percent < 0f) androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth())
+                else androidx.compose.material3.LinearProgressIndicator(progress = { download.percent / 100f }, modifier = Modifier.fillMaxWidth())
+            }
+            downloadedBytes != null -> Text(
+                "Downloaded to this phone, ${DirectPlayback.size(downloadedBytes)}. Plays offline. Delete it from Videos > Downloaded.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            directOn -> {
+                OutlinedButton(onClick = onDownload, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Download to this phone") }
+                if (download is DownloadState.Failed) Text(download.message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
         }
     }
 }

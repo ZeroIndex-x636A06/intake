@@ -173,6 +173,8 @@ class PortableSettingsTest {
             "ai_usage_reset_at",
             // Hydration v2: precise location, forecast cache and retry time.
             "weather_lat", "weather_lon", "weather_cache_date", "weather_cache_lat", "weather_cache_lon",
+            // Videos: the yt-dlp opt-in is per phone, like the downloads it allows (never exported).
+            "videos_direct_ytdlp",
             "weather_cache_temp_max_c", "weather_cache_humidity_pct", "weather_cache_fetched_at", "weather_last_attempt_at",
         )
         val sources = listOf("SettingsRepository.kt", "FoodDataPrefs.kt", "HydrationPrefs.kt")

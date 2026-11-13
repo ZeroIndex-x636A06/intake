@@ -6,8 +6,8 @@ Rules that apply to every row: use screens hold no configuration; one home per s
 
 ## Totals
 
-* **108 settings** (stored values) in **12 groups**, plus 16 action buttons (export, import, replay tour and so on) and 1 read-only line: **125 controls** in all.
-* 27 controls are **new** since v5 (15 from the v5 brief, plus Hide Shorts, number 114, and Food search language, number 115, both added after phone testing, plus the eight daily reminder controls, numbers 122 to 129, round 3 item D, plus Today card: Activity, number 116, and Older history, number 117, from the Health Connect round); 98 existed in the code before.
+* **109 settings** (stored values) in **12 groups**, plus 16 action buttons (export, import, replay tour and so on) and 1 read-only line: **126 controls** in all.
+* 28 controls are **new** since v5 (15 from the v5 brief, plus Hide Shorts, number 114, and Food search language, number 115, both added after phone testing, plus the eight daily reminder controls, numbers 122 to 129, round 3 item D, plus Today card: Activity, number 116, and Older history, number 117, from the Health Connect round); 98 existed in the code before.
 * 25 controls sit in an **Advanced** disclosure on their page.
 
 | Group | Controls | Of which settings | Actions | New |
@@ -18,13 +18,13 @@ Rules that apply to every row: use screens hold no configuration; one home per s
 | Training | 8 | 8 | 0 | 2 |
 | Health Connect | 17 | 16 | 1 | 1 |
 | Food database | 6 | 6 | 0 | 1 |
-| Videos | 3 | 3 | 0 | 3 |
+| Videos | 4 | 4 | 0 | 4 |
 | Reminders | 12 | 12 | 0 | 10 |
 | Sync and export | 10 | 5 | 5 | 1 |
 | AI (optional) | 21 | 19 | 2 | 0 |
 | API keys | 3 | 3 | 0 | 1 |
 | About and help | 7 | 0 | 6 | 0 |
-| **Total** | **125** | **108** | **16** | **27** |
+| **Total** | **126** | **109** | **16** | **28** |
 
 Option C calls the Nutrition tab "Eat", so its settings group is "Eating targets"; the contents are identical.
 
@@ -148,6 +148,7 @@ Videos need internet and your own YouTube key (under API keys). Intake never dow
 | 67 | Show only workouts by default **(new)** | `onlyWorkouts` (new) | Videos | switch | none | Videos |
 | 68 | Personalise Recommended from this phone's data **(new)** | `personalise` (new) | Videos | switch | none | Videos |
 | 114 | Hide Shorts **(new, round 3)** | `hideShorts` (new) | Videos | switch | none | Videos |
+| 130 | Offline downloads and direct playback **(new, round 5)** | `directVideos` (new; videos_direct_ytdlp) | Videos | switch, off by default, with a one-time terms warning | none | Videos |
 
 ## H. Reminders
 
@@ -264,7 +265,7 @@ Remote backup destination (protocol, host, port, user, password, private key), b
 
 ## Build status (Option A part 1)
 
-All 125 controls are built (`domain/settings/SettingsRegistry.kt`, drawn by `ui/screens/settings/SettingsControls.kt`). Per item marked "new":
+All 126 controls are built (`domain/settings/SettingsRegistry.kt`, drawn by `ui/screens/settings/SettingsControls.kt`). Per item marked "new":
 
 | Item | Built now | Consumer |
 | --- | --- | --- |

@@ -11,6 +11,7 @@ import com.zeroindex.intake.data.remote.youtube.YoutubeApi
 import com.zeroindex.intake.domain.time.Clock
 import com.zeroindex.intake.domain.videos.VideoCachePolicy
 import com.zeroindex.intake.domain.videos.VideoMeta
+import com.zeroindex.intake.domain.videos.VideoPaging
 import com.zeroindex.intake.domain.videos.VideoQuota
 import com.zeroindex.intake.domain.videos.YoutubeIds
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -40,8 +41,8 @@ class VideoQuotaStore @Inject constructor(@ApplicationContext context: Context, 
     fun hint(): String = VideoQuota.hint(usedUnits())
 }
 
-/** One page of search results. [fromCache] is true when no quota was spent. */
-data class VideoResults(val videos: List<VideoMeta>, val fromCache: Boolean, val fetchedAt: Long)
+/** One page of search results. [fromCache] is true when no quota was spent. [hasMore] is true while YouTube has a next page. */
+data class VideoResults(val videos: List<VideoMeta>, val fromCache: Boolean, val fetchedAt: Long, val hasMore: Boolean = false)
 
 /**
  * Videos: search with a cache (so a repeat costs no quota), saved videos, a pasted link, and the 30-day purge of API data.
@@ -59,26 +60,47 @@ class VideoRepository @Inject constructor(
     fun quotaHint(): String = quota.hint()
     fun quotaUsedUnits(): Int = quota.usedUnits()
 
+    /** "About N searches left today" for the overflow menu. */
+    fun searchesLeft(): Int = VideoQuota.searchesLeft(quota.usedUnits())
+
+    /** The first page of a search. See [searchPage]. */
+    suspend fun search(query: String, filters: String = ""): VideoResults = searchPage(query, filters, 1)
+
     /**
-     * Searches YouTube (`search.list` then `videos.list`), or answers from the cache when the same search is under six hours
-     * old. [filters] only names the search for the cache (the Length and style chips); the words sent are [query].
+     * Page [page] (1 based) of a search: `search.list` then `videos.list`, or the cache when that page is under six hours
+     * old. [filters] only names the search for the cache; the words sent are [query]. Page 1 is cached under the plain search
+     * key and later pages under their own, and each page stores the `nextPageToken` that leads on (in a `video_search` row
+     * whose ids column holds the token, blank at the end), so this needs no schema change. A page is asked for only after the
+     * page before it, and only in answer to the person scrolling.
      */
-    suspend fun search(query: String, filters: String = ""): VideoResults {
+    suspend fun searchPage(query: String, filters: String, page: Int): VideoResults {
         val now = clock.nowMillis()
-        val key = VideoCachePolicy.searchKey(query, filters)
-        dao.search(key)?.let { hit ->
-            if (VideoCachePolicy.isFresh(hit.fetchedAt, now, VideoCachePolicy.SEARCH_TTL_MS)) {
+        val base = VideoCachePolicy.searchKey(query, filters)
+        val pageKey = VideoPaging.pageKey(base, page)
+        val tokenRow = dao.search(VideoPaging.tokenKey(base, page))
+        dao.search(pageKey)?.let { hit ->
+            if (tokenRow != null && VideoCachePolicy.isFresh(hit.fetchedAt, now, VideoCachePolicy.SEARCH_TTL_MS)) {
                 val ids = hit.videoIds.split(',').filter { it.isNotBlank() }
                 val cached = dao.cached(ids).associateBy { it.videoId }
-                if (ids.all { it in cached }) return VideoResults(ids.map { cached.getValue(it).toMeta() }, true, hit.fetchedAt)
+                if (ids.all { it in cached }) {
+                    return VideoResults(ids.map { cached.getValue(it).toMeta() }, true, hit.fetchedAt, hasMore = tokenRow.videoIds.isNotBlank())
+                }
             }
         }
         if (!api.hasKey()) throw VideoError.NoKey
-        val ids = api.search(query).also { quota.add(VideoQuota.SEARCH_COST) }
-        val videos = api.videos(ids).also { quota.add(VideoQuota.LIST_COST) }
+        val token: String? = if (page <= 1) {
+            null
+        } else {
+            // No token for the page before means there is no such page.
+            dao.search(VideoPaging.tokenKey(base, page - 1))?.videoIds?.takeIf { it.isNotBlank() }
+                ?: return VideoResults(emptyList(), true, now, hasMore = false)
+        }
+        val found = api.searchPage(query, token).also { quota.add(VideoQuota.SEARCH_COST) }
+        val videos = api.videos(found.ids).also { quota.add(VideoQuota.LIST_COST) }
         dao.upsertCache(videos.map { it.toCache(now) })
-        dao.upsertSearch(VideoSearchEntity(key, videos.joinToString(",") { it.id }, now))
-        return VideoResults(videos, false, now)
+        dao.upsertSearch(VideoSearchEntity(pageKey, videos.joinToString(",") { it.id }, now))
+        dao.upsertSearch(VideoSearchEntity(VideoPaging.tokenKey(base, page), found.nextPageToken.orEmpty(), now))
+        return VideoResults(videos, false, now, hasMore = found.nextPageToken != null)
     }
 
     /** One video's details: the cache if it is under a day old, else `videos.list` with a key, else oEmbed (title and channel only). */
@@ -165,11 +187,13 @@ class VideoRepository @Inject constructor(
     private fun VideoMeta.toCache(now: Long) = VideoCacheEntity(
         videoId = id, title = title, description = description, channelTitle = channelTitle, categoryId = categoryId,
         durationSec = durationSec, thumbnailUrl = thumbnailUrl, publishedAt = publishedAt, viewCount = viewCount, fetchedAt = now,
+        embedWidth = embedWidth, embedHeight = embedHeight,
     )
 
     private fun VideoCacheEntity.toMeta() = VideoMeta(
         id = videoId, title = title, description = description, channelTitle = channelTitle, categoryId = categoryId,
         durationSec = durationSec, thumbnailUrl = thumbnailUrl, publishedAt = publishedAt, viewCount = viewCount,
+        embedWidth = embedWidth, embedHeight = embedHeight,
     )
 
     private fun SavedVideoEntity.toMeta() = VideoMeta(

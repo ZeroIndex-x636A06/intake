@@ -247,7 +247,8 @@ fun SettingControl(
                 "offPassword" -> Unit // drawn with the username above
 
                 // ---- Videos ----
-                "hideShorts" -> SwitchSetting("Hide Shorts", "Leaves out videos of a minute or less and ones tagged #shorts. A chip on Videos changes it for one visit.", s.hideShorts, viewModel::setHideShorts)
+                "hideShorts" -> SwitchSetting("Hide Shorts", "Leaves out vertical videos (YouTube Shorts) and ones tagged #shorts. A chip on Videos changes it for one visit.", s.hideShorts, viewModel::setHideShorts)
+                "directVideos" -> DirectVideosSetting(s.directVideos, viewModel::setDirectVideos)
                 "onlyWorkouts" -> SwitchSetting("Show only workouts by default", "Hides results that do not look like a workout. A one-tap override shows everything for one search.", s.onlyWorkouts, viewModel::setOnlyWorkouts)
                 "personalise" -> SwitchSetting("Personalise Recommended from this phone's data", "Uses your weekly muscle volume, equipment and saved videos. Strictly local. Videos use about 100 searches a day on the free quota.", s.personaliseVideos, viewModel::setPersonalise)
 
@@ -680,6 +681,37 @@ private fun CreditsRow() {
                 }
             },
             confirmButton = { TextButton(onClick = { open = false }) { Text("Close") } },
+        )
+    }
+}
+
+/**
+ * Settings > Videos > "Offline downloads and direct playback". Off by default. Turning it on first shows what it is and that it
+ * goes against YouTube's terms; only "I understand, turn it on" switches it on. Turning it off needs no question.
+ */
+@Composable
+private fun DirectVideosSetting(checked: Boolean, onChange: (Boolean) -> Unit) {
+    var warn by remember { mutableStateOf(false) }
+    SettingRow(
+        "Offline downloads and direct playback (uses yt-dlp, not an official YouTube feature)",
+        "Plays videos without YouTube's ads and lets you download saved videos to this phone to watch offline. Off keeps YouTube's own player.",
+    ) {
+        Switch(checked = checked, onCheckedChange = { if (it) warn = true else onChange(false) })
+    }
+    if (warn) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { warn = false },
+            title = { Text("Before you turn this on") },
+            text = {
+                Text(
+                    "This uses yt-dlp, a third-party tool, to get video streams from YouTube. It is not an official YouTube feature, and " +
+                        "YouTube's terms do not allow downloading videos or skipping ads outside YouTube's own apps. Using it can get the YouTube " +
+                        "key you added suspended, and it can stop working whenever YouTube changes. Downloads stay in Intake's private storage on this " +
+                        "phone and are never uploaded. Intake adds a large component to the app for this. You can turn it off at any time.",
+                )
+            },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = { warn = false; onChange(true) }) { Text("I understand, turn it on") } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { warn = false }) { Text("Keep YouTube's player") } },
         )
     }
 }

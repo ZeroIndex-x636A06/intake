@@ -15,6 +15,8 @@ data class RecommendInput(
     val programFocus: String? = null,
     /** Titles of saved videos. */
     val savedTitles: List<String> = emptyList(),
+    /** Channels of the saved videos, one per title in the same order (blank when unknown). */
+    val savedChannels: List<String> = emptyList(),
     /** The person's session length in minutes, if known. */
     val sessionMinutes: Int? = null,
 )
@@ -53,10 +55,18 @@ object RecommendedQueries {
             out += RecommendedQuery("$word workout $gear".trim(), "For: $label under target this week")
         }
 
-        input.savedTitles.firstNotNullOfOrNull { title ->
-            STYLE_WORDS.firstOrNull { WorkoutVideoClassifier.containsWord(title.lowercase(), it) }
-        }?.let { style ->
-            out += RecommendedQuery("$style workout", "Because you saved a $style video")
+        // "Because you saved ...": the saved videos' channels and title keywords (SavedSimilarity), with the style named when
+        // a saved title is a known style.
+        if (input.savedTitles.isNotEmpty()) {
+            val saved = input.savedTitles.mapIndexed { i, t -> VideoMeta(id = "s$i", title = t, channelTitle = input.savedChannels.getOrNull(i).orEmpty()) }
+            val style = input.savedTitles.firstNotNullOfOrNull { title ->
+                STYLE_WORDS.firstOrNull { WorkoutVideoClassifier.containsWord(title.lowercase(), it) }
+            }
+            val q = SavedSimilarity.query(saved)
+            if (q != null) {
+                val withStyle = if (style != null && style !in q.lowercase()) "$q $style" else q
+                out += RecommendedQuery(withStyle, if (style != null) "Because you saved a $style video" else SavedSimilarity.reason(saved))
+            }
         }
 
         input.programFocus?.takeIf { it.isNotBlank() }?.let { focus ->
