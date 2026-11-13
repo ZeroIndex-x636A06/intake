@@ -594,3 +594,4 @@ docs describe them. A phone already on an earlier v3 debug build must be reinsta
 - The sync server stores rows as plaintext SQLite, by design.
 - The MCP server from the amendments roadmap is not built.
 - Nutrition meals card lists only Breakfast, Lunch, Dinner, Snacks (no Drinks row; day totals still include drinks). Denied location on the nearby card shows a note and an Open app settings button. Unit-tested only, not seen on a device.
+- Feedback R5 item 18 (branch `worktree-agent-a65d6d2a107e6b2eb`): press ripple now clipped to the shape on the shared Segmented, ChoiceChip, IntakeCard and AvatarButton, and on the Train Workout/Exercises/Videos switch. Guarded by ClickableClipOrderTest. Unit-tested only, not seen on a device; inline screen clickables on rounded Surfaces are still square (listed in the commit message).

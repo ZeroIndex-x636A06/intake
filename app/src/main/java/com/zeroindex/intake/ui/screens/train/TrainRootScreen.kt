@@ -22,6 +22,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -102,6 +103,8 @@ private fun SectionSwitch(selected: Int, onSelect: (Int) -> Unit, modifier: Modi
                         .weight(1f)
                         .heightIn(min = 48.dp)
                         .semantics { this.selected = on }
+                        // Clip before the click so the press ripple follows the pill's round corners.
+                        .clip(RoundedCornerShape(16.dp))
                         .clickable(role = Role.Tab, onClick = { onSelect(index) }),
                 ) {
                     Box(contentAlignment = Alignment.Center) {

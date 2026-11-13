@@ -214,3 +214,5 @@ screens are in RESUME.md. Still needs a phone with an OpenRouter key: Recipe Hun
 - 12 "Could be adapted" (substitution engine, section, Save adapted copy), 13 "Saved" chip by URL, 15 recipe images. Rules in docs/ALLERGENS.md. Unit-tested only.
 
 Nutrition meals card without Drinks, and a location-denied note with an app-settings button on the nearby card: done on `claude/optimistic-noether-fullk5`, unit-tested, not seen on a device.
+
+Feedback R5 item 18, square press ripple on rounded controls: done on `worktree-agent-a65d6d2a107e6b2eb` (not pushed, not seen on a device). Shared components and the Train switch fixed; screen-level ones listed in the commit message.
