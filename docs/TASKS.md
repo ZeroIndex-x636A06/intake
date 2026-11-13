@@ -103,6 +103,7 @@ Suggestions from the emulator pass and a comparison with paid apps (not started;
 Each task links to the section of `docs/SPEC-v3.md` that defines it.
 
 - Nothing open right now. Feedback from device testing will land here.
+- Done in worktree `worktree-agent-acb080647531a0b9a` (FEEDBACK-R4 item 8): back navigation is now the exact mirror of push (300 ms slide, underneath dims), predictive back follows it, tab switches cross-fade; in `ui/navigation/NavTransitions.kt`. Not seen on a device.
 - Known gaps worth picking up:
   - shared-element transition from recipe card to detail;
   - watch rest ring;
