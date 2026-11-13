@@ -124,6 +124,8 @@ fun WorkoutHistoryScreen(
                                 "${state.selectedExercise?.name}, " +
                                 "${points.size} points, latest " +
                                 "${points.lastOrNull()?.y?.roundToInt() ?: 0} ${unit.label}.",
+                            valueSuffix = unit.label,
+                            gapDays = null,
                         )
                         state.personalRecord?.let { pr ->
                             Spacer(Modifier.height(8.dp))

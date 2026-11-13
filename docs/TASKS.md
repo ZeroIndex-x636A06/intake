@@ -8,6 +8,10 @@ with its merge commit. Read `CLAUDE.md` before you claim anything.
 
 ## In progress
 
+**Progress charts: weight trend accuracy and scrubbing** (FEEDBACK-R4 items 4 and 5; branch `worktree-agent-a7ca2649551f0d88b`, not pushed, not seen on a device).
+Gap-aware smoothed trend (`WeightTrend.smoothByTime`), trend broken across gaps over 14 days, y-axis labels in the display unit, a clearer headline,
+and press-and-drag scrubbing with tooltip and haptic tick on the Progress line charts (`domain/charts/ChartMath.kt`). No schema change. See `RESUME.md`.
+
 **Recipe nutrition and shopping amounts** (branch `worktree-agent-a2198826f8ff9a2b4`, not pushed, not seen on a device). A recipe page that
 lists only calories no longer shows 0 g protein, carbs and fat: they read "not listed", or an offline estimate from the ingredient lines
 (`domain/recipe/IngredientEstimator.kt`) labelled as such. The meal-plan shopping list now adds up quantities by unit
