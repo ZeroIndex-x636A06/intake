@@ -7,6 +7,30 @@ Read this first when picking the work back up. Latest work: branch
 
 - Push and back are now mirrors in `ui/navigation/NavTransitions.kt` (`NavSpecs`, 300 ms FastOutSlowIn both ways; the screen underneath moves a quarter width left and dims to 0.85). Tab switches cross-fade in 150 ms. Predictive back uses the same back motion via `predictivePopEnterTransition`/`predictivePopExitTransition`. Checked by `NavTransitionsTest`. Not seen on a device; the owner's phone is the test.
 
+## Progress charts: weight trend and scrubbing (FEEDBACK-R4 items 4 and 5; branch `worktree-agent-a7ca2649551f0d88b`, not pushed)
+
+What was off, found by reading the code and pinned with tests in `domain/charts/ChartMathTest.kt` (the owner's actual data was not available):
+- **The trend lagged months behind the dots.** `WeightTrend.smooth` steps the average once per weigh-in, whatever the gap. After 20 daily weigh-ins near
+  100 kg and a 150-day silence, two readings near 95 kg moved the trend only to about 99.5. That is the owner's "cluster, flat line, two points at the
+  edge", and it also understated "−0.2 lb/week". `WeightTrend.smoothByTime` now makes alpha the pull of one day (after g days it is 1 − 0.9^g); with a
+  weigh-in every day it equals the old result exactly. Only the Progress chart uses it (`BodyRepository.observeTrend`); the TDEE and coach code still call `smooth`.
+- **The trend line was drawn straight across the gap.** It now breaks at more than 14 days (`ChartMath.runs`) and a faint dashed bridge joins the runs.
+- **Dots and trend were on different time bases.** Dots used the real instant, the trend used day index × 86 400 000 (UTC midnight), so it sat up to
+  half a day off in US zones. Both are real instants now (`ChartMath.localDayStartMillis`). Axis is by date, not index (it already was).
+- **The headline "195.0" was the latest raw weigh-in, labelled "raw weigh-ins".** It now says "latest weigh-in, <date>" and a "Trend X" line sits under it.
+- **No y-axis labels.** Gridlines now fall on round values with labels in the display unit (`ChartMath.niceTicks`).
+- Checked and fine: kg to lb uses 0.45359237 and displays after a single rounding (tested over 1000.0 to 4000.0 in 0.1 lb steps, and a test shows why
+  rounding the kilograms first would shift 195.0 to 195.1); day bucketing uses the clock's zone, not UTC (tested).
+- **Not changed, only noted:** `WeighInDedupe` keeps the earliest of two readings inside 10 minutes, with no preference for a source, and a second
+  app that stamps the same weigh-in more than 10 minutes apart would show as two points (both are then averaged into one day for the trend). Which app
+  wrote a row is not stored (only `HEALTH_CONNECT` or `MANUAL`), so the tooltip says "Health Connect", not the app name; adding it needs a v5 migration.
+
+Scrubbing (`TrendLineChart` in `ui/components/Charts.kt`, used by weight, sleep, steps, resting HR, the measurement lines and the 1RM chart): press and
+drag sideways to get a guide line, the nearest dot enlarged and a tooltip (date, value and unit, source). The gesture claims only a horizontal move
+(`awaitHorizontalTouchSlopOrCancellation`), so a vertical drag still scrolls the page. A haptic tick (`TextHandleMove`) fires when the nearest point
+changes. Nearest-point maths is `ChartMath.nearestIndex`. Not seen on a phone or an emulator: gesture feel, haptics and tooltip placement are unverified.
+The Overlay chart (bars plus line) and the calorie bars have no scrubbing.
+
 ## Merge of three agent branches (branch `claude/optimistic-noether-fullk5`)
 
 Merged with `--no-ff`, one at a time, each followed by compile and the unit tests: recipe nutrition (`worktree-agent-a2198826f8ff9a2b4`), Recipe

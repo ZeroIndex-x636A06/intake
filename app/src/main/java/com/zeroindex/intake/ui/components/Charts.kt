@@ -17,7 +17,27 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
+import com.zeroindex.intake.domain.charts.ChartMath
+import com.zeroindex.intake.domain.units.UnitConverter
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -40,8 +60,10 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 
-/** One (x, y) sample. x is usually a local day index. */
-data class ChartPoint(val x: Double, val y: Double)
+/**
+ * One (x, y) sample. x is epoch millis on the Progress charts. [source] is shown in the scrub tooltip when known.
+ */
+data class ChartPoint(val x: Double, val y: Double, val source: String? = null)
 
 /**
  * Raw points with a smoothed line over them (SPEC §11). Drawn on a Canvas
@@ -54,6 +76,12 @@ data class ChartPoint(val x: Double, val y: Double)
  * That split matters: the trend is the number you act on, the dots are the
  * noise it is smoothing away.
  *
+ * The y axis is labelled in [formatY] (the user's unit). A trend line is not drawn solid across more than [gapDays] days
+ * with no data: it breaks there, and a faint dashed bridge shows that the two ends are not a measured stretch.
+ *
+ * Press and drag horizontally to scrub: a guide line, the nearest raw point highlighted, and a tooltip with the date,
+ * the value ([formatValue], then [valueSuffix]) and the point's source. A vertical drag still scrolls the page.
+ *
  * The chart is summarised in [description] for TalkBack, since a Canvas says
  * nothing on its own.
  */
@@ -65,13 +93,20 @@ fun TrendLineChart(
     modifier: Modifier = Modifier,
     rawColor: Color = MaterialTheme.colorScheme.tertiary,
     trendColor: Color = MaterialTheme.colorScheme.primary,
+    valueSuffix: String = "",
+    formatValue: (Double) -> String = { UnitConverter.round(it, 1).toString() },
+    formatY: (Double, Int) -> String = { v, decimals -> "%.${decimals}f".format(v) },
+    gapDays: Int? = ChartMath.GAP_DAYS,
+    formatX: (Double) -> String = { ChartMath.localDate(it.toLong(), ZoneId.systemDefault()).format(TOOLTIP_DATE) },
 ) {
     if (raw.isEmpty() && trend.isEmpty()) {
         ChartPlaceholder("Nothing to plot yet", modifier)
         return
     }
 
-    val all = raw + trend
+    val sortedRaw = remember(raw) { raw.sortedBy { it.x } }
+    val sortedTrend = remember(trend) { trend.sortedBy { it.x } }
+    val all = sortedRaw + sortedTrend
     val minX = all.minOf { it.x }
     val maxX = max(all.maxOf { it.x }, minX + 1.0)
     // Pad the y range so the line is never flush against the edge.
@@ -80,61 +115,155 @@ fun TrendLineChart(
     val pad = max((rawMaxY - rawMinY) * 0.12, 0.3)
     val minY = rawMinY - pad
     val maxY = rawMaxY + pad
+    val ticks = remember(minY, maxY) { ChartMath.niceTicks(minY, maxY, 4) }
+    val tickText = remember(ticks, formatY) {
+        val decimals = ChartMath.tickDecimals(ticks)
+        ticks.map { formatY(it, decimals) }
+    }
 
     val gridColor = MaterialTheme.colorScheme.outlineVariant
     val ringColor = MaterialTheme.colorScheme.surface
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val tooltipBg = MaterialTheme.colorScheme.inverseSurface
+    val tooltipFg = MaterialTheme.colorScheme.inverseOnSurface
+    val labelStyle = MaterialTheme.typography.labelSmall.copy(color = labelColor)
+    val tipStyle = MaterialTheme.typography.labelMedium.copy(color = tooltipFg)
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val haptic = LocalHapticFeedback.current
     // The trend line draws itself in on first show; the dots pop in as it passes them.
     val drawIn = rememberDrawIn()
+
+    // Room on the left for the axis labels, measured so a long label ("1,250") is never clipped.
+    val gutterPx = remember(tickText, labelStyle) {
+        (tickText.maxOfOrNull { measurer.measure(it, labelStyle, maxLines = 1, softWrap = false).size.width } ?: 0) +
+            with(density) { 6.dp.toPx() }
+    }
+    var scrubIndex by remember(sortedRaw) { mutableStateOf<Int?>(null) }
+    val xs = remember(sortedRaw) { sortedRaw.map { it.x } }
 
     Canvas(
         modifier = modifier
             .fillMaxWidth()
             .height(150.dp)
-            .clearAndSetSemantics { contentDescription = description },
+            .clearAndSetSemantics { contentDescription = description }
+            .pointerInput(xs, minX, maxX, gutterPx) {
+                if (xs.isEmpty()) return@pointerInput
+                fun update(px: Float) {
+                    val plotW = (size.width - gutterPx).coerceAtLeast(1f)
+                    val dataX = minX + ((px - gutterPx) / plotW).coerceIn(0f, 1f) * (maxX - minX)
+                    val index = ChartMath.nearestIndex(xs, dataX)
+                    if (index != scrubIndex) {
+                        scrubIndex = index
+                        if (index != null) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    }
+                }
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    // Only a horizontal move claims the gesture; a vertical one is left for the page to scroll.
+                    val moved = awaitHorizontalTouchSlopOrCancellation(down.id) { change, _ -> change.consume() }
+                    if (moved != null) {
+                        update(moved.position.x)
+                        horizontalDrag(moved.id) { change ->
+                            change.consume()
+                            update(change.position.x)
+                        }
+                    }
+                    scrubIndex = null
+                }
+            },
     ) {
-        // Four gridlines and a baseline, as in the mockup's repeating gradient.
-        val rows = 4
-        repeat(rows) { index ->
-            val y = size.height / rows * index
-            drawLine(
-                color = gridColor,
-                start = Offset(0f, y),
-                end = Offset(size.width, y),
-                strokeWidth = 1.dp.toPx(),
-            )
-        }
-        drawLine(
-            color = gridColor,
-            start = Offset(0f, size.height),
-            end = Offset(size.width, size.height),
-            strokeWidth = 1.dp.toPx(),
-        )
+        val plotLeft = gutterPx
+        val plotW = size.width - plotLeft
 
         fun px(p: ChartPoint) = Offset(
-            x = ((p.x - minX) / (maxX - minX) * size.width).toFloat(),
+            x = (plotLeft + (p.x - minX) / (maxX - minX) * plotW).toFloat(),
             y = (size.height - (p.y - minY) / (maxY - minY) * size.height).toFloat(),
         )
 
-        if (trend.size >= 2) {
-            val path = Path()
-            trend.forEachIndexed { index, point ->
-                val o = px(point)
-                if (index == 0) path.moveTo(o.x, o.y) else path.lineTo(o.x, o.y)
+        // Gridlines at the labelled values, and a baseline, as in the mockup's repeating gradient.
+        ticks.forEachIndexed { i, tick ->
+            val y = (size.height - (tick - minY) / (maxY - minY) * size.height).toFloat()
+            drawLine(gridColor, Offset(plotLeft, y), Offset(size.width, y), 1.dp.toPx())
+            val layout = measurer.measure(tickText[i], labelStyle, maxLines = 1, softWrap = false)
+            drawText(
+                layout,
+                topLeft = Offset(
+                    plotLeft - 6.dp.toPx() - layout.size.width,
+                    (y - layout.size.height / 2f).coerceIn(0f, size.height - layout.size.height),
+                ),
+            )
+        }
+        drawLine(gridColor, Offset(plotLeft, size.height), Offset(size.width, size.height), 1.dp.toPx())
+
+        if (sortedTrend.size >= 2) {
+            val runs = if (gapDays == null) {
+                listOf(0..sortedTrend.lastIndex)
+            } else {
+                ChartMath.runs(sortedTrend.map { it.x }, gapDays * ChartMath.DAY_MS)
             }
-            drawPathPartial(path, trendColor, 3.dp.toPx(), drawIn.value)
+            clipRect(right = plotLeft + plotW * drawIn.value) {
+                // A long stretch with no data is bridged only by a faint dashed line.
+                runs.zipWithNext().forEach { (before, after) ->
+                    drawLine(
+                        color = trendColor.copy(alpha = 0.28f),
+                        start = px(sortedTrend[before.last]),
+                        end = px(sortedTrend[after.first]),
+                        strokeWidth = 2.dp.toPx(),
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 6.dp.toPx())),
+                    )
+                }
+                runs.forEach { run ->
+                    if (run.first == run.last) return@forEach
+                    val path = Path()
+                    run.forEachIndexed { n, i ->
+                        val o = px(sortedTrend[i])
+                        if (n == 0) path.moveTo(o.x, o.y) else path.lineTo(o.x, o.y)
+                    }
+                    drawPath(path, trendColor, style = Stroke(3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                }
+            }
         }
 
         // Dots last so they sit above the trend line, each with a surface ring.
-        raw.forEach { point ->
+        sortedRaw.forEach { point ->
             val centre = px(point)
-            val reached = centre.x <= size.width * drawIn.value + 1f
+            val reached = centre.x <= plotLeft + plotW * drawIn.value + 1f
             if (reached) {
                 drawCircle(color = ringColor, radius = 5.5.dp.toPx(), center = centre)
                 drawCircle(color = rawColor, radius = 3.5.dp.toPx(), center = centre)
             }
         }
+
+        // Scrub: a guide line, the nearest dot enlarged, and the tooltip.
+        val selected = scrubIndex?.let { sortedRaw.getOrNull(it) }
+        if (selected != null) {
+            val c = px(selected)
+            drawLine(labelColor.copy(alpha = 0.7f), Offset(c.x, 0f), Offset(c.x, size.height), 1.5.dp.toPx())
+            drawCircle(ringColor, radius = 8.dp.toPx(), center = c)
+            drawCircle(rawColor, radius = 6.dp.toPx(), center = c)
+
+            val valueLine = formatValue(selected.y) + if (valueSuffix.isEmpty()) "" else " $valueSuffix"
+            val text = buildString {
+                append(formatX(selected.x)).append("\n").append(valueLine)
+                if (selected.source != null) append(" · ").append(selected.source)
+            }
+            val layout = measurer.measure(text, tipStyle, maxLines = 2, softWrap = false)
+            val padH = 8.dp.toPx()
+            val padV = 5.dp.toPx()
+            val boxW = layout.size.width + padH * 2
+            val boxH = layout.size.height + padV * 2
+            val left = (c.x - boxW / 2f).coerceIn(0f, (size.width - boxW).coerceAtLeast(0f))
+            // Above the point when there is room, else below it, so the finger does not hide the tooltip.
+            val wanted = if (c.y - boxH - 12.dp.toPx() >= 0f) c.y - boxH - 12.dp.toPx() else c.y + 12.dp.toPx()
+            val top = wanted.coerceIn(0f, (size.height - boxH).coerceAtLeast(0f))
+            drawRoundRect(tooltipBg, Offset(left, top), Size(boxW, boxH), CornerRadius(8.dp.toPx()))
+            drawText(layout, topLeft = Offset(left + padH, top + padV))
+        }
     }
 }
+
+private val TOOLTIP_DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE d MMM yyyy")
 
 /**
  * Calories against target, with the target as a labelled dashed reference line
