@@ -38,10 +38,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.zeroindex.intake.data.db.entity.FoodEntity
 import com.zeroindex.intake.data.foodref.RefFood
-import com.zeroindex.intake.domain.recipe.RecipeCandidate
 import com.zeroindex.intake.domain.template.MealTemplateRules
+import com.zeroindex.intake.domain.template.PickItem
 import com.zeroindex.intake.ui.components.EmptyState
 import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.ui.components.IntakeCard
@@ -84,9 +83,8 @@ fun MealTemplateEditorScreen(
             onQuery = { query = it; viewModel.setQuery(it) },
             hits = hits,
             contentPadding = contentPadding,
-            onFood = { viewModel.addFood(it); adding = false },
+            onPick = { viewModel.addPicked(it); adding = false },
             onRef = { viewModel.addRef(it); adding = false },
-            onRecipe = { viewModel.addRecipe(it.id); adding = false },
             onCancel = { adding = false },
             modifier = modifier,
         )
@@ -199,9 +197,8 @@ private fun AddPicker(
     onQuery: (String) -> Unit,
     hits: SearchHits,
     contentPadding: PaddingValues,
-    onFood: (FoodEntity) -> Unit,
+    onPick: (PickItem) -> Unit,
     onRef: (RefFood) -> Unit,
-    onRecipe: (RecipeCandidate) -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -227,24 +224,16 @@ private fun AddPicker(
         item(key = "cancel") {
             OutlinedButton(onClick = onCancel, shape = IntakeShape.Button, modifier = Modifier.heightIn(min = 48.dp)) { Text("Back to the template") }
         }
-        if (query.isBlank()) {
-            item(key = "hint") { SandNote("Type a food or a recipe name. Everything here works offline.") }
+        if (hits.lists.recent.isNotEmpty()) {
+            item(key = "h-recent") { Eyebrow("Recent", Modifier.padding(top = 8.dp)) }
+            items(items = hits.lists.recent, key = { "recent-${it.key}" }) { p -> PickLine(p.name, p.detail, onClick = { onPick(p) }) }
         }
-        if (hits.recipes.isNotEmpty()) {
-            item(key = "h-recipes") { Eyebrow("Recipes", Modifier.padding(top = 8.dp)) }
-            items(items = hits.recipes, key = { "r-${it.id}" }) { r ->
-                PickLine(r.name, "Per serving · ${r.summary}", onClick = { onRecipe(r) })
-            }
+        if (hits.lists.allSaved.isNotEmpty()) {
+            item(key = "h-all") { Eyebrow("All saved", Modifier.padding(top = 8.dp)) }
+            items(items = hits.lists.allSaved, key = { "all-${it.key}" }) { p -> PickLine(p.name, p.detail, onClick = { onPick(p) }) }
         }
-        if (hits.foods.isNotEmpty()) {
-            item(key = "h-foods") { Eyebrow("My foods", Modifier.padding(top = 8.dp)) }
-            items(items = hits.foods, key = { "f-${it.id}" }) { f ->
-                PickLine(
-                    f.name,
-                    "${f.kcalPer100g.roundToInt()} kcal per 100 g · ${f.servingLabel}",
-                    onClick = { onFood(f) },
-                )
-            }
+        if (query.isBlank() && hits.lists.allSaved.isEmpty()) {
+            item(key = "hint") { SandNote("Nothing saved yet. Type a food name to search the offline food database.") }
         }
         if (hits.database.isNotEmpty()) {
             item(key = "h-db") { Eyebrow("Food database (USDA, works offline)", Modifier.padding(top = 8.dp)) }
@@ -252,7 +241,7 @@ private fun AddPicker(
                 PickLine(d.name, "${d.kcal.roundToInt()} kcal per 100 g", onClick = { onRef(d) })
             }
         }
-        if (query.isNotBlank() && hits.recipes.isEmpty() && hits.foods.isEmpty() && hits.database.isEmpty()) {
+        if (query.isNotBlank() && hits.lists.allSaved.isEmpty() && hits.lists.recent.isEmpty() && hits.database.isEmpty()) {
             item(key = "none") { EmptyState(body = "Nothing matches \"${query.trim()}\". Try another word.") }
         }
     }

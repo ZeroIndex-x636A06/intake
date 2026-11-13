@@ -33,6 +33,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -82,8 +83,13 @@ import kotlin.math.roundToInt
 /** Where each control on the Nutrition tab leads. Each is a different screen; nothing here configures anything. */
 class NutritionActions(
     val onOpenAllergens: () -> Unit,
-    /** Opens Log food on the named mode (an `AddFoodTab` name) for the meal slot named (a `MealSlot` name). */
-    val onLogFood: (mode: String, slot: String) -> Unit,
+    /**
+     * Opens Log food on the named mode (an `AddFoodTab` name) for the meal slot named (a `MealSlot` name), stamped at
+     * [atMillis]: the chosen day's time, so logging from a past day lands on that day.
+     */
+    val onLogFood: (mode: String, slot: String, atMillis: Long) -> Unit,
+    /** Opens the per-meal screen for a `MealSlot` name on a local day (`LocalDate.toEpochDay`). */
+    val onOpenMeal: (slot: String, epochDay: Long) -> Unit,
     val onSwap: (slot: String?) -> Unit,
     val onOpenMealPlans: () -> Unit,
     val onOpenRecipes: () -> Unit,
@@ -110,7 +116,17 @@ fun NutritionHomeScreen(
     viewModel: NutritionHomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val slot = viewModel.currentSlot().name
+    val slot = viewModel.currentSlot()
+    var pickingDate by rememberSaveable { mutableStateOf(false) }
+
+    if (pickingDate) {
+        DayPickerDialog(
+            date = state.date,
+            today = state.today,
+            onPick = { viewModel.showPickerDate(it); pickingDate = false },
+            onDismiss = { pickingDate = false },
+        )
+    }
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
@@ -122,19 +138,34 @@ fun NutritionHomeScreen(
         ),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        item(key = "day") {
+            DaySwitcher(
+                label = state.dateLabel,
+                date = state.date,
+                isToday = state.isToday,
+                canGoNext = state.canGoNext,
+                onPrevious = viewModel::showPreviousDay,
+                onNext = viewModel::showNextDay,
+                onToday = viewModel::showToday,
+                onPick = { pickingDate = true },
+            )
+        }
+
         item(key = "strip") { AllergenStrip(onClick = actions.onOpenAllergens, compact = true) }
 
         item(key = "tip") {
-            TabTip(key = TipKey.FOOD, body = TabTipCopy.FOOD, actionLabel = "Log food", onAction = { actions.onLogFood("SEARCH", slot) })
+            TabTip(key = TipKey.FOOD, body = TabTipCopy.FOOD, actionLabel = "Log food", onAction = { actions.onLogFood("SEARCH", slot.name, viewModel.loggingMillis(slot)) })
         }
 
-        item(key = "overview") { OverviewCard(state.dashboard, state.ready, state.hydration, state.settings.volumeUnit) }
+        item(key = "overview") { OverviewCard(state.dashboard, state.ready, state.hydration, state.settings.volumeUnit, state.isToday) }
 
         item(key = "meals") {
             MealsCard(
                 state = state,
                 actions = actions,
                 onLogIt = viewModel::logNextMeal,
+                onOpenMeal = { actions.onOpenMeal(it.name, state.date.toEpochDay()) },
+                onAddFood = { actions.onLogFood("SEARCH", it.name, viewModel.loggingMillis(it)) },
             )
         }
 
@@ -178,10 +209,11 @@ private fun OverviewCard(
     ready: Boolean,
     hydration: com.zeroindex.intake.data.repository.HydrationDay?,
     unit: com.zeroindex.intake.domain.units.VolumeUnit,
+    isToday: Boolean,
 ) {
     IntakeCard {
         if (model == null || !ready) {
-            Text("Reading today…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(if (isToday) "Reading today…" else "Reading that day…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             return@IntakeCard
         }
         var held by remember { mutableStateOf(false) }
@@ -410,15 +442,22 @@ private fun SmallBar(row: DashRow) {
 // ---- Meals card ----
 
 @Composable
-private fun MealsCard(state: NutritionHomeState, actions: NutritionActions, onLogIt: (NextMealUi) -> Unit) {
+private fun MealsCard(
+    state: NutritionHomeState,
+    actions: NutritionActions,
+    onLogIt: (NextMealUi) -> Unit,
+    onOpenMeal: (MealSlot) -> Unit,
+    onAddFood: (MealSlot) -> Unit,
+) {
     IntakeCard {
         state.slots.forEach { row ->
             val planned = state.next?.takeIf { it.slot == row.slot && !row.logged }
             MealRow(
                 emoji = slotEmoji(row.slot),
                 name = slotLabel(row.slot),
-                onClick = { actions.onLogFood("SEARCH", row.slot.name) },
-                onAdd = { actions.onLogFood("SEARCH", row.slot.name) },
+                // The row opens the per-meal screen; the "+" goes straight to Log food for that meal and day.
+                onClick = { onOpenMeal(row.slot) },
+                onAdd = { onAddFood(row.slot) },
                 addDescription = "Log food for ${slotLabel(row.slot).lowercase()}",
             ) {
                 when {

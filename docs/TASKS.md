@@ -11,6 +11,10 @@ with its merge commit. Read `CLAUDE.md` before you claim anything.
 **Round 5 Drinks, items 12 and 13** (branch `worktree-agent-adf99e3f71c45bf4e`, not pushed, not seen on a device). Tea/sugar numbers fixed (plain-brew check, sugars known, tile and label rounding, drink icon, 4.2 g teaspoon);
 Drinks page simplified to one list with a size sheet. No schema change. See `RESUME.md` and `docs/HYDRATION.md`, "Round 5 corrections".
 
+**Round 5, Nutrition (agent M): items 9, 10, 11 of `docs/FEEDBACK-R5.md`** (this worktree branch, not pushed, not seen on a device). Per-meal screen
+(`NutritionMealScreen`, route `NutritionMeal`), day switcher on the Nutrition tab (future days blocked), meal template editor lists "Recent" then
+"All saved" (`domain/template/TemplatePicker.kt`). No schema change. See `RESUME.md`.
+
 **Progress charts: weight trend accuracy and scrubbing** (FEEDBACK-R4 items 4 and 5; branch `worktree-agent-a7ca2649551f0d88b`, not pushed, not seen on a device).
 Gap-aware smoothed trend (`WeightTrend.smoothByTime`), trend broken across gaps over 14 days, y-axis labels in the display unit, a clearer headline,
 and press-and-drag scrubbing with tooltip and haptic tick on the Progress line charts (`domain/charts/ChartMath.kt`). No schema change. See `RESUME.md`.
