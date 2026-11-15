@@ -12,6 +12,7 @@ import com.zeroindex.intake.domain.time.Clock
 import com.zeroindex.intake.domain.training.NextTimeChange
 import com.zeroindex.intake.domain.training.PrKind
 import com.zeroindex.intake.domain.training.RegionVolume
+import com.zeroindex.intake.domain.training.SetEdit
 import com.zeroindex.intake.domain.training.SessionSummaries
 import com.zeroindex.intake.domain.training.SessionSummary
 import com.zeroindex.intake.domain.training.SummarySet
@@ -28,7 +29,19 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /** One exercise of the session on the summary: "3 × 8 @ 140", with its records. */
-data class SummaryExercise(val name: String, val sets: Int, val detail: String, val records: List<PrKind>, val setLines: List<String> = emptyList())
+data class SummaryExercise(
+    val exerciseId: String,
+    val name: String,
+    val sets: Int,
+    val detail: String,
+    val records: List<PrKind>,
+    val setLines: List<String> = emptyList(),
+    /** The same sets as [setLines], one per line, with what is needed to change or remove them. */
+    val setRows: List<SummarySetRow> = emptyList(),
+)
+
+/** One set line of the summary that can be tapped to edit it. */
+data class SummarySetRow(val setId: String, val label: String, val weightKg: Double, val reps: Int, val isWarmup: Boolean)
 
 data class WorkoutSummaryState(
     val loading: Boolean = true,
@@ -70,6 +83,7 @@ class WorkoutSummaryViewModel @Inject constructor(
         viewModelScope.launch { load() }
     }
 
+    /** Reads everything again: after a set is changed, the records, volume and muscle totals follow from the sets. */
     private suspend fun load() {
         val session = repository.session(sessionId)
         if (session == null) {
@@ -79,6 +93,7 @@ class WorkoutSummaryViewModel @Inject constructor(
         val settings = settingsRepository.settings.first()
         val title = session.programDayId?.let { repository.dayName(it) } ?: "Workout"
         val rows = repository.sessionSets(sessionId)
+        val setIdByIndex = java.util.IdentityHashMap<SummarySet, String>()
         val sets = rows.map {
             SummarySet(
                 exerciseId = it.exerciseId,
@@ -88,7 +103,7 @@ class WorkoutSummaryViewModel @Inject constructor(
                 weightKg = it.weightKg,
                 reps = it.reps,
                 isWarmup = it.isWarmup,
-            )
+            ).also { s -> setIdByIndex[s] = it.setId }
         }
         val history = repository.historyBefore(sessionId, sets.map { it.exerciseId }.distinct())
         val summary = SessionSummaries.build(sets, history, session.startedAt, session.finishedAt ?: clock.nowMillis())
@@ -112,11 +127,20 @@ class WorkoutSummaryViewModel @Inject constructor(
             }
             val every = sets.filter { it.exerciseId == list.first().exerciseId }
             var n = 0
-            val lines = every.map { s ->
+            val setRows = every.map { s ->
                 val weight = if (s.weightKg > 0) "${fmt(unit.fromKg(s.weightKg))} ${unit.label} × ${s.reps}" else "${s.reps} reps"
-                if (s.isWarmup) "Warm-up: $weight" else "Set ${++n}: $weight"
+                val label = if (s.isWarmup) "Warm-up: $weight" else "Set ${++n}: $weight"
+                SummarySetRow(setIdByIndex[s]!!, label, s.weightKg, s.reps, s.isWarmup)
             }
-            SummaryExercise(name, list.size, detail, summary.records.filter { it.exerciseName == name }.map { it.kind }, lines)
+            SummaryExercise(
+                exerciseId = list.first().exerciseId,
+                name = name,
+                sets = list.size,
+                detail = detail,
+                records = summary.records.filter { it.exerciseName == name }.map { it.kind },
+                setLines = setRows.map { it.label },
+                setRows = setRows,
+            )
         }
 
         val nextTime = nextTimeChanges(session, working)
@@ -130,7 +154,9 @@ class WorkoutSummaryViewModel @Inject constructor(
             exercises = exercises,
             nextTime = nextTime,
             canKeep = session.programDayId == null && working.isNotEmpty(),
-            notes = session.notes.orEmpty(),
+            // A reload after an edit keeps what was typed in the notes and the "saved as" message.
+            notes = if (_state.value.loading) session.notes.orEmpty() else _state.value.notes,
+            kept = _state.value.kept,
             hint = WeeklyVolume.hint(week),
             canRepeat = session.programDayId != null,
         )
@@ -153,6 +179,24 @@ class WorkoutSummaryViewModel @Inject constructor(
     fun repeat(onStarted: (String) -> Unit) = viewModelScope.launch {
         val dayId = _state.value.session?.programDayId ?: return@launch
         onStarted(repository.startSession(dayId).id)
+    }
+
+    /** Changes a logged set's weight and reps (typed in the person's unit), then recomputes records and totals. */
+    fun editSet(setId: String, weightText: String, repsText: String) = viewModelScope.launch {
+        val values = SetEdit.parse(weightText, repsText, _state.value.unit) ?: return@launch
+        repository.editSet(setId, values.weightKg, values.reps)
+        load()
+    }
+
+    /** Takes a set out of the session (a soft delete); [restoreSet] is the Undo. */
+    fun removeSet(setId: String) = viewModelScope.launch {
+        repository.deleteSet(setId)
+        load()
+    }
+
+    fun restoreSet(setId: String) = viewModelScope.launch {
+        repository.restoreSet(setId)
+        load()
     }
 
     fun setNotes(text: String) { _state.value = _state.value.copy(notes = text) }

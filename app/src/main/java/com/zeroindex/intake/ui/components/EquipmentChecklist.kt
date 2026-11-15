@@ -65,7 +65,7 @@ fun EquipmentChecklist(
                 TextButton(onClick = { onChange(selected + ids) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("All") }
                 TextButton(onClick = { onChange(selected - ids) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("None") }
             }
-            items.forEach { item -> ItemRow(item, item.id in selected) { on -> onChange(if (on) selected + item.id else selected - item.id) } }
+            items.forEach { item -> ItemRow(item, item.id in selected, unit) { on -> onChange(if (on) selected + item.id else selected - item.id) } }
             if (showDumbbellMax && group == EquipmentGroup.FREE_WEIGHTS && selected.any { it == EquipmentItem.DUMBBELLS_FIXED.id || it == EquipmentItem.DUMBBELLS_ADJUSTABLE.id }) {
                 DumbbellMax(dumbbellMaxKg, onDumbbellMax, unit)
             }
@@ -80,7 +80,7 @@ fun EquipmentChecklist(
 }
 
 @Composable
-private fun ItemRow(item: EquipmentItem, checked: Boolean, onToggle: (Boolean) -> Unit) {
+private fun ItemRow(item: EquipmentItem, checked: Boolean, unit: WeightUnit, onToggle: (Boolean) -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -91,7 +91,8 @@ private fun ItemRow(item: EquipmentItem, checked: Boolean, onToggle: (Boolean) -
         Checkbox(checked = checked, onCheckedChange = null)
         Column(Modifier.padding(start = 12.dp)) {
             Text(item.label, style = MaterialTheme.typography.bodyLarge)
-            if (item.hint.isNotEmpty()) Text(item.hint, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            val hint = if (item == EquipmentItem.BARBELL_OLYMPIC) com.zeroindex.intake.domain.training.PlateDefaults.olympicBarHint(unit) else item.hint
+            if (hint.isNotEmpty()) Text(hint, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

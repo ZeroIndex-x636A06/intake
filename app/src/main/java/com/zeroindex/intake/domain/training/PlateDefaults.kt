@@ -24,6 +24,25 @@ object PlateDefaults {
         WeightUnit.POUNDS -> LB_PLATES.joinToString(",") { unit.toKg(it).toString() }
     }
 
+    /**
+     * The bar to use: the stored one, except that exactly 20 kg in a pound gym is the old metric default carried
+     * over (a 44.1 lb bar), so it becomes the 45 lb bar. Anyone who really wants a 20 kg bar can type 44.1 lb.
+     */
+    fun effectiveBarKg(storedKg: Double?, unit: WeightUnit): Double {
+        if (storedKg == null) return barKg(unit)
+        return if (unit == WeightUnit.POUNDS && storedKg == KG_BAR) barKg(unit) else storedKg
+    }
+
+    /** The plate list to use: the stored one, with the untouched metric default in a pound gym replaced by pound plates. */
+    fun effectivePlatesCsvKg(storedCsv: String?, unit: WeightUnit): String {
+        if (storedCsv == null) return platesCsvKg(unit)
+        return if (unit == WeightUnit.POUNDS && storedCsv.replace(" ", "") == KG_PLATES) platesCsvKg(unit) else storedCsv
+    }
+
+    /** "2 in sleeves, 20 kg bar" or "2 in sleeves, 45 lb bar", in the person's unit. */
+    fun olympicBarHint(unit: WeightUnit): String =
+        "2 in sleeves, ${number(unit.fromKg(barKg(unit)))} ${unit.label} bar"
+
     /** The stored kg list written in the person's unit: "45,35,25,10,5,2.5". */
     fun toDisplayCsv(csvKg: String, unit: WeightUnit): String =
         parse(csvKg).joinToString(",") { number(unit.fromKg(it)) }

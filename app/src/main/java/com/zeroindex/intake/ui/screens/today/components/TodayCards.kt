@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
+import com.zeroindex.intake.ui.navigation.LocalSessionBarSpace
 import com.zeroindex.intake.data.profile.BaselineSnapshot
 import com.zeroindex.intake.domain.goals.BaselineReadiness
 import com.zeroindex.intake.ui.components.Eyebrow
@@ -99,6 +100,7 @@ fun WorkoutCard(
     modifier: Modifier = Modifier,
 ) {
     if (state is WorkoutCardState.Loading) return
+    if (state is WorkoutCardState.InProgress && LocalSessionBarSpace.current > 0.dp) return
     IntakeCard(modifier) {
         Eyebrow("Today's workout")
         Spacer(Modifier.height(4.dp))

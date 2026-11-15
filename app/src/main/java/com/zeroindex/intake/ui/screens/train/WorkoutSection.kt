@@ -55,6 +55,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.zeroindex.intake.ui.navigation.LocalSessionBarSpace
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.db.projection.SessionStat
@@ -119,6 +120,12 @@ fun WorkoutSection(
 
         item(key = "today") {
             when {
+                // The session bar above the pill is the way back in while it shows; the big card is for when it does not.
+                running != null && LocalSessionBarSpace.current > 0.dp -> Text(
+                    "Your workout is running. Tap the bar above the menu to go back into it.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 running != null -> RunningCard(running, onResume = { actions.onOpenSession(running.sessionId) })
                 else -> TodayCard(
                     card = state.today,

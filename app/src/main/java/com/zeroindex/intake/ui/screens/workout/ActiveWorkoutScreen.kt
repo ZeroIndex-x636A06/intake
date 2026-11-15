@@ -116,7 +116,8 @@ fun ActiveWorkoutScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(top = contentPadding.calculateTopPadding()),
+            .padding(top = contentPadding.calculateTopPadding())
+            .imePadding(),
     ) {
         WorkoutHeader(
             title = state.title,
@@ -125,20 +126,11 @@ fun ActiveWorkoutScreen(
             onMinimise = onMinimise,
             onFinish = { confirmFinish = true },
         )
-        if (timer.running || timer.remainingSeconds > 0) {
-            RestStrip(
-                remaining = timer.remainingSeconds,
-                total = timer.totalSeconds,
-                label = timer.label.ifBlank { "Rest" },
-                onAdd = { TimerService.extend(context, 15, state.settings.restTimerVibrate) },
-                onSkip = { TimerService.stop(context) },
-            )
-        }
         if (state.loading) {
             Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         } else {
             LazyColumn(
-                modifier = Modifier.weight(1f).fillMaxWidth().imePadding(),
+                modifier = Modifier.weight(1f).fillMaxWidth(),
                 contentPadding = PaddingValues(
                     start = 16.dp,
                     end = 16.dp,
@@ -248,6 +240,17 @@ fun ActiveWorkoutScreen(
                     }
                 }
             }
+        }
+        // The rest timer is pinned under the list, in one fixed place: starting it never moves a set row.
+        if (timer.running || timer.remainingSeconds > 0) {
+            RestStrip(
+                remaining = timer.remainingSeconds,
+                total = timer.totalSeconds,
+                label = timer.label.ifBlank { "Rest" },
+                onAdd = { TimerService.extend(context, 15, state.settings.restTimerVibrate) },
+                onSkip = { TimerService.stop(context) },
+                modifier = Modifier.padding(bottom = contentPadding.calculateBottomPadding()),
+            )
         }
     }
 
@@ -365,14 +368,14 @@ private fun WorkoutHeader(title: String, clock: String, progress: String, onMini
     }
 }
 
-/** Rest under the header while it runs: a ring that empties, the time, +15 s and Skip. */
+/** Rest, pinned at the bottom while it runs: a ring that empties, the time, +15 s and Skip. */
 @Composable
-private fun RestStrip(remaining: Int, total: Int, label: String, onAdd: () -> Unit, onSkip: () -> Unit) {
+private fun RestStrip(remaining: Int, total: Int, label: String, onAdd: () -> Unit, onSkip: () -> Unit, modifier: Modifier = Modifier) {
     Surface(
         color = MaterialTheme.colorScheme.primaryContainer,
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
         shape = IntakeShape.Banner,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),

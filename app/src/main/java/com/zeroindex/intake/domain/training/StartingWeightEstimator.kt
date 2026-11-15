@@ -39,6 +39,8 @@ data class StartingWeightContext(
     val platesKg: List<Double> = listOf(25.0, 20.0, 15.0, 10.0, 5.0, 2.5, 1.25),
     /** Smallest jump on dumbbells, machines and cables. */
     val smallStepKg: Double = 2.5,
+    /** The heaviest dumbbell the person owns (the equipment settings), kg; null when not given. Dumbbell starts never exceed it. */
+    val dumbbellMaxKg: Double? = null,
 )
 
 /**
@@ -241,7 +243,11 @@ object StartingWeightEstimator {
             return load.totalKg
         }
         val step = context.smallStepKg.coerceAtLeast(0.5)
-        val steps = floor(kg / step).toInt()
+        // A dumbbell start never goes past the heaviest dumbbell the person has (a weight they cannot pick up is no start).
+        val cap = context.dumbbellMaxKg?.takeIf { exercise.equipment == Equipment.DUMBBELL && it > 0 }
+        val limited = if (cap != null) minOf(kg, cap) else kg
+        // The small epsilon keeps 150 lb (68.0389 kg) from falling to 145 through floating point.
+        val steps = floor(limited / step + 1e-6).toInt()
         return if (steps < 1) null else steps * step
     }
 

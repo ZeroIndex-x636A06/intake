@@ -54,6 +54,7 @@ data class WorkoutSummary(
 
 /** One logged set with its exercise's name and muscles, for the weekly volume and the post-workout summary. */
 data class SetWithExercise(
+    val setId: String,
     val exerciseId: String,
     val exerciseName: String,
     val primaryMuscle: String,
