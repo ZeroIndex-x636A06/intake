@@ -7,3 +7,6 @@ Only for building and testing in a cloud container. Nothing here ships in the ap
 - `mirror.gradle.kts`: copy to `~/.gradle/init.d/`. It points every Maven Central repository at the mirror.
 - `emu-ui.py`: drives an emulator over adb: `dump` (visible text with tap coordinates), `tap "text"`, `tapxy x y`,
   `text "..."`, `back`, `swipe up|down`, `shot name` (a half-size screenshot into `$EMU_SHOTS`), `crash`.
+- `start-emu.sh [avd]`, `emu-ready.sh`: start the emulator detached (default AVD `phone30`) and wait until it is stable. Copy to `/root/`
+  if you want the short paths. `phone35` exists but needs about 7.4 GB free to start; see `tools/qa/README.md`.
+- QA playbook, seed and checklist: `tools/qa/`.

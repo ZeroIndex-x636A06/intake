@@ -34,3 +34,7 @@ release/
 # --- Python bytecode ---
 __pycache__/
 *.pyc
+
+# QA test documents (public restaurant PDFs): fetched by hand, never committed. See tools/qa/README.md
+tools/qa/files/*
+!tools/qa/files/.gitkeep

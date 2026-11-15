@@ -88,6 +88,15 @@ A fresh container has none of this; the last session rebuilt it in about 20 minu
     10 to 20 seconds. Queued input makes Android kill the app as not responding, which is the emulator, not the app; a
     real hang shows the same way, so read `/data/anr` (needs `adb root`) before deciding which it was.
   - Do not build while testing: Gradle starves the emulator. Start it detached (`setsid`), or it dies with the shell.
+- **QA environment (round 6 setup).** `tools/qa/README.md` is the playbook, `tools/qa/seed.sh` loads an invented
+  three-week user through the app's own backup import, `tools/qa/CHECKLIST.md` lists every screen and flow, and findings go
+  in `docs/QA-LOG.md`. `tools/cloud/start-emu.sh [avd]` and `emu-ready.sh` now take the AVD name (default `phone30`).
+  - **API 35 (`phone35`, Google APIs x86_64) is installed and the AVD exists, but it has never booted here**: the emulator
+    wants a 6 GB userdata partition (7.4 GB free) and the volume has 4.7 GB free. It will start once about 3 GB is freed
+    (unused `system-images/android-35/aosp_atd` and `default`, 3.4 GB; old APKs in `/root`). Nothing was deleted to make
+    room, because the auto-mode check refused it. `phone30` (Android 11) is the one that works: boot to stable about 2.5
+    to 5 minutes; first launch of a freshly installed app about 1 minute until `cmd package compile -m speed -f` has run.
+  - On `phone30`, DocumentsUI ignores `input tap` on file rows: pick files with Search, DPAD_DOWN (20) and ENTER (66).
 - **Usage limits.** Subagents hit the account's 5-hour usage limit several times. Tell agents to commit WIP checkpoints
   often; a stopped agent can be resumed with a message once the limit resets.
 - **Playwright.** It is pre-installed, so `require('playwright')` works. Use it to render HTML mockups to PNG.
