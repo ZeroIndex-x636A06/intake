@@ -168,6 +168,10 @@ class TrainHomeViewModel @Inject constructor(
         repository.dayName(dayId)?.let { RepeatLast(dayId, it) }
     }
 
+    /** Whether any workout session exists. True until read, so the first-run tip stays hidden until then (QA Q1-18). */
+    val hasHistory: StateFlow<Boolean> = kotlinx.coroutines.flow.flow { emit(repository.hasAnySession()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
     val state: StateFlow<TrainHomeState> = combine(
         today,
         running,

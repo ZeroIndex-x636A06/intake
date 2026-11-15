@@ -19,6 +19,9 @@ class BodyRepository @Inject constructor(
     private val dao: BodyMetricDao,
     private val clock: Clock,
 ) {
+    /** True when any weigh-in exists, deleted ones included: the Progress tip is first-run only. */
+    suspend fun hasAnyWeighIn(): Boolean = dao.hasAnyRow()
+
     fun observeAll(): Flow<List<BodyMetricEntity>> = dao.observeAll()
     fun observeLatest(): Flow<BodyMetricEntity?> = dao.observeLatest()
     fun observeWithPhotos(): Flow<List<BodyMetricEntity>> = dao.observeWithPhotos()

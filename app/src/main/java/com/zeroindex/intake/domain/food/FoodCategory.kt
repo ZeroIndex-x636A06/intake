@@ -5,7 +5,7 @@ package com.zeroindex.intake.domain.food
  * Matched on whole words in the name and category text, so "ice cream" is a sweet and "rice" is not. When nothing
  * matches the answer is [OTHER], which draws a plain plate: never a wrong picture.
  */
-enum class FoodCategory { DAIRY, EGG, MEAT, FISH, FRUIT, VEGETABLE, GRAIN, SWEET, DRINK, NUT, OTHER;
+enum class FoodCategory { DAIRY, EGG, MEAT, FISH, FRUIT, VEGETABLE, GRAIN, SWEET, DRINK, NUT, SUPPLEMENT, OTHER;
 
     companion object {
         private val words: List<Pair<FoodCategory, Set<String>>> = listOf(
@@ -27,6 +27,8 @@ enum class FoodCategory { DAIRY, EGG, MEAT, FISH, FRUIT, VEGETABLE, GRAIN, SWEET
          */
         private val phrases: List<Pair<Regex, FoodCategory>> = listOf(
             Regex("""\b(?:sweet potato(?:es)?|sweet corn|sweet peppers?|peppers?,? sweet|yams?)\b""") to VEGETABLE,
+            // Whey and protein powders (QA Q1-25): a gym-style icon, not a plate. "Protein shake" is a powder-style product too.
+            Regex("""\b(?:whey|casein|protein (?:powders?|isolates?|concentrates?|shakes?|supplements?)|(?:pea|soy|plant|rice|egg white) protein (?:powders?|isolates?))\b""") to SUPPLEMENT,
             Regex("""\b(?:peanut|almond|cashew|hazelnut|nut|sunflower seed) butters?\b""") to NUT,
         )
 

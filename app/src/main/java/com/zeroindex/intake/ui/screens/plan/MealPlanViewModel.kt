@@ -160,6 +160,18 @@ class MealPlanViewModel @Inject constructor(
     private val _import = MutableStateFlow(ImportUiState())
     val importState: StateFlow<ImportUiState> = _import.asStateFlow()
 
+    private val _allergenPending = MutableStateFlow<PendingPlanAllergen?>(null)
+    val allergenPending: StateFlow<PendingPlanAllergen?> = _allergenPending.asStateFlow()
+
+    fun dismissAllergenPending() { _allergenPending.value = null }
+
+    /** "Log it anyway" on the warning sheet: a user action, and the entry keeps the "Logged despite" note. */
+    fun confirmAllergenPending() {
+        val p = _allergenPending.value ?: return
+        _allergenPending.value = null
+        doLogMeal(p.content, p.macros, allergenConfirmed = true)
+    }
+
     private val _notice = MutableStateFlow<String?>(null)
     val notice: StateFlow<String?> = _notice.asStateFlow()
     fun clearNotice() { _notice.value = null }
@@ -269,8 +281,15 @@ class MealPlanViewModel @Inject constructor(
         }
     }
 
-    private fun doLogMeal(content: RecipeContent, override: Macros?) = viewModelScope.launch {
-        when (val r = repo.logMeal(content, slotNow(), override)) {
+    private fun doLogMeal(content: RecipeContent, override: Macros?, allergenConfirmed: Boolean = false) = viewModelScope.launch {
+        if (!allergenConfirmed) {
+            val scan = repo.scanMeal(content)
+            if (scan.hasAnything) {
+                _allergenPending.value = PendingPlanAllergen(content, slotNow(), null, override, scan)
+                return@launch
+            }
+        }
+        when (val r = repo.logMeal(content, slotNow(), override, allergenOverride = allergenConfirmed, noteDespite = allergenConfirmed)) {
             is MealLogResult.Blocked -> _notice.value =
                 "Not logged: ${r.terms.joinToString()} matches your allergen profile."
             is MealLogResult.Logged -> messages.post(

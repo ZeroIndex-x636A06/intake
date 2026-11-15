@@ -65,7 +65,7 @@ import com.zeroindex.intake.domain.nutrition.NutritionDashboard
 import com.zeroindex.intake.domain.nutrition.RingLabelLayout
 import com.zeroindex.intake.domain.onboarding.TipKey
 import com.zeroindex.intake.domain.swap.SwapAllergen
-import com.zeroindex.intake.ui.allergen.AllergenChip
+import com.zeroindex.intake.ui.screens.plan.PlanAllergenSheet
 import com.zeroindex.intake.ui.allergen.AllergenStrip
 import com.zeroindex.intake.ui.components.AnimatedBar
 import com.zeroindex.intake.ui.components.IntakeCard
@@ -118,6 +118,8 @@ fun NutritionHomeScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val hasHistory by viewModel.hasHistory.collectAsStateWithLifecycle()
+    val allergenPending by viewModel.allergenPending.collectAsStateWithLifecycle()
+    allergenPending?.let { PlanAllergenSheet(it, onDismiss = viewModel::dismissAllergenPending, onLogAnyway = viewModel::confirmAllergenPending) }
     val slot = viewModel.currentSlot()
     var pickingDate by rememberSaveable { mutableStateOf(false) }
 
@@ -517,7 +519,7 @@ private fun PlannedLine(next: NextMealUi, actions: NutritionActions, onLogIt: (N
         else -> SwapAllergen.CLEAR
     }
     if (verdict != SwapAllergen.CLEAR) {
-        Box(Modifier.padding(top = 4.dp)) { AllergenChip(verdict, next.content.allergenTerms.firstOrNull()) }
+        Box(Modifier.padding(top = 4.dp)) { com.zeroindex.intake.ui.addfood.RowAllergenChip(com.zeroindex.intake.ui.addfood.RowAllergen(verdict, next.content.allergenTerms.distinct().joinToString(", ").ifBlank { null })) }
     }
 }
 

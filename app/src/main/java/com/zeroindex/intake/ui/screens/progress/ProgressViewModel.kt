@@ -105,6 +105,11 @@ class ProgressViewModel @Inject constructor(
         val proteinHitRate: Double? = null,
     )
 
+    /** Any weigh-in or food log exists. True until read, so the first-run tip stays hidden until then (QA Q1-18). */
+    val hasHistory: StateFlow<Boolean> = kotlinx.coroutines.flow.flow {
+        emit(bodyRepository.hasAnyWeighIn() || foodLogRepository.hasAnyLog())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<ProgressUiState> = range
         .flatMapLatest { selected ->

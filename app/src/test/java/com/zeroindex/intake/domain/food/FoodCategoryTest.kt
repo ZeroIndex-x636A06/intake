@@ -52,9 +52,26 @@ class FoodCategoryTest {
 
     @Test
     fun unknownNamesGetThePlainPlate() {
-        assertThat(FoodCategory.of("Whey protein powder")).isEqualTo(FoodCategory.OTHER)
         assertThat(FoodCategory.of("Mystery stew")).isEqualTo(FoodCategory.OTHER)
         assertThat(FoodCategory.of("")).isEqualTo(FoodCategory.OTHER)
+    }
+
+    @Test
+    fun wheyAndProteinPowdersGetTheSupplementIcon() {
+        assertThat(FoodCategory.of("Whey protein powder")).isEqualTo(FoodCategory.SUPPLEMENT)
+        assertThat(FoodCategory.of("Optimum Nutrition Gold Standard Whey, vanilla")).isEqualTo(FoodCategory.SUPPLEMENT)
+        assertThat(FoodCategory.of("Protein powder, soy based")).isEqualTo(FoodCategory.SUPPLEMENT)
+        assertThat(FoodCategory.of("Casein protein shake")).isEqualTo(FoodCategory.SUPPLEMENT)
+        assertThat(FoodCategory.of("Pea protein isolate")).isEqualTo(FoodCategory.SUPPLEMENT)
+        assertThat(FoodCategory.of("Mystery powder", "Whey")).isEqualTo(FoodCategory.SUPPLEMENT)
+    }
+
+    @Test
+    fun supplementWordsDoNotCaptureOrdinaryFoods() {
+        assertThat(FoodCategory.of("Milk, whole")).isEqualTo(FoodCategory.DAIRY)
+        assertThat(FoodCategory.of("Chicken breast protein")).isEqualTo(FoodCategory.MEAT)
+        assertThat(FoodCategory.of("Chocolate milkshake")).isEqualTo(FoodCategory.SWEET)
+        assertThat(FoodCategory.of("Peanut butter")).isEqualTo(FoodCategory.NUT)
     }
 
     @Test

@@ -35,6 +35,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import com.zeroindex.intake.ui.screens.plan.PendingPlanAllergen
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -217,7 +219,30 @@ class NutritionHomeViewModel @Inject constructor(
     fun logNextMeal(next: NextMealUi) {
         viewModelScope.launch {
             val at = loggingMillis(next.slot)
-            when (val r = plans.logMeal(next.content, next.slot, at = at)) {
+            val scan = plans.scanMeal(next.content)
+            if (scan.hasAnything) {
+                _allergenPending.value = PendingPlanAllergen(next.content, next.slot, at, null, scan)
+                return@launch
+            }
+            doLogNextMeal(next, at, confirmed = false)
+        }
+    }
+
+    private val _allergenPending = MutableStateFlow<PendingPlanAllergen?>(null)
+    val allergenPending: StateFlow<PendingPlanAllergen?> = _allergenPending.asStateFlow()
+
+    fun dismissAllergenPending() { _allergenPending.value = null }
+
+    /** "Log it anyway": the entry keeps "Logged despite: ...". */
+    fun confirmAllergenPending() {
+        val p = _allergenPending.value ?: return
+        _allergenPending.value = null
+        viewModelScope.launch { doLogNextMeal(NextMealUi(p.content, p.slot), p.at ?: loggingMillis(p.slot), confirmed = true) }
+    }
+
+    private suspend fun doLogNextMeal(next: NextMealUi, at: Long, confirmed: Boolean) {
+        run {
+            when (val r = plans.logMeal(next.content, next.slot, allergenOverride = confirmed, at = at, noteDespite = confirmed)) {
                 is MealLogResult.Blocked -> messages.post(AppMessage("Not logged: ${r.terms.joinToString()} matches your allergen profile."))
                 is MealLogResult.Logged -> messages.post(
                     AppMessage(

@@ -32,6 +32,8 @@ import com.zeroindex.intake.data.plan.PlanImportBuilder
 import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.allergen.AllergenAlias
 import com.zeroindex.intake.domain.allergen.AllergenMatcher
+import com.zeroindex.intake.domain.allergen.AllergenOverride
+import com.zeroindex.intake.domain.allergen.AllergenScanResult
 import com.zeroindex.intake.domain.allergen.HiddenCarriers
 import com.zeroindex.intake.domain.plan.PlanWatchTerms
 import com.zeroindex.intake.domain.model.MealSlot
@@ -723,19 +725,33 @@ class MealPlanRepository @Inject constructor(
      * confirmed when the macros were incomplete or typed in by hand. A recipe that now matches
      * the allergen profile is not logged, unless the person chose it anyway ([allergenOverride], a user action).
      */
-    suspend fun logMeal(content: RecipeContent, slot: MealSlot, override: Macros? = null, allergenOverride: Boolean = false, at: Long = clock.nowMillis()): MealLogResult {
-        val live = scanner().scan(content.recipe.name, content.ingredientLines.joinToString("\n"))
+    suspend fun logMeal(
+        content: RecipeContent,
+        slot: MealSlot,
+        override: Macros? = null,
+        allergenOverride: Boolean = false,
+        at: Long = clock.nowMillis(),
+        noteDespite: Boolean = false,
+    ): MealLogResult {
+        val live = scanMeal(content)
         val status = PlanImportBuilder.statusOf(live)
         if (status == AllergenStatus.CONTAINS && !allergenOverride) {
             return MealLogResult.Blocked(live.contains.map { it.matchedTerm }.distinct())
         }
         val macros = override ?: content.macros.perServing
-        val log = foodLog.logPrepared(
+        val prepared = foodLog.logPrepared(
             name = content.recipe.name, macros = macros, slot = slot, servingLabel = "1 serving",
             at = at,
         )
+        // A plan meal that matches an allergen and was logged anyway keeps "Logged despite: ..." (a person chose it on
+        // the phone's warning sheet, or the watch asked for it). The warning itself is never cleared.
+        val log = if (noteDespite && live.hasAnything) foodLog.markOverridden(prepared, AllergenOverride.noteFor(live)) else prepared
         return MealLogResult.Logged(log, if (override == null) content.macros else null, status)
     }
+
+    /** The live allergen scan of a planned meal (what [logMeal] checks), so a screen can show the warning sheet first. */
+    suspend fun scanMeal(content: RecipeContent): AllergenScanResult =
+        scanner().scan(content.recipe.name, content.ingredientLines.joinToString("\n"))
 
     suspend fun logEatOut(option: EatOutOptionEntity, slot: MealSlot, override: Macros? = null): FoodLogEntity =
         foodLog.logPrepared(
