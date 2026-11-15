@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.videos
 
+import com.zeroindex.intake.ui.components.rememberSyncedText
 import com.zeroindex.intake.domain.videos.YoutubeIds
 import androidx.compose.foundation.BorderStroke
 import androidx.activity.compose.BackHandler
@@ -195,9 +196,10 @@ fun VideosSection(
         if (state.hasKey) {
             item(key = "search") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    val search = rememberSyncedText(state.query, viewModel::setQuery)
                     OutlinedTextField(
-                        value = state.query,
-                        onValueChange = viewModel::setQuery,
+                        value = search.text,
+                        onValueChange = search::edit,
                         placeholder = { Text("Search workout videos") },
                         leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                         trailingIcon = {

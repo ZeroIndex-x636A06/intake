@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.drinks
 
+import com.zeroindex.intake.ui.components.rememberSyncedText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -138,9 +139,10 @@ fun CustomDrinkScreen(
             }
         }
         item(key = "search") {
+            val search = rememberSyncedText(state.searchQuery, viewModel::setQuery)
             OutlinedTextField(
-                value = state.searchQuery,
-                onValueChange = viewModel::setQuery,
+                value = search.text,
+                onValueChange = search::edit,
                 label = { Text("Or search any food to add") },
                 singleLine = true,
                 shape = IntakeShape.Field,

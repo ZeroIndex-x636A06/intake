@@ -84,7 +84,18 @@ enum class AddFoodTab(val label: String) {
  * [nameOnly] marks a clear result on a packaged product that carries no ingredient list and no allergen tags: the
  * chip then says so instead of "No allergens" (`AllergenEvidence`).
  */
-data class RowAllergen(val verdict: SwapAllergen, val detail: String?, val nameOnly: Boolean = false)
+data class RowAllergen(
+    val verdict: SwapAllergen,
+    val detail: String?,
+    val nameOnly: Boolean = false,
+    /** True for a row whose verdict is still being worked out. It is shown as "Checking..." and is never a clear. */
+    val checking: Boolean = false,
+) {
+    companion object {
+        /** The neutral placeholder for a row that has no verdict yet while the person avoids something. */
+        val Checking = RowAllergen(SwapAllergen.CHECK_LABEL, null, checking = true)
+    }
+}
 
 /** The chip for a food row, from the engine's scan of everything the row carries. */
 fun rowAllergenOf(food: FoodEntity, scan: AllergenScanResult): RowAllergen {
@@ -164,7 +175,13 @@ data class AddFoodUiState(
     val rowAllergens: Map<String, RowAllergen> = emptyMap(),
     /** The same for the bundled USDA rows, keyed by `RefFood.id`. */
     val refAllergens: Map<Int, RowAllergen> = emptyMap(),
-    val query: String = "",
+    /**
+     * True when the person avoids something, so a row with no verdict yet is "Checking...", not blank. Rows and
+     * verdicts come from different flows; a row must never look clear only because its verdict has not arrived.
+     */
+    val avoidsAnything: Boolean = false,
+    /** False until the first real read of the phone's lists: the screen shows nothing, not "Nothing logged yet". */
+    val loaded: Boolean = false,
     val recents: List<FoodEntity> = emptyList(),
     val localResults: List<FoodEntity> = emptyList(),
     val myFoods: List<FoodEntity> = emptyList(),
@@ -185,7 +202,13 @@ data class AddFoodUiState(
     val queryMatchesDrinks: Boolean = false,
     /** Imported restaurant menu items matching the query (B1), scanned on this phone. */
     val menuRows: List<MenuRow> = emptyList(),
-)
+) {
+    /** The chip for a phone or Open Food Facts row: the verdict, a "Checking..." placeholder, or none when nothing is avoided. */
+    fun chipFor(foodId: String): RowAllergen? = rowAllergens[foodId] ?: RowAllergen.Checking.takeIf { avoidsAnything }
+
+    /** The same for a bundled USDA row. */
+    fun refChipFor(refId: Int): RowAllergen? = refAllergens[refId] ?: RowAllergen.Checking.takeIf { avoidsAnything }
+}
 
 @HiltViewModel
 class AddFoodViewModel @Inject constructor(
@@ -325,7 +348,7 @@ class AddFoodViewModel @Inject constructor(
         Lists(recents, favorites, safeIds, results, terms)
     }.shareIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), replay = 1)
 
-    private data class RowAllergens(val rows: Map<String, RowAllergen>, val refs: Map<Int, RowAllergen>)
+    private data class RowAllergens(val rows: Map<String, RowAllergen>, val refs: Map<Int, RowAllergen>, val avoids: Boolean)
 
     /**
      * The local engine's verdict for every row on screen, so a result list shows "Contains milk" before anything is
@@ -340,7 +363,7 @@ class AddFoodViewModel @Inject constructor(
     ) { t, _, _, mine -> t to mine }.mapLatest { (t, mine) ->
         val (l, e, s) = t.first
         if (allergenRepository.avoidedAllergens().isEmpty()) {
-            RowAllergens(emptyMap(), emptyMap())
+            RowAllergens(emptyMap(), emptyMap(), avoids = false)
         } else {
             val scan = allergenRepository.foodScanner()
             // Every row on screen, from every source: this phone, Open Food Facts, the USDA API. The phone's whole
@@ -356,25 +379,27 @@ class AddFoodViewModel @Inject constructor(
                     e.refResults.associate { ref ->
                         FoodRefRepository.toFoodEntity(ref).let { ref.id to rowAllergenOf(it, scan(it)) }
                     },
+                    avoids = true,
                 )
             }
         }
     }
 
     val uiState: StateFlow<AddFoodUiState> = combine(
-        combine(tab, query, lists, searchState, extras) { a, b, c, d, f -> Quint(a, b, c, d, f) },
+        combine(tab, lists, searchState, extras) { a, c, d, f -> Quad(a, c, d, f) },
         rowAllergens,
         settingsRepository.settings,
         foodRepository.observeAll(),
         menuRows,
     ) { core, allergens, settings, everything, menu ->
-        val (tab, query, lists, search, extras) = core
+        val (tab, lists, search, extras) = core
         AddFoodUiState(
             portionUnit = settings.portionUnit,
             rowAllergens = allergens.rows,
             refAllergens = allergens.refs,
             tab = tab,
-            query = query,
+            avoidsAnything = allergens.avoids,
+            loaded = true,
             recents = lists.recents,
             localResults = lists.localResults,
             // Mine: every food on this phone (searched, scanned or made by hand) but the built-in drinks nobody touched.
@@ -398,9 +423,8 @@ class AddFoodViewModel @Inject constructor(
         initialValue = AddFoodUiState(),
     )
 
-    private data class Quint(
+    private data class Quad(
         val tab: AddFoodTab,
-        val query: String,
         val lists: Lists,
         val search: SearchState,
         val extras: Extras,
@@ -421,6 +445,13 @@ class AddFoodViewModel @Inject constructor(
         }
     }
 
+    /** The words last sent, so the screen's own text field can start from them after a rotation. */
+    val currentQuery: String get() = query.value
+
+    /**
+     * The words typed. The text field itself keeps its own state in the screen, so a keystroke never waits on the
+     * flows below (Q1-3); each source debounces this on its own.
+     */
     fun setQuery(next: String) {
         query.value = next
         if (next.isBlank()) searchState.value = SearchState.Idle

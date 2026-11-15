@@ -76,7 +76,8 @@ fun RecipesScreen(
     modifier: Modifier = Modifier,
     viewModel: RecipeLibraryViewModel = hiltViewModel(),
 ) {
-    val recipes by viewModel.recipes.collectAsStateWithLifecycle()
+    val loadedRecipes by viewModel.recipesOrNull.collectAsStateWithLifecycle()
+    val recipes = loadedRecipes.orEmpty()
     val gate = rememberStaggerGate()
     HubScreen(
         subtitle = "Saved recipes log a serving in one tap.",
@@ -104,8 +105,8 @@ fun RecipesScreen(
             ),
         ),
         after = {
-            item(key = "mine-head") { SectionLine("My recipes", note = "${recipes.size} saved") }
-            if (recipes.isEmpty()) {
+            item(key = "mine-head") { SectionLine("My recipes", note = if (loadedRecipes == null) "" else "${recipes.size} saved") }
+            if (loadedRecipes != null && recipes.isEmpty()) {
                 item(key = "no-recipes") {
                     EmptyState(
                         title = "No recipes yet",

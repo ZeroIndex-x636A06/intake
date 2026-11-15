@@ -41,6 +41,8 @@ data class RecipeSearchUi(
     val recents: List<RecipeRowUi> = emptyList(),
     /** Every saved recipe, A to Z, for the Mine tab. */
     val all: List<RecipeRowUi> = emptyList(),
+    /** False until the first read of the saved recipes: the screen shows nothing, not "no recipes". */
+    val loaded: Boolean = false,
 )
 
 /** A recipe serving waiting on the allergen sheet's explicit confirmation. */
@@ -80,9 +82,9 @@ class RecipeSearchViewModel @Inject constructor(
         val shown = RecipeSearch.rank(q, candidates).take(12)
         val recents = if (q.isBlank()) RecipeSearch.recents(candidates, logged) else emptyList()
         val everything = candidates.sortedBy { it.name.lowercase() }
-        val chips = chipsFor((shown + recents + everything.take(60)).distinctBy { it.id }.mapNotNull { byId[it.id] })
+        val chips = chipsFor((shown + recents + everything).distinctBy { it.id }.mapNotNull { byId[it.id] })
         fun row(c: RecipeCandidate) = RecipeRowUi(c, chips[c.id])
-        RecipeSearchUi(shown.map(::row), recents.map(::row), everything.map(::row))
+        RecipeSearchUi(shown.map(::row), recents.map(::row), everything.map(::row), loaded = true)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RecipeSearchUi())
 
     /** The engine's verdict per recipe, empty when the person avoids nothing. Text work, so off the main thread. */
