@@ -267,3 +267,143 @@ Suspect: ui/screens/menu/
 Summary for Pass 1: 26 findings. S1: 0. S2: 5 (Q1-1 to Q1-5). S3: 11 (Q1-6 to Q1-16). S4: 10 (Q1-17 to Q1-26). A retest is needed after fixes, and the allergen block (CHECKLIST I) must be re-run after any change to Q1-1, Q1-4 or Q1-5. Most of the checklist for these areas is unwalked (see Not covered), so a second pass over A, B and C is needed for the stop condition.
 
 Pass 1 fixes merged (0017495, f4d3c5d, 3c62d87, eed25fb). Known leftovers, still open: Train and Progress first-run tips have no history check (Q1-18); whey powder has a generic icon (Q1-25); wear and meal-plan logging have no override path (Q1-1); the review-import sheet still says "Ingredient check passed" for clear items (Q1-4); NutritionMeal and NutritionHome chips lack the trace wording (Q1-4); Q1-14 is a hard red warning with "(trace)" wording, owner decision pending. Everything marked fixed needs a retest on the emulator and a device.
+
+
+## Pass 2 — Recipes, templates, plan, menus
+Date: 2026-11-14 (device date, zone America/New_York) · Build: app/ source at fae542e, preview APK built before the Pass 1 fixes (com.zeroindex.intake.preview) · AVD: phone30 · Seed: tools/qa/seed.sh adapted to the preview package (data dated 2026-11-14)
+Covered: Recipes list, detail (clear, dairy, estimated, soup), Log a serving, Cook mode (servings stepper, tick, Done cooking, allergen gate), recipe editor (paste list, live allergen verdict, estimate from ingredients, save), recipe import offline, Recipe Hunter no-key state, shopping list (3 recipes, amounts recomputed), meal templates (list, editor, add food, log with a dairy item), meal plan (empty state, make a plan, add a dairy recipe, Log this meal, Cook this meal), Eating out (saved options, Healthier options, Healthier nearby with location denied), Menu import (saved source, text with AI off, PDF on API 30), Allergens screen (strictness Avoid and back, keyword list, add keyword, turn off a built-in); C.19 (typed food blocked), C.39, C.40, C.41, C.43, C.45 (API 30 behaviour only), C.47, C.48 to C.50; C.16 and C.17 (Quick add logged-blocked, Scan permission denied, typed barcode offline), C.18, C.11 (partly), C.28 (menu has no contribute entry on a USDA food); I.4, I.5, I.8, I.9, I.10, I.11; J.1, J.2, J.6, J.10, J.14 on the screens visited.
+Not covered: C.3, C.7, C.20, C.25 to C.27, C.31, C.35, C.46 (swap sheet), C.51 (a custom keyword was added; no food carrying it was created), I.6 (menu items cannot be edited from the list), I.7 (needs Open Food Facts, no network), I.12 (no watch). The staged "To review" import flow, the nutrition-menu request after an allergen-only import with Skip, Recipe Hunter results ("Could be adapted" layout, removed chips, thumbnails, Recent searches) and Healthier nearby results: all need an AI key or network; only the no-key and no-location states could be seen. PDF text extraction is not testable on API 30. J.7 to J.9, J.13 not run. Pass 1 findings were not re-logged; several were fixed after the APK was built (see below), so they were not retested here.
+Logcat: no FATAL EXCEPTION from com.zeroindex.*. One FATAL EXCEPTION in com.android.documentsui (the system file picker) right after a file was picked: emulator, not the app. One ANR for com.zeroindex.intake.preview (22:34, "Input dispatching timed out ... FocusEvent") while the Food safety sheet was open: the saved trace shows the app's main thread idle in the message loop, system_server at 52% CPU, one low-memory process kill earlier in the run. Treated as the emulator, not a finding. No StrictMode lines. Typed text in several fields lost or reordered characters ("Test pag", "oa t", "dry pa"); the same as Q1-3 on this older build, and Q1-3 was fixed afterwards.
+Method note: HEAD ce8638f contains the Pass 1 fixes (cbc5133 and others) that this APK does not. Every finding below was checked against the HEAD source where it matters; where HEAD may already differ it says so. The APK was not rebuilt because a Gradle build starves the emulator for the rest of the pass.
+Pass 1 checks verified in this pass: R4-11 (templates need no plan: yes, "No meal plan needed"), R4-14 (Cook button next to Log: yes), R4-6 (recipes in Log food: yes), R5-3 (could not be exercised), R5-5 and R4-12/13/15 (need a key; the no-key Recipe Hunter says so plainly and offers "Have a link? Import it with no AI"), R5-11 (recipe and food lookup in the template editor lists recents then all saved: present, see Q2-14). Q1-13 (greyed Log a serving on Grandma's soup) did not reproduce: here the soup shows "~60 kcal" from its ingredients and Log a serving is enabled.
+Seen on emulator only (Android 11, software rendering, no KVM). Not seen on a device: performance, real keyboard, whether Cook mode keeps the screen awake (the chip says "Screen stays awake", no wake lock was visible in `dumpsys power`; not conclusive), haptics, Android 15 PDF text.
+
+### Q2-1 · S1 · Recipes C.36-C.38, I.4, I.5 · "Log a serving" on a recipe page logs a dairy recipe with no warning and no override note
+Status: open (the same code is in HEAD ce8638f: RecipesViewModel.logServing calls RecipeLogger.logServings with no scan; Cook mode and the Plan screen do gate)
+Steps: 1. Nutrition > More > Recipes > Baked mac and cheese (pill reads "Contains an allergen", three lines tagged dairy). 2. Tap "Log a serving". 3. Tap Snacks. 4. Go to Today and scroll to Snacks.
+Expected: The Food safety sheet (as Cook mode's "Done cooking" > Log a serving > Dinner shows, and as Meal plan's "Log this meal" shows: "Not logged: mac and cheese, butter, cheddar, cheese, milk matches your allergen profile"), and "Logged despite: dairy" if the person chooses to go on.
+Actual: The slot sheet closes, the button turns to "Logged · log another", and Today shows "Baked mac and cheese 566 kcal · 24 g protein" under Snacks, nothing marking it. A strict-dairy user logs a cheese dish in two taps. The recipe editor's own copy says the opposite: "You can still save it, but it will not log without a warning." Three paths to the same action behave three ways (recipe page: silent; Cook mode: sheet; Plan: refused).
+Screenshot: design/qa/pass2/q2-1-mac-logged-snacks.png, design/qa/pass2/q2-1b-recipe-log-no-warning.png, design/qa/pass2/q2-1c-cook-mode-warns.png
+Suspect: ui/screens/plan/RecipesViewModel.kt:136 logServing, ui/screens/plan/RecipeDetailScreen.kt:298; reuse the pending-scan flow in CookModeViewModel.confirmPending
+
+### Q2-2 · S2 · Recipes C.40 / I.9 · A new recipe with no ingredients says "Passed allergen check"
+Status: open
+Steps: 1. Recipes > Add a recipe. 2. Look at the allergen line before typing anything.
+Expected: No clear verdict for an empty recipe ("nothing to check yet"). Nothing says it passed unless an ingredient list was checked (I.9).
+Actual: Below "No macros yet" the green chip reads "Passed allergen check" with "None yet." ingredients. It flips to "Contains cheddar, milk" once lines are added, which is right, but the empty state is a false all-clear.
+Screenshot: design/qa/pass2/q2-2-empty-recipe-passed.png
+Suspect: ui/screens/recipe/RecipeEditorScreen.kt (verdict row when the draft has no lines)
+
+### Q2-3 · S3 · Recipes C.38 / C.39 · Recipe page has no servings stepper and "Log a serving" takes no amount, no undo, and offers a Drinks slot
+Status: open
+Steps: 1. Recipes > Chicken fajita bowls. 2. Look for a servings control; open the three-dot menu (Add to this week, Edit recipe, Delete recipe). 3. Log a serving.
+Expected: C.38 describes a servings stepper that rescales ingredients and per-serving numbers; a way to log more or less than one serving; an Undo after logging.
+Actual: The page shows "4 servings · Prep 15 ..." as text only; the stepper exists only inside Cook mode (4 to 6 servings scaled 480/640/260/240/28 g to 720/960/390/360/42 g, correct). Log a serving always logs exactly 1 ("1 serving" label). The slot list is Breakfast, Lunch, Dinner, Snacks, Drinks, so a recipe can be filed under Drinks. After logging there is only the button text change, no snackbar, no Undo. Done cooking offers "Log a serving of ...? You can change the amount later on Today" even when a serving was just logged from the page.
+Screenshot: design/qa/pass2/q2-3-log-serving-slots.png
+Suspect: ui/screens/plan/RecipeDetailScreen.kt, ui/screens/plan/PlanSheets.kt (slot picker)
+
+### Q2-4 · S3 · Recipes C.39 / J.6 · Cook mode: clipped ingredient list, oversized close button, "Swipe left or right" shown for a one-step recipe
+Status: open
+Steps: 1. Recipes > Chicken fajita bowls > Cook. 2. Screenshot with ingredients showing.
+Expected: Nothing cut mid-row; a normal-size close control; navigation hints only when there is more than one step.
+Actual: The ingredient box ends in the middle of the last row ("28 g Olive oil" cut through by the next header) with no scroll cue. The × is drawn as a 100 px rounded square box, far larger than the controls beside it. "STEP 1 OF 1" has a back arrow button and the hint "Swipe left or right to move between steps" below the step text, partly under the bottom buttons. The steps text for this recipe is one block, so there is nothing to swipe to.
+Screenshot: design/qa/pass2/q2-4-cook-layout.png
+Suspect: ui/screens/plan/CookModeScreen.kt
+
+### Q2-5 · S3 · Recipes C.38 · "Estimated from ingredients" picks wrong foods and weights; the totals add up but the inputs are off
+Status: open
+Steps: 1. Recipes > Grandma's vegetable soup > "Show how each line was matched". 2. Add a recipe with "200 g pasta", "100 g cheddar cheese", "1 cup milk" via Paste a list, save, open it, "Show how each line was matched".
+Expected: "milk" resolves to ordinary milk; a "can" of tomatoes is a can's weight; vegetable soup does not use beef stock.
+Actual: Sums are right (soup: 50+44+22+125 = 241 kcal / 4 = 60 shown as "~60"; pasta bake: 742+408+265 = 1,415 / 4 = 354 shown as "~354"). The matches are not: "1 cup milk" = "Milk, sheep, fluid" 245 g 265 kcal (whole cow milk would be about 150 kcal, so about +29 kcal per serving); "1 can diced tomatoes" = 123 g, 22 kcal (a can is about 400 g); "4 cups stock" in a vegetable soup = "Soup, stock, beef, home-prepared" 125 kcal; "3 stalks celery" is "no weight known for stalk" and left out, so the estimate is low. The card says "4 of 6 ingredient lines" and "Not the site's numbers", which is honest, but a person will trust ~60 kcal.
+Screenshot: design/qa/pass2/q2-5-estimate-matches.png, design/qa/pass2/q2-5b-soup-matches.png
+Suspect: domain/recipe (RecipeNutritionEstimator food ranking and unit weights)
+
+### Q2-6 · S3 · Recipes C.43 · Shopping list adds up correctly but lists cooked weights as things to buy, and the aisles are inconsistent
+Status: open
+Steps: 1. More > Shopping list. 2. Pick Baked mac and cheese, Chicken fajita bowls and Salmon, sweet potato and broccoli (x1 each). 3. Scroll to the amounts.
+Expected: Amounts a person can buy; one sensible section per kind of item.
+Actual: Arithmetic checked and right: chicken breast 480 g = 1.06 lb, spaghetti 840 g = 1.85 lb, black beans 260 g = 9.2 oz, butter 56 g = 2 oz, cheddar 340 g = 12 oz, milk 488 g = 1.08 lb, rice 640 g = 1.41 lb. But the recipes' lines are cooked weights ("640 g White rice, cooked", "840 g Spaghetti, cooked", "480 g Chicken breast, cooked"); the list drops "cooked", so it says "White rice 1.41 lb" and "Spaghetti 1.85 lb" (dry rice and pasta would be about a third of that). Milk is a weight (1.08 lb), not a volume. Black beans, butter, cheddar and milk are all under "OTHER", while rice is under "PANTRY STAPLES" and spaghetti under "PANTRY & GRAINS". Dairy items for a strict-dairy user carry no marker (mac and cheese is pickable). The 2 servings on "Salmon..." matches its recipe.
+Screenshot: design/qa/pass2/q2-6-shopping-list.png
+Suspect: ui/screens/shopping/ShoppingListViewModel.kt and the aggregation in domain/ (state words dropped; category map)
+
+### Q2-7 · S3 · Eating out · Healthier nearby with location denied says "use a zip code instead" and there is no zip field
+Status: open
+Steps: 1. More > Eating out, scroll to "Find healthier options nearby". 2. "Allow location once and search" > Deny.
+Expected: Either a zip code field or no mention of one.
+Actual: Red text "Location is off for Intake. Allow it, or use a zip code instead." with buttons "Allow location once and search", "Open app settings", "Change how far in Settings (10 min drive)". No zip field. The zip option exists only in the Swap sheet and only with an AI key ("Use a zip code instead (AI search)"). HealthierNearby.kt also sets "Could not get a location fix. Try a zip code instead." The no-location state itself is clear and does not crash.
+Screenshot: design/qa/pass2/q2-7-nearby-zip-copy.png
+Suspect: ui/screens/swap/SwapSheet.kt:401 and ui/screens/hub/HealthierNearby.kt:136,167 (shared host)
+
+### Q2-8 · S3 · Eating out C.45 · Menu import with AI off: typing is accepted then refused, and every failed import leaves a source behind
+Status: open
+Steps: 1. Eating out > Menu import > Add source > restaurant "Test Cafe" > Paste text, enter three item names > Import menu. 2. Add source > Pick PDF > mcdonalds-ireland-allergen-chart.pdf (picker Search route) > Import menu.
+Expected: The Paste text tab says it needs AI before the person types; a failed import either leaves nothing or a row that can be retried or removed from the list.
+Actual: Text: red "Import failed: AI is off. Turn on "Use AI features" in Settings → AI to use this." and a new saved source "Test Cafe · Pasted text · Never imported · 0 items · Never run". PDF on API 30 (PdfRenderer text unavailable): "No table read on this phone. Reading a PDF on the phone needs Android 15 or later. Nothing was sent anywhere. AI is off or has no key: turn on "Use AI features" and add a key in Settings → AI to use it." with a disabled "Read it with AI" and "Not now"; the source is saved as "Irish McD · PDF · local file · 14 Nov · 0 items · Failed". The explanation is good and honest. The sources stay as empty rows. PDF text extraction on API 35 not tested.
+Screenshot: design/qa/pass2/q2-8-text-import-ai-off.png, design/qa/pass2/q2-8b-pdf-api30.png
+Suspect: ui/screens/menu/MenuSourcesViewModel.kt (source row is written before the run), MenuSourcesScreen.kt add sheet
+
+### Q2-9 · S3 · Recipes C.42 / I.5 · Meal template editor and list show no allergen verdict; the block comes only at Log, with no reason or way on
+Status: open (HEAD adds TemplateAllergens and chips in cbc5133 per its message; retest on a rebuilt APK)
+Steps: 1. Meal templates > Post-workout shake > Edit > Add a food or recipe > Cheddar cheese > Save changes. 2. Template row: "451 kcal · 18 g protein · No NFC tag". 3. More > Log now > Breakfast.
+Expected: Dairy shown where it is added and on the row; a log of a dairy template blocked or warned (I.5).
+Actual: The editor lists Cheddar cheese with "403 kcal per 100 g" and Total 451 kcal (338 + 113, right) and no chip; the saved row has no chip. Log now is blocked: "Not logged: Cheddar cheese now matches your allergen profile", which is safe, but there is no "Log it anyway" path and no reason beyond the food name. The add picker's first row is Baked mac and cheese and it has no chip either.
+Screenshot: design/qa/pass2/q2-9-template-blocked.png, design/qa/pass2/q2-13-template-editor.png
+Suspect: ui/screens/templates/MealTemplateEditorScreen.kt, MealTemplatesScreen.kt
+
+### Q2-10 · S3 · Eating out · "Healthier options" shows items the app itself calls "Not a standout choice", and published menu macros are labelled "estimate"
+Status: open
+Steps: 1. More > Eating out (wait for the list). 2. Read the cards under "From your menus and saved options".
+Expected: A list headed "Healthier options" holds options that rank well; macros from a menu's own published numbers are not called an estimate.
+Actual: Fish and chips (880 kcal), Black bean burrito and Oatmeal with berries sit in the list with green text "Not a standout choice". Every card ends its numbers with "estimate", including the Sunrise Diner items whose seed rows have macrosPublished = true. Items whose ingredients were read show "No allergens found" while the same items on Menu import show no chip at all (Q1-26), so the two screens disagree about the same item. The saved options show "Check the label" (right for estimates). Also, the first frame of this screen has no Healthier list and the nearby card is at y 890; the list appears a few seconds later and moves the card down 600 px, so a tap aimed at the card can land elsewhere.
+Screenshot: design/qa/pass2/q2-10-healthier-list.png
+Suspect: ui/screens/hub/HealthierNearby.kt, domain/swap/NearbyRanking.kt:119, ui/screens/hub/FoodHubScreens.kt:210
+
+### Q2-11 · S4 · Recipes C.36 / C.37 · Recipes list shows no kcal for recipes whose numbers are estimated
+Status: open
+Steps: 1. More > Recipes after the soup page has shown "~60 kcal" (also my new "Test pag", "~354").
+Expected: The list row shows the estimate with a ~ like the detail page.
+Actual: The row says only "4 servings", the same as a recipe with no numbers; the page shows "~60 kcal, ~6 g protein".
+Screenshot: none (text only, row seen in dump: "Grandma's vegetable soup / 4 servings")
+Suspect: ui/screens/hub or plan recipe list row (uses stored kcalPerServing only)
+
+### Q2-12 · S4 · Recipes · "Show the 1 flagged ingredient lines"
+Status: open
+Steps: 1. Recipes > Turkey chili with sour cream, read the chip's accessibility text (and the card says "1 line is tagged below").
+Expected: Singular for one line.
+Actual: Chip description "Show the 1 flagged ingredient lines".
+Screenshot: design/qa/pass2/q2-12-chili-plural.png
+Suspect: ui/screens/plan/RecipeDetailScreen.kt:201
+
+### Q2-13 · S4 · Recipes / Meal plan / Import · Titles repeated and import copy says "Paste a recipe page" for an address field
+Status: open
+Steps: 1. Recipes > Import from a link. 2. Meal templates > Edit. 3. More > Meal plan.
+Expected: One title per screen; copy that matches the control.
+Actual: Bar "Import a recipe" over heading "Import from a link", whose copy says "Paste a recipe page" above a field labelled "Recipe web address" (the page cannot be pasted, only fetched). Bar "Meal template" over "Edit meal template". Bar "Meal plans" over "Your meal plan" over "Plan1". The plan screen's footer "Can't eat what I cooked? Find a safer option nearby" uses "safer" (I.9). The offline failure itself is plain: "Could not reach that page. Check the address and your connection." (C.41 passes).
+Screenshot: design/qa/pass2/q2-13-template-editor.png
+Suspect: ui/screens/recipe/RecipeImportScreen.kt:225, ui/screens/templates/MealTemplateEditorScreen.kt, ui/screens/plan/PlanScreen.kt
+
+### Q2-14 · S4 · Recipes C.42 / R5-11 · Template "Add a food or recipe": the "Recent" block looks alphabetical, and "All saved" repeats the same foods
+Status: open
+Steps: 1. Meal templates > Edit > Add a food or recipe.
+Expected: Recent items in order of use, then everything saved once.
+Actual: RECENT lists Baked mac and cheese, Chicken fajita bowls (recipes first), then Apple, Banana, Bell pepper, Black beans, Broccoli, Cheddar cheese in A to Z order, followed by ALL SAVED starting with Apple again.
+Screenshot: design/qa/pass2/q2-14-template-picker.png
+Suspect: ui/screens/templates/MealTemplateEditorViewModel.kt
+
+### Q2-15 · S4 · Today / Meal plan · A recipe assigned to a plan week shows on Today as "SNACK · PLANNED"
+Status: open (seen once; the plan was a 4-week plan with Baked mac and cheese in week 1)
+Steps: 1. More > Meal plan > Make a plan (4 weeks) > Choose a recipe for week 1 > Baked mac and cheese. 2. Today.
+Expected: A week-level recipe is not turned into a snack for today.
+Actual: Next up shows "SNACK · PLANNED · Baked mac and cheese · Contains your allergen · 566 kcal · P 24 · C 49 · F 30". The plan gave no slot or day. The allergen label is right.
+Screenshot: none (seen after relaunch; not captured)
+Suspect: ui/screens/today (next-up planned item) and MealPlanViewModel
+
+### Q2-16 · S4 · Nutrition C.11 · Searching "almond milk" in Log food returns milk chocolate and no pointer to Drinks
+Status: open
+Steps: 1. Log food > Search > "almond milk" (typed slowly), wait for the list.
+Expected: The plant milk, or a line saying drinks are in the Drinks chip (C.11).
+Actual: USDA rows "Candies, milk chocolate, with almonds" ("Contains milk chocolate", right), Hershey's, Toblerone. No almond milk; the seeded "Almond milk, unsweetened" is a drink and is excluded from this search. The first frame showed the chocolate with an amber "Check the label" before it turned red (same lag as Q1-6). "almo" returns "Salmon fillet, baked" first under My foods (substring match).
+Screenshot: design/qa/pass2/q2-16-search-almo.png
+Suspect: ui/addfood/AddFoodViewModel.kt (search scope)
+
+Summary for Pass 2: 16 findings. S1: 1 (Q2-1). S2: 1 (Q2-2). S3: 8 (Q2-3 to Q2-10, with Q2-9 possibly fixed at HEAD). S4: 6 (Q2-11 to Q2-16). A retest is needed: rebuild the preview at HEAD, re-run the allergen block (I.4, I.5) and the recipe log paths, and run the tests that need a key or network (Recipe Hunter results, To review, nutrition-menu Skip, Healthier nearby results) on a build with a test key and a stub server, because none of them could be reached here.
