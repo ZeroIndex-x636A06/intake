@@ -2,6 +2,8 @@
 
 package com.zeroindex.intake.ui.screens.menu
 
+import com.zeroindex.intake.ui.components.scrollIntoViewOnFocus
+import androidx.compose.foundation.layout.imePadding
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -158,7 +160,7 @@ fun MenuSourcesScreen(
                     if (askingLink) {
                         OutlinedTextField(
                             linkText, { linkText = it.trim() }, label = { Text("Nutrition menu link") }, singleLine = true,
-                            shape = IntakeShape.Field, modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            shape = IntakeShape.Field, modifier = Modifier.fillMaxWidth().padding(top = 8.dp).scrollIntoViewOnFocus(),
                         )
                         Button(
                             onClick = { viewModel.addNutritionLink(linkText); askingLink = false },
@@ -361,7 +363,7 @@ private fun AddSourceSheet(hasKey: Boolean, onDismiss: () -> Unit, onAdd: (Strin
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> pdf = uri?.toString() }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(
-            Modifier.padding(horizontal = 16.dp).navigationBarsPadding().verticalScroll(rememberScrollState()),
+            Modifier.padding(horizontal = 16.dp).navigationBarsPadding().imePadding().verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text("Add source", style = MaterialTheme.typography.headlineSmall)
@@ -389,7 +391,7 @@ private fun AddSourceSheet(hasKey: Boolean, onDismiss: () -> Unit, onAdd: (Strin
                 MenuSourceKind.TEXT -> {
                     OutlinedTextField(
                         text, { text = it }, label = { Text("Menu text") }, minLines = 6, shape = IntakeShape.Field,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().scrollIntoViewOnFocus(),
                     )
                     // Said before the person types: pasted text is only read by AI.
                     if (!hasKey) {

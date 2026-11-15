@@ -1,5 +1,7 @@
 package com.zeroindex.intake.ui.screens.drinks
 
+import androidx.compose.foundation.layout.imePadding
+import com.zeroindex.intake.ui.components.scrollIntoViewOnFocus
 import com.zeroindex.intake.ui.components.rememberSyncedText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -81,7 +83,7 @@ fun CustomDrinkScreen(
     val result = state.result
 
     LazyColumn(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().imePadding(),
         contentPadding = PaddingValues(
             top = contentPadding.calculateTopPadding() + 4.dp,
             bottom = contentPadding.calculateBottomPadding() + 24.dp,
@@ -105,7 +107,7 @@ fun CustomDrinkScreen(
                     singleLine = true,
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     shape = IntakeShape.Field,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().scrollIntoViewOnFocus(),
                 )
                 if (state.baseReplaced) {
                     Text(
@@ -146,7 +148,7 @@ fun CustomDrinkScreen(
                 label = { Text("Or search any food to add") },
                 singleLine = true,
                 shape = IntakeShape.Field,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().scrollIntoViewOnFocus(),
             )
         }
         items(state.searchResults, key = { "r-${it.key}" }) { found ->
@@ -169,7 +171,7 @@ fun CustomDrinkScreen(
                     placeholder = { Text(state.shownName) },
                     singleLine = true,
                     shape = IntakeShape.Field,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().scrollIntoViewOnFocus(),
                 )
                 if (result != null) {
                     Spacer(Modifier.size(8.dp))
@@ -254,7 +256,7 @@ private fun AddInRow(addIn: AddIn, onAmount: (Double, AddInUnit?) -> Unit, onRem
                 singleLine = true,
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 shape = IntakeShape.Field,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).scrollIntoViewOnFocus(),
             )
             val units = option?.units?.keys?.toList() ?: listOf(AddInUnit.fromStored(addIn.unit))
             units.forEach { u ->

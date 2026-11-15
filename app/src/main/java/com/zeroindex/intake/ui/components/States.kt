@@ -184,7 +184,7 @@ fun LabeledField(
     isError: Boolean = false,
     supporting: String? = null,
 ) {
-    Column(modifier) {
+    Column(modifier.scrollIntoViewOnFocus()) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold),

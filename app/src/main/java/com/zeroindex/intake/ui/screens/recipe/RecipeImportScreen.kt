@@ -1,5 +1,7 @@
 package com.zeroindex.intake.ui.screens.recipe
 
+import com.zeroindex.intake.ui.components.scrollIntoViewOnFocus
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -219,14 +221,14 @@ fun RecipeImportScreen(
     LaunchedEffect(stage) { (stage as? ImportStage.Saved)?.let { onSaved(it.recipeId) } }
 
     Column(
-        modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(contentPadding).padding(horizontal = 16.dp),
+        modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(contentPadding).padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         SubHead("Recipe link", "Paste a recipe link. Intake reads the recipe data on that page, with no AI.")
         OutlinedTextField(
             url, viewModel::setUrl, label = { Text("Recipe web address") }, singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().scrollIntoViewOnFocus(),
         )
         Button(
             onClick = viewModel::import, enabled = url.isNotBlank() && stage != ImportStage.Fetching,

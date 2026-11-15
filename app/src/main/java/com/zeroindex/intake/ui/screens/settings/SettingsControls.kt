@@ -2,6 +2,7 @@
 
 package com.zeroindex.intake.ui.screens.settings
 
+import com.zeroindex.intake.ui.components.scrollIntoViewOnFocus
 import android.Manifest
 import android.os.Build
 import android.content.pm.PackageManager
@@ -638,7 +639,7 @@ private fun OffLogin(savedUser: String?, hasCredentials: Boolean, onSave: (Strin
 @Composable
 private fun KeyField(title: String, has: Boolean, hint: String, onSave: (String?) -> Unit, onTest: (() -> Unit)?, result: String?) {
     var text by remember { mutableStateOf("") }
-    Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 6.dp).scrollIntoViewOnFocus()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
             StatusPill(if (has) "Key saved" else "No key", tone = if (has) PillTone.Ok else PillTone.Wait)
@@ -646,7 +647,12 @@ private fun KeyField(title: String, has: Boolean, hint: String, onSave: (String?
         Text(hint, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         LabeledField(if (has) "Replace key" else "Key", text, { text = it.trim() }, secret = true)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
-            Button(onClick = { onSave(text); text = "" }, enabled = text.isNotBlank(), shape = IntakeShape.Chip) { Text("Save") }
+            Button(
+                onClick = { onSave(text); text = "" },
+                enabled = text.isNotBlank(),
+                shape = IntakeShape.Chip,
+                modifier = Modifier.heightIn(min = 44.dp),
+            ) { Text("Save") }
             if (has && onTest != null) OutlinedButton(onClick = onTest, shape = IntakeShape.Chip) { Text("Test") }
             if (has) TextButton(onClick = { onSave(null) }) { Text("Remove") }
         }
