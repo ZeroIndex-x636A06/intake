@@ -41,7 +41,7 @@ class LogPathAuditTest {
         "data/repository/MenuLogRepository.kt" to Entry(Gate.SCANS, "log() rescans the item: NeedsConfirmation"),
         "data/repository/DrinkLogger.kt" to Entry(Gate.DELEGATED, "writes for DrinkRepository; callers scan first"),
         "data/repository/DrinkRepository.kt" to Entry(Gate.DELEGATED, "store for DrinkLogger; callers scan first"),
-        "data/swap/SwapRepository.kt" to Entry(Gate.SCANS, "choose(): blocked options refused, rescans eat-out and menu items"),
+        "data/swap/SwapRepository.kt" to Entry(Gate.SCANS, "choose(): warningScan rescans every source; contains is Blocked, may contain is NeedsWarning, only override = true logs (with AllergenOverride.noteFor)"),
         "data/ai/planb/PlanBFinder.kt" to Entry(Gate.SCANS, "log() is only reached from SwapRepository.choose"),
         "data/ai/vision/VisionTracker.kt" to Entry(Gate.SCANS, "photo estimate: recheck() then confirmingAllergens"),
         "MainActivity.kt" to Entry(Gate.DELEGATED, "NFC tag: templates.log refuses CONTAINS and needs review for MAY_CONTAIN"),
@@ -90,6 +90,31 @@ class LogPathAuditTest {
             scanTokens.none { text.contains(it) }
         }
         assertWithMessage("These files are listed as scanning but contain no scan or gate: $missing").that(missing).isEmpty()
+    }
+
+    @Test fun `swap stops at the standard warning sheet and notes the override`() {
+        val root = sourceRoot()
+        val repo = File(root, "data/swap/SwapRepository.kt").readText()
+        assertWithMessage("Swap must stop a may-contain choice before logging").that(repo.contains("NeedsWarning(")).isTrue()
+        assertWithMessage("Swap must gate on SwapGate").that(repo.contains("SwapGate.decide(scan)")).isTrue()
+        assertWithMessage("Swap must keep the override note from AllergenOverride.noteFor").that(repo.contains("AllergenOverride.noteFor(scan)")).isTrue()
+        // Every screen that calls SwapRepository.choose must be able to show the standard sheet, not only a dialog or a chip.
+        val callers = root.walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .filter { val t = it.readText(); t.contains("repo.choose(") || t.contains("swap.choose(") }
+            .map { it.relativeTo(root).invariantSeparatorsPath }
+            .filter { it != "data/swap/SwapRepository.kt" }
+            .toSortedSet()
+        val sheetHosts = mapOf(
+            "ui/screens/swap/SwapViewModel.kt" to "ui/screens/swap/SwapSheet.kt",
+            "ui/screens/hub/HealthierNearby.kt" to "ui/screens/hub/HealthierNearby.kt",
+            "ui/screens/hub/FoodHubScreens.kt" to "ui/screens/hub/FoodHubScreens.kt",
+        )
+        assertWithMessage("a new caller of SwapRepository.choose must be listed here with its warning sheet: $callers")
+            .that(sheetHosts.keys.containsAll(callers)).isTrue()
+        sheetHosts.values.forEach { path ->
+            assertWithMessage("$path must show AllergenWarningSheet").that(File(root, path).readText().contains("AllergenWarningSheet")).isTrue()
+        }
     }
 
     @Test fun `the watch handler gates planned meals and foods with the shared gate`() {

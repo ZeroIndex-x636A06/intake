@@ -131,6 +131,7 @@ fun PlanScreen(
     val content by viewModel.content.collectAsStateWithLifecycle()
     val meta by viewModel.meta.collectAsStateWithLifecycle()
     val shopping by viewModel.shopping.collectAsStateWithLifecycle()
+    val shoppingMarks by viewModel.shoppingMarks.collectAsStateWithLifecycle()
     val recipes by viewModel.recipes.collectAsStateWithLifecycle()
     val unit by viewModel.weightUnit.collectAsStateWithLifecycle()
     val eatOut by viewModel.eatOut.collectAsStateWithLifecycle()
@@ -308,6 +309,7 @@ fun PlanScreen(
                 item(key = "shop") {
                     ShoppingAccordion(
                         sections = shopping,
+                        marks = shoppingMarks,
                         unit = unit,
                         onCheck = viewModel::setChecked,
                         onRemove = viewModel::removeItem,
@@ -623,7 +625,11 @@ private fun DishCard(content: WeekContent, onEditProtein: () -> Unit, onChange: 
                     AllergenStatus.CONTAINS -> StatusPill("Contains an allergen", tone = PillTone.Bad)
                     AllergenStatus.MAY_CONTAIN -> StatusPill("Check allergens", tone = PillTone.Wait)
                     AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
-                    AllergenStatus.CLEAR -> StatusPill("Passed allergen check")
+                    AllergenStatus.CLEAR -> {
+                        val basis = com.zeroindex.intake.domain.allergen.AllergenEvidence.recipeClearBasis(main.ingredientLines.size)
+                        if (basis.isCaution) com.zeroindex.intake.ui.allergen.AllergenChip(com.zeroindex.intake.domain.swap.SwapAllergen.CHECK_LABEL, label = basis.chipText)
+                        else StatusPill(basis.chipText)
+                    }
                     AllergenStatus.MENTIONED_AVOIDED -> StatusPill(MentionedAvoided.PILL)
                     AllergenStatus.UNKNOWN -> StatusPill("Allergens not checked", tone = PillTone.Wait)
                 }
@@ -696,6 +702,7 @@ private fun Accordion(
 @Composable
 private fun ShoppingAccordion(
     sections: com.zeroindex.intake.domain.plan.ShoppingSections,
+    marks: Map<String, com.zeroindex.intake.ui.addfood.RowAllergen>,
     unit: WeightUnit,
     onCheck: (String, Boolean) -> Unit,
     onRemove: (String) -> Unit,
@@ -709,11 +716,11 @@ private fun ShoppingAccordion(
             }
             sections.sections.forEach { (category, items) ->
                 Eyebrow(ShoppingListBuilder.sectionTitle(category), Modifier.padding(top = 8.dp))
-                items.forEach { ShoppingRow(it, unit, onCheck, onRemove) }
+                items.forEach { ShoppingRow(it, unit, marks[it.id], onCheck, onRemove) }
             }
             if (sections.pantry.isNotEmpty()) {
                 Accordion("Pantry staples · ${sections.pantry.size}", nested = true) {
-                    sections.pantry.forEach { ShoppingRow(it, unit, onCheck, onRemove) }
+                    sections.pantry.forEach { ShoppingRow(it, unit, marks[it.id], onCheck, onRemove) }
                 }
             }
             AddItemRow(onAdd)
@@ -730,6 +737,7 @@ private fun ShoppingAccordion(
 private fun ShoppingRow(
     item: ShoppingListItemEntity,
     unit: WeightUnit,
+    allergen: com.zeroindex.intake.ui.addfood.RowAllergen?,
     onCheck: (String, Boolean) -> Unit,
     onRemove: (String) -> Unit,
 ) {
@@ -771,6 +779,8 @@ private fun ShoppingRow(
             item.note?.let {
                 Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            // A row that matches one of the person's allergens is marked (never hidden): the local engine on the item name.
+            allergen?.let { Box(Modifier.padding(top = 2.dp)) { com.zeroindex.intake.ui.addfood.RowAllergenChip(it) } }
             // Shopping is where the label gets read, so this is the most useful place for the nudge.
             if (!item.isChecked) checkLabelReasonFor(item.name)?.let { CheckLabelChip(it, Modifier.padding(top = 2.dp)) }
         }

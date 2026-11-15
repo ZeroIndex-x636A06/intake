@@ -11,6 +11,9 @@ import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.plan.StandaloneList
 import com.zeroindex.intake.domain.plan.StandaloneShopping
 import com.zeroindex.intake.domain.units.WeightUnit
+import com.zeroindex.intake.ui.allergen.chipDetail
+import com.zeroindex.intake.ui.allergen.traceChipLabel
+import com.zeroindex.intake.ui.allergen.verdict
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
@@ -24,6 +27,7 @@ class ShoppingListViewModel @Inject constructor(
     templateRepository: MealTemplateRepository,
     settings: SettingsRepository,
     private val builder: ShoppingBuilderRepository,
+    private val allergens: com.zeroindex.intake.data.repository.AllergenRepository,
 ) : ViewModel() {
     val recipes: StateFlow<List<RecipeEntity>> =
         recipeDao.observeAll().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -41,4 +45,21 @@ class ShoppingListViewModel @Inject constructor(
         } else {
             StandaloneShopping.build(builder.contributions(recipePicks, templatePicks))
         }
+
+    /**
+     * The allergen marker of each line (by line key) that matches one of the person's allergens: the local engine on the
+     * item name, trace wording where the match is a trace. Lines that match nothing have none. Nothing is hidden.
+     */
+    suspend fun marks(list: StandaloneList): Map<String, com.zeroindex.intake.ui.addfood.RowAllergen> {
+        val lines = list.sections.flatMap { it.second } + list.pantry
+        if (lines.isEmpty()) return emptyMap()
+        val scans = com.zeroindex.intake.domain.plan.ShoppingAllergenMarks.flagged(
+            allergens.shoppingScans(lines.map { it.name }), includeCheckLabel = true,
+        )
+        return lines.mapNotNull { l ->
+            scans[l.name]?.let { sc ->
+                l.key to com.zeroindex.intake.ui.addfood.RowAllergen(sc.verdict(), sc.chipDetail(), traceLabel = sc.traceChipLabel())
+            }
+        }.toMap()
+    }
 }

@@ -288,6 +288,12 @@ class AllergenRepository @Inject constructor(
         }
     }
 
+    /** The local scan of each shopping item name, one engine setup for the list. Names are read as ingredient lines, never negated. */
+    suspend fun shoppingScans(names: Collection<String>): Map<String, AllergenScanResult> {
+        val scan = lineScanner()
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { names.distinct().associateWith(scan) }
+    }
+
     /**
      * One engine setup for a whole list of foods (search results, a drink category), so a list of fifty rows reads the
      * profile and keyword table once. Each food is scanned exactly as [scan] does it.

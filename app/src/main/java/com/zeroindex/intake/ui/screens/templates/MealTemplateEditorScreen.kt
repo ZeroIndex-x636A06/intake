@@ -69,6 +69,7 @@ fun MealTemplateEditorScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val hits by viewModel.hits.collectAsStateWithLifecycle()
     val chips by viewModel.chips.collectAsStateWithLifecycle()
+    val pickChips by viewModel.pickChips.collectAsStateWithLifecycle()
     var adding by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
 
@@ -84,6 +85,7 @@ fun MealTemplateEditorScreen(
             query = query,
             onQuery = { query = it; viewModel.setQuery(it) },
             hits = hits,
+            pickChips = pickChips,
             contentPadding = contentPadding,
             onPick = { viewModel.addPicked(it); adding = false },
             onRef = { viewModel.addRef(it); adding = false },
@@ -206,6 +208,7 @@ private fun AddPicker(
     query: String,
     onQuery: (String) -> Unit,
     hits: SearchHits,
+    pickChips: MealTemplateEditorViewModel.PickChips,
     contentPadding: PaddingValues,
     onPick: (PickItem) -> Unit,
     onRef: (RefFood) -> Unit,
@@ -236,11 +239,11 @@ private fun AddPicker(
         }
         if (hits.lists.recent.isNotEmpty()) {
             item(key = "h-recent") { Eyebrow("Recent", Modifier.padding(top = 8.dp)) }
-            items(items = hits.lists.recent, key = { "recent-${it.key}" }) { p -> PickLine(p.name, p.detail, onClick = { onPick(p) }) }
+            items(items = hits.lists.recent, key = { "recent-${it.key}" }) { p -> PickLine(p.name, p.detail, pickChips.rows[p.key], onClick = { onPick(p) }) }
         }
         if (hits.lists.allSaved.isNotEmpty()) {
             item(key = "h-all") { Eyebrow("All saved", Modifier.padding(top = 8.dp)) }
-            items(items = hits.lists.allSaved, key = { "all-${it.key}" }) { p -> PickLine(p.name, p.detail, onClick = { onPick(p) }) }
+            items(items = hits.lists.allSaved, key = { "all-${it.key}" }) { p -> PickLine(p.name, p.detail, pickChips.rows[p.key], onClick = { onPick(p) }) }
         }
         if (query.isBlank() && hits.lists.allSaved.isEmpty()) {
             item(key = "hint") { SandNote("Nothing saved yet. Type a food name to search the offline food database.") }
@@ -248,7 +251,7 @@ private fun AddPicker(
         if (hits.database.isNotEmpty()) {
             item(key = "h-db") { Eyebrow("Food database (USDA, works offline)", Modifier.padding(top = 8.dp)) }
             items(items = hits.database, key = { "d-${it.id}" }) { d ->
-                PickLine(d.name, "${d.kcal.roundToInt()} kcal per 100 g", onClick = { onRef(d) })
+                PickLine(d.name, "${d.kcal.roundToInt()} kcal per 100 g", pickChips.refs[d.id], onClick = { onRef(d) })
             }
         }
         if (query.isNotBlank() && hits.lists.allSaved.isEmpty() && hits.lists.recent.isEmpty() && hits.database.isEmpty()) {
@@ -258,10 +261,11 @@ private fun AddPicker(
 }
 
 @Composable
-private fun PickLine(name: String, detail: String, onClick: () -> Unit) {
+private fun PickLine(name: String, detail: String, allergen: com.zeroindex.intake.ui.addfood.RowAllergen?, onClick: () -> Unit) {
     Column(Modifier.fillMaxWidth().clickable(onClick = onClick).heightIn(min = 56.dp).padding(vertical = 8.dp).semantics { contentDescription = "Add $name" }) {
         Text(name, style = MaterialTheme.typography.titleSmall, maxLines = 2)
         Text(detail, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        allergen?.let { Box(Modifier.padding(top = 4.dp)) { com.zeroindex.intake.ui.addfood.RowAllergenChip(it) } }
         HorizontalDivider(Modifier.padding(top = 8.dp), color = MaterialTheme.colorScheme.outlineVariant)
     }
 }

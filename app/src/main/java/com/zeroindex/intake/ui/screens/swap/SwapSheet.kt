@@ -99,8 +99,11 @@ fun SwapSheet(
         locationDenied = !granted
         if (granted) viewModel.searchNearby()
     }
-    state.pendingOverride?.let { p ->
-        com.zeroindex.intake.ui.allergen.AllergenOverrideDialog(p, onCancel = viewModel::cancelOverride, onConfirm = { viewModel.confirmOverride(onDismiss) })
+    state.pendingWarning?.let { p ->
+        com.zeroindex.intake.ui.allergen.AllergenWarningSheet(
+            foodName = p.title, scan = p.scan,
+            onDismiss = viewModel::cancelOverride, onLogAnyway = { viewModel.confirmOverride(onDismiss) },
+        )
     }
     val timeFmt = remember(state.zone) { DateTimeFormatter.ofPattern("h:mm a").withZone(state.zone) }
 

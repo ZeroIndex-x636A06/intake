@@ -18,6 +18,7 @@ import com.zeroindex.intake.domain.nutrition.Macros
 import com.zeroindex.intake.domain.swap.MealNutrition
 import com.zeroindex.intake.domain.swap.NearbyRanking
 import com.zeroindex.intake.domain.swap.SwapAllergen
+import com.zeroindex.intake.domain.swap.SwapGate
 import com.zeroindex.intake.domain.swap.SwapKind
 import com.zeroindex.intake.domain.swap.SwapMath
 import com.zeroindex.intake.domain.swap.SwapOption
@@ -44,6 +45,9 @@ sealed interface SwapSource {
     data class Found(val option: PlanBOption) : SwapSource
 }
 
+/** A flagged option waiting on the standard warning sheet; nothing is logged until "Log it anyway". */
+data class PendingSwapWarning(val key: String, val title: String, val scan: AllergenScanResult)
+
 /** An option and where it came from. The domain only ever sees [option]. */
 data class SwapEntry(val option: SwapOption, val source: SwapSource)
 
@@ -51,6 +55,9 @@ sealed interface SwapLogResult {
     /** [undo] soft-deletes everything this choice logged. */
     data class Logged(val text: String, val undo: suspend () -> Unit) : SwapLogResult
     data class Blocked(val reason: String) : SwapLogResult
+
+    /** Flagged "contains" or "may contain": nothing was logged. Show the standard warning sheet for [scan], then choose with `override = true`. */
+    data class NeedsWarning(val title: String, val scan: AllergenScanResult) : SwapLogResult
 }
 
 /**
@@ -222,15 +229,42 @@ class SwapRepository @Inject constructor(
     }
 
     /**
-     * Logs the choice in place of the planned meal. A "contains" verdict is refused here too, unless [override] is true:
-     * the person's own "Choose anyway" after the warning dialog. Then it is logged with "Logged despite: ..." kept on the
-     * entry, and no status anywhere is changed to clear. [override] does nothing for an option that is not blocked.
+     * The scan the warning sheet shows for [entry]: the live local scan of what would be logged, raised to the verdict
+     * the option already carries ([SwapGate.withVerdict]). Never lowered by anything.
+     */
+    suspend fun warningScan(entry: SwapEntry): AllergenScanResult {
+        val live = when (val src = entry.source) {
+            is SwapSource.Recipe -> plans.scanMeal(src.content)
+            is SwapSource.Template -> {
+                val scanFood = allergens.foodScanner()
+                val items = templates.observeSummaries().first().firstOrNull { it.template.id == src.templateId }?.items.orEmpty()
+                AllergenScanResult(items.flatMap { (food, _) -> scanFood(food).matches })
+            }
+            is SwapSource.EatOut -> allergens.scan(name = src.option.whatToOrder, freeText = true)
+            is SwapSource.Found -> finder.rescanMenuItem(src.option) ?: src.option.scan
+        }
+        return SwapGate.withVerdict(live, entry.option.allergen)
+    }
+
+    /**
+     * Logs the choice in place of the planned meal. A flagged option is not logged until the person has seen the
+     * standard warning sheet: "contains" comes back as [SwapLogResult.Blocked] and "may contain" as
+     * [SwapLogResult.NeedsWarning] (the screens open the sheet for both). [override] is true only after "Log it
+     * anyway" on that sheet; the entry then keeps `AllergenOverride.noteFor` and no status anywhere is changed to clear.
+     * [override] does nothing for an option that is not flagged.
      */
     suspend fun choose(entry: SwapEntry, slot: MealSlot, override: Boolean = false): SwapLogResult {
-        val overriding = override && entry.option.blocked
-        if (entry.option.blocked && !overriding) return SwapLogResult.Blocked(entry.option.allergenReason ?: "Contains an allergen you avoid")
+        val scan = warningScan(entry)
+        val flagged = scan.hasAnything || entry.option.blocked
+        val overriding = override && flagged
+        if (!overriding) {
+            if (scan.blocks || entry.option.blocked) {
+                return SwapLogResult.Blocked(entry.option.allergenReason ?: "Contains an allergen you avoid")
+            }
+            if (SwapGate.decide(scan) is SwapGate.Decision.Warn) return SwapLogResult.NeedsWarning(entry.option.title, scan)
+        }
         val title = entry.option.title
-        val note = AllergenOverride.loggedDespite(entry.option.matchedAllergens.ifEmpty { entry.option.evidence })
+        val note = AllergenOverride.noteFor(scan)
         suspend fun logged(logs: List<FoodLogEntity>, undo: suspend () -> Unit): SwapLogResult {
             if (overriding) logs.forEach { finder.markOverridden(it, note) }
             return SwapLogResult.Logged("Logged $title to ${slot.name.lowercase()}" + if (overriding) " (allergen warning kept)" else "", undo)
@@ -247,20 +281,11 @@ class SwapRepository @Inject constructor(
                 is TemplateLogResult.Logged -> logged(r.logs) { templates.undo(r.logs) }
             }
             is SwapSource.EatOut -> {
-                val live = allergens.scan(name = src.option.whatToOrder, freeText = true)
-                if (live.blocks && !overriding) {
-                    SwapLogResult.Blocked(reasonFor(SwapAllergen.CONTAINS, live.contains.map { it.matchedTerm }.distinct()) ?: "Contains an allergen you avoid")
-                } else {
-                    val log: FoodLogEntity = plans.logEatOut(src.option, slot)
-                    logged(listOf(log)) { plans.undoLog(log) }
-                }
+                val log: FoodLogEntity = plans.logEatOut(src.option, slot)
+                logged(listOf(log)) { plans.undoLog(log) }
             }
             is SwapSource.Found -> {
-                // An imported menu item is scanned again now: the screen may be older than the person's allergen list.
-                val live = finder.rescanMenuItem(src.option)
-                if (live != null && live.blocks && !overriding) {
-                    SwapLogResult.Blocked(reasonFor(SwapAllergen.CONTAINS, live.contains.map { it.matchedTerm }.distinct()) ?: "Contains an allergen you avoid")
-                } else if (src.option.rejected && !overriding) {
+                if (src.option.rejected && !overriding) {
                     SwapLogResult.Blocked(entry.option.allergenReason ?: "Contains an allergen you avoid")
                 } else {
                     val log = finder.log(src.option, slot)

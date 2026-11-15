@@ -138,6 +138,18 @@ object ShoppingListBuilder {
         }
     }
 
+    /**
+     * Saved rows still filed under Other, with the aisle today's [categoryOf] gives them. Rows saved before the
+     * categoriser learned a word (milk under Other) move to the right aisle; a row the categoriser still calls Other,
+     * a row in any other aisle, and removed rows are left as they are. Nothing but the aisle changes.
+     */
+    fun recategorised(items: List<ShoppingListItemEntity>, now: Long): List<ShoppingListItemEntity> =
+        items.mapNotNull { row ->
+            if (row.deletedAt != null || row.category != StoreCategory.OTHER) return@mapNotNull null
+            val better = categoryOf(normalise(row.name))
+            if (better == StoreCategory.OTHER) null else row.copy(category = better, updatedAt = now)
+        }
+
     fun isPantryStaple(key: String): Boolean {
         val t = tokens(key)
         // "black pepper" is a staple; "bell pepper" is produce.

@@ -5,6 +5,7 @@ import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -71,6 +72,9 @@ fun ShoppingListScreen(
     val list by produceState(StandaloneList(emptyList(), emptyList()), recipePicks, templatePicks, recipes, templates) {
         value = viewModel.build(recipePicks, templatePicks)
     }
+
+    // Re-read when the list changes (the person's allergen settings are read each time).
+    val marks by produceState(emptyMap<String, com.zeroindex.intake.ui.addfood.RowAllergen>(), list) { value = viewModel.marks(list) }
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
@@ -153,13 +157,13 @@ fun ShoppingListScreen(
             list.sections.forEach { (category, lines) ->
                 item(key = "cat-$category") { Eyebrow(ShoppingListBuilder.sectionTitle(category), Modifier.padding(top = 4.dp)) }
                 items(items = lines, key = { "l-${it.key}" }) { line ->
-                    ListRow(line, unit, line.key in ticked) { ticked = if (line.key in ticked) ticked - line.key else ticked + line.key }
+                    ListRow(line, unit, marks[line.key], line.key in ticked) { ticked = if (line.key in ticked) ticked - line.key else ticked + line.key }
                 }
             }
             if (list.pantry.isNotEmpty()) {
                 item(key = "cat-pantry") { Eyebrow("Pantry staples", Modifier.padding(top = 4.dp)) }
                 items(items = list.pantry, key = { "p-${it.key}" }) { line ->
-                    ListRow(line, unit, line.key in ticked) { ticked = if (line.key in ticked) ticked - line.key else ticked + line.key }
+                    ListRow(line, unit, marks[line.key], line.key in ticked) { ticked = if (line.key in ticked) ticked - line.key else ticked + line.key }
                 }
             }
         } else if (recipePicks.isNotEmpty() || templatePicks.isNotEmpty()) {
@@ -203,7 +207,7 @@ private fun PickRow(name: String, detail: String, batches: Int?, onToggle: () ->
 }
 
 @Composable
-private fun ListRow(line: GeneratedShoppingLine, unit: WeightUnit, done: Boolean, onToggle: () -> Unit) {
+private fun ListRow(line: GeneratedShoppingLine, unit: WeightUnit, allergen: com.zeroindex.intake.ui.addfood.RowAllergen?, done: Boolean, onToggle: () -> Unit) {
     val qty = ShoppingListBuilder.displayQuantity(line.quantity, unit)
     Row(
         Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(value = done, role = Role.Checkbox, onValueChange = { onToggle() }),
@@ -218,6 +222,7 @@ private fun ListRow(line: GeneratedShoppingLine, unit: WeightUnit, done: Boolean
                 textDecoration = if (done) TextDecoration.LineThrough else null,
             )
             line.note?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            allergen?.let { Box(Modifier.padding(top = 2.dp)) { com.zeroindex.intake.ui.addfood.RowAllergenChip(it) } }
         }
     }
 }

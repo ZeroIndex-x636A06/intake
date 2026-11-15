@@ -361,7 +361,7 @@ internal fun AllergenChips(scan: AllergenScanResult, ingredientLineCount: Int = 
                 if (basis.isCaution) {
                     com.zeroindex.intake.ui.allergen.AllergenChip(com.zeroindex.intake.domain.swap.SwapAllergen.CHECK_LABEL, label = basis.chipText)
                 } else {
-                    StatusPill("Passed allergen check")
+                    StatusPill(com.zeroindex.intake.domain.allergen.AllergenEvidence.ClearBasis.LABEL_READ.chipText)
                 }
             }
         }
