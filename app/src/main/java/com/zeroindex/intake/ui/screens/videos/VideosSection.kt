@@ -1,5 +1,7 @@
 package com.zeroindex.intake.ui.screens.videos
 
+import com.zeroindex.intake.ui.components.scrollIntoViewOnFocus
+import androidx.compose.foundation.layout.imePadding
 import com.zeroindex.intake.ui.components.rememberSyncedText
 import com.zeroindex.intake.domain.videos.YoutubeIds
 import androidx.compose.foundation.BorderStroke
@@ -166,7 +168,7 @@ fun VideosSection(
 
     LazyColumn(
         state = listState,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().imePadding(),
         contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -193,6 +195,23 @@ fun VideosSection(
             return@LazyColumn
         }
 
+        // Saved is always first, with an empty state. Downloads is reachable whenever the setting is on or something is
+        // downloaded, with or without a key.
+        item(key = "saved-strip") {
+            SavedStrip(
+                downloads = downloads,
+                saved = state.saved,
+                onSeeAll = { allSaved = true },
+                onOpen = openVideo,
+                onMake = onMakeWorkout,
+                onMoreLikeThis = viewModel::moreLikeThis,
+                onRemove = viewModel::unsave,
+            )
+        }
+        if (state.directOn || state.downloaded.isNotEmpty()) {
+            item(key = "downloads-entry") { DownloadsEntry(count = state.downloaded.size, onClick = { showDownloads = true }) }
+        }
+
         if (state.hasKey) {
             item(key = "search") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -216,8 +235,6 @@ fun VideosSection(
                     VideosOverflow(
                         searchesLeft = state.searchesLeft,
                         cleared = cleared,
-                        showDownloads = state.directOn || state.downloaded.isNotEmpty(),
-                        onDownloads = { showDownloads = true },
                         onHow = { showNote = true },
                         onClear = { viewModel.clearCache { cleared = true } },
                     )
@@ -229,20 +246,6 @@ fun VideosSection(
                     ToggleChip("Hide Shorts", state.hideShorts, viewModel::toggleHideShorts)
                     FiltersChip(state.filterCount) { showFilters = true }
                 }
-            }
-        }
-
-        if (state.saved.isNotEmpty()) {
-            item(key = "saved-strip") {
-                SavedStrip(
-                    downloads = downloads,
-                    saved = state.saved,
-                    onSeeAll = { allSaved = true },
-                    onOpen = openVideo,
-                    onMake = onMakeWorkout,
-                    onMoreLikeThis = viewModel::moreLikeThis,
-                    onRemove = viewModel::unsave,
-                )
             }
         }
 
@@ -337,13 +340,12 @@ fun VideosSection(
 
 /** The overflow menu next to the search box: the quota estimate, how Videos works, and clearing the cache. */
 @Composable
-private fun VideosOverflow(searchesLeft: Int, cleared: Boolean, showDownloads: Boolean, onDownloads: () -> Unit, onHow: () -> Unit, onClear: () -> Unit) {
+private fun VideosOverflow(searchesLeft: Int, cleared: Boolean, onHow: () -> Unit, onClear: () -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More for Videos") }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             DropdownMenuItem(text = { Text("About $searchesLeft searches left today") }, onClick = {}, enabled = false)
-            if (showDownloads) DropdownMenuItem(text = { Text("Downloaded videos") }, onClick = { open = false; onDownloads() })
             DropdownMenuItem(text = { Text("How Videos works") }, onClick = { open = false; onHow() })
             DropdownMenuItem(
                 text = { Text(if (cleared) "Cached video information cleared" else "Clear cached video information") },
@@ -418,9 +420,12 @@ private fun SavedStrip(
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Saved · ${saved.size}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-            TextButton(onClick = onSeeAll, modifier = Modifier.heightIn(min = 48.dp)) { Text("See all") }
+            if (saved.isNotEmpty()) TextButton(onClick = onSeeAll, modifier = Modifier.heightIn(min = 48.dp)) { Text("See all") }
         }
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (saved.isEmpty()) {
+            EmptyState(title = "No saved videos yet", body = "Videos you save to watch later appear here.")
+        }
+        if (saved.isNotEmpty()) LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             items(saved.take(12), key = { it.id }) { v ->
                 var menu by remember { mutableStateOf(false) }
                 Column(Modifier.width(CARD_WIDTH_SAVED)) {
@@ -695,7 +700,7 @@ private fun NoKeyCard(
                 KeySteps()
             }
         }
-        IntakeCard {
+        IntakeCard(Modifier.scrollIntoViewOnFocus()) {
             Text("Paste a YouTube link", style = MaterialTheme.typography.titleMedium)
             Text(
                 "No key needed. Intake asks YouTube for the title only, then plays the video in YouTube's player.",
@@ -739,6 +744,21 @@ fun KeySteps(modifier: Modifier = Modifier) {
                 }
             }
             section.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        }
+    }
+}
+
+/** The way into Downloaded videos: its count, and how much is stored. Shown when the downloads setting is on or any exist. */
+@Composable
+private fun DownloadsEntry(count: Int, onClick: () -> Unit) {
+    IntakeCard(Modifier.clickable(role = Role.Button, onClickLabel = "Open downloaded videos", onClick = onClick)) {
+        Column {
+            Text("Downloaded videos", style = MaterialTheme.typography.titleSmall)
+            Text(
+                if (count == 0) "None yet. Offline downloads are on." else "$count on this phone, playable offline",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

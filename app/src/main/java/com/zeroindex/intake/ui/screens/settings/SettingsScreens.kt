@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.settings
 
+import androidx.compose.foundation.layout.imePadding
 import com.zeroindex.intake.domain.units.format
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -112,7 +113,7 @@ fun SettingsHomeScreen(
     var query by rememberSaveable { mutableStateOf("") }
     val results = remember(query) { SettingsRegistry.search(query) }
     LazyColumn(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().imePadding(),
         contentPadding = PaddingValues(
             top = contentPadding.calculateTopPadding() + 4.dp,
             bottom = contentPadding.calculateBottomPadding() + 24.dp,
@@ -234,7 +235,7 @@ private fun GroupContent(group: SettingsGroup, focus: String?, nav: SettingsNav,
     }
     LazyColumn(
         state = listState,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().imePadding(),
         contentPadding = PaddingValues(
             top = pad.calculateTopPadding() + 4.dp,
             bottom = pad.calculateBottomPadding() + 24.dp,

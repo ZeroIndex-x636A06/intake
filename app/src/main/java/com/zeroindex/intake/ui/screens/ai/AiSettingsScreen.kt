@@ -2,6 +2,7 @@
 
 package com.zeroindex.intake.ui.screens.ai
 
+import com.zeroindex.intake.ui.components.scrollIntoViewOnFocus
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.Icons
@@ -68,7 +69,7 @@ import java.time.Duration
 @Composable
 internal fun KeyCard(state: AiSettingsUiState, onSave: (String?) -> Unit, onTest: () -> Unit) {
     var text by remember { mutableStateOf("") }
-    IntakeCard {
+    IntakeCard(Modifier.scrollIntoViewOnFocus()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("OpenRouter", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
             when {
@@ -93,7 +94,7 @@ internal fun KeyCard(state: AiSettingsUiState, onSave: (String?) -> Unit, onTest
             secret = true,
         )
         Row(Modifier.padding(top = 9.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(
+            Button(
                 onClick = { onSave(text); text = "" },
                 enabled = text.isNotBlank(),
                 shape = IntakeShape.Chip,
