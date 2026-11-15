@@ -442,6 +442,13 @@ class MealPlanRepository @Inject constructor(
 
     fun observeCheckLabelTerms() = allergens.observeCheckLabelTerms()
 
+    /** Emits whenever the person's avoided allergens or keyword table change, so allergen marks can be re-read. */
+    fun observeAllergenProfile(): Flow<Unit> =
+        kotlinx.coroutines.flow.combine(allergens.observeAvoidedAllergens(), allergens.observeAliases()) { _, _ -> }
+
+    /** The local allergen scan of shopping item names (nothing is sent anywhere). */
+    suspend fun shoppingScans(names: Collection<String>) = allergens.shoppingScans(names)
+
     /** A snapshot of the user's profile and alias table as an [AllergenCheck]. Local only. */
     suspend fun scanner(planChecklist: List<String>? = null): AllergenCheck {
         val avoided = allergens.avoidedAllergens()
@@ -546,6 +553,9 @@ class MealPlanRepository @Inject constructor(
         val links = planDao.weekRecipes(weekId)
         val recipes = links.mapNotNull { recipeDao.findById(it.recipeId) }
         generateShopping(weekId, recipes, force = false)
+        // Rows saved under Other before the categoriser knew their word move to today's aisle (no schema change).
+        val moved = ShoppingListBuilder.recategorised(shoppingDao.forWeek(weekId), clock.nowMillis())
+        if (moved.isNotEmpty()) shoppingDao.upsertAll(moved)
     }
 
     private suspend fun generateShopping(weekId: String, recipes: List<RecipeEntity>, force: Boolean) {

@@ -38,8 +38,7 @@ import com.zeroindex.intake.data.swap.SwapLogResult
 import com.zeroindex.intake.data.swap.SwapRepository
 import com.zeroindex.intake.data.swap.SwapSource
 import com.zeroindex.intake.domain.nfc.TemplateLink
-import com.zeroindex.intake.domain.allergen.AllergenOverride
-import com.zeroindex.intake.domain.allergen.OverridePrompt
+import com.zeroindex.intake.data.swap.PendingSwapWarning
 import com.zeroindex.intake.domain.nearby.PipelineState
 import com.zeroindex.intake.domain.nearby.SearchStage
 import com.zeroindex.intake.domain.nearby.TravelRadius
@@ -79,7 +78,7 @@ data class HealthierUiState(
     val notice: String? = null,
     val savedKeys: Set<String> = emptySet(),
     val choosing: Boolean = false,
-    val pendingOverride: OverridePrompt? = null,
+    val pendingWarning: PendingSwapWarning? = null,
     val zone: java.time.ZoneId = java.time.ZoneId.systemDefault(),
 )
 
@@ -225,17 +224,20 @@ class HealthierNearbyViewModel @Inject constructor(
         }
     }
 
-    /** "Choose anyway" on a blocked option: opens the warning dialog. Nothing is logged until the person confirms it. */
+    /** "Choose anyway" on a blocked option: opens the standard warning sheet. Nothing is logged until the person confirms it. */
     fun requestOverride(key: String) {
-        val prompt = entryOf(key)?.option?.let(AllergenOverride::prompt) ?: return
-        _state.update { it.copy(pendingOverride = prompt, notice = null) }
+        val entry = entryOf(key) ?: return
+        viewModelScope.launch {
+            val scan = repo.warningScan(entry)
+            _state.update { it.copy(pendingWarning = PendingSwapWarning(key, entry.option.title, scan), notice = null) }
+        }
     }
 
-    fun cancelOverride() = _state.update { it.copy(pendingOverride = null) }
+    fun cancelOverride() = _state.update { it.copy(pendingWarning = null) }
 
     fun confirmOverride() {
-        val key = _state.value.pendingOverride?.optionKey ?: return
-        _state.update { it.copy(pendingOverride = null) }
+        val key = _state.value.pendingWarning?.key ?: return
+        _state.update { it.copy(pendingWarning = null) }
         log(key, override = true)
     }
 
@@ -250,6 +252,8 @@ class HealthierNearbyViewModel @Inject constructor(
                     messages.post(AppMessage(text = r.text, actionLabel = "Undo", onAction = r.undo))
                     _state.update { it.copy(choosing = false) }
                 }
+                is SwapLogResult.NeedsWarning ->
+                    _state.update { it.copy(choosing = false, pendingWarning = PendingSwapWarning(key, r.title, r.scan)) }
                 is SwapLogResult.Blocked -> _state.update { it.copy(choosing = false, notice = "Not logged. ${r.reason}.") }
             }
         }
@@ -270,8 +274,11 @@ fun rememberHealthierBlock(
         locationDenied = !granted
         if (granted) viewModel.searchNearby()
     }
-    state.pendingOverride?.let { p ->
-        com.zeroindex.intake.ui.allergen.AllergenOverrideDialog(p, onCancel = viewModel::cancelOverride, onConfirm = viewModel::confirmOverride)
+    state.pendingWarning?.let { p ->
+        com.zeroindex.intake.ui.allergen.AllergenWarningSheet(
+            foodName = p.title, scan = p.scan,
+            onDismiss = viewModel::cancelOverride, onLogAnyway = viewModel::confirmOverride,
+        )
     }
     val timeFmt = remember(state.zone) { DateTimeFormatter.ofPattern("h:mm a").withZone(state.zone) }
     return {

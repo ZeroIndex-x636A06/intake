@@ -215,7 +215,7 @@ fun RecipeDetailScreen(
                             if (basis.isCaution) {
                                 com.zeroindex.intake.ui.allergen.AllergenChip(com.zeroindex.intake.domain.swap.SwapAllergen.CHECK_LABEL, label = basis.chipText)
                             } else {
-                                StatusPill("Passed allergen check")
+                                StatusPill(com.zeroindex.intake.domain.allergen.AllergenEvidence.ClearBasis.LABEL_READ.chipText)
                             }
                         }
                         AllergenStatus.MENTIONED_AVOIDED -> StatusPill(MentionedAvoided.PILL)

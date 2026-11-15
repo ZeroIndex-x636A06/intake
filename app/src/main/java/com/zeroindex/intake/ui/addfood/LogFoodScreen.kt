@@ -700,10 +700,12 @@ private fun MyFoodsTab(
 
     var filter by rememberSaveable { mutableStateOf("") }
     val needle = filter.trim().lowercase()
-    fun matches(f: FoodEntity) = needle.isEmpty() || (f.name + " " + f.brand.orEmpty()).lowercase().contains(needle)
-    val favorites = state.favorites.filter(::matches)
-    val mine = state.myFoods.filter { m -> state.favorites.none { it.id == m.id } && matches(m) }
-    val myRecipes = recipes.filter { needle.isEmpty() || it.recipe.name.lowercase().contains(needle) }
+    // A word that starts with what was typed beats a match in the middle of a word ("almo" finds Almond milk before Salmon).
+    fun ranked(foods: List<FoodEntity>) =
+        com.zeroindex.intake.domain.food.NameMatchRank.filterAndRank(foods, needle, { it.name }, { it.brand.orEmpty() })
+    val favorites = ranked(state.favorites)
+    val mine = ranked(state.myFoods.filter { m -> state.favorites.none { it.id == m.id } })
+    val myRecipes = com.zeroindex.intake.domain.food.NameMatchRank.filterAndRank(recipes, needle, { it.recipe.name })
     LazyColumn(Modifier.fillMaxSize()) {
         item(key = "add") {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

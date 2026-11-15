@@ -260,7 +260,11 @@ class AddFoodViewModel @Inject constructor(
         .flatMapLatest { q ->
             // Food search lists foods only: a drink on this phone is found in Drinks (one rule, DrinkRule).
             if (q.isBlank()) flowOf(emptyList()) else foodRepository.search(q.trim()).map { found ->
-                found.filter { SearchScope.FOODS.keeps(DrinkRule.isStoredDrink(it.drinkCategory)) }
+                // Word-start matches first ("almo" before Salmon), the database's own order inside a tier.
+                com.zeroindex.intake.domain.food.NameMatchRank.rank(
+                    found.filter { SearchScope.FOODS.keeps(DrinkRule.isStoredDrink(it.drinkCategory)) },
+                    q.trim(), { it.name }, { it.brand.orEmpty() },
+                )
             }
         }
 

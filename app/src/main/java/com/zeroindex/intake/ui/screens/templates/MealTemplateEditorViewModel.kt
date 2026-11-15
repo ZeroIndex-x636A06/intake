@@ -24,6 +24,9 @@ import com.zeroindex.intake.domain.template.TemplatePicker
 import com.zeroindex.intake.domain.template.RecipeFood
 import com.zeroindex.intake.domain.template.TemplateLine
 import com.zeroindex.intake.domain.units.PortionUnit
+import com.zeroindex.intake.ui.allergen.chipDetail
+import com.zeroindex.intake.ui.allergen.traceChipLabel
+import com.zeroindex.intake.ui.allergen.verdict
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -38,6 +41,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -87,6 +91,7 @@ class MealTemplateEditorViewModel @Inject constructor(
     private val recipeDao: RecipeDao,
     private val foodLogDao: FoodLogDao,
     private val allergens: com.zeroindex.intake.data.repository.AllergenRepository,
+    private val recipeLogger: com.zeroindex.intake.data.repository.RecipeLogger,
     settings: SettingsRepository,
 ) : ViewModel() {
 
@@ -158,6 +163,47 @@ class MealTemplateEditorViewModel @Inject constructor(
             SearchHits(lists = TemplatePicker.build(q, items), database = db.take(15))
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SearchHits())
+
+    /** The allergen chips of the picker's rows: saved foods and recipes by [PickItem.key], database foods by [RefFood.id]. */
+    data class PickChips(
+        val rows: Map<String, com.zeroindex.intake.ui.addfood.RowAllergen> = emptyMap(),
+        val refs: Map<Int, com.zeroindex.intake.ui.addfood.RowAllergen> = emptyMap(),
+    )
+
+    /**
+     * The same local-engine chip Log food shows, on every row the picker lists (foods, recipes and the offline USDA hits),
+     * so a food is not chosen blind. Empty when the person avoids nothing. Text work, so off the main thread.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val pickChips: StateFlow<PickChips> = combine(
+        hits,
+        allergens.observeAvoidedAllergens(),
+        allergens.observeAliases(),
+    ) { h, _, _ -> h }.mapLatest { h ->
+        if (allergens.avoidedAllergens().isEmpty()) return@mapLatest PickChips()
+        val rows = (h.lists.recent + h.lists.allSaved).distinctBy { it.key }
+        val myFoods = foods.observeAll().first().associateBy { it.id }
+        val myRecipes = recipeDao.observeAll().first().associateBy { it.id }
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            val scan = allergens.foodScanner()
+            val rowChips = rows.mapNotNull { p ->
+                when (p.kind) {
+                    PickItem.Kind.FOOD -> myFoods[p.id]?.let { f -> p.key to com.zeroindex.intake.ui.addfood.rowAllergenOf(f, scan(f)) }
+                    PickItem.Kind.RECIPE -> myRecipes[p.id]?.let { r ->
+                        val sc = recipeLogger.scan(r)
+                        p.key to com.zeroindex.intake.ui.addfood.RowAllergen(
+                            sc.verdict(), sc.chipDetail(), traceLabel = sc.traceChipLabel(),
+                        )
+                    }
+                }
+            }.toMap()
+            val refChips = h.database.associate { ref ->
+                val f = FoodRefRepository.toFoodEntity(ref)
+                ref.id to com.zeroindex.intake.ui.addfood.rowAllergenOf(f, scan(f))
+            }
+            PickChips(rowChips, refChips)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PickChips())
 
     /** Adds a food or recipe the picker listed. */
     fun addPicked(item: PickItem) {

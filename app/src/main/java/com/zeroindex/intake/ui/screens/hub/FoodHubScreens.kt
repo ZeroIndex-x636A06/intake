@@ -152,11 +152,31 @@ class EatingOutViewModel @Inject constructor(
 
     fun remove(id: String) { viewModelScope.launch { plans.deleteEatOutOption(id) } }
 
-    /** Logs a saved option to [slot], through the same check Swap uses: a blocked option is not logged from here. */
-    fun choose(entry: SwapEntry, slot: MealSlot) {
+    /** A flagged saved option waiting on the standard warning sheet, with the meal it was picked for. */
+    private val _pending = kotlinx.coroutines.flow.MutableStateFlow<Pair<com.zeroindex.intake.data.swap.PendingSwapWarning, MealSlot>?>(null)
+    val pending: StateFlow<Pair<com.zeroindex.intake.data.swap.PendingSwapWarning, MealSlot>?> = _pending
+
+    fun dismissPending() { _pending.value = null }
+
+    /** "Log it anyway" on the warning sheet. */
+    fun confirmPending(entries: List<SwapEntry>) {
+        val (p, slot) = _pending.value ?: return
+        _pending.value = null
+        val entry = entries.firstOrNull { it.option.key == p.key } ?: return
+        choose(entry, slot, override = true)
+    }
+
+    /**
+     * Logs a saved option to [slot], through the same check Swap uses: a "contains" or "may contain" option opens the
+     * standard warning sheet first and is logged only after "Log it anyway".
+     */
+    fun choose(entry: SwapEntry, slot: MealSlot, override: Boolean = false) {
         viewModelScope.launch {
-            when (val r = swap.choose(entry, slot)) {
-                is SwapLogResult.Blocked -> messages.post(AppMessage("Not logged: ${r.reason}"))
+            when (val r = swap.choose(entry, slot, override)) {
+                is SwapLogResult.Blocked -> _pending.value =
+                    com.zeroindex.intake.data.swap.PendingSwapWarning(entry.option.key, entry.option.title, swap.warningScan(entry)) to slot
+                is SwapLogResult.NeedsWarning -> _pending.value =
+                    com.zeroindex.intake.data.swap.PendingSwapWarning(entry.option.key, r.title, r.scan) to slot
                 is SwapLogResult.Logged -> messages.post(AppMessage(r.text, actionLabel = "Undo", onAction = r.undo))
             }
         }
@@ -237,6 +257,13 @@ fun EatingOutScreen(
             title = "Log ${e.option.title} to",
             onDismiss = { choosing = null },
             onPick = { slot -> choosing = null; viewModel.choose(e, slot) },
+        )
+    }
+    val pendingWarning by viewModel.pending.collectAsStateWithLifecycle()
+    pendingWarning?.let { (p, _) ->
+        com.zeroindex.intake.ui.allergen.AllergenWarningSheet(
+            foodName = p.title, scan = p.scan,
+            onDismiss = viewModel::dismissPending, onLogAnyway = { viewModel.confirmPending(options.orEmpty()) },
         )
     }
     removing?.let { e ->

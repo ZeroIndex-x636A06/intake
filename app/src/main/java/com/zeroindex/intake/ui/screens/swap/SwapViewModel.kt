@@ -6,6 +6,7 @@ import com.zeroindex.intake.data.ai.AiError
 import com.zeroindex.intake.data.ai.AiGateway
 import com.zeroindex.intake.data.ai.planb.PlanBFinder
 import com.zeroindex.intake.data.ai.planb.SearchArea
+import com.zeroindex.intake.data.swap.PendingSwapWarning
 import com.zeroindex.intake.data.swap.PlannedMeal
 import com.zeroindex.intake.data.swap.SwapEntry
 import com.zeroindex.intake.data.swap.SwapLogResult
@@ -15,8 +16,6 @@ import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nfc.TemplateLink
 import com.zeroindex.intake.domain.nutrition.Macros
-import com.zeroindex.intake.domain.allergen.AllergenOverride
-import com.zeroindex.intake.domain.allergen.OverridePrompt
 import com.zeroindex.intake.domain.nearby.PipelineState
 import com.zeroindex.intake.domain.nearby.TravelBudget
 import com.zeroindex.intake.domain.swap.NearbyMode
@@ -70,8 +69,8 @@ data class SwapUiState(
     val notice: String? = null,
     val choosing: Boolean = false,
     val savedKeys: Set<String> = emptySet(),
-    /** The "Choose anyway" warning dialog, while it is open. */
-    val pendingOverride: OverridePrompt? = null,
+    /** The standard allergen warning sheet, while it is open. Nothing is logged until "Log it anyway". */
+    val pendingWarning: PendingSwapWarning? = null,
     val zone: java.time.ZoneId = java.time.ZoneId.systemDefault(),
 )
 
@@ -208,18 +207,21 @@ class SwapViewModel @Inject constructor(
         }
     }
 
-    /** "Choose anyway" on a blocked option: opens the warning dialog. Nothing is logged until the person confirms it. */
+    /** "Choose anyway" on a blocked option: opens the standard warning sheet. Nothing is logged until the person confirms it. */
     fun requestOverride(key: String) {
-        val prompt = entryOf(key)?.option?.let(AllergenOverride::prompt) ?: return
-        _state.update { it.copy(pendingOverride = prompt, notice = null) }
+        val entry = entryOf(key) ?: return
+        viewModelScope.launch {
+            val scan = repo.warningScan(entry)
+            _state.update { it.copy(pendingWarning = PendingSwapWarning(key, entry.option.title, scan), notice = null) }
+        }
     }
 
-    fun cancelOverride() = _state.update { it.copy(pendingOverride = null) }
+    fun cancelOverride() = _state.update { it.copy(pendingWarning = null) }
 
-    /** The red button in the warning dialog: logs the item with the warning kept on the entry. */
+    /** "Log it anyway" on the warning sheet: logs the item with the warning kept on the entry. */
     fun confirmOverride(onDone: () -> Unit) {
-        val key = _state.value.pendingOverride?.optionKey ?: return
-        _state.update { it.copy(pendingOverride = null) }
+        val key = _state.value.pendingWarning?.key ?: return
+        _state.update { it.copy(pendingWarning = null) }
         choose(key, onDone, override = true)
     }
 
@@ -242,6 +244,8 @@ class SwapViewModel @Inject constructor(
                     _state.update { it.copy(choosing = false) }
                     onDone()
                 }
+                is SwapLogResult.NeedsWarning ->
+                    _state.update { it.copy(choosing = false, pendingWarning = PendingSwapWarning(key, r.title, r.scan)) }
                 is SwapLogResult.Blocked -> _state.update { it.copy(choosing = false, notice = "Not logged. ${r.reason}.") }
             }
         }

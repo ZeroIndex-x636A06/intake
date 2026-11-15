@@ -490,7 +490,7 @@ private fun HuntedCard(hunted: HuntedRecipe, saved: Boolean, onClick: () -> Unit
                     when (val v = hunted.verdict) {
                         RecipeVerdict.Passed ->
                             if (hunted.scan.hasCheckLabel) CheckLabelChip(hunted.scan.checkLabel.first().note, showReason = false)
-                            else StatusPill("Passed allergen check")
+                            else StatusPill(com.zeroindex.intake.domain.allergen.AllergenEvidence.ClearBasis.LABEL_READ.chipText)
                         is RecipeVerdict.NeedsReview -> StatusPill("Check allergens", tone = PillTone.Wait)
                         // Short chips only, one per count against the recipe; the full reasons are in the text below.
                         is RecipeVerdict.Rejected -> hunted.reasonChips.forEach { chip ->

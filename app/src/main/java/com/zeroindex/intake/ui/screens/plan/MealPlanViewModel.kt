@@ -22,6 +22,9 @@ import com.zeroindex.intake.domain.plan.PlanSchedule
 import com.zeroindex.intake.domain.model.PlanLoopMode
 import com.zeroindex.intake.data.db.entity.MealPlanEntity
 import com.zeroindex.intake.domain.plan.ShoppingListBuilder
+import com.zeroindex.intake.ui.allergen.chipDetail
+import com.zeroindex.intake.ui.allergen.traceChipLabel
+import com.zeroindex.intake.ui.allergen.verdict
 import com.zeroindex.intake.domain.plan.ShoppingSections
 import com.zeroindex.intake.domain.time.Clock
 import com.zeroindex.intake.domain.units.WeightUnit
@@ -44,6 +47,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -135,6 +139,22 @@ class MealPlanViewModel @Inject constructor(
                 repo.observeShopping(id).map { ShoppingListBuilder.group(it) }
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ShoppingSections(emptyList(), emptyList()))
+
+    /**
+     * The allergen marker of each shopping row (by row id), from the local engine on the item name. Only rows that match
+     * one of the person's allergens have one; nothing is hidden and a clear row says nothing.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val shoppingMarks: StateFlow<Map<String, com.zeroindex.intake.ui.addfood.RowAllergen>> =
+        kotlinx.coroutines.flow.combine(shopping, repo.observeAllergenProfile()) { sections, _ -> sections }.mapLatest { sections ->
+            val rows = sections.sections.flatMap { it.second } + sections.pantry
+            val scans = com.zeroindex.intake.domain.plan.ShoppingAllergenMarks.flagged(repo.shoppingScans(rows.map { it.name }), includeCheckLabel = false)
+            rows.mapNotNull { r ->
+                scans[r.name]?.let { sc ->
+                    r.id to com.zeroindex.intake.ui.addfood.RowAllergen(sc.verdict(), sc.chipDetail(), traceLabel = sc.traceChipLabel())
+                }
+            }.toMap()
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     private val showAllEatOut = MutableStateFlow(false)
     val showingAllEatOut: StateFlow<Boolean> = showAllEatOut.asStateFlow()
