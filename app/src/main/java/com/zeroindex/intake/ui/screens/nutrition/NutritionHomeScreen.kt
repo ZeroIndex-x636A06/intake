@@ -179,7 +179,7 @@ fun NutritionHomeScreen(
             ) {
                 Row(Modifier.padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        "More: plan, recipes, eating out, nutrients",
+                        "More: plan, recipes, templates, shopping, eating out",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.ExtraBold,
                         modifier = Modifier.weight(1f),

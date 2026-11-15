@@ -94,7 +94,7 @@ class NutritionMealViewModel @Inject constructor(
     /** The day this screen shows. Never later than today (see [NutritionDay]). */
     val date: LocalDate = NutritionDay.clamp(LocalDate.ofEpochDay(route.epochDay), clock.today())
 
-    private val slot = MutableStateFlow(MealSlot.MEALS.firstOrNull { it.name == route.slot } ?: MealSlot.BREAKFAST)
+    private val slot = MutableStateFlow(MealSlot.entries.firstOrNull { it.name == route.slot } ?: MealSlot.BREAKFAST)
     private val enteredTime = MutableStateFlow<LocalTime?>(null)
 
     private val items = combine(slot, foodLog.observeDay(date), settings.settings) { s, rows, st ->

@@ -44,6 +44,22 @@ object MacroShares {
 }
 
 /**
+ * Which percentage labels under a split bar are drawn. A label sits under its own segment and must fit in it, so two labels
+ * can never overlap or clip. A segment too narrow for its label gets none; the bar's description still reads every
+ * percentage. Pure: the caller measures the bar and each label in the same unit.
+ */
+object MacroLabelFit {
+
+    /**
+     * For each segment percentage (in bar order), whether its label fits in that segment's share of [barWidth].
+     * A zero share never shows a label; a bar with no usable width shows none.
+     */
+    fun visible(percents: List<Int>, barWidth: Float, labelWidth: Float): List<Boolean> = percents.map { pct ->
+        pct > 0 && barWidth.isFinite() && barWidth > 0f && labelWidth.isFinite() && pct * barWidth / 100f >= labelWidth
+    }
+}
+
+/**
  * Geometry for the hold-to-split calorie ring: the eaten arc cut into protein, carbs and fat by their share of calories.
  * Angles are in degrees, clockwise from 12 o'clock (0 = top). Pure.
  */

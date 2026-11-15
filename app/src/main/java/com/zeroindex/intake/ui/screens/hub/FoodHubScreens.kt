@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.hub
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -36,9 +37,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.zeroindex.intake.data.repository.MealPlanRepository
 import com.zeroindex.intake.data.swap.SwapEntry
+import com.zeroindex.intake.data.swap.SwapLogResult
 import com.zeroindex.intake.data.swap.SwapRepository
 import com.zeroindex.intake.data.swap.SwapSource
 import com.zeroindex.intake.domain.model.MealSlot
+import com.zeroindex.intake.ui.AppMessage
+import com.zeroindex.intake.ui.AppMessages
 import com.zeroindex.intake.ui.allergen.AllergenChip
 import com.zeroindex.intake.ui.components.EmptyState
 import com.zeroindex.intake.ui.components.IntakeCard
@@ -47,6 +51,7 @@ import com.zeroindex.intake.ui.motion.rememberStaggerGate
 import com.zeroindex.intake.ui.motion.staggerIn
 import com.zeroindex.intake.ui.screens.plan.RecipeLibraryViewModel
 import com.zeroindex.intake.ui.screens.plan.RecipeRow
+import com.zeroindex.intake.ui.screens.today.SlotPickerSheet
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlin.math.roundToInt
@@ -128,7 +133,8 @@ fun RecipesScreen(
 @HiltViewModel
 class EatingOutViewModel @Inject constructor(
     private val plans: MealPlanRepository,
-    swap: SwapRepository,
+    private val swap: SwapRepository,
+    private val messages: AppMessages,
 ) : ViewModel() {
     /** Null until the first read finishes. */
     val options: StateFlow<List<SwapEntry>?> = plans.observeEatOutOptions()
@@ -136,6 +142,16 @@ class EatingOutViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     fun remove(id: String) { viewModelScope.launch { plans.deleteEatOutOption(id) } }
+
+    /** Logs a saved option to [slot], through the same check Swap uses: a blocked option is not logged from here. */
+    fun choose(entry: SwapEntry, slot: MealSlot) {
+        viewModelScope.launch {
+            when (val r = swap.choose(entry, slot)) {
+                is SwapLogResult.Blocked -> messages.post(AppMessage("Not logged: ${r.reason}"))
+                is SwapLogResult.Logged -> messages.post(AppMessage(r.text, actionLabel = "Undo", onAction = r.undo))
+            }
+        }
+    }
 }
 
 /**
@@ -155,6 +171,7 @@ fun EatingOutScreen(
     val healthierBlock = rememberHealthierBlock(onOpenAiSettings, onOpenRadiusSetting)
     val options by viewModel.options.collectAsStateWithLifecycle()
     var removing by remember { mutableStateOf<SwapEntry?>(null) }
+    var choosing by remember { mutableStateOf<SwapEntry?>(null) }
     HubScreen(
         subtitle = "Saved options, restaurant menus and healthier options near you.",
         contentPadding = contentPadding,
@@ -181,7 +198,8 @@ fun EatingOutScreen(
                 }
                 else -> itemsIndexed(list, key = { _, e -> e.option.key }) { _, e ->
                     val src = e.source as? SwapSource.EatOut
-                    IntakeCard {
+                    // The card logs the option to a meal you pick; the bin icon removes it and stops there.
+                    IntakeCard(Modifier.clickable(onClickLabel = "Log ${e.option.title}") { choosing = e }) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                 Text(src?.option?.venueName ?: e.option.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
@@ -205,6 +223,13 @@ fun EatingOutScreen(
             }
         },
     )
+    choosing?.let { e ->
+        SlotPickerSheet(
+            title = "Log ${e.option.title} to",
+            onDismiss = { choosing = null },
+            onPick = { slot -> choosing = null; viewModel.choose(e, slot) },
+        )
+    }
     removing?.let { e ->
         val src = e.source as? SwapSource.EatOut
         AlertDialog(

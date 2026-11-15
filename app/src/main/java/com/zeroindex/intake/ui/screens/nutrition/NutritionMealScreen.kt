@@ -242,7 +242,7 @@ private fun MealHeader(
                     Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
                 }
                 DropdownMenu(expanded = slotMenu, onDismissRequest = { slotMenu = false }) {
-                    MealSlot.MEALS.forEach { s ->
+                    MealSlot.entries.forEach { s ->
                         DropdownMenuItem(
                             text = { Text(NutritionMealViewModel.slotName(s), fontWeight = if (s == slot) FontWeight.ExtraBold else FontWeight.Normal) },
                             onClick = { onSlot(s); slotMenu = false },

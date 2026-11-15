@@ -287,6 +287,15 @@ fun RecipeDetailScreen(
                 modifier = Modifier.weight(if (recipe.instructions.isNotBlank()) 2f else 1f).height(52.dp),
             ) { Text(if (logged) "Logged · log another" else "Log a serving") }
         }
+        if (nutrition.kcal == null) {
+            // The button is off for a reason the person can fix: say what is missing and where to add it.
+            Text(
+                "Log a serving needs a calorie figure, and this recipe has none. Add the ingredients' nutrition in the recipe to turn it on.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            TextButton(onClick = { onEdit(recipe.id) }) { Text("Edit recipe to add nutrition") }
+        }
         notice?.let { SandNote(it) }
         Spacer(Modifier.height(24.dp))
     }
