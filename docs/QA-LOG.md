@@ -527,3 +527,230 @@ Screenshot: none kept (the API keys screen was not saved); see the Settings API 
 Suspect: ui/screens/settings ApiKeys
 
 Summary for Pass 3: 12 findings. S1: 0. S2: 1 (Q3-3). S3: 7 (Q3-1, 2, 7, 8, 9, 10, 11). S4: 4 (Q3-4, 5, 6, 12). A retest is needed after fixes, plus the parts that need a real key and network: Saved at the top, load more, Shorts hiding by orientation, downloads. Nothing here was seen on a device.
+
+---
+
+## Pass 4 — Progress, settings, backup, profile
+Date: 2026-11-15 · Build: 57671ba preview (com.zeroindex.intake.preview, the prebuilt APK; later commits only touched docs) · AVD: phone30 (zone America/Los_Angeles, set so midnight was far off; the pass ran 12:35 to 14:50 local) · Seed: tools/qa/seed.sh adapted to the preview package (temporary copy, deleted; data dated 2026-11-15, which is a Sunday). The app was wiped with `pm clear` once for the first-run and import checks.
+Covered: A.1 (first run, all 10 onboarding steps, equipment picker Advanced, allergen step), A.2 and A.5 to A.9 only where they touch the tabs visited (Today, Nutrition, Progress, Settings), A.10/A.11 (font 1.5 on Nutrition and Progress; landscape on Progress), A.12 (dark on Today, Nutrition, Progress), A.14 (the only deep link in the manifest: `intake://log-template/<id>` by NDEF_DISCOVERED, good id and bad id); E.1 to E.3 (numbers recomputed from the seed), E.4 not run (no weigh-in logged), E.5/E.6 not reached, E.7/E.8 (averages), E.9 (looked for it, see Q4-23), E.10, E.11, E.12 (PDF saved and its table compared with the seed), E.16 (scrubbing, tooltip), E.17, E.19, E.21 not run (no 1 y data), E.22, E.23 (empty Progress on the fresh install), E.25, E.26; F.1 to F.3, F.5, F.7, F.16 (empty profile); G Appearance and units (7 of 12 controls; the Today card switches not toggled), Nutrition (12 of 15, Contest and Reverse show only in their phase), Water and drinks (Daily water target not edited, weather, city lookup offline, Quick sizes read), Training (read all, 3 changed), Health Connect (unavailable state only), Food database (6 flipped except the OFF account fields), Videos (all 4 read, 2 flipped), Reminders (11 of 12 read, 4 flipped), Sync and export (all rows, JSON export plain and encrypted), AI optional (see Q4-17), API keys (OpenRouter fake key saved, tested, removed), About and help (all 7 rows read, privacy screen read); H.1 to H.6, H.8, H.9 to H.11 partly (see below), H.12; J checks on every screen seen.
+Not reached: E.4, E.5, E.6, E.9 (no such block, Q4-23), E.13, E.14, E.15, E.18, E.20 (the card range stayed Mon to Sun with check-in day Friday, not judged), E.21, E.24; F.4, F.6, F.8 to F.15; Settings: Today card switches, Daily water target, Measure my sweat rate, Drink values, Weather permission sheet, the 17 Health Connect switches and "Allow all Health Connect permissions" (hidden because Health Connect is unavailable on Android 11), OFF username and password (typed text was lost on Back, nothing saved), Export reminder and Reminders actually posting a notification, CSV exports, Linked devices and Stop syncing here (shown only when paired), AI group (Q4-17), Menu import, USDA and YouTube key tests; H.5 wrong passphrase retry (blocked by Q4-8), H.7 uninstall variant (replaced by pm clear), H.10 only via schema 99 file; A.2 rotation of other tabs, A.6, A.7; Settings search box. Dark theme for Settings was not looked at.
+Logcat: two ANRs for com.zeroindex.intake.preview. (a) 13:23, while scrolling Settings > Water and drinks with Advanced expanded: main thread in Compose layout measure only (no app frame), 116 percent CPU, software rendering. I put it down to the emulator and did not log it as a finding. (b) 14:19, tapping Open in the "Encrypted backup" passphrase dialog: main thread inside `BackupCrypto.key` (PBKDF2) called from `ExportViewModel.unlockImport`, that is the app, see Q4-8. No FATAL EXCEPTION, no StrictMode lines, empty crash buffer. The fake OpenRouter key and the fake passphrases do not appear in logcat.
+Seen on emulator only (Android 11, software rendering, no KVM, 5 to 40 s per action, 3-button navigation). Not seen on a device: performance, the feel of the encrypted import freeze, real notifications, gesture navigation in landscape (Q4-22), Health Connect on API 34+, the Play Store button. Screenshots are scale 1.9 of the screen (540x1200). Q3-1 (44.1 lb bar and metric plates for a lb user) still reproduces on this build; it is already logged and fixed in cc7bc40, so it is not logged again here.
+Checked and fine: weigh-in values (192.0 lb latest, trend 193.5 lb, 13 weigh-ins in 1 M, 17 in All, goal 185.0 lb, waist 36.3 in, chest 41.7 in, arm 14.4 in; all agree with the seed), the 13 to 15 day gap drawn dotted, scrubbing the weight chart shows "Mon 9 Nov 2026 194.0 lb · Manual" per weigh-in, the range chip survives rotation, the check-in table and the exported PDF agree with a hand sum of the seeded days (Mon 9 Nov 2,449 kcal ... Sat 14 Nov 2,393), switching lb/in/fl oz/g to kg/cm/ml/oz and back leaves every value unchanged on Today, Progress, You, Edit profile (183 cm, 87.1 kg, 83.9 kg goal, 72 in, 192 lb, 185.0 lb), a full export, `pm clear`, import round trip gives an export that is identical row for row and setting for setting (562 changes: allergen profile 1, body metric 17, food 32 new plus the 4 seeded drinks, food log 224, hydration 120, recipes 5, templates 2 and 7 items, menu source 1 and items 8, program 1, days 4, exercises 17, workout sessions 6, set logs 87, coach suggestions 2, settings 27), import of a truncated file, an unrelated JSON, random bytes, a schema 99 file and a file with a text in a number field all stop with a message and change nothing, importing the same file again reports 0 changes, the encrypted file is not readable as text, export file names and "Last export" update, a fake OpenRouter key saves, tests ("Could not reach OpenRouter") and removes, the offline city lookup says "No place found. Check the spelling, or check that you are online.", Videos group text is now accurate (Intake downloads a video only if you turn on Offline downloads), the pairing code field is empty (see Q4-24).
+
+### Q4-1 · S2 · Progress E.7, E.8 · Average calories and "days logged" change with the range, and a logged day goes missing
+Status: open
+Steps: 1. Seeded install, Progress with 1M (or 3M, 6M). 2. Read "This week" AVG KCAL / DAY and the Calories vs target caption. 3. Tap All and read both again.
+Expected: the same 21 logged days (26 Oct to 15 Nov) give the same average in every range: 2,118 kcal (hand average of the seeded days, today's partial 650 kcal included), "21 logged days" and 9 days over the 2,260 target.
+Actual: 1M, 3M and 6M show "2,102", "Calories per day across 20 logged days, target 2260 kcal, 8 days over." All shows 2,118. One over-target day (2,448 kcal on 1 Nov, or 2,449 on 9 Nov, either gives 2,102) is missing from the daily series in the shorter ranges. 1 Nov 2026 is the day the clocks go back in this zone.
+Screenshot: design/qa/pass4/q4-1-days-logged-and-calories.png and q4-1-all-range-2118.png
+Suspect: ui/screens/progress/ProgressViewModel.kt (series built from observeDailyIntake) and data/db/dao/FoodLogDao.kt observeDailyIntake (fixed 86,400,000 ms buckets from an offset taken at `from`, a lead only, not confirmed)
+
+### Q4-2 · S2 · Progress E.7 · Days logged: headline says 21 of 21, the grid says "20 of 28", and today's square is empty
+Status: open
+Steps: 1. Seeded install (today has 650 kcal logged). 2. Progress, scroll to Days logged.
+Expected: one number. Today's square filled, since food is logged today.
+Actual: headline "21 of the last 21 days logged" and the line under the grid "20 of 28 days logged." Today's square (bottom right) is an empty outline, yesterday's is paler than the rest with no legend. The first row of seven squares is empty, because the grid is 28 days and only 21 have data, which makes the card look like it is missing a week.
+Screenshot: design/qa/pass4/q4-1-days-logged-and-calories.png
+Suspect: ui/screens/progress/ProgressScreen.kt (adherence grid, line 589), same cause as Q4-1 possible
+
+### Q4-3 · S3 · Progress E.1 · The card titled "This week" is labelled "last month" and shows range data
+Status: open
+Steps: 1. Progress, 1M. 2. Look at the card titled "This week" (AVG KCAL / DAY, AVG WEIGHT CHANGE, MAINTENANCE KCAL, PROTEIN TARGET HIT).
+Expected: either week figures, or a title that matches the range.
+Actual: title "This week" with the caption "last month" (and "last 6 months", "all time" on the other chips). The numbers cover the whole range (30 days, 6 months...), and "Protein target hit 24%" is always the last 21 days whatever the chip says.
+Screenshot: design/qa/pass4/q4-3-this-week-caption.png
+Suspect: ui/screens/progress/ProgressScreen.kt WeeklySummaryCard (title "This week", caption = state.range.caption); the protein figure comes from refreshAdherence (fixed 21 days)
+
+### Q4-4 · S3 · Progress E.11 · Weekly check-in: the same week gives different intake, weight and protein numbers in three places
+Status: open
+Steps: 1. Seeded install, Progress > Weekly check-in, week of Nov 9 to 15. 2. Compare the top card, the "Your week" list and the PDF (Export PDF).
+Expected: one figure for each.
+Actual: top card AVG INTAKE 1,972 kcal and AVG WEIGHT 193.0 lb "· -0.5 LB"; "Your week" list: Calories (average) 2,193 kcal, Weight trend "−0.9 lb (−0.6% a week)", Protein (average) 135 g, Days logged "6 of 7"; PDF table average row: 2,058 kcal (after the NFC log in Q4-25, 1,972 before), protein 122 g, "7 of 7 days logged". The list leaves out today's partial day, the card and the PDF include it, and the protein suggestion says "135 g on the 6 days you logged".
+Screenshot: design/qa/pass4/q4-4-checkin-mismatch.png
+Suspect: domain/coach/CoachEngine.kt (logged days filter, line 605) against the summary card and the PDF writer
+
+### Q4-5 · S2 · You / Progress F.7, J.18 · Water and weights shown in ml and kg for a user on fl oz and lb
+Status: open
+Steps: 1. Seeded install (lb, in, fl oz). 2. You > How this was worked out. 3. Progress > Weekly check-in, the Water suggestion.
+Expected: "103.1 fl oz a day", "16.9 fl oz on each of your 4 training days", "87.1 kg" shown as lb.
+Actual: Your plan: "3,050 ml a day", "35 ml per kg x 87.1 kg = 3,050 ml, plus 500 ml on each of your 4 training days.", "Protein 2.4 g/kg of body weight (87.1 kg)". Check-in: "You averaged 2,254 ml a day against a target of 3,157 ml (71%)". Every other screen (You card, Today, Settings) shows fl oz and lb.
+Screenshot: design/qa/pass4/q4-5-plan-ml-kg.png
+Suspect: domain plan explanations (YourPlan) and domain/coach suggestion text
+
+### Q4-6 · S2 · You / Settings F.2, G Nutrition · "Work my targets out from my data" on: You says "worked out from your data", the numbers are still the manual ones
+Status: open
+Steps: 1. Seeded install (manual 2,260 kcal, 170 g protein). 2. Settings > Nutrition, switch "Work my targets out from my data" on. 3. Settings > Nutrition > Recalculate now. 4. You.
+Expected: either the targets change to the calculated ones, or the card keeps saying "set by hand".
+Actual: You header changes to "worked out from your data" and Calories reads "from your weight trend and a gentle pace" over **2,260 kcal**, Protein 170 · 70 · 245 g (the manual numbers). How this was worked out on the same screen says 2,338 kcal, 209 g protein, 238 g carbs, 61 g fat ("There is no baseline yet, so this is an estimate"). Today still shows 2,260. Recalculate now gives no message and changes nothing (Progress says "Needs 14 days of weigh-ins and logs" although 21 days are logged, see Q4-1). Switching it off again keeps 2,260 (good).
+Screenshot: design/qa/pass4/q4-6-auto-targets.png and q4-5-plan-ml-kg.png
+Suspect: data/repository TargetRepository (auto target row not written), ui/screens/you
+
+### Q4-7 · S3 · You / Settings G Nutrition · Your plan ignores the Protein and Fat settings
+Status: open
+Steps: 1. Settings > Nutrition shows Protein 1.9 g per kg, Fat 0.8 g per kg. 2. Turn auto targets on, You > How this was worked out.
+Expected: protein 1.9 g per kg (about 159 g at the 83.9 kg goal weight, as the setting's own text says "Per kg of goal weight").
+Actual: "Protein 2.4 g/kg of body weight (87.1 kg)", 209 g, "fat at least 0.7 g/kg" (61 g). The settings are not used, and the setting says per kg of goal weight while the plan screen uses current weight.
+Screenshot: design/qa/pass4/q4-5-plan-ml-kg.png
+Suspect: domain plan/targets calculator
+
+### Q4-8 · S2 · Backup H.5 · Opening an encrypted backup freezes the app (ANR on the emulator)
+Status: open
+Steps: 1. Settings > Sync and export, type passphrase "qapass1", Export everything, Save (file .intake). 2. Import a backup, pick the .intake file. 3. In "Encrypted backup" type any passphrase and tap Open.
+Expected: a spinner, the UI stays alive, the preview or "wrong passphrase" appears.
+Actual: the app stops answering, "Input event dispatching timed out ... Waited 5007ms", ANR, the app is killed and the user lands on the launcher. Trace: main thread in `PKCS5S2ParametersGenerator.generateDerivedKey` (210,000 iterations) called from `BackupCrypto.key`, `BackupCrypto.decrypt`, `BackupService.preview`, `ExportViewModel.unlockImport`. On a real phone this is a freeze of a fraction of a second to seconds, not an ANR, but the work is on the main thread. The wrong-passphrase retry (H.5) could not be reached because of it.
+Screenshot: design/qa/pass4/q4-8-encrypted-import.png (the dialog before Open)
+Suspect: ui/screens/backup/ExportViewModel.kt unlockImport (viewModelScope.launch on Main), domain/backup/BackupCrypto.kt
+
+### Q4-9 · S3 · Backup H.4 · Import error messages are wrong or technical
+Status: open
+Steps: 1. Import intake-export (first 300,000 bytes only), then a copy where one body_metric weightKg is the text "abc".
+Expected: "This backup is damaged or incomplete" for the first, a plain sentence for the second.
+Actual: truncated file: "That file is not an Intake backup (it is not JSON)." (it is an Intake backup that is cut off). Bad number: "The body_metric table in the backup does not match this app: Failed to parse literal '"abc"' as a double value at path: $.weightKg JSON input: .....m":36.5,"createdAt":1791813000000". Nothing was imported in either case (Today stayed empty), so the safety part is fine.
+Screenshot: design/qa/pass4/q4-9-import-error.png
+Suspect: data/backup/BackupService.kt (ImportException messages)
+
+### Q4-10 · S2 · Allergens A.1 · A fresh install already avoids "Milk and dairy"
+Status: open
+Steps: 1. `pm clear`, launch. 2. Welcome, Get started, Continue through to step 6 "Foods you avoid". 3. Finish, Nutrition tab.
+Expected: nothing selected for a new user ("You avoid 0"); the user chooses.
+Actual: step 6 opens with "You avoid 1." and Milk and dairy highlighted; pressing Continue keeps it. Nutrition shows the red chip "Avoiding: Milk and dairy" and Settings > Allergens has it On at "Avoid" with "180 keywords · you avoid this" though the user never chose it. A user who has no dairy allergy gets warnings they did not ask for and cannot tell the profile was not theirs; a user who skips the step believing "nothing chosen" is wrong.
+Screenshot: design/qa/pass4/q4-10-fresh-allergen.png
+Suspect: the default allergen_profile row created at first run (data/db seed or AllergenRepository)
+
+### Q4-11 · S3 · Onboarding A.1 · Equipment step: two cards selected at once, and a kg bar for a lb user
+Status: open
+Steps: 1. Fresh install, step 2 keep lb. 2. Step 5 "What can you train with?", tap "Advanced: pick each item".
+Expected: Advanced selected alone, or the list shown under the selected card. Weights in lb.
+Actual: "Full gym" stays highlighted and "Advanced" also highlights, with every item ticked (Full gym's set); the item list sits below the fold with no cue. First item reads "Barbell (Olympic): 2 in sleeves, 20 kg bar" (the same text is in Settings > Training). Also step 3 "About you" shows 1990, 70 and 170 as grey placeholders that look like filled values, and Skip leaves them empty (good, no weigh-in was created).
+Screenshot: design/qa/pass4/q4-11-equipment.png
+Suspect: ui/onboarding equipment step, domain equipment catalogue labels
+
+### Q4-12 · S3 · You F.16 · Empty profile claims a plan "worked out from your data"
+Status: open
+Steps: 1. Fresh install, skip every question. 2. You.
+Expected: prompts only; no claim that anything was worked out.
+Actual: the card says "You" with avatar "Y" (no name) and "Add your basics to build a plan" (good), but Goals and plan reads "worked out from your data", Calories "from your weight trend and a steady pace" with "No target yet", Protein "2.0 and 0.8 g per kg" with "—", Phase "Maintain · steady". Today shows "Drink some water: 0 of 84.5 fl oz so far, a little behind for this time of day" from an unknown weight.
+Screenshot: design/qa/pass4/q4-12-empty-you.png
+Suspect: ui/screens/you YourPlan header strings
+
+### Q4-13 · S3 · Settings G Nutrition · "Show salt or sodium on the dashboard: Off" still shows a Sodium tile
+Status: open
+Steps: 1. Settings > Nutrition, set Off. 2. Nutrition tab.
+Expected: no sodium or salt tile ("Adds one nutrient tile in Nutrition").
+Actual: the grid shows Fibre, Sat fat, Sugar and "Sodium 148 mg" with Off, with Sodium, and on the fresh install; with Salt it shows "Salt 0.4 g" (correct conversion). Off changes nothing.
+Screenshot: design/qa/pass4/q4-13-sodium-off.png
+Suspect: ui/screens/nutrition nutrient grid (always four tiles)
+
+### Q4-14 · S3 · Settings G Training, E.10 · "Show jump tests in Progress" adds nothing to Progress
+Status: open
+Steps: 1. Settings > Training, switch "Show jump tests in Progress" on. 2. Progress, scroll to the end.
+Expected: a jump test card or entry.
+Actual: Progress is identical (weight, This week, Days logged, Calories, Measurements, Weekly check-in, Training stats). No card, no way to log a jump, with the setting on (also after import, where it is true).
+Screenshot: design/qa/pass4/q4-14-jump-tests.png
+Suspect: ui/screens/progress (jump card missing or needs data and says nothing)
+
+### Q4-15 · S3 · Settings G Training · "Heaviest dumbbell" is blank though the profile holds 36 kg
+Status: open
+Steps: 1. Seeded install, Settings > Training, scroll to Free weights, Dumbbells (adjustable) is ticked. 2. Read the "Heaviest dumbbell (lb)" field. 3. The export's profile_json has "dumbbellMaxKg":36.0.
+Expected: 79.4 lb (or 79) in the field.
+Actual: empty field with the placeholder only.
+Screenshot: none kept (Settings > Training, Free weights, below the Barbell rows)
+Suspect: ui/screens/settings equipment control (dumbbellMaxKg not read back)
+
+### Q4-16 · S3 · Settings G Health Connect · "Needs an update" on a phone that has no Health Connect, and the button does nothing
+Status: open
+Steps: 1. Android 11 emulator, Settings > Health Connect. 2. Tap "Open in Play Store".
+Expected: "Health Connect is not available on this phone" (Android 11 has none and there is no Play Store here), and a button that says what happened if it cannot open the store.
+Actual: "Health Connect needs an update. Nothing else in Intake depends on it." with an outlined "Open in Play Store"; tapping it gives no screen change and no message. None of the 17 read and write switches or "Allow all Health Connect permissions" are shown. No crash.
+Screenshot: design/qa/pass4/q4-16-health-connect.png
+Suspect: ui/screens/settings HealthStatusHeader
+
+### Q4-17 · S2 · Settings G AI · The AI group shows none of its main controls
+Status: open
+Steps: 1. Seeded install. 2. Settings > AI (optional) (summary "Off"). 3. Wait 30 s, leave and enter again.
+Expected: Use AI features, Monthly budget, Privacy for AI requests, Suggest free models, Daily insight, Reword my check-in, Refresh saved menus weekly, then Advanced.
+Actual: the page is the intro line and an "Advanced 14" toggle only. Expanding Advanced shows the 5 model rows ("No capable model yet", "Change model") and the rest. The 7 main controls never appear, so AI cannot be switched on from Settings, while other screens say "Turn on "Use AI features" in Settings → AI" (QA-LOG Q2 menu import). Reproduced twice, no exception in logcat.
+Screenshot: design/qa/pass4/q4-17-ai-missing.png
+Suspect: ui/screens/settings/SettingsScreens.kt GroupContent / ui/screens/ai/AiSettingControls.kt AiSettingControl (main ids render empty)
+
+### Q4-18 · S3 · Settings G Water, J.20 · Copy points to screens that no longer exist
+Status: open
+Steps: 1. Settings > Water and drinks. 2. Settings > About and help > What leaves this phone, Packaged food search.
+Expected: real paths. Nutrition has no Drinks section now (R4 item 9).
+Actual: "Logging a drink is in Nutrition > Drinks." and "The size buttons in Nutrition > Drinks. Remove one with the cross, or add your own." Privacy: "Switch it off in Food, Food database & credits." (the setting is Settings > Food database).
+Screenshot: design/qa/pass4/q4-18-stale-water-copy.png
+Suspect: domain/settings/SettingsRegistry.kt group blurb, ui/screens/settings/PrivacyScreen.kt
+
+### Q4-19 · S3 · Settings J.18 · Distances in km for a user on inches and miles
+Status: open
+Steps: 1. Seeded install (in, lb). 2. Settings > Nutrition, Eat out nearby; Settings > Water, weather.
+Expected: miles (or the units setting).
+Actual: "Walking is about 5 km/h and driving about 40 km/h ... (about 5.1 km out for 10 min drive)", "(about 0.9 km out for 15 min walk)", weather "rounds it to about 10 km".
+Screenshot: design/qa/pass4/q4-13-sodium-off.png (the Eat out text, lower on the screen)
+Suspect: domain/settings eat-out blurb, ui/screens/settings/WeatherSettings.kt
+
+### Q4-20 · S3 · Settings G Reminders · Check-in day says "None picks the day your baseline started" but there is no None
+Status: open
+Steps: 1. Settings > Reminders, Check-in day.
+Expected: a None chip, or no sentence about it.
+Actual: seven weekday chips, none selected on the seed ("None picks the day your baseline started, else Monday."). Once a day is tapped it cannot be cleared.
+Screenshot: none (Reminders screen, top)
+Suspect: domain/settings/SettingsRegistry.kt coachWeekday
+
+### Q4-21 · S3 · Settings J.21 · Reminder times in 24 hour format on a 12 hour phone
+Status: open
+Steps: 1. Settings > Reminders. 2. Compare with Sync and export "Last export: Nov 15, 1:39 PM" and the status bar (10:23).
+Expected: one clock style, the phone's.
+Actual: chips "6:00, 7:00, 12:00, 17:00, 18:00, 19:00, 20:00", "6:30 ... 10:00", "16:00, 18:00, 20:00, 21:00, 22:00" while times elsewhere are 12 hour with PM.
+Screenshot: none (Reminders screen)
+Suspect: ui/screens/settings reminder time chips
+
+### Q4-22 · S3 · Shell A.10 · Landscape: Progress content runs under the navigation bar
+Status: open
+Steps: 1. Seeded install, Progress, 6M. 2. `adb shell settings put system user_rotation 1`.
+Expected: content ends at the system bar; the range stays (it does).
+Actual: the pill becomes a vertical rail on the left (good), but the Log weight button, the "All" chip, the card edge and "last 6 months" run under the 3-button bar on the right ("last 6 mon" is cut). Seen with 3-button navigation on the emulator; not seen with gesture navigation.
+Screenshot: design/qa/pass4/q4-22-landscape.png
+Suspect: ui/navigation rail insets
+
+### Q4-23 · S3 · Progress E.9 · "Training stats" opens "Training log" and the lifts block is not on Progress
+Status: open
+Steps: 1. Progress, scroll to the end, tap "Training stats" ("Workout history, volume per muscle and personal records").
+Expected: a screen named like the row with volume and records, and E.9 (estimated 1RM, PR list, volume trend, sessions per week).
+Actual: the title is "Training log" and it lists the 6 sessions by week with "4 PR" badges; no volume per muscle, no 1RM, no PR list. Progress itself has no training block at all.
+Screenshot: design/qa/pass4/q4-23-training-log.png
+Suspect: ui/screens/progress ProgressScreen link, ui/screens/train history
+
+### Q4-24 · S4 · Settings H.1 · The pairing code field shows a realistic code as a hint
+Status: open
+Steps: 1. Settings > Sync and export, not paired.
+Expected: an obviously fake hint.
+Actual: "QCBQ-8FQS" in the same grey as the URL hint "https://intake-sync.example.com". The field is empty (uiautomator: EditText text ""), so nothing is pre-filled or stored and "Pair this device" stays disabled; the earlier worry is not a bug in what the app does, only a hint that looks like a real code. The device name is pre-filled with "Unknown Android SDK built for x86_64" (emulator).
+Screenshot: design/qa/pass4/q4-24-pairing-placeholder.png
+Suspect: ui/screens/backup/SyncSection.kt:99 placeholder
+
+### Q4-25 · S3 · Nutrition A.14 · The NFC template link logs at once, to the wrong meal, and a bad id says nothing visible
+Status: open
+Steps: 1. Seeded install at 10:40. 2. `adb shell am start -a android.nfc.action.NDEF_DISCOVERED -d intake://log-template/<id of "Usual breakfast">`. 3. Same with `.../not-a-real-id`.
+Expected: "Usual breakfast" goes to Breakfast; a bad id says it found no such template.
+Actual: the app opens Nutrition and logs it with no confirmation: "Logged Usual breakfast to lunch. Almond milk, unsweetened: check the label for dairy" (+599 kcal under Lunch, the allergen note is shown). The Undo disappeared before I could tap it. The bad id: no message in a screenshot 8 s later and nothing logged, no crash.
+Screenshot: design/qa/pass4/q4-25-nfc-lunch.png
+Suspect: domain/nfc/TemplateLink.kt and the meal slot choice in the link handler
+
+### Q4-26 · S2 · Backup H.2, H.3 · Importing a backup overwrites newer settings even when it says "0 changes"
+Status: open
+Steps: 1. Seeded install, Settings > Nutrition: Show salt or sodium = Sodium; export everything. 2. Change it to Salt (Nutrition tab shows "Salt 0.4 g"). 3. Settings > Sync and export > Import a backup, pick the earlier file: the preview says "Import 0 changes?" with "Settings: units, look and feel, ... (27 preferences)" and "Where both sides changed a row, the later change wins." 4. Tap Import ("Imported 0 changes.").
+Expected: newer settings kept, as the rows are ("food: 4 kept (newer here)" is shown for rows), or the preview says the settings will be replaced.
+Actual: the Nutrition tile is back to "Sodium". Every setting in the file replaces the phone's value silently. An old backup imported on top of a used app resets units, reminders, targets mode and the profile.
+Screenshot: none (text only; before and after are the Nutrition tab)
+Suspect: data/backup/BackupService.kt settings apply (no last-change check for settings)
+
+### Q4-27 · S4 · Progress, Settings · Polish
+Status: open
+Steps: seeded install.
+Actual: (a) the weight chart has two y labels and no date labels; the tooltip box ("Mon 9 Nov 2026 194.0 lb · Manual") covers neighbouring points and does not show the trend value. (b) Measurement charts are labelled "Waist over time, in in." and the y axis of Chest and Arm spans 41.6 to 42.0 and 14.2 to 14.6, so a flat line looks meaningful. (c) Settings home: "kg · cm · ml · System" leaves out the portion unit. (d) Nutrition "Advanced 7" shows 5 controls on a Cut, and Carb cycle shift stays visible with Carb cycling off. (e) Progress "Recalculate now" is dim grey on dark. (f) Edit your profile > About you > "Profile & goals" (three names for one screen) and the profile shows height as "72" and "192" without decimals while You shows "72.0 in", so saving rounds 183 cm to 182.88 cm (not confirmed, not saved). (g) Photo reminder, Export reminder and the others save with no confirmation; the Include progress photos switch sits off the right edge of the other switches. (h) Checklist E.1 and F.1 are stale: Progress has chips 1M, 3M, 6M, 1Y, All (not 4 w, 12 w ...), the Weekly check-in row is at the end of Progress, not first, and You shows "72.0 in", not "6 ft 0 in".
+Screenshot: design/qa/pass4/q4-scrub-tooltip.png
+Suspect: various
+
+Summary for Pass 4: 27 findings. S1: 0. S2: 8 (Q4-1, 2, 5, 6, 8, 10, 17, 26). S3: 17 (Q4-3, 4, 7, 9, 11, 12, 13, 14, 15, 16, 18, 19, 20, 21, 22, 23, 25). S4: 2 (Q4-24, 27). A retest is needed after fixes. Not tested here and still open: the wrong-passphrase retry (Q4-8), the 17 Health Connect switches and the permission sheet (API 34+), reminders actually posting, CSV exports, Today card switches, and everything on a device.
