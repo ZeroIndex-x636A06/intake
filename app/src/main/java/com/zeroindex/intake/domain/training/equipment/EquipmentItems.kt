@@ -17,7 +17,7 @@ enum class EquipmentGroup(val label: String) {
  */
 enum class EquipmentItem(val id: String, val label: String, val group: EquipmentGroup, val hint: String = "") {
     // Free weights
-    BARBELL_OLYMPIC("barbell_olympic", "Barbell (Olympic)", EquipmentGroup.FREE_WEIGHTS, "2 in sleeves, 20 kg bar"),
+    BARBELL_OLYMPIC("barbell_olympic", "Barbell (Olympic)", EquipmentGroup.FREE_WEIGHTS, "2 in sleeves"),
     BARBELL_STANDARD("barbell_standard", "Barbell (standard)", EquipmentGroup.FREE_WEIGHTS, "1 in sleeves"),
     EZ_BAR("ez_bar", "EZ bar", EquipmentGroup.FREE_WEIGHTS),
     TRAP_BAR("trap_bar", "Trap bar", EquipmentGroup.FREE_WEIGHTS),

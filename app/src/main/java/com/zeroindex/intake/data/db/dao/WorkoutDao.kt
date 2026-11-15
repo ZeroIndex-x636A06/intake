@@ -141,6 +141,13 @@ interface WorkoutDao {
     @Query("UPDATE set_log SET deletedAt = :now, updatedAt = :now WHERE id = :id")
     suspend fun softDeleteSet(id: String, now: Long)
 
+    /** Undo for a soft delete (a set taken out of a finished session). */
+    @Query("UPDATE set_log SET deletedAt = NULL, updatedAt = :now WHERE id = :id")
+    suspend fun restoreSet(id: String, now: Long)
+
+    @Query("UPDATE set_log SET weightKg = :weightKg, reps = :reps, updatedAt = :now WHERE id = :id AND deletedAt IS NULL")
+    suspend fun updateSetValues(id: String, weightKg: Double, reps: Int, now: Long)
+
     /** "Discard workout": the session's sets are hidden together with it (a soft delete; nothing is removed). */
     @Query("UPDATE set_log SET deletedAt = :now, updatedAt = :now WHERE sessionId = :sessionId AND deletedAt IS NULL")
     suspend fun softDeleteSetsOfSession(sessionId: String, now: Long)
@@ -156,7 +163,7 @@ interface WorkoutDao {
     /** Every logged set in a window with its exercise's muscles, for the weekly volume (warm-ups included; the maths skips them). */
     @Query(
         """
-        SELECT l.exerciseId AS exerciseId, e.name AS exerciseName, e.primaryMuscle AS primaryMuscle,
+        SELECT l.id AS setId, l.exerciseId AS exerciseId, e.name AS exerciseName, e.primaryMuscle AS primaryMuscle,
                e.secondaryMuscles AS secondaryMuscles, l.weightKg AS weightKg, l.reps AS reps,
                l.completedAt AS completedAt, l.isWarmup AS isWarmup
         FROM set_log l JOIN exercise e ON e.id = l.exerciseId
@@ -168,7 +175,7 @@ interface WorkoutDao {
 
     @Query(
         """
-        SELECT l.exerciseId AS exerciseId, e.name AS exerciseName, e.primaryMuscle AS primaryMuscle,
+        SELECT l.id AS setId, l.exerciseId AS exerciseId, e.name AS exerciseName, e.primaryMuscle AS primaryMuscle,
                e.secondaryMuscles AS secondaryMuscles, l.weightKg AS weightKg, l.reps AS reps,
                l.completedAt AS completedAt, l.isWarmup AS isWarmup
         FROM set_log l JOIN exercise e ON e.id = l.exerciseId

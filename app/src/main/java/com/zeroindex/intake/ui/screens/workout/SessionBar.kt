@@ -59,7 +59,7 @@ class SessionBarViewModel @Inject constructor(private val repository: TrainingRe
 }
 
 /** Height the session bar takes above the pill, so tab roots can leave room for it. */
-val SessionBarHeight: Dp = 64.dp
+val SessionBarHeight: Dp = 72.dp
 
 /**
  * The minimised session bar (IA v5 2.5): shown above the pill on the tab roots while a workout runs. Shows the day, the

@@ -41,6 +41,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.zeroindex.intake.ui.navigation.LocalSessionBarSpace
 import com.zeroindex.intake.data.db.entity.AllergenStatus
 import com.zeroindex.intake.domain.coach.DailyFocus
 import com.zeroindex.intake.domain.nutrition.DayProgress
@@ -169,7 +170,9 @@ fun NextUpCard(
     workoutModifier: Modifier = Modifier,
 ) {
     val mealShown = showMeal && meal != null
-    val workoutShown = workout !is WorkoutCardState.Loading
+    // While the session bar shows, it is the entry back into a running workout, so the card does not repeat it.
+    val barUp = LocalSessionBarSpace.current > 0.dp
+    val workoutShown = workout !is WorkoutCardState.Loading && !(barUp && workout is WorkoutCardState.InProgress)
     if (!mealShown && !workoutShown && focus == null) return
     IntakeCard(modifier) {
         Eyebrow("Next up")

@@ -278,8 +278,7 @@ fun ExerciseRow(exercise: ExerciseEntity, onClick: () -> Unit, trailing: String?
             Text(
                 text = buildString {
                     append(Muscles.label(exercise.primaryMuscle))
-                    if (exercise.equipment.isNotBlank()) append(" · ").append(Equipment.label(exercise.equipment))
-                    if (exercise.isBodyweight) append(" · bodyweight")
+                    Equipment.describe(exercise.equipment, exercise.isBodyweight).takeIf { it.isNotEmpty() }?.let { append(" · ").append(it) }
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

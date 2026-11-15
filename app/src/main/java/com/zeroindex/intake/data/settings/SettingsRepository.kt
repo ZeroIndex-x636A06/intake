@@ -302,8 +302,8 @@ class SettingsRepository @Inject constructor(
             defaultRestSec = p[Keys.defaultRestSec] ?: 120,
             restTimerVibrate = p[Keys.restVibrate] ?: true,
             // Until the person sets their own, the bar and plates are the ones a gym in their unit has.
-            barWeightKg = p[Keys.barWeight] ?: com.zeroindex.intake.domain.training.PlateDefaults.barKg(weightUnit),
-            availablePlatesKg = p[Keys.plates] ?: com.zeroindex.intake.domain.training.PlateDefaults.platesCsvKg(weightUnit),
+            barWeightKg = com.zeroindex.intake.domain.training.PlateDefaults.effectiveBarKg(p[Keys.barWeight], weightUnit),
+            availablePlatesKg = com.zeroindex.intake.domain.training.PlateDefaults.effectivePlatesCsvKg(p[Keys.plates], weightUnit),
             goalWeightKg = p[Keys.goalWeight],
             goalRateKgPerWeek = p[Keys.goalRate] ?: 0.0,
             proteinGramsPerKg = p[Keys.proteinPerKg] ?: 2.0,

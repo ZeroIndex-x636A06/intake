@@ -549,6 +549,7 @@ class TrainingRepository @Inject constructor(
             platesKg = settings.platesKgList.ifEmpty { listOf(25.0, 20.0, 15.0, 10.0, 5.0, 2.5, 1.25) },
             // Dumbbells, machines and cables go up in 5 lb steps in a pound gym and 2.5 kg steps in a kilogram one.
             smallStepKg = if (settings.weightUnit == com.zeroindex.intake.domain.units.WeightUnit.POUNDS) settings.weightUnit.toKg(5.0) else 2.5,
+            dumbbellMaxKg = profile.dumbbellMaxKg,
         )
         val ids = scheduled.days.flatMap { d -> d.exercises.map { it.exerciseId } }.distinct()
             .flatMap { StartingWeightEstimator.relevantIds(it) }.distinct()
@@ -882,6 +883,12 @@ class TrainingRepository @Inject constructor(
     }
 
     suspend fun deleteSet(id: String) = workoutDao.softDeleteSet(id, clock.nowMillis())
+
+    /** Takes a deleted set back (the Undo after removing one from a finished session). */
+    suspend fun restoreSet(id: String) = workoutDao.restoreSet(id, clock.nowMillis())
+
+    /** Changes the weight and reps of a logged set. Records and volume are worked out from the sets when read, so they follow. */
+    suspend fun editSet(id: String, weightKg: Double, reps: Int) = workoutDao.updateSetValues(id, weightKg, reps, clock.nowMillis())
 
     suspend fun saveSessions(sessions: List<WorkoutSessionEntity>) =
         workoutDao.upsertSessions(sessions)

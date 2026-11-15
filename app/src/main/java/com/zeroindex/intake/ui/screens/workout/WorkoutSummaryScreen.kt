@@ -2,6 +2,23 @@ package com.zeroindex.intake.ui.screens.workout
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.KeyboardType
+import com.zeroindex.intake.domain.training.SetEdit
+import com.zeroindex.intake.ui.screens.train.ExerciseDetailSheet
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -71,6 +88,10 @@ fun WorkoutSummaryScreen(
     viewModel: WorkoutSummaryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    var editing by remember { mutableStateOf<SummarySetRow?>(null) }
+    var detailFor by remember { mutableStateOf<String?>(null) }
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     var keepName by remember { mutableStateOf("Workout " + java.time.format.DateTimeFormatter.ofPattern("d MMM").format(java.time.LocalDate.now())) }
 
     Column(modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
@@ -125,10 +146,26 @@ fun WorkoutSummaryScreen(
                                     state.exercises.forEachIndexed { i, e ->
                                         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Column(Modifier.weight(1f)) {
-                                                Text(e.name, style = MaterialTheme.typography.titleMedium)
+                                                Text(
+                                                    e.name,
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    modifier = Modifier
+                                                        .heightIn(min = 48.dp)
+                                                        .clickable(role = Role.Button, onClickLabel = "Open ${e.name}") { detailFor = e.exerciseId }
+                                                        .wrapContentHeight(Alignment.CenterVertically),
+                                                )
                                                 Text(e.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                                e.setLines.forEach { line ->
-                                                    Text(line, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 1.dp))
+                                                e.setRows.forEach { row ->
+                                                    Text(
+                                                        row.label,
+                                                        style = MaterialTheme.typography.labelMedium,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .heightIn(min = 48.dp)
+                                                            .clickable(role = Role.Button, onClickLabel = "Change this set") { editing = row }
+                                                            .wrapContentHeight(Alignment.CenterVertically),
+                                                    )
                                                 }
                                             }
                                             if (e.records.isNotEmpty()) Tag("PR")
@@ -219,7 +256,79 @@ fun WorkoutSummaryScreen(
                 ) { Text("Done") }
             }
         }
+        SnackbarHost(snackbar, modifier = Modifier.fillMaxWidth())
     }
+
+    detailFor?.let { id -> ExerciseDetailSheet(exerciseId = id, onDismiss = { detailFor = null }) }
+    editing?.let { row ->
+        EditSetDialog(
+            row = row,
+            unit = state.unit,
+            onSave = { weight, reps -> viewModel.editSet(row.setId, weight, reps); editing = null },
+            onRemove = {
+                viewModel.removeSet(row.setId)
+                editing = null
+                scope.launch {
+                    val result = snackbar.showSnackbar("Set removed from this workout.", actionLabel = "Undo", duration = SnackbarDuration.Long)
+                    if (result == SnackbarResult.ActionPerformed) viewModel.restoreSet(row.setId)
+                }
+            },
+            onDismiss = { editing = null },
+        )
+    }
+}
+
+/** Change one logged set: weight, reps, whether it counts (done), or remove it. Removing is a soft delete with an Undo. */
+@Composable
+private fun EditSetDialog(
+    row: SummarySetRow,
+    unit: WeightUnit,
+    onSave: (weight: String, reps: String) -> Unit,
+    onRemove: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var weight by remember(row.setId) { mutableStateOf(SetEdit.weightText(row.weightKg, unit)) }
+    var reps by remember(row.setId) { mutableStateOf(row.reps.toString()) }
+    var done by remember(row.setId) { mutableStateOf(true) }
+    val valid = SetEdit.parse(weight, reps, unit) != null
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(row.label.substringBefore(':')) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = weight,
+                    onValueChange = { v -> weight = v.filter { it.isDigit() || it == '.' }.take(7) },
+                    label = { Text("Weight (${unit.label})") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = reps,
+                    onValueChange = { v -> reps = v.filter { it.isDigit() }.take(3) },
+                    label = { Text("Reps") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(
+                    Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(value = done, role = Role.Checkbox) { done = it },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(checked = done, onCheckedChange = null)
+                    Text("  Done (untick to take it out of the totals)", style = MaterialTheme.typography.bodyMedium)
+                }
+                TextButton(onClick = onRemove, modifier = Modifier.heightIn(min = 48.dp)) {
+                    Text("Delete this set", color = MaterialTheme.colorScheme.error)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { if (done) onSave(weight, reps) else onRemove() }, enabled = valid || !done) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 @Composable

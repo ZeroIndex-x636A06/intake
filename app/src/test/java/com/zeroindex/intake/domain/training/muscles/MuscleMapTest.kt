@@ -60,6 +60,57 @@ class MuscleMapTest {
     }
 
     @Test
+    fun `every library exercise has a primary region that is drawn`() {
+        for (e in ExerciseCatalog.ALL) {
+            val h = MuscleMap.highlightFor(e.name, e.primaryMuscle, e.secondaryMuscles)
+            assertThat(h.primary).isNotEmpty()
+            assertThat(MuscleMap.DRAWN_REGIONS).containsAtLeastElementsIn(h.primary)
+            assertThat(MuscleMap.DRAWN_REGIONS).containsAtLeastElementsIn(h.secondary)
+            for (m in e.secondaryMuscles) assertThat(MuscleMap.regionsOf(m)).isNotEmpty()
+            assertThat(MuscleMap.caption(h, e.primaryMuscle)).startsWith("Main: ")
+        }
+    }
+
+    @Test
+    fun `key lifts light the muscles a lifter expects`() {
+        fun h(name: String) = ExerciseCatalog.requireByName(name).let { MuscleMap.highlightFor(it.name, it.primaryMuscle, it.secondaryMuscles) }
+        assertThat(h("Pull-up").primary).containsExactly(MuscleRegion.LATS)
+        assertThat(h("Pull-up").secondary).containsExactly(MuscleRegion.BICEPS)
+        assertThat(h("Barbell row").primary).containsAtLeast(MuscleRegion.LATS, MuscleRegion.MID_BACK)
+        assertThat(h("One-arm dumbbell row").primary).containsAtLeast(MuscleRegion.LATS, MuscleRegion.MID_BACK)
+        assertThat(h("Bench press").primary).containsAtLeast(MuscleRegion.CHEST_UPPER, MuscleRegion.CHEST_MID_LOWER)
+        assertThat(h("Bench press").secondary).containsExactly(MuscleRegion.TRICEPS, MuscleRegion.FRONT_DELT)
+        assertThat(h("Back squat").primary).containsExactly(MuscleRegion.QUADS)
+        assertThat(h("Back squat").secondary).containsAtLeast(MuscleRegion.GLUTES, MuscleRegion.HAMSTRINGS)
+        assertThat(h("Deadlift").primary).contains(MuscleRegion.LOWER_BACK)
+        assertThat(h("Deadlift").secondary).containsAtLeast(MuscleRegion.HAMSTRINGS, MuscleRegion.GLUTES)
+        assertThat(h("Romanian deadlift").primary).containsExactly(MuscleRegion.HAMSTRINGS)
+        assertThat(h("Romanian deadlift").secondary).contains(MuscleRegion.LOWER_BACK)
+        assertThat(h("Hip abduction machine").primary).contains(MuscleRegion.HIP_ABDUCTORS)
+    }
+
+    @Test
+    fun `finer names from imported and custom exercises are understood`() {
+        val pullUp = MuscleMap.highlightFor("Pull-Up", "lats", listOf("biceps"))
+        assertThat(pullUp.primary).containsExactly(MuscleRegion.LATS)
+        assertThat(MuscleMap.caption(pullUp, "lats")).isEqualTo("Main: lats. Also: biceps")
+        val row = MuscleMap.highlightFor("Dumbbell Row", "lats", listOf("biceps", "rear delts"))
+        assertThat(row.primary).containsAtLeast(MuscleRegion.LATS, MuscleRegion.MID_BACK)
+        assertThat(row.secondary).containsExactly(MuscleRegion.BICEPS, MuscleRegion.REAR_DELT)
+        val bench = MuscleMap.highlightFor("Barbell Bench Press", "chest", listOf("triceps", "front delts"))
+        assertThat(bench.secondary).containsExactly(MuscleRegion.TRICEPS, MuscleRegion.FRONT_DELT)
+        assertThat(MuscleMap.regionsOf("Upper Back")).containsExactly(MuscleRegion.MID_BACK)
+        assertThat(MuscleMap.regionsOf("quadriceps")).containsExactly(MuscleRegion.QUADS)
+    }
+
+    @Test
+    fun `the caption names the main muscle even when the map does not know it`() {
+        val unknown = MuscleMap.highlightFor("Zercher carry", "grip strength", listOf("biceps"))
+        assertThat(MuscleMap.caption(unknown, "grip strength")).isEqualTo("Main: grip strength. Also: biceps")
+        assertThat(MuscleMap.caption(MuscleHighlight(), "")).isEmpty()
+    }
+
+    @Test
     fun `smoothing closes the outline`() {
         val cubics = MuscleMap.smooth(MuscleMap.outlines(BodyView.FRONT).first().points)
         assertThat(cubics.first().x0).isEqualTo(cubics.last().x3)

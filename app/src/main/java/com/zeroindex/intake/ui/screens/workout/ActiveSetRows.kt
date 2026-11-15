@@ -223,12 +223,18 @@ private fun SetLine(
                 .then(if (onCopyPrevious != null && !done) Modifier.clickable(role = Role.Button, onClickLabel = "Use last time's numbers", onClick = onCopyPrevious) else Modifier),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                previous ?: "–",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
+            // A record is named inside the row (under the Previous numbers), so the rows below never move.
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    previous ?: "–",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+                if (done && record != PrKind.NONE) {
+                    Text(record.label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                }
+            }
         }
         if (done && existing != null) {
             ShownCell(Modifier.weight(1f), displayWeight(existing.weightKg))
@@ -266,13 +272,6 @@ private fun SetLine(
                 outline = MaterialTheme.colorScheme.onSurfaceVariant,
                 tick = MaterialTheme.colorScheme.onPrimary,
             )
-        }
-    }
-    if (done && record != PrKind.NONE) {
-        Row(Modifier.fillMaxWidth().padding(start = 32.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.EmojiEvents, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(16.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(record.label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.tertiary)
         }
     }
 }

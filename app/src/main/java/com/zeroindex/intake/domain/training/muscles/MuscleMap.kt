@@ -60,23 +60,35 @@ object MuscleMap {
     /** Every muscle a custom exercise can name. */
     val CUSTOM_MUSCLES: List<String> = Muscles.ALL + EXTRA_MUSCLES
 
-    /** The regions a library muscle name covers. Unknown names cover nothing. */
-    fun regionsOf(muscle: String): Set<MuscleRegion> = when (muscle.trim().lowercase()) {
-        "chest" -> setOf(MuscleRegion.CHEST_UPPER, MuscleRegion.CHEST_MID_LOWER)
+    /**
+     * The regions a muscle name covers. The library says "back" and "shoulders"; imported programs and older
+     * custom exercises say "lats", "front delts", "upper back", "quadriceps" and so on, so the finer names and
+     * common spellings are understood too. Unknown names cover nothing.
+     */
+    fun regionsOf(muscle: String): Set<MuscleRegion> = when (muscle.trim().lowercase().replace('_', ' ').replace('-', ' ')) {
+        "chest", "pecs", "pectorals", "pectoralis" -> setOf(MuscleRegion.CHEST_UPPER, MuscleRegion.CHEST_MID_LOWER)
+        "upper chest", "clavicular pecs" -> setOf(MuscleRegion.CHEST_UPPER)
+        "lower chest", "mid chest", "mid and lower chest" -> setOf(MuscleRegion.CHEST_MID_LOWER)
         "back" -> setOf(MuscleRegion.LATS, MuscleRegion.MID_BACK)
-        "shoulders" -> setOf(MuscleRegion.FRONT_DELT, MuscleRegion.SIDE_DELT, MuscleRegion.REAR_DELT)
-        "traps" -> setOf(MuscleRegion.UPPER_TRAPS)
-        "biceps" -> setOf(MuscleRegion.BICEPS)
-        "triceps" -> setOf(MuscleRegion.TRICEPS)
-        "forearms" -> setOf(MuscleRegion.FOREARMS)
-        "core" -> setOf(MuscleRegion.ABS, MuscleRegion.OBLIQUES)
-        "lower back" -> setOf(MuscleRegion.LOWER_BACK)
-        "glutes" -> setOf(MuscleRegion.GLUTES)
-        "quads" -> setOf(MuscleRegion.QUADS)
-        "hamstrings" -> setOf(MuscleRegion.HAMSTRINGS)
-        "adductors" -> setOf(MuscleRegion.HIP_ADDUCTORS)
-        "abductors" -> setOf(MuscleRegion.HIP_ABDUCTORS)
-        "calves" -> setOf(MuscleRegion.CALVES)
+        "lats", "lat", "latissimus", "latissimus dorsi" -> setOf(MuscleRegion.LATS)
+        "mid back", "upper back", "rhomboids", "middle back" -> setOf(MuscleRegion.MID_BACK)
+        "shoulders", "shoulder", "delts", "deltoids" -> setOf(MuscleRegion.FRONT_DELT, MuscleRegion.SIDE_DELT, MuscleRegion.REAR_DELT)
+        "front delts", "front delt", "front deltoid", "anterior delts" -> setOf(MuscleRegion.FRONT_DELT)
+        "side delts", "side delt", "lateral delts", "medial delts" -> setOf(MuscleRegion.SIDE_DELT)
+        "rear delts", "rear delt", "rear deltoid", "posterior delts" -> setOf(MuscleRegion.REAR_DELT)
+        "traps", "trapezius", "upper traps" -> setOf(MuscleRegion.UPPER_TRAPS)
+        "biceps", "bicep" -> setOf(MuscleRegion.BICEPS)
+        "triceps", "tricep" -> setOf(MuscleRegion.TRICEPS)
+        "forearms", "forearm", "grip" -> setOf(MuscleRegion.FOREARMS)
+        "core", "abs", "abdominals", "abdominal" -> setOf(MuscleRegion.ABS, MuscleRegion.OBLIQUES)
+        "obliques" -> setOf(MuscleRegion.OBLIQUES)
+        "lower back", "erectors", "erector spinae", "spinal erectors" -> setOf(MuscleRegion.LOWER_BACK)
+        "glutes", "glute", "gluteus", "butt" -> setOf(MuscleRegion.GLUTES)
+        "quads", "quad", "quadriceps" -> setOf(MuscleRegion.QUADS)
+        "hamstrings", "hamstring", "hams" -> setOf(MuscleRegion.HAMSTRINGS)
+        "adductors", "inner thighs" -> setOf(MuscleRegion.HIP_ADDUCTORS)
+        "abductors", "hip abductors" -> setOf(MuscleRegion.HIP_ABDUCTORS)
+        "calves", "calf" -> setOf(MuscleRegion.CALVES)
         else -> emptySet()
     }
 
@@ -100,18 +112,52 @@ object MuscleMap {
                 "press" in n || "push-up" in n -> setOf(MuscleRegion.FRONT_DELT, MuscleRegion.SIDE_DELT)
                 else -> regionsOf("shoulders")
             }
-            "back" -> when {
-                "pull-up" in n || "pulldown" in n || "chin-up" in n || "pullover" in n || "straight-arm" in n ->
-                    setOf(MuscleRegion.LATS)
+            "back", "lats", "upper back" -> when {
+                "pull-up" in n || "pull up" in n || "pulldown" in n || "chin-up" in n || "chin up" in n ||
+                    "pullover" in n || "straight-arm" in n -> setOf(MuscleRegion.LATS)
                 "row" in n -> setOf(MuscleRegion.LATS, MuscleRegion.MID_BACK)
                 "deadlift" in n || "good morning" in n || "clean" in n ->
                     setOf(MuscleRegion.MID_BACK, MuscleRegion.LOWER_BACK)
-                else -> regionsOf("back")
+                else -> regionsOf(primaryMuscle.trim().lowercase())
             }
+            "glutes" -> if ("abduction" in n) setOf(MuscleRegion.HIP_ABDUCTORS, MuscleRegion.GLUTES) else regionsOf("glutes")
+            "core" -> if ("pallof" in n || "twist" in n || "woodchop" in n) setOf(MuscleRegion.OBLIQUES, MuscleRegion.ABS) else regionsOf("core")
             else -> regionsOf(primaryMuscle)
         }
-        val secondary = secondaryMuscles.flatMapTo(linkedSetOf()) { regionsOf(it) } - primary
+        val secondary = secondaryMuscles.flatMapTo(linkedSetOf()) { secondaryRegions(n, it) } - primary
         return MuscleHighlight(primary, secondary)
+    }
+
+    /** Helpers rather than movers: a bench press brings in the front delts, not every part of the shoulder. */
+    private fun secondaryRegions(lowerName: String, muscle: String): Set<MuscleRegion> {
+        val n = lowerName
+        return when (muscle.trim().lowercase()) {
+            "shoulders" -> when {
+                "press" in n || "push-up" in n || "dip" in n || "fly" in n && "rear" !in n -> setOf(MuscleRegion.FRONT_DELT)
+                "pull" in n || "row" in n || "curl" in n -> setOf(MuscleRegion.REAR_DELT)
+                else -> regionsOf("shoulders")
+            }
+            "back" -> when {
+                "deadlift" in n || "good morning" in n -> setOf(MuscleRegion.LOWER_BACK, MuscleRegion.MID_BACK)
+                "rear delt" in n || "reverse pec" in n || "face pull" in n || "clean" in n -> setOf(MuscleRegion.MID_BACK)
+                "chin-up" in n || "pull-up" in n -> setOf(MuscleRegion.LATS)
+                else -> regionsOf("back")
+            }
+            else -> regionsOf(muscle)
+        }
+    }
+
+    /**
+     * The "Main: ... Also: ..." line under the muscle map, the same wherever a map is shown. When the main
+     * muscle is a name the map does not know, it is still named (from [primaryMuscle]) so the line never starts at "Also".
+     */
+    fun caption(highlight: MuscleHighlight, primaryMuscle: String = ""): String = buildString {
+        val main = if (highlight.primary.isNotEmpty()) highlight.primary.joinToString { it.label.lowercase() } else primaryMuscle.trim().lowercase()
+        if (main.isNotEmpty()) append("Main: ").append(main)
+        if (highlight.secondary.isNotEmpty()) {
+            if (isNotEmpty()) append(". ")
+            append("Also: ").append(highlight.secondary.joinToString { it.label.lowercase() })
+        }
     }
 
     /** Library muscles a set of regions stands for, in map order, without repeats. */
