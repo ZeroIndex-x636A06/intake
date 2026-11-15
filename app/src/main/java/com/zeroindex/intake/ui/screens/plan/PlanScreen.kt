@@ -138,6 +138,7 @@ fun PlanScreen(
     val showingAll by viewModel.showingAllEatOut.collectAsStateWithLifecycle()
     val pending by viewModel.pending.collectAsStateWithLifecycle()
     val allergenPending by viewModel.allergenPending.collectAsStateWithLifecycle()
+    val eatOutPending by viewModel.eatOutPending.collectAsStateWithLifecycle()
     val importState by viewModel.importState.collectAsStateWithLifecycle()
     val notice by viewModel.notice.collectAsStateWithLifecycle()
     val checkTerms by viewModel.checkLabelTerms.collectAsStateWithLifecycle()
@@ -446,6 +447,13 @@ fun PlanScreen(
             onLog = { row -> parking = false; viewModel.logEatOut(row.option) },
             onOpenSwap = { parking = false; onOpenSwap() },
             onDismiss = { parking = false },
+        )
+    }
+    eatOutPending?.let { p ->
+        com.zeroindex.intake.ui.allergen.PendingEntryAllergenSheet(
+            pending = p,
+            onDismiss = viewModel::dismissEatOutPending,
+            onLogAnyway = viewModel::confirmEatOutPending,
         )
     }
     allergenPending?.let { p ->

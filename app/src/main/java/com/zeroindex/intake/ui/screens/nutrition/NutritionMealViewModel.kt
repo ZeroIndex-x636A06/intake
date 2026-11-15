@@ -11,7 +11,10 @@ import com.zeroindex.intake.data.repository.FoodLogRepository
 import com.zeroindex.intake.data.repository.FoodRepository
 import com.zeroindex.intake.data.repository.MealTemplateRepository
 import com.zeroindex.intake.data.settings.SettingsRepository
+import com.zeroindex.intake.domain.allergen.AllergenLogGate
+import com.zeroindex.intake.domain.allergen.AllergenOverride
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
+import com.zeroindex.intake.ui.allergen.PendingEntryAllergen
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nutrition.CoreMacro
 import com.zeroindex.intake.domain.nutrition.MealItemFacts
@@ -40,6 +43,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
@@ -173,7 +177,44 @@ class NutritionMealViewModel @Inject constructor(
 
     fun updateGrams(item: MealItemUi, grams: Double) { viewModelScope.launch { foodLog.updateQuantity(item.entry, grams) } }
     fun moveTo(item: MealItemUi, to: MealSlot) { viewModelScope.launch { foodLog.moveToSlot(item.entry, to) } }
-    fun copyTo(item: MealItemUi, to: MealSlot) { viewModelScope.launch { foodLog.copyToSlot(item.entry, to) } }
+    private val _pendingEntry = MutableStateFlow<PendingEntryAllergen?>(null)
+    val pendingEntry: StateFlow<PendingEntryAllergen?> = _pendingEntry.asStateFlow()
+
+    /**
+     * Copies an entry to another meal. The entry's name is scanned as the profile is now (an entry that already says
+     * "Logged despite" was chosen before and keeps that note), and a match waits behind the warning sheet.
+     */
+    fun copyTo(item: MealItemUi, to: MealSlot) {
+        viewModelScope.launch {
+            val e = item.entry
+            val scan = if (AllergenOverride.alreadyNoted(e.foodNameAtLog)) {
+                AllergenScanResult.CLEAN
+            } else {
+                allergens.scan(name = e.foodNameAtLog)
+            }
+            if (AllergenLogGate.decide(scan) is AllergenLogGate.Decision.Review) {
+                _pendingEntry.value = PendingEntryAllergen(PendingEntryAllergen.Action.Copy(e, to), e.foodNameAtLog, scan)
+            } else {
+                foodLog.copyToSlot(e, to)
+            }
+        }
+    }
+
+    /** "Log it anyway" on the warning sheet. */
+    fun confirmPendingEntry() {
+        val p = _pendingEntry.value ?: return
+        _pendingEntry.value = null
+        viewModelScope.launch {
+            val note = AllergenLogGate.overrideNote(p.scan)
+            when (val a = p.action) {
+                is PendingEntryAllergen.Action.Copy -> foodLog.markOverridden(foodLog.copyToSlot(a.entry, a.slot), note)
+                is PendingEntryAllergen.Action.QuickCalories -> foodLog.markOverridden(writeQuickCalories(a.name, a.kcal, a.slot, a.at), note)
+                is PendingEntryAllergen.Action.EatOut -> Unit
+            }
+        }
+    }
+
+    fun dismissPendingEntry() { _pendingEntry.value = null }
 
     /** Soft delete with Undo. */
     fun remove(item: MealItemUi) = removeAll(listOf(item.entry), "Removed ${item.name}")
@@ -204,16 +245,28 @@ class NutritionMealViewModel @Inject constructor(
      */
     fun quickAddCalories(name: String, kcalText: String) {
         val kcal = kcalText.trim().toDoubleOrNull() ?: return
+        val label = name.trim().ifBlank { "Quick add" }
+        val slotNow = state.value.slot
+        val at = loggingMillis()
         viewModelScope.launch {
-            foodLog.logPrepared(
-                name = name.trim().ifBlank { "Quick add" },
-                macros = Macros(kcal, 0.0, 0.0, 0.0),
-                slot = state.value.slot,
-                at = loggingMillis(),
-                unknownMacros = setOf(CoreMacro.PROTEIN, CoreMacro.CARBS, CoreMacro.FAT),
-            )
+            // A typed name is scanned like any food name: a match waits behind the warning sheet.
+            val scan = allergens.scan(name = label)
+            if (AllergenLogGate.decide(scan) is AllergenLogGate.Decision.Review) {
+                _pendingEntry.value = PendingEntryAllergen(PendingEntryAllergen.Action.QuickCalories(label, kcal, slotNow, at), label, scan)
+            } else {
+                writeQuickCalories(label, kcal, slotNow, at)
+            }
         }
     }
+
+    private suspend fun writeQuickCalories(label: String, kcal: Double, slot: MealSlot, at: Long): FoodLogEntity =
+        foodLog.logPrepared(
+            name = label,
+            macros = Macros(kcal, 0.0, 0.0, 0.0),
+            slot = slot,
+            at = at,
+            unknownMacros = setOf(CoreMacro.PROTEIN, CoreMacro.CARBS, CoreMacro.FAT),
+        )
 
     /** "Save as meal template": this meal's items under [name]. An empty meal cannot be saved. */
     fun saveAsTemplate(name: String) {

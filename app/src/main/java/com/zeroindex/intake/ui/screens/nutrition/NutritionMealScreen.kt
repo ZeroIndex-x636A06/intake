@@ -102,6 +102,7 @@ fun NutritionMealScreen(
     viewModel: NutritionMealViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val pendingEntry by viewModel.pendingEntry.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf<MealItemUi?>(null) }
     var quickAdd by rememberSaveable { mutableStateOf(false) }
     var naming by rememberSaveable { mutableStateOf(false) }
@@ -190,6 +191,14 @@ fun NutritionMealScreen(
             onQuantityChange = { grams -> viewModel.updateGrams(item, grams); editing = null },
             onMoveToSlot = { slot -> viewModel.moveTo(item, slot); editing = null },
             onCopyToSlot = { slot -> viewModel.copyTo(item, slot); editing = null },
+        )
+    }
+
+    pendingEntry?.let { p ->
+        com.zeroindex.intake.ui.allergen.PendingEntryAllergenSheet(
+            pending = p,
+            onDismiss = viewModel::dismissPendingEntry,
+            onLogAnyway = viewModel::confirmPendingEntry,
         )
     }
 

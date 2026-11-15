@@ -49,6 +49,13 @@ fun templateLineOf(food: FoodEntity, grams: Double) = TemplateLine(
     proteinListed = CoreMacro.PROTEIN !in Unlisted.decodeMacros(food.unlistedNutrients),
 )
 
+/** [scan] is the merged verdict, [foods] the foods that raised a warning and [allFoods] every food in the template. */
+data class TemplateCheck(
+    val scan: com.zeroindex.intake.domain.allergen.AllergenScanResult,
+    val foods: List<String>,
+    val allFoods: List<String>,
+)
+
 sealed interface TemplateLogResult {
     data class Logged(
         val template: MealTemplateEntity,
@@ -59,6 +66,12 @@ sealed interface TemplateLogResult {
     ) : TemplateLogResult
     /** The allergen profile now matches a food that was fine when the template was saved. */
     data class Blocked(val template: MealTemplateEntity, val foods: List<String>) : TemplateLogResult
+    /**
+     * A food only "may contain" something the person avoids. It is not blocked, but it is never logged without a
+     * person's review ([MealTemplateRepository.log] needs [allergenOverride] after the warning sheet), so a tag tap or
+     * the watch cannot log it silently.
+     */
+    data class NeedsReview(val template: MealTemplateEntity, val foods: List<String>) : TemplateLogResult
     data object NotFound : TemplateLogResult
 }
 
@@ -86,6 +99,22 @@ class MealTemplateRepository @Inject constructor(
         return summaries.associate { s ->
             s.template.id to com.zeroindex.intake.domain.allergen.TemplateAllergens.merge(s.items.map { (food, _) -> scan(food) })
         }
+    }
+
+    /**
+     * The allergen check of one template as it is now (every food, worst verdict wins) with the names of the foods that
+     * matched, so a screen can show the warning sheet before [log]. Null when the template is gone or empty.
+     */
+    suspend fun checkOf(templateId: String): TemplateCheck? {
+        val template = templateDao.all().firstOrNull { it.id == templateId } ?: return null
+        val items = summary(template).items
+        if (items.isEmpty()) return null
+        val scans = items.map { (food, _) -> food.name to allergens.scan(food) }
+        return TemplateCheck(
+            scan = com.zeroindex.intake.domain.allergen.TemplateAllergens.merge(scans.map { it.second }),
+            foods = scans.filter { it.second.hasAnything }.map { it.first },
+            allFoods = items.map { it.first.name },
+        )
     }
 
     fun observeSummaries(): Flow<List<TemplateSummary>> = templateDao.observeAll().map { templates ->
@@ -243,7 +272,18 @@ class MealTemplateRepository @Inject constructor(
      * Every food is re-checked against the allergen profile as it is now. A
      * template saved before an allergen was added must not log silently.
      */
-    suspend fun log(templateId: String, slot: MealSlot? = null, at: Long = clock.nowMillis(), allergenOverride: Boolean = false, noteDespite: Boolean = false): TemplateLogResult {
+    suspend fun log(
+        templateId: String,
+        slot: MealSlot? = null,
+        at: Long = clock.nowMillis(),
+        allergenOverride: Boolean = false,
+        noteDespite: Boolean = false,
+        /**
+         * True (the default): a "may contain" food stops the log until a person has reviewed the warning sheet. Only
+         * Swap turns it off, because its list already shows that verdict on the option before it is chosen.
+         */
+        requireReview: Boolean = true,
+    ): TemplateLogResult {
         val template = templateDao.all().firstOrNull { it.id == templateId } ?: return TemplateLogResult.NotFound
         val items = summary(template).items
         if (items.isEmpty()) return TemplateLogResult.NotFound
@@ -251,6 +291,8 @@ class MealTemplateRepository @Inject constructor(
         val scans = items.map { (food, _) -> food.name to allergens.scan(food) }
         val blocked = items.filterIndexed { i, _ -> scans[i].second.blocks }.map { it.first.name }
         if (blocked.isNotEmpty() && !allergenOverride) return TemplateLogResult.Blocked(template, blocked)
+        val review = items.filterIndexed { i, _ -> scans[i].second.hasAnything }.map { it.first.name }
+        if (requireReview && review.isNotEmpty() && !allergenOverride) return TemplateLogResult.NeedsReview(template, review)
 
         val target = slot ?: TemplateLink.slotFor(Instant.ofEpochMilli(at).atZone(clock.zone()).toLocalTime())
         // A food that matches an allergen but was not blocked (may contain) keeps "Logged despite: ..." when [noteDespite].

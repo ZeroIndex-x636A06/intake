@@ -2,6 +2,7 @@ package com.zeroindex.intake.ui.screens.templates
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -67,6 +68,7 @@ fun MealTemplateEditorScreen(
     LaunchedEffect(templateId) { viewModel.start(templateId) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val hits by viewModel.hits.collectAsStateWithLifecycle()
+    val chips by viewModel.chips.collectAsStateWithLifecycle()
     var adding by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
 
@@ -131,7 +133,7 @@ fun MealTemplateEditorScreen(
                 IntakeCard {
                     Column {
                         state.items.forEachIndexed { i, item ->
-                            ItemRow(item, state.unit.label, viewModel)
+                            ItemRow(item, state.unit.label, viewModel, chips[item.foodId])
                             if (i != state.items.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         }
                     }
@@ -165,7 +167,12 @@ fun MealTemplateEditorScreen(
 }
 
 @Composable
-private fun ItemRow(item: EditorItem, unitLabel: String, viewModel: MealTemplateEditorViewModel) {
+private fun ItemRow(
+    item: EditorItem,
+    unitLabel: String,
+    viewModel: MealTemplateEditorViewModel,
+    allergen: com.zeroindex.intake.ui.addfood.RowAllergen?,
+) {
     Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(item.name, style = MaterialTheme.typography.titleSmall, maxLines = 2)
@@ -176,6 +183,8 @@ private fun ItemRow(item: EditorItem, unitLabel: String, viewModel: MealTemplate
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            // Shown where the food is added, before the template is saved or logged.
+            allergen?.let { Box(Modifier.padding(top = 4.dp)) { com.zeroindex.intake.ui.addfood.RowAllergenChip(it) } }
         }
         OutlinedTextField(
             value = item.amountText,

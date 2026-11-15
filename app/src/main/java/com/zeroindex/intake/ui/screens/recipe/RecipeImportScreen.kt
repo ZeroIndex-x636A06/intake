@@ -297,7 +297,7 @@ private fun Preview(s: ImportStage.Preview, vm: RecipeImportViewModel) {
         label = { Text("Ingredients, one per line") }, minLines = 4, modifier = Modifier.fillMaxWidth(),
         supportingText = { Text("A line starting with ## is a group heading, like \"## For the Sauce\".") },
     )
-    AllergenChips(s.scan)
+    AllergenChips(s.scan, ingredientLineCount = f.ingredientsText.lines().count { it.isNotBlank() && !it.trimStart().startsWith("##") })
     OutlinedTextField(
         f.stepsText, { v -> vm.edit { it.copy(stepsText = v) } },
         label = { Text("Steps, one per line") }, minLines = 4, modifier = Modifier.fillMaxWidth(),

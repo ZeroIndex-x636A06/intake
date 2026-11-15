@@ -11,6 +11,7 @@ import com.zeroindex.intake.data.repository.MealPlanRepository
 import com.zeroindex.intake.data.repository.MealTemplateRepository
 import com.zeroindex.intake.data.repository.TemplateLogResult
 import com.zeroindex.intake.data.repository.TrainingRepository
+import com.zeroindex.intake.domain.allergen.AllergenLogGate
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nutrition.Macros
 import com.zeroindex.intake.domain.nutrition.QuickAddField
@@ -80,9 +81,13 @@ class RemoteRequestHandler @Inject constructor(
             }
             RequestKind.LOG_FOOD -> logFood(request, slot, at)
             RequestKind.LOG_TEMPLATE -> {
-                when (val r = templates.log(request.templateId.orEmpty(), slot, at, noteDespite = true)) {
+                when (val r = templates.log(request.templateId.orEmpty(), slot, at)) {
                     is TemplateLogResult.Logged -> RemoteReplies.done(request.id, "Logged ${r.template.name} to ${r.slot.name.lowercase()}")
                     is TemplateLogResult.Blocked -> RemoteReplies.blocked(request.id, "a food in that meal", r.foods)
+                    // A "may contain" food needs a person's review, and a watch cannot show the sheet: finish on the phone.
+                    is TemplateLogResult.NeedsReview -> RemoteReplies.checkOnPhone(
+                        request.id, r.template.name, "It may contain something you avoid. Open Intake on your phone to decide.", r.foods,
+                    )
                     TemplateLogResult.NotFound -> RemoteReplies.notFound(request.id, "That meal")
                 }
             }
@@ -105,12 +110,12 @@ class RemoteRequestHandler @Inject constructor(
             return RemoteReplies.checkOnPhone(request.id, food.name, "Log drinks from the water screen on the phone.")
         }
         val scan = allergens.scan(food)
-        if (scan.blocks) return RemoteReplies.blocked(request.id, food.name, scan.contains.map { it.matchedTerm })
-        if (scan.hasAnything) {
-            return RemoteReplies.checkOnPhone(
-                request.id, food.name, "It may contain something you avoid. Open Intake on your phone to decide.",
-                scan.mayContain.map { it.matchedTerm },
+        when (val gate = AllergenLogGate.forWatch(scan)) {
+            is AllergenLogGate.WatchDecision.Blocked -> return RemoteReplies.blocked(request.id, food.name, gate.terms)
+            is AllergenLogGate.WatchDecision.CheckOnPhone -> return RemoteReplies.checkOnPhone(
+                request.id, food.name, "It may contain something you avoid. Open Intake on your phone to decide.", gate.terms,
             )
+            AllergenLogGate.WatchDecision.Allow -> Unit
         }
         val grams = request.grams ?: food.servingSizeGrams
         foodLog.logFood(food, grams, slot, at)
@@ -129,7 +134,15 @@ class RemoteRequestHandler @Inject constructor(
         if (!content.macros.isComplete) {
             return RemoteReplies.checkOnPhone(request.id, name, "Its numbers are incomplete. Confirm them on the phone.")
         }
-        return when (val r = mealPlan.logMeal(content, slot, noteDespite = true)) {
+        // Same rule as a single food: CONTAINS is refused, MAY CONTAIN needs a person's review on the phone.
+        when (val gate = AllergenLogGate.forWatch(mealPlan.scanMeal(content))) {
+            is AllergenLogGate.WatchDecision.Blocked -> return RemoteReplies.blocked(request.id, name, gate.terms)
+            is AllergenLogGate.WatchDecision.CheckOnPhone -> return RemoteReplies.checkOnPhone(
+                request.id, name, "It may contain something you avoid. Open Intake on your phone to decide.", gate.terms,
+            )
+            AllergenLogGate.WatchDecision.Allow -> Unit
+        }
+        return when (val r = mealPlan.logMeal(content, slot)) {
             is MealLogResult.Blocked -> RemoteReplies.blocked(request.id, name, r.terms)
             is MealLogResult.Logged -> RemoteReplies.done(
                 request.id,

@@ -753,7 +753,16 @@ class MealPlanRepository @Inject constructor(
     suspend fun scanMeal(content: RecipeContent): AllergenScanResult =
         scanner().scan(content.recipe.name, content.ingredientLines.joinToString("\n"))
 
-    suspend fun logEatOut(option: EatOutOptionEntity, slot: MealSlot, override: Macros? = null): FoodLogEntity =
+    /** The live allergen scan of a saved eat-out option's order text (what Plan shows on its card), before it is logged. */
+    suspend fun scanEatOut(option: EatOutOptionEntity): AllergenScanResult =
+        scanner().scan(option.whatToOrder, null)
+
+    suspend fun logEatOut(option: EatOutOptionEntity, slot: MealSlot, override: Macros? = null, overrideNote: String? = null): FoodLogEntity {
+        val logged = logEatOutRow(option, slot, override)
+        return if (overrideNote != null) foodLog.markOverridden(logged, overrideNote) else logged
+    }
+
+    private suspend fun logEatOutRow(option: EatOutOptionEntity, slot: MealSlot, override: Macros?): FoodLogEntity =
         foodLog.logPrepared(
             name = "${option.venueName}: ${option.whatToOrder}".take(120),
             macros = override ?: Macros(

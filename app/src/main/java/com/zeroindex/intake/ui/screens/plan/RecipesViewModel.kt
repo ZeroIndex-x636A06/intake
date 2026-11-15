@@ -25,6 +25,7 @@ import com.zeroindex.intake.domain.ai.RecipeQuery
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nutrition.Macros
 import com.zeroindex.intake.domain.time.Clock
+import com.zeroindex.intake.ui.addfood.PendingRecipeLog
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -134,8 +135,40 @@ class RecipeLibraryViewModel @Inject constructor(
      * the estimate when there is one (and the row says so), and otherwise are stored as unlisted, not as 0 g.
      */
     fun logServing(recipe: RecipeEntity, slot: MealSlot, estimate: RecipeEstimate?, onDone: () -> Unit) = viewModelScope.launch {
-        if (recipeLogger.logServings(recipe, slot, estimate?.perServing) != null) onDone()
+        // The same gate as Cook mode and the plan: the local scan runs first and a match waits behind the warning sheet.
+        val scan = recipeLogger.scan(recipe)
+        if (com.zeroindex.intake.domain.allergen.AllergenLogGate.decide(scan) is com.zeroindex.intake.domain.allergen.AllergenLogGate.Decision.Review) {
+            _pendingLog.value = PendingServing(
+                PendingRecipeLog(recipe.id, recipe.name, scan, recipe.ingredientsText.takeIf { it.isNotBlank() }),
+                recipe, slot, estimate,
+            )
+        } else if (recipeLogger.logServings(recipe, slot, estimate?.perServing) != null) {
+            onDone()
+        }
     }
+
+    /** "Log it anyway" on the warning sheet: logs the serving with "Logged despite: ..." kept on the entry. */
+    fun confirmPendingServing(onDone: () -> Unit) {
+        val p = _pendingLog.value ?: return
+        _pendingLog.value = null
+        viewModelScope.launch {
+            val note = com.zeroindex.intake.domain.allergen.AllergenOverride.noteFor(p.pending.scan)
+            if (recipeLogger.logServings(p.recipe, p.slot, p.estimate?.perServing, overrideNote = note) != null) onDone()
+        }
+    }
+
+    fun dismissPendingServing() { _pendingLog.value = null }
+
+    /** A serving held back by the allergen scan, waiting for the person's choice. */
+    data class PendingServing(
+        val pending: PendingRecipeLog,
+        val recipe: RecipeEntity,
+        val slot: MealSlot,
+        val estimate: RecipeEstimate?,
+    )
+
+    private val _pendingLog = MutableStateFlow<PendingServing?>(null)
+    val pendingLog: StateFlow<PendingServing?> = _pendingLog.asStateFlow()
 
     fun delete(recipe: RecipeEntity) = viewModelScope.launch { recipeDao.softDeleteRecipe(recipe.id, clock.nowMillis()) }
 }

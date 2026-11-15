@@ -33,6 +33,13 @@ object AllergenEvidence {
         val isCaution: Boolean get() = this != LABEL_READ
     }
 
+    /**
+     * The basis of a clear scan of a recipe: with no ingredient lines there is nothing to read but the name, so a
+     * clear result is "Only the name was checked", never a pass (QA Q2-2).
+     */
+    fun recipeClearBasis(ingredientLineCount: Int): ClearBasis =
+        if (ingredientLineCount > 0) ClearBasis.LABEL_READ else ClearBasis.NAME_ONLY
+
     /** The basis of a clear scan of a food row, from what the row carries. */
     fun clearBasis(source: FoodSource, isVerified: Boolean, storedAllergenText: String): ClearBasis = when {
         storedAllergenText.isNotBlank() -> ClearBasis.LABEL_READ

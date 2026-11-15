@@ -29,6 +29,9 @@ import com.zeroindex.intake.data.plan.PlanImportBuilder
 import com.zeroindex.intake.ui.AppMessage
 import com.zeroindex.intake.ui.AppMessages
 import dagger.hilt.android.lifecycle.HiltViewModel
+import com.zeroindex.intake.domain.allergen.AllergenLogGate
+import com.zeroindex.intake.domain.allergen.AllergenScanResult
+import com.zeroindex.intake.ui.allergen.PendingEntryAllergen
 import java.time.LocalTime
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -270,6 +273,21 @@ class MealPlanViewModel @Inject constructor(
         if (option.estimatedKcal > 0) doLogEatOut(option, null) else _pending.value = PendingLog.EatOut(option)
     }
 
+    /** [live] with the option's saved verdict added when it is worse than anything found now. It only ever raises. */
+    private fun savedVerdictScan(option: EatOutOptionEntity, live: AllergenScanResult): AllergenScanResult {
+        val kind = when (option.allergenStatus) {
+            AllergenStatus.CONTAINS -> com.zeroindex.intake.domain.model.AllergenMatchKind.CONTAINS
+            AllergenStatus.MAY_CONTAIN -> com.zeroindex.intake.domain.model.AllergenMatchKind.MAY_CONTAIN
+            else -> return live
+        }
+        if (live.hasAnything && (kind != com.zeroindex.intake.domain.model.AllergenMatchKind.CONTAINS || live.blocks)) return live
+        val saved = com.zeroindex.intake.domain.allergen.AllergenMatch(
+            allergen = "allergen", matchedTerm = "a saved warning", field = com.zeroindex.intake.domain.allergen.MatchField.NAME,
+            kind = kind, note = "This saved option was marked as a possible allergen match when it was added.",
+        )
+        return AllergenScanResult(live.matches + saved)
+    }
+
     fun dismissPending() { _pending.value = null }
 
     fun confirmPending(macros: Macros) {
@@ -303,8 +321,33 @@ class MealPlanViewModel @Inject constructor(
         }
     }
 
-    private fun doLogEatOut(option: EatOutOptionEntity, override: Macros?) = viewModelScope.launch {
-        val log = repo.logEatOut(option, slotNow(), override)
+    private val _eatOutPending = MutableStateFlow<PendingEntryAllergen?>(null)
+    val eatOutPending: StateFlow<PendingEntryAllergen?> = _eatOutPending.asStateFlow()
+
+    fun dismissEatOutPending() { _eatOutPending.value = null }
+
+    /** "Log it anyway" on the eat-out warning sheet: a user action; the entry keeps "Logged despite: ...". */
+    fun confirmEatOutPending() {
+        val p = _eatOutPending.value ?: return
+        _eatOutPending.value = null
+        val a = p.action as? PendingEntryAllergen.Action.EatOut ?: return
+        doLogEatOut(a.option, a.macros, AllergenLogGate.overrideNote(p.scan))
+    }
+
+    /**
+     * The order text is scanned as it is now, and a saved "contains" or "may contain" verdict on the option counts too
+     * (the card shows the worse of the two). Either one waits behind the warning sheet; nothing logs silently.
+     */
+    private fun doLogEatOut(option: EatOutOptionEntity, override: Macros?, overrideNote: String? = null) = viewModelScope.launch {
+        if (overrideNote == null) {
+            val live = repo.scanEatOut(option)
+            val scan = savedVerdictScan(option, live)
+            if (AllergenLogGate.decide(scan) is AllergenLogGate.Decision.Review) {
+                _eatOutPending.value = PendingEntryAllergen(PendingEntryAllergen.Action.EatOut(option, override), option.venueName, scan)
+                return@launch
+            }
+        }
+        val log = repo.logEatOut(option, slotNow(), override, overrideNote)
         messages.post(
             AppMessage(
                 text = "Logged ${option.venueName} to ${slotNow().name.lowercase()}",
