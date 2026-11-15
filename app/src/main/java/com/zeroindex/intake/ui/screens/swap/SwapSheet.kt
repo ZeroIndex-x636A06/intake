@@ -247,8 +247,14 @@ private fun PlannedCard(planned: PlannedMeal?, slotLabel: String) {
     }
 }
 
-private fun macroLine(m: Macros, estimate: Boolean): String =
-    "${m.kcal.roundToInt()} kcal · P ${m.protein.roundToInt()} · C ${m.carbs.roundToInt()} · F ${m.fat.roundToInt()}" + if (estimate) " · estimate" else ""
+/** The macros line, labelled by where the numbers came from: the menu's own figures, or an estimate. */
+private fun macroLine(m: Macros, estimate: Boolean, published: Boolean = false): String =
+    "${m.kcal.roundToInt()} kcal · P ${m.protein.roundToInt()} · C ${m.carbs.roundToInt()} · F ${m.fat.roundToInt()}" +
+        when {
+            published -> " · published on the menu"
+            estimate -> " · estimate"
+            else -> ""
+        }
 
 @Composable
 internal fun OptionCard(
@@ -276,7 +282,7 @@ internal fun OptionCard(
                 Column(Modifier.weight(1f).alpha(if (blocked) 0.75f else 1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(o.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
                     o.subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant) }
-                    Text(macroLine(o.macros, o.estimate), style = MaterialTheme.typography.bodySmall)
+                    Text(macroLine(o.macros, o.estimate, o.macrosPublished), style = MaterialTheme.typography.bodySmall)
                     o.reason?.let { Text(it, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = scheme.primary) }
                 }
                 if (blocked) {
@@ -339,6 +345,10 @@ internal fun NearbyCard(
     locationDenied: Boolean = false,
     onUseLocation: () -> Unit,
     onPostalCode: (String) -> Unit,
+    /** A zip code can be searched here (the copy and the button depend on it). Defaults to the AI zip search. */
+    zipAvailable: Boolean = nearby.hasKey,
+    /** True when the zip code is looked up with no key and the free map search runs from it; false for the AI search. */
+    zipIsFree: Boolean = false,
     onToggleAi: (Boolean) -> Unit,
     onStop: () -> Unit,
     onLookUpRest: () -> Unit,
@@ -398,7 +408,11 @@ internal fun NearbyCard(
                     if (!useZip) {
                         if (locationDenied) {
                             Text(
-                                "Location is off for Intake. Allow it, or use a zip code instead.",
+                                if (zipAvailable) {
+                                    "Location is off for Intake. Allow it, or use a zip code instead."
+                                } else {
+                                    "Location is off for Intake. Allow it in Android settings to search near you."
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error,
                             )
@@ -415,7 +429,9 @@ internal fun NearbyCard(
                             )
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            if (nearby.hasKey) TextButton(onClick = { useZip = true }) { Text("Use a zip code instead (AI search)") }
+                            if (zipAvailable) {
+                                TextButton(onClick = { useZip = true }) { Text(if (zipIsFree) "Use a zip code instead" else "Use a zip code instead (AI search)") }
+                            }
                             if (locationDenied) {
                                 TextButton(onClick = {
                                     context.startActivity(
@@ -435,7 +451,11 @@ internal fun NearbyCard(
                             ) { Text("Search") }
                         }
                         Text(
-                            "A zip code is searched with AI on your key (a cent or so), because the free map search needs your location.",
+                            if (zipIsFree) {
+                                "The zip code is looked up with a free place search (no key), then the free map search runs from that place. Only the zip code is sent, once, when you tap Search."
+                            } else {
+                                "A zip code is searched with AI on your key (a cent or so), because the free map search needs your location."
+                            },
                             style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         TextButton(onClick = { useZip = false }) { Text("Use my location instead") }

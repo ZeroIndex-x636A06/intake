@@ -187,7 +187,8 @@ fun MenuSourcesScreen(
                                     "A PDF is read a few pages at a time, so a long one costs a few cents; the cost is added to AI usage in Settings. " +
                                     "The AI reads the numbers as printed and never invents any; allergens from it can only add warnings."
                             } else {
-                                "Nothing was sent anywhere. AI is off or has no key: turn on “Use AI features” and add a key in Settings → AI to use it."
+                                "Nothing was sent anywhere. AI is off or has no key. Turn on “Use AI features” and add a key in Settings → AI to have the model read it. " +
+                                "Without AI, paste a link to the restaurant's nutrition page: a page that publishes its menu as data is read with no AI."
                             },
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -218,7 +219,8 @@ fun MenuSourcesScreen(
                         if (state.hasKey) {
                             "Nothing was sent anywhere. If you read it with AI, the PDF is sent to your AI provider."
                         } else {
-                            "Nothing was sent anywhere. AI is off or has no key: turn on “Use AI features” and add a key in Settings → AI to use it."
+                            "Nothing was sent anywhere. AI is off or has no key. Turn on “Use AI features” and add a key in Settings → AI to have the model read it. " +
+                                "Without AI, paste a link to the restaurant's nutrition page: a page that publishes its menu as data is read with no AI."
                         },
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -322,7 +324,7 @@ fun MenuSourcesScreen(
         }
     }
 
-    if (adding) AddSourceSheet(onDismiss = { adding = false }, onAdd = { n, k, l, p -> viewModel.add(n, k, l, p); adding = false })
+    if (adding) AddSourceSheet(hasKey = state.hasKey, onDismiss = { adding = false }, onAdd = { n, k, l, p -> viewModel.add(n, k, l, p); adding = false })
     state.review?.let { ReviewSheet(it, onToggle = viewModel::toggle, onSave = viewModel::commit, onClose = viewModel::closeReview, onDiscard = { viewModel.askDiscard(it.source) }) }
     state.confirmDiscard?.let { src ->
         androidx.compose.material3.AlertDialog(
@@ -350,7 +352,7 @@ fun MenuSourcesScreen(
 }
 
 @Composable
-private fun AddSourceSheet(onDismiss: () -> Unit, onAdd: (String, MenuSourceKind, String, String?) -> Unit) {
+private fun AddSourceSheet(hasKey: Boolean, onDismiss: () -> Unit, onAdd: (String, MenuSourceKind, String, String?) -> Unit) {
     var name by remember { mutableStateOf("") }
     var kind by remember { mutableStateOf(MenuSourceKind.URL) }
     var url by remember { mutableStateOf("") }
@@ -384,10 +386,21 @@ private fun AddSourceSheet(onDismiss: () -> Unit, onAdd: (String, MenuSourceKind
                     shape = IntakeShape.Button,
                     modifier = Modifier.fillMaxWidth().height(50.dp),
                 ) { Text(if (pdf == null) "Choose a PDF" else "PDF chosen · change") }
-                MenuSourceKind.TEXT -> OutlinedTextField(
-                    text, { text = it }, label = { Text("Menu text") }, minLines = 6, shape = IntakeShape.Field,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                MenuSourceKind.TEXT -> {
+                    OutlinedTextField(
+                        text, { text = it }, label = { Text("Menu text") }, minLines = 6, shape = IntakeShape.Field,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    // Said before the person types: pasted text is only read by AI.
+                    if (!hasKey) {
+                        Text(
+                            "Pasted text is read by AI. AI is off or has no key: turn on “Use AI features” and add a key in Settings → AI first. " +
+                                "Without AI, a PDF with a nutrition table or a link to a menu page works.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
             val ready = name.isNotBlank() && when (kind) {
                 MenuSourceKind.URL -> url.startsWith("http")

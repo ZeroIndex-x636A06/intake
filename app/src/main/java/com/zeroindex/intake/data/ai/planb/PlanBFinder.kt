@@ -100,6 +100,8 @@ data class PlanBOption(
      * it is offered as "check the label", never as clear (`AllergenEvidence`).
      */
     val nameOnly: Boolean = false,
+    /** An imported menu item whose calories and macros the menu itself published (not estimated from its wording). */
+    val macrosPublished: Boolean = false,
     /** Fibre, saturated fat, sugar (g) and sodium (mg) when known. Null is unknown, never zero. */
     val fiberG: Double? = null,
     val satFatG: Double? = null,
@@ -180,7 +182,7 @@ class PlanBFinder @Inject constructor(
                     caution = "From an imported menu - confirm current ingredients when ordering.",
                     crossContactRisk = null, scan = scan,
                     fit = PlanBFit.score(macros.kcal, macros.protein, left.kcalRemaining, left.proteinRemaining),
-                    offline = true, menuItemId = m.id,
+                    offline = true, menuItemId = m.id, macrosPublished = m.macrosPublished,
                     nameOnly = !scan.hasAnything && !scan.hasCheckLabel && com.zeroindex.intake.domain.menu.MenuAllergenEvidence.statesNothing(m.description, m.ingredientsText),
                 )
             }.sortedByDescending { it.fit.score }.take(limit)
@@ -207,7 +209,7 @@ class PlanBFinder @Inject constructor(
                     caution = "From an imported menu - confirm current ingredients when ordering.",
                     crossContactRisk = null, scan = scan,
                     fit = PlanBFit.score(macros.kcal, macros.protein, left.kcalRemaining, left.proteinRemaining),
-                    offline = true, menuItemId = m.id,
+                    offline = true, menuItemId = m.id, macrosPublished = m.macrosPublished,
                     nameOnly = !scan.hasAnything && !scan.hasCheckLabel && com.zeroindex.intake.domain.menu.MenuAllergenEvidence.statesNothing(m.description, m.ingredientsText),
                 )
             }
