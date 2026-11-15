@@ -175,8 +175,9 @@ class SwapRepository @Inject constructor(
         return SwapEntry(
             SwapOption(
                 key = o.key, title = o.order, subtitle = "Imported menu · ${o.restaurant} · works offline",
-                kind = SwapKind.SAVED_EAT_OUT, macros = o.macros, estimate = true, allergen = verdict, allergenReason = reason,
+                kind = SwapKind.SAVED_EAT_OUT, macros = o.macros, estimate = !o.macrosPublished, allergen = verdict, allergenReason = reason,
                 matchedAllergens = o.scan.contains.map { it.allergen }.distinct(), evidence = o.scan.contains.map { it.reason }.distinct(),
+                macrosPublished = o.macrosPublished,
             ),
             SwapSource.Found(o),
         )
@@ -211,10 +212,12 @@ class SwapRepository @Inject constructor(
                 else -> MealNutrition(e.option.macros.kcal, e.option.macros.protein)
             }
             val h = NearbyRanking.healthier(n, left.kcalRemaining, left.proteinRemaining)
-            e.copy(option = e.option.copy(score = h.score, reason = h.reason))
+            e.copy(option = e.option.copy(score = h.score, reason = h.reason.takeIf { h.standout }))
         }
-        val order = NearbyRanking.orderHealthier(scored.map { it.option }).map { it.key }
-        val byKey = scored.associateBy { it.option.key }
+        // An option that stands out for nothing is not a healthier pick. A blocked one stays, so its warning is still seen.
+        val kept = scored.filter { it.option.blocked || it.option.reason != null }
+        val order = NearbyRanking.orderHealthier(kept.map { it.option }).map { it.key }
+        val byKey = kept.associateBy { it.option.key }
         return order.mapNotNull(byKey::get)
     }
 

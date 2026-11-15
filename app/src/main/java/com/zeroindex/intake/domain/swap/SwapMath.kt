@@ -31,6 +31,8 @@ data class SwapOption(
     /** The allergens the local engine matched ("dairy"), and the evidence for each ("Says cheese"), for the override warning. */
     val matchedAllergens: List<String> = emptyList(),
     val evidence: List<String> = emptyList(),
+    /** Imported menu items only: the restaurant's own published numbers (shown as "published on the menu"), not an estimate. */
+    val macrosPublished: Boolean = false,
 ) {
     /** A "contains" option is shown but cannot be chosen. */
     val blocked: Boolean get() = SwapMath.isBlocked(allergen)

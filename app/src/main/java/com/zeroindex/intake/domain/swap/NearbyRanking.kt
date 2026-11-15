@@ -26,8 +26,12 @@ data class MealNutrition(
     val sodiumMg: Double? = null,
 )
 
-/** The score (0..1, higher is healthier) and a short plain reason, e.g. "High protein for the calories". */
-data class HealthierScore(val score: Double, val reason: String)
+/**
+ * The score (0..1, higher is healthier) and a short plain reason, e.g. "High protein for the calories". [standout] is
+ * false when nothing about the option stands out for health; such an option has no reason and is left out of the
+ * healthier lists (a blocked one stays, with its allergen reason).
+ */
+data class HealthierScore(val score: Double, val reason: String, val standout: Boolean)
 
 object NearbyRanking {
 
@@ -116,8 +120,7 @@ object NearbyRanking {
         val total = parts.sumOf { it.first }
         val score = if (total <= 0) 0.0 else parts.sumOf { it.first * it.second } / total
         val reason = strengths.sortedByDescending { it.first }.take(2).joinToString(" · ") { it.second }
-            .ifEmpty { "Not a standout choice" }
-        return HealthierScore(score.coerceIn(0.0, 1.0), reason)
+        return HealthierScore(score.coerceIn(0.0, 1.0), reason, standout = strengths.isNotEmpty())
     }
 
     /** One shown option as a line to send back as "already shown", so "Search again for more" does not repeat it. */

@@ -55,6 +55,11 @@ data class Review(
     val chartNote: String? = null,
 )
 
+/** Shown when pasted text cannot be read because AI is off: what to turn on, and the import that works without AI. */
+private const val PASTED_TEXT_NEEDS_AI =
+    "Pasted text is read by AI, and AI is off or has no key. Turn on “Use AI features” and add a key in Settings → AI, then import again. " +
+        "Without AI, import a PDF with a nutrition table (read on this phone on Android 15 or later) or a link to a page that publishes its menu as data."
+
 /** The phone's reader found no table in a PDF: [reason] says why, and the person may choose to use AI instead. */
 data class AiOffer(val source: MenuSourceEntity, val reason: String)
 
@@ -149,7 +154,7 @@ class MenuSourcesViewModel @Inject constructor(
             createdAt = now,
             updatedAt = now,
         )
-        menuDao.upsertSource(source)
+        // Not saved here: a new source is written only once its import succeeds (see run), so a refused import leaves no row.
         run(source)
     }
 
@@ -166,14 +171,17 @@ class MenuSourcesViewModel @Inject constructor(
         val needsModelNow = source.kind == MenuSourceKind.TEXT || (source.kind == MenuSourceKind.PDF && pdfRoute == PdfRoute.AI_ONLY)
         if (needsModelNow) {
             gateway.unavailableReason()?.let { reason ->
-                _state.update { it.copy(error = reason.message) }
+                _state.update { it.copy(error = if (source.kind == MenuSourceKind.TEXT) PASTED_TEXT_NEEDS_AI else reason.message) }
                 return
             }
         }
         if (importJob?.isActive == true) return
         _state.update { it.copy(running = MenuProgress("Starting…"), error = null, refusedSource = null, aiOffer = null) }
         importJob = viewModelScope.launch {
-            menuDao.upsertSource(source.copy(lastStatus = MenuRunStatus.RUNNING, updatedAt = clock.nowMillis()))
+            // A source that is not saved yet is a new import: it is written only when the import succeeds, and a failed
+            // one leaves no row behind. A saved source keeps its status, as before.
+            val saved = menuDao.source(source.id) != null
+            if (saved) menuDao.upsertSource(source.copy(lastStatus = MenuRunStatus.RUNNING, updatedAt = clock.nowMillis()))
             try {
                 val outcome = ingestor.stage(source, AiTrigger.USER_ACTION, onProgress = { progress ->
                     _state.update { s -> if (s.running != null) s.copy(running = progress) else s }
@@ -182,16 +190,16 @@ class MenuSourcesViewModel @Inject constructor(
                 _state.update { it.copy(running = null, review = Review(source, outcome.items, outcome.warnings, outcome.readOnPhone, outcome.chartNote)) }
             } catch (e: MenuNoTableException) {
                 // Nothing was sent anywhere. Say why, and let the person choose the AI path.
-                ingestor.markFailed(source, e.message ?: "No nutrition table was found.")
+                if (saved) ingestor.markFailed(source, e.message ?: "No nutrition table was found.")
                 _state.update { it.copy(running = null, aiOffer = AiOffer(source, e.message ?: "No nutrition table was found.")) }
             } catch (e: CancellationException) {
                 // Cancel was pressed: the source goes back to how it was before this run.
-                withContext(NonCancellable) { menuDao.upsertSource(source) }
+                if (saved) withContext(NonCancellable) { menuDao.upsertSource(source) }
                 _state.update { it.copy(running = null) }
                 throw e
             } catch (e: Exception) {
                 val reason = (e as? AiError)?.message ?: (e as? MenuImportException)?.message ?: "The import failed. Try again, or paste the menu text."
-                ingestor.markFailed(source, reason)
+                if (saved) ingestor.markFailed(source, reason)
                 val refused = source.takeIf { it.kind == MenuSourceKind.URL && DownloadClassifier.offersFilePicker(reason) }
                 _state.update { it.copy(running = null, error = reason, refusedSource = refused) }
             }

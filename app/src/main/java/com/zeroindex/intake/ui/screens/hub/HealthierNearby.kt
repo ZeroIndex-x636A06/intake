@@ -32,6 +32,7 @@ import com.zeroindex.intake.data.ai.AiGateway
 import com.zeroindex.intake.data.ai.planb.PlanBFinder
 import com.zeroindex.intake.data.ai.planb.SearchArea
 import com.zeroindex.intake.data.settings.SettingsRepository
+import com.zeroindex.intake.data.weather.WeatherRepository
 import com.zeroindex.intake.data.swap.SwapEntry
 import com.zeroindex.intake.data.swap.SwapLogResult
 import com.zeroindex.intake.data.swap.SwapRepository
@@ -93,6 +94,8 @@ class HealthierNearbyViewModel @Inject constructor(
     private val repo: SwapRepository,
     private val finder: PlanBFinder,
     private val gateway: AiGateway,
+    /** Its keyless place lookup turns a typed zip code into a point for the free map search. */
+    private val weather: WeatherRepository,
     private val settings: SettingsRepository,
     private val messages: AppMessages,
     private val clock: Clock,
@@ -171,11 +174,25 @@ class HealthierNearbyViewModel @Inject constructor(
         }
     }
 
+    /**
+     * "Use a zip code instead": the typed zip code is looked up with the keyless place search (the same service the water
+     * card uses), then the free map search runs from that point, with no AI. Only the zip code is sent, once, on the tap.
+     */
     fun searchPostalCode(code: String) {
         val trimmed = code.trim()
-        if (trimmed.length < 3) return
-        _state.update { it.copy(notice = null, nearby = it.nearby.copy(searching = true, error = null)) }
-        viewModelScope.launch { run(SearchArea.PostalCode(trimmed)) }
+        if (trimmed.length < 3 || host.running) return
+        _state.update { it.copy(notice = null, nearby = it.nearby.copy(searching = true, status = "Looking up that zip code…", error = null)) }
+        viewModelScope.launch {
+            val place = weather.geocode(trimmed).firstOrNull()
+            if (place == null) {
+                _state.update {
+                    it.copy(nearby = it.nearby.copy(searching = false, status = null, error = "Could not find that zip code. Check it, or allow location. The lookup needs a connection."))
+                }
+                return@launch
+            }
+            _state.update { it.copy(nearby = it.nearby.copy(searching = false, status = null)) }
+            host.start(SearchArea.Coordinates(place.lat, place.lon))
+        }
     }
 
     private suspend fun run(area: SearchArea) {
@@ -278,6 +295,28 @@ fun rememberHealthierBlock(
             }
         } else {
             state.notice?.let { n -> item(key = "healthier-notice") { SandNote(n) } }
+            // The nearby card sits above the menu list, so the list filling in below it never moves the card under a tap.
+            item(key = "healthier-nearby-card") {
+                NearbyCard(
+                    nearby = state.nearby,
+                    title = "Find healthier options nearby",
+                    blurb = " Healthier orders on the menus near you, by protein for the calories, fibre, saturated fat, sugar and salt.",
+                    foundTime = state.nearby.foundAt?.let { timeFmt.format(Instant.ofEpochMilli(it)) },
+                    locationDenied = locationDenied,
+                    onUseLocation = {
+                        if (state.nearby.hasLocation) viewModel.searchNearby() else launcher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+                    },
+                    onPostalCode = viewModel::searchPostalCode,
+                    zipAvailable = true,
+                    zipIsFree = true,
+                    onToggleAi = viewModel::setUseAi,
+                    onStop = viewModel::stopSearch,
+                    onLookUpRest = viewModel::lookUpRest,
+                    onSearchWithAi = viewModel::searchWithAi,
+                    onOpenAiSettings = onOpenAiSettings,
+                    onOpenRadiusSetting = onOpenRadiusSetting,
+                )
+            }
             if (state.loading) {
                 item(key = "healthier-loading") { Text("Reading your menus…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             } else if (state.local.isEmpty()) {
@@ -296,25 +335,6 @@ fun rememberHealthierBlock(
                         onOverride = { viewModel.requestOverride(e.option.key) },
                     )
                 }
-            }
-            item(key = "healthier-nearby-card") {
-                NearbyCard(
-                    nearby = state.nearby,
-                    title = "Find healthier options nearby",
-                    blurb = " Healthier orders on the menus near you, by protein for the calories, fibre, saturated fat, sugar and salt.",
-                    foundTime = state.nearby.foundAt?.let { timeFmt.format(Instant.ofEpochMilli(it)) },
-                    locationDenied = locationDenied,
-                    onUseLocation = {
-                        if (state.nearby.hasLocation) viewModel.searchNearby() else launcher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
-                    },
-                    onPostalCode = viewModel::searchPostalCode,
-                    onToggleAi = viewModel::setUseAi,
-                    onStop = viewModel::stopSearch,
-                    onLookUpRest = viewModel::lookUpRest,
-                    onSearchWithAi = viewModel::searchWithAi,
-                    onOpenAiSettings = onOpenAiSettings,
-                    onOpenRadiusSetting = onOpenRadiusSetting,
-                )
             }
             if (state.found.isNotEmpty()) {
                 item(key = "healthier-found-head") { Text("Found nearby", style = MaterialTheme.typography.titleMedium) }
