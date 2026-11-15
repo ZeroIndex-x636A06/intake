@@ -411,13 +411,15 @@ Summary for Pass 2: 16 findings. S1: 1 (Q2-1). S2: 1 (Q2-2). S3: 8 (Q2-3 to Q2-1
 Round 2 fixes merged (3fb7f70, bc0c873, eb928a4, 6976495, 795a8d4). Every status above is "needs retest" on a rebuilt preview; nothing here was seen on a device.
 
 ### Open from round 2
-- Swap logs a MAY_CONTAIN recipe or template without showing the allergen sheet.
-- The template editor's food picker rows have no allergen chip.
-- Shopping list dairy items have no allergen marker for a dairy-avoiding user.
-- Old saved shopping rows keep their old aisles.
-- The substring "almo" ranks Salmon first under My foods.
-- Q2-7 zip lookup is not verified on a real network.
-- Q1-14 (Dark chocolate "may contain milk" shown as a hard red warning) is still waiting for the owner's decision.
+- Fixed in b73f977, needs retest: Swap logs a MAY_CONTAIN recipe or template without showing the allergen sheet (SwapGate and the warning sheet now cover Swap, Eating out and Healthier nearby).
+- Fixed in b73f977, needs retest: the template editor's food picker rows have no allergen chip (chips added).
+- Fixed in b73f977, needs retest: shopping list dairy items have no allergen marker for a dairy-avoiding user.
+- Fixed in b73f977, needs retest: old saved shopping rows keep their old aisles (aisle repair).
+- Fixed in b73f977, needs retest: the substring "almo" ranks Salmon first under My foods (word-start ranking).
+- Still open: Q2-7 zip lookup is not verified on a real network.
+- Still open: Q1-14 (Dark chocolate "may contain milk" shown as a hard red warning) is waiting for the owner's decision.
+
+Ripple backlog: a scan found no spots where a clickable is declared before its clip, so no ripple fixes were needed.
 
 ---
 
@@ -429,7 +431,7 @@ Logcat: clean. No FATAL EXCEPTION, no ANR for com.zeroindex.*, no StrictMode lin
 Seen on emulator only (Android 11, software rendering, no KVM). Not seen on a device: performance, haptics, real keyboard and IME behaviour, vibration at rest end, how the layout jump in Q3-11 feels on a fast phone. Screenshots are at scale 1.9 of the 1080x2280 screen (540x1200).
 
 ### Q3-1 · S3 · Settings / Train D.6 · Imperial users get a 44.1 lb bar and plates of 55.12, 44.09, 33.07, 22.05, 11.02, 5.51, 2.76 lb
-Status: open
+Status: Fixed in cc7bc40, needs retest (a lb user now gets a 45 lb bar and lb plates; a lb user who deliberately stored a 20 kg bar now also gets 45 lb)
 Steps: 1. Seeded install (units lb). 2. You > Settings > Training.
 Expected: a bar of 45 lb and plates of 45, 35, 25, 10, 5, 2.5 lb (the subtitle in Settings says "2:00 rest · 44.1 lb bar" too).
 Actual: Bar weight "44.1 lb"; "Plates available per side (lb, comma separated)" holds the metric plates converted to lb. The plate maths and the smallest step up use them. The Barbell (Olympic) row still reads "2 in sleeves, 20 kg bar" for a lb user.
@@ -437,7 +439,7 @@ Screenshot: design/qa/pass3/q3-1-plates.png
 Suspect: data/settings (defaults converted from kg), ui/screens/settings Training
 
 ### Q3-2 · S3 · Train J.12 · Videos "Paste a YouTube link": the field and the Open button are hidden behind the keyboard and the page will not scroll to them
-Status: open
+Status: Fixed in cc7bc40, needs retest
 Steps: 1. Train > Videos with no key. 2. Tap the link field, type.
 Expected: the page scrolls so the field stays visible.
 Actual: the keyboard covers the field and "Open this video"; swiping the page does nothing. The text can only be seen after Back hides the keyboard. (After Enter the error "That does not look like a YouTube video link." is clear.)
@@ -445,7 +447,7 @@ Screenshot: design/qa/pass3/q3-2-keyboard.png
 Suspect: ui/screens/videos/VideosSection.kt (NoKeyCard, imePadding)
 
 ### Q3-3 · S2 · Train D.21 · Exercise detail muscle map leaves out the main muscle for Pull-Up
-Status: open
+Status: Fixed in cc7bc40, needs retest
 Steps: 1. Train > Exercises, search "Pull-Up", open it. 2. Look at Muscles worked.
 Expected: Lats (the listed primary muscle: "Lats (also biceps)") highlighted on the back figure and "Main: lats. Also: biceps".
 Actual: only the biceps (and forearm region in Six regions) are highlighted; the caption and screen-reader text say "Also: biceps" with no Main. Lats are never drawn, so the back figure is empty. Squat (quads) and the session summary draw their main muscles correctly.
@@ -453,7 +455,7 @@ Screenshot: design/qa/pass3/q3-3-pullup-lats.png
 Suspect: domain muscle mapping for Lats (likely the same for Dumbbell Row), ui/components MuscleMap
 
 ### Q3-4 · S4 · Train D.21 · Exercise detail "Your history": misaligned grid and inconsistent numbers
-Status: open
+Status: Fixed in cc7bc40, needs retest
 Steps: 1. Exercise detail of Barbell Back Squat (seed).
 Expected: BEST SET and HEAVIEST on one baseline; numbers formatted like the rest of the app.
 Actual: "BEST SET" sits lower than "HEAVIEST" and its value is on the next row while HEAVIEST's value is beside the label; "TOTAL VOLUME 10309.6 lb" has no thousands separator and a decimal (the log shows "9,432 lb"); weights read "160.0 lb" here and "160.0 × 7" without a unit in the session summary. The chart has no date axis and no label for its top point; "Last 3 sessions · 1 records so far" should be "1 record".
@@ -461,7 +463,7 @@ Screenshot: design/qa/pass3/q3-4-detail-grid.png
 Suspect: ui/screens/exercises detail sheet
 
 ### Q3-5 · S4 · Shell A.13 · "Workout in progress" card and the session bar both show, and the bar covers content
-Status: open
+Status: Fixed in cc7bc40, needs retest (the bar and card are split; could not confirm why the bar covered Progress content, so the retest must check it)
 Steps: 1. Start a workout, minimise it. 2. Look at Train, then Today, then Progress.
 Expected: one entry point; list content clear of the bar.
 Actual: Train shows the "WORKOUT IN PROGRESS · Resume workout" card and the session bar above the pill at once; Today shows its own "Workout in progress · Resume" row under the bar; on Progress the bar covers the card labels ("AVG KCAL / DAY"). The bar works (resumes the workout, counts time and rest).
@@ -469,7 +471,7 @@ Screenshot: design/qa/pass3/q3-5-bar-and-card.png
 Suspect: ui/navigation (session bar), Train and Today hub screens
 
 ### Q3-6 · S4 · Train D.20 · "Bodyweight · bodyweight" repeated in every bodyweight row of the library and detail
-Status: open
+Status: Fixed in cc7bc40, needs retest
 Steps: 1. Train > Exercises.
 Expected: "Core · Bodyweight".
 Actual: "Core · Bodyweight · bodyweight" (also "Lats (also biceps) · Bodyweight · bodyweight · rest 120s" on the detail). The equipment filter itself is right: with My equipment on, only barbell, dumbbell and bodyweight rows appear, no machines or cables. The row cards also have almost square corners next to the rounded cards elsewhere.
@@ -477,7 +479,7 @@ Screenshot: design/qa/pass3/q3-6-library-labels.png
 Suspect: ui/screens/exercises row subtitle
 
 ### Q3-7 · S3 · Shell A.10 / A.11 · Landscape at font scale 1.5: rail labels clipped ("Nutritio", "Progres")
-Status: open
+Status: Fixed in cc7bc40, needs retest
 Steps: 1. `settings put system font_scale 1.5`, rotate to landscape. 2. Train.
 Expected: full labels or icons only.
 Actual: the side rail clips two labels. At 1.5 in portrait the Train root is fine (pill labels fit). Landscape at normal font was not checked.
@@ -485,7 +487,7 @@ Screenshot: design/qa/pass3/q3-7-rail-clip.png
 Suspect: ui/navigation rail
 
 ### Q3-8 · S3 · Programs D.17 · "Make me one" starting weights are not loadable: 149, 109, 49, 179, 124, 169, 144 lb
-Status: open
+Status: Fixed in cc7bc40, needs retest (the program generator has no heaviest-dumbbell field, it reads the profile; starting weights now round to loadable values and cap at the dumbbell limit)
 Steps: 1. Train > Programs > Make me one, accept defaults to the end.
 Expected: starting weights rounded to what the user's plates can make (for example 150, 110, 50 lb).
 Actual: "Bench press 149 lb to start", "Barbell row 109 lb", "Overhead press 49 lb" and so on, probably a result of the metric plate list in Q3-1. The questions and results otherwise honour equipment (no machines seen in the first three days; not every exercise name was read).
@@ -493,7 +495,7 @@ Screenshot: design/qa/pass3/q3-8-generator-weights.png
 Suspect: domain program generator / plate rounding
 
 ### Q3-9 · S3 · Train D.13 · A finished session cannot be edited: set rows and exercise names do nothing when tapped
-Status: open
+Status: Fixed in cc7bc40, needs retest
 Steps: 1. Train > All sessions > a session. 2. Tap "Set 1: 160.0 lb × 7" or "Barbell Back Squat".
 Expected: edit a set (checklist D.13), or the rows look read-only; an exercise name opens its detail.
 Actual: nothing happens; the screen is titled "Workout summary" with a Done button even when opened from the log, and there is no edit or delete.
@@ -501,7 +503,7 @@ Screenshot: design/qa/pass3/q3-9-session-sets.png
 Suspect: ui/screens/train summary and history
 
 ### Q3-10 · S3 · Videos D.23 / D.25 · With no key there is no Saved or Downloaded entry, and with a key Saved has no visible place
-Status: open
+Status: Fixed in cc7bc40, needs retest
 Steps: 1. Train > Videos with no key (offline downloads on or off). 2. With a key, open the "more" menu.
 Expected: Saved and Downloaded reachable at the top, with an empty state ("No saved videos yet").
 Actual: with no key the screen is the key card plus "Paste a YouTube link" only (copy is correct and no longer contradicts the download switch). "Downloaded videos" exists only in the more menu, which only exists with a key, so downloads are unreachable without one. With a (fake) key the top row is Search, more menu, chips Workouts only, Hide Shorts, Filters; no Saved chip or section was visible with zero saved videos, so "Saved at the top" could not be confirmed. The offline-downloads switch shows the yt-dlp warning dialog ("Before you turn this on", ToS, suspension risk) and turns on only after "I understand, turn it on".
@@ -509,7 +511,7 @@ Screenshot: design/qa/pass3/q3-10-nokey-videos.png (menu: design/qa/pass3/videos
 Suspect: ui/screens/videos/VideosSection.kt
 
 ### Q3-11 · S3 · Train D.6 / J.4 · Marking a set done shifts the rows down, so a quick second tap un-ticks the wrong set
-Status: open
+Status: Fixed in cc7bc40, needs retest
 Steps: 1. Start Upper B. 2. Tap done on set 2, then promptly on set 3.
 Expected: rows stay put under the finger.
 Actual: the rest bar appears above the card and pushes every row down about 100 px; the second tap landed on set 2 and unticked it (set 3 stayed open). The countdown, +15 s and Skip work. A "New estimated max" row also appears under a PR set and pushes the next row down. Weight shows "50.0" before a set is done and "50" after it. Whether this is as easy to hit on a phone is not known.
@@ -517,7 +519,7 @@ Screenshot: design/qa/pass3/q3-11-set-rows.png
 Suspect: ui/screens/train ActiveWorkout rest bar placement
 
 ### Q3-12 · S4 · Settings API keys · The OpenRouter Save button looks different from the other two
-Status: open
+Status: Fixed in cc7bc40, needs retest
 Steps: 1. Settings > API keys, scroll.
 Expected: the three Save buttons share one style.
 Actual: OpenRouter's Save is a very faint tile with no clear shape; USDA and YouTube have a grey pill. The YouTube key row after saving reads "YouTube key saved, encrypted on this device." with Dismiss, fine. (Not a Train screen; seen on the way.)
