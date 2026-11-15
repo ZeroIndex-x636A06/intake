@@ -50,7 +50,13 @@ fun templateLineOf(food: FoodEntity, grams: Double) = TemplateLine(
 )
 
 sealed interface TemplateLogResult {
-    data class Logged(val template: MealTemplateEntity, val slot: MealSlot, val logs: List<FoodLogEntity>) : TemplateLogResult
+    data class Logged(
+        val template: MealTemplateEntity,
+        val slot: MealSlot,
+        val logs: List<FoodLogEntity>,
+        /** "Almond milk: check the label for dairy": a food that was not blocked but needs a second look. Null when none. */
+        val allergenNote: String? = null,
+    ) : TemplateLogResult
     /** The allergen profile now matches a food that was fine when the template was saved. */
     data class Blocked(val template: MealTemplateEntity, val foods: List<String>) : TemplateLogResult
     data object NotFound : TemplateLogResult
@@ -71,6 +77,17 @@ class MealTemplateRepository @Inject constructor(
     private val recipes: RecipeRepository,
     private val clock: Clock,
 ) {
+    /**
+     * Today's verdict for each template, keyed by template id: every food scanned by the one local engine and merged
+     * (worst tier wins). Empty results mean the person avoids nothing.
+     */
+    suspend fun verdicts(summaries: List<TemplateSummary>): Map<String, com.zeroindex.intake.domain.allergen.AllergenScanResult> {
+        val scan = allergens.foodScanner()
+        return summaries.associate { s ->
+            s.template.id to com.zeroindex.intake.domain.allergen.TemplateAllergens.merge(s.items.map { (food, _) -> scan(food) })
+        }
+    }
+
     fun observeSummaries(): Flow<List<TemplateSummary>> = templateDao.observeAll().map { templates ->
         templates.map { t -> summary(t) }
     }
@@ -231,13 +248,14 @@ class MealTemplateRepository @Inject constructor(
         val items = summary(template).items
         if (items.isEmpty()) return TemplateLogResult.NotFound
 
-        val blocked = items.filter { (food, _) -> allergens.scan(food).blocks }.map { it.first.name }
+        val scans = items.map { (food, _) -> food.name to allergens.scan(food) }
+        val blocked = items.filterIndexed { i, _ -> scans[i].second.blocks }.map { it.first.name }
         if (blocked.isNotEmpty() && !allergenOverride) return TemplateLogResult.Blocked(template, blocked)
 
         val target = slot ?: TemplateLink.slotFor(Instant.ofEpochMilli(at).atZone(clock.zone()).toLocalTime())
         val logs = items.map { (food, grams) -> foodLog.logFood(food, grams, target, at) }
         templateDao.upsertTemplate(template.copy(lastLoggedAt = at, updatedAt = clock.nowMillis()))
-        return TemplateLogResult.Logged(template, target, logs)
+        return TemplateLogResult.Logged(template, target, logs, com.zeroindex.intake.domain.allergen.TemplateAllergens.logNote(scans))
     }
 
     /** Undo for the "logged from tag" snackbar. */

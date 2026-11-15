@@ -19,6 +19,7 @@ import com.zeroindex.intake.domain.units.PortionUnit
 import com.zeroindex.intake.ui.AppMessage
 import com.zeroindex.intake.ui.AppMessages
 import com.zeroindex.intake.ui.allergen.chipDetail
+import com.zeroindex.intake.ui.allergen.traceChipLabel
 import com.zeroindex.intake.ui.allergen.verdict
 import com.zeroindex.intake.data.repository.BarcodeRepository
 import com.zeroindex.intake.data.repository.FoodLogRepository
@@ -30,6 +31,7 @@ import com.zeroindex.intake.data.repository.MenuLogRepository
 import com.zeroindex.intake.data.repository.RemoteResult
 import com.zeroindex.intake.data.repository.ScannedProduct
 import com.zeroindex.intake.domain.allergen.AllergenEvidence
+import com.zeroindex.intake.domain.allergen.AllergenOverride
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
 import com.zeroindex.intake.domain.drinks.DrinkRule
 import com.zeroindex.intake.domain.drinks.SearchScope
@@ -84,7 +86,17 @@ enum class AddFoodTab(val label: String) {
  * [nameOnly] marks a clear result on a packaged product that carries no ingredient list and no allergen tags: the
  * chip then says so instead of "No allergens" (`AllergenEvidence`).
  */
-data class RowAllergen(val verdict: SwapAllergen, val detail: String?, val nameOnly: Boolean = false)
+data class RowAllergen(
+    val verdict: SwapAllergen,
+    val detail: String?,
+    /** What a clear verdict rests on; only read when [verdict] is clear. */
+    val basis: AllergenEvidence.ClearBasis = AllergenEvidence.ClearBasis.LABEL_READ,
+    /** The whole verdict is a label's "may contain" trace line: worded as a trace, still a warning. */
+    val traceLabel: String? = null,
+) {
+    /** True when this is a clear result that must not read as clear: the chip says what was (not) checked. */
+    val cautionClear: Boolean get() = verdict == SwapAllergen.CLEAR && basis.isCaution
+}
 
 /** The chip for a food row, from the engine's scan of everything the row carries. */
 fun rowAllergenOf(food: FoodEntity, scan: AllergenScanResult): RowAllergen {
@@ -92,9 +104,21 @@ fun rowAllergenOf(food: FoodEntity, scan: AllergenScanResult): RowAllergen {
     return RowAllergen(
         verdict = verdict,
         detail = scan.chipDetail(),
-        nameOnly = verdict == SwapAllergen.CLEAR && AllergenEvidence.isNameOnlyProduct(food.source, food.isVerified, food.allergenTags),
+        basis = AllergenEvidence.clearBasis(food.source, food.isVerified, food.allergenTags),
+        traceLabel = scan.traceChipLabel(),
     )
 }
+
+/**
+ * The chip for an imported menu item, from today's scan. [statesNothing] is `MenuAllergenEvidence.statesNothing`: an
+ * estimate, or an item with no ingredient text and no stated allergens, is never clear ("No ingredient list").
+ */
+fun menuRowAllergenOf(scan: AllergenScanResult, statesNothing: Boolean): RowAllergen = RowAllergen(
+    verdict = scan.verdict(),
+    detail = scan.chipDetail(),
+    traceLabel = scan.traceChipLabel(),
+    basis = if (statesNothing) AllergenEvidence.ClearBasis.NO_LIST else AllergenEvidence.ClearBasis.LABEL_READ,
+)
 
 /** One imported restaurant-menu row in search: the item, and its allergen chip when the person avoids anything. */
 data class MenuRow(val hit: MenuHit, val allergen: RowAllergen?)
@@ -240,7 +264,13 @@ class AddFoodViewModel @Inject constructor(
                 MenuRow(
                     hit,
                     if (avoidsSomething) {
-                        RowAllergen(verdict, hit.scan.chipDetail(), nameOnly = verdict == SwapAllergen.CLEAR && hit.noIngredientInfo)
+                        RowAllergen(
+                            verdict,
+                            hit.scan.chipDetail(),
+                            traceLabel = hit.scan.traceChipLabel(),
+                            // A menu item whose source states nothing is "no list"; one with stated text was read.
+                            basis = if (hit.noIngredientInfo) AllergenEvidence.ClearBasis.NO_LIST else AllergenEvidence.ClearBasis.LABEL_READ,
+                        )
                     } else {
                         null
                     },
@@ -531,11 +561,13 @@ class AddFoodViewModel @Inject constructor(
         val pending = pendingLog.value ?: return
         pendingLog.value = null
         viewModelScope.launch {
+            // Every override path keeps "Logged despite: ..." on the entry (the warning itself is never cleared).
+            val note = AllergenOverride.noteFor(pending.scan)
             when {
                 pending.food != null && pending.grams != null ->
-                    logOne(pending.food, pending.grams, slot, at)
+                    logOne(pending.food, pending.grams, slot, at, note)
                 pending.macros != null ->
-                    foodLogRepository.quickAdd(pending.name, pending.macros, slot, at)
+                    foodLogRepository.markOverridden(foodLogRepository.quickAdd(pending.name, pending.macros, slot, at), note)
             }
             onLogged()
         }
@@ -544,12 +576,14 @@ class AddFoodViewModel @Inject constructor(
     fun dismissPendingLog() { pendingLog.value = null }
 
     /** A drink goes through the one drink flow (hydration row and food-log row together); everything else is a food log. */
-    private suspend fun logOne(food: FoodEntity, amount: Double, slot: MealSlot, at: Long) {
+    private suspend fun logOne(food: FoodEntity, amount: Double, slot: MealSlot, at: Long, overrideNote: String? = null) {
         if (food.drinkCategory != null) {
             val logged = drinkRepository.log(food, amount, at, slot)
+            if (overrideNote != null) logged.foodLog?.let { foodLogRepository.markOverridden(it, overrideNote) }
             messages.post(AppMessage("Added ${settingsRepository.settings.first().volumeUnit.format(amount)} ${food.name}", "Undo") { drinkRepository.delete(logged.hydration.id) })
         } else {
             val entry = foodLogRepository.logFood(food, amount, slot, at)
+            if (overrideNote != null) foodLogRepository.markOverridden(entry, overrideNote)
             messages.post(AppMessage("Logged ${food.name} to ${slot.name.lowercase()}", "Undo") { foodLogRepository.softDelete(entry.id) })
         }
     }

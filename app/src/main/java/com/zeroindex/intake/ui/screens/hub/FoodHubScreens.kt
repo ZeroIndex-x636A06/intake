@@ -77,6 +77,7 @@ fun RecipesScreen(
     viewModel: RecipeLibraryViewModel = hiltViewModel(),
 ) {
     val recipes by viewModel.recipes.collectAsStateWithLifecycle()
+    val verdicts by viewModel.verdicts.collectAsStateWithLifecycle()
     val gate = rememberStaggerGate()
     HubScreen(
         subtitle = "Saved recipes log a serving in one tap.",
@@ -117,7 +118,7 @@ fun RecipesScreen(
                 }
             }
             itemsIndexed(recipes, key = { _, r -> r.id }) { index, recipe ->
-                RecipeRow(recipe, onClick = { onOpenRecipe(recipe.id) }, modifier = Modifier.staggerIn(gate, recipe.id, index))
+                RecipeRow(recipe, onClick = { onOpenRecipe(recipe.id) }, modifier = Modifier.staggerIn(gate, recipe.id, index), allergen = verdicts[recipe.id])
             }
         },
     )
@@ -198,7 +199,7 @@ fun EatingOutScreen(
                             IconButton(onClick = { removing = e }) { Icon(Icons.Filled.Delete, contentDescription = "Remove ${e.option.title}") }
                         }
                         Column(Modifier.padding(top = 6.dp)) {
-                            AllergenChip(e.option.allergen, label = if (e.option.allergen == com.zeroindex.intake.domain.swap.SwapAllergen.CLEAR) "No allergens found" else e.option.allergenReason)
+                            AllergenChip(e.option.allergen, label = if (e.option.allergen == com.zeroindex.intake.domain.swap.SwapAllergen.CLEAR) "Fits your allergens" else e.option.allergenReason)
                         }
                     }
                 }

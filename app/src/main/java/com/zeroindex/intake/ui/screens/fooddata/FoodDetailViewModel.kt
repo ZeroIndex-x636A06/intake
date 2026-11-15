@@ -106,12 +106,15 @@ class FoodDetailViewModel @Inject constructor(
                 return@launch
             }
             needsConfirm.value = false
+            // "Log it anyway" on a flagged food: the entry keeps "Logged despite: ..." (nothing is cleared).
+            val overrideNote = if (scan.hasAnything && confirmed) com.zeroindex.intake.domain.allergen.AllergenOverride.noteFor(scan) else null
             val at = if (atMillis > 0) atMillis else clock.nowMillis()
             val slot = slotName?.let { n -> MealSlot.entries.firstOrNull { it.name == n } }
                 ?: if (food.drinkCategory != null) MealSlot.DRINKS
                 else TemplateLink.slotFor(java.time.Instant.ofEpochMilli(at).atZone(clock.zone()).toLocalTime())
             if (food.drinkCategory != null) {
                 val logged = drinks.log(food, amount, at, slot)
+                if (overrideNote != null) logged.foodLog?.let { foodLog.markOverridden(it, overrideNote) }
                 messages.post(
                     AppMessage(
                         text = "Added ${settingsRepository.settings.first().volumeUnit.format(amount)} ${food.name}",
@@ -121,6 +124,7 @@ class FoodDetailViewModel @Inject constructor(
                 )
             } else {
                 val entry = foodLog.logFood(food, amount, slot, at)
+                if (overrideNote != null) foodLog.markOverridden(entry, overrideNote)
                 messages.post(
                     AppMessage(
                         text = "Logged ${food.name} to ${slot.name.lowercase()}",

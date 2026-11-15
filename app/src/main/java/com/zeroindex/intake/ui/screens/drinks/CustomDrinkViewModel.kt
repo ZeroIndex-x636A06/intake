@@ -67,6 +67,7 @@ data class CustomDrinkUi(
 @HiltViewModel
 class CustomDrinkViewModel @Inject constructor(
     private val drinks: DrinkRepository,
+    private val foodLog: com.zeroindex.intake.data.repository.FoodLogRepository,
     private val foodRepository: FoodRepository,
     private val foodRefRepository: FoodRefRepository,
     private val allergens: AllergenRepository,
@@ -183,14 +184,16 @@ class CustomDrinkViewModel @Inject constructor(
     fun confirmPending(onLogged: () -> Unit) {
         val ui = draftState.value
         val draft = ui.draft ?: return
+        val note = ui.pending?.let { com.zeroindex.intake.domain.allergen.AllergenOverride.noteFor(it.scan) }
         draftState.value = ui.copy(pending = null)
-        viewModelScope.launch { write(draft, ui.shownName, onLogged) }
+        viewModelScope.launch { write(draft, ui.shownName, onLogged, note) }
     }
 
     fun dismissPending() = edit { it.copy(pending = null) }
 
-    private suspend fun write(draft: CustomDrinkDraft, name: String, onLogged: () -> Unit) {
+    private suspend fun write(draft: CustomDrinkDraft, name: String, onLogged: () -> Unit, overrideNote: String? = null) {
         val logged = drinks.logCustom(draft)
+        if (overrideNote != null) logged.foodLog?.let { foodLog.markOverridden(it, overrideNote) }
         val volume = CustomDrinkFood.result(draft).totalVolumeMl
         messages.post(
             AppMessage(

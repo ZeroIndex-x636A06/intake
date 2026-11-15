@@ -274,10 +274,10 @@ fun LogFoodScreen(
  */
 @Composable
 internal fun RowAllergenChip(allergen: RowAllergen) {
-    if (allergen.nameOnly) {
-        AllergenChip(com.zeroindex.intake.domain.swap.SwapAllergen.CHECK_LABEL, label = "No ingredient list: check the label")
+    if (allergen.cautionClear) {
+        AllergenChip(com.zeroindex.intake.domain.swap.SwapAllergen.CHECK_LABEL, label = allergen.basis.chipText)
     } else {
-        AllergenChip(allergen.verdict, allergen.detail)
+        AllergenChip(allergen.verdict, allergen.detail, label = allergen.traceLabel)
     }
 }
 

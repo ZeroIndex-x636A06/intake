@@ -237,11 +237,13 @@ class VisionTracker @Inject constructor(
         at: Long,
         photoPath: String,
         unit: PortionUnit,
+        /** "Logged despite: ..." when the person tapped "Log it anyway" on the allergen sheet; kept on every entry. */
+        overrideNote: String? = null,
     ) {
         val now = clock.nowMillis()
         PhotoItems.loggable(shown).forEach { item ->
             val line = item.line
-            foodLog.logPrepared(
+            val written = foodLog.logPrepared(
                 name = line.name,
                 macros = Macros(line.kcal, line.protein, line.carbs, line.fat),
                 slot = slot,
@@ -251,6 +253,7 @@ class VisionTracker @Inject constructor(
                 aiConfidence = confidence,
                 at = at,
             )
+            if (overrideNote != null) foodLog.markOverridden(written, overrideNote)
             val original = originals[item.id] ?: return@forEach
             if (VisionMath.isCorrection(original.kcal, line.kcal)) {
                 corrections.upsert(

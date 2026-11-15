@@ -15,6 +15,32 @@ import com.zeroindex.intake.domain.model.FoodSource
 object AllergenEvidence {
 
     /**
+     * What a "nothing found" result actually rests on. A clear verdict is only as strong as the data read, so the
+     * chip says which of these it was and never a bare "No allergens" (docs/ALLERGENS.md, "Search rows").
+     */
+    enum class ClearBasis(val chipText: String) {
+        /** An ingredient list or allergen tags were read and none of the person's allergens is in them. */
+        LABEL_READ("Fits your allergens"),
+
+        /** Only the name was read (a generic food, a drink, a recipe with no lines): not a statement about the ingredients. */
+        NAME_ONLY("Only the name was checked"),
+
+        /** A packaged product with no ingredient list and no tags: nothing at all to read. */
+        NO_LIST("No ingredient list: check the label"),
+        ;
+
+        /** True when the chip must be the calm outlined "check the label" style, never green. */
+        val isCaution: Boolean get() = this != LABEL_READ
+    }
+
+    /** The basis of a clear scan of a food row, from what the row carries. */
+    fun clearBasis(source: FoodSource, isVerified: Boolean, storedAllergenText: String): ClearBasis = when {
+        storedAllergenText.isNotBlank() -> ClearBasis.LABEL_READ
+        isNameOnlyProduct(source, isVerified, storedAllergenText) -> ClearBasis.NO_LIST
+        else -> ClearBasis.NAME_ONLY
+    }
+
+    /**
      * True when a clear scan of this row is a name check of a packaged product with nothing else to go on.
      *
      * @param storedAllergenText `FoodEntity.allergenTags`: Open Food Facts tags and any ingredient text.

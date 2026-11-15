@@ -369,11 +369,12 @@ class DrinksViewModel @Inject constructor(
     fun confirmPending() {
         val p = pending.value ?: return
         pending.value = null
-        viewModelScope.launch { write(p.food, p.ml) }
+        viewModelScope.launch { write(p.food, p.ml, com.zeroindex.intake.domain.allergen.AllergenOverride.noteFor(p.scan)) }
     }
 
-    private suspend fun write(food: FoodEntity, ml: Double) {
+    private suspend fun write(food: FoodEntity, ml: Double, overrideNote: String? = null) {
         val logged = drinks.log(food, ml)
+        if (overrideNote != null) logged.foodLog?.let { foodLog.markOverridden(it, overrideNote) }
         messages.post(
             AppMessage(
                 text = "Added ${settingsRepository.settings.first().volumeUnit.format(ml)} ${food.name}",

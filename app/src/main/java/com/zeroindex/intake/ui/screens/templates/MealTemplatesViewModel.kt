@@ -17,6 +17,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.mapLatest
+import com.zeroindex.intake.ui.allergen.chipDetail
+import com.zeroindex.intake.ui.allergen.traceChipLabel
+import com.zeroindex.intake.ui.allergen.verdict
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -35,10 +39,42 @@ data class TemplatesUiState(
 @HiltViewModel
 class MealTemplatesViewModel @Inject constructor(
     private val repository: MealTemplateRepository,
+    private val allergens: com.zeroindex.intake.data.repository.AllergenRepository,
 ) : ViewModel() {
 
     val templates: StateFlow<List<TemplateSummary>> =
         repository.observeSummaries().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * The allergen chip per template (by id): every food in it through the local engine, read again when the templates
+     * or the person's allergens change. Empty when the person avoids nothing. A template with no ingredient text on its
+     * foods reads "only the name was checked", never clear.
+     */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val verdicts: StateFlow<Map<String, com.zeroindex.intake.ui.addfood.RowAllergen>> = kotlinx.coroutines.flow.combine(
+        templates, allergens.observeAvoidedAllergens(), allergens.observeAliases(),
+    ) { list, _, _ -> list }.mapLatest { list ->
+        if (list.isEmpty() || allergens.avoidedAllergens().isEmpty()) {
+            emptyMap()
+        } else {
+            kotlinx.coroutines.withContext(Dispatchers.Default) {
+                repository.verdicts(list).mapValues { (id, scan) ->
+                    val summary = list.first { it.template.id == id }
+                    val read = summary.items.isNotEmpty() && summary.items.all { (f, _) -> f.allergenTags.isNotBlank() }
+                    com.zeroindex.intake.ui.addfood.RowAllergen(
+                        scan.verdict(),
+                        scan.chipDetail(),
+                        traceLabel = scan.traceChipLabel(),
+                        basis = if (read) {
+                            com.zeroindex.intake.domain.allergen.AllergenEvidence.ClearBasis.LABEL_READ
+                        } else {
+                            com.zeroindex.intake.domain.allergen.AllergenEvidence.ClearBasis.NAME_ONLY
+                        },
+                    )
+                }
+            }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     private val _state = MutableStateFlow(TemplatesUiState())
     val state: StateFlow<TemplatesUiState> = _state.asStateFlow()
@@ -58,7 +94,8 @@ class MealTemplatesViewModel @Inject constructor(
 
     fun logNow(t: TemplateSummary, slot: MealSlot) = viewModelScope.launch {
         val message = when (val r = repository.log(t.template.id, slot)) {
-            is TemplateLogResult.Logged -> "Logged ${t.template.name} to ${slot.name.lowercase()}"
+            is TemplateLogResult.Logged -> "Logged ${t.template.name} to ${slot.name.lowercase()}" +
+                (r.allergenNote?.let { ". $it" } ?: "")
             is TemplateLogResult.Blocked -> "Not logged: ${r.foods.joinToString()} now matches your allergen profile"
             TemplateLogResult.NotFound -> "That meal is empty."
         }

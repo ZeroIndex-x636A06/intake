@@ -44,6 +44,13 @@ object AllergenOverride {
     fun loggedDespite(allergens: List<String>): String =
         "Logged despite: " + allergens.joinToString(", ").ifBlank { "allergen warning" }
 
+    /**
+     * The note for an entry logged after the person tapped "Log it anyway" on a warning sheet: every allergen the scan
+     * raised (contains and may contain), so the entry keeps what it was logged despite.
+     */
+    fun noteFor(scan: AllergenScanResult): String =
+        loggedDespite((scan.contains + scan.mayContain).map { it.allergen.trim().lowercase() }.distinct())
+
     /** The entry's name and serving label with the override note added. Applying it twice adds nothing new. */
     fun annotate(name: String, servingLabel: String?, note: String): Pair<String, String> {
         val newName = if (name.contains(note, ignoreCase = true)) name else "$name ($note)"

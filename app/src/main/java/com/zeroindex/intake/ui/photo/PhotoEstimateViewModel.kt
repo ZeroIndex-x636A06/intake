@@ -239,11 +239,12 @@ class PhotoEstimateViewModel @Inject constructor(
 
     fun logAnyway(slot: MealSlot, at: Long, unit: PortionUnit, onDone: () -> Unit) {
         val r = _state.value.stage as? PhotoStage.Review ?: return
+        val note = r.confirmingAllergens?.let { com.zeroindex.intake.domain.allergen.AllergenOverride.noteFor(it) }
         review { it.copy(confirmingAllergens = null, saving = true) }
-        viewModelScope.launch { save(r, slot, at, unit, onDone) }
+        viewModelScope.launch { save(r, slot, at, unit, onDone, note) }
     }
 
-    private suspend fun save(r: PhotoStage.Review, slot: MealSlot, at: Long, unit: PortionUnit, onDone: () -> Unit) {
+    private suspend fun save(r: PhotoStage.Review, slot: MealSlot, at: Long, unit: PortionUnit, onDone: () -> Unit, overrideNote: String? = null) {
         tracker.log(
             shown = r.shown,
             originals = r.result.lines.mapIndexed { i, l -> i to l }.toMap(),
@@ -256,6 +257,7 @@ class PhotoEstimateViewModel @Inject constructor(
             at = at,
             photoPath = r.result.photoPath,
             unit = unit,
+            overrideNote = overrideNote,
         )
         onDone()
     }

@@ -123,13 +123,14 @@ class CookModeViewModel @Inject constructor(
 
     fun confirmPending(slot: MealSlot, onLogged: () -> Unit) {
         val recipe = _recipe.value ?: return
+        val note = _pending.value?.let { com.zeroindex.intake.domain.allergen.AllergenOverride.noteFor(it.scan) }
         _pending.value = null
-        viewModelScope.launch { if (logNow(recipe, slot)) onLogged() }
+        viewModelScope.launch { if (logNow(recipe, slot, note)) onLogged() }
     }
 
     fun dismissPending() { _pending.value = null }
 
-    private suspend fun logNow(recipe: RecipeEntity, slot: MealSlot): Boolean {
+    private suspend fun logNow(recipe: RecipeEntity, slot: MealSlot, overrideNote: String? = null): Boolean {
         // Protein, carbs or fat the recipe lacks come from the on-phone estimate when there is one, as on its own screen.
         val missing = recipe.kcalPerServing == null || recipe.proteinPerServing == null ||
             recipe.carbsPerServing == null || recipe.fatPerServing == null
@@ -139,7 +140,8 @@ class CookModeViewModel @Inject constructor(
         } else {
             null
         }
-        val entry = logger.logServings(recipe, slot, estimate)
+        val logged = logger.logServings(recipe, slot, estimate)
+        val entry = if (logged != null && overrideNote != null) foodLog.markOverridden(logged, overrideNote) else logged
         if (entry == null) {
             messages.post(AppMessage("${recipe.name} has no calories listed, so a serving was not logged."))
             return false

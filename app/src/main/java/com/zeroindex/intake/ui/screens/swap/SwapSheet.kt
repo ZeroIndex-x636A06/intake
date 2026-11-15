@@ -312,7 +312,7 @@ internal fun OptionCard(
                     }
                 }
             }
-            AllergenChip(o.allergen, label = if (o.allergen == com.zeroindex.intake.domain.swap.SwapAllergen.CLEAR) "No allergens found" else o.allergenReason)
+            AllergenChip(o.allergen, label = if (o.allergen == com.zeroindex.intake.domain.swap.SwapAllergen.CLEAR) "Fits your allergens" else o.allergenReason)
             if (blocked) {
                 Text(
                     "${SwapSections.blockedReason(o)}. You can still choose it after a warning; the warning stays on the entry.",
