@@ -95,25 +95,45 @@ object ShoppingListBuilder {
     )
     private val FROZEN = setOf("frozen")
     private val PANTRY = setOf(
-        "rice", "pasta", "spaghetti", "penne", "macaroni", "oil", "vinegar", "salt", "sugar", "flour", "cornstarch",
-        "seasoning", "paprika", "cumin", "oregano", "powder", "sauce", "broth", "beans", "mayo", "ketchup",
-        "mustard", "soy", "sriracha", "breadcrumbs", "crackers", "oats", "yeast", "paste", "canned", "almonds",
-        "cashews", "bread", "tortillas", "buns", "rolls",
+        "rice", "pasta", "spaghetti", "penne", "macaroni", "fusilli", "rotini", "linguine", "fettuccine", "rigatoni", "farfalle",
+        "orzo", "noodle", "noodles", "quinoa", "couscous", "lentil", "lentils", "oil", "vinegar", "salt", "sugar", "flour",
+        "cornstarch", "seasoning", "paprika", "cumin", "oregano", "powder", "sauce", "broth", "stock", "bouillon", "beans", "bean", "mayo",
+        "ketchup", "mustard", "soy", "sriracha", "breadcrumbs", "crackers", "oats", "yeast", "paste", "canned", "almonds",
+        "cashews", "bread", "tortillas", "buns", "rolls", "chickpea", "chickpeas", "honey", "syrup", "peanut",
     )
+    private val DAIRY = setOf(
+        "milk", "buttermilk", "cheese", "cheddar", "mozzarella", "parmesan", "feta", "ricotta", "mascarpone", "gouda", "swiss",
+        "provolone", "brie", "paneer", "cottage", "butter", "margarine", "ghee", "yogurt", "yoghurt", "kefir", "cream", "egg", "eggs",
+    )
+    /** A dairy word that is not sold in the dairy aisle when one of these is with it: milk powder, milk chocolate, coconut milk, cream of tartar. */
+    private val NOT_DAIRY_AISLE = setOf(
+        "powder", "powdered", "chocolate", "condensed", "evaporated", "coconut", "dry", "dried", "tartar", "extract", "noodle", "noodles",
+        "bean", "beans", "squash", "lettuce", "soup", "of",
+    )
+    /** Nut and seed butters, cocoa butter and apple butter are pantry; the plant milks (almond, oat, soy) stay with the dairy. */
+    private val SPREAD_WORDS = setOf("peanut", "almond", "cashew", "cocoa", "apple", "sunflower", "shea", "nut", "sesame")
     private val STAPLES = setOf(
         "salt", "pepper", "oil", "vinegar", "sugar", "flour", "cornstarch", "paprika", "cumin", "oregano",
-        "seasoning", "powder", "yeast", "ketchup", "mustard", "sriracha", "mayo", "rice", "pasta",
+        "seasoning", "powder", "yeast", "ketchup", "mustard", "sriracha", "mayo",
     )
 
     private fun tokens(key: String): Set<String> = key.split(Regex("[^a-z]+")).filter { it.isNotEmpty() }.toSet()
 
+    /**
+     * The store section for an item key. One rule per kind of item: rice and every pasta shape are grains, dairy and eggs
+     * share one aisle (so do the plant milks), broth is pantry whatever animal it names.
+     */
     fun categoryOf(key: String): StoreCategory {
         val t = tokens(key)
         return when {
-            t.any { it in FROZEN } -> StoreCategory.FROZEN
+            t.any { it in FROZEN } || ("ice" in t && "cream" in t) -> StoreCategory.FROZEN
+            t.any { it in setOf("broth", "stock", "bouillon", "soup") } -> StoreCategory.PANTRY
+            "butter" in t && t.any { it in SPREAD_WORDS } -> StoreCategory.PANTRY
+            t.any { it in DAIRY } && t.none { it in NOT_DAIRY_AISLE } -> StoreCategory.DAIRY
+            ("half" in t && "and" in t) -> StoreCategory.DAIRY
             t.any { it in MEAT } -> StoreCategory.MEAT
             t.any { it in PRODUCE } && t.none { it in setOf("powder", "sauce", "paste", "canned") } -> StoreCategory.PRODUCE
-            t.any { it in PANTRY } -> StoreCategory.PANTRY
+            t.any { it in PANTRY } || t.any { it in DAIRY } -> StoreCategory.PANTRY
             else -> StoreCategory.OTHER
         }
     }
@@ -139,6 +159,7 @@ object ShoppingListBuilder {
     fun sectionTitle(category: StoreCategory): String = when (category) {
         StoreCategory.PRODUCE -> "Produce"
         StoreCategory.MEAT -> "Meat & fish"
+        StoreCategory.DAIRY -> "Dairy & eggs"
         StoreCategory.PANTRY -> "Pantry & grains"
         StoreCategory.FROZEN -> "Frozen"
         StoreCategory.OTHER -> "Other"

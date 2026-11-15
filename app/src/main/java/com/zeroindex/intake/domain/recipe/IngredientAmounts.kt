@@ -62,7 +62,7 @@ object IngredientAmounts {
     fun isContainerUnit(unit: String?): Boolean = unit != null && unit in CONTAINERS
 
     fun parse(line: String): IngredientAmount {
-        val text = IngredientLineParser.normalise(IngredientCleaner.clean(line)).lowercase()
+        val text = normaliseContainers(IngredientLineParser.normalise(IngredientCleaner.clean(line)).lowercase())
         val optional = Regex("""\boptional\b""").containsMatchIn(text)
         val toTaste = TO_TASTE.containsMatchIn(text)
         val weightMatch = PAREN_WEIGHT.find(text)
@@ -122,6 +122,26 @@ object IngredientAmounts {
             }
         }
         return IngredientAmount(value, unit, size, statedGrams, name, description, optional, toTaste)
+    }
+
+    private val SIZE_THEN_CONTAINER = Regex(
+        """^(?:(\d+)\s+)?(\d+(?:\.\d+)?)\s*-?\s*(oz|ounces?|g|grams?|lbs?|pounds?)\.?\s+(can|cans|jar|jars|package|packages|packet|packets)\b""",
+    )
+    private val ARTICLE_THEN_AMOUNT = Regex(
+        "^an?\\s+(?=\\d|(?:" + UNITS.map { it.first }.filter { it.length > 1 }.sortedByDescending { it.length }.joinToString("|") { Regex.escape(it) } + ")\\b)",
+    )
+
+    /**
+     * Two ways a line states a can's size without brackets: "14.5 oz can diced tomatoes" and "1 14.5 oz can ..." become
+     * "1 (14.5 oz) can ...", so the stated weight wins; and "a can of tomatoes" or "an 8 oz jar" starts with a one.
+     */
+    private fun normaliseContainers(text: String): String {
+        var t = ARTICLE_THEN_AMOUNT.replace(text.trim(), "1 ")
+        SIZE_THEN_CONTAINER.find(t)?.let { m ->
+            val count = m.groupValues[1].ifEmpty { "1" }
+            t = "$count (${m.groupValues[2]} ${m.groupValues[3]}) ${m.groupValues[4]}" + t.substring(m.range.last + 1)
+        }
+        return t
     }
 
     private fun canonicalSize(s: String) = when (s) {

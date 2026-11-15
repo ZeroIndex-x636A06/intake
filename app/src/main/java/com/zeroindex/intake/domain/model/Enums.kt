@@ -40,8 +40,11 @@ enum class PlanRecipeRole { MAIN, VARIATION }
 /** What happens when a meal plan reaches its last week. */
 enum class PlanLoopMode { NONE, REPEAT, REPEAT_N }
 
-/** Shopping list grouping, ordered the way a store is walked (SPEC §9). */
-enum class StoreCategory { PRODUCE, MEAT, PANTRY, FROZEN, OTHER }
+/**
+ * Shopping list grouping, ordered the way a store is walked (SPEC §9). Stored by name, so a value added in the middle
+ * changes no saved row; DAIRY covers milk, cheese, butter, yogurt, eggs and the non-dairy milks.
+ */
+enum class StoreCategory { PRODUCE, MEAT, DAIRY, PANTRY, FROZEN, OTHER }
 
 enum class AllergenSeverity { AVOID, STRICT }
 
