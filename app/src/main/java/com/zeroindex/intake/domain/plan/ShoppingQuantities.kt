@@ -49,7 +49,11 @@ object ShoppingQuantities {
         return words.joinToString(" ") { singular(it) }
     }
 
-    private val NOISE = setOf("fresh", "freshly", "chopped", "diced", "minced", "sliced", "large", "small", "medium", "of", "the", "a", "optional", "finely", "roughly")
+    /** "cooked rice" is bought as "rice". */
+    private fun displayName(name: String) =
+        name.replace(Regex("""\bcooked\s+"""), "").trim().replaceFirstChar { it.uppercase() }
+
+    private val NOISE = setOf("cooked", "fresh", "freshly", "chopped", "diced", "minced", "sliced", "large", "small", "medium", "of", "the", "a", "optional", "finely", "roughly")
 
     private fun singular(w: String) = when {
         w.length > 4 && w.endsWith("ies") -> w.dropLast(3) + "y"
@@ -67,23 +71,40 @@ object ShoppingQuantities {
             .map { (key, group) ->
                 var grams = 0.0
                 var ml = 0.0
+                var approx = false
                 val counts = LinkedHashMap<String, Double>()
+                val density = ShoppingForms.liquidDensity(key)
                 for ((c, a) in group) {
                     val factor = c.scale.takeIf { it > 0 } ?: 1.0
                     val v = a.value
+                    // A line of cooked rice, pasta or chicken is bought dry or raw; the amount is converted back (about).
+                    val cooked = ShoppingForms.cookedForm(a.description.ifEmpty { a.name })
+                    val boughtByCan = a.unit != null && IngredientAmounts.isContainerUnit(a.unit)
+                    fun addWeight(g: Double) {
+                        when {
+                            cooked != null -> { grams += g / cooked.factor; approx = true }
+                            density != null && !boughtByCan -> { ml += g / density; approx = true }
+                            else -> grams += g
+                        }
+                    }
                     when {
-                        a.statedGrams != null -> grams += a.statedGrams!! * factor
+                        a.statedGrams != null -> addWeight(a.statedGrams!! * factor)
                         v == null -> Unit
-                        a.unit != null && a.unit in GRAMS -> grams += v * GRAMS.getValue(a.unit!!) * factor
-                        a.unit != null && a.unit in ML -> ml += v * ML.getValue(a.unit!!) * factor
+                        a.unit != null && a.unit in GRAMS -> addWeight(v * GRAMS.getValue(a.unit!!) * factor)
+                        a.unit != null && a.unit in ML ->
+                            if (cooked != null) {
+                                grams += v * ML.getValue(a.unit!!) / ML_PER_CUP * cooked.cupGrams / cooked.factor * factor
+                                approx = true
+                            } else {
+                                ml += v * ML.getValue(a.unit!!) * factor
+                            }
                         else -> {
                             val label = listOfNotNull(a.size, a.unit).joinToString(" ")
                             counts[label] = (counts[label] ?: 0.0) + v * factor
                         }
                     }
                 }
-                val rule = IngredientRules.find(group.first().second.description.ifEmpty { group.first().second.name })
-                var approx = false
+                val rule = IngredientRules.find(group.first().second)
                 // Counts with a known average weight fold into grams when there is a weight to add them to.
                 if (grams > 0) {
                     val it = counts.iterator()
@@ -101,7 +122,7 @@ object ShoppingQuantities {
                 val quantity = parts.joinToString(" + ").let { if (approx && it.isNotEmpty()) "≈ $it" else it }
                 ShoppingTotal(
                     key = key,
-                    name = group.first().second.name.replaceFirstChar { it.uppercase() },
+                    name = displayName(group.first().second.name),
                     quantity = quantity,
                     sources = group.mapNotNull { it.first.source?.takeIf(String::isNotBlank) }.distinct(),
                     groups = group.mapNotNull { it.first.group?.takeIf(String::isNotBlank) }.distinct(),
@@ -158,6 +179,8 @@ object ShoppingQuantities {
     private fun millilitres(ml: Double, unit: WeightUnit): String = when (unit) {
         WeightUnit.KILOGRAMS -> if (ml >= 1000) "${number(ml / 1000.0, 2)} l" else "${number(ml)} ml"
         WeightUnit.POUNDS -> when {
+            ml >= ML_PER_CUP * 16.0 -> "${number(ml / (ML_PER_CUP * 16.0), 2)} gal"
+            ml >= ML_PER_CUP * 4.0 -> "${number(ml / (ML_PER_CUP * 4.0), 2)} qt"
             ml >= ML_PER_CUP / 4.0 -> "${number(ml / ML_PER_CUP, 2)} ${if (ml / ML_PER_CUP > 1.0) "cups" else "cup"}"
             ml >= ML_PER_CUP / 16.0 * 0.95 -> "${number(ml / (ML_PER_CUP / 16.0), 1)} tbsp"
             else -> "${number(ml / (ML_PER_CUP / 48.0), 1)} tsp"

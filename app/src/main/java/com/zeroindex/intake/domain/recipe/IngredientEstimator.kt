@@ -69,6 +69,7 @@ object IngredientEstimator {
 
     private const val GRAMS_PER_CUP_DEFAULT = 240.0
     private const val ALTERNATIVES = 6
+    private const val STANDARD_CAN_GRAMS = 400.0
 
     /**
      * [overrides] maps a line's index to a food the person chose for it; the line is then weighed against that food.
@@ -105,7 +106,7 @@ object IngredientEstimator {
             return EstimatedLine(line, null, null, if (amount.toTaste) "to taste, no amount" else "no amount given")
         }
 
-        val rule = IngredientRules.find(amount.description.ifEmpty { amount.name })
+        val rule = IngredientRules.find(amount)
         val candidates = if (chosen != null) emptyList() else findCandidates(amount, rule, lookup)
         val food = chosen ?: candidates.firstOrNull()
             ?: return EstimatedLine(line, null, null, "no matching food found")
@@ -134,10 +135,31 @@ object IngredientEstimator {
         }.distinct()
         for (q in queries) {
             val found = lookup(q).filter { !looksLikeBrand(it.name) }
-            if (found.isNotEmpty()) return found
+            if (found.isNotEmpty()) return preferLiteral(found, amount, rule)
         }
         return emptyList()
     }
+
+    /**
+     * Words in a food's name that change what it is. A line that does not say them does not mean them: "1 cup milk" is not
+     * sheep milk, "stock" is not beef, "rice" is not instant or dried. A food carrying such a word the line (and the rule's
+     * own search words) never used goes behind the ones that do not; if every food carries one, the order is kept.
+     */
+    private val SPECIFIC_WORDS = setOf(
+        "sheep", "goat", "buffalo", "human", "camel", "mare", "beef", "pork", "lamb", "veal", "fish", "turkey", "chicken", "duck", "venison",
+        "dry", "dried", "powder", "powdered", "condensed", "evaporated", "instant", "imitation", "substitute", "dehydrated", "infant",
+        "baby", "babyfood", "formula", "nonfat", "lowfat", "light", "lite", "reduced", "diet", "flavored", "sweetened", "smoked", "cured",
+    )
+
+    internal fun preferLiteral(found: List<ReferenceFood>, amount: IngredientAmount, rule: IngredientRules.Rule?): List<ReferenceFood> {
+        val said = words(listOfNotNull(amount.name, amount.description, rule?.query).joinToString(" "))
+        fun odd(f: ReferenceFood) = words(f.name).any { it in SPECIFIC_WORDS && it !in said }
+        val (plain, odder) = found.partition { !odd(it) }
+        return plain + odder
+    }
+
+    private fun words(text: String): Set<String> =
+        text.lowercase().split(Regex("""[^a-z]+""")).filter { it.isNotEmpty() }.flatMap { listOf(it, singular(it)) }.toSet()
 
     /** Restaurant and brand entries ("OLIVE GARDEN, lasagna") are not what a recipe line means. */
     private fun looksLikeBrand(name: String): Boolean {
@@ -195,6 +217,8 @@ object IngredientEstimator {
                 if (per > 0.0) return v * p.grams / per
             }
         }
+        // A can with no size on the line and none in the food's portions: the usual 14 oz can.
+        if (a.unit == "can") return v * STANDARD_CAN_GRAMS
         return null
     }
 
