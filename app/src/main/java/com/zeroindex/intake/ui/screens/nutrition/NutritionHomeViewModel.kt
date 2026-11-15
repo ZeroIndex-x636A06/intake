@@ -68,11 +68,11 @@ data class SlotRowUi(
 }
 
 /**
- * The four meal rows of the Nutrition tab's meals card. [MealSlot.DRINKS] is deliberately left out: drinks have no row here
- * (they live on the water card and in Log food). Their kcal and sugar still count in the day totals, which are built from
- * every row, not from these rows.
+ * The rows of the Nutrition tab's meals card: breakfast, lunch, dinner and snacks, then a Drinks row. Drinks are their own
+ * row and are never attached to a meal, so a drink logged in a meal slot still counts there and a drink logged in Drinks
+ * counts only in Drinks. The rows add up to the day's total.
  */
-internal fun nutritionSlotRows(rows: List<FoodLogEntity>): List<SlotRowUi> = MealSlot.MEALS.map { slot ->
+internal fun nutritionSlotRows(rows: List<FoodLogEntity>): List<SlotRowUi> = (MealSlot.MEALS + MealSlot.DRINKS).map { slot ->
     val mine = rows.filter { it.mealSlot == slot }.sortedBy { it.loggedAt }
     SlotRowUi(
         slot = slot,
@@ -94,8 +94,8 @@ data class NutritionHomeState(
     val hydration: HydrationDay? = null,
     val settings: AppSettings = AppSettings(),
     val next: NextMealUi? = null,
-    /** Breakfast, lunch, dinner and snack, in that order, from the chosen day's log. */
-    val slots: List<SlotRowUi> = MealSlot.MEALS.map { SlotRowUi(it) },
+    /** Breakfast, lunch, dinner, snack and drinks, in that order, from the chosen day's log. */
+    val slots: List<SlotRowUi> = (MealSlot.MEALS + MealSlot.DRINKS).map { SlotRowUi(it) },
     val sections: SectionsUi = SectionsUi(),
     /** The chosen day's drinks in a phrase: "water, coffee, tea". */
     val drinkNames: String = "",

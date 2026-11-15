@@ -32,15 +32,30 @@ class NutritionSlotRowsTest {
     )
 
     @Test
-    fun `the Nutrition meals card lists only the four meals, never a Drinks row`() {
+    fun `the Nutrition meals card lists the four meals, then a Drinks row`() {
         val rows = nutritionSlotRows(day)
-        assertThat(rows.map { it.slot }).containsExactly(MealSlot.BREAKFAST, MealSlot.LUNCH, MealSlot.DINNER, MealSlot.SNACK).inOrder()
-        assertThat(rows.map { it.slot }).doesNotContain(MealSlot.DRINKS)
+        assertThat(rows.map { it.slot })
+            .containsExactly(MealSlot.BREAKFAST, MealSlot.LUNCH, MealSlot.DINNER, MealSlot.SNACK, MealSlot.DRINKS).inOrder()
     }
 
     @Test
-    fun `an empty day still shows the four meal rows`() {
-        assertThat(nutritionSlotRows(emptyList()).map { it.slot }).isEqualTo(MealSlot.MEALS)
+    fun `an empty day still shows the four meal rows and Drinks`() {
+        assertThat(nutritionSlotRows(emptyList()).map { it.slot }).isEqualTo(MealSlot.MEALS + MealSlot.DRINKS)
+    }
+
+    @Test
+    fun `the rows add up to the day total, drinks included`() {
+        val rows = nutritionSlotRows(day)
+        assertThat(rows.sumOf { it.kcal }).isEqualTo(300 + 400 + 150 + 5)
+        assertThat(rows.single { it.slot == MealSlot.DRINKS }.foods).containsExactly("Cola", "Coffee").inOrder()
+    }
+
+    @Test
+    fun `a drink logged in a meal slot stays in that meal and is not moved to Drinks`() {
+        val mealDrink = listOf(row(MealSlot.LUNCH, "Milk", 90.0))
+        val rows = nutritionSlotRows(mealDrink).associateBy { it.slot }
+        assertThat(rows.getValue(MealSlot.LUNCH).foods).containsExactly("Milk")
+        assertThat(rows.getValue(MealSlot.DRINKS).logged).isFalse()
     }
 
     @Test

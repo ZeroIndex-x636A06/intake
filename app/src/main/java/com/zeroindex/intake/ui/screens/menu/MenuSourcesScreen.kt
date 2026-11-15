@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -102,10 +103,11 @@ fun MenuSourcesScreen(
         // The top bar already says "Menu import"; no second heading here.
         item(key = "head") {
             Text(
-                "Keep a local copy of menus you trust. Refreshed weekly, or when you choose.",
+                "Local copies of menus you trust, refreshed weekly.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                textAlign = TextAlign.Start,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
             )
         }
         if (!state.hasKey) {

@@ -101,6 +101,7 @@ fun MealTemplatesScreen(
         ),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        // The top bar already says "Meal templates"; this line says what the screen is for, with no second heading.
         item(key = "head") {
             // The top bar already says "Meal templates": the page does not repeat it a second and third time.
             Text(
