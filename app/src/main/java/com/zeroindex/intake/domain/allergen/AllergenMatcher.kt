@@ -26,6 +26,12 @@ data class AllergenMatch(
     val note: String,
     /** One plain line for lists and the import preview: "Says butter", "Mentions butter as something to avoid". */
     val reason: String = note,
+    /**
+     * The hit sits in a "may contain / traces of" statement on a label. The tier is NOT lowered (a panel's trace line
+     * still blocks behind the confirmation sheet, as before); this only lets the screens word it as a possible trace
+     * instead of "Contains".
+     */
+    val trace: Boolean = false,
 )
 
 data class AllergenScanResult(
@@ -48,6 +54,9 @@ data class AllergenScanResult(
 
     /** True when something stronger than "check the label" was found (the sheets key off this). */
     val hasAnything: Boolean = contains.isNotEmpty() || mayContain.isNotEmpty()
+
+    /** True when every CONTAINS hit is a label's "may contain" trace line: worded as a trace, still a warning. */
+    val containsOnlyTraces: Boolean = contains.isNotEmpty() && contains.all { it.trace }
     val hasCheckLabel: Boolean = checkLabel.isNotEmpty()
     val hasMentionedAvoided: Boolean = mentionedAvoided.isNotEmpty()
 
@@ -147,7 +156,8 @@ object AllergenMatcher {
 
         fun add(key: String, match: AllergenMatch) {
             val existing = found[key]
-            if (existing == null || match.kind.rank > existing.kind.rank) found[key] = match
+            // A real ingredient hit beats a trace statement of the same word; otherwise the stronger tier wins.
+            if (existing == null || match.kind.rank > existing.kind.rank || (match.kind.rank == existing.kind.rank && existing.trace && !match.trace)) found[key] = match
         }
 
         // SPEC §7.3: structured tags are the primary signal where they exist. Never downgraded.
@@ -186,18 +196,36 @@ object AllergenMatcher {
 
         // Second pass over free text, field by field.
         val freeIngredients = checkLabelInIngredients
+        // "May contain milk" on a panel is a trace statement: a possible cross-contact, read one tier below an
+        // ingredient (still a warning). A real ingredient hit for the same word keeps the stronger tier.
+        val ingredientSplit = TraceText.split(ingredients)
+        val panelSplit = TraceText.split(panelText)
         val fields = listOf(
             FieldText(MatchField.NAME, name, claims = true, negation = freeText),
             FieldText(MatchField.BRAND, brand, claims = true, negation = freeText),
-            FieldText(MatchField.INGREDIENTS, ingredients, claims = freeIngredients, negation = freeText && freeIngredients),
-            FieldText(MatchField.INGREDIENTS, panelText, claims = false, negation = false),
+            FieldText(MatchField.INGREDIENTS, ingredientSplit.main, claims = freeIngredients, negation = freeText && freeIngredients),
+            FieldText(MatchField.INGREDIENTS, panelSplit.main, claims = false, negation = false),
+            FieldText(MatchField.INGREDIENTS, ingredientSplit.traces, claims = false, negation = false, traceOnly = true),
+            FieldText(MatchField.INGREDIENTS, panelSplit.traces, claims = false, negation = false, traceOnly = true),
         )
         val byAllergen = relevant.groupBy { it.allergen.trim().lowercase() }
         for (ft in fields) {
             if (ft.text.isNullOrBlank()) continue
             for ((allergen, list) in byAllergen) {
                 scanField(ft, allergen, list).forEach { hit ->
-                    add("$allergen|${hit.term}", hit.toMatch(ft.field))
+                    val m = hit.toMatch(ft.field)
+                    add(
+                        "$allergen|${hit.term}",
+                        if (ft.traceOnly && m.kind == AllergenMatchKind.CONTAINS) {
+                            m.copy(
+                                note = "The label says it may contain \"${m.matchedTerm}\" (a possible trace, not an ingredient).",
+                                reason = "The label lists ${m.matchedTerm} as a possible trace",
+                                trace = true,
+                            )
+                        } else {
+                            m
+                        },
+                    )
                 }
             }
         }
@@ -209,7 +237,7 @@ object AllergenMatcher {
             .map { it.allergen.lowercase() }.toSet()
         val softFields = buildList {
             add(FieldText(MatchField.NAME, name, claims = true, negation = freeText))
-            if (checkLabelInIngredients) add(FieldText(MatchField.INGREDIENTS, ingredients, claims = true, negation = freeText))
+            if (checkLabelInIngredients) add(FieldText(MatchField.INGREDIENTS, ingredientSplit.main, claims = true, negation = freeText))
         }
         val seenPhrases = HashSet<String>()
         checkLabelTerms.forEach { term ->
@@ -259,7 +287,14 @@ object AllergenMatcher {
         return reading.isNegated(position) || reading.isBeingChecked(position)
     }
 
-    private class FieldText(val field: MatchField, val text: String?, val claims: Boolean, val negation: Boolean)
+    private class FieldText(
+        val field: MatchField,
+        val text: String?,
+        val claims: Boolean,
+        val negation: Boolean,
+        /** The text is a "may contain / traces of" statement: an ingredient-level hit in it is a possible trace. */
+        val traceOnly: Boolean = false,
+    )
 
     private class Hit(
         val term: String,
@@ -272,8 +307,7 @@ object AllergenMatcher {
         val softened: Boolean,
         val allergen: String,
     ) {
-        fun toMatch(field: MatchField) = AllergenMatch(allergen, term, field, kind, note, reason)
-    }
+        fun toMatch(field: MatchField) = AllergenMatch(allergen, term, field, kind, note, reason)    }
 
     private class Occurrence(
         val alias: AllergenAlias,

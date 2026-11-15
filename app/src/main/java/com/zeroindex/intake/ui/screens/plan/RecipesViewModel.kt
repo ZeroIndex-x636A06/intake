@@ -33,6 +33,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
+import com.zeroindex.intake.ui.allergen.chipDetail
+import com.zeroindex.intake.ui.allergen.traceChipLabel
+import com.zeroindex.intake.ui.allergen.verdict
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -46,6 +50,7 @@ class RecipeLibraryViewModel @Inject constructor(
     private val plans: MealPlanRepository,
     private val recipeRepo: RecipeRepository,
     private val estimator: RecipeNutritionEstimator,
+    private val allergens: AllergenRepository,
     private val clock: Clock,
 ) : ViewModel() {
     /** Foods the person picked for ingredient lines of the estimate, by recipe and line. Kept while the screen is open. */
@@ -82,6 +87,37 @@ class RecipeLibraryViewModel @Inject constructor(
 
     val recipes: StateFlow<List<RecipeEntity>> =
         recipeDao.observeAll().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * The local engine's verdict per saved recipe, from its name and every ingredient line (the same scan Log food and
+     * recipe detail use), so the Recipes list shows the same chips. Re-read when a recipe or the person's allergens
+     * change. Empty when the person avoids nothing. A recipe with no ingredient lines is "only the name was checked",
+     * never clear. Nothing here can clear a warning.
+     */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val verdicts: StateFlow<Map<String, com.zeroindex.intake.ui.addfood.RowAllergen>> = kotlinx.coroutines.flow.combine(
+        recipes, allergens.observeAvoidedAllergens(), allergens.observeAliases(),
+    ) { list, _, _ -> list }.mapLatest { list ->
+        if (list.isEmpty() || allergens.avoidedAllergens().isEmpty()) {
+            emptyMap()
+        } else {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                list.associate { r ->
+                    val scan = recipeLogger.scan(r)
+                    r.id to com.zeroindex.intake.ui.addfood.RowAllergen(
+                        scan.verdict(),
+                        scan.chipDetail(),
+                        traceLabel = scan.traceChipLabel(),
+                        basis = if (r.ingredientsText.isBlank()) {
+                            com.zeroindex.intake.domain.allergen.AllergenEvidence.ClearBasis.NAME_ONLY
+                        } else {
+                            com.zeroindex.intake.domain.allergen.AllergenEvidence.ClearBasis.LABEL_READ
+                        },
+                    )
+                }
+            }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     /** One recipe with its ingredients in order, their groups and each line's own allergen tag. Reloads when the recipe changes. */
     fun viewOf(recipeId: String): Flow<RecipeView?> =

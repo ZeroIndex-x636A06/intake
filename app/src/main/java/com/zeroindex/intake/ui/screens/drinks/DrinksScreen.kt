@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -155,10 +156,10 @@ fun DrinksScreen(
             }
 
             if (mine.isNotEmpty()) {
-                item(key = "my") { QuickRow("My drinks", mine.map { QuickItem(it.food, lastSizes[it.food.id] ?: it.food.servingSizeGrams) }, unit, viewModel::log, viewModel::select) }
+                item(key = "my") { QuickRow("My drinks", mine.map { QuickItem(it.food, lastSizes[it.food.id] ?: it.food.servingSizeGrams, it.allergen) }, unit, viewModel::log, viewModel::select) }
             }
             if (recent.isNotEmpty()) {
-                item(key = "recent") { QuickRow("Recent", recent.map { QuickItem(it.row.food, it.lastMl) }, unit, viewModel::log, viewModel::select) }
+                item(key = "recent") { QuickRow("Recent", recent.map { QuickItem(it.row.food, it.lastMl, it.row.allergen) }, unit, viewModel::log, viewModel::select) }
             }
             if (mine.isNotEmpty() || recent.isNotEmpty()) {
                 item(key = "hint") {
@@ -330,7 +331,8 @@ private fun SummaryStrip(state: DrinksUiState, unit: VolumeUnit) {
     }
 }
 
-private data class QuickItem(val food: FoodEntity, val ml: Double)
+/** A quick card: the drink, its last size and the same allergen chip the list rows and Mine show (one wording everywhere). */
+private data class QuickItem(val food: FoodEntity, val ml: Double, val allergen: RowAllergen? = null)
 
 /** A short label over a row of quick-tap cards: one tap logs the card's size, a long press opens the options. */
 @Composable
@@ -358,12 +360,12 @@ private fun QuickCard(item: QuickItem, unit: VolumeUnit, onLog: () -> Unit, onOp
         shape = IntakeShape.Card,
         border = BorderStroke(1.dp, scheme.outlineVariant),
         modifier = Modifier
-            .width(156.dp)
+            .widthIn(min = 156.dp, max = 240.dp)
             .heightIn(min = 64.dp)
             .combinedClickable(onClick = onLog, onLongClick = onOptions, onClickLabel = "Log ${unit.format(item.ml)} of ${item.food.name}", onLongClickLabel = "Options"),
     ) {
         Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.Center) {
-            Text(item.food.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(item.food.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(
                 "${unit.format(item.ml)} · ${kcalOf(item.food, item.ml)} kcal",
                 style = MaterialTheme.typography.labelMedium,
@@ -371,6 +373,7 @@ private fun QuickCard(item: QuickItem, unit: VolumeUnit, onLog: () -> Unit, onOp
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            item.allergen?.let { a -> Box(Modifier.padding(top = 4.dp)) { RowAllergenChip(a) } }
         }
     }
 }

@@ -34,6 +34,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
@@ -89,6 +90,7 @@ class MenuSourcesViewModel @Inject constructor(
     private val gateway: AiGateway,
     private val clock: Clock,
     private val settings: SettingsRepository,
+    private val allergens: com.zeroindex.intake.data.repository.AllergenRepository,
 ) : ViewModel() {
 
     val sources: StateFlow<List<MenuSourceEntity>> =
@@ -106,6 +108,29 @@ class MenuSourcesViewModel @Inject constructor(
     val openItems: StateFlow<List<MenuItemEntity>> = _state
         .flatMapLatest { s -> s.openSourceId?.let(menuDao::observeItemsOf) ?: flowOf(emptyList()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * Today's allergen chip for each saved item of the open source, keyed by item id. Scanned again here, because the
+     * verdict stored at import can be older than the person's allergen list. Empty when the person avoids nothing.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val openVerdicts: StateFlow<Map<String, com.zeroindex.intake.ui.addfood.RowAllergen>> = kotlinx.coroutines.flow.combine(
+        openItems, allergens.observeAvoidedAllergens(), allergens.observeAliases(),
+    ) { items, _, _ -> items }.mapLatest { items ->
+        if (items.isEmpty() || allergens.avoidedAllergens().isEmpty()) {
+            emptyMap()
+        } else {
+            val scanner = allergens.menuScanner()
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                items.associate { m ->
+                    m.id to com.zeroindex.intake.ui.addfood.menuRowAllergenOf(
+                        scanner(m.name, m.description, m.ingredientsText),
+                        com.zeroindex.intake.domain.menu.MenuAllergenEvidence.statesNothing(m.description, m.ingredientsText),
+                    )
+                }
+            }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     fun add(name: String, kind: MenuSourceKind, location: String, pasted: String?) = viewModelScope.launch {
         if (kind == MenuSourceKind.PDF) {

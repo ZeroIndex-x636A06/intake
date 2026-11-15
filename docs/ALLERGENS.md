@@ -63,7 +63,7 @@ Negation and "-free" wording apply only to text a person wrote: free-text names,
 - Open Food Facts tags (`structuredContains`, `structuredTraces`);
 - a plan file's `allergens:` tags (passed as `panelText`).
 
-"Contains: milk" or "may contain milk" on a panel stays a hard warning. The matcher takes `freeText = false` by default, so every caller that has not opted in is unchanged; only the meal-plan scanner (`MealPlanRepository.scanner`: plan import, script import and plan screens) sets it. A model can raise a warning but never clear one: a model claim still raises an amber review on an item that only has CHECK_LABEL or MENTIONED_AVOIDED local hits.
+"Contains: milk" or "may contain milk" on a panel stays a hard warning. A "may contain / traces of / made in a facility" statement on a panel is marked `trace` (`TraceText`): it is worded as a possible trace ("May contain milk (trace)", the sheet says "a possible trace, not an ingredient") but keeps its tier and still blocks behind the confirmation sheet; a real ingredient hit for the same word is never worded as a trace. The matcher takes `freeText = false` by default, so every caller that has not opted in is unchanged; only the meal-plan scanner (`MealPlanRepository.scanner`: plan import, script import and plan screens) sets it. A model can raise a warning but never clear one: a model claim still raises an amber review on an item that only has CHECK_LABEL or MENTIONED_AVOIDED local hits.
 
 ## Never-clear rule
 
@@ -82,9 +82,13 @@ A clear result is only as strong as the data behind it (`AllergenEvidence`, test
 
 | Row | Clear chip |
 |---|---|
-| A generic food (bundled USDA, USDA Foundation / SR Legacy), or a food the person entered | "No allergens": the name is the food |
-| A packaged product with an ingredient list or allergen tags | "No allergens": the label data was read |
-| A packaged product (Open Food Facts, a barcode, a branded USDA API food) with no ingredient list and no tags | "No ingredient list: check the label", in the outlined check-the-label style. Never "No allergens" |
+| Anything with an ingredient list or allergen tags | "Fits your allergens" (green): the label data was read and none of the person's allergens is in it |
+| A generic food (bundled USDA, USDA Foundation / SR Legacy), a drink, a food the person entered, or a recipe with no ingredient lines | "Only the name was checked", outlined check-the-label style. Never green: a name says nothing about the ingredients |
+| A packaged product (Open Food Facts, a barcode, a branded USDA API food) with no ingredient list and no tags | "No ingredient list: check the label", outlined. Never green |
+
+There is no "No allergens" chip: it was false for a food that carries an allergen the person does not avoid (`AllergenEvidence.ClearBasis`).
+The same chips appear on Recipes list rows (computed from the ingredient lines), meal templates (every food merged, worst
+verdict wins), imported menu items in the Menu import source list, and My drinks / Recent cards.
 
 This only ever makes a clear result more cautious. A hit of any tier is shown as the hit it is, and the full check
 still runs before anything is logged.
@@ -108,7 +112,7 @@ considered, the same as any generic food.
 
 The nearby finder and imported menu items read an order's title and modification note as free text, so "Whopper without cheese" or "no cheese, no butter" is not counted as cheese or butter (`freeText = true`); this clears nothing, and everything else (the rest of the name, a description, a stated "Contains" list, the model's own claims, which can only raise) still counts. A nearby option whose only finding was a negated mention is shown as "Check with the restaurant", never as clear. Ingredient panels, Open Food Facts tags and stated allergen lists are never negated.
 
-**Choosing anyway.** A "contains" option in Swap, Eating out nearby and imported menus has a "Choose anyway" button. It opens a warning that names the allergens and the evidence and says the warning stays on the entry; Cancel has focus, confirm is red. Only a person's tap can do this (never a model or a file). The item is logged with "Logged despite: dairy" added to the entry's name and serving label, and no status anywhere is changed to clear (`AllergenOverride`, no schema change).
+**Choosing anyway.** A "contains" option in Swap, Eating out nearby and imported menus has a "Choose anyway" button. It opens a warning that names the allergens and the evidence and says the warning stays on the entry; Cancel has focus, confirm is red. Only a person's tap can do this (never a model or a file). Every other "Log it anyway" path (Food detail, Log food rows, recipes, cook mode, drinks, custom drinks, photo estimate, menu items) records the same note on the entry (`AllergenOverride.noteFor`). The item is logged with "Logged despite: dairy" added to the entry's name and serving label, and no status anywhere is changed to clear (`AllergenOverride`, no schema change).
 
 ## Custom allergens and keywords
 

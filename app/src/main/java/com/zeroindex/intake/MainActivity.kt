@@ -88,7 +88,8 @@ class MainActivity : ComponentActivity() {
             when (val result = templates.log(id)) {
                 is TemplateLogResult.Logged -> messages.post(
                     AppMessage(
-                        text = "Logged ${result.template.name} to ${result.slot.name.lowercase()}",
+                        text = "Logged ${result.template.name} to ${result.slot.name.lowercase()}" +
+                            (result.allergenNote?.let { ". $it" } ?: ""),
                         actionLabel = "Undo",
                         onAction = { templates.undo(result.logs) },
                     ),

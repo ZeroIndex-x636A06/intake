@@ -861,7 +861,13 @@ private fun EveryWeekAccordion(meta: PlanMeta) {
 }
 
 @Composable
-internal fun RecipeRow(recipe: RecipeEntity, onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun RecipeRow(
+    recipe: RecipeEntity,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    /** Today's verdict from the local engine, when the person avoids anything. Replaces the stored flag below. */
+    allergen: com.zeroindex.intake.ui.addfood.RowAllergen? = null,
+) {
     IntakeCard(modifier = modifier.pressScale().clickable(onClick = onClick)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (recipe.imageUrl != null) {
@@ -884,7 +890,10 @@ internal fun RecipeRow(recipe: RecipeEntity, onClick: () -> Unit, modifier: Modi
             }
             if (recipe.origin == RecipeOrigin.HUNTER) Tag("From the web") else if (recipe.origin == RecipeOrigin.LINK) Tag("From a link")
         }
-        if (recipe.allergenStatus == AllergenStatus.MAY_CONTAIN) {
+        if (allergen != null) {
+            Spacer(Modifier.height(6.dp))
+            com.zeroindex.intake.ui.addfood.RowAllergenChip(allergen)
+        } else if (recipe.allergenStatus == AllergenStatus.MAY_CONTAIN) {
             Spacer(Modifier.height(6.dp))
             Flag("Check allergens")
         } else if (recipe.allergenStatus == AllergenStatus.CHECK_LABEL) {

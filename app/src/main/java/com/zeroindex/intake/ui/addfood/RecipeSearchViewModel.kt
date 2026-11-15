@@ -8,6 +8,7 @@ import com.zeroindex.intake.data.db.entity.RecipeEntity
 import com.zeroindex.intake.data.repository.AllergenRepository
 import com.zeroindex.intake.data.repository.FoodLogRepository
 import com.zeroindex.intake.data.repository.RecipeLogger
+import com.zeroindex.intake.domain.allergen.AllergenOverride
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.recipe.RecipeCandidate
@@ -15,6 +16,7 @@ import com.zeroindex.intake.domain.recipe.RecipeSearch
 import com.zeroindex.intake.ui.AppMessage
 import com.zeroindex.intake.ui.AppMessages
 import com.zeroindex.intake.ui.allergen.chipDetail
+import com.zeroindex.intake.ui.allergen.traceChipLabel
 import com.zeroindex.intake.ui.allergen.verdict
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -91,7 +93,7 @@ class RecipeSearchViewModel @Inject constructor(
         return withContext(Dispatchers.Default) {
             recipes.associate { r ->
                 val scan = scanOf(r)
-                r.id to RowAllergen(scan.verdict(), scan.chipDetail())
+                r.id to RowAllergen(scan.verdict(), scan.chipDetail(), traceLabel = scan.traceChipLabel())
             }
         }
     }
@@ -123,14 +125,15 @@ class RecipeSearchViewModel @Inject constructor(
         _pending.value = null
         viewModelScope.launch {
             val recipe = recipeDao.findById(p.recipeId) ?: return@launch
-            logNow(recipe, slot, at)
+            logNow(recipe, slot, at, AllergenOverride.noteFor(p.scan))
         }
     }
 
     fun dismissPending() { _pending.value = null }
 
-    private suspend fun logNow(recipe: RecipeEntity, slot: MealSlot, at: Long) {
-        val entry = logger.logServings(recipe, slot, estimate = null, servings = 1.0, at = at) ?: return
+    private suspend fun logNow(recipe: RecipeEntity, slot: MealSlot, at: Long, overrideNote: String? = null) {
+        val logged = logger.logServings(recipe, slot, estimate = null, servings = 1.0, at = at) ?: return
+        val entry = if (overrideNote != null) foodLog.markOverridden(logged, overrideNote) else logged
         messages.post(AppMessage("Logged ${recipe.name} to ${slot.name.lowercase()}", "Undo") { foodLog.softDelete(entry.id) })
     }
 }

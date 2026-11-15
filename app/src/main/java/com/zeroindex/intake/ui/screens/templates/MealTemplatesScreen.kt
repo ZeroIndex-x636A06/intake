@@ -66,7 +66,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.repository.TemplateSummary
 import com.zeroindex.intake.nfc.TagWriteResult
 import com.zeroindex.intake.ui.components.IntakeCard
-import com.zeroindex.intake.ui.components.SubHead
 import com.zeroindex.intake.ui.screens.today.SlotPickerSheet
 import com.zeroindex.intake.ui.theme.IntakeShape
 import java.time.Instant
@@ -85,6 +84,7 @@ fun MealTemplatesScreen(
 ) {
     val templates by viewModel.templates.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val verdicts by viewModel.verdicts.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val nfc = remember { NfcAdapter.getDefaultAdapter(context) }
     var logging by remember { mutableStateOf<TemplateSummary?>(null) }
@@ -102,9 +102,11 @@ fun MealTemplatesScreen(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item(key = "head") {
-            SubHead(
-                "Meal templates",
+            // The top bar already says "Meal templates": the page does not repeat it a second and third time.
+            Text(
                 "Meals you eat often, saved so one tap logs them. Make one here, or save a meal you logged on Today. No meal plan needed.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         item(key = "new") {
@@ -115,7 +117,7 @@ fun MealTemplatesScreen(
             ) { Text("New meal template") }
         }
         state.message?.let { item(key = "msg") { SandNote(it) } }
-        item(key = "list-head") { SectionLine("Meal templates", note = "${templates.size} saved") }
+        item(key = "list-head") { SectionLine("Saved", note = "${templates.size} saved") }
         if (templates.isEmpty()) {
             item(key = "empty") {
                 EmptyState(
@@ -127,6 +129,7 @@ fun MealTemplatesScreen(
             items(items = templates, key = { "t-${it.template.id}" }) { t ->
                 TemplateRow(
                     t = t,
+                    allergen = verdicts[t.template.id],
                     written = t.template.nfcWrittenAt?.let { dates.format(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault())) },
                     canWrite = nfc != null,
                     onLog = { logging = t },
@@ -161,6 +164,7 @@ fun MealTemplatesScreen(
 @Composable
 private fun TemplateRow(
     t: TemplateSummary,
+    allergen: com.zeroindex.intake.ui.addfood.RowAllergen?,
     written: String?,
     canWrite: Boolean,
     onLog: () -> Unit,
@@ -187,6 +191,8 @@ private fun TemplateRow(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            // The verdict is shown before the one-tap log, from the local engine over every food in the template.
+            allergen?.let { Box(Modifier.padding(top = 4.dp)) { com.zeroindex.intake.ui.addfood.RowAllergenChip(it) } }
         }
         Box {
             TextButton(onClick = { menu = true }, modifier = Modifier.semantics { contentDescription = "More for ${t.template.name}" }) {

@@ -75,6 +75,7 @@ fun MenuSourcesScreen(
     val sources by viewModel.sources.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val items by viewModel.openItems.collectAsStateWithLifecycle()
+    val verdicts by viewModel.openVerdicts.collectAsStateWithLifecycle()
     val allergenOnly by viewModel.allergenOnlyIds.collectAsStateWithLifecycle()
     var adding by remember { mutableStateOf(false) }
     val dates = remember { DateTimeFormatter.ofPattern("d MMM") }
@@ -334,6 +335,7 @@ fun MenuSourcesScreen(
             ItemsSheet(
                 src,
                 items,
+                verdicts,
                 // A link can be refreshed with AI off: a page with structured menu data needs no model.
                 canRun = state.running == null && (state.hasKey || src.kind == com.zeroindex.intake.data.db.entity.MenuSourceKind.URL || src.kind == com.zeroindex.intake.data.db.entity.MenuSourceKind.PDF),
                 onRun = { viewModel.run(src); viewModel.open(null) },
@@ -507,6 +509,7 @@ private fun macroLine(item: MenuItemEntity): String = listOfNotNull(
 private fun ItemsSheet(
     source: MenuSourceEntity,
     items: List<MenuItemEntity>,
+    verdicts: Map<String, com.zeroindex.intake.ui.addfood.RowAllergen>,
     canRun: Boolean,
     onRun: () -> Unit,
     onRemove: () -> Unit,
@@ -522,7 +525,7 @@ private fun ItemsSheet(
             if (items.isEmpty()) EmptyState(body = "No items saved from this source yet.")
             LazyColumn(Modifier.fillMaxWidth().heightIn(max = 560.dp)) {
                 items(items, key = { it.id }) { item ->
-                    ItemText(item, Modifier.fillMaxWidth().padding(vertical = 8.dp))
+                    ItemText(item, verdicts[item.id], Modifier.fillMaxWidth().padding(vertical = 8.dp))
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
             }
@@ -532,15 +535,22 @@ private fun ItemsSheet(
 }
 
 @Composable
-private fun ItemText(item: MenuItemEntity, modifier: Modifier) {
+private fun ItemText(item: MenuItemEntity, allergen: com.zeroindex.intake.ui.addfood.RowAllergen?, modifier: Modifier) {
     Column(modifier) {
         Text(item.name, style = MaterialTheme.typography.titleSmall)
         Text(macroLine(item), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        when (item.allergenStatus) {
-            AllergenStatus.CONTAINS -> StatusPill("Contains ${item.allergenMatches}", tone = PillTone.Bad)
-            AllergenStatus.MAY_CONTAIN -> StatusPill("Check: ${item.allergenMatches}", tone = PillTone.Wait)
-            AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
-            else -> Unit
+        if (allergen != null) {
+            // Today's scan, same wording as Log food: a clear item says what the clear rests on, and an item with no
+            // ingredient information is never shown as clear (MenuAllergenEvidence).
+            androidx.compose.foundation.layout.Box(Modifier.padding(top = 4.dp)) { com.zeroindex.intake.ui.addfood.RowAllergenChip(allergen) }
+        } else {
+            // Nothing avoided (no scan): the stored verdict, as before.
+            when (item.allergenStatus) {
+                AllergenStatus.CONTAINS -> StatusPill("Contains ${item.allergenMatches}", tone = PillTone.Bad)
+                AllergenStatus.MAY_CONTAIN -> StatusPill("Check: ${item.allergenMatches}", tone = PillTone.Wait)
+                AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
+                else -> Unit
+            }
         }
     }
 }

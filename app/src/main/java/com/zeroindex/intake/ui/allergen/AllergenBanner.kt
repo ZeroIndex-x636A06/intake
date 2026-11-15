@@ -25,6 +25,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.zeroindex.intake.domain.allergen.AllergenEvidence
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
 import com.zeroindex.intake.domain.swap.SwapAllergen
 import com.zeroindex.intake.ui.theme.AllergenAmber
@@ -57,6 +58,10 @@ fun AllergenScanResult.chipDetail(): String? = when {
     else -> null
 }
 
+/** The chip words for a hit that is only a label's trace line: "May contain milk (trace)". Null for anything else. */
+fun AllergenScanResult.traceChipLabel(): String? =
+    if (containsOnlyTraces) "May contain ${contains.termsText()} (trace)" else null
+
 /** "milk and peanuts", from the matched allergens of a tier. */
 fun List<com.zeroindex.intake.domain.allergen.AllergenMatch>.termsText(): String =
     map { it.matchedTerm }.distinct().let { t ->
@@ -74,8 +79,12 @@ fun AllergenBanner(scan: AllergenScanResult, modifier: Modifier = Modifier) {
         scan.contains.isNotEmpty() -> SolidBanner(
             color = AllergenColors.red,
             icon = Icons.Filled.Warning,
-            title = "Contains ${scan.contains.termsText()}",
-            body = "On your list. Logging needs you to confirm. Found by the local check, so nothing else can clear it.",
+            title = if (scan.containsOnlyTraces) "May contain traces of ${scan.contains.termsText()}" else "Contains ${scan.contains.termsText()}",
+            body = if (scan.containsOnlyTraces) {
+                "The label lists it as a possible trace, not an ingredient. On your list: logging needs you to confirm."
+            } else {
+                "On your list. Logging needs you to confirm. Found by the local check, so nothing else can clear it."
+            },
             modifier = modifier,
         )
         scan.mayContain.isNotEmpty() -> SolidBanner(
@@ -114,7 +123,7 @@ private fun SolidBanner(color: Color, icon: ImageVector, title: String, body: St
 }
 
 /**
- * A small status chip for one row (a search result, a drink, a swap option). Clear shows a quiet green "No allergens";
+ * A small status chip for one row (a search result, a drink, a swap option). Clear shows a quiet green "Fits your allergens" (only for a result that read a label; see [AllergenEvidence.ClearBasis]);
  * the others are solid.
  */
 @Composable
@@ -130,7 +139,7 @@ fun AllergenChip(
     val (bg, fg, icon, defaultText) = when (verdict) {
         SwapAllergen.CLEAR -> {
             if (!showClear) return
-            Quad(scheme.primaryContainer, scheme.onPrimaryContainer, Icons.Filled.Check, "No allergens")
+            Quad(scheme.primaryContainer, scheme.onPrimaryContainer, Icons.Filled.Check, AllergenEvidence.ClearBasis.LABEL_READ.chipText)
         }
         SwapAllergen.CHECK_LABEL -> Quad(scheme.secondaryContainer, scheme.onSecondaryContainer, null, detail?.let { "Check the label: $it" } ?: "Check the label")
         SwapAllergen.MAY_CONTAIN -> Quad(AllergenColors.amber, AllergenColors.onSolid, Icons.Filled.Warning, detail?.let { "May contain $it" } ?: "May contain")

@@ -44,6 +44,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.domain.allergen.AllergenMatch
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
+import com.zeroindex.intake.domain.allergen.MatchWording
 import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.ui.theme.AllergenAmber
 import com.zeroindex.intake.ui.theme.AllergenRed
@@ -129,7 +130,9 @@ fun AllergenWarningSheet(
                     }
                     Spacer(Modifier.height(11.dp))
                     Text(
-                        text = if (hardBlock) {
+                        text = if (hardBlock && scan.containsOnlyTraces) {
+                            "The label lists a possible trace"
+                        } else if (hardBlock) {
                             "This contains an ingredient you avoid"
                         } else {
                             "Possible cross-contact"
@@ -140,8 +143,8 @@ fun AllergenWarningSheet(
                     Spacer(Modifier.height(6.dp))
                     Text(
                         text = if (hardBlock) {
-                            "Your allergen profile matched an ingredient. The food cannot be " +
-                                "saved until you choose what to do."
+                            // Says where it matched (the name, the ingredient list, the tags), not always "an ingredient".
+                            MatchWording.blockedBody(scan.contains)
                         } else {
                             scan.mayContain.firstOrNull()?.note
                                 ?: "Not a declared ingredient, but worth a look at the panel."
@@ -291,7 +294,7 @@ private fun MatchDetail(
         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
     ) {
         Column(Modifier.padding(14.dp)) {
-            Eyebrow("exact match found", color = accent)
+            Eyebrow("exact match · ${MatchWording.foundIn(match)}", color = accent)
             Spacer(Modifier.height(6.dp))
             Text(
                 text = "“${match.matchedTerm}” · ${match.allergen}",
