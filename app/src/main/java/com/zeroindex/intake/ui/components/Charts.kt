@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.components
 
+import com.zeroindex.intake.domain.units.KcalFormat
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -337,7 +338,7 @@ fun TargetBarChart(
         }
         if (target != null && target > 0.0) {
             Text(
-                text = "${"%,d".format(target.roundToInt())} kcal target",
+                text = "${KcalFormat.format(target)} kcal target",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.tertiary,
                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp),

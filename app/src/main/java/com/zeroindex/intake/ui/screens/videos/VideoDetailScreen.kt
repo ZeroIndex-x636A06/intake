@@ -250,7 +250,7 @@ fun VideoDetailScreen(
                 if (state.directOn) {
                     "Video and information from YouTube. Direct playback and downloads use yt-dlp and are not an official YouTube feature."
                 } else {
-                    "Video and information from YouTube. Intake streams it through YouTube's own player and never downloads it."
+                    "Video and information from YouTube. Intake streams it through YouTube's own player. It downloads the video only if you turn on Offline downloads and direct playback (Settings > Videos, off by default)."
                 },
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

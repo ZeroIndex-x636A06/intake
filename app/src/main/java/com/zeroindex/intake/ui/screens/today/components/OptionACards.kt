@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.today.components
 
+import com.zeroindex.intake.domain.units.KcalFormat
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -84,8 +85,8 @@ fun CalorieCard(
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Box(
                 Modifier.size(150.dp).pulseOn(pulseTrigger).clearAndSetSemantics {
-                    contentDescription = if (left == null) "Calories eaten ${progress.consumed.kcal.roundToInt()}. No target set." else
-                        (if (left >= 0) "$left calories left of ${target?.kcal}" else "${abs(left)} calories over ${target?.kcal}")
+                    contentDescription = if (left == null) "Calories eaten ${KcalFormat.format(progress.consumed.kcal)}. No target set." else
+                        (if (left >= 0) "${KcalFormat.format(left)} calories left of ${target?.kcal?.let { KcalFormat.format(it) }}" else "${KcalFormat.format(abs(left))} calories over ${target?.kcal?.let { KcalFormat.format(it) }}")
                 },
                 contentAlignment = Alignment.Center,
             ) {
@@ -96,15 +97,15 @@ fun CalorieCard(
                     drawArc(ringColor, -90f, 360f * fraction, false, Offset(w / 2, w / 2), arc, style = Stroke(w, cap = StrokeCap.Round))
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(left?.let { "%,d".format(abs(it)) } ?: "%,d".format(progress.consumed.kcal.roundToInt()), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
+                    Text(left?.let { KcalFormat.format(abs(it)) } ?: KcalFormat.format(progress.consumed.kcal), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
                     Text(if (left == null) "kcal eaten" else if (left >= 0) "kcal left" else "kcal over", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
                 Text("Eaten", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("%,d".format(progress.consumed.kcal.roundToInt()), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
-                Text(if (target != null) "of ${"%,d".format(target.kcal)} kcal" else "No target yet", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(KcalFormat.format(progress.consumed.kcal), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
+                Text(if (target != null) "of ${KcalFormat.format(target.kcal)} kcal" else "No target yet", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (activityBonusKcal > 0) {
                     Text("Includes +$activityBonusKcal kcal from workouts", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary, modifier = Modifier.padding(top = 4.dp))
                 }

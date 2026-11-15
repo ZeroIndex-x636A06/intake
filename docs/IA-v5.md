@@ -354,7 +354,7 @@ Each page leads with the three or four settings people change, then **Advanced**
 * **E. Data sources**: *Health Connect* (status, per-type switches, "Last synced: N records" for each type, request
   permissions); *Food database* (Open Food Facts search, other languages, contribute, login); *USDA key*.
 * **F. Videos**: YouTube key (paste, Save, Test, Remove; stored in the key store), Show only workouts by default,
-  Personalise Recommended. One-line note: "Videos need internet and your own key. Intake never downloads a video."
+  Personalise Recommended. One-line note: "Videos need internet and your own key. Intake downloads a video only if you turn on Offline downloads and direct playback (off by default)."
 * **G. Reminders**: Weekly check-in (switch and day chips), Progress photo (off, 2, 3, 4 weeks), Export (switch;
   greyed with a note when sync is on).
 * **H. Sync and export**: *Sync* (server URL, pair, devices, stop syncing here, last sync status) and *Export and

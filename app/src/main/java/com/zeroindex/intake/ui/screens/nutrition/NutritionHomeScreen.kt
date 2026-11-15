@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.nutrition
 
+import com.zeroindex.intake.domain.units.KcalFormat
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
@@ -116,6 +117,7 @@ fun NutritionHomeScreen(
     viewModel: NutritionHomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val hasHistory by viewModel.hasHistory.collectAsStateWithLifecycle()
     val slot = viewModel.currentSlot()
     var pickingDate by rememberSaveable { mutableStateOf(false) }
 
@@ -157,7 +159,13 @@ fun NutritionHomeScreen(
         }
 
         item(key = "tip") {
-            TabTip(key = TipKey.FOOD, body = TabTipCopy.FOOD, actionLabel = "Log food", onAction = { actions.onLogFood("SEARCH", slot.name, viewModel.loggingMillis(slot)) })
+            TabTip(
+                key = TipKey.FOOD,
+                body = TabTipCopy.FOOD,
+                actionLabel = "Log food",
+                onAction = { actions.onLogFood("SEARCH", slot.name, viewModel.loggingMillis(slot)) },
+                hasHistory = hasHistory,
+            )
         }
 
         item(key = "overview") { OverviewCard(state.dashboard, state.ready, state.hydration, state.settings.volumeUnit, state.isToday) }
@@ -238,9 +246,9 @@ private fun OverviewCard(
                 CalorieRingView(model, showSplit, protein, carbs, fat)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     model.calories.target?.let {
-                        Text("of ${java.text.NumberFormat.getIntegerInstance().format(it)} kcal", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("of ${KcalFormat.format(it)} kcal", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Text("${model.calories.eaten} eaten", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold)
+                    Text("${KcalFormat.format(model.calories.eaten)} eaten", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold)
                 }
             }
             SplitButton(held = held, onHeld = { held = it }, modifier = Modifier.align(Alignment.TopEnd).offset(x = 8.dp, y = (-8).dp))
@@ -330,9 +338,9 @@ private fun CalorieRingView(model: DashboardModel, showSplit: Boolean, protein: 
     val track = MaterialTheme.colorScheme.surfaceVariant
     val color = if (c.over) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
     val big = when {
-        c.left == null -> "${c.eaten}"
-        c.over -> "${-c.left}"
-        else -> "${c.left}"
+        c.left == null -> KcalFormat.format(c.eaten)
+        c.over -> KcalFormat.format(-c.left)
+        else -> KcalFormat.format(c.left)
     }
     val small = when {
         c.left == null -> "kcal eaten"
@@ -342,7 +350,7 @@ private fun CalorieRingView(model: DashboardModel, showSplit: Boolean, protein: 
     val segments = if (showSplit) MacroRingSplit.segments(protein, carbs, fat, sweep) else emptyList()
     val colors = mapOf(MacroRingSplit.Macro.PROTEIN to ProteinAccent, MacroRingSplit.Macro.CARBS to CarbAccent, MacroRingSplit.Macro.FAT to FatAccent)
     Box(
-        Modifier.size(RingBoxWidth, RingBoxHeight).semantics { contentDescription = "$big $small" + (c.target?.let { ", of $it, ${c.eaten} eaten" } ?: "") },
+        Modifier.size(RingBoxWidth, RingBoxHeight).semantics { contentDescription = "$big $small" + (c.target?.let { ", of ${KcalFormat.format(it)}, ${KcalFormat.format(c.eaten)} eaten" } ?: "") },
         contentAlignment = Alignment.Center,
     ) {
         Canvas(Modifier.size(RingSize)) {

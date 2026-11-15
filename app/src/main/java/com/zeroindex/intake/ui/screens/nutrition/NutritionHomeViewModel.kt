@@ -186,6 +186,10 @@ class NutritionHomeViewModel @Inject constructor(
         )
     }
 
+    /** Whether the food log has ever held a row. False until read, so the first-run tip stays hidden until then (QA Q1-18). */
+    val hasHistory: StateFlow<Boolean> = kotlinx.coroutines.flow.flow { emit(foodLog.hasAnyLog()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
     private val partial = combine(dashboard, selectedDate.flatMapLatest { hydration.observeDay(it) }, settingsRepository.settings) { d, h, s -> Triple(d, h, s) }
 
     val state: StateFlow<NutritionHomeState> = combine(combine(partial, selectedDate) { p, date -> p to date }, next, sections, slotRows) { (pd, date), n, sec, slots ->

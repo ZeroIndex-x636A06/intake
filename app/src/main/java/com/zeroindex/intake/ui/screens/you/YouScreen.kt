@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.you
 
+import com.zeroindex.intake.domain.units.KcalFormat
 import com.zeroindex.intake.domain.units.format
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -151,7 +152,7 @@ fun YouScreen(
             Card {
                 val t = state.target
                 PlanRow("Calories", if (s.autoCalculateTargets) "from your weight trend and a ${p.pace.label.lowercase()} pace" else "set by hand",
-                    t?.let { "%,d kcal".format(it.kcal) } ?: "No target yet") { onChangeSetting("nutrition", "manualCalories") }
+                    t?.let { "${KcalFormat.format(it.kcal)} kcal" } ?: "No target yet") { onChangeSetting("nutrition", "manualCalories") }
                 PlanRow("Protein · fat · carbs", "${s.proteinGramsPerKg} and ${s.fatGramsPerKg} g per kg",
                     t?.let { "${it.proteinG} · ${it.fatG} · ${it.carbsG} g" } ?: "—") { onChangeSetting("nutrition", "proteinPerKg") }
                 PlanRow("Water", if (s.hydrationDynamic) "adjusts for the day" else "fixed target",
