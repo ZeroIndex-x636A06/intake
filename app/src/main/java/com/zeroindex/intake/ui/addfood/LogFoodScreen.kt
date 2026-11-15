@@ -452,6 +452,9 @@ private fun SearchTab(
         val usdaApiResults = (state.searchState as? SearchState.Remote)?.results.orEmpty()
         val nothingYet = state.localResults.isEmpty() && state.refResults.isEmpty() &&
             offResults.isEmpty() && usdaApiResults.isEmpty() && state.menuRows.isEmpty() && recipes.results.isEmpty()
+        // The Open Food Facts failure copy names sources only when some are on screen above it (QA Q1-23).
+        val anySourceAbove = state.localResults.isNotEmpty() || state.refResults.isNotEmpty() ||
+            state.menuRows.isNotEmpty() || recipes.results.isNotEmpty()
 
         // Results arrive above rows that are already on screen (the phone's own foods and the offline database come in
         // over the Open Food Facts section), and a lazy list stays on the row it was showing. Without this the best
@@ -512,7 +515,10 @@ private fun SearchTab(
                 OffUiState.Failed -> item(key = "off-failed") {
                     Column {
                         SourceHeader("Packaged foods (Open Food Facts)")
-                        DegradedMessage("Open Food Facts could not be reached. The sources above still work.")
+                        DegradedMessage(
+                            if (anySourceAbove) "Open Food Facts could not be reached. The sources above still work."
+                            else "Open Food Facts could not be reached. Check your connection and try again.",
+                        )
                     }
                 }
             }

@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.profile
 
+import com.zeroindex.intake.domain.units.KcalFormat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -121,7 +122,7 @@ fun YourPlanScreen(
                         plan.dietBreak?.let { b ->
                             Spacer(Modifier.height(6.dp))
                             Text(
-                                "Diet break: after every ${b.everyWeeks} weeks, spend a week at ${"%,d".format(Locale.US, b.maintenanceKcal)} kcal " +
+                                "Diet break: after every ${b.everyWeeks} weeks, spend a week at ${KcalFormat.format(b.maintenanceKcal)} kcal " +
                                     "(weeks ${b.nextBreakWeek(1)}, ${b.nextBreakWeek(b.nextBreakWeek(1))} ...). " +
                                     "Intake will not change your target by itself, so switch it when the week comes.",
                                 style = MaterialTheme.typography.labelSmall,
@@ -247,8 +248,8 @@ private fun SourceRow(plan: GoalPlan) {
         )
         Text(plan.phase.label, style = MaterialTheme.typography.labelMedium)
         InfoTip(
-            text = "Daily calorie burn is about ${"%,d".format(Locale.US, Math.round(plan.tdee))} kcal. " +
-                "${plan.tdeeWhy} Calories at rest are ${"%,d".format(Locale.US, Math.round(plan.bmr.kcal))} kcal.",
+            text = "Daily calorie burn is about ${KcalFormat.format(plan.tdee)} kcal. " +
+                "${plan.tdeeWhy} Calories at rest are ${KcalFormat.format(plan.bmr.kcal)} kcal.",
             label = "Daily calorie burn",
         )
     }

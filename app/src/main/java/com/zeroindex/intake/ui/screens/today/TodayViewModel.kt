@@ -3,6 +3,8 @@ package com.zeroindex.intake.ui.screens.today
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroindex.intake.data.ai.insight.DailyInsights
+import com.zeroindex.intake.ui.AppMessage
+import com.zeroindex.intake.ui.AppMessages
 import com.zeroindex.intake.data.db.entity.AiInsightEntity
 import com.zeroindex.intake.data.db.entity.FoodLogEntity
 import com.zeroindex.intake.data.db.entity.HydrationLogEntity
@@ -83,6 +85,7 @@ class TodayViewModel @Inject constructor(
     private val insights: DailyInsights,
     private val body: BodyRepository,
     private val clock: Clock,
+    private val messages: AppMessages,
 ) : ViewModel() {
 
     private val selectedDate = MutableStateFlow(clock.today())
@@ -172,11 +175,17 @@ class TodayViewModel @Inject constructor(
     fun dismissInsight(insight: AiInsightEntity) = viewModelScope.launch { insights.dismiss(insight.id) }
 
     fun showPreviousDay() { selectedDate.value = selectedDate.value.minusDays(1) }
-    fun showNextDay() { selectedDate.value = selectedDate.value.plusDays(1) }
+    /** Stops at today: a future day has nothing logged yet and would read as "today" (QA Q1-10). */
+    fun showNextDay() {
+        val next = selectedDate.value.plusDays(1)
+        if (!next.isAfter(clock.today())) selectedDate.value = next
+    }
     fun showToday() { selectedDate.value = clock.today() }
 
+    /** Soft delete with an Undo that brings the entry back (and its drink row, if it has one). */
     fun deleteLog(log: FoodLogEntity) = viewModelScope.launch {
         foodLogRepository.softDelete(log.id)
+        messages.post(AppMessage("Removed ${log.foodNameAtLog}", "Undo") { foodLogRepository.restore(listOf(log)) })
     }
 
     fun copyLogToSlot(log: FoodLogEntity, slot: MealSlot) = viewModelScope.launch {
@@ -209,7 +218,10 @@ class TodayViewModel @Inject constructor(
             onLogged(hydrationRepository.log(volumeMl, timestampForSelectedDay(), presetId, drink))
         }
 
-    fun deleteWater(log: HydrationLogEntity) = viewModelScope.launch { hydrationRepository.delete(log.id) }
+    fun deleteWater(log: HydrationLogEntity) = viewModelScope.launch {
+        hydrationRepository.delete(log.id)
+        messages.post(AppMessage("Removed ${log.drinkType.label.lowercase()}", "Undo") { hydrationRepository.restore(log) })
+    }
     fun restoreWater(log: HydrationLogEntity) = viewModelScope.launch { hydrationRepository.restore(log) }
 
     fun saveWaterPreset(name: String, volumeMl: Double, existing: HydrationPresetEntity?, drink: DrinkType? = null) =

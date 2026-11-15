@@ -54,6 +54,7 @@ fun drinkRows(logs: List<HydrationLogEntity>): List<DrinkRow> =
 @Composable
 fun HydrationCard(
     day: HydrationDay,
+    isToday: Boolean,
     unit: VolumeUnit,
     onMinus: (HydrationLogEntity) -> Unit,
     onPlus: (HydrationLogEntity) -> Unit,
@@ -78,7 +79,7 @@ fun HydrationCard(
         WaterWave(fraction = day.progress, water = WaterAccent, track = MaterialTheme.colorScheme.surfaceVariant, height = 14.dp)
         Spacer(Modifier.height(6.dp))
         if (rows.isEmpty()) {
-            Text("Nothing logged yet today.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 6.dp))
+            Text(if (isToday) "Nothing logged yet today." else "Nothing logged that day.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 6.dp))
         }
         rows.forEachIndexed { i, row ->
             Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {

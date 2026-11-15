@@ -157,7 +157,7 @@ fun VideosSection(
             title = { Text("How Videos works") },
             text = {
                 Text(
-                    "Videos need internet and your own key. Intake never downloads a video. Only the words you search for are sent to YouTube, and only when you search or scroll for more. Video information and playback come from YouTube.",
+                    "Videos need internet and your own key. Intake downloads a video only if you turn on Offline downloads and direct playback (Settings > Videos, off by default). Only the words you search for are sent to YouTube, and only when you search or scroll for more. Video information and playback come from YouTube.",
                 )
             },
         )
@@ -678,7 +678,7 @@ private fun NoKeyCard(
         IntakeCard {
             Text("Videos use YouTube and your own free key", style = MaterialTheme.typography.titleLarge)
             Text(
-                "The key lets Intake search YouTube for you. It is stored encrypted on this phone and sent only to YouTube, and a free one allows about 100 searches a day. Intake never downloads a video; it plays through YouTube's own player.",
+                "The key lets Intake search YouTube for you. It is stored encrypted on this phone and sent only to YouTube, and a free one allows about 100 searches a day. Intake downloads a video only if you turn on Offline downloads and direct playback in Settings > Videos (off by default); otherwise it plays through YouTube's own player.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 6.dp, bottom = 12.dp),

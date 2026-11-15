@@ -213,11 +213,12 @@ private fun DayTitle(date: LocalDate, isToday: Boolean, onPrevious: () -> Unit, 
     Row(verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onPrevious) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous day") }
         Text(
-            (if (isToday) "" else "") + date.format(fmt),
+            date.format(fmt),
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.semantics { heading() },
         )
-        IconButton(onClick = onNext) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next day") }
+        // Today is the last day: Next is off there, as on Nutrition (QA Q1-10).
+        IconButton(onClick = onNext, enabled = !isToday) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next day") }
     }
 }
 
@@ -386,6 +387,7 @@ private fun LazyListScope.mainItems(
             item(key = "water") {
                 HydrationCard(
                     day = day,
+                    isToday = state.isToday,
                     unit = s.volumeUnit,
                     onMinus = onWaterMinus,
                     onPlus = onWaterPlus,

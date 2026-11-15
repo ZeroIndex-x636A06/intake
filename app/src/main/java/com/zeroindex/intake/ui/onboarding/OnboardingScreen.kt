@@ -2,6 +2,7 @@
 
 package com.zeroindex.intake.ui.onboarding
 
+import com.zeroindex.intake.domain.units.KcalFormat
 import com.zeroindex.intake.domain.training.generator.EquipmentPreset
 import com.zeroindex.intake.ui.components.EquipmentChecklist
 import android.Manifest
@@ -542,7 +543,7 @@ private fun GoalStep(viewModel: ProfileViewModel, onNeedAbout: () -> Unit) {
             null
         }
         AccentNote(
-            lead = "About ${"%,d".format(preview.calories.kcal)} kcal and ${preview.macros.proteinG} g protein a day",
+            lead = "About ${KcalFormat.format(preview.calories.kcal)} kcal and ${preview.macros.proteinG} g protein a day",
             body = (pace?.let { "$it. " } ?: "") +
                 "This is a day-one estimate. After a week of logging, Intake uses your real numbers instead.",
         )
@@ -699,7 +700,7 @@ private fun HowToStartStep(viewModel: OnboardingViewModel, onNeedAbout: () -> Un
     when (val result = estimate) {
         is EstimateResult.Applied -> AccentNote(
             lead = "Plan applied",
-            body = "${"%,d".format(result.kcal)} kcal and ${result.proteinG} g protein a day. See it any time on You, the circle at the top right.",
+            body = "${KcalFormat.format(result.kcal)} kcal and ${result.proteinG} g protein a day. See it any time on You, the circle at the top right.",
         )
         EstimateResult.NeedsBasics -> {
             SandNote("An estimate needs your sex, birth year, height and weight. You can add them on the About you step.")

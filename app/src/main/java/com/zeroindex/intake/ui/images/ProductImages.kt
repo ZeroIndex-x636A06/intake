@@ -22,7 +22,7 @@ import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material.icons.filled.Grass
 import androidx.compose.material.icons.filled.Icecream
 import androidx.compose.material.icons.filled.LocalDrink
-import androidx.compose.material.icons.filled.LunchDining
+import androidx.compose.material.icons.filled.OutdoorGrill
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.SetMeal
 import androidx.compose.material.icons.filled.Spa
@@ -244,7 +244,7 @@ internal fun drinkIcon(category: DrinkCategory): ImageVector = when (category) {
 internal fun categoryIcon(category: FoodCategory): ImageVector = when (category) {
     FoodCategory.DAIRY -> Icons.Filled.Icecream
     FoodCategory.EGG -> Icons.Filled.Egg
-    FoodCategory.MEAT -> Icons.Filled.LunchDining
+    FoodCategory.MEAT -> Icons.Filled.OutdoorGrill  // a grill, not a burger: chili and stew are meat too
     FoodCategory.FISH -> Icons.Filled.SetMeal
     FoodCategory.FRUIT -> Icons.Filled.Eco
     FoodCategory.VEGETABLE -> Icons.Filled.Grass

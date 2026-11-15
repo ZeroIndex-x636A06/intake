@@ -211,7 +211,10 @@ fun DrinksScreen(
                 }
                 OffDrinksStatus.DONE -> section("PACKAGED DRINKS (OPEN FOOD FACTS)", search.off)
                 OffDrinksStatus.FAILED -> item(key = "off-failed") {
-                    Text("Open Food Facts could not be reached. The sources above still work.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    val above = search.mine.isNotEmpty() || search.usda.isNotEmpty()
+                    Text(
+                        if (above) "Open Food Facts could not be reached. The sources above still work." else "Open Food Facts could not be reached. Check your connection and try again.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             if (search.hasUsdaKey) {

@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.components
 
+import com.zeroindex.intake.domain.units.KcalFormat
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -178,7 +179,7 @@ fun MacroRing(
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = "%,d of %,d kcal eaten".format(progress.consumed.kcal.roundToInt(), target.kcal),
+                        text = "${KcalFormat.format(progress.consumed.kcal)} of ${KcalFormat.format(target.kcal)} kcal eaten",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

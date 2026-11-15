@@ -14,7 +14,7 @@ enum class SettingsGroup(val id: String, val title: String, val blurb: String) {
     TRAINING("training", "Training", "Rest timer, bar and plates, equipment and volume targets."),
     HEALTH("health", "Health Connect", "Which records Intake may read from and write to Health Connect."),
     FOOD_DB("fooddb", "Food database", "Where food data comes from. The USDA key is under API keys."),
-    VIDEOS("videos", "Videos", "Videos need internet and your own YouTube key (under API keys). Intake never downloads a video."),
+    VIDEOS("videos", "Videos", "Videos need internet and your own YouTube key (under API keys). Intake downloads a video only if you turn on Offline downloads and direct playback here (off by default)."),
     REMINDERS("reminders", "Reminders", "When Intake may nudge you. Nothing is sent anywhere."),
     SYNC("sync", "Sync and export", "Your own server and your own files."),
     AI("ai", "AI (optional)", "Optional. Intake works with no network, no account and no AI. AI runs only when you ask."),

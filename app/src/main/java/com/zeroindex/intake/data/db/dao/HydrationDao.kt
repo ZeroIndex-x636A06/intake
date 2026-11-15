@@ -50,6 +50,10 @@ interface HydrationDao {
     @Query("UPDATE hydration_log SET deletedAt = :now, updatedAt = :now WHERE foodLogId = :foodLogId AND deletedAt IS NULL")
     suspend fun softDeleteByFoodLog(foodLogId: String, now: Long)
 
+    /** Undo of [softDeleteByFoodLog]: brings back the drink's hydration row that was removed with its food-log row. */
+    @Query("UPDATE hydration_log SET deletedAt = NULL, updatedAt = :now WHERE foodLogId = :foodLogId AND deletedAt IS NOT NULL")
+    suspend fun restoreByFoodLog(foodLogId: String, now: Long)
+
     @Query("SELECT * FROM hydration_preset WHERE deletedAt IS NULL ORDER BY displayOrder")
     fun observePresets(): Flow<List<HydrationPresetEntity>>
 

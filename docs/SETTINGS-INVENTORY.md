@@ -141,7 +141,7 @@ Where food data comes from. The USDA key is under API keys. Licences and credits
 
 ## G. Videos
 
-Videos need internet and your own YouTube key (under API keys). Intake never downloads a video.
+Videos need internet and your own YouTube key (under API keys). Intake downloads a video only if you turn on Offline downloads and direct playback (off by default).
 
 | # | Setting | Key (code) | Group | Control | Current home | New home |
 | ---: | --- | --- | --- | --- | --- | --- |

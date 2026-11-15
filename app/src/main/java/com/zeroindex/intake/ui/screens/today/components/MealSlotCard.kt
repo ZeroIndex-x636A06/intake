@@ -66,9 +66,9 @@ fun MealSlotCard(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = modifier.fillMaxWidth(),
     ) {
-        Column(Modifier.padding(horizontal = 13.dp, vertical = 12.dp)) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 7.dp),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
@@ -92,7 +92,7 @@ fun MealSlotCard(
                     proteinGrams = slotUi.entries.sumOf { it.protein },
                     carbGrams = slotUi.entries.sumOf { it.carbs },
                     fatGrams = slotUi.entries.sumOf { it.fat },
-                    modifier = Modifier.padding(bottom = 7.dp),
+                    modifier = Modifier.padding(bottom = 4.dp),
                 )
             }
 
@@ -225,7 +225,7 @@ private fun EntryRow(entry: FoodLogEntity, onLongPress: () -> Unit) {
                 onClickLabel = "Show actions for ${entry.foodNameAtLog}",
             )
             .heightIn(min = 48.dp)
-            .padding(vertical = 4.dp),
+            .padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
