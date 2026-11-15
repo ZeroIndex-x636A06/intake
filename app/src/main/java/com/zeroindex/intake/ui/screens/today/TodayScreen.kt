@@ -54,6 +54,7 @@ import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.motion.MotionRules
 import com.zeroindex.intake.domain.onboarding.TourIds
 import com.zeroindex.intake.domain.settings.ExportReminderRule
+import com.zeroindex.intake.ui.screens.plan.PlanAllergenSheet
 import com.zeroindex.intake.ui.adaptive.LocalWindowSizeClass
 import com.zeroindex.intake.ui.adaptive.isExpanded
 import com.zeroindex.intake.ui.components.SandNote
@@ -126,6 +127,8 @@ fun TodayScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val extras by extrasViewModel.extras.collectAsStateWithLifecycle()
+    val allergenPending by extrasViewModel.allergenPending.collectAsStateWithLifecycle()
+    allergenPending?.let { PlanAllergenSheet(it, onDismiss = extrasViewModel::dismissAllergenPending, onLogAnyway = extrasViewModel::confirmAllergenPending) }
     val lastCelebrated by viewModel.lastCelebration.collectAsStateWithLifecycle()
     val ringEvents = rememberRingEvents(state, lastCelebrated, viewModel::markCelebrated)
 

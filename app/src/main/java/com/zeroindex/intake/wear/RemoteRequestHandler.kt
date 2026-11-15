@@ -80,7 +80,7 @@ class RemoteRequestHandler @Inject constructor(
             }
             RequestKind.LOG_FOOD -> logFood(request, slot, at)
             RequestKind.LOG_TEMPLATE -> {
-                when (val r = templates.log(request.templateId.orEmpty(), slot, at)) {
+                when (val r = templates.log(request.templateId.orEmpty(), slot, at, noteDespite = true)) {
                     is TemplateLogResult.Logged -> RemoteReplies.done(request.id, "Logged ${r.template.name} to ${r.slot.name.lowercase()}")
                     is TemplateLogResult.Blocked -> RemoteReplies.blocked(request.id, "a food in that meal", r.foods)
                     TemplateLogResult.NotFound -> RemoteReplies.notFound(request.id, "That meal")
@@ -129,7 +129,7 @@ class RemoteRequestHandler @Inject constructor(
         if (!content.macros.isComplete) {
             return RemoteReplies.checkOnPhone(request.id, name, "Its numbers are incomplete. Confirm them on the phone.")
         }
-        return when (val r = mealPlan.logMeal(content, slot)) {
+        return when (val r = mealPlan.logMeal(content, slot, noteDespite = true)) {
             is MealLogResult.Blocked -> RemoteReplies.blocked(request.id, name, r.terms)
             is MealLogResult.Logged -> RemoteReplies.done(
                 request.id,

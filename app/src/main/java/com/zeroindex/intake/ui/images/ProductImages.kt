@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BakeryDining
 import androidx.compose.material.icons.filled.Cookie
 import androidx.compose.material.icons.filled.Egg
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.EmojiFoodBeverage
 import androidx.compose.material.icons.filled.LocalBar
 import androidx.compose.material.icons.filled.LocalCafe
@@ -252,5 +253,6 @@ internal fun categoryIcon(category: FoodCategory): ImageVector = when (category)
     FoodCategory.SWEET -> Icons.Filled.Cookie
     FoodCategory.DRINK -> Icons.Filled.LocalDrink
     FoodCategory.NUT -> Icons.Filled.Spa
+    FoodCategory.SUPPLEMENT -> Icons.Filled.FitnessCenter
     FoodCategory.OTHER -> Icons.Filled.Restaurant
 }

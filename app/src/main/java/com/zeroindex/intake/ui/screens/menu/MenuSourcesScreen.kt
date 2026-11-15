@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.db.entity.AllergenStatus
+import com.zeroindex.intake.domain.allergen.AllergenEvidence
 import com.zeroindex.intake.ui.allergen.CheckLabelChip
 import com.zeroindex.intake.data.db.entity.MenuItemEntity
 import com.zeroindex.intake.data.db.entity.MenuRunStatus
@@ -455,7 +456,7 @@ private fun ReviewSheet(review: Review, onToggle: (Int) -> Unit, onSave: () -> U
                                 AllergenStatus.CONTAINS -> StatusPill("Allergen match · review", tone = PillTone.Bad)
                                 AllergenStatus.MAY_CONTAIN -> StatusPill("Possible match · review", tone = PillTone.Wait)
                                 AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
-                                AllergenStatus.CLEAR, AllergenStatus.MENTIONED_AVOIDED -> StatusPill("Ingredient check passed")
+                                AllergenStatus.CLEAR, AllergenStatus.MENTIONED_AVOIDED -> StatusPill(AllergenEvidence.ClearBasis.LABEL_READ.chipText)
                                 AllergenStatus.UNKNOWN -> StatusPill("No ingredients listed", tone = PillTone.Wait)
                             }
                         }

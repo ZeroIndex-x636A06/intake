@@ -1064,6 +1064,9 @@ class TrainingRepository @Inject constructor(
     /** Brings an archived program back (as an inactive program). */
     suspend fun restoreProgram(id: String) = programDao.restoreProgram(id, clock.nowMillis())
 
+    /** True when the person has ever started a workout session (deleted ones count): the Train tip is first-run only. */
+    suspend fun hasAnySession(): Boolean = workoutDao.hasAnySession()
+
     /** Finished sessions with totals, newest first, for Recent sessions. */
     fun observeSessionStats(limit: Int): Flow<List<SessionStat>> = workoutDao.observeSessionStats(limit)
 

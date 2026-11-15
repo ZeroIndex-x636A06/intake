@@ -95,6 +95,7 @@ fun WorkoutSection(
     viewModel: TrainHomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val hasHistory by viewModel.hasHistory.collectAsStateWithLifecycle()
     var programSheet by remember { mutableStateOf(false) }
     var workoutSheet by remember { mutableStateOf(false) }
     var openRegion by remember { mutableStateOf<BodyRegion?>(null) }
@@ -112,6 +113,7 @@ fun WorkoutSection(
                 body = "Start today's workout, or train without a plan. Programs, where you build or change one, is one tap away.",
                 actionLabel = "Make me a program",
                 onAction = actions.onOpenGenerator,
+                hasHistory = hasHistory,
             )
         }
 

@@ -70,7 +70,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nutrition.MealTotals
-import com.zeroindex.intake.ui.allergen.AllergenChip
 import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.MacroSplitBar
 import com.zeroindex.intake.ui.screens.today.LogEntryActionsSheet
@@ -382,7 +381,7 @@ private fun MealItemRow(
                     }
                 }
                 item.allergen?.let { verdict ->
-                    Box(Modifier.padding(top = 4.dp)) { AllergenChip(verdict, item.allergenDetail, showClear = false) }
+                    Box(Modifier.padding(top = 4.dp)) { com.zeroindex.intake.ui.addfood.RowAllergenChip(com.zeroindex.intake.ui.addfood.RowAllergen(verdict, item.allergenDetail, traceLabel = item.allergenTrace)) }
                 }
                 HorizontalDivider(Modifier.padding(top = 8.dp), color = MaterialTheme.colorScheme.outlineVariant)
             }

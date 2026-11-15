@@ -29,6 +29,7 @@ import com.zeroindex.intake.domain.units.PortionUnit
 import com.zeroindex.intake.ui.AppMessage
 import com.zeroindex.intake.ui.AppMessages
 import com.zeroindex.intake.ui.allergen.chipDetail
+import com.zeroindex.intake.ui.allergen.traceChipLabel
 import com.zeroindex.intake.ui.allergen.verdict
 import com.zeroindex.intake.ui.navigation.Route
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -57,6 +58,8 @@ data class MealItemUi(
     /** Set only when the local allergen check found something (Contains, May contain, Check the label). */
     val allergen: SwapAllergen? = null,
     val allergenDetail: String? = null,
+    /** "May contain milk (trace)" when the whole verdict is a label's trace line (same words as Log food). */
+    val allergenTrace: String? = null,
 )
 
 data class MealUi(
@@ -141,6 +144,7 @@ class NutritionMealViewModel @Inject constructor(
             canStep = grams != null && grams > 0,
             allergen = verdict?.takeIf { it != SwapAllergen.CLEAR },
             allergenDetail = scan?.chipDetail(),
+            allergenTrace = scan?.traceChipLabel(),
         )
     }
 

@@ -82,6 +82,7 @@ fun ProgressScreen(
     viewModel: ProgressViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val hasHistory by viewModel.hasHistory.collectAsStateWithLifecycle()
     if (LocalWindowSizeClass.current.isExpanded) {
         // Amendment §3, mockup `tabletProgress()`: heading and range selector
         // span the top; weight and adherence sit on the left, intake and the
@@ -108,6 +109,7 @@ fun ProgressScreen(
                 body = com.zeroindex.intake.ui.onboarding.TabTipCopy.PROGRESS,
                 actionLabel = "Log weight",
                 onAction = onAddMeasurement,
+                hasHistory = hasHistory,
             )
             Row(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -161,6 +163,7 @@ fun ProgressScreen(
                     body = com.zeroindex.intake.ui.onboarding.TabTipCopy.PROGRESS,
                     actionLabel = "Log weight",
                     onAction = onAddMeasurement,
+                    hasHistory = hasHistory,
                 )
             }
             // The one obvious action on this screen.

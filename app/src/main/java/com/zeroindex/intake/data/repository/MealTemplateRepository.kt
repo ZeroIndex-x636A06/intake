@@ -243,7 +243,7 @@ class MealTemplateRepository @Inject constructor(
      * Every food is re-checked against the allergen profile as it is now. A
      * template saved before an allergen was added must not log silently.
      */
-    suspend fun log(templateId: String, slot: MealSlot? = null, at: Long = clock.nowMillis(), allergenOverride: Boolean = false): TemplateLogResult {
+    suspend fun log(templateId: String, slot: MealSlot? = null, at: Long = clock.nowMillis(), allergenOverride: Boolean = false, noteDespite: Boolean = false): TemplateLogResult {
         val template = templateDao.all().firstOrNull { it.id == templateId } ?: return TemplateLogResult.NotFound
         val items = summary(template).items
         if (items.isEmpty()) return TemplateLogResult.NotFound
@@ -253,7 +253,16 @@ class MealTemplateRepository @Inject constructor(
         if (blocked.isNotEmpty() && !allergenOverride) return TemplateLogResult.Blocked(template, blocked)
 
         val target = slot ?: TemplateLink.slotFor(Instant.ofEpochMilli(at).atZone(clock.zone()).toLocalTime())
-        val logs = items.map { (food, grams) -> foodLog.logFood(food, grams, target, at) }
+        // A food that matches an allergen but was not blocked (may contain) keeps "Logged despite: ..." when [noteDespite].
+        val logs = items.mapIndexed { i, (food, grams) ->
+            val entry = foodLog.logFood(food, grams, target, at)
+            val scan = scans[i].second
+            if (noteDespite && scan.hasAnything) {
+                foodLog.markOverridden(entry, com.zeroindex.intake.domain.allergen.AllergenOverride.noteFor(scan))
+            } else {
+                entry
+            }
+        }
         templateDao.upsertTemplate(template.copy(lastLoggedAt = at, updatedAt = clock.nowMillis()))
         return TemplateLogResult.Logged(template, target, logs, com.zeroindex.intake.domain.allergen.TemplateAllergens.logNote(scans))
     }

@@ -137,6 +137,7 @@ fun PlanScreen(
     val hidden by viewModel.hiddenEatOutCount.collectAsStateWithLifecycle()
     val showingAll by viewModel.showingAllEatOut.collectAsStateWithLifecycle()
     val pending by viewModel.pending.collectAsStateWithLifecycle()
+    val allergenPending by viewModel.allergenPending.collectAsStateWithLifecycle()
     val importState by viewModel.importState.collectAsStateWithLifecycle()
     val notice by viewModel.notice.collectAsStateWithLifecycle()
     val checkTerms by viewModel.checkLabelTerms.collectAsStateWithLifecycle()
@@ -446,6 +447,9 @@ fun PlanScreen(
             onOpenSwap = { parking = false; onOpenSwap() },
             onDismiss = { parking = false },
         )
+    }
+    allergenPending?.let { p ->
+        PlanAllergenSheet(p, onDismiss = viewModel::dismissAllergenPending, onLogAnyway = viewModel::confirmAllergenPending)
     }
     pending?.let { p ->
         when (p) {
