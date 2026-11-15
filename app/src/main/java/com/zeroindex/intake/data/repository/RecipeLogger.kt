@@ -44,6 +44,8 @@ class RecipeLogger @Inject constructor(
         estimate: EstimateTotals? = null,
         servings: Double = 1.0,
         at: Long = clock.nowMillis(),
+        /** "Logged despite: ..." when the person tapped "Log it anyway" on the allergen sheet; kept on the entry. */
+        overrideNote: String? = null,
     ): FoodLogEntity? {
         val n = ResolvedRecipeNutrition.resolve(
             kcal = recipe.kcalPerServing, protein = recipe.proteinPerServing, carbs = recipe.carbsPerServing, fat = recipe.fatPerServing,
@@ -64,7 +66,7 @@ class RecipeLogger @Inject constructor(
             saturatedFat = n.saturatedFat?.value ?: 0.0,
         )
         val count = if (servings == 1.0) "1 serving" else "${servings.toString().removeSuffix(".0")} servings"
-        return foodLog.logPrepared(
+        val prepared = foodLog.logPrepared(
             name = recipe.name,
             macros = perServing * servings,
             slot = slot,
@@ -72,5 +74,6 @@ class RecipeLogger @Inject constructor(
             at = at,
             unknownMacros = n.unknownMacros,
         )
+        return if (overrideNote != null) foodLog.markOverridden(prepared, overrideNote) else prepared
     }
 }

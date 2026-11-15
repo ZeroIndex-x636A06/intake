@@ -55,17 +55,29 @@ object FoodRefSearch {
 
     /**
      * Ranking tiers, best first:
-     *  0. every token starts a word and the name begins with the first token ("apple" -> "Apples, raw");
-     *  1. every token starts a word somewhere in the name ("raw apple" -> "Apples, raw");
-     *  2. at least one token only matches inside a word ("ple" -> "Apples").
+     *  0. a multi-word query that appears as a phrase: the words sit next to each other in the name, in the query's
+     *     order, each starting a word ("almond milk" -> "Beverages, almond milk, unsweetened", ahead of
+     *     "Candies, milk chocolate, with almonds"). One word has no phrase, so it starts at tier 1;
+     *  1. every token starts a word and the name begins with the first token ("apple" -> "Apples, raw");
+     *  2. every token starts a word somewhere in the name ("raw apple" -> "Apples, raw");
+     *  3. at least one token only matches inside a word ("ple" -> "Apples").
      * Ties go to the shorter name, then alphabetical order.
      */
     fun tier(name: String, tokens: List<String>): Int {
-        if (tokens.isEmpty()) return 2
+        if (tokens.isEmpty()) return 3
         val words = tokenize(name)
         val allWordStart = tokens.all { token -> words.any { it.startsWith(token) } }
-        if (!allWordStart) return 2
-        return if (words.firstOrNull()?.startsWith(tokens.first()) == true) 0 else 1
+        if (!allWordStart) return 3
+        if (tokens.size >= 2 && hasPhrase(words, tokens)) return 0
+        return if (words.firstOrNull()?.startsWith(tokens.first()) == true) 1 else 2
+    }
+
+    /** True when [tokens] start [words] that are next to each other and in the same order. */
+    private fun hasPhrase(words: List<String>, tokens: List<String>): Boolean {
+        for (start in 0..words.size - tokens.size) {
+            if (tokens.indices.all { words[start + it].startsWith(tokens[it]) }) return true
+        }
+        return false
     }
 
     fun rank(query: String, candidates: List<RefFoodEntity>, limit: Int = RESULT_LIMIT): List<RefFoodEntity> {

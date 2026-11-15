@@ -237,8 +237,9 @@ class SwapRepository @Inject constructor(
                 is MealLogResult.Blocked -> SwapLogResult.Blocked("Contains ${r.terms.joinToString()}")
                 is MealLogResult.Logged -> logged(listOf(r.log)) { plans.undoLog(r.log) }
             }
-            is SwapSource.Template -> when (val r = templates.log(src.templateId, slot, allergenOverride = overriding)) {
+            is SwapSource.Template -> when (val r = templates.log(src.templateId, slot, allergenOverride = overriding, requireReview = false)) {
                 is TemplateLogResult.Blocked -> SwapLogResult.Blocked("Contains ${r.foods.joinToString()}")
+                is TemplateLogResult.NeedsReview -> SwapLogResult.Blocked("May contain something you avoid: ${r.foods.joinToString()}")
                 TemplateLogResult.NotFound -> SwapLogResult.Blocked("That saved meal is empty or gone")
                 is TemplateLogResult.Logged -> logged(r.logs) { templates.undo(r.logs) }
             }

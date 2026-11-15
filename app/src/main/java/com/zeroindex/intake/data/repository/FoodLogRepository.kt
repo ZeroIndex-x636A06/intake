@@ -210,9 +210,11 @@ class FoodLogRepository @Inject constructor(
     }
 
     /** SPEC §5: swipe to copy an entry into another slot. */
-    suspend fun copyToSlot(log: FoodLogEntity, slot: MealSlot) {
+    suspend fun copyToSlot(log: FoodLogEntity, slot: MealSlot): FoodLogEntity {
         val now = clock.nowMillis()
-        foodLogDao.upsert(log.copy(id = newId(), mealSlot = slot, createdAt = now, updatedAt = now))
+        val copy = log.copy(id = newId(), mealSlot = slot, createdAt = now, updatedAt = now)
+        foodLogDao.upsert(copy)
+        return copy
     }
 
     suspend fun moveToSlot(log: FoodLogEntity, slot: MealSlot) {

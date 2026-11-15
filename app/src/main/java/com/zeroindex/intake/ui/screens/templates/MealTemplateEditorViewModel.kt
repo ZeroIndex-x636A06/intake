@@ -35,6 +35,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -84,6 +86,7 @@ class MealTemplateEditorViewModel @Inject constructor(
     private val foodRef: FoodRefRepository,
     private val recipeDao: RecipeDao,
     private val foodLogDao: FoodLogDao,
+    private val allergens: com.zeroindex.intake.data.repository.AllergenRepository,
     settings: SettingsRepository,
 ) : ViewModel() {
 
@@ -96,6 +99,25 @@ class MealTemplateEditorViewModel @Inject constructor(
 
     val state: StateFlow<EditorUi> = combine(ui, unit) { u, p -> u.copy(unit = p) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), EditorUi())
+
+    /**
+     * The allergen chip for each food in the template, by food id, from the local engine (the same scan the list and
+     * the log use). Re-read when a food is added or removed or the person's allergens change. Empty when the person
+     * avoids nothing. A clear result keeps its basis: a food with no ingredient text is "only the name was checked".
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val chips: StateFlow<Map<String, com.zeroindex.intake.ui.addfood.RowAllergen>> = combine(
+        ui.map { s -> s.items.map { it.foodId }.distinct() }.distinctUntilChanged(),
+        allergens.observeAvoidedAllergens(),
+        allergens.observeAliases(),
+    ) { ids, _, _ -> ids }.mapLatest { ids ->
+        if (ids.isEmpty() || allergens.avoidedAllergens().isEmpty()) {
+            emptyMap()
+        } else {
+            val scan = allergens.foodScanner()
+            ids.mapNotNull { id -> foods.findById(id) }.associate { f -> f.id to com.zeroindex.intake.ui.addfood.rowAllergenOf(f, scan(f)) }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     private val query = MutableStateFlow("")
     fun setQuery(text: String) { query.value = text }

@@ -126,6 +126,7 @@ fun TodayScreen(
     extrasViewModel: TodayExtrasViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val pendingCopy by viewModel.pendingCopy.collectAsStateWithLifecycle()
     val extras by extrasViewModel.extras.collectAsStateWithLifecycle()
     val allergenPending by extrasViewModel.allergenPending.collectAsStateWithLifecycle()
     allergenPending?.let { PlanAllergenSheet(it, onDismiss = extrasViewModel::dismissAllergenPending, onLogAnyway = extrasViewModel::confirmAllergenPending) }
@@ -197,6 +198,14 @@ fun TodayScreen(
             onQuantityChange = { grams -> viewModel.updateQuantity(entry, grams); actionsFor = null },
             onMoveToSlot = { slot -> viewModel.moveLogToSlot(entry, slot); actionsFor = null },
             onCopyToSlot = { slot -> viewModel.copyLogToSlot(entry, slot); actionsFor = null },
+        )
+    }
+
+    pendingCopy?.let { p ->
+        com.zeroindex.intake.ui.allergen.PendingEntryAllergenSheet(
+            pending = p,
+            onDismiss = viewModel::dismissPendingCopy,
+            onLogAnyway = viewModel::confirmPendingCopy,
         )
     }
 

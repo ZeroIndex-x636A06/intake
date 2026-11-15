@@ -257,7 +257,7 @@ fun RecipeEditorScreen(
         }
 
         MacroSummary(macros, servings, state.carried)
-        AllergenChips(state.scan)
+        AllergenChips(state.scan, ingredientLineCount = state.ingredients.size)
 
         OutlinedTextField(
             state.stepsText, viewModel::setSteps,
@@ -350,12 +350,20 @@ internal fun MacroSummary(
 
 /** The local engine's verdict for the ingredients, as chips. Never softened by anything on the page. */
 @Composable
-internal fun AllergenChips(scan: AllergenScanResult) {
+internal fun AllergenChips(scan: AllergenScanResult, ingredientLineCount: Int = 1) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         when {
             scan.contains.isNotEmpty() -> StatusPill("Contains ${scan.contains.map { it.matchedTerm }.distinct().joinToString()}", tone = PillTone.Bad)
             scan.mayContain.isNotEmpty() -> StatusPill("May contain ${scan.mayContain.map { it.matchedTerm }.distinct().joinToString()}", tone = PillTone.Wait)
-            scan.checkLabel.isEmpty() -> StatusPill("Passed allergen check")
+            // Nothing with no ingredient data reads as passed: an empty recipe says only the name was checked.
+            scan.checkLabel.isEmpty() -> {
+                val basis = com.zeroindex.intake.domain.allergen.AllergenEvidence.recipeClearBasis(ingredientLineCount)
+                if (basis.isCaution) {
+                    com.zeroindex.intake.ui.allergen.AllergenChip(com.zeroindex.intake.domain.swap.SwapAllergen.CHECK_LABEL, label = basis.chipText)
+                } else {
+                    StatusPill("Passed allergen check")
+                }
+            }
         }
         scan.checkLabel.distinctBy { it.matchedTerm }.take(6).forEach { CheckLabelChip(it.reason) }
         if (scan.contains.isNotEmpty() || scan.mayContain.isNotEmpty()) {

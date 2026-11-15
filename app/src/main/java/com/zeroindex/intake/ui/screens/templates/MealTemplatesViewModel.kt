@@ -30,10 +30,18 @@ sealed interface WriteState {
     data class Done(val result: TagWriteResult) : WriteState
 }
 
+/** A template that matches the person's allergens, waiting on the warning sheet. Nothing is logged until "Log it anyway". */
+data class PendingTemplateLog(
+    val summary: TemplateSummary,
+    val slot: MealSlot,
+    val check: com.zeroindex.intake.data.repository.TemplateCheck,
+)
+
 data class TemplatesUiState(
     val writingFor: TemplateSummary? = null,
     val write: WriteState = WriteState.Waiting,
     val message: String? = null,
+    val pending: PendingTemplateLog? = null,
 )
 
 @HiltViewModel
@@ -92,11 +100,36 @@ class MealTemplatesViewModel @Inject constructor(
         }
     }
 
+    /**
+     * "Log now": the template is scanned first (every food, as the profile is now). A CONTAINS or MAY CONTAIN match goes
+     * to the standard warning sheet with "Log it anyway", never to a dead-end message.
+     */
     fun logNow(t: TemplateSummary, slot: MealSlot) = viewModelScope.launch {
-        val message = when (val r = repository.log(t.template.id, slot)) {
+        val check = repository.checkOf(t.template.id)
+        if (check != null && com.zeroindex.intake.domain.allergen.AllergenLogGate.decide(check.scan)
+            is com.zeroindex.intake.domain.allergen.AllergenLogGate.Decision.Review
+        ) {
+            _state.update { it.copy(pending = PendingTemplateLog(t, slot, check), message = null) }
+            return@launch
+        }
+        logChecked(t, slot, confirmed = false)
+    }
+
+    /** "Log it anyway": logs every food and keeps "Logged despite: ..." on each flagged entry. */
+    fun confirmPending() = viewModelScope.launch {
+        val p = _state.value.pending ?: return@launch
+        _state.update { it.copy(pending = null) }
+        logChecked(p.summary, p.slot, confirmed = true)
+    }
+
+    fun dismissPending() = _state.update { it.copy(pending = null) }
+
+    private suspend fun logChecked(t: TemplateSummary, slot: MealSlot, confirmed: Boolean) {
+        val message = when (val r = repository.log(t.template.id, slot, allergenOverride = confirmed, noteDespite = confirmed)) {
             is TemplateLogResult.Logged -> "Logged ${t.template.name} to ${slot.name.lowercase()}" +
                 (r.allergenNote?.let { ". $it" } ?: "")
             is TemplateLogResult.Blocked -> "Not logged: ${r.foods.joinToString()} now matches your allergen profile"
+            is TemplateLogResult.NeedsReview -> "Not logged: ${r.foods.joinToString()} may contain something you avoid."
             TemplateLogResult.NotFound -> "That meal is empty."
         }
         _state.update { it.copy(message = message) }

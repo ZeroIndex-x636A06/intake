@@ -89,6 +89,7 @@ fun RecipeDetailScreen(
 ) {
     val recipes by viewModel.recipes.collectAsStateWithLifecycle()
     val notice by viewModel.notice.collectAsStateWithLifecycle()
+    val pendingServing by viewModel.pendingLog.collectAsStateWithLifecycle()
     val recipe = recipes.firstOrNull { it.id == recipeId } ?: return
     val view by remember(recipeId) { viewModel.viewOf(recipeId) }.collectAsStateWithLifecycle(null)
     val estimate by remember(recipeId) { viewModel.estimateOf(recipeId) }.collectAsStateWithLifecycle(null)
@@ -202,7 +203,16 @@ fun RecipeDetailScreen(
                         AllergenStatus.MAY_CONTAIN -> StatusPill("Check allergens", tone = PillTone.Wait)
                         AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
                         AllergenStatus.CONTAINS -> StatusPill("Contains an allergen", tone = PillTone.Bad)
-                        AllergenStatus.CLEAR -> StatusPill("Passed allergen check")
+                        AllergenStatus.CLEAR -> {
+                            val basis = com.zeroindex.intake.domain.allergen.AllergenEvidence.recipeClearBasis(
+                                if (ingredients.isEmpty() && recipe.ingredientsText.isBlank()) 0 else 1,
+                            )
+                            if (basis.isCaution) {
+                                com.zeroindex.intake.ui.allergen.AllergenChip(com.zeroindex.intake.domain.swap.SwapAllergen.CHECK_LABEL, label = basis.chipText)
+                            } else {
+                                StatusPill("Passed allergen check")
+                            }
+                        }
                         AllergenStatus.MENTIONED_AVOIDED -> StatusPill(MentionedAvoided.PILL)
                         else -> StatusPill("Allergens not checked", tone = PillTone.Wait)
                     }
@@ -304,7 +314,17 @@ fun RecipeDetailScreen(
         SlotPickerSheet(
             title = "Log a serving to",
             onDismiss = { picking = false },
-            onPick = { slot -> viewModel.logServing(recipe, slot, estimate) { logged = true; picking = false } },
+            onPick = { slot -> picking = false; viewModel.logServing(recipe, slot, estimate) { logged = true } },
+        )
+    }
+
+    pendingServing?.let { p ->
+        com.zeroindex.intake.ui.allergen.AllergenWarningSheet(
+            foodName = p.pending.name,
+            scan = p.pending.scan,
+            ingredientText = p.pending.ingredientText,
+            onDismiss = viewModel::dismissPendingServing,
+            onLogAnyway = { viewModel.confirmPendingServing { logged = true } },
         )
     }
 

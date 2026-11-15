@@ -30,6 +30,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
@@ -78,6 +79,7 @@ internal fun MealSlot.displayName(): String = when (this) {
 @HiltViewModel
 class TodayViewModel @Inject constructor(
     private val foodLogRepository: FoodLogRepository,
+    private val allergens: com.zeroindex.intake.data.repository.AllergenRepository,
     private val targetRepository: TargetRepository,
     private val hydrationRepository: HydrationRepository,
     private val settingsRepository: SettingsRepository,
@@ -188,9 +190,42 @@ class TodayViewModel @Inject constructor(
         messages.post(AppMessage("Removed ${log.foodNameAtLog}", "Undo") { foodLogRepository.restore(listOf(log)) })
     }
 
+    private val _pendingCopy = MutableStateFlow<com.zeroindex.intake.ui.allergen.PendingEntryAllergen?>(null)
+    val pendingCopy: StateFlow<com.zeroindex.intake.ui.allergen.PendingEntryAllergen?> = _pendingCopy.asStateFlow()
+
+    /**
+     * Copies an entry to another meal. The name is scanned as the profile is now (an entry that already says "Logged
+     * despite" was chosen before and keeps that note), and a match waits behind the warning sheet.
+     */
     fun copyLogToSlot(log: FoodLogEntity, slot: MealSlot) = viewModelScope.launch {
-        foodLogRepository.copyToSlot(log, slot)
+        val scan = if (com.zeroindex.intake.domain.allergen.AllergenOverride.alreadyNoted(log.foodNameAtLog)) {
+            com.zeroindex.intake.domain.allergen.AllergenScanResult.CLEAN
+        } else {
+            allergens.scan(name = log.foodNameAtLog)
+        }
+        if (com.zeroindex.intake.domain.allergen.AllergenLogGate.decide(scan) is com.zeroindex.intake.domain.allergen.AllergenLogGate.Decision.Review) {
+            _pendingCopy.value = com.zeroindex.intake.ui.allergen.PendingEntryAllergen(
+                com.zeroindex.intake.ui.allergen.PendingEntryAllergen.Action.Copy(log, slot), log.foodNameAtLog, scan,
+            )
+        } else {
+            foodLogRepository.copyToSlot(log, slot)
+        }
     }
+
+    /** "Log it anyway" on the warning sheet. */
+    fun confirmPendingCopy() {
+        val p = _pendingCopy.value ?: return
+        _pendingCopy.value = null
+        val a = p.action as? com.zeroindex.intake.ui.allergen.PendingEntryAllergen.Action.Copy ?: return
+        viewModelScope.launch {
+            foodLogRepository.markOverridden(
+                foodLogRepository.copyToSlot(a.entry, a.slot),
+                com.zeroindex.intake.domain.allergen.AllergenLogGate.overrideNote(p.scan),
+            )
+        }
+    }
+
+    fun dismissPendingCopy() { _pendingCopy.value = null }
 
     fun moveLogToSlot(log: FoodLogEntity, slot: MealSlot) = viewModelScope.launch {
         foodLogRepository.moveToSlot(log, slot)

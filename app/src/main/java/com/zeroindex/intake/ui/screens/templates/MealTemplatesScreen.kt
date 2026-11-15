@@ -150,6 +150,15 @@ fun MealTemplatesScreen(
             onPick = { slot -> viewModel.logNow(t, slot); logging = null },
         )
     }
+    state.pending?.let { p ->
+        com.zeroindex.intake.ui.allergen.AllergenWarningSheet(
+            foodName = p.summary.template.name,
+            scan = p.check.scan,
+            ingredientText = p.check.allFoods.joinToString(", "),
+            onDismiss = viewModel::dismissPending,
+            onLogAnyway = viewModel::confirmPending,
+        )
+    }
     deleting?.let { t ->
         AlertDialog(
             onDismissRequest = { deleting = null },

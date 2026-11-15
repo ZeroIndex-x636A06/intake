@@ -512,6 +512,13 @@ private fun SearchTab(
         }
         // Sources in order: this phone, the offline USDA database, Open Food Facts, the USDA API.
         LazyColumn(state = resultsState, modifier = Modifier.fillMaxSize()) {
+            // The same words also find drinks (almond milk is a drink here, not a food): a row at the top, before the
+            // foods that only share a word with them, opens Drinks on the same search.
+            if (state.queryMatchesDrinks && !nothingYet) {
+                item(key = "drinks-top") {
+                    DrinksRow("Drinks matching \"${query.trim()}\" are logged from Drinks", title = "Drinks: ${query.trim()}") { onOpenDrinks(query.trim()) }
+                }
+            }
             if (state.localResults.isNotEmpty()) {
                 item(key = "h-local") { SourceHeader("My foods and recents") }
                 items(items = state.localResults, key = { "l-${it.id}" }) { food ->
@@ -641,7 +648,7 @@ private fun SearchTab(
 
 /** "Log a drink", at the foot of Search (the frame's last row): the way across to the Drinks page and its search. */
 @Composable
-private fun DrinksRow(note: String, onOpenDrinks: () -> Unit) {
+private fun DrinksRow(note: String, title: String = "Log a drink", onOpenDrinks: () -> Unit) {
     Surface(
         onClick = onOpenDrinks,
         color = MaterialTheme.colorScheme.surface,
@@ -654,7 +661,7 @@ private fun DrinksRow(note: String, onOpenDrinks: () -> Unit) {
                 Box(contentAlignment = Alignment.Center) { Icon(Icons.Filled.WaterDrop, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer) }
             }
             Column(Modifier.weight(1f)) {
-                Text("Log a drink", style = MaterialTheme.typography.titleMedium)
+                Text(title, style = MaterialTheme.typography.titleMedium)
                 Text(note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
