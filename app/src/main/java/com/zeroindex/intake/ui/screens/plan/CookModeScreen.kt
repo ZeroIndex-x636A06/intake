@@ -28,7 +28,11 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -221,6 +225,7 @@ fun CookModeScreen(
                 pickedSlot = slot
                 viewModel.requestLog(slot, onClose)
             },
+            slots = MealSlot.MEALS,
         )
     }
     pending?.let { p ->
@@ -290,11 +295,11 @@ private fun CookPager(
 
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedButton(
+            // Same size as the servings controls beside the checklist: a close control, not a large button.
+            IconButton(
                 onClick = onClose,
-                shape = IntakeShape.Button,
-                modifier = Modifier.size(72.dp).semantics { contentDescription = "Close cook mode" },
-            ) { Text("×", fontSize = 28.sp) }
+                modifier = Modifier.size(48.dp).semantics { contentDescription = "Close cook mode" },
+            ) { Icon(Icons.Filled.Close, contentDescription = null) }
             Spacer(Modifier.weight(1f))
             Column(horizontalAlignment = Alignment.End) {
                 Eyebrow("Step ${pager.currentPage + 1} of ${steps.size}")
@@ -338,18 +343,22 @@ private fun CookPager(
                         onCancel = { CookTimerService.cancel(context, id) },
                     )
                 }
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "Swipe left or right to move between steps",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                if (steps.size > 1) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Swipe left or right to move between steps",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
 
         Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            BigButton("←", { scope.launch { pager.animateScrollToPage((pager.currentPage - 1).coerceAtLeast(0)) } },
-                Modifier.size(width = 88.dp, height = 72.dp), description = "Previous step")
+            if (steps.size > 1) {
+                BigButton("←", { scope.launch { pager.animateScrollToPage((pager.currentPage - 1).coerceAtLeast(0)) } },
+                    Modifier.size(width = 88.dp, height = 72.dp), description = "Previous step")
+            }
             if (pager.currentPage == steps.lastIndex) {
                 BigButton("Done cooking", onFinished, Modifier.weight(1f), primary = true)
             } else {
@@ -401,8 +410,9 @@ private fun Checklist(
             TextButton(onClick = { onOpen(!open) }, modifier = Modifier.heightIn(min = 48.dp)) { Text(if (open) "Hide" else "Show") }
         }
         if (open) {
+            val listScroll = rememberScrollState()
             Column(
-                Modifier.fillMaxWidth().heightIn(max = 220.dp).verticalScroll(rememberScrollState()),
+                Modifier.fillMaxWidth().heightIn(max = 220.dp).verticalScroll(listScroll),
             ) {
                 // Group headers stay, so "butter" under the chicken and "butter" under the sauce are not confused.
                 IngredientSections.of(ingredients) { it.group }.forEach { section ->
@@ -430,6 +440,15 @@ private fun Checklist(
                         }
                     }
                 }
+            }
+            // The list is cut off at its height: say so while there is more below, so no row looks like the last one.
+            if (listScroll.canScrollForward) {
+                Text(
+                    "More ingredients below",
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
             }
         }
     }

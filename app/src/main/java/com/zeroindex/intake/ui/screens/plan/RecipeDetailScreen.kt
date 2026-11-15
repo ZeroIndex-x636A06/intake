@@ -36,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,11 +51,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.db.entity.AllergenStatus
 import com.zeroindex.intake.data.repository.IngredientView
+import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.recipe.IngredientSections
 import com.zeroindex.intake.domain.recipe.LineAllergenTag
 import com.zeroindex.intake.domain.recipe.RecipeNutritionLabels
 import com.zeroindex.intake.domain.recipe.ResolvedRecipeNutrition
 import com.zeroindex.intake.domain.recipe.RecipeTimes
+import com.zeroindex.intake.domain.recipe.ServingsStep
 import com.zeroindex.intake.ui.allergen.CheckLabelChip
 import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.MacroTiles
@@ -96,6 +99,8 @@ fun RecipeDetailScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var picking by remember { mutableStateOf(false) }
+    // Servings to log, in half steps; the recipe's own amount is one serving.
+    var servings by rememberSaveable(recipeId) { mutableStateOf(1.0) }
     var logged by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
@@ -196,7 +201,7 @@ fun RecipeDetailScreen(
                             highlight = !highlight
                             if (highlight) scope.launch { firstFlagged.bringIntoView() }
                         }
-                        .semantics { if (flagged > 0) contentDescription = "Show the $flagged flagged ingredient lines" },
+                        .semantics { if (flagged > 0) contentDescription = flaggedLinesDescription(flagged) },
                 ) {
                     when (recipe.allergenStatus) {
                         AllergenStatus.MAY_CONTAIN -> StatusPill("Check allergens", tone = PillTone.Wait)
@@ -272,6 +277,10 @@ fun RecipeDetailScreen(
             }
         }
         Spacer(Modifier.height(6.dp))
+        ServingsStepper(
+            servings = servings,
+            onChange = { up -> servings = ServingsStep.next(servings, up) },
+        )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (recipe.instructions.isNotBlank()) {
                 OutlinedButton(
@@ -285,7 +294,16 @@ fun RecipeDetailScreen(
                 enabled = nutrition.kcal != null,
                 shape = IntakeShape.Button,
                 modifier = Modifier.weight(if (recipe.instructions.isNotBlank()) 2f else 1f).height(52.dp),
-            ) { Text(if (logged) "Logged · log another" else "Log a serving") }
+            ) {
+                Text(
+                    when {
+                        logged && servings == 1.0 -> "Logged · log another"
+                        logged -> "Logged · log ${ServingsStep.label(servings)}"
+                        servings == 1.0 -> "Log a serving"
+                        else -> "Log ${ServingsStep.label(servings)}"
+                    },
+                )
+            }
         }
         if (nutrition.kcal == null) {
             // The button is off for a reason the person can fix: say what is missing and where to add it.
@@ -302,9 +320,10 @@ fun RecipeDetailScreen(
 
     if (picking) {
         SlotPickerSheet(
-            title = "Log a serving to",
+            title = "Log ${ServingsStep.label(servings)} to",
             onDismiss = { picking = false },
-            onPick = { slot -> viewModel.logServing(recipe, slot, estimate) { logged = true; picking = false } },
+            onPick = { slot -> viewModel.logServing(recipe, slot, estimate, servings) { logged = true; picking = false } },
+            slots = MealSlot.MEALS,
         )
     }
 
@@ -326,6 +345,36 @@ fun RecipeDetailScreen(
         )
     }
 }
+
+/** The servings to log, with − and + in half steps. Same look as the checklist's stepper in cook mode. */
+@Composable
+private fun ServingsStepper(servings: Double, onChange: (up: Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text("Servings to log", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+        OutlinedButton(
+            onClick = { onChange(false) },
+            enabled = servings > ServingsStep.MIN,
+            shape = IntakeShape.Button,
+            contentPadding = PaddingValues(0.dp),
+            modifier = Modifier.size(48.dp).semantics { contentDescription = "Fewer servings to log" },
+        ) { Text("−", style = MaterialTheme.typography.titleMedium) }
+        Text(
+            ServingsStep.label(servings),
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(horizontal = 10.dp),
+        )
+        OutlinedButton(
+            onClick = { onChange(true) },
+            shape = IntakeShape.Button,
+            contentPadding = PaddingValues(0.dp),
+            modifier = Modifier.size(48.dp).semantics { contentDescription = "More servings to log" },
+        ) { Text("+", style = MaterialTheme.typography.titleMedium) }
+    }
+}
+
+/** The chip's spoken label for the flagged ingredient lines, singular for one. */
+internal fun flaggedLinesDescription(count: Int): String =
+    "Show the $count flagged ${if (count == 1) "ingredient line" else "ingredient lines"}"
 
 /** "heavy whipping cream · contains dairy": the line, then a small tag when the allergen engine flagged it. */
 @Composable

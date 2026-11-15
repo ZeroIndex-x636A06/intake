@@ -222,7 +222,7 @@ fun RecipeImportScreen(
         modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(contentPadding).padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        SubHead("Import from a link", "Paste a recipe page. Intake reads the recipe data on the page, with no AI.")
+        SubHead("Recipe link", "Paste a recipe link. Intake reads the recipe data on that page, with no AI.")
         OutlinedTextField(
             url, viewModel::setUrl, label = { Text("Recipe web address") }, singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),

@@ -20,6 +20,9 @@ import com.zeroindex.intake.data.repository.RecipeRepository
 import com.zeroindex.intake.data.repository.RecipeView
 import com.zeroindex.intake.data.recipe.RecipeNutritionEstimator
 import com.zeroindex.intake.domain.recipe.RecipeEstimate
+import com.zeroindex.intake.domain.recipe.ServingsStep
+import com.zeroindex.intake.ui.AppMessage
+import com.zeroindex.intake.ui.AppMessages
 import com.zeroindex.intake.domain.recipe.ReferenceFood
 import com.zeroindex.intake.domain.ai.RecipeQuery
 import com.zeroindex.intake.domain.model.MealSlot
@@ -51,6 +54,7 @@ class RecipeLibraryViewModel @Inject constructor(
     private val recipeRepo: RecipeRepository,
     private val estimator: RecipeNutritionEstimator,
     private val allergens: AllergenRepository,
+    private val messages: AppMessages,
     private val clock: Clock,
 ) : ViewModel() {
     /** Foods the person picked for ingredient lines of the estimate, by recipe and line. Kept while the screen is open. */
@@ -130,11 +134,38 @@ class RecipeLibraryViewModel @Inject constructor(
             .map { if (it == null) null else recipeRepo.view(recipeId) }
 
     /**
-     * Logs one serving. Numbers the page gave are logged as they are; protein, carbs and fat it did not give come from
-     * the estimate when there is one (and the row says so), and otherwise are stored as unlisted, not as 0 g.
+     * Estimated calories per serving for saved recipes whose page gave none, from their ingredient lines. The list shows
+     * them with a "~". Recipes with a stored figure, and recipes with no lines, are left out.
      */
-    fun logServing(recipe: RecipeEntity, slot: MealSlot, estimate: RecipeEstimate?, onDone: () -> Unit) = viewModelScope.launch {
-        if (recipeLogger.logServings(recipe, slot, estimate?.perServing) != null) onDone()
+    val estimatedKcal: StateFlow<Map<String, Double>> = recipes.mapLatest { list ->
+        list.filter { it.kcalPerServing == null && it.ingredientsText.isNotBlank() }.mapNotNull { r ->
+            val lines = recipeRepo.view(r.id)?.ingredients?.map { it.text }.orEmpty()
+            if (lines.isEmpty()) null
+            else runCatching { estimator.estimate(lines, r.servings).perServing?.kcal }.getOrNull()?.let { r.id to it }
+        }.toMap()
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    /**
+     * Logs servings of a recipe (a half-serving step, so 0.5 or 1.5 are fine) and posts an Undo for the row. Numbers the
+     * page gave are logged as they are; protein, carbs and fat it did not give come from the estimate when there is one
+     * (and the row says so), and otherwise are stored as unlisted, not as 0 g.
+     */
+    fun logServing(
+        recipe: RecipeEntity,
+        slot: MealSlot,
+        estimate: RecipeEstimate?,
+        servings: Double = 1.0,
+        onDone: () -> Unit,
+    ) = viewModelScope.launch {
+        val entry = recipeLogger.logServings(recipe, slot, estimate?.perServing, servings) ?: return@launch
+        messages.post(
+            AppMessage(
+                "Logged ${recipe.name}, ${ServingsStep.label(servings)}, to ${slot.name.lowercase()}",
+                actionLabel = "Undo",
+                onAction = { plans.undoLog(entry) },
+            ),
+        )
+        onDone()
     }
 
     fun delete(recipe: RecipeEntity) = viewModelScope.launch { recipeDao.softDeleteRecipe(recipe.id, clock.nowMillis()) }

@@ -84,6 +84,7 @@ fun RecipesScreen(
     val loadedRecipes by viewModel.recipesOrNull.collectAsStateWithLifecycle()
     val recipes = loadedRecipes.orEmpty()
     val verdicts by viewModel.verdicts.collectAsStateWithLifecycle()
+    val estimatedKcal by viewModel.estimatedKcal.collectAsStateWithLifecycle()
     val gate = rememberStaggerGate()
     HubScreen(
         subtitle = "Saved recipes log a serving in one tap.",
@@ -124,7 +125,13 @@ fun RecipesScreen(
                 }
             }
             itemsIndexed(recipes, key = { _, r -> r.id }) { index, recipe ->
-                RecipeRow(recipe, onClick = { onOpenRecipe(recipe.id) }, modifier = Modifier.staggerIn(gate, recipe.id, index), allergen = verdicts[recipe.id])
+                RecipeRow(
+                    recipe,
+                    onClick = { onOpenRecipe(recipe.id) },
+                    modifier = Modifier.staggerIn(gate, recipe.id, index),
+                    allergen = verdicts[recipe.id],
+                    estimatedKcal = estimatedKcal[recipe.id],
+                )
             }
         },
     )

@@ -14,6 +14,7 @@ import com.zeroindex.intake.data.settings.AppSettings
 import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nfc.TemplateLink
+import com.zeroindex.intake.domain.plan.PlannedMealSlot
 import com.zeroindex.intake.domain.nutrition.DayEntry
 import com.zeroindex.intake.domain.nutrition.DayNutrition
 import com.zeroindex.intake.domain.nutrition.DashboardModel
@@ -168,7 +169,7 @@ class NutritionHomeViewModel @Inject constructor(
         .map { it?.week ?: 1 }
         .distinctUntilChanged()
         .flatMapLatest { plans.observeWeekContent(it) }
-        .map { week -> week?.main?.let { NextMealUi(it, TemplateLink.slotFor(java.time.LocalTime.now(clock.zone()))) } }
+        .map { week -> week?.main?.let { NextMealUi(it, PlannedMealSlot.forTime(java.time.LocalTime.now(clock.zone()))) } }
 
     private val sections = combine(
         plans.observeActivePlan(),

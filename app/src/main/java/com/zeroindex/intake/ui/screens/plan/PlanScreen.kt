@@ -188,7 +188,7 @@ fun PlanScreen(
                 Row(verticalAlignment = Alignment.Bottom) {
                     Column(Modifier.weight(1f)) {
                         SubHead(
-                            activePlan?.name ?: "Your meal plan",
+                            activePlan?.name ?: "No plan yet",
                             position?.label() ?: "Make a plan of any length, or import one.",
                         )
                     }
@@ -361,7 +361,7 @@ fun PlanScreen(
                 Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
                     Text("Can't eat what I cooked?", style = MaterialTheme.typography.titleSmall)
                     Text(
-                        "Find a safer option nearby · works offline",
+                        "Find another option nearby · works offline",
                         style = MaterialTheme.typography.labelSmall,
                     )
                 }
@@ -871,6 +871,8 @@ internal fun RecipeRow(
     modifier: Modifier = Modifier,
     /** Today's verdict from the local engine, when the person avoids anything. Replaces the stored flag below. */
     allergen: com.zeroindex.intake.ui.addfood.RowAllergen? = null,
+    /** Calories per serving estimated from the ingredient lines, when the page gave none. Shown with a "~". */
+    estimatedKcal: Double? = null,
 ) {
     IntakeCard(modifier = modifier.pressScale().clickable(onClick = onClick)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -884,9 +886,14 @@ internal fun RecipeRow(
                 Text(recipe.name, style = MaterialTheme.typography.titleSmall)
                 Text(
                     text = listOfNotNull(
-                        recipe.kcalPerServing?.let { "${it.roundToInt()} kcal" },
+                        recipe.kcalPerServing?.let { "${it.roundToInt()} kcal" }
+                            ?: estimatedKcal?.let { "~${it.roundToInt()} kcal" },
                         recipe.proteinPerServing?.let { "${it.roundToInt()} g protein" },
-                        "per serving".takeIf { recipe.kcalPerServing != null },
+                        when {
+                            recipe.kcalPerServing != null -> "per serving"
+                            estimatedKcal != null -> "per serving, estimated"
+                            else -> null
+                        },
                     ).joinToString(" · ").ifBlank { "${recipe.servings} servings" },
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

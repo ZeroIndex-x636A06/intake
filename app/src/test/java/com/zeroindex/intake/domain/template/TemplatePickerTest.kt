@@ -18,10 +18,25 @@ class TemplatePickerTest {
         recipe("5", "Zucchini bake"),
     )
 
-    @Test fun emptySearchListsRecentThenEverythingAlphabetical() {
+    @Test fun emptySearchListsRecentThenTheRestAlphabetical() {
         val l = TemplatePicker.build("", saved)
         assertEquals(listOf("3", "4", "1"), l.recent.map { it.id })
-        assertEquals(listOf("Apple", "banana", "Chili", "Oats", "Zucchini bake"), l.allSaved.map { it.name })
+        // Recent items are not repeated under All saved.
+        assertEquals(listOf("banana", "Zucchini bake"), l.allSaved.map { it.name })
+    }
+
+    @Test fun recentIsOrderedByLastUseMostRecentFirstNotByName() {
+        val items = listOf(food("a", "Apple", at = 10), food("b", "Banana", at = 30), food("c", "Cheddar", at = 20))
+        val l = TemplatePicker.build("", items)
+        assertEquals(listOf("b", "c", "a"), l.recent.map { it.id })
+        assertTrue(l.allSaved.isEmpty())
+    }
+
+    @Test fun nothingLoggedYetKeepsTheWholeListAlphabetical() {
+        val items = listOf(food("1", "Pear"), food("2", "Apple"))
+        val l = TemplatePicker.build("", items)
+        assertTrue(l.recent.isEmpty())
+        assertEquals(listOf("Apple", "Pear"), l.allSaved.map { it.name })
     }
 
     @Test fun noRecentsShowsOnlyAllSaved() {
@@ -34,13 +49,14 @@ class TemplatePickerTest {
         val many = (1..12).map { food("f$it", "Food $it", at = it.toLong()) }
         val l = TemplatePicker.build("", many, recentLimit = 5)
         assertEquals(listOf("f12", "f11", "f10", "f9", "f8"), l.recent.map { it.id })
-        assertEquals(12, l.allSaved.size)
+        assertEquals(7, l.allSaved.size)
+        assertTrue(l.allSaved.none { it.id in setOf("f12", "f11", "f10", "f9", "f8") })
     }
 
-    @Test fun typingFiltersBothLists() {
+    @Test fun typingFiltersBothListsAndNeverRepeatsAnItem() {
         val l = TemplatePicker.build("ap", saved)
         assertEquals(listOf("Apple"), l.recent.map { it.name })
-        assertEquals(listOf("Apple"), l.allSaved.map { it.name })
+        assertTrue(l.allSaved.isEmpty())
     }
 
     @Test fun typingRanksBetterMatchesFirstAndIgnoresCase() {
