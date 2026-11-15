@@ -151,7 +151,10 @@ fun NutritionHomeScreen(
             )
         }
 
-        item(key = "strip") { AllergenStrip(onClick = actions.onOpenAllergens, compact = true) }
+        // The strip reads its own state a moment after the screen opens; its room is kept so nothing below jumps.
+        item(key = "strip") {
+            Box(Modifier.fillMaxWidth().heightIn(min = 48.dp)) { AllergenStrip(onClick = actions.onOpenAllergens, compact = true) }
+        }
 
         item(key = "tip") {
             TabTip(key = TipKey.FOOD, body = TabTipCopy.FOOD, actionLabel = "Log food", onAction = { actions.onLogFood("SEARCH", slot.name, viewModel.loggingMillis(slot)) })
@@ -193,6 +196,8 @@ fun NutritionHomeScreen(
 
 // ---- Overview card ----
 
+/** Room kept for the overview card while its day is read: the ring box plus the macro cards under it. */
+private val OverviewPlaceholderHeight = 420.dp
 private val RingSize = 124.dp
 private val RingStroke = 12.dp
 /** The ring's gap to its percentage labels, and the room the box keeps for them on each side (a "100%" label, the gap, a margin). */
@@ -213,7 +218,10 @@ private fun OverviewCard(
 ) {
     IntakeCard {
         if (model == null || !ready) {
-            Text(if (isToday) "Reading today…" else "Reading that day…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            // About as tall as the loaded card (ring, macro cards), so the cards below do not jump when it fills.
+            Box(Modifier.fillMaxWidth().height(OverviewPlaceholderHeight)) {
+                Text(if (isToday) "Reading today…" else "Reading that day…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             return@IntakeCard
         }
         var held by remember { mutableStateOf(false) }

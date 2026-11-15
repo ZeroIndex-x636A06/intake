@@ -88,8 +88,8 @@ data class NutritionHomeState(
     /** False until the first read of the day finishes, so the card does not flash an empty day. */
     val ready: Boolean = false,
     /** The day every card shows, and today (so the screen can say "Today" and stop the next arrow). */
-    val date: LocalDate = LocalDate.ofEpochDay(0),
-    val today: LocalDate = LocalDate.ofEpochDay(0),
+    val date: LocalDate,
+    val today: LocalDate,
     val dashboard: DashboardModel? = null,
     val hydration: HydrationDay? = null,
     val settings: AppSettings = AppSettings(),
@@ -202,7 +202,12 @@ class NutritionHomeViewModel @Inject constructor(
             sections = sec,
             drinkNames = h.logs.map { it.drinkType.label.lowercase() }.distinct().take(3).joinToString(", "),
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NutritionHomeState())
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        // The real day from the first frame (never epoch 0): only the numbers are still being read.
+        NutritionHomeState(date = clock.today(), today = clock.today()),
+    )
 
     /** "Log it": one tap logs the planned meal onto the chosen day. An allergen match blocks it, exactly as on Today and the Plan screen. */
     fun logNextMeal(next: NextMealUi) {

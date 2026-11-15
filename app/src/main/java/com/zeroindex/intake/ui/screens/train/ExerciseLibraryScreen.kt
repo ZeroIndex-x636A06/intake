@@ -2,6 +2,7 @@
 
 package com.zeroindex.intake.ui.screens.train
 
+import com.zeroindex.intake.ui.components.rememberSyncedText
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -94,14 +95,15 @@ fun ExercisesSection(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item(key = "search") {
+            val search = rememberSyncedText(state.query, viewModel::setQuery)
             OutlinedTextField(
-                value = state.query,
-                onValueChange = viewModel::setQuery,
+                value = search.text,
+                onValueChange = search::edit,
                 placeholder = { Text("Search ${state.total} exercises") },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                 trailingIcon = {
-                    if (state.query.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.setQuery("") }) { Icon(Icons.Filled.Close, contentDescription = "Clear the search") }
+                    if (search.text.isNotEmpty()) {
+                        IconButton(onClick = { search.edit("") }) { Icon(Icons.Filled.Close, contentDescription = "Clear the search") }
                     }
                 },
                 singleLine = true,
@@ -208,9 +210,10 @@ private sealed interface FormTarget {
 @Composable
 fun ExerciseFilterBar(state: ExerciseBrowseState, viewModel: ExerciseLibraryViewModel, showHiddenSwitch: Boolean = true) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        val search = rememberSyncedText(state.query, viewModel::setQuery)
         OutlinedTextField(
-            value = state.query,
-            onValueChange = viewModel::setQuery,
+            value = search.text,
+            onValueChange = search::edit,
             label = { Text("Search exercises") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),

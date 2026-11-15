@@ -121,6 +121,11 @@ fun FoodDetailScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val food = state.food
 
+    if (food == null && !state.loaded) {
+        // Still reading: show nothing rather than claim the food is missing.
+        Box(modifier.padding(contentPadding).fillMaxSize())
+        return
+    }
     if (food == null) {
         Column(modifier.padding(contentPadding).padding(16.dp)) {
             Text("This food is not on this phone.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

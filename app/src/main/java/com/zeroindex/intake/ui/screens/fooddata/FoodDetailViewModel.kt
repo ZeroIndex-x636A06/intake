@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
@@ -47,6 +48,8 @@ data class FoodDetailUiState(
     val sending: Boolean = false,
     /** True after a Log tap that the allergen check stopped: the screen shows the confirmation sheet. */
     val needsConfirm: Boolean = false,
+    /** False until the food has been read: a null [food] before that is "loading", not "not on this phone". */
+    val loaded: Boolean = false,
 )
 
 @HiltViewModel
@@ -64,13 +67,15 @@ class FoodDetailViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val foodId = MutableStateFlow<String?>(null)
+    // Until load() names a food there is nothing to look up.
+
     private val message = MutableStateFlow<String?>(null)
     private val sending = MutableStateFlow(false)
     private val needsConfirm = MutableStateFlow(false)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private val foodAndScan = combine(
-        foodId.flatMapLatest { id -> if (id == null) flowOf(null) else foods.observe(id) },
+        foodId.flatMapLatest { id -> if (id == null) emptyFlow() else foods.observe(id) },
         allergens.observeAvoidedAllergens(),
         allergens.observeAliases(),
     ) { food, _, _ -> food }.mapLatest { food -> food to (food?.let { allergens.scan(it) } ?: AllergenScanResult.CLEAN) }
@@ -82,7 +87,7 @@ class FoodDetailViewModel @Inject constructor(
         combine(message, sending, needsConfirm) { m, s, n -> Triple(m, s, n) },
         settingsRepository.settings,
     ) { (food, scan), foodPrefs, keyState, flags, settings ->
-        FoodDetailUiState(food, scan, settings, foodPrefs.offContribute, keyState.hasOffCredentials, flags.first, flags.second, flags.third)
+        FoodDetailUiState(food, scan, settings, foodPrefs.offContribute, keyState.hasOffCredentials, flags.first, flags.second, flags.third, loaded = true)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FoodDetailUiState())
 
     fun load(id: String) { foodId.value = id }

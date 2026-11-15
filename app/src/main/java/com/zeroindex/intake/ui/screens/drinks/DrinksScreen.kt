@@ -167,7 +167,8 @@ fun DrinksScreen(
                 }
             }
 
-            if (state.drinks.isEmpty()) {
+            // day is null until the first read: say nothing then, not "No drinks yet".
+            if (state.day != null && state.drinks.isEmpty()) {
                 item(key = "none") {
                     EmptyState(
                         title = if (cat == null) "No drinks yet" else "No ${cat.label.lowercase()} drinks yet",
@@ -239,7 +240,9 @@ fun DrinksScreen(
         }
 
         item(key = "today-head") { SectionLine("LOGGED TODAY", note = if (state.entries.isEmpty()) null else "${state.entries.size} drink${if (state.entries.size == 1) "" else "s"}") }
-        if (state.entries.isEmpty()) {
+        if (state.day == null) {
+            // Not read yet.
+        } else if (state.entries.isEmpty()) {
             item(key = "today-none") { Text("Nothing logged yet today.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         } else {
             items(state.entries, key = { it.log.id }) { e ->

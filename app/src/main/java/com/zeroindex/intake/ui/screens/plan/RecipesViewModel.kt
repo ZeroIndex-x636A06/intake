@@ -85,8 +85,12 @@ class RecipeLibraryViewModel @Inject constructor(
         _notice.value = if (where != null) "Added to $where." else "Could not add it to a plan."
     }
 
+    /** Null until the first read finishes, so a screen can say "loading" and not "No recipes yet". */
+    val recipesOrNull: StateFlow<List<RecipeEntity>?> =
+        recipeDao.observeAll().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     val recipes: StateFlow<List<RecipeEntity>> =
-        recipeDao.observeAll().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        recipesOrNull.map { it.orEmpty() }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /**
      * The local engine's verdict per saved recipe, from its name and every ingredient line (the same scan Log food and

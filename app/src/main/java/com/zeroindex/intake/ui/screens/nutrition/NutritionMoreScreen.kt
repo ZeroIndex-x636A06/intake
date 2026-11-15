@@ -61,7 +61,9 @@ fun NutritionMoreScreen(
         item {
             NavCard(
                 title = "Recipes",
-                body = if (s.recipeCount == 0) {
+                body = if (!state.ready) {
+                    LOADING
+                } else if (s.recipeCount == 0) {
                     "No recipes yet. Add one, import one from a link or let Recipe Hunter find one."
                 } else {
                     "${s.recipeCount} saved · ${s.recipeNames.joinToString(", ")}" + if (s.recipeCount > 3) " and more" else ""
@@ -72,7 +74,9 @@ fun NutritionMoreScreen(
         item {
             NavCard(
                 title = "Meal templates",
-                body = if (s.templateCount == 0) {
+                body = if (!state.ready) {
+                    LOADING
+                } else if (s.templateCount == 0) {
                     "No meal templates yet. Make one from foods and recipes, or save a meal you logged, then log it in one tap. An NFC tag is optional."
                 } else {
                     "${s.templateCount} saved · ${s.templateNames.joinToString(", ")}" + if (s.templateCount > 3) " and more" else ""
@@ -90,13 +94,16 @@ fun NutritionMoreScreen(
         item {
             NavCard(
                 title = "Eating out",
-                body = (if (s.eatOutCount == 0) "No saved options yet. " else "${s.eatOutCount} saved option${if (s.eatOutCount == 1) "" else "s"}. ") +
+                body = (if (!state.ready) "" else if (s.eatOutCount == 0) "No saved options yet. " else "${s.eatOutCount} saved option${if (s.eatOutCount == 1) "" else "s"}. ") +
                     "Saved places, restaurant menus and healthier options nearby.",
                 onClick = actions.onOpenEatingOut,
             )
         }
     }
 }
+
+/** Shown until the first read finishes, so a card never claims "No recipes yet" about data it has not read. */
+private const val LOADING = "Loading…"
 
 @Composable
 private fun NavCard(title: String, body: String, onClick: () -> Unit) {
