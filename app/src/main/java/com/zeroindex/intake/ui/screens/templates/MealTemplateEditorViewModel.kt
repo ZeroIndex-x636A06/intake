@@ -127,14 +127,17 @@ class MealTemplateEditorViewModel @Inject constructor(
         foods.observeAll(),
         recipeDao.observeAll(),
         foodLogDao.observeRecentPrepared(60),
-    ) { allFoods, recipes, prepared ->
+        foodLogDao.observeLastLoggedByFood(),
+    ) { allFoods, recipes, prepared, lastByFood ->
+        // A food's last use is its last logged row. The food row's own time moves on every edit, so it is not used.
+        val lastLogged = lastByFood.associate { it.foodId to it.at }
         val foodItems = allFoods
             .filter { SearchScope.FOODS.keeps(DrinkRule.isStoredDrink(it.drinkCategory)) && !isRecipeFood(it) }
             .map {
                 PickItem(
                     PickItem.Kind.FOOD, it.id, it.name,
                     "${it.kcalPer100g.roundToInt()} kcal per 100 g · ${it.servingLabel}",
-                    lastUsedAt = if (it.timesLogged > 0) it.updatedAt else null,
+                    lastUsedAt = lastLogged[it.id],
                     searchText = it.brand.orEmpty(),
                 )
             }

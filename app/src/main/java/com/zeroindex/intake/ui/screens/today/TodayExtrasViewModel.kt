@@ -69,7 +69,10 @@ sealed interface WorkoutCardState {
     ) : WorkoutCardState
 }
 
-/** The planned or prepped meal: the main recipe of this week of the active plan, and the slot it belongs in now. */
+/**
+ * The planned or prepped meal: the main recipe of this week of the active plan, and the meal it is logged to now.
+ * A plan week names no slot, so this is the time-of-day meal (never a snack): see [PlannedMealSlot].
+ */
 data class NextMealUi(val content: RecipeContent, val slot: MealSlot)
 
 data class TodayExtras(
@@ -110,7 +113,7 @@ class TodayExtrasViewModel @Inject constructor(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private val nextMeal = plans.observeCurrentWeekNumber().flatMapLatest { plans.observeWeekContent(it) }.map { week ->
-        week?.main?.let { NextMealUi(it, com.zeroindex.intake.domain.nfc.TemplateLink.slotFor(java.time.LocalTime.now(clock.zone()))) }
+        week?.main?.let { NextMealUi(it, com.zeroindex.intake.domain.plan.PlannedMealSlot.forTime(java.time.LocalTime.now(clock.zone()))) }
     }
 
     private val exportState = settingsRepository.settings.map {

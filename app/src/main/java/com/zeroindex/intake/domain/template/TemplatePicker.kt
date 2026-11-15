@@ -19,14 +19,14 @@ data class PickItem(
     val key: String get() = "${kind.name}:$id"
 }
 
-/** What the editor's picker lists: [recent] (may be empty, then it is not shown) and [allSaved]. */
+/** What the editor's picker lists: [recent] (may be empty, then it is not shown) and [allSaved], which never repeats a [recent] item. */
 data class PickLists(val recent: List<PickItem>, val allSaved: List<PickItem>)
 
 /**
  * The lists behind the meal template editor's "Add a food or recipe" picker. Pure and offline.
  *
- * With nothing typed: "Recent" (what was logged lately, latest first, foods and recipes together) and then "All saved" (every
- * saved food and recipe, alphabetical). With no recents only "All saved" shows. Typed words filter both lists, best match first.
+ * With nothing typed: "Recent" (what was logged lately, most recent first, foods and recipes together) and then "All saved"
+ * (every other saved food and recipe, alphabetical). With no recents only "All saved" shows. Typed words filter both lists, best match first.
  * The offline USDA results are added by the caller, after these.
  */
 object TemplatePicker {
@@ -38,14 +38,18 @@ object TemplatePicker {
         val alphabetical = saved.sortedWith(compareBy<PickItem> { it.name.lowercase() }.thenBy { it.kind }.thenBy { it.id })
         val recentAll = saved.filter { it.lastUsedAt != null }
             .sortedWith(compareByDescending<PickItem> { it.lastUsedAt }.thenBy { it.name.lowercase() }.thenBy { it.id })
-        if (q.isEmpty()) return PickLists(recentAll.take(recentLimit), alphabetical)
+        val recent = recentAll.take(recentLimit)
+        // Every item shows once: what is under Recent is left out of All saved.
+        val recentKeys = recent.map { it.key }.toSet()
+        val otherSaved = alphabetical.filter { it.key !in recentKeys }
+        if (q.isEmpty()) return PickLists(recent, otherSaved)
 
         fun matches(items: List<PickItem>): List<PickItem> = items
             .mapNotNull { item -> score(q, item)?.let { it to item } }
             .sortedWith(compareBy<Pair<Int, PickItem>> { it.first }.thenBy { it.second.name.lowercase() }.thenBy { it.second.id })
             .map { it.second }
         // Recent is filtered from the same recent window the empty search shows, so typing never promotes an old item into it.
-        return PickLists(matches(recentAll.take(recentLimit)), matches(alphabetical))
+        return PickLists(matches(recent), matches(otherSaved))
     }
 
     private fun score(query: String, item: PickItem): Int? =

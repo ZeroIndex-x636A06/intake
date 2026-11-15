@@ -82,3 +82,6 @@ data class RecentDrinkLog(val foodId: String, val ml: Double, val at: Long)
 
 /** A logged row with no food behind it (a recipe serving, a quick add, a template): its name and the latest time. */
 data class RecentPrepared(val name: String, val at: Long)
+
+/** A saved food and the latest time it was logged. */
+data class LastLoggedFood(val foodId: String, val at: Long)

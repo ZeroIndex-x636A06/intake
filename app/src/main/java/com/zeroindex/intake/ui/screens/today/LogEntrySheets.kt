@@ -152,6 +152,8 @@ fun SlotPickerSheet(
     title: String,
     onDismiss: () -> Unit,
     onPick: (MealSlot) -> Unit,
+    /** The slots offered. A recipe is a meal, so its callers pass [MealSlot.MEALS] and Drinks is not offered. */
+    slots: List<MealSlot> = MealSlot.entries,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
@@ -163,7 +165,7 @@ fun SlotPickerSheet(
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(start = 24.dp, bottom = 8.dp),
             )
-            MealSlot.entries.forEach { slot ->
+            slots.forEach { slot ->
                 ListItem(
                     headlineContent = { Text(slot.displayName()) },
                     modifier = Modifier.clickableRow { onPick(slot) },

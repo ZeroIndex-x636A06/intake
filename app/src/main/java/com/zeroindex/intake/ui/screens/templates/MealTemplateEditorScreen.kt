@@ -107,8 +107,9 @@ fun MealTemplateEditorScreen(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item(key = "head") {
+            // The screen bar already says "Meal template", so the heading is the template's own name.
             SubHead(
-                if (state.isNew) "New meal template" else "Edit meal template",
+                state.name.trim().ifBlank { "New meal" },
                 "A meal you eat often, saved so it logs in one tap. No meal plan needed.",
             )
         }

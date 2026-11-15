@@ -5,6 +5,7 @@ import androidx.room.Query
 import androidx.room.Upsert
 import com.zeroindex.intake.data.db.entity.FoodLogEntity
 import com.zeroindex.intake.data.db.projection.DailyIntake
+import com.zeroindex.intake.data.db.projection.LastLoggedFood
 import com.zeroindex.intake.data.db.projection.MacroTotals
 import com.zeroindex.intake.data.db.projection.RecentDrinkLog
 import com.zeroindex.intake.data.db.projection.RecentPrepared
@@ -128,6 +129,16 @@ interface FoodLogDao {
         """,
     )
     fun observeRecentPrepared(limit: Int): Flow<List<RecentPrepared>>
+
+    /** When each saved food was last logged, for the meal template picker's Recent list. */
+    @Query(
+        """
+        SELECT foodId AS foodId, MAX(loggedAt) AS at FROM food_log
+        WHERE foodId IS NOT NULL AND deletedAt IS NULL
+        GROUP BY foodId
+        """,
+    )
+    fun observeLastLoggedByFood(): Flow<List<LastLoggedFood>>
 
     @Query("UPDATE food_log SET deletedAt = :now, updatedAt = :now WHERE id = :id")
     suspend fun softDelete(id: String, now: Long)
