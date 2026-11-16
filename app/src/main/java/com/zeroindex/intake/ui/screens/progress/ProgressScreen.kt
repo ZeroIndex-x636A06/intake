@@ -26,12 +26,14 @@ import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import com.zeroindex.intake.ui.components.EmptyState
 import com.zeroindex.intake.ui.motion.SkeletonList
 import com.zeroindex.intake.ui.motion.pressScale
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,6 +46,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.zeroindex.intake.domain.model.TdeeConfidence
+import com.zeroindex.intake.domain.units.LengthUnit
 import com.zeroindex.intake.domain.units.UnitConverter
 import com.zeroindex.intake.ui.adaptive.LocalWindowSizeClass
 import com.zeroindex.intake.ui.adaptive.isExpanded
@@ -294,6 +297,8 @@ private fun WeightCard(state: ProgressUiState, onAddMeasurement: () -> Unit) {
             },
             description = weightDescription(state, unit.label),
             valueSuffix = unit.label,
+            maxTicks = 6,
+            dateLabels = true,
         )
         val weekly = state.weeklyChangeKg
         ChartLegend(
@@ -355,7 +360,7 @@ private fun HealthSeriesChart(
             raw = chart,
             trend = chart,
             description = "$label over time, from Health Connect. Average ${show(average)} $unit, latest ${show(points.last().value)}.",
-            modifier = Modifier.height(120.dp),
+            plotHeight = 120.dp,
             valueSuffix = unit,
             formatValue = show,
             formatY = formatY,
@@ -532,13 +537,22 @@ private fun WeeklySummaryCard(state: ProgressUiState, viewModel: ProgressViewMod
         }
 
         Spacer(Modifier.height(10.dp))
+        // The label colour is set here, not left to the outlined default, so it reads as a live action on the dark theme.
         OutlinedButton(
             onClick = viewModel::recalculateTdee,
             enabled = !state.isRecalculating,
             shape = IntakeShape.Button,
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = MaterialTheme.colorScheme.primary,
+                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
             modifier = Modifier.fillMaxWidth().height(50.dp),
         ) {
-            Text(if (state.isRecalculating) "Recalculating…" else "Recalculate now")
+            Text(
+                if (state.isRecalculating) "Recalculating…" else "Recalculate now",
+                style = MaterialTheme.typography.labelLarge,
+            )
         }
     }
 }
@@ -566,11 +580,15 @@ private fun MeasurementLines(state: ProgressUiState) {
         TrendLineChart(
             raw = points,
             trend = points,
-            description = "$label over time, in $suffix. " +
+            description = "$label over time, in ${if (unit == LengthUnit.INCHES) "inches" else "centimetres"}. " +
                 "Latest ${format(points.last().y)} $suffix.",
-            modifier = Modifier.height(120.dp),
             valueSuffix = suffix,
             gapDays = null,
+            // A flat-ish tape reading is wobble, not a trend: the axis is at least 5 cm or 2 in tall.
+            minYSpan = if (unit == LengthUnit.INCHES) 2.0 else 5.0,
+            maxTicks = 5,
+            dateLabels = true,
+            plotHeight = 120.dp,
         )
     }
 }

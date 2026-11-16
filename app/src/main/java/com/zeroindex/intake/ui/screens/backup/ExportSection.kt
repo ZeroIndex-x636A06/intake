@@ -119,20 +119,19 @@ fun ExportSection(modifier: Modifier = Modifier, viewModel: ExportViewModel = hi
                     ) { Text(kind.label, style = MaterialTheme.typography.labelSmall) }
                 }
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 10.dp))
-            SettingRow(
-                title = "Include progress photos in the export",
-                subtitle = "Off by default. The JSON file carries only each photo's date and angle. With this on you can also save " +
-                    "the photo files as a zip. Photos are never synced or uploaded.",
-                showDivider = false,
-            ) { Switch(checked = includePhotos, onCheckedChange = viewModel::setIncludePhotos) }
-            if (includePhotos) {
-                OutlinedButton(
-                    onClick = { photoLauncher.launch("intake-progress-photos-$stamp.zip") },
-                    shape = IntakeShape.Chip,
-                    modifier = Modifier.heightIn(min = 48.dp),
-                ) { Text("Save photo files (zip)") }
-            }
+        }
+        // Outside the card, at the same inset as the other Settings switches, so its switch lines up with them.
+        SettingRow(
+            title = "Include progress photos in the export",
+            subtitle = "Off by default. The JSON file carries only each photo's date and angle. With this on you can also save " +
+                "the photo files as a zip. Photos are never synced or uploaded.",
+        ) { Switch(checked = includePhotos, onCheckedChange = viewModel::setIncludePhotos) }
+        if (includePhotos) {
+            OutlinedButton(
+                onClick = { photoLauncher.launch("intake-progress-photos-$stamp.zip") },
+                shape = IntakeShape.Chip,
+                modifier = Modifier.heightIn(min = 48.dp),
+            ) { Text("Save photo files (zip)") }
         }
     }
 

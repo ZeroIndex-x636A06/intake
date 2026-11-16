@@ -60,7 +60,12 @@ class ExportViewModel @Inject constructor(
     /** Set while an export is being encrypted and written, so the screen can show progress. */
     val exporting = MutableStateFlow(false)
 
-    fun setIncludePhotos(on: Boolean) { viewModelScope.launch { settingsRepository.setExportIncludePhotos(on) } }
+    fun setIncludePhotos(on: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setExportIncludePhotos(on)
+            message.value = if (on) "Saved: progress photos are included in the export." else "Saved: progress photos are left out of the export."
+        }
+    }
 
     fun exportTo(uri: Uri, passphrase: String) = viewModelScope.launch {
         exporting.value = true

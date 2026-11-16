@@ -51,7 +51,9 @@ import com.zeroindex.intake.domain.training.PrKind
 import com.zeroindex.intake.domain.training.PreviousSets
 import com.zeroindex.intake.domain.training.RepTarget
 import com.zeroindex.intake.domain.training.SetResult
+import com.zeroindex.intake.domain.training.SetRowText
 import com.zeroindex.intake.domain.training.SetRows
+import com.zeroindex.intake.domain.units.WeightText
 import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.ui.motion.AnimatedCheck
 import com.zeroindex.intake.ui.motion.flashOn
@@ -88,7 +90,8 @@ internal fun SetRowsBlock(
     fun defaults(index: Int): Pair<String, String> {
         val prev = PreviousSets.forSet(lastResults, index)
         val kg = prescription?.weightKg?.takeIf { it > 0 } ?: prev?.weightKg?.takeIf { it > 0 }
-        val weight = kg?.let { fmt(unit.fromKg(it)) } ?: if (bodyweight) "0" else ""
+        // A bodyweight set with nothing added starts blank and shows "BW" (see [SetRowText]), not "0".
+        val weight = kg?.let { WeightText.setRow(it, unit) }.orEmpty()
         val reps = prescription?.takeUnless { amrap }?.repsMin?.toString() ?: prev?.reps?.toString().orEmpty()
         return weight to reps
     }
@@ -99,7 +102,7 @@ internal fun SetRowsBlock(
         Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             HeaderCell(Modifier.width(32.dp), "Set")
             HeaderCell(Modifier.weight(1.1f), "Previous")
-            HeaderCell(Modifier.weight(1f), unit.label)
+            HeaderCell(Modifier.weight(1f), if (bodyweight) "+${unit.label}" else unit.label)
             HeaderCell(Modifier.weight(0.9f), "Reps")
             Spacer(Modifier.width(52.dp))
         }
@@ -111,14 +114,20 @@ internal fun SetRowsBlock(
                 number = row.index + 1,
                 existing = existing,
                 record = existing?.let { state.records[it.id] } ?: PrKind.NONE,
-                previous = previous?.let { "${fmt(unit.fromKg(it.weightKg))} × ${it.reps}" },
+                previous = previous?.let { SetRowText.previous(it.weightKg, it.reps, bodyweight, unit) },
                 weight = weightText,
                 reps = repsText,
                 unitLabel = unit.label,
-                displayWeight = { kg -> fmt(unit.fromKg(kg)) },
+                weightPlaceholder = if (bodyweight) SetRowText.BODYWEIGHT else null,
+                canLog = repsText.toIntOrNull() != null &&
+                    (weightText.toDoubleOrNull() != null || (bodyweight && weightText.isBlank())),
+                displayWeight = { kg -> SetRowText.load(kg, bodyweight, unit) },
                 flash = flashed[row.index] ?: 0,
                 onCopyPrevious = previous?.let { p ->
-                    { edits[row.index] = fmt(unit.fromKg(p.weightKg)) to p.reps.toString() }
+                    {
+                        val copied = if (bodyweight && p.weightKg <= 0.0) "" else WeightText.setRow(p.weightKg, unit)
+                        edits[row.index] = copied to p.reps.toString()
+                    }
                 },
                 onWeightChange = { next -> edits[row.index] = next to repsText },
                 onRepsChange = { next -> edits[row.index] = weightText to next },
@@ -153,7 +162,7 @@ internal fun SetRowsBlock(
             if (item.exercise.equipment.equals("barbell", ignoreCase = true) && kg > 0) {
                 val load = state.plateLoad(kg)
                 val text = PlateLine.text(load.perSide) { unit.fromKg(it) } + if (!load.isExact && load.perSide.isNotEmpty()) " (closest)" else ""
-                PlateChip(text, onClick = { onShowPlates(kg, "${fmt(unit.fromKg(kg))} ${unit.label}") })
+                PlateChip(text, onClick = { onShowPlates(kg, "${WeightText.setRow(kg, unit)} ${unit.label}") })
             }
             Spacer(Modifier.weight(1f))
             TextButton(onClick = onAddSet, modifier = Modifier.heightIn(min = 48.dp)) {
@@ -196,6 +205,8 @@ private fun SetLine(
     weight: String,
     reps: String,
     unitLabel: String,
+    weightPlaceholder: String?,
+    canLog: Boolean,
     displayWeight: (Double) -> String,
     flash: Int,
     onCopyPrevious: (() -> Unit)?,
@@ -240,10 +251,10 @@ private fun SetLine(
             ShownCell(Modifier.weight(1f), displayWeight(existing.weightKg))
             ShownCell(Modifier.weight(0.9f), "${existing.reps}", trophy = record)
         } else {
-            NumberCell(Modifier.weight(1f), weight, onWeightChange, "Set $number weight in $unitLabel")
+            NumberCell(Modifier.weight(1f), weight, onWeightChange, "Set $number weight in $unitLabel", weightPlaceholder)
             NumberCell(Modifier.weight(0.9f), reps, onRepsChange, "Set $number reps")
         }
-        val enabled = done || (reps.toIntOrNull() != null && weight.toDoubleOrNull() != null)
+        val enabled = done || canLog
         Box(
             modifier = Modifier
                 .size(52.dp)
@@ -297,7 +308,13 @@ private fun ShownCell(modifier: Modifier, text: String, trophy: PrKind = PrKind.
 
 /** A compact centred number field; the border lights up while it has focus. */
 @Composable
-private fun NumberCell(modifier: Modifier, value: String, onValueChange: (String) -> Unit, label: String) {
+private fun NumberCell(
+    modifier: Modifier,
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    placeholder: String? = null,
+) {
     var focused by remember { mutableStateOf(false) }
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
@@ -306,6 +323,14 @@ private fun NumberCell(modifier: Modifier, value: String, onValueChange: (String
         modifier = modifier.padding(horizontal = 3.dp).height(48.dp),
     ) {
         Box(contentAlignment = Alignment.Center) {
+            if (value.isEmpty() && placeholder != null) {
+                Text(
+                    placeholder,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+            }
             BasicTextField(
                 value = value,
                 onValueChange = { next -> onValueChange(next.filter { it.isDigit() || it == '.' }.take(7)) },

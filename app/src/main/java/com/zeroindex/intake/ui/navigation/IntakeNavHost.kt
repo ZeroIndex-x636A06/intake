@@ -463,7 +463,7 @@ fun IntakeNavHost(
         }
         composable<Route.Privacy> { PushedScreen("What leaves this phone", back) { pad -> PrivacyScreen(pad) } }
         composable<Route.Profile> {
-            PushedScreen("About you", back) { pad ->
+            PushedScreen("Profile & goals", back) { pad ->
                 ProfileScreen(
                     contentPadding = pad,
                     onBuildPlan = { navController.navigate(Route.YourPlan) },

@@ -513,7 +513,7 @@
     "deletedAt": null
    },
    {
-    "id": "16d4b6f6-636d-5d8a-b175-edeba9b69315",
+    "id": "cc5c5776-7ae6-3768-9ac7-59a478ba31df",
     "name": "Milk, whole",
     "brand": null,
     "servingSizeGrams": 244,
@@ -532,8 +532,8 @@
     "isFavorite": false,
     "timesLogged": 0,
     "drinkCategory": "MILK",
-    "createdAt": 1794711600000,
-    "updatedAt": 1794711600000,
+    "createdAt": 1767225600000,
+    "updatedAt": 1767225600000,
     "deletedAt": null
    },
    {
@@ -945,7 +945,7 @@
    {
     "id": "8cad8294-f533-533b-9956-b9f93ea58499",
     "recipeId": "99128fdd-ede5-543a-8627-ce8e6d8f897e",
-    "foodId": "16d4b6f6-636d-5d8a-b175-edeba9b69315",
+    "foodId": "cc5c5776-7ae6-3768-9ac7-59a478ba31df",
     "quantityGrams": 488,
     "displayOrder": 2,
     "groupLabel": null,
@@ -8548,8 +8548,8 @@
   ],
   "exercise": [
    {
-    "id": "2952c8a8-12e2-3b65-9b75-f19639f745f9",
-    "name": "Barbell Back Squat",
+    "id": "a07a6a04-cbe6-3f66-aab6-97d3d144f7b4",
+    "name": "Back squat",
     "primaryMuscle": "quads",
     "secondaryMuscles": "glutes,hamstrings",
     "equipment": "barbell",
@@ -8845,7 +8845,7 @@
    {
     "id": "11225275-afbe-5a1a-8bdb-b6f5507acb28",
     "programDayId": "f8930436-12fe-5808-85b0-485f0a451dc8",
-    "exerciseId": "2952c8a8-12e2-3b65-9b75-f19639f745f9",
+    "exerciseId": "a07a6a04-cbe6-3f66-aab6-97d3d144f7b4",
     "displayOrder": 0,
     "targetSets": 4,
     "targetRepsMin": 5,
@@ -9015,7 +9015,7 @@
    {
     "id": "76765ee9-fbe4-5a06-bc95-a5c5bb5d623d",
     "programDayId": "690d698c-20eb-5592-b24d-714176acfa0f",
-    "exerciseId": "2952c8a8-12e2-3b65-9b75-f19639f745f9",
+    "exerciseId": "a07a6a04-cbe6-3f66-aab6-97d3d144f7b4",
     "displayOrder": 1,
     "targetSets": 3,
     "targetRepsMin": 8,
@@ -9375,7 +9375,7 @@
    {
     "id": "7b71674f-fb28-51b9-bfef-2ae13c994221",
     "sessionId": "11812d65-46f6-5052-a4bb-f55efc46efdb",
-    "exerciseId": "2952c8a8-12e2-3b65-9b75-f19639f745f9",
+    "exerciseId": "a07a6a04-cbe6-3f66-aab6-97d3d144f7b4",
     "setIndex": 0,
     "weightKg": 41.96,
     "reps": 8,
@@ -9391,7 +9391,7 @@
    {
     "id": "1f603275-1f2d-5496-be66-dcb1f42826b9",
     "sessionId": "11812d65-46f6-5052-a4bb-f55efc46efdb",
-    "exerciseId": "2952c8a8-12e2-3b65-9b75-f19639f745f9",
+    "exerciseId": "a07a6a04-cbe6-3f66-aab6-97d3d144f7b4",
     "setIndex": 1,
     "weightKg": 70.31,
     "reps": 6,
@@ -9407,7 +9407,7 @@
    {
     "id": "f52509ee-2354-500d-b455-fcbbeefaf144",
     "sessionId": "11812d65-46f6-5052-a4bb-f55efc46efdb",
-    "exerciseId": "2952c8a8-12e2-3b65-9b75-f19639f745f9",
+    "exerciseId": "a07a6a04-cbe6-3f66-aab6-97d3d144f7b4",
     "setIndex": 2,
     "weightKg": 70.31,
     "reps": 5,
@@ -9423,7 +9423,7 @@
    {
     "id": "dabb4810-b085-5efc-91df-a044a16e2c82",
     "sessionId": "11812d65-46f6-5052-a4bb-f55efc46efdb",
-    "exerciseId": "2952c8a8-12e2-3b65-9b75-f19639f745f9",
+    "exerciseId": "a07a6a04-cbe6-3f66-aab6-97d3d144f7b4",
     "setIndex": 3,
     "weightKg": 70.31,
     "reps": 5,
@@ -9439,7 +9439,7 @@
    {
     "id": "ffd9d99d-eda4-53c2-b643-ab126b5d9866",
     "sessionId": "11812d65-46f6-5052-a4bb-f55efc46efdb",
-    "exerciseId": "2952c8a8-12e2-3b65-9b75-f19639f745f9",
+    "exerciseId": "a07a6a04-cbe6-3f66-aab6-97d3d144f7b4",
     "setIndex": 4,
     "weightKg": 70.31,
     "reps": 5,
@@ -9935,7 +9935,7 @@
    {
     "id": "8acc2433-8f1d-54ff-8246-d701651fda30",
     "sessionId": "89a74709-a32d-51a8-850f-d34634f530f7",
-    "exerciseId": "2952c8a8-12e2-3b65-9b75-f19639f745f9",
+    "exerciseId": "a07a6a04-cbe6-3f66-aab6-97d3d144f7b4",
     "setIndex": 0,
     "weightKg": 61.23,
     "reps": 9,
@@ -9951,7 +9951,7 @@
    {
     "id": "233434ec-cb88-5d07-ab9b-6a32252722a0",
     "sessionId": "89a74709-a32d-51a8-850f-d34634f530f7",
-    "exerciseId": "2952c8a8-12e2-3b65-9b75-f19639f745f9",
+    "exerciseId": "a07a6a04-cbe6-3f66-aab6-97d3d144f7b4",
     "setIndex": 1,
     "weightKg": 61.23,
     "reps": 8,
@@ -9967,7 +9967,7 @@
    {
     "id": "2bef03f2-935d-5469-afd6-03137db7ca85",
     "sessionId": "89a74709-a32d-51a8-850f-d34634f530f7",
-    "exerciseId": "2952c8a8-12e2-3b65-9b75-f19639f745f9",
+    "exerciseId": "a07a6a04-cbe6-3f66-aab6-97d3d144f7b4",
     "setIndex": 2,
     "weightKg": 61.23,
     "reps": 8,
@@ -10287,7 +10287,7 @@
    {
     "id": "0b0870f1-ef28-52ee-9f77-b11bf7b330a1",
     "sessionId": "36b08977-02c4-5779-85aa-c3ce1f63ba55",
-    "exerciseId": "2952c8a8-12e2-3b65-9b75-f19639f745f9",
+    "exerciseId": "a07a6a04-cbe6-3f66-aab6-97d3d144f7b4",
     "setIndex": 0,
     "weightKg": 41.96,
     "reps": 8,
@@ -10303,7 +10303,7 @@
    {
     "id": "696d1d49-0e4b-54de-b3fc-485e5958ae4e",
     "sessionId": "36b08977-02c4-5779-85aa-c3ce1f63ba55",
-    "exerciseId": "2952c8a8-12e2-3b65-9b75-f19639f745f9",
+    "exerciseId": "a07a6a04-cbe6-3f66-aab6-97d3d144f7b4",
     "setIndex": 1,
     "weightKg": 72.57,
     "reps": 7,
@@ -10319,7 +10319,7 @@
    {
     "id": "c73f22d4-56e6-5bce-8648-f75c48f714ef",
     "sessionId": "36b08977-02c4-5779-85aa-c3ce1f63ba55",
-    "exerciseId": "2952c8a8-12e2-3b65-9b75-f19639f745f9",
+    "exerciseId": "a07a6a04-cbe6-3f66-aab6-97d3d144f7b4",
     "setIndex": 2,
     "weightKg": 72.57,
     "reps": 6,
@@ -10335,7 +10335,7 @@
    {
     "id": "cb20e985-712f-5b98-8ebd-6f1e49d9cb87",
     "sessionId": "36b08977-02c4-5779-85aa-c3ce1f63ba55",
-    "exerciseId": "2952c8a8-12e2-3b65-9b75-f19639f745f9",
+    "exerciseId": "a07a6a04-cbe6-3f66-aab6-97d3d144f7b4",
     "setIndex": 3,
     "weightKg": 72.57,
     "reps": 5,
@@ -10351,7 +10351,7 @@
    {
     "id": "c262fc16-c8c7-59d8-a410-1486d8d6626e",
     "sessionId": "36b08977-02c4-5779-85aa-c3ce1f63ba55",
-    "exerciseId": "2952c8a8-12e2-3b65-9b75-f19639f745f9",
+    "exerciseId": "a07a6a04-cbe6-3f66-aab6-97d3d144f7b4",
     "setIndex": 4,
     "weightKg": 72.57,
     "reps": 5,

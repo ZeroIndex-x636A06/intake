@@ -58,6 +58,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.settings.AppSettings
 import com.zeroindex.intake.domain.settings.SettingSpec
+import com.zeroindex.intake.domain.settings.SettingVisibility
 import com.zeroindex.intake.domain.settings.SettingsGroup
 import com.zeroindex.intake.domain.settings.SettingsRegistry
 import com.zeroindex.intake.ui.navigation.PushedScreen
@@ -215,9 +216,13 @@ fun SettingsGroupScreen(
 
 @Composable
 private fun GroupContent(group: SettingsGroup, focus: String?, nav: SettingsNav, pad: PaddingValues) {
-    val all = remember(group) { SettingsRegistry.inGroup(group) }
-    val main = remember(group) { all.filter { !it.advanced } }
-    val advanced = remember(group) { all.filter { it.advanced } }
+    // Only the rows this profile draws: the Advanced count must match what opens (a Cut has no contest or reverse row).
+    val profile = hiltViewModel<SettingsViewModel>().uiState.collectAsStateWithLifecycle().value.settings.profile
+    val shownRows = remember(group, profile.phase, profile.carbCycling) {
+        SettingsRegistry.inGroup(group).filter { SettingVisibility.shown(it.id, profile.phase, profile.carbCycling) }
+    }
+    val main = remember(shownRows) { shownRows.filter { !it.advanced } }
+    val advanced = remember(shownRows) { shownRows.filter { it.advanced } }
     var showAdvanced by rememberSaveable(group.id) { mutableStateOf(focus != null && advanced.any { it.id == focus }) }
     val listState = rememberLazyListState()
     // Header items before the controls: the blurb (and the Health status block).
