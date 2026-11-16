@@ -98,6 +98,8 @@ sealed interface Route {
 
     // Progress tab.
     @Serializable data object WorkoutHistory : Route
+    /** Progress > Training stats: estimated 1RM, recent records and this weeks sets. */
+    @Serializable data object TrainingStats : Route
     /**
      * The one weekly check-in (summary, suggestions with Apply / Dismiss, week chips, Export / Print PDF). It
      * replaces the old WeeklyReport and CoachCheckIn routes.

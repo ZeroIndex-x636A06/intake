@@ -32,6 +32,27 @@ class WeeklyReportTest {
     }
 
     @Test
+    fun `week figures count today's partial day and match the tile averages`() {
+        val r = report(
+            listOf(
+                ReportDay(monday, kcal = 2_449.0, protein = 150.0, weightKg = 87.0),
+                ReportDay(monday.plusDays(1), kcal = 2_393.0, protein = 130.0),
+                ReportDay(monday.plusDays(2), kcal = 650.0, protein = 20.0, sleepMinutes = 420),
+                ReportDay(monday.plusDays(3)),
+            ),
+        )
+        val f = r.figures
+        assertThat(f.avgKcal).isEqualTo(Math.round(r.average { it.kcal }!!).toInt())
+        assertThat(f.avgKcal).isEqualTo(1_831)
+        assertThat(f.avgProteinG).isEqualTo(100)
+        assertThat(f.daysLogged).isEqualTo(3)
+        assertThat(f.daysInWeek).isEqualTo(4)
+        assertThat(f.weighIns).isEqualTo(1)
+        assertThat(f.avgSleepHours).isEqualTo(7.0)
+        assertThat(f.weightChangeKg).isWithin(0.001).of(-0.3)
+    }
+
+    @Test
     fun `bedtime spread handles midnight`() {
         val r = report(
             listOf(

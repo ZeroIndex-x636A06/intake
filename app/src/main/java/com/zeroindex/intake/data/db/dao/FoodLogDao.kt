@@ -4,7 +4,7 @@ import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Upsert
 import com.zeroindex.intake.data.db.entity.FoodLogEntity
-import com.zeroindex.intake.data.db.projection.DailyIntake
+import com.zeroindex.intake.domain.progress.IntakeRow
 import com.zeroindex.intake.data.db.projection.LastLoggedFood
 import com.zeroindex.intake.data.db.projection.MacroTotals
 import com.zeroindex.intake.data.db.projection.RecentDrinkLog
@@ -71,44 +71,29 @@ interface FoodLogDao {
     fun observeSlotTotalsInRange(startInclusive: Long, endExclusive: Long): Flow<List<SlotTotals>>
 
     /**
-     * Calories per local day across a range, bucketed in SQL. The zone offset
-     * comes from the caller, which knows the zone, rather than being guessed.
+     * Calories and protein per log row across a range. The caller buckets them into local days in
+     * Kotlin (domain/progress/IntakeDays): an SQL divide by 86,400,000 with one zone offset is wrong
+     * on every day after the clocks change.
      */
     @Query(
         """
-        SELECT ((loggedAt + :zoneOffsetMillis) / :dayLengthMillis) * :dayLengthMillis - :zoneOffsetMillis
-                   AS dayStartMillis,
-               SUM(kcal) AS kcal
+        SELECT loggedAt AS loggedAt, kcal AS kcal, protein AS protein
         FROM food_log
         WHERE deletedAt IS NULL AND loggedAt >= :startInclusive AND loggedAt < :endExclusive
-        GROUP BY dayStartMillis
-        ORDER BY dayStartMillis
+        ORDER BY loggedAt
         """,
     )
-    fun observeDailyIntake(
-        startInclusive: Long,
-        endExclusive: Long,
-        zoneOffsetMillis: Long,
-        dayLengthMillis: Long = 86_400_000L,
-    ): Flow<List<DailyIntake>>
+    fun observeIntakeRows(startInclusive: Long, endExclusive: Long): Flow<List<IntakeRow>>
 
     @Query(
         """
-        SELECT ((loggedAt + :zoneOffsetMillis) / :dayLengthMillis) * :dayLengthMillis - :zoneOffsetMillis
-                   AS dayStartMillis,
-               SUM(kcal) AS kcal
+        SELECT loggedAt AS loggedAt, kcal AS kcal, protein AS protein
         FROM food_log
         WHERE deletedAt IS NULL AND loggedAt >= :startInclusive AND loggedAt < :endExclusive
-        GROUP BY dayStartMillis
-        ORDER BY dayStartMillis
+        ORDER BY loggedAt
         """,
     )
-    suspend fun dailyIntake(
-        startInclusive: Long,
-        endExclusive: Long,
-        zoneOffsetMillis: Long,
-        dayLengthMillis: Long = 86_400_000L,
-    ): List<DailyIntake>
+    suspend fun intakeRows(startInclusive: Long, endExclusive: Long): List<IntakeRow>
 
     /** Each drink logged to a slot (Drinks), latest first, with the size it was last logged at: the Drinks page's Recent row. */
     @Query(
@@ -146,21 +131,6 @@ interface FoodLogDao {
     /** The row whether or not it was deleted: Undo on a drink brings its food row back too. */
     @Query("SELECT * FROM food_log WHERE id = :id")
     suspend fun findAny(id: String): FoodLogEntity?
-
-    /** How many distinct days have any entry, for "18 of the last 21 days" (SPEC §11). */
-    @Query(
-        """
-        SELECT COUNT(DISTINCT ((loggedAt + :zoneOffsetMillis) / :dayLengthMillis))
-        FROM food_log
-        WHERE deletedAt IS NULL AND loggedAt >= :startInclusive AND loggedAt < :endExclusive
-        """,
-    )
-    suspend fun countDaysLogged(
-        startInclusive: Long,
-        endExclusive: Long,
-        zoneOffsetMillis: Long,
-        dayLengthMillis: Long = 86_400_000L,
-    ): Int
 
     /** Every row touched since [since], deleted rows included, for Health Connect sync. */
     @Query("SELECT * FROM food_log WHERE updatedAt > :since ORDER BY updatedAt")
