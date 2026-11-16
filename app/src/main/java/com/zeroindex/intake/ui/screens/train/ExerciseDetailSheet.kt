@@ -265,7 +265,11 @@ private fun YourHistory(stats: ExerciseStats, unit: WeightUnit) {
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(Modifier.weight(1f)) {
             Row(Modifier.height(24.dp), verticalAlignment = Alignment.CenterVertically) { Eyebrow("Total volume") }
-            Text(w(stats.totalVolumeKg), style = MaterialTheme.typography.titleMedium)
+            // A bodyweight lift has no load to total: show its reps rather than "0 lb" (Q5b-16).
+            Text(
+                if (stats.isBodyweightOnly) "${stats.totalReps} reps" else w(stats.totalVolumeKg),
+                style = MaterialTheme.typography.titleMedium,
+            )
         }
         Column(Modifier.weight(1f)) {
             Row(Modifier.height(24.dp), verticalAlignment = Alignment.CenterVertically) { Eyebrow("Sessions") }

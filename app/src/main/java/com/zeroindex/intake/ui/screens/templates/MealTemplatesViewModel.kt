@@ -8,9 +8,9 @@ import com.zeroindex.intake.data.repository.TemplateLogResult
 import com.zeroindex.intake.data.repository.TemplateSummary
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nfc.TemplateLink
+import com.zeroindex.intake.domain.template.TemplateLogMessage
 import com.zeroindex.intake.ui.AppMessage
 import com.zeroindex.intake.ui.AppMessages
-import com.zeroindex.intake.ui.screens.today.displayName
 import com.zeroindex.intake.nfc.NfcTagWriter
 import com.zeroindex.intake.nfc.TagWriteResult
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -126,7 +126,7 @@ class MealTemplatesViewModel @Inject constructor(
         when (val r = repository.log(t.template.id, slot, allergenOverride = confirmed, noteDespite = confirmed)) {
             is TemplateLogResult.Logged -> messages.post(
                 AppMessage(
-                    text = "Logged ${t.template.name} to ${slot.displayName()}" + (r.allergenNote?.let { ". $it" } ?: ""),
+                    text = TemplateLogMessage.logged(t.template.name, r.slot, r.allergenNote),
                     actionLabel = "Undo",
                     onAction = { repository.undo(r.logs) },
                 ),

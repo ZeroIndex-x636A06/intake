@@ -269,7 +269,8 @@ fun FoodDetailScreen(
                             Triple(grams(food.proteinPer100g * f), "protein", ProteinAccent),
                             Triple(grams(food.carbsPer100g * f), "carbs", CarbAccent),
                             Triple(grams(food.fatPer100g * f), "fat", FatAccent),
-                            Triple(KcalFormat.format(food.kcalPer100g * f), "kcal", MaterialTheme.colorScheme.onSurface),
+                            // "logged" says this is the exact figure an entry takes; the printed label below rounds it (Q5b-13).
+                            Triple(KcalFormat.format(food.kcalPer100g * f), "kcal logged", MaterialTheme.colorScheme.onSurface),
                         ),
                     )
                     MacroSplitBar(food.proteinPer100g * f, food.carbsPer100g * f, food.fatPer100g * f)

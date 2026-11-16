@@ -416,6 +416,11 @@ private fun AdherenceCard(state: ProgressUiState) {
 @Composable
 private fun CaloriesCard(state: ProgressUiState) {
     SectionCard(title = "Calories vs target", caption = state.range.caption) {
+        // No logged day in the range: say so rather than drawing an empty chart.
+        if (state.dailyKcal.all { it == null }) {
+            EmptyState(body = "No meals logged in this range yet. Log food and each day's calories appear here against your target.")
+            return@SectionCard
+        }
         TargetBarChart(
             values = state.dailyKcal.map { it ?: 0.0 },
             target = state.target?.kcal?.toDouble(),
@@ -568,11 +573,18 @@ private fun MeasurementLines(state: ProgressUiState) {
         Triple("Hip", { it.hipCm }, unit.label),
     )
 
-    sites.forEach { (label, selector, suffix) ->
+    val drawn = sites.mapNotNull { (label, selector, suffix) ->
         val points = state.metrics.mapNotNull { metric ->
             selector(metric)?.let { ChartPoint(metric.measuredAt.toDouble(), unit.fromCm(it), ChartMath.sourceLabel(metric.source)) }
         }
-        if (points.size < 2) return@forEach
+        if (points.size < 2) null else Triple(label, points, suffix)
+    }
+    // A site needs two readings to draw a line. With none in this range, say so instead of a bare title.
+    if (drawn.isEmpty()) {
+        EmptyState(body = "No measurements in this range yet. Two readings of a site, such as your waist, draw its line here.")
+        return
+    }
+    drawn.forEach { (label, points, suffix) ->
         Eyebrow(
             text = label,
             modifier = Modifier.padding(top = 10.dp, bottom = 2.dp),

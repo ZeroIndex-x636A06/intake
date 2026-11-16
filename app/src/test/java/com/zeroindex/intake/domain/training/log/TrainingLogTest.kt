@@ -105,4 +105,17 @@ class TrainingLogTest {
         assertThat(stats.estimatedMaxSeries).isEmpty()
         assertThat(stats.sessions).hasSize(1)
     }
+
+    @Test fun `a bodyweight lift has no volume to total, so its stats say reps (Q5b-16)`() {
+        val pullUps = ExerciseStatsBuilder.build(
+            listOf(set("a", "pullup", 0, 0.0, 10, 1L), set("a", "pullup", 1, 0.0, 8, 2L), set("b", "pullup", 0, 0.0, 6, 3L)),
+        )
+        assertThat(pullUps.totalVolumeKg).isEqualTo(0.0)
+        assertThat(pullUps.isBodyweightOnly).isTrue()
+        assertThat(pullUps.totalReps).isEqualTo(24)
+
+        val loaded = ExerciseStatsBuilder.build(listOf(set("a", "bench", 0, 60.0, 10, 1L), set("a", "bench", 1, 0.0, 8, 2L)))
+        assertThat(loaded.isBodyweightOnly).isFalse()
+        assertThat(loaded.totalVolumeKg).isEqualTo(600.0)
+    }
 }

@@ -136,7 +136,6 @@ private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, sta
     if (messages != null) {
         LaunchedEffect(messages) {
             messages.events.collect { message ->
-                messages.consumed()
                 val result = snackbar.showSnackbar(
                     message = message.text,
                     actionLabel = message.actionLabel,

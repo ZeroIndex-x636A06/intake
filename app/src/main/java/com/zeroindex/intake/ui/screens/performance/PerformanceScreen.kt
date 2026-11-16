@@ -163,7 +163,7 @@ fun PerformanceScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    IconButton(onClick = { viewModel.delete(m.id) }) {
+                    IconButton(onClick = { viewModel.delete(m) }) {
                         Icon(Icons.Filled.Delete, contentDescription = "Delete this jump test")
                     }
                 }

@@ -8,9 +8,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
+import com.zeroindex.intake.domain.template.TemplateLogMessage
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -110,12 +111,13 @@ class MainActivity : ComponentActivity() {
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Pick the meal to log it to.")
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // A FlowRow wraps the chips onto a second line rather than cutting the last one off at the edge.
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         listOf(MealSlot.BREAKFAST, MealSlot.LUNCH, MealSlot.DINNER, MealSlot.SNACK).forEach { slot ->
                             FilterChip(
                                 selected = tag.slot == slot,
                                 onClick = { pendingTag = tag.copy(slot = slot) },
-                                label = { Text(slot.name.lowercase().replaceFirstChar(Char::uppercase)) },
+                                label = { Text(TemplateLogMessage.slotLabel(slot)) },
                             )
                         }
                     }
@@ -171,8 +173,9 @@ class MainActivity : ComponentActivity() {
             when (val result = templates.log(id, slot)) {
                 is TemplateLogResult.Logged -> messages.post(
                     AppMessage(
-                        text = "Logged ${result.template.name} to ${result.slot.name.lowercase()}" +
-                            (result.allergenNote?.let { ". $it" } ?: ""),
+                        text = TemplateLogMessage.logged(
+                            result.template.name, result.slot, result.allergenNote,
+                        ),
                         actionLabel = "Undo",
                         onAction = { templates.undo(result.logs) },
                     ),

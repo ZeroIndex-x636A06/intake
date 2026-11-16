@@ -87,10 +87,11 @@ class TodayViewModel @Inject constructor(
     private val insights: DailyInsights,
     private val body: BodyRepository,
     private val clock: Clock,
+    private val sharedDay: com.zeroindex.intake.ui.SharedDay,
     private val messages: AppMessages,
 ) : ViewModel() {
 
-    private val selectedDate = MutableStateFlow(clock.today())
+    private val selectedDate = sharedDay.date
 
     init {
         viewModelScope.launch { hydrationRepository.ensureDefaultPresets() }

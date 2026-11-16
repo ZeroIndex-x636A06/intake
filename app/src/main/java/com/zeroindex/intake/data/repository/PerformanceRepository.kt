@@ -53,7 +53,13 @@ class PerformanceRepository @Inject constructor(
         return metric
     }
 
+    /** Soft delete: the row stays in the database, so [restore] can bring it back for Undo. */
     suspend fun delete(id: String) = dao.softDelete(id, clock.nowMillis())
+
+    /** Undo of [delete]: the row as it was, with its deletedAt cleared. */
+    suspend fun restore(row: PerformanceMetricEntity) {
+        dao.upsert(row.copy(deletedAt = null, updatedAt = clock.nowMillis()))
+    }
 
     fun observeOverlay(from: LocalDate, to: LocalDate): Flow<List<OverlayWeek>> {
         val start = clock.rangeFor(from).startInclusive
