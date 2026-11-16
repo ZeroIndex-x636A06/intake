@@ -150,7 +150,7 @@ fun SettingControl(
                     s.autoCalculateTargets, viewModel::setAutoTargets,
                 )
                 "manualCalories" -> ManualCaloriesRow(state.currentKcal, viewModel::setManualCalories)
-                "proteinPerKg" -> NumberSetting("Protein", "Per kg of goal weight. 1.6 to 2.2 is the usual range.", s.proteinGramsPerKg, "g per kg", 0.8..3.5) { viewModel.setProteinPerKg(it) }
+                "proteinPerKg" -> NumberSetting("Protein", "Per kg of body weight (lean mass when your body fat is known). 1.6 to 2.2 is the usual range.", s.proteinGramsPerKg, "g per kg", 0.8..3.5) { viewModel.setProteinPerKg(it) }
                 "fatPerKg" -> NumberSetting("Fat", "Per kg of weight. 0.6 is the minimum.", s.fatGramsPerKg, "g per kg", 0.3..2.0) { viewModel.setFatPerKg(it) }
                 "addActiveKcal" -> SwitchSetting(
                     "Add active calories to my target",
@@ -166,7 +166,7 @@ fun SettingControl(
                     val travel = s.eatOutTravel
                     SettingRow(
                         "Eat out nearby: how far",
-                        "How far the nearby restaurant search reaches, as a travel time. Walking is about 5 km/h and driving about 40 km/h, with allowance for roads being longer than a straight line (about ${"%.1f".format(java.util.Locale.US, travel.meters / 1000.0)} km out for ${travel.label}). Uses your location once, when you tap search.",
+                        com.zeroindex.intake.domain.nearby.TravelRadius.helpText(travel, s.lengthUnit),
                     ) {
                         androidx.compose.foundation.layout.Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp)) {
                             Segmented(minutes.map { "$it min" }, minutes.indexOf(travel.minutes).coerceAtLeast(0), { viewModel.setEatOutTravel(travel.copy(minutes = minutes[it])) })
@@ -196,7 +196,7 @@ fun SettingControl(
                     "Training-day increase", "Water added on a day you train (${s.volumeUnit.label}).",
                     UnitConverter.round(s.volumeUnit.fromMl(s.hydrationTrainingBonusMl), 1), s.volumeUnit.label, 0.0..5000.0,
                 ) { viewModel.setHydrationTrainingBonusMl(s.volumeUnit.toMl(it)) }
-                "weatherEnabled" -> WeatherSettingsSection()
+                "weatherEnabled" -> WeatherSettingsSection(lengthUnit = s.lengthUnit, volumeUnit = s.volumeUnit)
                 "locationMode", "place", "forgetLocation" -> Unit // part of the weather block above
                 "quickSizes" -> QuickSizes(state.presets, s.volumeUnit, viewModel)
                 "drinkOverrides" -> HydrationAdvancedBlock(s.weightUnit, s.volumeUnit)
@@ -355,7 +355,7 @@ fun SettingControl(
             }
         }
         state.message?.let { m ->
-            if (id == "key.usda" || id == "key.youtube" || id == "offUsername") {
+            if (id == "key.usda" || id == "key.youtube" || id == "offUsername" || id == "recalc") {
                 SandNote(m)
                 TextButton(onClick = viewModel::clearMessage) { Text("Dismiss") }
             }

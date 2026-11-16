@@ -175,7 +175,7 @@ fun WeeklyCheckInScreen(
                 item(key = "on-track") { SandNote("Nothing to change this week. Your numbers are where they should be, so the best move is to keep going.") }
             }
             items(latest.rows, key = { it.id }) { row ->
-                SuggestionCard(row, enabled = !state.working, onApply = { viewModel.apply(row) }, onDismiss = { viewModel.dismiss(row) })
+                SuggestionCard(row, state.weightUnit, state.volumeUnit, enabled = !state.working, onApply = { viewModel.apply(row) }, onDismiss = { viewModel.dismiss(row) })
             }
             item(key = "now") {
                 TextButton(onClick = viewModel::checkInNow, enabled = !state.working, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Check in now") }
@@ -257,11 +257,15 @@ private fun SummaryLine(label: String, value: String) {
 @Composable
 private fun SuggestionCard(
     row: CoachSuggestionEntity,
+    weightUnit: WeightUnit,
+    volumeUnit: com.zeroindex.intake.domain.units.VolumeUnit,
     enabled: Boolean,
     onApply: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     var open by rememberSaveable(row.id) { mutableStateOf(false) }
+    // The rules write their numbers in ml and kg; show them in the person's units (QA Q4-5).
+    fun u(text: String) = com.zeroindex.intake.domain.units.UnitText.inUnits(text, weightUnit, volumeUnit)
     val action = runCatching { kotlinx.serialization.json.Json.decodeFromString(CoachAction.serializer(), row.actionJson) }.getOrNull()
     val reworded = row.aiTitle != null || row.aiWhy != null
     IntakeCard {
@@ -271,9 +275,9 @@ private fun SuggestionCard(
                 StatusPill(if (row.status == SuggestionStatus.APPLIED) "Applied" else "Dismissed", tone = PillTone.Wait)
             }
         }
-        Text(row.aiTitle ?: row.title, style = MaterialTheme.typography.titleSmall)
+        Text(u(row.aiTitle ?: row.title), style = MaterialTheme.typography.titleSmall)
         Spacer(Modifier.height(2.dp))
-        Text(row.aiWhy ?: row.why, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(u(row.aiWhy ?: row.why), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (action != null && action !is CoachAction.Acknowledge) {
             Spacer(Modifier.height(4.dp))
             Text("Apply does: ${CoachCheckInViewModel.describe(action)}", style = MaterialTheme.typography.labelMedium)
@@ -282,9 +286,9 @@ private fun SuggestionCard(
             Text(if (open) "Hide the why" else "Why this?")
         }
         if (open) {
-            row.details?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            row.details?.let { Text(u(it), style = MaterialTheme.typography.bodySmall) }
             if (reworded) {
-                SandNote("Reworded with AI. The numbers and the action are the rule's own.\nOriginal: ${row.title}. ${row.why}")
+                SandNote("Reworded with AI. The numbers and the action are the rule's own.\nOriginal: ${u(row.title)}. ${u(row.why)}")
             }
         }
         if (row.status == SuggestionStatus.PENDING) {

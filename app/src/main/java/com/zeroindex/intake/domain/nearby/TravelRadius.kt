@@ -60,4 +60,13 @@ object TravelRadius {
     }
 
     fun metersToMiles(meters: Double): Double = meters / 1609.344
+
+    /** The Settings line under "Eat out nearby: how far", with its speeds and distance in the person's length unit. */
+    fun helpText(travel: TravelBudget, unit: com.zeroindex.intake.domain.units.LengthUnit): String {
+        val km = "%.1f".format(java.util.Locale.US, travel.meters / 1000.0)
+        val metric = "How far the nearby restaurant search reaches, as a travel time. Walking is about 5 km/h and " +
+            "driving about 40 km/h, with allowance for roads being longer than a straight line (about $km km out for " +
+            "${travel.label}). Uses your location once, when you tap search."
+        return com.zeroindex.intake.domain.units.DistanceText.inUnit(metric, unit)
+    }
 }

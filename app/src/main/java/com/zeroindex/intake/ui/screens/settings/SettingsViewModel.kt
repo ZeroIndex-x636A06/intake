@@ -72,6 +72,7 @@ class SettingsViewModel @Inject constructor(
     private val bodyRepository: BodyRepository,
     private val hydrationRepository: HydrationRepository,
     private val profileRepository: ProfileRepository,
+    private val autoTargets: com.zeroindex.intake.data.profile.AutoTargets,
     private val clock: Clock,
     private val youtubeTester: com.zeroindex.intake.data.remote.youtube.YoutubeKeyTester,
 ) : ViewModel() {
@@ -117,10 +118,19 @@ class SettingsViewModel @Inject constructor(
     fun setTodayCard(card: TodayCard, shown: Boolean) = launchSetting { setTodayCard(card, shown) }
 
     // ---- Nutrition ----
-    fun setAutoTargets(enabled: Boolean) = launchSetting { setAutoCalculateTargets(enabled) }
+    fun setAutoTargets(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setAutoCalculateTargets(enabled)
+            if (enabled) message.value = com.zeroindex.intake.data.profile.AutoTargets.message(autoTargets.refresh())
+        }
+    }
     fun setAddActiveCalories(enabled: Boolean) = launchSetting { setAddActiveCalories(enabled) }
-    fun setProteinPerKg(value: Double) = launchSetting { setProteinPerKg(value) }
-    fun setFatPerKg(value: Double) = launchSetting { setFatPerKg(value) }
+    fun setProteinPerKg(value: Double) {
+        viewModelScope.launch { settingsRepository.setProteinPerKg(value); autoTargets.refresh() }
+    }
+    fun setFatPerKg(value: Double) {
+        viewModelScope.launch { settingsRepository.setFatPerKg(value); autoTargets.refresh() }
+    }
     fun setShowSodium(mode: SodiumDisplay) = launchSetting { setShowSodium(mode) }
     fun setEatOutTravel(budget: com.zeroindex.intake.domain.nearby.TravelBudget) = launchSetting { setEatOutTravel(budget) }
     fun updateProfile(block: (UserProfile) -> UserProfile) { viewModelScope.launch { profileRepository.update(block) } }
@@ -143,17 +153,9 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun recalculateTargetFromTdee() = viewModelScope.launch {
-        val result = tdeeRepository.recalculate()
-        message.value = if (result == null) {
-            "Not enough data yet: 14 days with both a weigh-in and a logged day are needed."
-        } else {
-            val shift = tdeeRepository.refreshTargetFromTdee(result)
-            if (shift == null) {
-                "Maintenance is about ${result.estimatedTdee.toInt()} kcal. Target unchanged."
-            } else {
-                "Target is now ${shift.newKcal} kcal, from your own data."
-            }
-        }
+        // Measured burn needs about two weeks of data; without it the plan starts from the formula.
+        tdeeRepository.recalculate()
+        message.value = com.zeroindex.intake.data.profile.AutoTargets.message(autoTargets.refresh())
     }
 
     // ---- Water and drinks ----
