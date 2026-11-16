@@ -487,6 +487,8 @@ private fun MealsCard(
                         MacroSplitBar(row.protein, row.carbs, row.fat, Modifier.fillMaxWidth(0.7f).padding(top = 5.dp), showLabels = false, barHeight = 5.dp)
                     }
                     planned != null -> PlannedLine(planned, actions, onLogIt)
+                    // Before the first read every row would say "Nothing yet": show nothing instead (Q1-7, Q5a-6).
+                    !state.ready -> Unit
                     else -> Text("Nothing yet", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }

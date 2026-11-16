@@ -52,6 +52,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
@@ -447,7 +448,10 @@ class AddFoodViewModel @Inject constructor(
             menuRows = menu,
             queryMatchesDrinks = extras.drinksExist || ((extras.off as? OffUiState.Results)?.drinksLeftOut ?: 0) > 0,
         )
-    }.stateIn(
+    }
+        // The assembling (a filter over every food on the phone, among others) is not main-thread work.
+        .flowOn(Dispatchers.Default)
+        .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = AddFoodUiState(),

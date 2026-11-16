@@ -12,6 +12,12 @@ class NameMatchRankTest {
         assertThat(rank("almo")).containsExactly("Almond milk", "Roasted almonds", "Salmon fillet, baked", "Salmon").inOrder()
     }
 
+    @Test fun `the My foods list puts Almond butter and milk above Salmon whatever order it arrives in`() {
+        val mine = listOf("Banana", "Salmon fillet, baked", "Almond butter", "Chicken breast", "Almond milk, unsweetened", "Salmon, smoked")
+        assertThat(NameMatchRank.filterAndRank(mine, "almo", { it }))
+            .containsExactly("Almond butter", "Almond milk, unsweetened", "Salmon fillet, baked", "Salmon, smoked").inOrder()
+    }
+
     @Test fun `a name that begins with the word beats a later word`() {
         assertThat(rank("almo").take(2)).containsExactly("Almond milk", "Roasted almonds").inOrder()
     }

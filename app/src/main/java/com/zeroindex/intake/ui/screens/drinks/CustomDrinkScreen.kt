@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
@@ -143,10 +144,9 @@ fun CustomDrinkScreen(
         item(key = "search") {
             val search = rememberSyncedText(state.searchQuery, viewModel::setQuery)
             OutlinedTextField(
-                value = search.text,
-                onValueChange = search::edit,
+                state = search.box,
                 label = { Text("Or search any food to add") },
-                singleLine = true,
+                lineLimits = TextFieldLineLimits.SingleLine,
                 shape = IntakeShape.Field,
                 modifier = Modifier.fillMaxWidth().scrollIntoViewOnFocus(),
             )

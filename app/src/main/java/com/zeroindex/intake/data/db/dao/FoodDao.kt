@@ -38,13 +38,18 @@ interface FoodDao {
     @Query("SELECT * FROM food WHERE deletedAt IS NULL ORDER BY name")
     suspend fun all(): List<FoodEntity>
 
+    /**
+     * Name starts with the words, then a word of the name starts with them, then anything else ("almo": Almond milk before
+     * Salmon); so the cap of [limit] never cuts a better match for a worse one. The screen refines the order with NameMatchRank.
+     */
     /** Local matches come first in the add sheet, ahead of any remote result (SPEC §5.1). */
     @Query(
         """
         SELECT * FROM food
         WHERE deletedAt IS NULL
           AND (name LIKE '%' || :query || '%' OR brand LIKE '%' || :query || '%')
-        ORDER BY timesLogged DESC, name
+        ORDER BY CASE WHEN name LIKE :query || '%' THEN 0 WHEN name LIKE '% ' || :query || '%' THEN 1 ELSE 2 END,
+          timesLogged DESC, name
         LIMIT :limit
         """,
     )
@@ -96,7 +101,8 @@ interface FoodDao {
         SELECT * FROM food
         WHERE deletedAt IS NULL AND drinkCategory IS NOT NULL
           AND (name LIKE '%' || :query || '%' OR brand LIKE '%' || :query || '%')
-        ORDER BY timesLogged DESC, name
+        ORDER BY CASE WHEN name LIKE :query || '%' THEN 0 WHEN name LIKE '% ' || :query || '%' THEN 1 ELSE 2 END,
+          timesLogged DESC, name
         LIMIT :limit
         """,
     )

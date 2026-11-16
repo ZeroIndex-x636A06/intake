@@ -46,6 +46,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.KeyboardActionHandler
+import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -217,8 +219,7 @@ fun VideosSection(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val search = rememberSyncedText(state.query, viewModel::setQuery)
                     OutlinedTextField(
-                        value = search.text,
-                        onValueChange = search::edit,
+                        state = search.box,
                         placeholder = { Text("Search workout videos") },
                         leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                         trailingIcon = {
@@ -226,10 +227,10 @@ fun VideosSection(
                                 IconButton(onClick = { viewModel.clearSearch() }) { Icon(Icons.Filled.Close, contentDescription = "Clear the search") }
                             }
                         },
-                        singleLine = true,
+                        lineLimits = TextFieldLineLimits.SingleLine,
                         shape = RoundedCornerShape(18.dp),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        keyboardActions = KeyboardActions(onSearch = { focus.clearFocus(); viewModel.search() }),
+                        onKeyboardAction = KeyboardActionHandler { focus.clearFocus(); viewModel.search() },
                         modifier = Modifier.weight(1f),
                     )
                     VideosOverflow(
