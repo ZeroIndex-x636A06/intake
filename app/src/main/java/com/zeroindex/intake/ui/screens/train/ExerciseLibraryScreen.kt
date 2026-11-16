@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -97,16 +98,15 @@ fun ExercisesSection(
         item(key = "search") {
             val search = rememberSyncedText(state.query, viewModel::setQuery)
             OutlinedTextField(
-                value = search.text,
-                onValueChange = search::edit,
+                state = search.box,
                 placeholder = { Text("Search ${state.total} exercises") },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                 trailingIcon = {
-                    if (search.text.isNotEmpty()) {
+                    if (search.box.text.isNotEmpty()) {
                         IconButton(onClick = { search.edit("") }) { Icon(Icons.Filled.Close, contentDescription = "Clear the search") }
                     }
                 },
-                singleLine = true,
+                lineLimits = TextFieldLineLimits.SingleLine,
                 shape = RoundedCornerShape(18.dp),
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -212,10 +212,9 @@ fun ExerciseFilterBar(state: ExerciseBrowseState, viewModel: ExerciseLibraryView
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         val search = rememberSyncedText(state.query, viewModel::setQuery)
         OutlinedTextField(
-            value = search.text,
-            onValueChange = search::edit,
+            state = search.box,
             label = { Text("Search exercises") },
-            singleLine = true,
+            lineLimits = TextFieldLineLimits.SingleLine,
             modifier = Modifier.fillMaxWidth(),
         )
         Eyebrow("Muscle")

@@ -73,6 +73,7 @@ import com.zeroindex.intake.ui.screens.today.components.HydrationCard
 import com.zeroindex.intake.ui.screens.today.components.InsightCard
 import com.zeroindex.intake.ui.screens.today.components.MealSlotCard
 import com.zeroindex.intake.ui.screens.today.components.NextUpCard
+import com.zeroindex.intake.ui.screens.today.components.CalorieCardSkeleton
 import com.zeroindex.intake.ui.screens.today.components.WeightTile
 import java.time.LocalDate
 import java.time.LocalTime
@@ -350,6 +351,11 @@ private fun LazyListScope.mainItems(
     }
     val ringAt = order++
     item(key = "calories") {
+        // Until the first read the card would say "No target yet" and "0 kcal eaten": a blank card of the same size instead (Q1-7, Q5a-6).
+        if (!state.loaded) {
+            CalorieCardSkeleton(Modifier.staggerIn(gate, "ring", ringAt))
+            return@item
+        }
         CalorieCard(
             progress = state.progress,
             activityBonusKcal = state.activityBonusKcal,
@@ -409,7 +415,7 @@ private fun LazyListScope.mainItems(
             }
         }
     }
-    if (s.todayCardWeight) {
+    if (s.todayCardWeight && state.loaded) {
         item(key = "weight") {
             WeightTile(state.latestWeightKg, state.weightWeekDeltaKg, s.weightUnit, actions.onOpenBodyMetrics)
         }

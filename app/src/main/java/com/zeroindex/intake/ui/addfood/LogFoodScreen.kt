@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import com.zeroindex.intake.ui.components.rememberSyncedText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -123,15 +124,20 @@ fun LogFoodScreen(
     val recipeVm: RecipeSearchViewModel = hiltViewModel()
     val recipes by recipeVm.state.collectAsStateWithLifecycle()
     val pendingRecipe by recipeVm.pending.collectAsStateWithLifecycle()
-    // The text field's own state lives here and changes synchronously. The view models get the words and debounce
-    // them; nothing they compute is ever fed back into the field (Q1-3: dropped and reordered keystrokes).
-    var queryText by rememberSaveable { mutableStateOf(viewModel.currentQuery) }
-    val onQueryChange: (String) -> Unit = { text ->
-        queryText = text
-        viewModel.setQuery(text)
-        recipeVm.setQuery(text)
-    }
-    LaunchedEffect(Unit) { recipeVm.setQuery(queryText) }
+    // The text field owns its own state (a TextFieldState): the keyboard edits it directly and nothing the view models
+    // compute is ever fed back into it, so fast typing cannot lose letters (Q1-3, Q5a-3). The view models get the words
+    // and debounce them; the lists below follow `queryText`, which waits for a pause in typing so a burst of keys does
+    // not rebuild them per key (Q5a-4).
+    val search = rememberSyncedText(
+        external = null,
+        onChange = { text ->
+            viewModel.setQuery(text)
+            recipeVm.setQuery(text)
+        },
+        initial = viewModel.currentQuery,
+    )
+    val queryText = search.settled
+    LaunchedEffect(Unit) { recipeVm.setQuery(search.text) }
     var mealSlot by rememberSaveable { mutableStateOf(slot) }
     var slotMenu by remember { mutableStateOf(false) }
 
@@ -171,7 +177,8 @@ fun LogFoodScreen(
                     AddFoodTab.SEARCH -> SearchTab(
                         state = state,
                         query = queryText,
-                        onQueryChange = onQueryChange,
+                        field = search.box,
+                        onClear = { search.edit("") },
                         onSearchRemote = viewModel::searchRemote,
                         onOpen = openEntity,
                         onQuickAdd = { food -> viewModel.quickAddDefault(food, mealSlot, loggedAtMillis) },
@@ -207,7 +214,7 @@ fun LogFoodScreen(
                         onDone = onBack,
                         // A label beats a guess: search for the product the photo looks like.
                         onFindProduct = { name ->
-                            onQueryChange(name)
+                            search.edit(name)
                             viewModel.selectTab(AddFoodTab.SEARCH)
                         },
                     )
@@ -405,8 +412,10 @@ private fun FoodRow(
 @Composable
 private fun SearchTab(
     state: AddFoodUiState,
+    /** The words the results follow (settled, not per keystroke). */
     query: String,
-    onQueryChange: (String) -> Unit,
+    field: androidx.compose.foundation.text.input.TextFieldState,
+    onClear: () -> Unit,
     onSearchRemote: () -> Unit,
     onOpen: (FoodEntity) -> Unit,
     onQuickAdd: (FoodEntity) -> Unit,
@@ -424,7 +433,7 @@ private fun SearchTab(
             heading = "Create a food",
             note = "Enter the numbers for one serving as they appear on the label. They are " +
                 "stored per 100 g so any portion works later.",
-            initialName = query.trim(),
+            initialName = field.text.toString().trim(),
             portionUnit = state.portionUnit,
             onCancel = { creating = false },
             onCreate = { name, brand, grams, label, k, p, c, f ->
@@ -437,16 +446,15 @@ private fun SearchTab(
 
     Column(Modifier.fillMaxSize()) {
         TextField(
-            value = query,
-            onValueChange = onQueryChange,
+            state = field,
             placeholder = { Text("Search foods", style = MaterialTheme.typography.bodyMedium) },
             leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, modifier = Modifier.size(19.dp)) },
             trailingIcon = {
-                if (query.isNotEmpty()) {
-                    IconButton(onClick = { onQueryChange("") }) { Icon(Icons.Filled.Close, contentDescription = "Clear the search") }
+                if (field.text.isNotEmpty()) {
+                    IconButton(onClick = onClear) { Icon(Icons.Filled.Close, contentDescription = "Clear the search") }
                 }
             },
-            singleLine = true,
+            lineLimits = androidx.compose.foundation.text.input.TextFieldLineLimits.SingleLine,
             shape = IntakeShape.Field,
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -704,11 +712,19 @@ private fun MyFoodsTab(
     var filter by rememberSaveable { mutableStateOf("") }
     val needle = filter.trim().lowercase()
     // A word that starts with what was typed beats a match in the middle of a word ("almo" finds Almond milk before Salmon).
-    fun ranked(foods: List<FoodEntity>) =
-        com.zeroindex.intake.domain.food.NameMatchRank.filterAndRank(foods, needle, { it.name }, { it.brand.orEmpty() })
-    val favorites = ranked(state.favorites)
-    val mine = ranked(state.myFoods.filter { m -> state.favorites.none { it.id == m.id } })
-    val myRecipes = com.zeroindex.intake.domain.food.NameMatchRank.filterAndRank(recipes, needle, { it.recipe.name })
+    // Remembered, so a recomposition that changes nothing here does not filter and rank the whole list again.
+    val favorites = remember(state.favorites, needle) {
+        com.zeroindex.intake.domain.food.NameMatchRank.filterAndRank(state.favorites, needle, { it.name }, { it.brand.orEmpty() })
+    }
+    val mine = remember(state.myFoods, state.favorites, needle) {
+        val favoriteIds = state.favorites.mapTo(HashSet()) { it.id }
+        com.zeroindex.intake.domain.food.NameMatchRank.filterAndRank(
+            state.myFoods.filter { it.id !in favoriteIds }, needle, { it.name }, { it.brand.orEmpty() },
+        )
+    }
+    val myRecipes = remember(recipes, needle) {
+        com.zeroindex.intake.domain.food.NameMatchRank.filterAndRank(recipes, needle, { it.recipe.name })
+    }
     LazyColumn(Modifier.fillMaxSize()) {
         item(key = "add") {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

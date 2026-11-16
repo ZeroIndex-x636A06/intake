@@ -45,6 +45,33 @@ class SearchTextSyncTest {
     }
 
     @Test
+    fun `fast input with echoes arriving late never loses or reorders letters`() {
+        val s = SearchTextSync()
+        val sent = ArrayDeque<String>()
+        val word = "almond milk zzqxvv"
+        var typed = ""
+        // Each key is typed at once; the view model's copy of the words comes back several keys later, in order.
+        word.forEachIndexed { i, c ->
+            typed += c
+            s.edit(typed)
+            sent.addLast(typed)
+            if (i % 3 == 2) assertFalse(s.external(sent.removeFirst())) // an old echo must not touch the box
+            assertEquals(typed, s.text)
+        }
+        while (sent.isNotEmpty()) assertFalse(s.external(sent.removeFirst()))
+        assertEquals(word, s.text)
+    }
+
+    @Test
+    fun `a view model that only saw the last word does not make a later real change look old`() {
+        val s = SearchTextSync()
+        s.edit("m"); s.edit("mi"); s.edit("mil"); s.edit("milk")
+        assertFalse(s.external("milk"))
+        assertTrue(s.external("oat milk"))
+        assertEquals("oat milk", s.text)
+    }
+
+    @Test
     fun `a cleared box is not undone by its own echo`() {
         val s = SearchTextSync()
         s.edit("x"); s.external("x")

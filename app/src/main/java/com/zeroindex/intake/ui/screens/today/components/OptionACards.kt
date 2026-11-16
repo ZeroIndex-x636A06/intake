@@ -62,6 +62,16 @@ import com.zeroindex.intake.ui.theme.ProteinAccent
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
+/** The calorie card's size with nothing in it, shown until the first database read so no false "No target yet" appears. */
+@Composable
+fun CalorieCardSkeleton(modifier: Modifier = Modifier) {
+    IntakeCard(modifier) {
+        Box(Modifier.fillMaxWidth().height(CalorieCardSkeletonHeight))
+    }
+}
+
+private val CalorieCardSkeletonHeight = 290.dp
+
 /**
  * Option A's calorie card: the ring with the kcal left, what was eaten against the target, then protein, fat and carbs
  * always visible (no "More detail"), then Log food with Scan and Photo beside it.

@@ -1,5 +1,7 @@
 package com.zeroindex.intake.ui.components
 
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -7,34 +9,69 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import com.zeroindex.intake.domain.text.SearchTextSync
+import com.zeroindex.intake.domain.text.settled
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.coroutineScope
 
-/** A search box's text, held here and changed synchronously; see [SearchTextSync]. */
+/**
+ * A search box's text. The field is a [TextFieldState] that this class owns: the keyboard edits it directly, so a
+ * keystroke never waits for a recomposition (a String value handed back through a busy screen is what dropped the end of
+ * fast typing, Q1-3 / Q5a-3). The view model is told afterwards and its echo is filtered by [SearchTextSync].
+ *
+ * [settled] is the text a results list should follow: it lags the field until typing pauses, so the list is not rebuilt
+ * per key. Read [settled] (not the field) anywhere outside the field itself.
+ */
 class SyncedText internal constructor(initial: String, private val send: (String) -> Unit) {
     private val sync = SearchTextSync(initial)
-    var text by mutableStateOf(initial)
+
+    /** Pass to `TextField(state = ...)`. */
+    val box = TextFieldState(initial)
+
+    /** What the results should follow; see the class comment. */
+    var settled by mutableStateOf(initial)
         private set
 
-    /** For the field's onValueChange and a clear button. */
+    /** The text now. Reading it in composition re-reads on every keystroke: use it in click handlers and the field's own lambdas. */
+    val text: String get() = box.text.toString()
+
+    /** A clear button, or a suggested query. */
     fun edit(typed: String) {
-        sync.edit(typed)
-        text = typed
-        send(typed)
+        box.setTextAndPlaceCursorAtEnd(typed)
+    }
+
+    internal suspend fun run(settleMs: Long) = coroutineScope {
+        // Words that reach the view model: every value the field settles on (the flow conflates, which is fine).
+        launch {
+            snapshotFlow { box.text.toString() }.collect { typed ->
+                if (typed != sync.text) {
+                    sync.edit(typed)
+                    send(typed)
+                }
+            }
+        }
+        snapshotFlow { box.text.toString() }.settled(settleMs).collectLatest { settled = it }
     }
 
     internal fun external(seen: String) {
-        if (sync.external(seen)) text = sync.text
+        if (sync.external(seen)) {
+            box.setTextAndPlaceCursorAtEnd(sync.text)
+            settled = sync.text
+        }
     }
 }
 
 /**
- * Binds a text field to a view model's query without making the field wait on the view model: [external] is the
- * view model's copy, [onChange] sends the typed words to it (it debounces them).
+ * Binds a search field to a view model's query without making the field wait on the view model. [external] is the view
+ * model's copy (null when it never changes the words by itself), [onChange] sends the typed words to it (it debounces them).
  */
 @Composable
-fun rememberSyncedText(external: String, onChange: (String) -> Unit): SyncedText {
+fun rememberSyncedText(external: String?, onChange: (String) -> Unit, initial: String = external.orEmpty(), settleMs: Long = 250): SyncedText {
     val latest by rememberUpdatedState(onChange)
-    val synced = remember { SyncedText(external) { latest(it) } }
-    LaunchedEffect(external) { synced.external(external) }
+    val synced = remember { SyncedText(initial) { latest(it) } }
+    LaunchedEffect(Unit) { synced.run(settleMs) }
+    if (external != null) LaunchedEffect(external) { synced.external(external) }
     return synced
 }
