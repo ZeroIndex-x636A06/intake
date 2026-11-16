@@ -160,7 +160,7 @@ class NutritionHomeViewModel @Inject constructor(
         selectedDate.flatMapLatest { targets.observeTargetFor(it) },
         settingsRepository.settings,
     ) { entries, target, s ->
-        NutritionDashboard.build(DayNutrition.aggregate(entries), target, saltInsteadOfSodium = s.showSodium == SodiumDisplay.SALT)
+        NutritionDashboard.build(DayNutrition.aggregate(entries), target, saltInsteadOfSodium = s.showSodium == SodiumDisplay.SALT, showSodiumTile = s.showSodium != SodiumDisplay.OFF)
     }
 
     /** The planned meal for the chosen day: the plan week that day falls in. */

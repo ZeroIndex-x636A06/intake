@@ -19,6 +19,9 @@ internal object AllergenSeed {
 
     const val DAIRY = AllergenCatalog.DAIRY
 
+    /** What a fresh install avoids: nothing. The user chooses in onboarding or My allergens. */
+    const val DEFAULT_AVOIDED = ""
+
     /** The original dairy aliases (kept for tests that count them). */
     val DAIRY_ALIASES: List<String> = AllergenCatalog.DAIRY_CORE
 
@@ -33,15 +36,16 @@ internal object AllergenSeed {
     fun seed(db: SupportSQLiteDatabase, now: Long) {
         topUpRows(db, now)
 
-        // A profile row has to exist for the engine to have anything to check against. Dairy is
-        // pre-filled because it is why this app exists; it is editable in My allergens.
+        // A profile row has to exist for the engine to have anything to check against. It starts
+        // empty: a new user avoids nothing until they pick (QA Q4-10). Existing installs keep their
+        // saved row, because this runs only when the database is created and is INSERT OR IGNORE.
         db.execSQL(
             """
             INSERT OR IGNORE INTO allergen_profile
                 (id, avoidedAllergens, severityLevel, notes, createdAt, updatedAt, deletedAt)
             VALUES (?, ?, ?, '', ?, ?, NULL)
             """.trimIndent(),
-            arrayOf<Any?>("allergen-profile", DAIRY, AllergenSeverity.AVOID.name, now, now),
+            arrayOf<Any?>("allergen-profile", DEFAULT_AVOIDED, AllergenSeverity.AVOID.name, now, now),
         )
     }
 

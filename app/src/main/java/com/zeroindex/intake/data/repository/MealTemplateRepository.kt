@@ -105,6 +105,12 @@ class MealTemplateRepository @Inject constructor(
      * The allergen check of one template as it is now (every food, worst verdict wins) with the names of the foods that
      * matched, so a screen can show the warning sheet before [log]. Null when the template is gone or empty.
      */
+    /** The name of a template that can be logged (it exists and has foods), else null: what a tag tap confirms. */
+    suspend fun nameOf(templateId: String): String? {
+        val template = templateDao.all().firstOrNull { it.id == templateId } ?: return null
+        return template.name.takeIf { summary(template).items.isNotEmpty() }
+    }
+
     suspend fun checkOf(templateId: String): TemplateCheck? {
         val template = templateDao.all().firstOrNull { it.id == templateId } ?: return null
         val items = summary(template).items

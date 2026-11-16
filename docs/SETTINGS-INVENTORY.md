@@ -71,7 +71,7 @@ How your targets are worked out and what the dashboard shows. Your allergens are
 
 ## C. Water and drinks
 
-The water target, how it adjusts, and which sizes you tap. Using it (logging a drink) is in Nutrition > Drinks.
+The water target, how it adjusts, and which sizes you tap. Log a drink from the water card on Today or from Log food.
 
 | # | Setting | Key (code) | Group | Control | Current home | New home |
 | ---: | --- | --- | --- | --- | --- | --- |

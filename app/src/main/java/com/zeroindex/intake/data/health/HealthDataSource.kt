@@ -75,12 +75,21 @@ class HealthConnectSource @Inject constructor(
 ) : HealthDataSource {
     override val ownPackage: String get() = context.packageName
 
-    override fun availability(): HealthAvailability = when (runCatching { HealthConnectClient.getSdkStatus(context) }.getOrNull()) {
-        HealthConnectClient.SDK_AVAILABLE -> HealthAvailability.AVAILABLE
-        HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED -> HealthAvailability.UPDATE_REQUIRED
-        HealthConnectClient.SDK_UNAVAILABLE -> HealthAvailability.NOT_INSTALLED
-        else -> HealthAvailability.UNSUPPORTED
+    override fun availability(): HealthAvailability {
+        val fromSdk = when (runCatching { HealthConnectClient.getSdkStatus(context) }.getOrNull()) {
+            HealthConnectClient.SDK_AVAILABLE -> HealthAvailability.AVAILABLE
+            HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED -> HealthAvailability.UPDATE_REQUIRED
+            HealthConnectClient.SDK_UNAVAILABLE -> HealthAvailability.NOT_INSTALLED
+            else -> HealthAvailability.UNSUPPORTED
+        }
+        return HealthAvailabilityRules.resolve(fromSdk, providerInstalled())
     }
+
+    @Suppress("DEPRECATION")
+    private fun providerInstalled(): Boolean = runCatching {
+        context.packageManager.getPackageInfo(HEALTH_CONNECT_PROVIDER, 0)
+        true
+    }.getOrDefault(false)
 
     private fun client(): HealthConnectClient = HealthConnectClient.getOrCreate(context)
 

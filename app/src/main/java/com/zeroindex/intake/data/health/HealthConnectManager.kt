@@ -49,6 +49,19 @@ import kotlinx.coroutines.sync.withLock
 
 enum class HealthAvailability { AVAILABLE, NOT_INSTALLED, UPDATE_REQUIRED, UNSUPPORTED }
 
+/** The Health Connect app's package, also its Play Store listing id. */
+const val HEALTH_CONNECT_PROVIDER = "com.google.android.apps.healthdata"
+
+/** Corrects the SDK's status with what is really on the phone. */
+object HealthAvailabilityRules {
+    /**
+     * The SDK can answer "provider update required" on a phone that has no Health Connect app at all. An update can
+     * only be needed when the app is there, so without it the honest answer is "not installed" (QA Q4-16).
+     */
+    fun resolve(sdkAnswer: HealthAvailability, providerInstalled: Boolean): HealthAvailability =
+        if (sdkAnswer == HealthAvailability.UPDATE_REQUIRED && !providerInstalled) HealthAvailability.NOT_INSTALLED else sdkAnswer
+}
+
 /** One Health Connect data type the app reads or writes, for the permissions screen. */
 /** One Health Connect permission, with the plain reason Intake asks for it. */
 data class HealthDataType(val label: String, val permission: String, val why: String, val write: Boolean = false)

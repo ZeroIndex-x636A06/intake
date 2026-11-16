@@ -29,6 +29,7 @@ import androidx.health.connect.client.PermissionController
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.health.HealthAvailability
+import com.zeroindex.intake.data.health.HEALTH_CONNECT_PROVIDER
 import com.zeroindex.intake.data.health.HealthConnectManager
 import com.zeroindex.intake.ui.components.AccentNote
 import com.zeroindex.intake.ui.components.ErrorState
@@ -49,6 +50,19 @@ private fun openHealthConnectSettings(context: android.content.Context) {
     }
 }
 
+/** Opens the Health Connect listing in the Play Store app, else on the web; false when nothing can handle either. */
+private fun openHealthConnectInStore(context: android.content.Context): Boolean {
+    val listing = listOf(
+        "market://details?id=$HEALTH_CONNECT_PROVIDER",
+        "https://play.google.com/store/apps/details?id=$HEALTH_CONNECT_PROVIDER",
+    )
+    return listing.any { url ->
+        runCatching {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }.isSuccess
+    }
+}
+
 /** The id an inventory row gives a Health Connect type: `hc.read.Steps`, `hc.write.Hydration`. */
 fun healthControlId(type: com.zeroindex.intake.data.health.HealthDataType): String =
     "hc.${if (type.write) "write" else "read"}.${type.label.filter { it.isLetterOrDigit() }}"
@@ -66,20 +80,23 @@ fun HealthStatusHeader(modifier: Modifier = Modifier, viewModel: HealthConnectVi
         when (sync.availability) {
             HealthAvailability.AVAILABLE -> Unit
             HealthAvailability.NOT_INSTALLED, HealthAvailability.UPDATE_REQUIRED -> IntakeCard {
+                var storeNote by remember { mutableStateOf<String?>(null) }
                 Text(
-                    if (sync.availability == HealthAvailability.NOT_INSTALLED) "Health Connect is not installed" else "Health Connect needs an update",
+                    if (sync.availability == HealthAvailability.NOT_INSTALLED) "Health Connect is not installed on this phone" else "Health Connect needs an update",
                     style = MaterialTheme.typography.titleSmall,
                 )
                 Text("Nothing else in Intake depends on it.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = {
-                        runCatching {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=com.google.android.apps.healthdata")))
-                        }
+                        storeNote = if (openHealthConnectInStore(context)) null
+                        else "Nothing on this phone can open the Play Store page. Install or update Health Connect from your phone's app store."
                     },
                     shape = IntakeShape.Button,
                 ) { Text("Open in Play Store") }
+                storeNote?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 6.dp))
+                }
             }
             HealthAvailability.UNSUPPORTED -> AccentNote(
                 lead = "Not available on this phone",

@@ -96,6 +96,15 @@ class DayNutritionTest {
     }
 
     @Test
+    fun `sodium display Off leaves out the sodium and salt tile and its note`() {
+        val day = DayNutrition.aggregate(listOf(entry(500.0, sodium = 1640.0, unlisted = setOf(NutrientKey.SODIUM))))
+        val off = NutritionDashboard.build(day, null, saltInsteadOfSodium = false, showSodiumTile = false)
+        assertThat(off.others.map { it.id }).containsExactly("fiber", "satfat", "sugar").inOrder()
+        assertThat(off.notes.none { it.contains("sodium", ignoreCase = true) || it.contains("salt", ignoreCase = true) }).isTrue()
+        assertThat(NutritionDashboard.build(day, null, saltInsteadOfSodium = false).others.map { it.id }).contains("sodium")
+    }
+
+    @Test
     fun `notes list each nutrient with missing values`() {
         val day = DayNutrition.aggregate(listOf(entry(100.0, fiber = 2.0), entry(100.0, unlisted = setOf(NutrientKey.FIBER))))
         assertThat(NutritionDashboard.build(day, null, false).notes).containsExactly("1 food has no fibre value")

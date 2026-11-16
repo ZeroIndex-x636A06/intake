@@ -63,7 +63,7 @@ When nothing matches, "Create a food" opens the form with the query as the name.
 
 ### Foods and drinks are separate searches
 
-Log food lists **foods only**. The Drinks page (Nutrition > Drinks) has its own search, under its categories and
+Log food lists **foods only**. The Drinks page (the drinks page, from Log food) has its own search, under its categories and
 quick sizes, over the same four sources, and lists **drinks only** (docs/HYDRATION.md, "Drinks are foods").
 
 One rule decides, for both searches and for the copy to the phone: `DrinkRule` in `domain/drinks/DrinkCategory.kt`

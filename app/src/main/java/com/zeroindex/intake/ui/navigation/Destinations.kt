@@ -67,7 +67,7 @@ sealed interface Route {
      */
     @Serializable data class FoodDetail(val foodId: String, val slot: String? = null, val atMillis: Long = 0L) : Route
     /**
-     * The Drinks page (Nutrition > Drinks): category chips, search over the food database, quick sizes from Settings,
+     * The Drinks page (the drinks page, from Log food): category chips, search over the food database, quick sizes from Settings,
      * today's drinks with caffeine and sugar. Pushed from Today, Nutrition and Log food. Its settings stay in Settings.
      */
     @Serializable data object Drinks : Route
