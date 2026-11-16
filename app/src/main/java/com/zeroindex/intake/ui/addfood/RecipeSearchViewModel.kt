@@ -23,6 +23,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -73,22 +74,36 @@ class RecipeSearchViewModel @Inject constructor(
 
     fun setQuery(text: String) { query.value = text }
 
-    @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
-    val state: StateFlow<RecipeSearchUi> = combine(
-        query.debounce(300),
+    /** One recipe with its figures, as candidates are built, plus the allergen chip: the same for every query. */
+    private data class Prepared(
+        val candidates: List<RecipeCandidate>,
+        val logged: List<RecipeSearch.LoggedName>,
+        val chips: Map<String, RowAllergen>,
+    )
+
+    /**
+     * The per-recipe work (calorie estimate, allergen scan) does not depend on the words typed, so it runs when the
+     * recipes, the log or the allergen settings change, never per settled query (Q5b-1: it was redone for every
+     * recipe on every pause in typing, on top of the food list's own scan).
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val prepared: Flow<Prepared> = combine(
         recipeDao.observeAll(),
         foodLogDao.observeRecentPrepared(60),
         allergens.observeAvoidedAllergens(),
         allergens.observeAliases(),
-    ) { q, recipes, prepared, _, _ -> Triple(q, recipes, prepared) }.mapLatest { (q, recipes, prepared) ->
+    ) { recipes, prepared, _, _ -> recipes to prepared }.mapLatest { (recipes, prepared) ->
         val logged = prepared.map { RecipeSearch.LoggedName(it.name, it.at) }
         val candidates = RecipeSearch.withLastLogged(withContext(Dispatchers.Default) { recipes.map { candidateOf(it) } }, logged)
-        val byId = recipes.associateBy { it.id }
-        val shown = RecipeSearch.rank(q, candidates).take(12)
-        val recents = if (q.isBlank()) RecipeSearch.recents(candidates, logged) else emptyList()
-        val everything = candidates.sortedBy { it.name.lowercase() }
-        val chips = chipsFor((shown + recents + everything).distinctBy { it.id }.mapNotNull { byId[it.id] })
-        fun row(c: RecipeCandidate) = RecipeRowUi(c, chips[c.id])
+        Prepared(candidates, logged, chipsFor(recipes))
+    }.flowOn(Dispatchers.Default)
+
+    @OptIn(FlowPreview::class)
+    val state: StateFlow<RecipeSearchUi> = combine(query.debounce(300), prepared) { q, p ->
+        val shown = RecipeSearch.rank(q, p.candidates).take(12)
+        val recents = if (q.isBlank()) RecipeSearch.recents(p.candidates, p.logged) else emptyList()
+        val everything = p.candidates.sortedBy { it.name.lowercase() }
+        fun row(c: RecipeCandidate) = RecipeRowUi(c, p.chips[c.id])
         RecipeSearchUi(shown.map(::row), recents.map(::row), everything.map(::row), loaded = true)
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RecipeSearchUi())
 

@@ -24,6 +24,7 @@ import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 
 /** One row of the "My allergens" list. */
 data class AllergenListItem(
@@ -52,11 +53,24 @@ class AllergenRepository @Inject constructor(
     fun observeProfile(): Flow<AllergenProfileEntity?> = allergenDao.observeProfile()
 
     /** Keywords the engine uses (switched-off ones excluded). */
-    fun observeAliases(): Flow<List<AllergenAliasEntity>> = allergenDao.observeAliases()
+    fun observeAliases(): Flow<List<AllergenAliasEntity>> = sharedAliases
+
+    /**
+     * One query for every observer. The keyword table is about a thousand rows and a dozen view models watch it; each
+     * watcher used to run (and re-run, on every change) its own copy of the query, which kept all the database threads
+     * busy on a slow phone (Q5b-1). Kept for five seconds after the last watcher leaves.
+     */
+    private val sharedAliases: Flow<List<AllergenAliasEntity>> by lazy {
+        allergenDao.observeAliases().shareIn(
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Default),
+            kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000),
+            replay = 1,
+        )
+    }
 
     /** Grouped for the reference screen (SPEC §7.6). */
     fun observeAliasesByAllergen(): Flow<Map<String, List<String>>> =
-        allergenDao.observeAliases().map { rows ->
+        observeAliases().map { rows ->
             rows.groupBy { it.allergen }.mapValues { (_, v) -> v.map { it.aliasTerm }.sorted() }
         }
 
@@ -71,7 +85,7 @@ class AllergenRepository @Inject constructor(
         combine(
             observeAvoidedAllergens(),
             planDao.observeActivePlan(),
-            allergenDao.observeAliases(),
+            observeAliases(),
         ) { avoided, plan, aliases ->
             val own = aliases.filter { it.level == KeywordLevel.CHECK_LABEL }.map {
                 CheckLabelTerm(it.allergen, it.aliasTerm, "Says ${it.aliasTerm} - check the label")
@@ -306,8 +320,12 @@ class AllergenRepository @Inject constructor(
         }
         val checkTerms = HiddenCarriers.forAllergens(avoided) +
             PlanWatchTerms.extract(PlanMeta.decode(planDao.activePlan()?.metaJson).hiddenDairyChecklist)
+        val setup = ScanSetup(avoided, aliases, checkTerms.map { Triple(it.allergen, it.phrase, it.reason) })
         return { food ->
-            AllergenMatcher.scan(
+            // The scan is pure: the same words under the same keywords and terms give the same answer, so a list that
+            // is rebuilt (a keystroke, a new recent) does not scan its unchanged rows again (Q5b-1).
+            val key = ScanKey(setup, food.name, food.brand, food.allergenTags)
+            scanMemo[key] ?: AllergenMatcher.scan(
                 aliases = aliases,
                 avoidedAllergens = avoided,
                 name = food.name,
@@ -315,9 +333,26 @@ class AllergenRepository @Inject constructor(
                 ingredients = food.allergenTags.takeIf { it.isNotBlank() },
                 structuredContains = storedTags(food),
                 checkLabelTerms = checkTerms,
-            )
+            ).also {
+                if (scanMemo.size >= SCAN_MEMO_MAX) scanMemo.clear()
+                scanMemo[key] = it
+            }
         }
     }
+
+    /** Everything a food's scan depends on besides the food's own text; compared by value. */
+    private data class ScanSetup(
+        val avoided: Set<String>,
+        val aliases: List<AllergenAlias>,
+        val terms: List<Triple<String, String, String>>,
+    ) {
+        private val hash = 31 * (31 * avoided.hashCode() + aliases.hashCode()) + terms.hashCode()
+        override fun hashCode() = hash
+    }
+
+    private data class ScanKey(val setup: ScanSetup, val name: String, val brand: String?, val tags: String)
+
+    private val scanMemo = java.util.concurrent.ConcurrentHashMap<ScanKey, AllergenScanResult>()
 
     /**
      * One engine setup for many imported menu items. Each item is scanned by its name, description and ingredient
@@ -392,5 +427,6 @@ class AllergenRepository @Inject constructor(
 
     private companion object {
         const val SAFE_FOOD_THRESHOLD = 3
+        const val SCAN_MEMO_MAX = 2_000
     }
 }

@@ -293,4 +293,23 @@ class CheckLabelTest {
         assertThat(HiddenCarriers.firstHit(HiddenCarriers.DAIRY_TERMS, "Chicken breast")).isNull()
         assertThat(HiddenCarriers.firstHit(HiddenCarriers.DAIRY_TERMS, null)).isNull()
     }
+
+    @Test
+    fun `accented names and ingredient lines are still read after the per-field normalising`() {
+        // The soft tier reads a field's folded text once for every term; accents must still fold ("tortilla").
+        assertCheckLabel("Flour tortillás")
+        val r = scan(name = "Wrap", ingredients = "Flour tortillá, beans", inIngredients = true)
+        assertThat(r.hasCheckLabel).isTrue()
+    }
+
+    @Test
+    fun `a scan with every carrier term stays cheap`() {
+        // Regression for Q5b-1: normalising per term built a regex per term (about 1000 per food) and starved the UI
+        // thread on a slow device. Only a generous bound here, so a slow CI box does not flake.
+        val terms = HiddenCarriers.ALL
+        scan(name = "warm-up", extra = terms)
+        val t0 = System.nanoTime()
+        repeat(50) { scan(name = "Chicken breast, grilled", ingredients = "chicken, salt, water", extra = terms) }
+        assertThat((System.nanoTime() - t0) / 1_000_000).isLessThan(5_000)
+    }
 }

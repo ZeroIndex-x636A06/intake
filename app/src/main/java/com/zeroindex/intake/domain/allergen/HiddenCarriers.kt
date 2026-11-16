@@ -22,8 +22,15 @@ data class CheckLabelTerm(
         Regex("(?<![\\p{L}\\p{N}])$body(?![\\p{L}\\p{N}])", RegexOption.IGNORE_CASE)
     }
 
+    /**
+     * The phrase's first word. A whole-word hit needs it as plain text, so [findIn] checks that first and only builds
+     * the regex (the costly part, hundreds of terms on a slow phone) for a text that holds it (Q5b-1).
+     */
+    private val needle: String = phrase.trim().takeWhile { !it.isWhitespace() && it != '-' && it != '.' }
+
     /** First whole-word hit in [text], or null. */
-    fun findIn(text: String): MatchResult? = regex.find(text)
+    fun findIn(text: String): MatchResult? =
+        if (needle.isNotEmpty() && !text.contains(needle, ignoreCase = true)) null else regex.find(text)
 }
 
 /**
