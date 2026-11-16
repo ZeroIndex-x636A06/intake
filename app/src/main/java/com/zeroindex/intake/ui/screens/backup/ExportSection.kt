@@ -11,7 +11,10 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
@@ -44,6 +47,7 @@ import java.time.format.DateTimeFormatter
 fun ExportSection(modifier: Modifier = Modifier, viewModel: ExportViewModel = hiltViewModel()) {
     val message by viewModel.message.collectAsStateWithLifecycle()
     val import by viewModel.import.collectAsStateWithLifecycle()
+    val exporting by viewModel.exporting.collectAsStateWithLifecycle()
     val lastExport by viewModel.lastExportAt.collectAsStateWithLifecycle()
     val includePhotos by viewModel.includePhotos.collectAsStateWithLifecycle()
     val whenFmt = remember { DateTimeFormatter.ofPattern("MMM d, h:mm a") }
@@ -71,6 +75,10 @@ fun ExportSection(modifier: Modifier = Modifier, viewModel: ExportViewModel = hi
             TextButton(onClick = viewModel::clearMessage) { Text("Dismiss") }
         }
         IntakeCard {
+            if (exporting) {
+                Text("Encrypting and saving...", style = MaterialTheme.typography.labelMedium)
+                LinearProgressIndicator(Modifier.fillMaxWidth().padding(vertical = 6.dp))
+            }
             Text(
                 "Everything, deleted rows included, as one file. Importing merges by last change and shows what will change " +
                     "before anything is written. Last export: " + (lastExport?.let(::at) ?: "never") + ".",
@@ -130,6 +138,17 @@ fun ExportSection(modifier: Modifier = Modifier, viewModel: ExportViewModel = hi
 
     when (val stage = import) {
         ImportStage.Idle -> Unit
+        is ImportStage.Working -> AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Please wait") },
+            text = {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    CircularProgressIndicator(Modifier.height(28.dp))
+                    Text(stage.label)
+                }
+            },
+            confirmButton = {},
+        )
         is ImportStage.NeedsPassphrase -> {
             var pass by remember(stage) { mutableStateOf("") }
             AlertDialog(
@@ -149,7 +168,10 @@ fun ExportSection(modifier: Modifier = Modifier, viewModel: ExportViewModel = hi
             val p = stage.preview
             AlertDialog(
                 onDismissRequest = viewModel::cancelImport,
-                title = { Text(if (p.totalChanges == 0 && p.settingsCount == 0) "Nothing to change" else "Import ${p.totalChanges} changes?") },
+                title = {
+                    val n = p.totalChanges + if (stage.restoreSettings) p.settingsCount else 0
+                    Text(if (p.totalChanges == 0 && p.settingsCount == 0) "Nothing to change" else "Import $n changes?")
+                },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         p.exportedAt?.let { Text("Backup made ${at(it)}", style = MaterialTheme.typography.labelSmall) }
@@ -160,14 +182,25 @@ fun ExportSection(modifier: Modifier = Modifier, viewModel: ExportViewModel = hi
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         }
-                        p.settingsLine?.let { Text("$it (${p.settingsCount} preferences)", style = MaterialTheme.typography.bodySmall) }
+                        if (p.settingsCount > 0) {
+                            Text(
+                                "${p.settingsLine} (${p.settingsCount} differ from this phone)",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                Checkbox(checked = stage.restoreSettings, onCheckedChange = viewModel::setRestoreSettings)
+                                Text("Replace these settings with the backup's", style = MaterialTheme.typography.bodySmall)
+                            }
+                        } else if (p.settingsInFile > 0) {
+                            Text("Settings: the same as on this phone, nothing to change", style = MaterialTheme.typography.bodySmall)
+                        }
                         if (p.unknownTables.isNotEmpty()) {
                             Text("Ignored, not in this version: ${p.unknownTables.joinToString()}", style = MaterialTheme.typography.labelSmall)
                         }
                         Text("Nothing is deleted. Where both sides changed a row, the later change wins.", style = MaterialTheme.typography.labelSmall)
                     }
                 },
-                confirmButton = { TextButton(onClick = viewModel::applyImport, enabled = p.totalChanges > 0 || p.settingsCount > 0) { Text("Import") } },
+                confirmButton = { TextButton(onClick = viewModel::applyImport, enabled = p.totalChanges > 0 || (stage.restoreSettings && p.settingsCount > 0)) { Text("Import") } },
                 dismissButton = { TextButton(onClick = viewModel::cancelImport) { Text("Cancel") } },
             )
         }
