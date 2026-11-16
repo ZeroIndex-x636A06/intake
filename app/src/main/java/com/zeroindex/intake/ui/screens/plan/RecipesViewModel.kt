@@ -22,6 +22,7 @@ import com.zeroindex.intake.data.recipe.RecipeNutritionEstimator
 import com.zeroindex.intake.domain.recipe.RecipeEstimate
 import com.zeroindex.intake.domain.recipe.ServingsStep
 import com.zeroindex.intake.ui.AppMessage
+import com.zeroindex.intake.ui.screens.today.displayName
 import com.zeroindex.intake.ui.AppMessages
 import com.zeroindex.intake.domain.recipe.ReferenceFood
 import com.zeroindex.intake.domain.ai.RecipeQuery
@@ -183,7 +184,7 @@ class RecipeLibraryViewModel @Inject constructor(
         val entry = recipeLogger.logServings(recipe, slot, estimate?.perServing, servings, overrideNote = overrideNote) ?: return false
         messages.post(
             AppMessage(
-                "Logged ${recipe.name}, ${ServingsStep.label(servings)}, to ${slot.name.lowercase()}",
+                "Logged ${recipe.name}, ${ServingsStep.label(servings)}, to ${slot.displayName()}",
                 actionLabel = "Undo",
                 onAction = { plans.undoLog(entry) },
             ),

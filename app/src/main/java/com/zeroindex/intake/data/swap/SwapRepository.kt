@@ -24,7 +24,11 @@ import com.zeroindex.intake.domain.swap.SwapMath
 import com.zeroindex.intake.domain.swap.SwapOption
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 
 /** The meal the Swap sheet starts from: today's planned or prepped meal. */
 data class PlannedMeal(
@@ -67,26 +71,32 @@ sealed interface SwapLogResult {
  * finder ([PlanBFinder]) and runs only when the person taps Search.
  */
 @Singleton
+@OptIn(ExperimentalCoroutinesApi::class)
 class SwapRepository @Inject constructor(
     private val plans: MealPlanRepository,
     private val templates: MealTemplateRepository,
     private val allergens: AllergenRepository,
     private val finder: PlanBFinder,
 ) {
-    /** Today's planned meal: the main recipe of this week of the active plan. Null with no plan. */
-    suspend fun planned(): PlannedMeal? {
-        val week = plans.observeCurrentWeekNumber().first()
-        val main = plans.observeWeekContent(week).first()?.main ?: return null
-        val r = main.recipe
-        return PlannedMeal(
-            title = r.name,
-            subtitle = null,
-            macros = main.macros.perServing,
-            allergen = main.allergenStatus.toSwap(),
-            allergenReason = main.allergenTerms.takeIf { it.isNotEmpty() }?.let { reasonFor(main.allergenStatus.toSwap(), it) },
-            recipeId = r.id,
-        )
-    }
+    /**
+     * Today's planned meal: the main recipe of this week of the active plan. Null with no plan. This is the same live
+     * flow Today reads (current week, then that week's content), so the sheet agrees with Today and waits for the plan.
+     */
+    fun observePlanned(): Flow<PlannedMeal?> = plans.observeCurrentWeekNumber()
+        .flatMapLatest { plans.observeWeekContent(it) }
+        .map { week ->
+            week?.main?.let { main ->
+                val r = main.recipe
+                PlannedMeal(
+                    title = r.name,
+                    subtitle = null,
+                    macros = main.macros.perServing,
+                    allergen = main.allergenStatus.toSwap(),
+                    allergenReason = main.allergenTerms.takeIf { it.isNotEmpty() }?.let { reasonFor(main.allergenStatus.toSwap(), it) },
+                    recipeId = r.id,
+                )
+            }
+        }
 
     /** Recipes, saved meals and saved eat-out options: all on this phone, nothing sent anywhere. */
     suspend fun offlineEntries(planned: PlannedMeal?): List<SwapEntry> {

@@ -416,7 +416,7 @@ private fun MacroCards(model: DashboardModel, showSplit: Boolean, shares: MacroS
                     Spacer(Modifier.height(5.dp))
                     AnimatedBar(row.fraction, colors[i], MaterialTheme.colorScheme.surfaceVariant, height = 3.dp)
                     Spacer(Modifier.height(5.dp))
-                    Text("${kcals[i]} kcal", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("${KcalFormat.format(kcals[i])} kcal", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (showSplit && pcts != null) {
                         Text("${pcts[i]}% of kcal", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, color = colors[i])
                     }
@@ -482,7 +482,7 @@ private fun MealsCard(
                     row.logged -> {
                         Row {
                             Text(foodsLine(row.foods), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                            Text(" · ${row.kcal} kcal", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
+                            Text(" · ${KcalFormat.format(row.kcal)} kcal", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
                         }
                         MacroSplitBar(row.protein, row.carbs, row.fat, Modifier.fillMaxWidth(0.7f).padding(top = 5.dp), showLabels = false, barHeight = 5.dp)
                     }

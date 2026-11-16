@@ -268,8 +268,8 @@ private fun MacroBarRow(label: String, consumed: Double, targetG: Int?, fraction
 private fun describe(progress: DayProgress): String {
     val target = progress.target
     return buildString {
-        append("${progress.consumed.kcal.roundToInt()} calories")
-        if (target != null) append(" of ${target.kcal}")
+        append("${KcalFormat.format(progress.consumed.kcal)} calories")
+        if (target != null) append(" of ${KcalFormat.format(target.kcal)}")
         append(". Protein ${progress.consumed.protein.roundToInt()} grams")
         if (target != null) append(" of ${target.proteinG}")
         progress.proteinRemaining?.let { if (it > 0) append(", $it grams left") }

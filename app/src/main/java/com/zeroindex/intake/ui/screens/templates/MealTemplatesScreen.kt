@@ -47,7 +47,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import com.zeroindex.intake.ui.components.EmptyState
 import com.zeroindex.intake.ui.components.ErrorState
-import com.zeroindex.intake.ui.components.SandNote
 import com.zeroindex.intake.ui.components.SectionLine
 import com.zeroindex.intake.ui.components.StatusPill
 import com.zeroindex.intake.ui.components.TagIcon
@@ -117,7 +116,6 @@ fun MealTemplatesScreen(
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
             ) { Text("New meal template") }
         }
-        state.message?.let { item(key = "msg") { SandNote(it) } }
         item(key = "list-head") { SectionLine("Saved", note = "${templates.size} saved") }
         if (templates.isEmpty()) {
             item(key = "empty") {

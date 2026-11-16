@@ -119,7 +119,7 @@ fun SwapSheet(
                     IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, contentDescription = "Close") }
                 }
             }
-            item(key = "planned") { PlannedCard(state.planned, slotWord(state.slot)) }
+            item(key = "planned") { if (!state.loading) PlannedCard(state.planned, slotWord(state.slot)) }
             state.notice?.let { n -> item(key = "notice") { SandNote(n) } }
 
             if (state.loading) {
@@ -239,10 +239,14 @@ private fun PlannedCard(planned: PlannedMeal?, slotLabel: String) {
                     style = MaterialTheme.typography.bodyMedium,
                 )
             } else {
-                Row(verticalAlignment = Alignment.Top) {
-                    Text("PLANNED", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-                    AllergenChip(planned.allergen, label = planned.allergenReason)
-                }
+                Text(
+                    "PLANNED",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    softWrap = false,
+                )
+                AllergenChip(planned.allergen, label = planned.allergenReason)
                 Text(planned.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
                 Text(macroLine(planned.macros, false), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }

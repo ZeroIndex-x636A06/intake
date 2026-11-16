@@ -138,10 +138,15 @@ private fun MacroTile(label: String, eaten: Double, targetG: Int?, fraction: Flo
             contentDescription = "$label ${eaten.roundToInt()} of ${targetG ?: "no target"} grams"
         }) {
             Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text("${eaten.roundToInt()}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = color)
-                Text(" / ${targetG ?: "—"} g", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 2.dp))
-            }
+            // Stacked, one line each, so the figure and "/ 170 g" keep their unit at large font scales (QA Q5a-20).
+            Text(
+                "${eaten.roundToInt()}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = color,
+                maxLines = 1, softWrap = false,
+            )
+            Text(
+                "/ ${targetG ?: "—"} g", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1, softWrap = false,
+            )
             Spacer(Modifier.height(6.dp))
             AnimatedBar(fraction, color, MaterialTheme.colorScheme.surfaceVariant, height = 6.dp)
         }
@@ -206,7 +211,7 @@ fun NextUpCard(
                     }
                     Text(meal.content.recipe.name, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 4.dp))
                     Text(
-                        if (meal.content.macros.isComplete) "${m.kcal.roundToInt()} kcal · P ${m.protein.roundToInt()} · C ${m.carbs.roundToInt()} · F ${m.fat.roundToInt()}" else "Macros incomplete. Open the plan to confirm.",
+                        if (meal.content.macros.isComplete) "${KcalFormat.format(m.kcal)} kcal · P ${m.protein.roundToInt()} · C ${m.carbs.roundToInt()} · F ${m.fat.roundToInt()}" else "Macros incomplete. Open the plan to confirm.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

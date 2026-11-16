@@ -8,6 +8,9 @@ import com.zeroindex.intake.data.repository.TemplateLogResult
 import com.zeroindex.intake.data.repository.TemplateSummary
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.nfc.TemplateLink
+import com.zeroindex.intake.ui.AppMessage
+import com.zeroindex.intake.ui.AppMessages
+import com.zeroindex.intake.ui.screens.today.displayName
 import com.zeroindex.intake.nfc.NfcTagWriter
 import com.zeroindex.intake.nfc.TagWriteResult
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -40,7 +43,6 @@ data class PendingTemplateLog(
 data class TemplatesUiState(
     val writingFor: TemplateSummary? = null,
     val write: WriteState = WriteState.Waiting,
-    val message: String? = null,
     val pending: PendingTemplateLog? = null,
 )
 
@@ -48,6 +50,7 @@ data class TemplatesUiState(
 class MealTemplatesViewModel @Inject constructor(
     private val repository: MealTemplateRepository,
     private val allergens: com.zeroindex.intake.data.repository.AllergenRepository,
+    private val messages: AppMessages,
 ) : ViewModel() {
 
     val templates: StateFlow<List<TemplateSummary>> =
@@ -109,7 +112,7 @@ class MealTemplatesViewModel @Inject constructor(
         if (check != null && com.zeroindex.intake.domain.allergen.AllergenLogGate.decide(check.scan)
             is com.zeroindex.intake.domain.allergen.AllergenLogGate.Decision.Review
         ) {
-            _state.update { it.copy(pending = PendingTemplateLog(t, slot, check), message = null) }
+            _state.update { it.copy(pending = PendingTemplateLog(t, slot, check)) }
             return@launch
         }
         logChecked(t, slot, confirmed = false)
@@ -124,17 +127,21 @@ class MealTemplatesViewModel @Inject constructor(
 
     fun dismissPending() = _state.update { it.copy(pending = null) }
 
+    /** Logs the template and reports it as a snackbar with Undo, the same as a single food log. */
     private suspend fun logChecked(t: TemplateSummary, slot: MealSlot, confirmed: Boolean) {
-        val message = when (val r = repository.log(t.template.id, slot, allergenOverride = confirmed, noteDespite = confirmed)) {
-            is TemplateLogResult.Logged -> "Logged ${t.template.name} to ${slot.name.lowercase()}" +
-                (r.allergenNote?.let { ". $it" } ?: "")
-            is TemplateLogResult.Blocked -> "Not logged: ${r.foods.joinToString()} now matches your allergen profile"
-            is TemplateLogResult.NeedsReview -> "Not logged: ${r.foods.joinToString()} may contain something you avoid."
-            TemplateLogResult.NotFound -> "That meal is empty."
+        when (val r = repository.log(t.template.id, slot, allergenOverride = confirmed, noteDespite = confirmed)) {
+            is TemplateLogResult.Logged -> messages.post(
+                AppMessage(
+                    text = "Logged ${t.template.name} to ${slot.displayName()}" + (r.allergenNote?.let { ". $it" } ?: ""),
+                    actionLabel = "Undo",
+                    onAction = { repository.undo(r.logs) },
+                ),
+            )
+            is TemplateLogResult.Blocked -> messages.post(AppMessage("Not logged: ${r.foods.joinToString()} now matches your allergen profile"))
+            is TemplateLogResult.NeedsReview -> messages.post(AppMessage("Not logged: ${r.foods.joinToString()} may contain something you avoid."))
+            TemplateLogResult.NotFound -> messages.post(AppMessage("That meal is empty."))
         }
-        _state.update { it.copy(message = message) }
     }
 
     fun delete(t: TemplateSummary) = viewModelScope.launch { repository.delete(t.template.id) }
-    fun clearMessage() = _state.update { it.copy(message = null) }
 }

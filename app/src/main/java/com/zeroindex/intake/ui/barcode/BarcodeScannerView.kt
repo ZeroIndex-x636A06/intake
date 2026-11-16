@@ -247,14 +247,17 @@ fun BarcodeScannerView(
                     }
                 }
             }
-            // Back is always drawn above the preview, in every state.
-            Surface(
-                color = Color.Black.copy(alpha = 0.45f),
-                shape = CircleShape,
-                modifier = Modifier.align(Alignment.TopStart).padding(8.dp).size(48.dp).zIndex(2f),
-            ) {
-                IconButton(onClick = onExit) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Leave the scanner", tint = Color.White)
+            // Back sits over the live preview only. On a fallback card it would overlap the card's corner; there system back
+            // (BackHandler above) and the card's own buttons do the job.
+            if (hasCamera && hasPermission && cameraError == null) {
+                Surface(
+                    color = Color.Black.copy(alpha = 0.45f),
+                    shape = CircleShape,
+                    modifier = Modifier.align(Alignment.TopStart).padding(8.dp).size(48.dp).zIndex(2f),
+                ) {
+                    IconButton(onClick = onExit) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Leave the scanner", tint = Color.White)
+                    }
                 }
             }
         }

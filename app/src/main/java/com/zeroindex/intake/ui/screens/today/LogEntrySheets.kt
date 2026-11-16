@@ -2,6 +2,7 @@
 
 package com.zeroindex.intake.ui.screens.today
 
+import com.zeroindex.intake.domain.units.KcalFormat
 import com.zeroindex.intake.domain.nutrition.CoreMacro
 import com.zeroindex.intake.domain.nutrition.Unlisted
 import androidx.compose.foundation.clickable
@@ -71,7 +72,7 @@ fun LogEntryActionsSheet(
                 text = run {
                     val unknown = Unlisted.decodeMacros(entry.unlistedNutrients)
                     fun g(v: Double, m: CoreMacro) = if (m in unknown) "${m.label} not listed" else "${v.roundToInt()} g ${m.label}"
-                    "${entry.kcal.roundToInt()} kcal · ${g(entry.protein, CoreMacro.PROTEIN)} · " +
+                    "${KcalFormat.format(entry.kcal)} kcal · ${g(entry.protein, CoreMacro.PROTEIN)} · " +
                         "${g(entry.carbs, CoreMacro.CARBS)} · ${g(entry.fat, CoreMacro.FAT)}"
                 },
                 style = MaterialTheme.typography.bodySmall,

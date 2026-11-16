@@ -2,6 +2,7 @@
 
 package com.zeroindex.intake.ui.screens.nutrition
 
+import com.zeroindex.intake.domain.units.KcalFormat
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -306,7 +307,7 @@ private fun TimePill(time: LocalTime, entered: Boolean, onClick: () -> Unit, onR
 private fun TotalsCard(t: MealTotals) {
     IntakeCard {
         Text("Total calories", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text("${t.kcal} kcal", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
+        Text("${KcalFormat.format(t.kcal)} kcal", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
         Spacer(Modifier.size(8.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             MacroTile("Protein", t.protein.text, ProteinAccent, Modifier.weight(1f))
@@ -377,7 +378,7 @@ private fun MealItemRow(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(item.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        Text("${item.kcal} kcal · ${item.portion}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("${KcalFormat.format(item.kcal)} kcal · ${item.portion}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if (onDetails != null) {
                         IconButton(onClick = onDetails, modifier = Modifier.size(48.dp)) {
