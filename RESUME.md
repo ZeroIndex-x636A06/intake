@@ -3,6 +3,10 @@
 Read this first when picking the work back up. Latest work: branch
 `claude/optimistic-noether-fullk5` (not yet merged into `claude/app-build-k2ag1d`).
 
+## QA pass 5a fixes merged (branch `claude/optimistic-noether-fullk5`)
+
+Merged agent/qa5-allergens, qa5-search, qa5-logui and qa5-polish (no textual conflicts, compile clean after each). Unit tests, app and wear lint (0 errors) and the sync server tests pass. Preview APKs are built and signed with the existing key. QA-LOG items are set to "needs retest": nothing here has been seen on the emulator or a device since the merge.
+
 ## QA pass 4 merge (branch `claude/optimistic-noether-fullk5`)
 
 Merged `--no-ff`: qa4-backup (Q4-8, 9, 26), qa4-settings (Q4-10, 11, 13, 16, 17, 18, 20, 21, 24, 25, part of 27), qa4-progress (Q4-1, 2, 3, 4, 14, 22, 23, part of 27), qa4-targets (Q4-5, 6, 7, 12, 15, 19); last merge de5ed6e. One conflict (ProgressViewModel `recalculateTdee`: kept progress's day series, took targets' `AutoTargets.refresh()`, dropped the removed `refreshAdherence`/`refreshTargetFromTdee` calls); PrivacyScreen from targets needed the `collectAsStateWithLifecycle` import. Three targets tests had stale expectations (3,050 ml rounded base, "80 kg", 106.8 fl oz) and were corrected. Unit tests, lint (0 errors) and the sync server tests pass. Preview APKs rebuilt into `release/`. Q4-27 is partly open: Settings (d), (f), (g); Progress (a), (b), (e). **Not verified:** nothing from this round was seen on an emulator or phone; all Q4 entries need retest.

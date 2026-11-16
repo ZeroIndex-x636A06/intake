@@ -72,7 +72,7 @@ Screenshot: design/qa/pass1/q1-2-delete-no-undo.png
 Suspect: ui/screens/today/TodayViewModel.kt:178 deleteLog, ui/screens/today/TodayScreen.kt:193
 
 ### Q1-3 · S2 · Nutrition C.10 / Log food · Typing in the Log food search drops and reorders characters
-Status: Still failing in Pass 5a: fast typed text in Log food search loses its tail (protein -> protei, ranch -> ran, milk -> mil, almond milk -> almo, zzqxvv -> zzqx; 5 of 5 bursts), slow key-by-key typing is intact; logged again as Q5a-3. Was: Fixed in f4d3c5d, needs retest
+Status: Fixed again in ae7e373, needs retest. Was: Still failing in Pass 5a: fast typed text in Log food search loses its tail (protein -> protei, ranch -> ran, milk -> mil, almond milk -> almo, zzqxvv -> zzqx; 5 of 5 bursts), slow key-by-key typing is intact; logged again as Q5a-3. Was: Fixed in f4d3c5d, needs retest
 Steps: 1. Log food > Search. 2. Type "protein" with `adb shell input text protein` (also "ranch").
 Expected: Field shows exactly what was typed.
 Actual: Field showed "proet" for protein, "ranhc" and "ranhh" for ranch; the search then reports "Nothing matches". "milk", "latte", "wine" came through intact. The text field value is `state.query`, which comes back through a heavy `combine` flow, the usual cause of lost and reordered keystrokes under load. Seen on a slow software-rendered emulator only; not confirmed on a device, but a real phone typing quickly while results rebuild could hit the same path.
@@ -104,7 +104,7 @@ Screenshot: design/qa/pass1/q1-6-dairy-rows-no-chip-yet.png
 Suspect: ui/addfood/AddFoodViewModel.kt:335 rowAllergens
 
 ### Q1-7 · S3 · Shell J.11 · False empty and error copy while data loads
-Status: Still failing in Pass 5a: Today cold open shows 'No target yet', '0 kcal eaten', 'No weigh-in yet' and Nutrition shows 'Nothing yet' on every meal while it loads; More, Drinks and Log food are fixed; logged again as Q5a-6. Was: Fixed in f4d3c5d, needs retest
+Status: Fixed again in ae7e373, needs retest. Was: Still failing in Pass 5a: Today cold open shows 'No target yet', '0 kcal eaten', 'No weigh-in yet' and Nutrition shows 'Nothing yet' on every meal while it loads; More, Drinks and Log food are fixed; logged again as Q5a-6. Was: Fixed in f4d3c5d, needs retest
 Steps: 1. Open Nutrition > More; Log food; Drinks; a logged food's info icon on the meal screen. 2. Screenshot within 1 to 5 s.
 Expected: Spinner or blank until loaded.
 Actual: More says "No recipes yet", "No meal templates yet", "No saved options yet" for about 10 s (the seed has 5, 2 and 2). Log food says "Nothing logged yet ... Foods you log often land here". Drinks says "No drinks yet" and "Nothing logged yet today". The meal screen's info icon shows "This food is not on this phone." with a Back button before the food loads. All turn into real content afterwards. Slow emulator makes it long, but the first frame of each is wrong text.
@@ -208,7 +208,7 @@ Screenshot: design/qa/pass1/q1-19-eaten-no-comma.png
 Suspect: ui/screens/nutrition/NutritionHomeScreen.kt
 
 ### Q1-20 · S4 · Today B.12 · Meal cards are tall and the macro percentages are unlabelled
-Status: Still failing in Pass 5a: percentages are now one labelled P/C/F line, but each meal card is still tall (blank band between the last entry and Log food, a separate Save as meal template row); logged again as Q5a-14. Was: Fixed in 3c62d87 and eed25fb (tighter cards, labelled P/C/F line), needs retest
+Status: Fixed again in ae7e373, needs retest. Was: Still failing in Pass 5a: percentages are now one labelled P/C/F line, but each meal card is still tall (blank band between the last entry and Log food, a separate Save as meal template row); logged again as Q5a-14. Was: Fixed in 3c62d87 and eed25fb (tighter cards, labelled P/C/F line), needs retest
 Steps: 1. Today, scroll to Meals.
 Expected: Four compact rows (B.12).
 Actual: Five full cards (the fifth is Drinks), each with a bar, three unnamed percentages, a "+ Log food" row and a separate "Save as meal template" row; large gaps between entries; one meal fills most of a screen. Percentages do not say protein, carbs, fat.
@@ -256,7 +256,7 @@ Screenshot: design/qa/pass1/q1-25-cookie-icon.png
 Suspect: ui/addfood/ food icon mapping
 
 ### Q1-26 · S4 · Eating out C.44 · Menu items judged clear show no chip; the menu info card is a centred paragraph
-Status: Still failing in Pass 5a: the per-item chips are fixed (Fits your allergens, Contains ...), but the intro card on Menu import is still a centred multi-line paragraph; logged again as part of Q5a-13. Was: Fixed in 0017495 (menu item chips) and eed25fb (intro left-aligned, shorter), needs retest
+Status: Fixed again in ae7e373, needs retest. Was: Still failing in Pass 5a: the per-item chips are fixed (Fits your allergens, Contains ...), but the intro card on Menu import is still a centred multi-line paragraph; logged again as part of Q5a-13. Was: Fixed in 0017495 (menu item chips) and eed25fb (intro left-aligned, shorter), needs retest
 Steps: 1. Eating out > Menu import > Sunrise Diner (invented).
 Expected: A positive verdict or "checked" mark per item.
 Actual: Garden salad, Chocolate shake, Classic cheeseburger and Pancake stack show "Contains milk" (correct against the ingredients). Black bean burrito, Fish and chips, Grilled chicken plate and Oatmeal show nothing, so clear and unchecked look alike. The intro card on Menu import is a long centred paragraph.
@@ -375,7 +375,7 @@ Screenshot: design/qa/pass2/q2-12-chili-plural.png
 Suspect: ui/screens/plan/RecipeDetailScreen.kt:201
 
 ### Q2-13 · S4 · Recipes / Meal plan / Import · Titles repeated and import copy says "Paste a recipe page" for an address field
-Status: Still failing in Pass 5a: bar and heading titles are fixed on Import, Meal template and Meal plans, but the Recipes hub card still says 'Paste a recipe page' (the field takes an address); logged again as part of Q5a-13. Was: Fixed in 795a8d4 (copy and titles), needs retest. The plan slot is time-of-day based because plans store no slot
+Status: Fixed again in ae7e373, needs retest. Was: Still failing in Pass 5a: bar and heading titles are fixed on Import, Meal template and Meal plans, but the Recipes hub card still says 'Paste a recipe page' (the field takes an address); logged again as part of Q5a-13. Was: Fixed in 795a8d4 (copy and titles), needs retest. The plan slot is time-of-day based because plans store no slot
 Steps: 1. Recipes > Import from a link. 2. Meal templates > Edit. 3. More > Meal plan.
 Expected: One title per screen; copy that matches the control.
 Actual: Bar "Import a recipe" over heading "Import from a link", whose copy says "Paste a recipe page" above a field labelled "Recipe web address" (the page cannot be pasted, only fetched). Bar "Meal template" over "Edit meal template". Bar "Meal plans" over "Your meal plan" over "Plan1". The plan screen's footer "Can't eat what I cooked? Find a safer option nearby" uses "safer" (I.9). The offline failure itself is plain: "Could not reach that page. Check the address and your connection." (C.41 passes).
@@ -399,7 +399,7 @@ Screenshot: none (seen after relaunch; not captured)
 Suspect: ui/screens/today (next-up planned item) and MealPlanViewModel
 
 ### Q2-16 · S4 · Nutrition C.11 · Searching "almond milk" in Log food returns milk chocolate and no pointer to Drinks
-Status: Still failing in Pass 5a: typing 'almo' still lists Salmon fillet, baked first under My foods and no pointer to Drinks was seen for the plant milk; logged again as part of Q5a-3 (the field drops characters so 'almond milk' could not be typed whole). Was: Fixed in bc0c873 (almond milk ranking), needs retest. "almo" still ranks Salmon first under My foods
+Status: Fixed again in ae7e373, needs retest. Was: Still failing in Pass 5a: typing 'almo' still lists Salmon fillet, baked first under My foods and no pointer to Drinks was seen for the plant milk; logged again as part of Q5a-3 (the field drops characters so 'almond milk' could not be typed whole). Was: Fixed in bc0c873 (almond milk ranking), needs retest. "almo" still ranks Salmon first under My foods
 Steps: 1. Log food > Search > "almond milk" (typed slowly), wait for the list.
 Expected: The plant milk, or a line saying drinks are in the Drinks chip (C.11).
 Actual: USDA rows "Candies, milk chocolate, with almonds" ("Contains milk chocolate", right), Hershey's, Toblerone. No almond milk; the seeded "Almond milk, unsweetened" is a drink and is excluded from this search. The first frame showed the chocolate with an amber "Check the label" before it turned red (same lag as Q1-6). "almo" returns "Salmon fillet, baked" first under My foods (substring match).
@@ -747,7 +747,7 @@ Screenshot: none (text only; before and after are the Nutrition tab)
 Suspect: data/backup/BackupService.kt settings apply (no last-change check for settings)
 
 ### Q4-27 · S4 · Progress, Settings · Polish
-Status: Partly fixed in de5ed6e, needs retest. Still open: Settings (d), (f), (g); Progress (a), (b), (e)
+Status: Fixed again in ae7e373, needs retest. Was: Partly fixed in de5ed6e, needs retest. Still open: Settings (d), (f), (g); Progress (a), (b), (e)
 Steps: seeded install.
 Actual: (a) the weight chart has two y labels and no date labels; the tooltip box ("Mon 9 Nov 2026 194.0 lb · Manual") covers neighbouring points and does not show the trend value. (b) Measurement charts are labelled "Waist over time, in in." and the y axis of Chest and Arm spans 41.6 to 42.0 and 14.2 to 14.6, so a flat line looks meaningful. (c) Settings home: "kg · cm · ml · System" leaves out the portion unit. (d) Nutrition "Advanced 7" shows 5 controls on a Cut, and Carb cycle shift stays visible with Carb cycling off. (e) Progress "Recalculate now" is dim grey on dark. (f) Edit your profile > About you > "Profile & goals" (three names for one screen) and the profile shows height as "72" and "192" without decimals while You shows "72.0 in", so saving rounds 183 cm to 182.88 cm (not confirmed, not saved). (g) Photo reminder, Export reminder and the others save with no confirmation; the Include progress photos switch sits off the right edge of the other switches. (h) Checklist E.1 and F.1 are stale: Progress has chips 1M, 3M, 6M, 1Y, All (not 4 w, 12 w ...), the Weekly check-in row is at the end of Progress, not first, and You shows "72.0 in", not "6 ft 0 in".
 Screenshot: design/qa/pass4/q4-scrub-tooltip.png
@@ -765,7 +765,7 @@ Method notes: screenshots from emu-ui.py are 540x1200 for a 1080x2280 screen, so
 Seen on emulator only (Android 11, software rendering, 3-button navigation bar, no KVM). Not seen on a device: performance, real keyboard and typing speed, haptics, the right-edge clipping in Q5a-8 (it is the side navigation bar of the 3-button mode in landscape; a gesture-navigation phone has no such bar), Health Connect, camera. Retest tally: 46 items, 37 verified fixed, 7 still failing, 2 cannot verify (the seed has no MAY_CONTAIN recipe for the Swap gate and no old shopping rows for the aisle repair).
 
 ### Q5a-1 · S2 · Recipes C.36, I.4, I.9 · Grandma's vegetable soup shows a green "Fits your allergens" while its page says "Allergens not checked"
-Status: open
+Status: Fixed in ae7e373, needs retest.
 Steps: 1. Nutrition > More > Recipes. 2. Read the chip on Grandma's vegetable soup (ingredients: carrots, onion, celery, canned tomatoes, stock, salt and pepper; no ingredient was matched to a food). 3. Open the recipe. 4. Log food > Mine, scroll to RECIPES.
 Expected: the same, honest verdict on every screen; an unchecked recipe is never shown as clear.
 Actual: the list row and the Log food Mine row show a green tick "Fits your allergens". The recipe page's Ingredients header shows an amber "Allergens not checked". For a strict-dairy user the list reads as an all-clear for a recipe the app itself says it did not check (stock can carry dairy).
@@ -773,7 +773,7 @@ Screenshot: design/qa/pass5a/q5a-1-recipes-list-verdicts.png (list), design/qa/p
 Suspect: the recipe-row allergen summary used by ui/screens/plan (RecipesViewModel) and ui/addfood/RecipeRows.kt versus the recipe page's verdict in RecipeDetailScreen.kt
 
 ### Q5a-2 · S3 · Recipes C.36, I.4 · The same recipe gets three different verdicts on three screens
-Status: open
+Status: Fixed in ae7e373, needs retest.
 Steps: 1. Look at Chicken fajita bowls (five ingredient lines, notes "Dairy-free as written") in Nutrition > More > Recipes, in Log food > Mine and on its recipe page; also in the template picker.
 Expected: one verdict.
 Actual: Recipes list: amber "Only the name was checked". Log food > Mine, template picker and recipe page: green "Fits your allergens". Salmon, sweet potato and broccoli behaves the same.
@@ -781,7 +781,7 @@ Screenshot: design/qa/pass5a/q5a-1-recipes-list-verdicts.png, design/qa/pass5a/q
 Suspect: the Recipes hub list checks the name only
 
 ### Q5a-3 · S2 · Nutrition C.10, C.18 · Fast typing in the Log food search drops the end of the text
-Status: open (seen on the emulator; the same as Q1-3 and Q2-16 on this build)
+Status: Fixed in ae7e373, needs retest.
 Steps: 1. Log food > Search > tap the field. 2. `adb shell input text protein` (also ranch, milk, almond, "almond milk", zzqxvv). 3. Read the field and the results.
 Expected: the field shows what was typed.
 Actual: protein -> "protei", ranch -> "ran", milk -> "mil", almond -> "almo", zzqxvv -> "zzqx", "almond milkzz" -> "almo". The results follow the shortened text ("almo" lists Salmon fillet first). Typing the four keys of "milk" one by one with a 1.5 s gap gave "milk". The recipe paste list, a template name and the weigh-in field took the same fast input in full, so it is this field. The source keeps the text in local state (LogFoodScreen.kt:128), so the cause is probably the main thread being busy recomposing the results (see Q5a-4); it may be much rarer on a phone.
@@ -789,7 +789,7 @@ Screenshot: design/qa/pass5a/q5a-3-search-drops-chars.png ("protei"), design/qa/
 Suspect: ui/addfood/LogFoodScreen.kt TextField (value = query) and the work done on each onQueryChange
 
 ### Q5a-4 · S2 · Nutrition C.10 · ANR while typing in the Log food search (main thread recomposing)
-Status: open (one of about six typing bursts; emulator is slow, so it may not happen on a phone)
+Status: Fixed in ae7e373, needs retest.
 Steps: 1. Log food > Search with "almo" in the field. 2. Tap the clear (x) and send `input text "almond milk"` at once.
 Expected: the app stays responsive.
 Actual: "ANR in com.zeroindex.intake.preview ... Input dispatching timed out ... KeyEvent keyCode=43" at 19:10:51; the saved trace has the main thread in state R in androidx.compose.runtime GapComposer recompose (no app frame), the app was killed and the launcher showed. Together with Q5a-3 this points at the search screen doing a lot of work per keystroke.
@@ -797,7 +797,7 @@ Screenshot: none (no UI after the kill; the trace is in /data/anr on the emulato
 Suspect: ui/addfood/LogFoodScreen.kt results list and the three flows behind it (AddFoodViewModel, RecipeSearchViewModel)
 
 ### Q5a-5 · S3 · Nutrition C.46 · Swap sheet: "PLANNED" is set one letter per line, and the first frame says nothing is planned
-Status: open
+Status: Fixed in ae7e373, needs retest.
 Steps: 1. Nutrition > More > Meal plan > Make a plan > Choose a recipe for week 1 > Baked mac and cheese. 2. Today > Next up shows "DINNER . PLANNED Baked mac and cheese". 3. Tap Swap and screenshot at once, then after 10 s.
 Expected: a readable header, and a sheet that agrees with Today.
 Actual: first frame: "NOTHING PLANNED FOR DINNER. There is no planned meal to compare with ..." although Today lists a planned dinner. Loaded: the planned-meal card squeezes its label to a column of single letters (P, L, A, N, N, E, D) beside a red chip that is cut off ("Contains mac and cheese, butter, cheddar, cheese,") with no ellipsis.
@@ -805,7 +805,7 @@ Screenshot: design/qa/pass5a/q5a-5-swap-header-planned-vertical.png, design/qa/p
 Suspect: ui/screens/swap/SwapSheet.kt planned-meal card row
 
 ### Q5a-6 · S3 · Shell J.11 / Today B.19 · Loading frames show false "no data" copy on Today and Nutrition
-Status: open (Q1-7 again; More, Drinks and Log food are fixed)
+Status: Fixed in ae7e373, needs retest.
 Steps: 1. Force-stop and relaunch the app (or switch to Nutrition) and screenshot during the first 5 to 40 s.
 Expected: blank or a spinner until the data is read.
 Actual: Today shows a grey ring "0 kcal eaten", "Eaten 0, No target yet", Protein "0 / - g", "No weigh-in yet" and an empty Meals section; a few seconds later it becomes 3,888 eaten, "1,628 calories over 2,260" and 191.4 lb. Nutrition shows "Reading today..." in an empty 650 px box with "Nothing yet" under Breakfast and Lunch, then fills in. A person with a target and a weigh-in sees "No target yet" and "No weigh-in yet" first.
@@ -813,7 +813,7 @@ Screenshot: design/qa/pass5a/q5a-6-today-cold-open-no-target.png, design/qa/pass
 Suspect: ui/screens/today/TodayViewModel.kt initial state, ui/screens/nutrition/NutritionHomeViewModel.kt initial state
 
 ### Q5a-7 · S3 · Train D.14, D.6 · Pull-Up shows "0 LB" and "Previous 0 x 10", and says "No rule and no history yet - pick a working weight"
-Status: open
+Status: Fixed in ae7e373, needs retest.
 Steps: 1. Train > Start workout (Upper B). 2. Open Pull-Up (4 x 5-10).
 Expected: bodyweight sets show reps only (or bodyweight plus added weight), never "0 lb" (D.14); no contradictory hint.
 Actual: PREVIOUS reads "0 x 10", "0 x 9", "0 x 8", "0 x 8" and every set has a LB field with 0. Above them the hint reads "No rule and no history yet - pick a working weight", although the previous column is filled and a bodyweight lift has no working weight. The session volume therefore counts these sets as 0 lb.
@@ -821,7 +821,7 @@ Screenshot: design/qa/pass5a/q5a-7-pullup-zero-lb.png
 Suspect: ui/screens/train workout screen set rows, the hint text for exercises without a rule
 
 ### Q5a-8 · S3 · Shell A.10 · Landscape: the right-hand edge of every tab root runs under the navigation bar
-Status: open (3-button navigation on the emulator; may not happen with gesture navigation)
+Status: Fixed in ae7e373, needs retest.
 Steps: 1. `adb shell settings put system accelerometer_rotation 0; ... user_rotation 1`. 2. Today (scroll to Next up), Nutrition (More nutrients, meal rows), Train > Videos.
 Expected: content ends before the navigation bar, the rail on the left is fine (A.10).
 Actual: the right ~30 px of content is cut by the system bar: the "Start" button of Lower B is half hidden, "Log it" and the allergen chip run to the edge, the "More nutrients" chevron is clipped, the + buttons of the meal rows are cut, the Videos tab chip is cut, a paragraph runs under the bar ("... and a"). The rail on the left and the top bar are fine. The shots are halved from 2280x1080.
@@ -829,7 +829,7 @@ Screenshot: design/qa/pass5a/q5a-8-landscape-today.png, design/qa/pass5a/q5a-8b-
 Suspect: the content insets in ui/navigation (rail layout) ignore the end navigation-bar inset
 
 ### Q5a-9 · S3 · Nutrition C.42 · Logging a meal template gives no Undo, leaves an inline message that never goes away, and says "to snack"
-Status: open
+Status: Fixed in ae7e373, needs retest.
 Steps: 1. Nutrition > More > Meal templates > ... on Post-workout shake > Log now > Snacks. 2. Look at the screen for 10 s and later.
 Expected: a snackbar with Undo as every other log path now has (food, recipe, drink); one-line message.
 Actual: a text line "Logged Post-workout shake to snack. Almond milk, unsweetened: check the label for dairy" appears above Saved and pushes the list down by about 200 px; it stays, with no Undo and no dismiss. "snack" is lowercase and singular where the slot is "Snacks". The recipe path says "Logged Baked mac and cheese, 1 serving, to snack" too.
@@ -837,7 +837,7 @@ Screenshot: design/qa/pass5a/q5a-9-template-log-inline.png
 Suspect: ui/screens/templates/MealTemplatesScreen.kt log result, the slot name in the message
 
 ### Q5a-10 · S3 · Allergens I.5 / Nutrition · A template saved from Today copies "(Logged despite: dairy)" into the item name, and the check then matches that note
-Status: open
+Status: Fixed in ae7e373, needs retest.
 Steps: 1. Today: Snacks holds "Baked mac and cheese (Logged despite: dairy)". Tap Save as meal template (name "Snacks prep"). 2. Meal templates shows a red "Contains dairy and mac and cheese". 3. Log now > Breakfast.
 Expected: the template keeps the food names; the sheet names the real matches (mac and cheese, butter, cheddar ...).
 Actual: the chip lists "dairy", which is the word in the override note, as a match. The Food safety sheet shows two name matches ("dairy" found in the name, "mac and cheese" found in the name) and an ingredient line that begins "Apple, Peanut butter, Baked mac and cheese (Logged despite: dairy), Banana ...". The next log of this template would carry the note forward as part of a name, so a later entry can read "(Logged despite: dairy)" without a person having chosen it. The sheet did offer "Log it anyway" and "Don't log it" (right). I deleted the template afterwards (the confirmation dialog is clear).
@@ -845,7 +845,7 @@ Screenshot: design/qa/pass5a/q5a-10-template-save-dialog.png (the note in the it
 Suspect: ui/screens/today (Save as meal template reads the logged name, which carries the override suffix), data/repository FoodLogRepository.markOverridden
 
 ### Q5a-11 · S3 · Nutrition C.15 / C.37 · Log food > Mine lists Grandma's soup as "kcal not listed" with a greyed + and no reason
-Status: open
+Status: Fixed in ae7e373, needs retest.
 Steps: 1. Log food > Mine, scroll to RECIPES.
 Expected: the same figure as the recipe page and list (~62 kcal estimated), or a reason the + is off.
 Actual: "Recipe . per serving . kcal not listed . protein not listed" with a grey, inactive +. The Recipes list and the page show "~62 kcal . per serving, estimated" and the page logs it.
@@ -853,7 +853,7 @@ Screenshot: design/qa/pass5a/q5a-1c-mine-soup-fits.png
 Suspect: ui/addfood/RecipeRows.kt uses stored kcalPerServing only (as the Recipes list did before 795a8d4)
 
 ### Q5a-12 · S3 · Recipes C.40 · Leaving the recipe editor discards a typed draft without asking
-Status: open
+Status: Fixed in ae7e373, needs retest.
 Steps: 1. Recipes > Add a recipe, type a name, Add ingredients > Paste a list > two lines > Add these. 2. System back, back.
 Expected: "Discard this recipe?" or a saved draft (nothing is hard-deleted; a typed draft is the user's work).
 Actual: back closes the keyboard, back again returns to the list; the recipe count stays at 5 and the draft is gone, no prompt.
@@ -861,7 +861,7 @@ Screenshot: design/qa/pass5a/q5a-12-recipe-editor.png (the editor before leaving
 Suspect: ui/screens/recipe/RecipeEditorScreen.kt back handling
 
 ### Q5a-13 · S3 · Recipes, Menu import · Leftover copy and clipping from Q1-26, Q2-13 and new
-Status: open
+Status: Fixed in ae7e373, needs retest.
 Steps: 1. Nutrition > More > Recipes (card text, chip). 2. Recipes > Add a recipe > Add ingredients (tab row). 3. Eating out > Menu import.
 Expected: left-aligned short intro; "address" wording that fits the field; labels that end in an ellipsis or wrap.
 Actual: (a) the Menu import intro card is still a centred bold title plus a six-line centred paragraph. (b) the Recipes hub card still reads "Paste a recipe page. Read straight off the page, no AI" while the screen it opens says "Paste a recipe link" and asks for a web address. (c) the first tab of the Add ingredients sheet reads "From my" (cut from "From my foods"). (d) The red recipe chip reads "Contains mac and cheese, butter, cheddar, cheese," and stops at the chip edge, with no ellipsis, in the Recipes list, in Mine and in Swap.
@@ -869,7 +869,7 @@ Screenshot: design/qa/pass5a/q5a-13-clipped-tab.png, design/qa/pass5a/q5a-1-reci
 Suspect: ui/screens/menu/MenuSourcesScreen.kt, ui/screens/plan recipes hub, ui/screens/recipe ingredient sheet, ui/allergen chip text overflow
 
 ### Q5a-14 · S4 · Today B.12 · Meal cards are still tall, and kcal totals lack the thousands comma
-Status: open (Q1-20 and Q1-19 again)
+Status: Fixed in ae7e373, needs retest.
 Steps: 1. Today after dinner has 1,476 kcal; scroll to Meals.
 Expected: compact meal rows (B.12) and "1,476 kcal" like the ring's "3,888".
 Actual: each entry has about 70 px of air around it and 130 px between the last entry and "+ Log food", then a separate "Save as meal template" row; Breakfast is taller than a screen at three entries. Dinner reads "1476 kcal" and Snacks "1187 kcal".
@@ -877,7 +877,7 @@ Screenshot: design/qa/pass5a/q5a-14-today-meal-cards.png
 Suspect: ui/screens/today/components/MealSlotCard.kt
 
 ### Q5a-15 · S4 · Train D.6 · A ticked set shows "50" where its neighbours show "50.0"
-Status: open
+Status: Fixed in ae7e373, needs retest.
 Steps: 1. Start Upper B > Incline Dumbbell Press > tick set 1.
 Expected: "50.0" in every row.
 Actual: set 1 reads "50", sets 2 and 3 read "50.0".
@@ -885,7 +885,7 @@ Screenshot: design/qa/pass5a/q5a-15-set-weight-50.png
 Suspect: the set row weight formatting once the set is logged
 
 ### Q5a-16 · S4 · Allergens C.10 · "May contain creamy" on Almond butter, creamy
-Status: open
+Status: Fixed in ae7e373, needs retest.
 Steps: 1. Log food > Search "almo" > USDA rows.
 Expected: no dairy claim for almond butter, or a clear one.
 Actual: amber chip "May contain creamy", which names the word, not a food. Safe direction, but it reads as nonsense and teaches the person to ignore the chip.
@@ -893,7 +893,7 @@ Screenshot: design/qa/pass5a/q5a-16-almond-butter-creamy.png
 Suspect: the dairy keyword list contains "creamy" (and "cream" prefix matching) in domain/allergen
 
 ### Q5a-17 · S4 · Recipes C.40 · "Not counted: needs grams and macros per 100 g" under "200 g pasta"
-Status: open
+Status: Fixed in ae7e373, needs retest.
 Steps: 1. Recipes > Add a recipe > Add ingredients > Paste a list: "200 g pasta", "1 cup milk". 2. Add these.
 Expected: the weight is taken (the sheet says "Weights give grams"); the line says it needs macros.
 Actual: both lines read "Not counted: needs grams and macros per 100 g", although 200 g was typed. "Contains milk" is right.
@@ -901,7 +901,7 @@ Screenshot: design/qa/pass5a/q5a-12-recipe-editor.png
 Suspect: ui/screens/recipe/RecipeEditorScreen.kt line status text
 
 ### Q5a-18 · S4 · Drinks / Train · Duplicate rows: "Milk, whole" twice in Drinks, "Back squat" and "Barbell Back Squat" in the library
-Status: open (may be a seed artefact: the seed carries its own Milk, whole and Barbell Back Squat rows)
+Status: Fixed in ae7e373, needs retest. Note: the duplicates were QA seed artefacts, and the seed was fixed.
 Steps: 1. Drinks, scroll the list. 2. Train > Exercises.
 Expected: one row per food or exercise.
 Actual: two identical "Milk, whole . 61 kcal / 100 ml . Contains milk and whole milk" rows; "Back squat" (built in) beside "Barbell Back Squat" (Custom).
@@ -909,7 +909,7 @@ Screenshot: design/qa/pass5a/q5a-18-drinks-duplicate-milk.png, design/qa/pass5a/
 Suspect: seed generator (tools/qa/seed/generate.py) or a backup import that does not match by name
 
 ### Q5a-19 · S4 · Eating out C.44 · Logging a saved option uses its description as the sheet title
-Status: open
+Status: Fixed in ae7e373, needs retest.
 Steps: 1. Eating out > Saved eat-out options > tap Burrito Barn (invented).
 Expected: "Log Burrito Barn (invented) to".
 Actual: "Log Chicken burrito bowl: rice, black beans, fajita veg, salsa. No cheese, no sour cream. to". The same sentence is the card's headline in Healthier options.
@@ -917,7 +917,7 @@ Screenshot: design/qa/pass5a/q5a-19-eatout-sheet-title.png
 Suspect: ui/screens/hub saved option card (name and description swapped for the title)
 
 ### Q5a-20 · S4 · Shell A.11 · Font scale 1.5: the Protein and Carbs tiles on Today wrap and lose "g"
-Status: open
+Status: Fixed in ae7e373, needs retest.
 Steps: 1. `adb shell settings put system font_scale 1.5`. 2. Today.
 Expected: "250 / 170 g" on one line or wrapped the same way in all three tiles.
 Actual: Protein and Carbs show "250g" with "/ 170" above it and no unit after 170; Fat shows "157 / 70 g". Nutrition meal rows cut names ("Rolled oats, dr...") which is acceptable.
@@ -925,7 +925,7 @@ Screenshot: design/qa/pass5a/q5a-20-font15-today.png
 Suspect: ui/screens/today macro tiles
 
 ### Q5a-21 · S4 · Nutrition C.43 · Plan: the recipe picker shows no allergen verdict, and the week card has a "Not set PROTEIN" tile
-Status: open
+Status: Fixed in ae7e373, needs retest.
 Steps: 1. More > Meal plan > Make a plan > Choose a recipe for week 1. 2. Pick Baked mac and cheese.
 Expected: Baked mac and cheese carries a chip in the picker for a strict-dairy user; a tile that means grams of protein does not say "Not set".
 Actual: the picker lists all five recipes with a name and servings and no chip (the dairy ones look like the clear ones). The week card shows "Not set / PROTEIN" next to "6 SERVINGS" and "50 min", which is the protein type, not grams. After picking, the card does say "Contains an allergen" and "Check the labels before cooking" (right).
@@ -933,7 +933,7 @@ Screenshot: none (dump text only)
 Suspect: ui/screens/plan/PlanSheets.kt recipe picker, PlanScreen.kt tile
 
 ### Q5a-22 · S4 · Nutrition C.21 · The food page shows a rounded kcal figure, but logs the exact one
-Status: open (a follow-on of Q1-17)
+Status: Fixed in ae7e373, needs retest. Note: the food page now shows the exact logged kcal.
 Steps: 1. Log food > Search "milk" > Milk, canned, condensed, sweetened (38 g): chip reads 120 kcal, list row 123 kcal; log it anyway. 2. Peanut butter: chip 190, list 188; Today logs 188.
 Expected: the figure on the page equals the entry.
 Actual: Today shows 123 kcal and 188 kcal (the exact values); the page showed 120 and 190 (label rounding). Seen on two foods.
@@ -941,7 +941,7 @@ Screenshot: design/qa/pass5a/q5a-22-food-page-120.png, design/qa/pass5a/q5a-22b-
 Suspect: ui/screens/fooddata/FoodDetailScreen.kt kcal chip uses the label rounding
 
 ### Q5a-23 · S4 · Nutrition C.17 · Scan with camera denied: a grey back-arrow circle sits on the card's top-left corner
-Status: open
+Status: Fixed in ae7e373, needs retest.
 Steps: 1. Log food > Scan > Deny.
 Expected: the explanation card with no stray control.
 Actual: "Camera access is off" card (clear text, Allow camera, Add a product by hand, and a typed barcode that fails with "No connection. You can still add this barcode by hand.") with a round grey arrow overlapping the card's top-left corner.
@@ -949,7 +949,7 @@ Screenshot: design/qa/pass5a/q5a-23-scan-back-arrow.png
 Suspect: ui/addfood scan view (the camera preview's back button drawn over the fallback card)
 
 ### Q5a-24 · S4 · Allergens I.9 · Apple and Banana carry a green verified tick beside the name and an amber "Only the name was checked"
-Status: open
+Status: Fixed in ae7e373, needs retest.
 Steps: 1. Log food, default list.
 Expected: one signal.
 Actual: a green tick (content description "Logged before with no allergen flag") next to the name, then "Only the name was checked" beneath. The tick reads as "safe", the chip as "unchecked".
