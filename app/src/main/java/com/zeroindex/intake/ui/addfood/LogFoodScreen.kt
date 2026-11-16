@@ -444,13 +444,15 @@ private fun SearchTab(
         return
     }
 
+    // Read through derivedStateOf so only a change between empty and not empty (not every key) recomposes the icon.
+    val hasText by remember(field) { androidx.compose.runtime.derivedStateOf { field.text.isNotEmpty() } }
     Column(Modifier.fillMaxSize()) {
         TextField(
             state = field,
             placeholder = { Text("Search foods", style = MaterialTheme.typography.bodyMedium) },
             leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, modifier = Modifier.size(19.dp)) },
             trailingIcon = {
-                if (field.text.isNotEmpty()) {
+                if (hasText) {
                     IconButton(onClick = onClear) { Icon(Icons.Filled.Close, contentDescription = "Clear the search") }
                 }
             },
@@ -519,7 +521,8 @@ private fun SearchTab(
         // matches end up off the top of the screen.
         val resultsState = androidx.compose.foundation.lazy.rememberLazyListState()
         androidx.compose.runtime.LaunchedEffect(query, state.localResults.size, state.refResults.size) {
-            resultsState.scrollToItem(0)
+            // A forced remeasure of the whole list: skipped when it is already at the top.
+            if (resultsState.firstVisibleItemIndex != 0 || resultsState.firstVisibleItemScrollOffset != 0) resultsState.scrollToItem(0)
         }
         // Sources in order: this phone, the offline USDA database, Open Food Facts, the USDA API.
         LazyColumn(state = resultsState, modifier = Modifier.fillMaxSize()) {

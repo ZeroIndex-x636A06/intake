@@ -23,11 +23,14 @@ import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -72,30 +75,45 @@ class RecipeSearchViewModel @Inject constructor(
 
     fun setQuery(text: String) { query.value = text }
 
-    @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
-    val state: StateFlow<RecipeSearchUi> = combine(
-        query.debounce(300),
+    /** One recipe with its figures, as candidates are built, plus the allergen chip: the same for every query. */
+    private data class Prepared(
+        val candidates: List<RecipeCandidate>,
+        val logged: List<RecipeSearch.LoggedName>,
+        val chips: Map<String, RowAllergen>,
+    )
+
+    /**
+     * The per-recipe work (calorie estimate, allergen scan) does not depend on the words typed, so it runs when the
+     * recipes, the log or the allergen settings change, never per settled query (Q5b-1: it was redone for every
+     * recipe on every pause in typing, on top of the food list's own scan).
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val prepared: Flow<Prepared> = combine(
         recipeDao.observeAll(),
         foodLogDao.observeRecentPrepared(60),
         allergens.observeAvoidedAllergens(),
         allergens.observeAliases(),
-    ) { q, recipes, prepared, _, _ -> Triple(q, recipes, prepared) }.mapLatest { (q, recipes, prepared) ->
+    ) { recipes, prepared, _, _ -> recipes to prepared }.mapLatest { (recipes, prepared) ->
         val logged = prepared.map { RecipeSearch.LoggedName(it.name, it.at) }
         val candidates = RecipeSearch.withLastLogged(withContext(Dispatchers.Default) { recipes.map { candidateOf(it) } }, logged)
-        val byId = recipes.associateBy { it.id }
-        val shown = RecipeSearch.rank(q, candidates).take(12)
-        val recents = if (q.isBlank()) RecipeSearch.recents(candidates, logged) else emptyList()
-        val everything = candidates.sortedBy { it.name.lowercase() }
-        val chips = chipsFor((shown + recents + everything).distinctBy { it.id }.mapNotNull { byId[it.id] })
-        fun row(c: RecipeCandidate) = RecipeRowUi(c, chips[c.id])
+        Prepared(candidates, logged, chipsFor(recipes))
+    }.flowOn(Dispatchers.Default)
+
+    @OptIn(FlowPreview::class)
+    val state: StateFlow<RecipeSearchUi> = combine(query.debounce(300), prepared) { q, p ->
+        val shown = RecipeSearch.rank(q, p.candidates).take(12)
+        val recents = if (q.isBlank()) RecipeSearch.recents(p.candidates, p.logged) else emptyList()
+        val everything = p.candidates.sortedBy { it.name.lowercase() }
+        fun row(c: RecipeCandidate) = RecipeRowUi(c, p.chips[c.id])
         RecipeSearchUi(shown.map(::row), recents.map(::row), everything.map(::row), loaded = true)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RecipeSearchUi())
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RecipeSearchUi())
 
     /** The engine's verdict per recipe, empty when the person avoids nothing. Text work, so off the main thread. */
     private suspend fun chipsFor(recipes: List<RecipeEntity>): Map<String, RowAllergen> {
         if (recipes.isEmpty() || allergens.avoidedAllergens().isEmpty()) return emptyMap()
-        return withContext(Dispatchers.Default) {
+        return withContext(allergens.scanDispatcher) {
             recipes.associate { r ->
+                ensureActive()
                 r.id to logger.rowAllergen(r)
             }
         }
@@ -111,9 +129,13 @@ class RecipeSearchViewModel @Inject constructor(
     private suspend fun candidateOf(r: RecipeEntity): RecipeCandidate {
         if (r.kcalPerServing != null) return RecipeCandidate(r.id, r.name, r.kcalPerServing, r.proteinPerServing)
         val lines = estimateLines(r)
+        // The estimate walks the bundled food database for every ingredient line. The same lines give the same figure,
+        // so it is kept for the process instead of being redone each time Log food opens (Q5b-1).
+        val key = EstimateKey(r.id, r.name, r.servings, r.proteinPerServing, lines)
+        estimateMemo[key]?.let { return it }
         val est = if (lines.isEmpty()) null else runCatching { estimator.estimate(lines, r.servings) }.getOrNull()
         val per = est?.perServing
-        return if (per != null) {
+        val candidate = if (per != null) {
             RecipeCandidate(r.id, r.name, per.kcal, r.proteinPerServing ?: per.protein, estimated = true)
         } else {
             RecipeCandidate(
@@ -121,7 +143,12 @@ class RecipeSearchViewModel @Inject constructor(
                 whyNoKcal = RecipeCandidate.reasonNoKcal(lines.size, est?.notCountedLines?.map { it.line }.orEmpty()),
             )
         }
+        if (estimateMemo.size > 500) estimateMemo.clear()
+        estimateMemo[key] = candidate
+        return candidate
     }
+
+    private data class EstimateKey(val id: String, val name: String, val servings: Int?, val protein: Double?, val lines: List<String>)
 
     private suspend fun estimateLines(r: RecipeEntity): List<String> =
         recipeRepo.view(r.id)?.ingredients?.map { it.text }.orEmpty()
@@ -167,5 +194,9 @@ class RecipeSearchViewModel @Inject constructor(
         val logged = logger.logServings(recipe, slot, estimate = estimateTotalsFor(recipe), servings = 1.0, at = at) ?: return
         val entry = if (overrideNote != null) foodLog.markOverridden(logged, overrideNote) else logged
         messages.post(AppMessage("Logged ${recipe.name} to ${slot.name.lowercase()}", "Undo") { foodLog.softDelete(entry.id) })
+    }
+
+    private companion object {
+        val estimateMemo = java.util.concurrent.ConcurrentHashMap<EstimateKey, RecipeCandidate>()
     }
 }

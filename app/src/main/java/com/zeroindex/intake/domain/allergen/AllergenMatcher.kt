@@ -117,6 +117,24 @@ object AllergenMatcher {
         Regex("(?<![\\p{L}\\p{N}])(non[\\-\\s]?)?($body)$plural(?![\\p{L}\\p{N}])")
     }
 
+    private val needleCache = ConcurrentHashMap<String, String>()
+
+    /**
+     * Every match of [term] in [text] (already normalised). A whole-word match needs the term's first word as a plain
+     * substring, so that cheap check runs first and the regex only runs when it can match. Same results, far fewer
+     * matcher objects: on a slow phone the matcher setup per keyword per field dominated a list's scan (Q5b-1).
+     */
+    private fun matchesOf(term: String, text: String): Sequence<MatchResult> {
+        val needle = needleCache.getOrPut(term) {
+            Negation.normalize(term).trim().split(WHITESPACE_OR_HYPHEN).firstOrNull { it.isNotEmpty() }.orEmpty()
+        }
+        return if (needle.isNotEmpty() && !text.contains(needle)) emptySequence() else termRegex(term).findAll(text)
+    }
+
+    private val WHITESPACE_OR_HYPHEN = Regex("[\\s\\-]+")
+
+    private val WHITESPACE_RUN = Regex("\\s+")
+
     private val FREE_AFTER = Regex("^(?:-|\\s+)free(?![\\p{L}\\p{N}])(?!\\s+(?:of|from)\\b)")
 
     fun scan(
@@ -263,19 +281,19 @@ object AllergenMatcher {
             if (checkLabelInIngredients) add(FieldText(MatchField.INGREDIENTS, ingredientSplit.main, claims = true, negation = freeText))
         }
         val seenPhrases = HashSet<String>()
+        // Normalised once per field, not once per term: each call used to rebuild a regex (hundreds of terms per scan).
+        val softNormalized = softFields.map { ft -> ft.text?.takeIf { it.isNotBlank() }?.let { Negation.normalize(it) } }
         checkLabelTerms.forEach { term ->
             val allergen = term.allergen.trim().lowercase()
             if (allergen !in avoided || allergen in strongerFor) return@forEach
             var field: MatchField? = null
             var hit: String? = null
-            for (ft in softFields) {
-                val text = ft.text
-                if (text.isNullOrBlank()) continue
-                val norm = Negation.normalize(text)
+            for ((i, ft) in softFields.withIndex()) {
+                val norm = softNormalized[i] ?: continue
                 val m = term.findIn(norm) ?: continue
                 if (ft.negation && isHandled(norm, m.range.first)) continue
                 field = ft.field
-                hit = m.value.lowercase().replace(Regex("\\s+"), " ")
+                hit = m.value.lowercase().replace(WHITESPACE_RUN, " ")
                 break
             }
             if (field == null || hit == null) return@forEach
@@ -354,7 +372,7 @@ object AllergenMatcher {
         for (alias in withKey) {
             val term = alias.aliasTerm.trim()
             if (term.isEmpty()) continue
-            for (m in termRegex(term).findAll(text)) {
+            for (m in matchesOf(term, text)) {
                 val core = m.groups[2]!!
                 val nonGroup = m.groups[1]
                 val start = nonGroup?.range?.first ?: core.range.first
@@ -375,7 +393,7 @@ object AllergenMatcher {
 
         // Exclusions: "peanut butter" is not butter, "almond flour" is not wheat flour.
         val exclusions = AllergenCatalog.NOT_THE_ALLERGEN[allergen].orEmpty().flatMap { phrase ->
-            termRegex(phrase).findAll(text).map { (it.groups[2]!!.range.first) until (it.range.last + 1) }.toList()
+            matchesOf(phrase, text).map { (it.groups[2]!!.range.first) until (it.range.last + 1) }.toList()
         }
 
         // "-free" claims for this allergen, per clause (lactose-free is not one).
@@ -523,6 +541,6 @@ object AllergenMatcher {
         if (bare.isEmpty()) return null
         avoided.firstOrNull { it == bare }?.let { return it }
         relevant.firstOrNull { it.aliasTerm.trim().lowercase() == bare }?.let { return it.allergen }
-        return relevant.firstOrNull { termRegex(it.aliasTerm).containsMatchIn(bare) }?.allergen
+        return relevant.firstOrNull { matchesOf(it.aliasTerm, bare).any() }?.allergen
     }
 }

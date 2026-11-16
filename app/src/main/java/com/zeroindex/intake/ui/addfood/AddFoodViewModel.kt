@@ -61,6 +61,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.transformLatest
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -301,6 +303,9 @@ class AddFoodViewModel @Inject constructor(
                 )
             }
         }
+        // Building the Room query flow and ranking its rows were running on the main thread, once per settled query
+        // (seen in a main-thread stack sample while typing: FoodDao_Impl.searchByName).
+        .flowOn(Dispatchers.Default)
 
     /**
      * Imported restaurant menu items for the query. Scanned again here, off the main thread, so the chip is today's
@@ -355,6 +360,7 @@ class AddFoodViewModel @Inject constructor(
                 }
             }
         }
+        .flowOn(Dispatchers.Default)
 
     /**
      * Open Food Facts runs on a longer debounce than the on-phone sources, so a word
@@ -424,28 +430,44 @@ class AddFoodViewModel @Inject constructor(
         allergenRepository.observeAvoidedAllergens(),
         allergenRepository.observeAliases(),
         foodRepository.observeAll(),
-    ) { t, _, _, mine -> t to mine }.mapLatest { (t, mine) ->
+    ) { t, _, _, mine -> t to mine }.transformLatest { (t, mine) ->
         val (l, e, s) = t.first
         if (allergenRepository.avoidedAllergens().isEmpty()) {
-            RowAllergens(emptyMap(), emptyMap(), avoids = false)
+            emit(RowAllergens(emptyMap(), emptyMap(), avoids = false))
         } else {
             val scan = allergenRepository.foodScanner()
             // Every row on screen, from every source: this phone, Open Food Facts, the USDA API. The phone's whole
             // food list is only read for the Mine tab.
-            val foods = l.recents + l.favorites + l.localResults +
-                (if (t.second == AddFoodTab.MY_FOODS) mine else emptyList()) +
-                (e.off as? OffUiState.Results)?.foods.orEmpty() + (s as? SearchState.Remote)?.results.orEmpty()
-            // Keyword matching is text work: never on the main thread. Mine is scanned whole (no cap), so no visible row stays on "Checking...".
-            withContext(Dispatchers.Default) {
-                RowAllergens(
-                    foods.associate { it.id to rowAllergenOf(it, scan(it)) },
-                    // A bundled USDA row is scanned as the food it becomes when chosen (its name: it is a generic food).
-                    e.refResults.associate { ref ->
-                        FoodRefRepository.toFoodEntity(ref).let { ref.id to rowAllergenOf(it, scan(it)) }
-                    },
-                    avoids = true,
-                )
+            val foods = (
+                l.recents + l.favorites + l.localResults +
+                    (if (t.second == AddFoodTab.MY_FOODS) mine else emptyList()) +
+                    (e.off as? OffUiState.Results)?.foods.orEmpty() + (s as? SearchState.Remote)?.results.orEmpty()
+                ).distinctBy { it.id }
+            val done = LinkedHashMap<String, RowAllergen>()
+            // A row not scanned yet has no entry and shows "Checking...", never a clear (chipFor). The first rows are
+            // scanned and shown at once; the rest follow, on two threads, and stop as soon as the lists change.
+            withContext(allergenRepository.scanDispatcher) {
+                for (food in foods.take(FIRST_SCAN_ROWS)) {
+                    ensureActive()
+                    done[food.id] = rowAllergenOf(food, scan(food))
+                }
             }
+            if (foods.size > FIRST_SCAN_ROWS || e.refResults.isNotEmpty()) {
+                emit(RowAllergens(LinkedHashMap(done), emptyMap(), avoids = true))
+            }
+            val refs = LinkedHashMap<Int, RowAllergen>()
+            withContext(allergenRepository.scanDispatcher) {
+                for (food in foods.drop(FIRST_SCAN_ROWS)) {
+                    ensureActive()
+                    done[food.id] = rowAllergenOf(food, scan(food))
+                }
+                // A bundled USDA row is scanned as the food it becomes when chosen (its name: it is a generic food).
+                for (ref in e.refResults) {
+                    ensureActive()
+                    FoodRefRepository.toFoodEntity(ref).let { refs[ref.id] = rowAllergenOf(it, scan(it)) }
+                }
+            }
+            emit(RowAllergens(done, refs, avoids = true))
         }
     }
 
@@ -701,5 +723,6 @@ class AddFoodViewModel @Inject constructor(
 
     private companion object {
         const val OFF_DEBOUNCE_MS = 600L
+        const val FIRST_SCAN_ROWS = 24
     }
 }
