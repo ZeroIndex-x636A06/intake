@@ -66,6 +66,8 @@ fun AssignRecipeSheet(
     initialProtein: String,
     onDismiss: () -> Unit,
     onPick: (RecipeEntity, String) -> Unit,
+    /** The single recipe verdict per id (`RecipeLogger.rowAllergen`), the same chip as the Recipes list. Empty when nothing is avoided. */
+    verdicts: Map<String, com.zeroindex.intake.ui.addfood.RowAllergen> = emptyMap(),
 ) {
     var protein by remember { mutableStateOf(initialProtein) }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
@@ -91,12 +93,17 @@ fun AssignRecipeSheet(
                         ListItem(
                             headlineContent = { Text(r.name) },
                             supportingContent = {
-                                Text(
-                                    listOfNotNull(
-                                        "${r.servings} servings",
-                                        r.totalTimeMinutes.takeIf { it > 0 }?.let { "$it min" },
-                                    ).joinToString(" · "),
-                                )
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(
+                                        listOfNotNull(
+                                            "${r.servings} servings",
+                                            r.totalTimeMinutes.takeIf { it > 0 }?.let { "$it min" },
+                                        ).joinToString(" · "),
+                                    )
+                                    // Never chipless for a person who avoids something: "Checking" until the verdict lands.
+                                    val chip = verdicts[r.id] ?: if (verdicts.isEmpty()) null else com.zeroindex.intake.ui.addfood.RowAllergen.Checking
+                                    chip?.let { com.zeroindex.intake.ui.addfood.RowAllergenChip(it) }
+                                }
                             },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)
                                 .clickable { onPick(r, protein) },

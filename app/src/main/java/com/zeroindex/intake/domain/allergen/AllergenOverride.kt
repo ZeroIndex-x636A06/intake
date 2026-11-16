@@ -64,4 +64,18 @@ object AllergenOverride {
         }
         return newName to newLabel
     }
+
+    private val NOTE_IN_PARENS = Regex("\\s*\\(\\s*Logged despite:[^)]*\\)", RegexOption.IGNORE_CASE)
+    private val NOTE_IN_LABEL = Regex("\\s*(?:\u00b7\\s*)?Logged despite:[^\u00b7()]*", RegexOption.IGNORE_CASE)
+
+    /**
+     * [text] without any override note this app added ("Baked mac and cheese (Logged despite: dairy)" becomes "Baked
+     * mac and cheese"). The note is a record of what a person chose, never part of a food's name, so it is never copied
+     * into a template or a name and never read by the allergen matcher (its word "dairy" is not an ingredient).
+     */
+    fun stripNote(text: String): String =
+        text.replace(NOTE_IN_PARENS, "").replace(NOTE_IN_LABEL, "").trim()
+
+    /** [stripNote] for text that may be absent; blank becomes null. */
+    fun stripNoteOrNull(text: String?): String? = text?.let(::stripNote)?.takeIf { it.isNotEmpty() }
 }

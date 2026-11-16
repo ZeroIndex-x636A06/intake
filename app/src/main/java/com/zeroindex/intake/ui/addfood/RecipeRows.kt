@@ -44,6 +44,10 @@ internal fun RecipeLogRow(row: RecipeRowUi, onLog: (RecipeRowUi) -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
                 )
+                // A greyed "+" always says why: which ingredient could not be matched, and where to fix it.
+                r.whyNoKcal?.let {
+                    Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 3)
+                }
                 row.allergen?.let {
                     Spacer(Modifier.size(4.dp))
                     RowAllergenChip(it)

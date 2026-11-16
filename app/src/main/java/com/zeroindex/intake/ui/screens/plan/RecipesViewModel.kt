@@ -111,22 +111,14 @@ class RecipeLibraryViewModel @Inject constructor(
             emptyMap()
         } else {
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-                list.associate { r ->
-                    val scan = recipeLogger.scan(r)
-                    r.id to com.zeroindex.intake.ui.addfood.RowAllergen(
-                        scan.verdict(),
-                        scan.chipDetail(),
-                        traceLabel = scan.traceChipLabel(),
-                        basis = if (r.ingredientsText.isBlank()) {
-                            com.zeroindex.intake.domain.allergen.AllergenEvidence.ClearBasis.NAME_ONLY
-                        } else {
-                            com.zeroindex.intake.domain.allergen.AllergenEvidence.ClearBasis.LABEL_READ
-                        },
-                    )
-                }
+                list.associate { r -> r.id to recipeLogger.rowAllergen(r) }
             }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    /** The recipe page's chip: the same single verdict as the list (null while it loads, or when nothing is avoided). */
+    fun verdictOf(recipeId: String): Flow<com.zeroindex.intake.ui.addfood.RowAllergen?> =
+        verdicts.map { it[recipeId] }.distinctUntilChanged()
 
     /** One recipe with its ingredients in order, their groups and each line's own allergen tag. Reloads when the recipe changes. */
     fun viewOf(recipeId: String): Flow<RecipeView?> =

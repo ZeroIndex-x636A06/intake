@@ -10,14 +10,37 @@ data class RecipeCandidate(
     val protein: Double?,
     /** When a serving of it was last logged, if ever. Breaks ties between equally good name matches. */
     val lastLoggedAt: Long? = null,
+    /** True when [kcal] and [protein] are worked out from the ingredient lines, not stored on the recipe. Shown with "~". */
+    val estimated: Boolean = false,
+    /** Why there is no calorie figure ("Could not match carrots, stock to foods"), shown under the row. Null when there is one. */
+    val whyNoKcal: String? = null,
 ) {
-    /** "420 kcal · 35 g protein", or "kcal not listed" where the recipe has no number. Never "0". */
+    /** "420 kcal · 35 g protein", "~62 kcal" when estimated, or "kcal not listed" where the recipe has no number. Never "0". */
     val summary: String
-        get() = (kcal?.let { "${it.roundToInt()} kcal" } ?: "kcal not listed") + " · " +
-            (protein?.let { "${it.roundToInt()} g protein" } ?: "protein not listed")
+        get() {
+            val tilde = if (estimated) "~" else ""
+            return (kcal?.let { "$tilde${it.roundToInt()} kcal" } ?: "kcal not listed") + " · " +
+                (protein?.let { "$tilde${it.roundToInt()} g protein" } ?: "protein not listed")
+        }
 
-    /** A serving can be logged only with a calorie figure (the existing logServing rule). */
+    /** A serving can be logged only with a calorie figure (the existing logServing rule), stored or estimated. */
     val loggable: Boolean get() = kcal != null
+
+    companion object {
+        /**
+         * The reason a recipe has no calorie figure, naming what is actually missing: the ingredient lines the estimate
+         * could not match to a food, or that the recipe has no ingredient lines at all.
+         */
+        fun reasonNoKcal(lineCount: Int, notCountedLines: List<String>): String = when {
+            lineCount == 0 -> "No ingredients to estimate from. Add ingredients in Recipes."
+            notCountedLines.isEmpty() -> "Could not estimate calories. Open it in Recipes to pick foods."
+            else -> {
+                val shown = notCountedLines.take(2).joinToString(", ")
+                val more = if (notCountedLines.size > 2) " and ${notCountedLines.size - 2} more" else ""
+                "No calories: could not match $shown$more to a food. Open it in Recipes to fix."
+            }
+        }
+    }
 }
 
 /**

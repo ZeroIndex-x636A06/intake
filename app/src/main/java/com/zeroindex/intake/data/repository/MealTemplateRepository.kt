@@ -4,6 +4,7 @@ import com.zeroindex.intake.data.db.dao.FoodDao
 import com.zeroindex.intake.data.db.dao.FoodLogDao
 import com.zeroindex.intake.data.db.dao.MealTemplateDao
 import com.zeroindex.intake.data.db.entity.FoodEntity
+import com.zeroindex.intake.domain.allergen.AllergenOverride
 import com.zeroindex.intake.data.db.entity.FoodLogEntity
 import com.zeroindex.intake.data.db.entity.MealTemplateEntity
 import com.zeroindex.intake.data.db.entity.MealTemplateItemEntity
@@ -129,7 +130,15 @@ class MealTemplateRepository @Inject constructor(
 
     private suspend fun summary(t: MealTemplateEntity) = TemplateSummary(
         template = t,
-        items = templateDao.itemsOf(t.id).mapNotNull { item -> foodDao.findById(item.foodId)?.let { it to item.quantityGrams } },
+        // Names saved before this fix may carry "(Logged despite: ...)"; it is stripped on read so it is never shown, logged
+        // forward or read by the allergen check (no schema change).
+        items = templateDao.itemsOf(t.id).mapNotNull { item ->
+            foodDao.findById(item.foodId)?.let { f ->
+                val name = AllergenOverride.stripNote(f.name).ifEmpty { f.name }
+                val label = AllergenOverride.stripNote(f.servingLabel).ifEmpty { f.servingLabel }
+                (if (name == f.name && label == f.servingLabel) f else f.copy(name = name, servingLabel = label)) to item.quantityGrams
+            }
+        },
     )
 
     /**
@@ -151,9 +160,10 @@ class MealTemplateRepository @Inject constructor(
                 val grams = entry.quantityGrams ?: 100.0
                 val per100 = 100.0 / grams
                 val food = FoodEntity(
-                    name = entry.foodNameAtLog,
+                    // Never copy the override note ("(Logged despite: dairy)") into a template item.
+                    name = AllergenOverride.stripNote(entry.foodNameAtLog).ifEmpty { entry.foodNameAtLog },
                     servingSizeGrams = grams,
-                    servingLabel = entry.servingLabelAtLog ?: "1 serving",
+                    servingLabel = AllergenOverride.stripNoteOrNull(entry.servingLabelAtLog) ?: "1 serving",
                     kcalPer100g = entry.kcal * per100,
                     proteinPer100g = entry.protein * per100,
                     carbsPer100g = entry.carbs * per100,
