@@ -130,6 +130,23 @@ object PortableSettings {
         return Decoded(good, ignored, version)
     }
 
+    /**
+     * The incoming values that differ from what this phone has now. Settings are only restored from this
+     * set, so what the import preview lists is exactly what changes: no difference, no write.
+     * A name the phone has no stored value for counts as a difference.
+     */
+    fun changes(current: Map<String, Any?>, incoming: Map<String, Value>): Map<String, Value> =
+        incoming.filter { (name, value) -> !same(current[name], value) }
+
+    private fun same(cur: Any?, v: Value): Boolean = when (v) {
+        is Value.Str -> cur is String && cur == v.v
+        is Value.Bool -> cur is Boolean && cur == v.v
+        is Value.IntV -> (cur is Int || cur is Long) && (cur as Number).toLong() == v.v.toLong()
+        is Value.LongV -> (cur is Int || cur is Long) && (cur as Number).toLong() == v.v
+        is Value.DoubleV -> (cur is Double || cur is Float) && (cur as Number).toDouble() == v.v
+        is Value.StrSet -> cur is Set<*> && cur.filterIsInstance<String>().toSet() == v.v
+    }
+
     private fun decodeOne(element: JsonElement): Value? {
         val o = runCatching { element.jsonObject }.getOrNull() ?: return null
         val type = (o["type"] as? JsonPrimitive)?.contentOrNull ?: return null

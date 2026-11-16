@@ -9,6 +9,7 @@ import com.zeroindex.intake.data.settings.FoodDataPrefs
 import com.zeroindex.intake.data.settings.HydrationPrefs
 import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.backup.BackupCrypto
+import com.zeroindex.intake.domain.backup.ImportMessages
 import com.zeroindex.intake.domain.backup.MergePlan
 import com.zeroindex.intake.domain.backup.PortableSettings
 import com.zeroindex.intake.domain.backup.RowVersion
@@ -18,7 +19,9 @@ import java.time.Instant
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -31,6 +34,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 
+/** [message] is always plain language, safe to show as is. */
 open class ImportException(message: String) : Exception(message)
 
 /** The passphrase did not open the file; the UI asks again rather than giving up. */
@@ -43,15 +47,20 @@ class ImportPreview internal constructor(
     val plans: List<TablePlan>,
     val unknownTables: List<String>,
     internal val rows: Map<String, List<Audited>>,
-    /** Preferences found in the file, already filtered to the portable ones. Empty for an older backup. */
+    /**
+     * Portable preferences in the file that DIFFER from this phone's current values. Only these are ever written,
+     * and only when the person confirms them: no difference listed, no setting changes.
+     */
     internal val settingsValues: Map<String, PortableSettings.Value> = emptyMap(),
+    /** How many portable preferences the file carried in all, same or different. */
+    val settingsInFile: Int = settingsValues.size,
 ) {
     val totalChanges: Int get() = plans.sumOf { it.changes }
 
-    /** How many preferences would be restored. */
+    /** How many preferences would change if the person agrees to restore settings. */
     val settingsCount: Int get() = settingsValues.size
 
-    /** "Settings: units, targets, profile ..." for the import preview; null when the file has none. */
+    /** "Settings: units, targets, profile ..." naming the groups that differ; null when nothing differs. */
     val settingsLine: String? get() = settingsValues.keys.takeIf { it.isNotEmpty() }?.let(PortableSettings::describe)
 }
 
@@ -115,43 +124,69 @@ class BackupService @Inject constructor(
     /** Export, optionally sealed with a passphrase; records the export for the 30-day prompt. */
     suspend fun exportBytes(passphrase: CharArray?): ByteArray {
         val plain = exportJson()
-        val out = if (passphrase != null && passphrase.isNotEmpty()) BackupCrypto.encrypt(plain, passphrase) else plain
+        // Key derivation is slow on purpose; keep it off the main thread.
+        val out = if (passphrase != null && passphrase.isNotEmpty()) {
+            withContext(Dispatchers.Default) { BackupCrypto.encrypt(plain, passphrase) }
+        } else {
+            plain
+        }
         settings.setLastExportAt(clock.nowMillis())
         return out
     }
 
     fun needsPassphrase(bytes: ByteArray): Boolean = BackupCrypto.isEncrypted(bytes)
 
-    suspend fun preview(bytes: ByteArray, passphrase: CharArray? = null): ImportPreview {
+    /**
+     * Decrypts (slow key derivation) and parses off the main thread. Throws [WrongPassphraseException] or an
+     * [ImportException] whose message is plain language; never a raw parser message.
+     */
+    suspend fun preview(bytes: ByteArray, passphrase: CharArray? = null): ImportPreview =
+        withContext(Dispatchers.Default) { previewBlocking(bytes, passphrase) }
+
+    private suspend fun previewBlocking(bytes: ByteArray, passphrase: CharArray?): ImportPreview {
         val plain = if (BackupCrypto.isEncrypted(bytes)) {
             if (passphrase == null) throw ImportException("This backup is encrypted. Enter its passphrase.")
             try {
                 BackupCrypto.decrypt(bytes, passphrase)
             } catch (e: BackupCrypto.WrongPassphrase) {
-                throw WrongPassphraseException(e.message ?: "Wrong passphrase.")
+                throw WrongPassphraseException(ImportMessages.WRONG_PASSPHRASE)
+            } catch (e: BackupCrypto.Truncated) {
+                throw ImportException(ImportMessages.DAMAGED)
             }
         } else {
             bytes
         }
-        val root = runCatching { json.parseToJsonElement(plain.decodeToString()).jsonObject }
-            .getOrElse { throw ImportException("That file is not an Intake backup (it is not JSON).") }
-        if (root["format"]?.jsonPrimitive?.contentOrNull != FORMAT) throw ImportException("That file is not an Intake backup.")
-        val schema = root["schemaVersion"]?.jsonPrimitive?.intOrNull ?: throw ImportException("The backup has no schema version.")
-        if (schema > IntakeDatabase.VERSION) {
-            throw ImportException("This backup is from a newer version of Intake (schema $schema). Update the app first.")
+        val text = plain.decodeToString()
+        val root = runCatching { json.parseToJsonElement(text).jsonObject }
+            .getOrElse { throw ImportException(ImportMessages.notJson(text)) }
+        val format = try {
+            root["format"]?.jsonPrimitive?.contentOrNull
+        } catch (e: IllegalArgumentException) {
+            null
         }
-        val incoming = root["tables"]?.jsonObject ?: throw ImportException("The backup has no tables.")
+        if (format != FORMAT) throw ImportException(ImportMessages.NOT_BACKUP)
+        val schema = try {
+            root["schemaVersion"]?.jsonPrimitive?.intOrNull
+        } catch (e: IllegalArgumentException) {
+            null
+        } ?: throw ImportException(ImportMessages.NO_SCHEMA)
+        if (schema > IntakeDatabase.VERSION) throw ImportException(ImportMessages.newerVersion())
+        val incoming = try {
+            root["tables"]?.jsonObject
+        } catch (e: IllegalArgumentException) {
+            null
+        } ?: throw ImportException(ImportMessages.NO_TABLES)
 
         val rows = LinkedHashMap<String, List<Audited>>()
         val plans = tables.mapNotNull { table ->
             val t = table.typed<Audited>()
-            val array = incoming[t.name]?.jsonArray ?: return@mapNotNull null
+            val element = incoming[t.name] ?: return@mapNotNull null
             val decoded = try {
-                array.map { json.decodeFromJsonElement(t.serializer, LegacyRows.upgrade(t.name, it)) }
+                element.jsonArray.map { json.decodeFromJsonElement(t.serializer, LegacyRows.upgrade(t.name, it)) }
             } catch (e: SerializationException) {
-                throw ImportException("The ${t.name} table in the backup does not match this app: ${e.message?.take(120)}")
+                throw ImportException(ImportMessages.badTable(t.name, e.message))
             } catch (e: IllegalArgumentException) {
-                throw ImportException("The ${t.name} table in the backup does not match this app: ${e.message?.take(120)}")
+                throw ImportException(ImportMessages.badTable(t.name, e.message))
             }
             rows[t.name] = decoded
             MergePlan.plan(
@@ -160,18 +195,24 @@ class BackupService @Inject constructor(
                 incoming = decoded.map { RowVersion(it.id, it.updatedAt, t.naturalKey?.invoke(it)) },
             )
         }
+        val inFile = PortableSettings.decode(root["settings"]).values
+        val current = settings.rawSnapshot() + hydrationPrefs.rawSnapshot() + foodDataPrefs.rawSnapshot()
         return ImportPreview(
             schemaVersion = schema,
             exportedAt = root["exportedAt"]?.jsonPrimitive?.longOrNull,
             plans = plans,
             unknownTables = incoming.keys.filter { name -> tables.none { it.name == name } },
             rows = rows,
-            settingsValues = PortableSettings.decode(root["settings"]).values,
+            settingsValues = PortableSettings.changes(current, inFile),
+            settingsInFile = inFile.size,
         )
     }
 
-    /** Writes exactly what [preview] showed, in one transaction. */
-    suspend fun apply(preview: ImportPreview) {
+    /**
+     * Writes exactly what [preview] showed, in one transaction. Settings are written only when [restoreSettings] is
+     * true (the person confirmed the listed differences), and then only the listed ones.
+     */
+    suspend fun apply(preview: ImportPreview, restoreSettings: Boolean = false) {
         db.withTransaction {
             tables.forEach { table ->
                 val t = table.typed<Audited>()
@@ -185,7 +226,7 @@ class BackupService @Inject constructor(
             }
         }
         // Preferences go in last, after the rows, so a failed import changes no settings.
-        restoreSettings(preview.settingsValues)
+        if (restoreSettings) restoreSettings(preview.settingsValues)
         // Plan weeks from a schema-2 backup have no plan yet.
         com.zeroindex.intake.data.plan.LegacyPlanRepair.run(db, clock.nowMillis(), clock.today().toEpochDay())
     }

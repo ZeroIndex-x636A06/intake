@@ -201,4 +201,27 @@ class PortableSettingsTest {
         assertThat(back.values["profile_json"]).isEqualTo(PortableSettings.Value.Str(profile))
         assertThat(back.ignored).isEmpty()
     }
+
+    @Test
+    fun `changes lists only values that differ from the phone`() {
+        val current = mapOf<String, Any?>(
+            "show_sodium" to true, "weight_unit" to "KG", "default_rest_sec" to 90,
+            "goal_weight_kg" to 80.0, "available_plates_kg" to setOf("5", "10"),
+        )
+        val incoming = mapOf(
+            "show_sodium" to PortableSettings.Value.Bool(true),
+            "weight_unit" to PortableSettings.Value.Str("LB"),
+            "default_rest_sec" to PortableSettings.Value.LongV(90),
+            "goal_weight_kg" to PortableSettings.Value.DoubleV(80.0),
+            "available_plates_kg" to PortableSettings.Value.StrSet(setOf("10", "5")),
+            "rest_vibrate" to PortableSettings.Value.Bool(false),
+        )
+        assertThat(PortableSettings.changes(current, incoming).keys).containsExactly("weight_unit", "rest_vibrate")
+    }
+
+    @Test
+    fun `an identical backup has zero setting changes`() {
+        val current = mapOf<String, Any?>("show_sodium" to false)
+        assertThat(PortableSettings.changes(current, mapOf("show_sodium" to PortableSettings.Value.Bool(false)))).isEmpty()
+    }
 }
