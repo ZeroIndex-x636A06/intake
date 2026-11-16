@@ -287,6 +287,9 @@ class AddFoodViewModel @Inject constructor(
                 )
             }
         }
+        // Building the Room query flow and ranking its rows were running on the main thread, once per settled query
+        // (seen in a main-thread stack sample while typing: FoodDao_Impl.searchByName).
+        .flowOn(Dispatchers.Default)
 
     /**
      * Imported restaurant menu items for the query. Scanned again here, off the main thread, so the chip is today's
@@ -341,6 +344,7 @@ class AddFoodViewModel @Inject constructor(
                 }
             }
         }
+        .flowOn(Dispatchers.Default)
 
     /**
      * Open Food Facts runs on a longer debounce than the on-phone sources, so a word

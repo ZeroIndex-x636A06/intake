@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -89,7 +90,7 @@ class RecipeSearchViewModel @Inject constructor(
         val chips = chipsFor((shown + recents + everything).distinctBy { it.id }.mapNotNull { byId[it.id] })
         fun row(c: RecipeCandidate) = RecipeRowUi(c, chips[c.id])
         RecipeSearchUi(shown.map(::row), recents.map(::row), everything.map(::row), loaded = true)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RecipeSearchUi())
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RecipeSearchUi())
 
     /** The engine's verdict per recipe, empty when the person avoids nothing. Text work, so off the main thread. */
     private suspend fun chipsFor(recipes: List<RecipeEntity>): Map<String, RowAllergen> {
