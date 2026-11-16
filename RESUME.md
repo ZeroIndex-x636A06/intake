@@ -3,6 +3,11 @@
 Read this first when picking the work back up. Latest work: branch
 `claude/optimistic-noether-fullk5` (not yet merged into `claude/app-build-k2ag1d`).
 
+## QA pass 5b fixes merged (branch `claude/optimistic-noether-fullk5`)
+
+- Merged qa5b-verdicts, qa5b-misc, owner-checkin and qa5b-perf (with qa5b-search). No textual conflicts. Q5b-2 to 16 and 18, Q3-1 and Q5a-9 are marked "Fixed, needs retest" in `docs/QA-LOG.md`.
+- Q5b-1, Q1-3, Q5a-3, Q5a-4 are only partly fixed: the open-time allergen scan burst fell from about 85 s to about 45 s of CPU on the debug emulator, and typing still drops injected keys there. Not verified on a preview build or a device. Q5b-17 stays open.
+
 ## QA pass 5a fixes merged (branch `claude/optimistic-noether-fullk5`)
 
 Merged agent/qa5-allergens, qa5-search, qa5-logui and qa5-polish (no textual conflicts, compile clean after each). Unit tests, app and wear lint (0 errors) and the sync server tests pass. Preview APKs are built and signed with the existing key. QA-LOG items are set to "needs retest": nothing here has been seen on the emulator or a device since the merge.
