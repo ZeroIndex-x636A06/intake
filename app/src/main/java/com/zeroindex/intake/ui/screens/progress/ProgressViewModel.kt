@@ -95,6 +95,7 @@ class ProgressViewModel @Inject constructor(
     private val foodLogRepository: FoodLogRepository,
     private val targetRepository: TargetRepository,
     private val tdeeRepository: TdeeRepository,
+    private val autoTargets: com.zeroindex.intake.data.profile.AutoTargets,
     private val settingsRepository: SettingsRepository,
     private val performanceRepository: PerformanceRepository,
     private val healthDao: HealthSummaryDao,
@@ -187,7 +188,8 @@ class ProgressViewModel @Inject constructor(
     fun recalculateTdee() = viewModelScope.launch {
         recalculating.value = true
         try {
-            tdeeRepository.recalculate()?.let { tdeeRepository.refreshTargetFromTdee(it) }
+            tdeeRepository.recalculate()
+            autoTargets.refresh()
         } finally {
             recalculating.value = false
         }

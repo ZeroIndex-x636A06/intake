@@ -36,6 +36,7 @@ data class CheckInUiState(
     val aiReword: Boolean = false,
     val aiConfigured: Boolean = false,
     val weightUnit: WeightUnit = WeightUnit.POUNDS,
+    val volumeUnit: com.zeroindex.intake.domain.units.VolumeUnit = com.zeroindex.intake.domain.units.VolumeUnit.US_FLUID_OUNCES,
     val working: Boolean = false,
     val message: String? = null,
 )
@@ -72,6 +73,7 @@ class CoachCheckInViewModel @Inject constructor(
             aiReword = s.coachAiReword,
             aiConfigured = gateway.isConfigured(),
             weightUnit = s.weightUnit,
+            volumeUnit = s.volumeUnit,
             working = busy,
             message = msg,
         )

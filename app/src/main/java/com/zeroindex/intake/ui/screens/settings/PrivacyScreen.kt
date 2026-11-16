@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.settings
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -13,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -23,6 +25,7 @@ import com.zeroindex.intake.ui.components.PrivacyTag
 import com.zeroindex.intake.ui.components.SectionLine
 import com.zeroindex.intake.ui.components.StatusPill
 import com.zeroindex.intake.ui.components.SubCopy
+import androidx.compose.runtime.CompositionLocalProvider
 
 /**
  * SPEC §13 and the amendments: every way data can leave this phone, grouped by
@@ -32,7 +35,16 @@ import com.zeroindex.intake.ui.components.SubCopy
 fun PrivacyScreen(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
+    settingsViewModel: SettingsViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
 ) {
+    val lengthUnit = settingsViewModel.uiState.collectAsStateWithLifecycle().value.settings.lengthUnit
+    CompositionLocalProvider(LocalLengthUnit provides lengthUnit) { PrivacyBody(contentPadding, modifier) }
+}
+
+private val LocalLengthUnit = androidx.compose.runtime.compositionLocalOf { com.zeroindex.intake.domain.units.LengthUnit.CENTIMETRES }
+
+@Composable
+private fun PrivacyBody(contentPadding: PaddingValues, modifier: Modifier) {
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -245,6 +257,8 @@ private fun PathRow(
     pill: String? = null,
     tone: PillTone = PillTone.Ok,
 ) {
+    val unit = LocalLengthUnit.current
+    fun km(text: String) = com.zeroindex.intake.domain.units.DistanceText.inUnit(text, unit)
     IntakeCard {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
@@ -256,9 +270,9 @@ private fun PathRow(
             if (pill != null) StatusPill(pill, tone = tone)
         }
         PrivacyTag(tag, Modifier.padding(top = 6.dp))
-        Detail("Sent", sent)
+        Detail("Sent", km(sent))
         Detail("To", where)
-        Detail("When", whenSent)
+        Detail("When", km(whenSent))
     }
 }
 

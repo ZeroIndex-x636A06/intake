@@ -99,9 +99,9 @@ fun HydrationAdvanced(
     Column {
         Eyebrow("Drink values")
         Text(
-            "Leave a box empty to use the default shown in it. Adds to hydration is a multiplier: 1 counts the full " +
+            ("Leave a box empty to use the default shown in it. Adds to hydration is a multiplier: 1 counts the full " +
                 "amount, 1.5 counts half as much again, and a negative number takes water away. Caffeine is per 250 ml. " +
-                "Strength is alcohol by volume.",
+                "Strength is alcohol by volume.").let { com.zeroindex.intake.domain.units.UnitText.volumeInUnit(it, volumeUnit) },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(vertical = 4.dp),
@@ -114,7 +114,7 @@ fun HydrationAdvanced(
                     InfoTip("Counts in full toward your water. At normal amounts they hydrate about as well as water does.")
                 }
                 if (type == DrinkType.SPIRITS) {
-                    InfoTip("Counts as minus the pure alcohol in the glass: a 44 ml shot at 40% takes away about 18 ml. The default follows the strength.")
+                    InfoTip(com.zeroindex.intake.domain.units.UnitText.volumeInUnit("Counts as minus the pure alcohol in the glass: a 44 ml shot at 40% takes away about 18 ml. The default follows the strength.", volumeUnit))
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

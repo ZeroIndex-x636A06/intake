@@ -17,6 +17,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import com.zeroindex.intake.domain.units.fieldSync
+import com.zeroindex.intake.domain.units.fieldText
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -99,7 +101,8 @@ private fun ItemRow(item: EquipmentItem, checked: Boolean, unit: WeightUnit, onT
 
 @Composable
 private fun DumbbellMax(maxKg: Double?, onChange: (Double?) -> Unit, unit: WeightUnit) {
-    var text by remember(unit) { mutableStateOf(maxKg?.let { UnitConverter.round(unit.fromKg(it), 1).toString().removeSuffix(".0") }.orEmpty()) }
+    var text by remember(unit) { mutableStateOf(maxKg?.let(unit::fieldText).orEmpty()) }
+    androidx.compose.runtime.LaunchedEffect(maxKg, unit) { unit.fieldSync(maxKg, text)?.let { text = it } }
     OutlinedTextField(
         value = text,
         onValueChange = { v ->

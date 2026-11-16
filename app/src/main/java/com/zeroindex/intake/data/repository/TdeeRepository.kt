@@ -3,7 +3,6 @@ package com.zeroindex.intake.data.repository
 import com.zeroindex.intake.data.db.dao.TdeeEstimateDao
 import com.zeroindex.intake.data.db.entity.TdeeEstimateEntity
 import com.zeroindex.intake.data.db.entity.newId
-import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.tdee.IntakeDay
 import com.zeroindex.intake.domain.tdee.TdeeCalculator
 import com.zeroindex.intake.domain.tdee.TdeeResult
@@ -19,8 +18,6 @@ class TdeeRepository @Inject constructor(
     private val dao: TdeeEstimateDao,
     private val bodyRepository: BodyRepository,
     private val foodLogRepository: FoodLogRepository,
-    private val targetRepository: TargetRepository,
-    private val settingsRepository: SettingsRepository,
     private val clock: Clock,
 ) {
     fun observeLatest(): Flow<TdeeEstimateEntity?> = dao.observeLatest()
@@ -64,41 +61,6 @@ class TdeeRepository @Inject constructor(
             ),
         )
         return result
-    }
-
-    /**
-     * SPEC §8: derive the target from the measured TDEE and the rate goal,
-     * recalculated weekly. Returns the kcal shift when a new target was written,
-     * so the caller can decide whether it is worth a notification.
-     */
-    suspend fun refreshTargetFromTdee(result: TdeeResult): TargetShift? {
-        val settings = settingsRepository.settings.first()
-        if (!settings.autoCalculateTargets) return null
-
-        val goalWeight = settings.goalWeightKg
-            ?: bodyRepository.latest()?.weightKg
-            ?: return null
-
-        val target = TdeeCalculator.targetForRate(
-            tdee = result.estimatedTdee,
-            rateKgPerWeek = settings.goalRateKgPerWeek,
-            goalWeightKg = goalWeight,
-            proteinPerKg = settings.proteinGramsPerKg,
-            fatPerKg = settings.fatGramsPerKg,
-        )
-
-        val previous = targetRepository.latestEntity()
-        if (previous != null && previous.kcal == target.kcal) return null
-
-        targetRepository.setTarget(target, isAutoCalculated = true)
-
-        return TargetShift(
-            previousKcal = previous?.kcal,
-            newKcal = target.kcal,
-            notify = previous != null &&
-                TdeeCalculator.shouldNotifyShift(previous.kcal, target.kcal),
-            confidence = result.confidence,
-        )
     }
 }
 
