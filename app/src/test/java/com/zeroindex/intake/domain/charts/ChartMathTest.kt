@@ -62,6 +62,20 @@ class ChartMathTest {
         assertEquals(1, ChartMath.tickDecimals(t))
     }
 
+    @Test fun aFlatMeasurementDoesNotFillTheAxis() {
+        // Chest 41.6 to 42.0 cm: without a minimum span the axis is 41.6 to 42.0 and a flat line looks like a trend.
+        val (lo, hi) = ChartMath.yRange(41.6, 42.0, minSpan = 5.0)
+        assertEquals(5.0, hi - lo, 1e-9)
+        assertTrue(lo < 41.6 && hi > 42.0)
+        assertEquals(41.8, (lo + hi) / 2, 1e-9)
+    }
+
+    @Test fun aLongerRangeKeepsItsOwnPadding() {
+        val (lo, hi) = ChartMath.yRange(190.0, 200.0, minSpan = 2.0)
+        assertEquals(190.0 - 1.2, lo, 1e-9)
+        assertEquals(200.0 + 1.2, hi, 1e-9)
+    }
+
     @Test fun niceTicksDegenerateRangeIsEmpty() {
         assertEquals(emptyList(), ChartMath.niceTicks(5.0, 5.0))
         assertEquals(emptyList(), ChartMath.niceTicks(Double.NaN, 5.0))

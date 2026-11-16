@@ -7,6 +7,7 @@ import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.log10
+import kotlin.math.max
 import kotlin.math.pow
 
 /** The pure maths behind the Progress line charts: scrubbing, gaps and axis labels. No Android, so it is unit-tested. */
@@ -69,6 +70,22 @@ object ChartMath {
             k += 1.0
         }
         return out
+    }
+
+    /**
+     * The y range of a line chart: the data plus a little air, and at least [minSpan] tall. A flat series (chest measured
+     * 41.6 to 42.0) would otherwise fill the whole plot and look like a real trend; [minSpan] keeps small wobbles small.
+     */
+    fun yRange(rawMin: Double, rawMax: Double, minSpan: Double = 0.0): Pair<Double, Double> {
+        val pad = max((rawMax - rawMin) * 0.12, 0.3)
+        var lo = rawMin - pad
+        var hi = rawMax + pad
+        if (hi - lo < minSpan) {
+            val mid = (lo + hi) / 2
+            lo = mid - minSpan / 2
+            hi = mid + minSpan / 2
+        }
+        return lo to hi
     }
 
     /** Decimal places a tick label needs so neighbouring ticks look different: 0 for whole steps, else 1 or 2. */

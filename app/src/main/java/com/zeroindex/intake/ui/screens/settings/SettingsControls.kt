@@ -182,7 +182,9 @@ fun SettingControl(
                 }
                 "allowBelowFloor" -> SwitchSetting("Allow calories below the floor", "Normally never below 1.1 x calories at rest.", s.profile.allowBelowFloor) { v -> viewModel.updateProfile { it.copy(allowBelowFloor = v) } }
                 "carbCycling" -> SwitchSetting("Carb cycling", "More carbs on training days. The weekly total is unchanged.", s.profile.carbCycling) { v -> viewModel.updateProfile { it.copy(carbCycling = v) } }
-                "carbCycleShiftPct" -> ChipSetting("Carb cycle shift", "Extra carbs on a training day.", listOf(15, 25, 35), s.profile.carbCycleShiftPct, { "+$it%" }) { v -> viewModel.updateProfile { it.copy(carbCycleShiftPct = v) } }
+                "carbCycleShiftPct" -> if (s.profile.carbCycling) {
+                    ChipSetting("Carb cycle shift", "Extra carbs on a training day.", listOf(15, 25, 35), s.profile.carbCycleShiftPct, { "+$it%" }) { v -> viewModel.updateProfile { it.copy(carbCycleShiftPct = v) } }
+                }
                 "refeedDaysPerWeek" -> ChipSetting("Refeed days per week", "A higher-carb day while cutting.", listOf(0, 1, 2), s.profile.refeedDaysPerWeek, { if (it == 0) "None" else "$it" }) { v -> viewModel.updateProfile { it.copy(refeedDaysPerWeek = v) } }
                 "dietBreakEveryWeeks" -> ChipSetting("Diet break every", "A maintenance week after this many weeks of dieting.", listOf<Int?>(null, 8, 10, 12), s.profile.dietBreakEveryWeeks, { if (it == null) "Off" else "$it weeks" }) { v -> viewModel.updateProfile { it.copy(dietBreakEveryWeeks = v) } }
                 "contestWeeklyLossPct" -> if (s.profile.phase == Phase.CONTEST_PREP) {

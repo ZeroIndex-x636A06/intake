@@ -51,8 +51,9 @@ def build(end, tz, now_ms):
     F = {}
 
     def food(name, serv_g, label, kcal, p, c, f, tags="", fiber=0.0, sugar=0.0, sodium=0.0, sat=0.0, brand=None,
-             source="DATABASE", fav=False, **extra):
-        r = row("food", id=qid("food", name), name=name, brand=brand, servingSizeGrams=serv_g, servingLabel=label,
+             source="DATABASE", fav=False, fid=None, **extra):
+        # fid: the app's own id for a row it seeds itself (a drink), so importing the seed does not add a second copy.
+        r = row("food", id=fid or qid("food", name), name=name, brand=brand, servingSizeGrams=serv_g, servingLabel=label,
                 kcalPer100g=kcal, proteinPer100g=p, carbsPer100g=c, fatPer100g=f, fiberPer100g=fiber, sugarPer100g=sugar,
                 sodiumPer100g=sodium, saturatedFatPer100g=sat, source=source, allergenTags=tags, isVerified=True,
                 isFavorite=fav, timesLogged=0, **extra)
@@ -84,7 +85,9 @@ def build(end, tz, now_ms):
     # dairy-containing and hidden-dairy foods
     food("Cheddar cheese", 28, "1 slice (28 g)", 403, 22.9, 3.1, 33.3, sodium=653, sat=18.9, tags=f"{MILK} | cheddar cheese (milk), salt")
     food("Greek yogurt, plain", 170, "1 cup (170 g)", 97, 9.0, 3.9, 5.0, sugar=3.6, sodium=35, sat=3.2, tags=f"{MILK} | cultured pasteurized milk, cream")
-    food("Milk, whole", 244, "1 cup (244 ml)", 61, 3.2, 4.8, 3.3, sugar=4.8, sodium=43, sat=1.9, tags=f"{MILK} | whole milk", drinkCategory="MILK")
+    # The app seeds this drink itself (DrinkSeed), so it carries the app's id and stamp: one row, not two in Drinks.
+    food("Milk, whole", 244, "1 cup (244 ml)", 61, 3.2, 4.8, 3.3, sugar=4.8, sodium=43, sat=1.9, tags=f"{MILK} | whole milk", drinkCategory="MILK",
+         fid=seed_id("drink", "Milk, whole"), createdAt=SEED_TS, updatedAt=SEED_TS)
     food("Butter, salted", 14, "1 tbsp (14 g)", 717, 0.9, 0.1, 81.1, sodium=643, sat=51.4, tags=f"{MILK} | cream, salt")
     food("Whey protein powder", 31, "1 scoop (31 g)", 387, 77.0, 8.0, 5.0, sugar=4.0, sodium=250, sat=3.0, brand="Test Brand", source="MANUAL",
          tags=f"{MILK} | whey protein concentrate, soy lecithin, natural flavor")
@@ -356,7 +359,8 @@ def build(end, tz, now_ms):
         EX[name] = row("exercise", id=seed_id("exercise", name), name=name, primaryMuscle=muscle, secondaryMuscles=sec, equipment=equip,
                        isBodyweight=bw, defaultRestSec=rest, notes=None, videoUri=None, photoPath=None, createdAt=SEED_TS, updatedAt=SEED_TS)
 
-    ex("Barbell Back Squat", "quads", "barbell", "glutes,hamstrings", 150)
+    # The app's own built-in exercise is "Back squat" (same id scheme), so the seed reuses it instead of a second squat.
+    ex("Back squat", "quads", "barbell", "glutes,hamstrings", 150)
     ex("Barbell Bench Press", "chest", "barbell", "triceps,front delts", 150)
     ex("Romanian Deadlift", "hamstrings", "barbell", "glutes,lower back", 150)
     ex("Overhead Press", "shoulders", "barbell", "triceps", 120)
@@ -372,9 +376,9 @@ def build(end, tz, now_ms):
         currentWeek=2, currentDayIndex=2, isStandalone=False, videoId=None, deloadEveryWeeks=None)
     layout = [
         ("Upper A", [("Barbell Bench Press", 4, 5, 8, 95), ("Dumbbell Row", 3, 8, 12, 60), ("Overhead Press", 3, 6, 10, 55), ("Pull-Up", 3, 5, 10, 0), ("Dumbbell Curl", 2, 10, 15, 25)]),
-        ("Lower A", [("Barbell Back Squat", 4, 5, 8, 155), ("Romanian Deadlift", 3, 8, 10, 135), ("Walking Lunge", 3, 10, 12, 35), ("Dumbbell Lateral Raise", 3, 12, 15, 15)]),
+        ("Lower A", [("Back squat", 4, 5, 8, 155), ("Romanian Deadlift", 3, 8, 10, 135), ("Walking Lunge", 3, 10, 12, 35), ("Dumbbell Lateral Raise", 3, 12, 15, 15)]),
         ("Upper B", [("Incline Dumbbell Press", 3, 8, 12, 50), ("Pull-Up", 4, 5, 10, 0), ("Overhead Press", 3, 6, 10, 55), ("Dumbbell Row", 3, 8, 12, 60), ("Dumbbell Curl", 2, 10, 15, 25)]),
-        ("Lower B", [("Romanian Deadlift", 4, 6, 8, 145), ("Barbell Back Squat", 3, 8, 10, 135), ("Walking Lunge", 3, 10, 12, 35)]),
+        ("Lower B", [("Romanian Deadlift", 4, 6, 8, 145), ("Back squat", 3, 8, 10, 135), ("Walking Lunge", 3, 10, 12, 35)]),
     ]
     PD, PE = {}, {}
     for di, (dname, exs) in enumerate(layout):

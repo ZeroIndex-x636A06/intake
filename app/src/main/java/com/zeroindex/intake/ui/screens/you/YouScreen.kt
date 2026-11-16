@@ -142,7 +142,7 @@ fun YouScreen(
                         ).joinToString(" · ").ifEmpty { "Add your basics to build a plan" }
                         Text(line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    IconButton(onClick = onEditProfile) { Icon(Icons.Filled.Edit, contentDescription = "Edit your profile") }
+                    IconButton(onClick = onEditProfile) { Icon(Icons.Filled.Edit, contentDescription = "Open Profile & goals") }
                 }
             }
         }

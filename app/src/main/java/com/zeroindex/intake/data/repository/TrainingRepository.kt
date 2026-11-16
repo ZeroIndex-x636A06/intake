@@ -12,6 +12,7 @@ import com.zeroindex.intake.data.training.WorkoutBuilder
 import com.zeroindex.intake.data.db.projection.WorkoutSummary
 import com.zeroindex.intake.data.training.toEntity
 import com.zeroindex.intake.domain.training.ProgressionLabels
+import com.zeroindex.intake.domain.training.SetRowText
 import com.zeroindex.intake.domain.training.generator.ExerciseCatalog
 import com.zeroindex.intake.domain.training.generator.GeneratedProgram
 import com.zeroindex.intake.data.db.entity.SEED_TIMESTAMP
@@ -978,12 +979,11 @@ class TrainingRepository @Inject constructor(
                         repsMin = pe.targetRepsMin,
                         repsMax = pe.targetRepsMax,
                         targetRpe = pe.targetRpe,
-                        reason = if (top > 0) {
-                            "Same as last time. Attach a progression rule and this will " +
-                                "move on its own."
-                        } else {
-                            "No rule and no history yet - pick a working weight."
-                        },
+                        reason = SetRowText.noRuleReason(
+                            topKg = top,
+                            hasHistory = lastSets.isNotEmpty(),
+                            bodyweight = exercise.isBodyweight,
+                        ),
                     ),
                     ruleError = null,
                     lastSession = lastSets,

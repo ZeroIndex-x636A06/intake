@@ -28,6 +28,7 @@ import com.zeroindex.intake.domain.units.PortionUnit
 import com.zeroindex.intake.domain.units.VolumeUnit
 import com.zeroindex.intake.domain.units.WeightUnit
 import dagger.hilt.android.lifecycle.HiltViewModel
+import com.zeroindex.intake.ui.AppMessage
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -75,6 +76,7 @@ class SettingsViewModel @Inject constructor(
     private val autoTargets: com.zeroindex.intake.data.profile.AutoTargets,
     private val clock: Clock,
     private val youtubeTester: com.zeroindex.intake.data.remote.youtube.YoutubeKeyTester,
+    private val messages: com.zeroindex.intake.ui.AppMessages,
 ) : ViewModel() {
 
     private val usdaTest = MutableStateFlow<KeyTestResult>(KeyTestResult.Untested)
@@ -189,17 +191,20 @@ class SettingsViewModel @Inject constructor(
     fun setHideShorts(on: Boolean) = launchSetting { setHideShorts(on) }
     fun setDirectVideos(on: Boolean) = launchSetting { setDirectVideos(on) }
     fun setPersonalise(on: Boolean) = launchSetting { setPersonaliseVideos(on) }
-    fun setCoachNotify(on: Boolean) = launchSetting { setCoachNotify(on) }
-    fun setCoachWeekday(isoWeekday: Int?) = launchSetting { setCoachWeekday(isoWeekday) }
-    fun setPhotoReminderWeeks(weeks: Int) = launchSetting { setPhotoReminderWeeks(weeks) }
-    fun setExportReminder(on: Boolean) = launchSetting { setExportReminder(on) }
-    fun setExportIncludePhotos(on: Boolean) = launchSetting { setExportIncludePhotos(on) }
-    fun setWorkoutReminder(on: Boolean) = launchSetting { setWorkoutReminder(on) }
-    fun setWorkoutReminderMinute(minute: Int) = launchSetting { setWorkoutReminderMinute(minute) }
-    fun setMealReminder(on: Boolean) = launchSetting { setMealReminder(on) }
-    fun setMealReminderMinute(slot: com.zeroindex.intake.domain.model.MealSlot, minute: Int) = launchSetting { setMealReminderMinute(slot, minute) }
-    fun setWaterReminder(on: Boolean) = launchSetting { setWaterReminder(on) }
-    fun setWaterReminderHours(startHour: Int, endHour: Int) = launchSetting { setWaterReminderHours(startHour, endHour) }
+    // Reminder and export choices say so when they are saved: the switch alone gave no sign that it had taken.
+    fun setCoachNotify(on: Boolean) = launchSetting("Weekly check-in notification saved") { setCoachNotify(on) }
+    fun setCoachWeekday(isoWeekday: Int?) = launchSetting("Check-in day saved") { setCoachWeekday(isoWeekday) }
+    fun setPhotoReminderWeeks(weeks: Int) = launchSetting("Progress photo reminder saved") { setPhotoReminderWeeks(weeks) }
+    fun setExportReminder(on: Boolean) = launchSetting("Export reminder saved") { setExportReminder(on) }
+    fun setExportIncludePhotos(on: Boolean) = launchSetting("Export setting saved") { setExportIncludePhotos(on) }
+    fun setWorkoutReminder(on: Boolean) = launchSetting("Workout reminder saved") { setWorkoutReminder(on) }
+    fun setWorkoutReminderMinute(minute: Int) = launchSetting("Workout reminder time saved") { setWorkoutReminderMinute(minute) }
+    fun setMealReminder(on: Boolean) = launchSetting("Meal reminders saved") { setMealReminder(on) }
+    fun setMealReminderMinute(slot: com.zeroindex.intake.domain.model.MealSlot, minute: Int) =
+        launchSetting("Meal reminder time saved") { setMealReminderMinute(slot, minute) }
+    fun setWaterReminder(on: Boolean) = launchSetting("Water reminders saved") { setWaterReminder(on) }
+    fun setWaterReminderHours(startHour: Int, endHour: Int) =
+        launchSetting("Water reminder hours saved") { setWaterReminderHours(startHour, endHour) }
 
     // ---- API keys ----
     fun setUsdaKey(key: String?) {
@@ -239,7 +244,9 @@ class SettingsViewModel @Inject constructor(
 
     suspend fun currentSettings(): AppSettings = settingsRepository.settings.first()
 
-    private fun launchSetting(block: suspend SettingsRepository.() -> Unit) = viewModelScope.launch {
+    /** Saves one choice; [saved] (when given) is the confirmation shown once it is written. */
+    private fun launchSetting(saved: String? = null, block: suspend SettingsRepository.() -> Unit) = viewModelScope.launch {
         settingsRepository.block()
+        saved?.let { messages.post(AppMessage(it)) }
     }
 }
