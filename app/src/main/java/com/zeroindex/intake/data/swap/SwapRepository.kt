@@ -19,6 +19,7 @@ import com.zeroindex.intake.domain.swap.MealNutrition
 import com.zeroindex.intake.domain.swap.NearbyRanking
 import com.zeroindex.intake.domain.swap.SwapAllergen
 import com.zeroindex.intake.domain.swap.SwapGate
+import com.zeroindex.intake.ui.addfood.recipeRowAllergenOf
 import com.zeroindex.intake.domain.swap.SwapKind
 import com.zeroindex.intake.domain.swap.SwapMath
 import com.zeroindex.intake.domain.swap.SwapOption
@@ -37,6 +38,7 @@ data class PlannedMeal(
     val macros: Macros,
     val allergen: SwapAllergen,
     val allergenReason: String?,
+    val clearBasis: com.zeroindex.intake.domain.allergen.AllergenEvidence.ClearBasis = com.zeroindex.intake.domain.allergen.AllergenEvidence.ClearBasis.LABEL_READ,
     /** The recipe behind it, so it is not offered as its own replacement. */
     val recipeId: String?,
 )
@@ -93,6 +95,7 @@ class SwapRepository @Inject constructor(
                     macros = main.macros.perServing,
                     allergen = main.allergenStatus.toSwap(),
                     allergenReason = main.allergenTerms.takeIf { it.isNotEmpty() }?.let { reasonFor(main.allergenStatus.toSwap(), it) },
+                    clearBasis = main.clearBasis,
                     recipeId = r.id,
                 )
             }
@@ -109,6 +112,7 @@ class SwapRepository @Inject constructor(
                     key = "recipe:${c.recipe.id}", title = c.recipe.name, subtitle = "Recipe · 1 serving", kind = SwapKind.PLAN_RECIPE,
                     macros = c.macros.perServing, estimate = !c.macros.isComplete, allergen = verdict,
                     allergenReason = reasonFor(verdict, c.allergenTerms), evidence = c.allergenTerms,
+                    clearBasis = swapRecipeRow(c).basis,
                 ),
                 SwapSource.Recipe(c),
             )
@@ -129,6 +133,9 @@ class SwapRepository @Inject constructor(
                     key = "template:${s.template.id}", title = s.template.name, subtitle = "Saved meal · ${s.items.size} ${if (s.items.size == 1) "food" else "foods"}",
                     kind = SwapKind.SAVED_MEAL, macros = macros, estimate = false, allergen = verdict, allergenReason = reasonFor(verdict, terms),
                     matchedAllergens = scans.flatMap { it.contains }.map { it.allergen }.distinct(), evidence = terms,
+                    clearBasis = com.zeroindex.intake.domain.allergen.AllergenEvidence.recipeClearBasis(
+                        s.items.size, s.items.count { (f, _) -> f.allergenTags.isNotBlank() },
+                    ),
                 ),
                 SwapSource.Template(s.template.id),
             )
@@ -304,6 +311,11 @@ class SwapRepository @Inject constructor(
             }
         }
     }
+
+    /** The Swap sheet's recipe chip, from the one shared recipe mapper (`recipeRowAllergenOf`) like every other surface. */
+    private fun swapRecipeRow(c: RecipeContent) = recipeRowAllergenOf(
+        c.allergenStatus.toSwap(), null, null, c.ingredientLineCount, c.readLineCount,
+    )
 
     private fun AllergenStatus?.toSwap(): SwapAllergen = when (this) {
         AllergenStatus.CONTAINS -> SwapAllergen.CONTAINS

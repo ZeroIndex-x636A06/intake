@@ -34,6 +34,13 @@ class UnitTextTest {
         assertThat(DistanceText.inUnit("about 5 km/h", LengthUnit.INCHES)).isEqualTo("about 3 mph")
     }
 
+    // Q5b-14: the Swap sheet's location rounding is stated with DistanceText.format.
+    @Test
+    fun `the location rounding reads in miles for inches and km otherwise`() {
+        assertThat(DistanceText.format(1.1, LengthUnit.INCHES, 1)).isEqualTo("0.7 miles")
+        assertThat(DistanceText.format(1.1, LengthUnit.CENTIMETRES, 1)).isEqualTo("1.1 km")
+    }
+
     @Test
     fun `eat out help text is in miles and mph for imperial`() {
         val travel = TravelBudget(10, TravelMode.DRIVE)

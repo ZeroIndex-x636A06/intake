@@ -68,6 +68,8 @@ fun AssignRecipeSheet(
     onPick: (RecipeEntity, String) -> Unit,
     /** The single recipe verdict per id (`RecipeLogger.rowAllergen`), the same chip as the Recipes list. Empty when nothing is avoided. */
     verdicts: Map<String, com.zeroindex.intake.ui.addfood.RowAllergen> = emptyMap(),
+    /** True while the person avoids anything: a recipe with no verdict yet shows "Checking..." rather than no chip. */
+    avoids: Boolean = verdicts.isNotEmpty(),
 ) {
     var protein by remember { mutableStateOf(initialProtein) }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
@@ -101,7 +103,7 @@ fun AssignRecipeSheet(
                                         ).joinToString(" · "),
                                     )
                                     // Never chipless for a person who avoids something: "Checking" until the verdict lands.
-                                    val chip = verdicts[r.id] ?: if (verdicts.isEmpty()) null else com.zeroindex.intake.ui.addfood.RowAllergen.Checking
+                                    val chip = verdicts[r.id] ?: com.zeroindex.intake.ui.addfood.RowAllergen.Checking.takeIf { avoids }
                                     chip?.let { com.zeroindex.intake.ui.addfood.RowAllergenChip(it) }
                                 }
                             },

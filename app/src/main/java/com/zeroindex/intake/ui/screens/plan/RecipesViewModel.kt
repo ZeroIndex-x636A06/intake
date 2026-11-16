@@ -112,10 +112,17 @@ class RecipeLibraryViewModel @Inject constructor(
             emptyMap()
         } else {
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-                list.associate { r -> r.id to recipeLogger.rowAllergen(r) }
+                recipeLogger.rowAllergens(list)
             }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    /**
+     * True while the person avoids anything, so a row without a verdict yet shows the "Checking..." chip at once and
+     * never looks like a clear recipe while the verdicts load (Q5b-5).
+     */
+    val avoidsAnything: StateFlow<Boolean> = allergens.observeAvoidedAllergens().map { it.isNotEmpty() }
+        .distinctUntilChanged().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     /** The recipe page's chip: the same single verdict as the list (null while it loads, or when nothing is avoided). */
     fun verdictOf(recipeId: String): Flow<com.zeroindex.intake.ui.addfood.RowAllergen?> =

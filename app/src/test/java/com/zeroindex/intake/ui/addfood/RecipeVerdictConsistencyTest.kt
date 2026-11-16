@@ -44,6 +44,29 @@ class RecipeVerdictConsistencyTest {
         assertThat(empty.cautionClear).isTrue()
     }
 
+    // Q5b-2: the Swap sheet (and Today's planned card) carry a verdict, not a scan, and use the verdict overload.
+    @Test fun `the swap mapper agrees with the scan mapper and is never green for a name-only recipe`() {
+        for ((n, read) in listOf(0 to 0, 6 to 0, 6 to 3, 6 to 6)) {
+            val fromScan = recipeRowAllergenOf(AllergenScanResult.CLEAN, n, read)
+            val fromVerdict = recipeRowAllergenOf(SwapAllergen.CLEAR, null, null, n, read)
+            assertThat(fromVerdict.basis).isEqualTo(fromScan.basis)
+            assertThat(fromVerdict.cautionClear).isEqualTo(fromScan.cautionClear)
+        }
+        // Chicken fajita bowls: no matched ingredients, so only the name was checked.
+        val option = com.zeroindex.intake.domain.swap.SwapOption(
+            key = "recipe:fajita", title = "Chicken fajita bowls", subtitle = null,
+            kind = com.zeroindex.intake.domain.swap.SwapKind.PLAN_RECIPE, macros = com.zeroindex.intake.domain.nutrition.Macros(), estimate = false,
+            allergen = SwapAllergen.CLEAR,
+            clearBasis = recipeRowAllergenOf(SwapAllergen.CLEAR, null, null, 5, 0).basis,
+        )
+        assertThat(option.cautionClear).isTrue()
+        assertThat(option.clearBasis.chipText).isEqualTo("Only the name was checked")
+        val read = option.copy(clearBasis = recipeRowAllergenOf(SwapAllergen.CLEAR, null, null, 5, 5).basis)
+        assertThat(read.cautionClear).isFalse()
+        // A flag is never softened by the basis.
+        assertThat(recipeRowAllergenOf(SwapAllergen.CONTAINS, "dairy", null, 5, 5).verdict).isEqualTo(SwapAllergen.CONTAINS)
+    }
+
     @Test fun `only a recipe with every line read is green`() {
         val ok = recipeRowAllergenOf(AllergenScanResult.CLEAN, 4, 4)
         assertThat(ok.cautionClear).isFalse()

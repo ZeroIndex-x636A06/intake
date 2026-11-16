@@ -93,6 +93,7 @@ fun SwapSheet(
     LaunchedEffect(slot) { viewModel.load(slot) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val nearby = state.nearby
+    val lengthUnit by viewModel.lengthUnit.collectAsStateWithLifecycle()
     var locationDenied by remember { mutableStateOf(false) }
     val locationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         viewModel.refreshPermissions()
@@ -139,6 +140,7 @@ fun SwapSheet(
             item(key = "nearby-card") {
                 NearbyCard(
                     nearby = nearby,
+                    lengthUnit = lengthUnit,
                     blurb = if (planned != null) " Ranked by how close each is to your planned meal." else "",
                     foundTime = nearby.foundAt?.let { timeFmt.format(Instant.ofEpochMilli(it)) },
                     locationDenied = locationDenied,
@@ -246,7 +248,11 @@ private fun PlannedCard(planned: PlannedMeal?, slotLabel: String) {
                     maxLines = 1,
                     softWrap = false,
                 )
-                AllergenChip(planned.allergen, label = planned.allergenReason)
+                if (planned.allergen == com.zeroindex.intake.domain.swap.SwapAllergen.CLEAR && planned.clearBasis.isCaution) {
+                    AllergenChip(com.zeroindex.intake.domain.swap.SwapAllergen.CHECK_LABEL, label = planned.clearBasis.chipText)
+                } else {
+                    AllergenChip(planned.allergen, label = planned.allergenReason)
+                }
                 Text(planned.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
                 Text(macroLine(planned.macros, false), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -325,7 +331,12 @@ internal fun OptionCard(
                     }
                 }
             }
-            AllergenChip(o.allergen, label = if (o.allergen == com.zeroindex.intake.domain.swap.SwapAllergen.CLEAR) "Fits your allergens" else o.allergenReason)
+            if (o.cautionClear) {
+                // One verdict for a recipe on every screen: a name-only clear is never green (Q5b-2).
+                AllergenChip(com.zeroindex.intake.domain.swap.SwapAllergen.CHECK_LABEL, label = o.clearBasis.chipText)
+            } else {
+                AllergenChip(o.allergen, label = if (o.allergen == com.zeroindex.intake.domain.swap.SwapAllergen.CLEAR) "Fits your allergens" else o.allergenReason)
+            }
             if (blocked) {
                 Text(
                     "${SwapSections.blockedReason(o)}. You can still choose it after a warning; the warning stays on the entry.",
@@ -345,6 +356,8 @@ internal fun OptionCard(
 @Composable
 internal fun NearbyCard(
     nearby: NearbyState,
+    /** The length setting: inches means the place is described in miles, not kilometres (Q5b-14). */
+    lengthUnit: com.zeroindex.intake.domain.units.LengthUnit = com.zeroindex.intake.domain.units.LengthUnit.INCHES,
     title: String = "Find healthy options nearby",
     blurb: String = "",
     foundTime: String?,
@@ -381,7 +394,7 @@ internal fun NearbyCard(
                     Text(
                         "Restaurants within a ${nearby.budget.label} of you, from OpenStreetMap (free, no key). Each one's menu is found for you: " +
                             "your saved menu, then the chain's own page, then its website, one at a time, nearest first. " +
-                            "Your allergens are checked on this phone. Your place is rounded to about a kilometre and sent once, when you tap." + blurb,
+                            "Your allergens are checked on this phone. Your place is rounded to about ${com.zeroindex.intake.domain.units.DistanceText.format(1.1, lengthUnit, 1)} and sent once, when you tap." + blurb,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

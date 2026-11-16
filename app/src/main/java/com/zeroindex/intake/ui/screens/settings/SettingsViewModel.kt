@@ -123,7 +123,14 @@ class SettingsViewModel @Inject constructor(
     fun setAutoTargets(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setAutoCalculateTargets(enabled)
-            if (enabled) message.value = com.zeroindex.intake.data.profile.AutoTargets.message(autoTargets.refresh())
+            if (enabled) {
+                message.value = com.zeroindex.intake.data.profile.AutoTargets.message(autoTargets.refresh())
+            } else {
+                // Q5b-8: the hand-set numbers come back; the computed ones stay in the target history.
+                targetRepository.restoreManualTarget()?.let {
+                    message.value = "Your own targets are back: ${it.kcal} kcal, ${it.proteinG} g protein, ${it.carbsG} g carbs, ${it.fatG} g fat."
+                }
+            }
         }
     }
     fun setAddActiveCalories(enabled: Boolean) = launchSetting { setAddActiveCalories(enabled) }
@@ -140,19 +147,38 @@ class SettingsViewModel @Inject constructor(
     /** Manual calorie entry, which switches auto-calculation off (SPEC §13). */
     fun setManualCalories(kcal: Int) = viewModelScope.launch {
         val s = uiState.value
+        // The same basis as the automatic path and the setting's wording: grams per kg of body weight (latest weigh-in).
         val weight = s.latestWeightKg ?: s.settings.goalWeightKg ?: 70.0
+        val computed = MacroSplit.forKcal(
+            kcal = kcal,
+            goalWeightKg = weight,
+            proteinPerKg = s.settings.proteinGramsPerKg,
+            fatPerKg = s.settings.fatGramsPerKg,
+        )
+        val lastManual = com.zeroindex.intake.domain.goals.ManualTargets.lastManual(targetRepository.points())
         targetRepository.setTarget(
-            MacroSplit.forKcal(
-                kcal = kcal,
-                goalWeightKg = s.settings.goalWeightKg ?: weight,
-                proteinPerKg = s.settings.proteinGramsPerKg,
-                fatPerKg = s.settings.fatGramsPerKg,
-            ),
+            com.zeroindex.intake.domain.goals.ManualTargets.forTypedKcal(kcal, lastManual, computed),
             isAutoCalculated = false,
         )
         settingsRepository.setAutoCalculateTargets(false)
-        message.value = "Target set to $kcal kcal by hand. Working it out from your data is off."
+        val warning = com.zeroindex.intake.domain.goals.ManualTargets.floorWarning(kcal, floorKcal.value, s.settings.profile.isAdvanced && s.settings.profile.allowBelowFloor)
+        message.value = "Target set to $kcal kcal by hand. Working it out from your data is off." + (warning?.let { " $it" } ?: "")
     }
+
+    /** The calorie floor (1.1 x calories at rest) from the profile and latest weight, or null when they are not known yet. */
+    val floorKcal: StateFlow<Int?> = combine(settingsRepository.settings, bodyRepository.observeLatest()) { app, latest ->
+        val p = app.profile
+        val weight = latest?.weightKg
+        if (!p.hasBasics || weight == null) {
+            null
+        } else {
+            val age = (clock.today().year - p.birthYear!!).coerceAtLeast(0)
+            val bf = p.bodyFatPercent ?: latest.bodyFatPercent
+            com.zeroindex.intake.domain.goals.ManualTargets.floorKcal(
+                com.zeroindex.intake.domain.goals.EnergyModel.bmr(weight, p.heightCm!!, age, p.sex!!, bf).kcal,
+            )
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     fun recalculateTargetFromTdee() = viewModelScope.launch {
         // Measured burn needs about two weeks of data; without it the plan starts from the formula.

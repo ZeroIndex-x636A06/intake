@@ -77,7 +77,14 @@ data class RecipeContent(
     /** Worse of the stored verdict and a fresh scan with today's profile. */
     val allergenStatus: AllergenStatus,
     val allergenTerms: List<String>,
-)
+    /** How many ingredient lines the recipe has, and how many were read from a label or allergen tags (the shared recipe verdict's inputs). */
+    val ingredientLineCount: Int = 0,
+    val readLineCount: Int = 0,
+) {
+    /** What a clear verdict on this recipe rests on: the one rule every recipe surface uses. */
+    val clearBasis: com.zeroindex.intake.domain.allergen.AllergenEvidence.ClearBasis
+        get() = com.zeroindex.intake.domain.allergen.AllergenEvidence.recipeClearBasis(ingredientLineCount, readLineCount)
+}
 
 data class WeekContent(
     val week: PlanWeekEntity,
@@ -437,6 +444,8 @@ class MealPlanRepository @Inject constructor(
             macros = macros,
             allergenStatus = status,
             allergenTerms = scan.matches.map { it.matchedTerm }.distinct(),
+            ingredientLineCount = foods.size + textLines.size,
+            readLineCount = foods.count { (f, _) -> f.allergenTags.isNotBlank() },
         )
     }
 

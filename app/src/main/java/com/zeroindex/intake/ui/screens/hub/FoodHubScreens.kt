@@ -84,6 +84,7 @@ fun RecipesScreen(
     val loadedRecipes by viewModel.recipesOrNull.collectAsStateWithLifecycle()
     val recipes = loadedRecipes.orEmpty()
     val verdicts by viewModel.verdicts.collectAsStateWithLifecycle()
+    val avoids by viewModel.avoidsAnything.collectAsStateWithLifecycle()
     val estimatedKcal by viewModel.estimatedKcal.collectAsStateWithLifecycle()
     val gate = rememberStaggerGate()
     HubScreen(
@@ -129,7 +130,7 @@ fun RecipesScreen(
                     recipe,
                     onClick = { onOpenRecipe(recipe.id) },
                     modifier = Modifier.staggerIn(gate, recipe.id, index),
-                    allergen = verdicts[recipe.id],
+                    allergen = verdicts[recipe.id] ?: com.zeroindex.intake.ui.addfood.RowAllergen.Checking.takeIf { avoids },
                     estimatedKcal = estimatedKcal[recipe.id],
                 )
             }

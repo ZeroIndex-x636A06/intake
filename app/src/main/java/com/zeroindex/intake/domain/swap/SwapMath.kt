@@ -33,7 +33,12 @@ data class SwapOption(
     val evidence: List<String> = emptyList(),
     /** Imported menu items only: the restaurant's own published numbers (shown as "published on the menu"), not an estimate. */
     val macrosPublished: Boolean = false,
+    /** What a clear verdict rests on. A clear result that was only a name check is shown as a caution, never green (Q5b-2). */
+    val clearBasis: com.zeroindex.intake.domain.allergen.AllergenEvidence.ClearBasis = com.zeroindex.intake.domain.allergen.AllergenEvidence.ClearBasis.LABEL_READ,
 ) {
+    /** True when the verdict is "clear" but only the name (or nothing) was read: the chip must not be green. */
+    val cautionClear: Boolean get() = allergen == SwapAllergen.CLEAR && clearBasis.isCaution
+
     /** A "contains" option is shown but cannot be chosen. */
     val blocked: Boolean get() = SwapMath.isBlocked(allergen)
 }

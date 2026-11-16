@@ -183,9 +183,14 @@ object PortableSettings {
             "reminders and videos" to setOf(
                 "photo_reminder_weeks", "export_reminder", "export_include_photos", "videos_only_workouts",
                 "videos_hide_shorts", "workout_reminder_on", "meal_reminder_on", "water_reminder_on",
-                "videos_personalise", "show_sodium", "eat_out_radius_mi", "eat_out_minutes", "eat_out_travel", "jump_tests", "weekly_sets_csv",
+                "videos_personalise", "workout_reminder_minute", "breakfast_reminder_minute", "lunch_reminder_minute",
+                "dinner_reminder_minute", "water_reminder_start_hour", "water_reminder_end_hour",
             ),
-            "workout timer and plates" to setOf("default_rest_sec", "rest_vibrate", "bar_weight_kg", "available_plates_kg"),
+            // Q5b-15: these used to be filed under "reminders and videos", so a changed salt setting named the wrong group.
+            "nutrition settings" to setOf("show_sodium", "eat_out_radius_mi", "eat_out_minutes", "eat_out_travel"),
+            "workout timer and plates" to setOf(
+                "default_rest_sec", "rest_vibrate", "bar_weight_kg", "available_plates_kg", "jump_tests", "weekly_sets_csv",
+            ),
             "targets" to setOf(
                 "goal_weight_kg", "goal_rate_kg_per_week", "protein_g_per_kg", "fat_g_per_kg", "auto_targets",
                 "add_active_kcal", "current_plan_week", "week_pattern_json",
@@ -202,12 +207,25 @@ object PortableSettings {
         )
         val present = groups.filter { (label, keys) ->
             when (label) {
-                "water" -> names.any { it.startsWith("hydration_") || it.startsWith("water_") }
+                "water" -> names.any { it.startsWith("hydration_") || (it.startsWith("water_") && it !in WATER_REMINDER) || it in WATER_EXTRA }
                 "coach" -> names.any { it.startsWith("coach_") }
                 "AI choices" -> names.any { it in keys || it.startsWith("ai_model_") || it.startsWith("ai_uses_") }
                 else -> names.any { it in keys }
             }
         }.map { it.first }
-        return "Settings: " + (present.joinToString(", ").ifEmpty { "other preferences" })
+        // Anything no group above names (a future preference) still shows as "other preferences", never as nothing.
+        val covered = groups.flatMap { it.second }.toSet()
+        val unnamed = names.any { n ->
+            n !in covered && !n.startsWith("hydration_") && !n.startsWith("water_") && !n.startsWith("coach_") &&
+                !n.startsWith("ai_model_") && !n.startsWith("ai_uses_") && n !in WATER_EXTRA
+        }
+        return "Settings: " + (present + listOfNotNull("other preferences".takeIf { unnamed }))
+            .joinToString(", ").ifEmpty { "other preferences" }
     }
+
+    private val WATER_REMINDER = setOf("water_reminder_on", "water_reminder_start_hour", "water_reminder_end_hour")
+    private val WATER_EXTRA = setOf(
+        "weather_enabled", "weather_location_mode", "weather_place", "drink_overrides",
+        "sweat_pre_kg", "sweat_post_kg", "sweat_fluid_ml", "sweat_minutes", "sweat_use_measured",
+    )
 }

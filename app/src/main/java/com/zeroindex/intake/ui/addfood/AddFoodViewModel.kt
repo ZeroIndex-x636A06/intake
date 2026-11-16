@@ -129,10 +129,24 @@ fun rowAllergenOf(food: FoodEntity, scan: AllergenScanResult): RowAllergen {
  * how many ingredient lines (foods, for a template) it has; [readLineCount] how many of them were read from a label or
  * allergen tags. A clear verdict is green only when every line was read (`AllergenEvidence.recipeClearBasis`).
  */
-fun recipeRowAllergenOf(scan: AllergenScanResult, ingredientLineCount: Int, readLineCount: Int): RowAllergen = RowAllergen(
-    verdict = scan.verdict(),
-    detail = scan.chipDetail(),
-    traceLabel = scan.traceChipLabel(),
+fun recipeRowAllergenOf(scan: AllergenScanResult, ingredientLineCount: Int, readLineCount: Int): RowAllergen =
+    recipeRowAllergenOf(scan.verdict(), scan.chipDetail(), scan.traceChipLabel(), ingredientLineCount, readLineCount)
+
+/**
+ * The same recipe chip from an already-decided verdict (the Swap sheet, Today's planned card and the plan screen carry a
+ * verdict and matched terms rather than a scan). The basis is always `AllergenEvidence.recipeClearBasis`, so a recipe that
+ * was only name-checked is never green anywhere (QA Q5b-2).
+ */
+fun recipeRowAllergenOf(
+    verdict: SwapAllergen,
+    detail: String?,
+    traceLabel: String?,
+    ingredientLineCount: Int,
+    readLineCount: Int,
+): RowAllergen = RowAllergen(
+    verdict = verdict,
+    detail = detail,
+    traceLabel = traceLabel,
     basis = AllergenEvidence.recipeClearBasis(ingredientLineCount, readLineCount),
 )
 
