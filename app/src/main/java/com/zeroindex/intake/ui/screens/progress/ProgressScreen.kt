@@ -3,6 +3,8 @@ package com.zeroindex.intake.ui.screens.progress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -80,8 +82,13 @@ fun ProgressScreen(
     onOpenCheckIn: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ProgressViewModel = hiltViewModel(),
+    trainingModel: TrainingStatsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val training by trainingModel.uiState.collectAsStateWithLifecycle()
+    // Side insets (the navigation bar in landscape with three-button navigation, a cutout) come from the shell's padding.
+    val startInset = contentPadding.calculateStartPadding(androidx.compose.ui.unit.LayoutDirection.Ltr)
+    val endInset = contentPadding.calculateEndPadding(androidx.compose.ui.unit.LayoutDirection.Ltr)
     val hasHistory by viewModel.hasHistory.collectAsStateWithLifecycle()
     if (LocalWindowSizeClass.current.isExpanded) {
         // Amendment §3, mockup `tabletProgress()`: heading and range selector
@@ -93,7 +100,7 @@ fun ProgressScreen(
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .padding(top = contentPadding.calculateTopPadding() + 12.dp, start = 16.dp, end = 16.dp),
+                .padding(top = contentPadding.calculateTopPadding() + 12.dp, start = 16.dp + startInset, end = 16.dp + endInset),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -137,8 +144,9 @@ fun ProgressScreen(
                 ) {
                     item(key = "calories") { CaloriesCard(state) }
                     item(key = "summary") { WeeklySummaryCard(state, viewModel) }
-                    item(key = "performance") {
-                        if (state.settings.jumpTests) PerformanceCard(state = state, onAddJump = onAddJumpTest)
+                    item(key = "training") { TrainingStatsCard(training, onOpenLog = null) }
+                    if (state.settings.jumpTests) {
+                        item(key = "performance") { PerformanceCard(state = state, onAddJump = onAddJumpTest) }
                     }
                     item(key = "reports") {
                         ProgressLinks(onOpenTrainingStats, onOpenCheckIn)
@@ -152,8 +160,8 @@ fun ProgressScreen(
             contentPadding = PaddingValues(
                 top = contentPadding.calculateTopPadding() + 12.dp,
                 bottom = contentPadding.calculateBottomPadding() + 24.dp,
-                start = 16.dp,
-                end = 16.dp,
+                start = 16.dp + startInset,
+                end = 16.dp + endInset,
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -178,8 +186,9 @@ fun ProgressScreen(
                 item(key = "summary") { WeeklySummaryCard(state, viewModel) }
                 item(key = "adherence") { AdherenceCard(state) }
                 item(key = "calories") { CaloriesCard(state) }
-                item(key = "performance") {
-                    if (state.settings.jumpTests) PerformanceCard(state = state, onAddJump = onAddJumpTest)
+                item(key = "training") { TrainingStatsCard(training, onOpenLog = null) }
+                if (state.settings.jumpTests) {
+                    item(key = "performance") { PerformanceCard(state = state, onAddJump = onAddJumpTest) }
                 }
                 detailItems(state)
             }
@@ -368,7 +377,7 @@ private fun LogWeightButton(onClick: () -> Unit) {
 private fun AdherenceCard(state: ProgressUiState) {
     SectionCard(
         title = "Days logged",
-        caption = "last ${minOf(state.daysInWindow, 28)} days",
+        caption = "last ${state.daysInWindow} days",
     ) {
         // SPEC §11: never a streak that resets to zero on one bad day.
         Row(verticalAlignment = Alignment.Bottom) {
@@ -387,8 +396,14 @@ private fun AdherenceCard(state: ProgressUiState) {
         }
         Spacer(Modifier.height(11.dp))
         AdherenceHeatmap(
-            days = state.dailyKcal.takeLast(28),
+            days = state.adherence,
             target = state.target?.kcal?.toDouble(),
+        )
+        Text(
+            text = "Filled: logged. Pale: under 60% of your target. Grey: nothing logged. Outline: today.",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp),
         )
     }
 }
@@ -464,7 +479,7 @@ private fun WeeklySummaryCard(state: ProgressUiState, viewModel: ProgressViewMod
     val unit = state.settings.weightUnit
     val weekly = state.weeklyChangeKg
 
-    SectionCard(title = "This week", caption = state.range.caption) {
+    SectionCard(title = "Averages", caption = state.range.caption) {
         val tiles = listOf(
             (state.averageIntake?.let { "${"%,d".format(it.roundToInt())}" } ?: "—")
                 to "avg kcal / day",
@@ -477,9 +492,9 @@ private fun WeeklySummaryCard(state: ProgressUiState, viewModel: ProgressViewMod
             // SPEC §8: when data is too sparse, say so plainly rather than
             // showing a confident number.
             (tdee?.let { "≈${"%,d".format(it.estimatedTdee.roundToInt())}" } ?: "—")
-                to "maintenance kcal",
+                to "maintenance kcal (latest estimate)",
             (state.proteinHitRate?.let { "${(it * 100).roundToInt()}%" } ?: "—")
-                to "protein target hit",
+                to "protein target hit, ${state.range.caption}",
         )
 
         tiles.chunked(2).forEach { pair ->
@@ -586,12 +601,11 @@ private fun weightDescription(state: ProgressUiState, unitLabel: String): String
 }
 
 private fun intakeDescription(state: ProgressUiState): String {
-    val logged = state.dailyKcal.count { it != null && it > 0 }
+    val stats = state.intakeStats
     val target = state.target?.kcal
-    val over = state.dailyKcal.count { it != null && target != null && it > target }
     return buildString {
-        append("Calories per day across $logged logged days")
-        if (target != null) append(", target $target kcal, $over days over")
+        append("Calories per day across ${stats.loggedDays} logged days")
+        if (target != null) append(", target $target kcal, ${stats.daysOverTarget} days over")
         append(".")
     }
 }
@@ -612,7 +626,16 @@ private fun PerformanceCard(state: ProgressUiState, onAddJump: () -> Unit) {
     val jumps = weeks.mapNotNull { it.bestVerticalCm }
     val latest = jumps.lastOrNull()
 
-    SectionCard(title = "Explosive output", caption = "weekly") {
+    SectionCard(title = "Jump tests", caption = "weekly, ${state.range.caption}") {
+        if (jumps.isEmpty()) {
+            EmptyState(body = "No jump tests in this range yet. Log one and your best vertical shows here next to your weekly training volume.")
+            OutlinedButton(
+                onClick = onAddJump,
+                shape = IntakeShape.Button,
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+            ) { Text("Log a jump test") }
+            return@SectionCard
+        }
         if (latest != null) {
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(

@@ -7,6 +7,9 @@ import com.zeroindex.intake.data.db.entity.FoodEntity
 import com.zeroindex.intake.data.db.entity.FoodLogEntity
 import com.zeroindex.intake.data.db.entity.newId
 import com.zeroindex.intake.data.db.projection.DailyIntake
+import com.zeroindex.intake.domain.progress.DayTotals
+import com.zeroindex.intake.domain.progress.IntakeDays
+import com.zeroindex.intake.domain.progress.IntakeRow
 import com.zeroindex.intake.data.db.projection.SlotTotals
 import com.zeroindex.intake.domain.model.AiConfidence
 import com.zeroindex.intake.domain.model.MealSlot
@@ -50,19 +53,35 @@ class FoodLogRepository @Inject constructor(
         return foodLogDao.observeSlotTotalsInRange(range.startInclusive, range.endExclusive)
     }
 
+    /** Local-day totals for [from]..[to] inclusive, bucketed by local date (see [IntakeDays]). */
     fun observeDailyIntake(from: LocalDate, to: LocalDate): Flow<List<DailyIntake>> =
-        foodLogDao.observeDailyIntake(
+        foodLogDao.observeIntakeRows(
             clock.rangeFor(from).startInclusive,
             clock.rangeFor(to).endExclusive,
-            zoneOffsetMillis(from),
+        ).map { toDailyIntake(it) }
+
+    /** The same day totals as [observeDailyIntake], once. */
+    suspend fun dailyIntake(from: LocalDate, to: LocalDate): List<DailyIntake> =
+        toDailyIntake(
+            foodLogDao.intakeRows(
+                clock.rangeFor(from).startInclusive,
+                clock.rangeFor(to).endExclusive,
+            ),
         )
 
-    suspend fun dailyIntake(from: LocalDate, to: LocalDate): List<DailyIntake> =
-        foodLogDao.dailyIntake(
+    /** Per-day calories and protein, for Progress. One definition of "a day" for every figure there. */
+    fun observeDayTotalsByDate(from: LocalDate, to: LocalDate): Flow<Map<LocalDate, DayTotals>> =
+        foodLogDao.observeIntakeRows(
             clock.rangeFor(from).startInclusive,
             clock.rangeFor(to).endExclusive,
-            zoneOffsetMillis(from),
-        )
+        ).map { IntakeDays.byDay(it, clock.zone()) }
+
+    private fun toDailyIntake(rows: List<IntakeRow>): List<DailyIntake> {
+        val zone = clock.zone()
+        return IntakeDays.byDay(rows, zone).toSortedMap().map { (date, t) ->
+            DailyIntake(dayStartMillis = clock.rangeFor(date).startInclusive, kcal = t.kcal)
+        }
+    }
 
     /**
      * Protein totals per local day, bucketed in Kotlin rather than SQL: the
@@ -78,13 +97,6 @@ class FoodLogRepository @Inject constructor(
             .groupBy { localDateOf(it.loggedAt, clock.zone()) }
             .mapValues { (_, dayLogs) -> dayLogs.sumOf { it.protein } }
     }
-
-    suspend fun countDaysLogged(from: LocalDate, to: LocalDate): Int =
-        foodLogDao.countDaysLogged(
-            clock.rangeFor(from).startInclusive,
-            clock.rangeFor(to).endExclusive,
-            zoneOffsetMillis(from),
-        )
 
     suspend fun findById(id: String): FoodLogEntity? = foodLogDao.findById(id)
 
@@ -277,13 +289,4 @@ class FoodLogRepository @Inject constructor(
         createdAt = at,
         updatedAt = at,
     )
-
-    /**
-     * SQL buckets days by integer division, which needs the zone's offset. Taken
-     * from the start of the window: a DST shift inside a long range moves one
-     * boundary by an hour, which the charts tolerate and the per-day queries
-     * (which use DayRange) do not rely on.
-     */
-    private fun zoneOffsetMillis(on: LocalDate): Long =
-        clock.zone().rules.getOffset(on.atStartOfDay()).totalSeconds * 1000L
 }

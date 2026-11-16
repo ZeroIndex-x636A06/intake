@@ -52,6 +52,7 @@ import com.zeroindex.intake.ui.screens.plan.RecipeHunterScreen
 import com.zeroindex.intake.ui.screens.profile.ProfileScreen
 import com.zeroindex.intake.ui.screens.profile.YourPlanScreen
 import com.zeroindex.intake.ui.screens.progress.ProgressScreen
+import com.zeroindex.intake.ui.screens.progress.TrainingStatsScreen
 import com.zeroindex.intake.ui.screens.recipe.RecipeEditorScreen
 import com.zeroindex.intake.ui.screens.recipe.RecipeImportScreen
 import com.zeroindex.intake.ui.screens.settings.PrivacyScreen
@@ -408,9 +409,14 @@ fun IntakeNavHost(
                         contentPadding = pad,
                         onAddMeasurement = { navController.navigate(Route.BodyMetrics) },
                         onAddJumpTest = { navController.navigate(Route.Performance) },
-                        onOpenTrainingStats = { navController.navigate(Route.WorkoutHistory) },
+                        onOpenTrainingStats = { navController.navigate(Route.TrainingStats) },
                         onOpenCheckIn = { navController.navigate(Route.WeeklyCheckIn) },
                     )
+                }
+            }
+            composable<Route.TrainingStats> {
+                PushedScreen("Training stats", back) { pad ->
+                    TrainingStatsScreen(pad, onOpenLog = { navController.navigate(Route.WorkoutHistory) })
                 }
             }
             // Add new Progress routes above this line.

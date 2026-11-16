@@ -15,10 +15,10 @@ import com.zeroindex.intake.data.repository.TdeeRepository
 import com.zeroindex.intake.data.settings.AppSettings
 import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.nutrition.MacroTarget
+import com.zeroindex.intake.domain.progress.IntakeDays
 import com.zeroindex.intake.domain.performance.OverlayWeek
 import com.zeroindex.intake.domain.tdee.TrendPoint
 import com.zeroindex.intake.domain.time.Clock
-import com.zeroindex.intake.domain.time.localDateOf
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDate
 import javax.inject.Inject
@@ -53,9 +53,11 @@ data class ProgressUiState(
     val dailyKcal: List<Double?> = emptyList(),
     val target: MacroTarget? = null,
     val tdee: TdeeEstimateEntity? = null,
-    val daysLogged: Int = 0,
-    val daysInWindow: Int = 21,
+    /** The last [ADHERENCE_DAYS] days, oldest first, null = nothing logged. Headline and grid both read this. */
+    val adherence: List<Double?> = emptyList(),
     val proteinHitRate: Double? = null,
+    /** Day counts, average and over-target count of [dailyKcal], from one computation. */
+    val intakeStats: IntakeDays.Stats = IntakeDays.Stats(0, 0, null, 0),
     val photos: List<BodyMetricEntity> = emptyList(),
     val isRecalculating: Boolean = false,
     /** Amendment §2: weekly tonnage against best jump, for the overlay card. */
@@ -79,9 +81,13 @@ data class ProgressUiState(
             return (last.trendKg - first.trendKg) / days * 7.0
         }
 
-    val averageIntake: Double?
-        get() = dailyKcal.filterNotNull().filter { it > 0 }.takeIf { it.isNotEmpty() }?.average()
+    val averageIntake: Double? get() = intakeStats.averageKcal
+    val daysLogged: Int get() = adherence.count { it != null && it > 0 }
+    val daysInWindow: Int get() = adherence.size
 }
+
+/** The grid on Progress covers this many days, and so does the "N of the last N days" headline. */
+const val ADHERENCE_DAYS = 28
 
 @HiltViewModel
 class ProgressViewModel @Inject constructor(
@@ -97,13 +103,6 @@ class ProgressViewModel @Inject constructor(
 
     private val range = MutableStateFlow(ProgressRange.MONTH)
     private val recalculating = MutableStateFlow(false)
-    private val adherence = MutableStateFlow(AdherenceSnapshot())
-
-    private data class AdherenceSnapshot(
-        val daysLogged: Int = 0,
-        val daysInWindow: Int = 21,
-        val proteinHitRate: Double? = null,
-    )
 
     /** Any weigh-in or food log exists. True until read, so the first-run tip stays hidden until then (QA Q1-18). */
     val hasHistory: StateFlow<Boolean> = kotlinx.coroutines.flow.flow {
@@ -120,37 +119,32 @@ class ProgressViewModel @Inject constructor(
             combine(
                 bodyRepository.observeInRange(from, today),
                 bodyRepository.observeTrend(from, today),
-                foodLogRepository.observeDailyIntake(from, today),
+                foodLogRepository.observeDayTotalsByDate(minOf(from, today.minusDays((ADHERENCE_DAYS - 1).toLong())), today),
                 targetRepository.observeTargetFor(today),
                 combine(
                     tdeeRepository.observeLatest(),
                     settingsRepository.settings,
                     bodyRepository.observeWithPhotos(),
-                    adherence,
                     combine(
                         recalculating,
                         performanceRepository.observeOverlay(from, today),
                         healthDao.observeInRange(clock.rangeFor(from).startInclusive, clock.rangeFor(today).endExclusive),
                     ) { busy, weeks, health -> Triple(busy, weeks, health.map { it.toDailyHealth() }) },
-                ) { tdee, settings, photos, snapshot, busyWeeksHealth ->
-                    Extras(tdee, settings, photos, snapshot, busyWeeksHealth.first, busyWeeksHealth.second, busyWeeksHealth.third)
+                ) { tdee, settings, photos, busyWeeksHealth ->
+                    Extras(tdee, settings, photos, busyWeeksHealth.first, busyWeeksHealth.second, busyWeeksHealth.third)
                 },
             ) { metrics, trend, intake, target, extras ->
-                val byDay = intake.associate {
-                    localDateOf(it.dayStartMillis, clock.zone()) to (it.kcal ?: 0.0)
-                }
+                val byDay = intake
                 val firstDay = if (selected.days != null) {
                     from
                 } else {
-                    metrics.minOfOrNull { localDateOf(it.measuredAt, clock.zone()) }
+                    metrics.minOfOrNull { com.zeroindex.intake.domain.time.localDateOf(it.measuredAt, clock.zone()) }
                         ?: byDay.keys.minOrNull()
                         ?: today
                 }
-                val dayCount = (today.toEpochDay() - firstDay.toEpochDay() + 1)
-                    .coerceIn(1, 400).toInt()
-                val series = (0 until dayCount).map { offset ->
-                    byDay[firstDay.plusDays(offset.toLong())]?.takeIf { it > 0 }
-                }
+                val series = IntakeDays.series(byDay, firstDay, today).takeLast(400)
+                val seriesFirst = today.minusDays((series.size - 1).toLong())
+                val adherence = IntakeDays.series(byDay, today.minusDays((ADHERENCE_DAYS - 1).toLong()), today)
 
                 ProgressUiState(
                     range = selected,
@@ -160,9 +154,9 @@ class ProgressViewModel @Inject constructor(
                     dailyKcal = series,
                     target = target,
                     tdee = extras.tdee,
-                    daysLogged = extras.snapshot.daysLogged,
-                    daysInWindow = extras.snapshot.daysInWindow,
-                    proteinHitRate = extras.snapshot.proteinHitRate,
+                    adherence = adherence,
+                    intakeStats = IntakeDays.stats(series, target?.kcal),
+                    proteinHitRate = IntakeDays.proteinHitRate(byDay, seriesFirst, today, target?.proteinG),
                     photos = extras.photos,
                     isRecalculating = extras.busy,
                     performance = extras.performance,
@@ -181,58 +175,19 @@ class ProgressViewModel @Inject constructor(
         val tdee: TdeeEstimateEntity?,
         val settings: AppSettings,
         val photos: List<BodyMetricEntity>,
-        val snapshot: AdherenceSnapshot,
         val busy: Boolean,
         val performance: List<OverlayWeek>,
         val health: List<DailyHealth>,
     )
 
-    init {
-        refreshAdherence()
-    }
-
     fun selectRange(next: ProgressRange) {
         range.value = next
-    }
-
-    /**
-     * SPEC §11: never a streak that resets to zero. "18 of the last 21 days" is
-     * the framing, so this counts days rather than consecutive days.
-     */
-    fun refreshAdherence() = viewModelScope.launch {
-        val today = clock.today()
-        val window = 21
-        val from = today.minusDays((window - 1).toLong())
-        val logged = foodLogRepository.countDaysLogged(from, today)
-
-        // SPEC §11: protein target hit rate, over the days that were logged at
-        // all - a day with nothing logged is a missing measurement, not a miss.
-        val target = targetRepository.targetFor(today)
-        val hitRate = if (target != null && logged > 0) {
-            val proteinByDay = foodLogRepository.proteinByDay(from, today)
-            val hits = proteinByDay.values.count { it >= target.proteinG * PROTEIN_HIT_FRACTION }
-            hits.toDouble() / logged
-        } else {
-            null
-        }
-
-        adherence.value = AdherenceSnapshot(
-            daysLogged = logged,
-            daysInWindow = window,
-            proteinHitRate = hitRate,
-        )
-    }
-
-    private companion object {
-        /** Close enough counts: 90% of the protein target is a hit. */
-        const val PROTEIN_HIT_FRACTION = 0.9
     }
 
     fun recalculateTdee() = viewModelScope.launch {
         recalculating.value = true
         try {
             tdeeRepository.recalculate()?.let { tdeeRepository.refreshTargetFromTdee(it) }
-            refreshAdherence()
         } finally {
             recalculating.value = false
         }

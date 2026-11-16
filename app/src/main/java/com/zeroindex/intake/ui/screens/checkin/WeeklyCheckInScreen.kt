@@ -45,7 +45,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.db.entity.CoachSuggestionEntity
 import com.zeroindex.intake.domain.coach.CoachAction
 import com.zeroindex.intake.domain.coach.SuggestionStatus
-import com.zeroindex.intake.domain.coach.WeekSummary
 import com.zeroindex.intake.domain.report.WeekLabel
 import com.zeroindex.intake.domain.report.WeeklyReport
 import com.zeroindex.intake.domain.units.WeightUnit
@@ -144,7 +143,7 @@ fun WeeklyCheckInScreen(
                 reportState.message?.let { Text(it, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 6.dp)) }
             }
         }
-        if (reportState.isCurrentWeek) state.summary?.let { s -> item(key = "coach-summary") { WeekCard(s, state.weightUnit) } }
+        reportState.report?.let { r -> item(key = "coach-summary") { WeekCard(r, state.weightUnit) } }
 
         item(key = "suggestions-head") { SectionLine("Suggestions", note = "You decide. Nothing changes until you tap Apply.") }
         val latest = state.latest
@@ -220,29 +219,30 @@ fun WeeklyCheckInScreen(
     }
 }
 
+/** The "Your week" list. Every figure is [WeeklyReport.figures], the same computation the top card and the PDF use. */
 @Composable
-private fun WeekCard(s: WeekSummary, unit: WeightUnit) {
+private fun WeekCard(r: WeeklyReport, unit: WeightUnit) {
+    val f = r.figures
     IntakeCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Your week", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
             InfoTip(
                 text = "Weight uses your smoothed trend, not a single scale reading, so water and salt do not move it. " +
-                    "Averages count only days with food logged.",
+                    "Averages count only days with food logged, today included once something is logged.",
                 label = "Your week",
             )
         }
-        val change = s.trendChangeKg?.let {
+        val change = f.weightChangeKg?.let {
             val v = unit.fromKg(it)
             (if (v >= 0) "+" else "−") + "%.1f".format(Locale.US, abs(v)) + " ${unit.label}"
         } ?: "not enough weigh-ins"
-        val pct = s.trendPctPerWeek?.let { " (${if (it >= 0) "+" else "−"}${"%.1f".format(Locale.US, abs(it))}% a week)" }.orEmpty()
-        SummaryLine("Weight trend", change + pct)
-        SummaryLine("Calories (average)", s.avgKcal?.let { "${KcalFormat.format(it)} kcal" } ?: "no days logged")
-        SummaryLine("Protein (average)", s.avgProteinG?.let { "$it g" } ?: "no days logged")
-        SummaryLine("Days logged", "${s.daysLogged} of ${s.daysInWindow}")
-        SummaryLine("Weigh-ins", "${s.weighIns}")
-        SummaryLine("Workouts", "${s.workouts}")
-        SummaryLine("Sleep (average)", s.avgSleepHours?.let { "%.1f h".format(Locale.US, it) } ?: "no data")
+        SummaryLine("Weight trend", change)
+        SummaryLine("Calories (average)", f.avgKcal?.let { "${KcalFormat.format(it)} kcal" } ?: "no days logged")
+        SummaryLine("Protein (average)", f.avgProteinG?.let { "$it g" } ?: "no days logged")
+        SummaryLine("Days logged", "${f.daysLogged} of ${f.daysInWeek}")
+        SummaryLine("Weigh-ins", "${f.weighIns}")
+        SummaryLine("Workouts", "${f.workouts}")
+        SummaryLine("Sleep (average)", f.avgSleepHours?.let { "%.1f h".format(Locale.US, it) } ?: "no data")
     }
 }
 

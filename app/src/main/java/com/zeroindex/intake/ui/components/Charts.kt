@@ -385,6 +385,8 @@ fun AdherenceHeatmap(
                     val color = when {
                         value == null || value <= 0.0 -> empty
                         target == null -> HeatFull
+                        // Today is still in progress: a partial total is not a short day yet.
+                        absolute == todayIndex -> HeatFull
                         // Logged but well short of target reads as a partial day.
                         value < target * 0.6 -> HeatPartial
                         else -> HeatFull

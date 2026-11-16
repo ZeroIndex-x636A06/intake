@@ -54,6 +54,21 @@ data class ReportSession(
 }
 
 /**
+ * The week's headline figures, computed once from a [WeeklyReport] so the check-in's top card, its "Your week" list and the
+ * PDF quote the same numbers. Averages count only days with food logged (today's partial day included, as in the PDF).
+ */
+data class WeekFigures(
+    val avgKcal: Int?,
+    val avgProteinG: Int?,
+    val daysLogged: Int,
+    val daysInWeek: Int,
+    val weighIns: Int,
+    val workouts: Int,
+    val avgSleepHours: Double?,
+    val weightChangeKg: Double?,
+)
+
+/**
  * Amendment §3's weekly check-in, as data. Everything the PDF prints is
  * computed here, so the numbers on paper are the tested ones.
  */
@@ -73,6 +88,17 @@ data class WeeklyReport(
         days.mapNotNull { selector(it)?.toDouble() }.takeIf { it.isNotEmpty() }?.average()
 
     val daysLogged: Int get() = days.count { it.kcal != null }
+
+    val figures: WeekFigures get() = WeekFigures(
+        avgKcal = average { it.kcal }?.let { Math.round(it).toInt() },
+        avgProteinG = average { it.protein }?.let { Math.round(it).toInt() },
+        daysLogged = daysLogged,
+        daysInWeek = days.size,
+        weighIns = days.count { it.weightKg != null },
+        workouts = sessions.size,
+        avgSleepHours = average { it.sleepMinutes }?.div(60.0),
+        weightChangeKg = weightChangeKg,
+    )
     val totalVolumeKg: Double get() = sessions.sumOf { it.volumeKg }
     val totalSets: Int get() = sessions.sumOf { it.sets }
 
