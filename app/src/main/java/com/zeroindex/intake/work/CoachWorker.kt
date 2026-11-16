@@ -57,7 +57,7 @@ class CoachNotifier @Inject constructor(
         val text = if (suggestions > 0) {
             "$suggestions suggestion${if (suggestions == 1) "" else "s"} from your week. Nothing changes until you tap Apply."
         } else {
-            "All on track this week. Open it for your week at a glance."
+            "Open it for your week at a glance."
         }
         manager.notify(
             NOTIFICATION_ID,

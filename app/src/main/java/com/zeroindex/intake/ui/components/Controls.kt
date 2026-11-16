@@ -91,18 +91,20 @@ fun SectionLine(
             .padding(top = 13.dp, bottom = 8.dp, start = 1.dp, end = 1.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f),
-        )
-        if (note != null) {
+        // The title never shares a line with the caption, so it cannot be squeezed into breaking mid-word.
+        Column(Modifier.weight(1f)) {
             Text(
-                text = note,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
             )
+            if (note != null) {
+                Text(
+                    text = note,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         trailing?.invoke()
     }
