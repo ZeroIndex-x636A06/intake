@@ -126,9 +126,10 @@ class NutritionHomeViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val messages: AppMessages,
     private val clock: Clock,
+    private val sharedDay: com.zeroindex.intake.ui.SharedDay,
 ) : ViewModel() {
 
-    private val selectedDate = MutableStateFlow(clock.today())
+    private val selectedDate = sharedDay.date
 
     /** Moves the tab to [date], never past today. Blocked future days are explained once, in a short message. */
     fun showDate(date: LocalDate) {

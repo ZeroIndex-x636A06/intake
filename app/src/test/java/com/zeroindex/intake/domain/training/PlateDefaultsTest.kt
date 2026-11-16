@@ -25,6 +25,13 @@ class PlateDefaultsTest {
         assertThat(unit.fromKg(load.totalKg)).isWithin(1e-6).of(135.0)
     }
 
+    @Test fun aFreshPoundInstallShowsThePoundPlatesNotTheMetricOnes() {
+        // Nothing stored yet: the field must read 45,35,25,10,5,2.5 lb (Q5b-3), not the 25 kg list in pounds.
+        val shown = PlateDefaults.toDisplayCsv(PlateDefaults.effectivePlatesCsvKg(null, WeightUnit.POUNDS), WeightUnit.POUNDS)
+        assertThat(shown).isEqualTo("45,35,25,10,5,2.5")
+        assertThat(PlateDefaults.toDisplayCsv(PlateDefaults.KG_PLATES, WeightUnit.POUNDS)).isNotEqualTo(shown)
+    }
+
     @Test fun typedPlatesRoundTripThroughKilograms() {
         val unit = WeightUnit.POUNDS
         val stored = PlateDefaults.fromDisplayCsv("45, 25,10 ,x,5", unit)

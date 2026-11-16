@@ -6,6 +6,8 @@ import com.zeroindex.intake.data.db.entity.PerformanceMetricEntity
 import com.zeroindex.intake.data.repository.PerformanceRepository
 import com.zeroindex.intake.data.settings.AppSettings
 import com.zeroindex.intake.data.settings.SettingsRepository
+import com.zeroindex.intake.ui.AppMessage
+import com.zeroindex.intake.ui.AppMessages
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +27,7 @@ data class PerformanceUiState(
 class PerformanceViewModel @Inject constructor(
     private val repository: PerformanceRepository,
     settingsRepository: SettingsRepository,
+    private val messages: AppMessages,
 ) : ViewModel() {
 
     private val error = MutableStateFlow<String?>(null)
@@ -55,5 +58,15 @@ class PerformanceViewModel @Inject constructor(
         }
     }
 
-    fun delete(id: String) = viewModelScope.launch { repository.delete(id) }
+    /** Soft delete with an Undo snackbar: nothing is hard-deleted, and the person gets the row back on Undo. */
+    fun delete(row: PerformanceMetricEntity) = viewModelScope.launch {
+        repository.delete(row.id)
+        messages.post(
+            AppMessage(
+                text = "Jump test deleted",
+                actionLabel = "Undo",
+                onAction = { repository.restore(row) },
+            ),
+        )
+    }
 }

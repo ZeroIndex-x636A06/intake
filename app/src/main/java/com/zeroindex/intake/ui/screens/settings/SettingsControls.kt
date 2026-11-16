@@ -37,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -541,8 +542,14 @@ private fun HydrationAdvancedBlock(weightUnit: WeightUnit, volumeUnit: VolumeUni
 @Composable
 private fun PlatesRow(csvKg: String, unit: com.zeroindex.intake.domain.units.WeightUnit, onSet: (String) -> Unit) {
     val shown = com.zeroindex.intake.domain.training.PlateDefaults.toDisplayCsv(csvKg, unit)
-    var text by remember(unit) { mutableStateOf(shown) }
-    Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+    var text by remember { mutableStateOf(shown) }
+    var editing by remember { mutableStateOf(false) }
+    // The first composition sees the default settings (metric plates) before the stored ones arrive, so follow
+    // the stored list whenever it changes, except while the person is typing in the field.
+    LaunchedEffect(shown, editing) {
+        if (!editing) text = shown
+    }
+    Column(Modifier.fillMaxWidth().padding(vertical = 6.dp).onFocusChanged { editing = it.hasFocus }) {
         LabeledField(
             "Plates available per side (${unit.label}, comma separated)", text,
             { t ->

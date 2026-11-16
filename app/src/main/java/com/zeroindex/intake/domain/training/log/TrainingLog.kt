@@ -124,8 +124,13 @@ data class ExerciseStats(
     /** The last sessions with this exercise, newest first. */
     val sessions: List<ExerciseSession>,
     val recordCount: Int,
+    /** Reps across the working sets: the figure to show for a bodyweight lift, where the volume is 0. */
+    val totalReps: Int = 0,
 ) {
     val isEmpty: Boolean get() = sessionCount == 0
+
+    /** A lift with working sets and no load on any of them (Pull-Up, a plain push-up): volume is 0, reps are the measure. */
+    val isBodyweightOnly: Boolean get() = totalSets > 0 && totalVolumeKg <= 0.0
 }
 
 /** Everything the "Your history" section of an exercise shows, from its logged sets. Warm-ups are never counted. */
@@ -177,6 +182,7 @@ object ExerciseStatsBuilder {
             estimatedMaxSeries = series,
             sessions = sessions.sortedByDescending { it.at }.take(limit),
             recordCount = recordCount,
+            totalReps = working.sumOf { it.reps },
         )
     }
 }
