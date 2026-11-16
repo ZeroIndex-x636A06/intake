@@ -72,7 +72,7 @@ Screenshot: design/qa/pass1/q1-2-delete-no-undo.png
 Suspect: ui/screens/today/TodayViewModel.kt:178 deleteLog, ui/screens/today/TodayScreen.kt:193
 
 ### Q1-3 · S2 · Nutrition C.10 / Log food · Typing in the Log food search drops and reorders characters
-Status: Partly fixed in 504dae6: open-time allergen scan burst cut from about 85 s to about 45 s of CPU on the debug emulator; typing still drops injected keys on the emulator. Needs a preview-build and real-device check. Was: Still failing in Pass 5b: fast typed 'almond milk' in Log food search (input text): the field kept 'almo', every key took 3 to 7 s, and the app hit an ANR twice (08:16 and 08:23 device time); typed key by key every character is kept. Logged again as Q5b-1. Was: Fixed again in ae7e373, needs retest. Was: Still failing in Pass 5a: fast typed text in Log food search loses its tail (protein -> protei, ranch -> ran, milk -> mil, almond milk -> almo, zzqxvv -> zzqx; 5 of 5 bursts), slow key-by-key typing is intact; logged again as Q5a-3. Was: Fixed in f4d3c5d, needs retest
+Status: Still failing in Pass 6: on the preview build `input text "almond%smilk"` in Log food search gave an ANR twice and the text was lost with the killed app; see Q6-3. Was: Partly fixed in 504dae6: open-time allergen scan burst cut from about 85 s to about 45 s of CPU on the debug emulator; typing still drops injected keys on the emulator. Needs a preview-build and real-device check. Was: Still failing in Pass 5b: fast typed 'almond milk' in Log food search (input text): the field kept 'almo', every key took 3 to 7 s, and the app hit an ANR twice (08:16 and 08:23 device time); typed key by key every character is kept. Logged again as Q5b-1. Was: Fixed again in ae7e373, needs retest. Was: Still failing in Pass 5a: fast typed text in Log food search loses its tail (protein -> protei, ranch -> ran, milk -> mil, almond milk -> almo, zzqxvv -> zzqx; 5 of 5 bursts), slow key-by-key typing is intact; logged again as Q5a-3. Was: Fixed in f4d3c5d, needs retest
 Steps: 1. Log food > Search. 2. Type "protein" with `adb shell input text protein` (also "ranch").
 Expected: Field shows exactly what was typed.
 Actual: Field showed "proet" for protein, "ranhc" and "ranhh" for ranch; the search then reports "Nothing matches". "milk", "latte", "wine" came through intact. The text field value is `state.query`, which comes back through a heavy `combine` flow, the usual cause of lost and reordered keystrokes under load. Seen on a slow software-rendered emulator only; not confirmed on a device, but a real phone typing quickly while results rebuild could hit the same path.
@@ -160,7 +160,7 @@ Screenshot: design/qa/pass1/q1-13-log-serving-disabled.png
 Suspect: ui/screens/plan/RecipeDetailScreen.kt
 
 ### Q1-14 · S3 · Allergens C.23 · "Dark chocolate 70%" ("may contain milk") reads "Contains milk"
-Status: Partly fixed: 0017495 words it as "(trace)" but it stays a hard red warning; owner decision pending Pass 5a: still a red 'May contain milk (trace)' chip on Dark chocolate 70%; no change expected until the owner decides.
+Status: Not retested in Pass 6 (waiting for the owner's decision). Was: Partly fixed: 0017495 words it as "(trace)" but it stays a hard red warning; owner decision pending Pass 5a: still a red 'May contain milk (trace)' chip on Dark chocolate 70%; no change expected until the owner decides.
 Steps: 1. Log food, open the default list, find Dark chocolate 70%.
 Expected: A may-contain verdict, worded as a trace (C.23).
 Actual: Red chip "Contains milk", the same wording as Milk chocolate bar. Safe direction, but it overstates and a person cannot tell trace from ingredient.
@@ -411,11 +411,11 @@ Summary for Pass 2: 16 findings. S1: 1 (Q2-1). S2: 1 (Q2-2). S3: 8 (Q2-3 to Q2-1
 Round 2 fixes merged (3fb7f70, bc0c873, eb928a4, 6976495, 795a8d4). Every status above is "needs retest" on a rebuilt preview; nothing here was seen on a device.
 
 ### Open from round 2
-- Cannot verify on emulator in Pass 5a (4321255): the seed has no MAY_CONTAIN recipe or template to Swap to; the CONTAINS case works (Swap dinner lists Turkey chili with sour cream as 'Choose anyway'). Was: Fixed in b73f977, needs retest: Swap logs a MAY_CONTAIN recipe or template without showing the allergen sheet (SwapGate and the warning sheet now cover Swap, Eating out and Healthier nearby).
+- Cannot verify on emulator in Pass 6 (9a42584): the seed still has no MAY_CONTAIN recipe or template to Swap to. Was: Cannot verify on emulator in Pass 5a (4321255): the seed has no MAY_CONTAIN recipe or template to Swap to; the CONTAINS case works (Swap dinner lists Turkey chili with sour cream as 'Choose anyway'). Was: Fixed in b73f977, needs retest: Swap logs a MAY_CONTAIN recipe or template without showing the allergen sheet (SwapGate and the warning sheet now cover Swap, Eating out and Healthier nearby).
 - Verified fixed in Pass 5a (4321255): picker rows show 'Fits your allergens', 'Only the name was checked', 'Contains ...' and 'May contain milk (trace)'. Was: Fixed in b73f977, needs retest: the template editor's food picker rows have no allergen chip (chips added).
 - Verified fixed in Pass 5a (4321255): Butter, Cheddar cheese and Milk carry red 'Contains ...' marks. Was: Fixed in b73f977, needs retest: shopping list dairy items have no allergen marker for a dairy-avoiding user.
-- Cannot verify on emulator in Pass 5a (4321255): the seed has no saved shopping rows from an older build. Was: Fixed in b73f977, needs retest: old saved shopping rows keep their old aisles (aisle repair).
-- Still failing in Pass 5b: 'almo' typed key by key lists Salmon fillet, baked first under My foods and Salmon, sweet potato and broccoli under Recipes, and no Almond food row appeared (Q5b-1). Was: Still failing in Pass 5a (4321255): 'almo' still lists Salmon fillet, baked first under My foods (see Q2-16, Q5a-3). Was: Fixed in b73f977, needs retest: the substring "almo" ranks Salmon first under My foods (word-start ranking).
+- Cannot verify on emulator in Pass 6 (9a42584): no saved shopping rows from an older build in the seed. Was: Cannot verify on emulator in Pass 5a (4321255): the seed has no saved shopping rows from an older build. Was: Fixed in b73f977, needs retest: old saved shopping rows keep their old aisles (aisle repair).
+- Still failing in Pass 6: 'almo' typed key by key (1 per s) still lists Salmon fillet, baked first under My foods, no Drinks pointer for 'almo'; 'almond' gives the Almond rows first (design/qa/pass6/q6-almo.png). Was: Still failing in Pass 5b: 'almo' typed key by key lists Salmon fillet, baked first under My foods and Salmon, sweet potato and broccoli under Recipes, and no Almond food row appeared (Q5b-1). Was: Still failing in Pass 5a (4321255): 'almo' still lists Salmon fillet, baked first under My foods (see Q2-16, Q5a-3). Was: Fixed in b73f977, needs retest: the substring "almo" ranks Salmon first under My foods (word-start ranking).
 - Still open: Q2-7 zip lookup is not verified on a real network.
 - Still open: Q1-14 (Dark chocolate "may contain milk" shown as a hard red warning) is waiting for the owner's decision.
 
@@ -431,7 +431,7 @@ Logcat: clean. No FATAL EXCEPTION, no ANR for com.zeroindex.*, no StrictMode lin
 Seen on emulator only (Android 11, software rendering, no KVM). Not seen on a device: performance, haptics, real keyboard and IME behaviour, vibration at rest end, how the layout jump in Q3-11 feels on a fast phone. Screenshots are at scale 1.9 of the 1080x2280 screen (540x1200).
 
 ### Q3-1 · S3 · Settings / Train D.6 · Imperial users get a 44.1 lb bar and plates of 55.12, 44.09, 33.07, 22.05, 11.02, 5.51, 2.76 lb
-Status: Fixed in 504dae6, needs retest. Was: Still failing in Pass 5b: fresh install: bar is 45 lb, but 'Plates available per side (lb)' still reads 55.12,44.09,33.07,22.05,11.02,5.51,2.76. Logged as Q5b-3. Was: Fixed in cc7bc40, needs retest (a lb user now gets a 45 lb bar and lb plates; a lb user who deliberately stored a 20 kg bar now also gets 45 lb)
+Status: Verified fixed in Pass 6 (9a42584): fresh install, lb: bar 45, plates 45,35,25,10,5,2.5. Was: Fixed in 504dae6, needs retest. Was: Still failing in Pass 5b: fresh install: bar is 45 lb, but 'Plates available per side (lb)' still reads 55.12,44.09,33.07,22.05,11.02,5.51,2.76. Logged as Q5b-3. Was: Fixed in cc7bc40, needs retest (a lb user now gets a 45 lb bar and lb plates; a lb user who deliberately stored a 20 kg bar now also gets 45 lb)
 Steps: 1. Seeded install (units lb). 2. You > Settings > Training.
 Expected: a bar of 45 lb and plates of 45, 35, 25, 10, 5, 2.5 lb (the subtitle in Settings says "2:00 rest · 44.1 lb bar" too).
 Actual: Bar weight "44.1 lb"; "Plates available per side (lb, comma separated)" holds the metric plates converted to lb. The plate maths and the smallest step up use them. The Barbell (Olympic) row still reads "2 in sleeves, 20 kg bar" for a lb user.
@@ -773,7 +773,7 @@ Screenshot: design/qa/pass5a/q5a-1-recipes-list-verdicts.png (list), design/qa/p
 Suspect: the recipe-row allergen summary used by ui/screens/plan (RecipesViewModel) and ui/addfood/RecipeRows.kt versus the recipe page's verdict in RecipeDetailScreen.kt
 
 ### Q5a-2 · S3 · Recipes C.36, I.4 · The same recipe gets three different verdicts on three screens
-Status: Still failing in Pass 5b: the list, Mine, the recipe page and the plan picker now agree ('Only the name was checked' for Chicken fajita bowls and Salmon), but the Swap sheet shows green 'Fits your allergens' for both. Logged as Q5b-2. Was: Verified fixed in Pass 5b (5822073) for (a), (b), (c), (f): (d), (e), (g) were not rechecked; weight chart has date labels and four y labels, measurement charts read 'in inches. Latest 36.7 in', Settings home lists the portion unit, the profile title is 'Profile & goals' and height reads 72.0. Was: Fixed in ae7e373, needs retest.
+Status: Verified fixed in Pass 6 (9a42584): the Swap sheet now reads 'Only the name was checked' for Chicken fajita bowls and Salmon (see Q5b-2). Was: Still failing in Pass 5b: the list, Mine, the recipe page and the plan picker now agree ('Only the name was checked' for Chicken fajita bowls and Salmon), but the Swap sheet shows green 'Fits your allergens' for both. Logged as Q5b-2. Was: Verified fixed in Pass 5b (5822073) for (a), (b), (c), (f): (d), (e), (g) were not rechecked; weight chart has date labels and four y labels, measurement charts read 'in inches. Latest 36.7 in', Settings home lists the portion unit, the profile title is 'Profile & goals' and height reads 72.0. Was: Fixed in ae7e373, needs retest.
 Steps: 1. Look at Chicken fajita bowls (five ingredient lines, notes "Dairy-free as written") in Nutrition > More > Recipes, in Log food > Mine and on its recipe page; also in the template picker.
 Expected: one verdict.
 Actual: Recipes list: amber "Only the name was checked". Log food > Mine, template picker and recipe page: green "Fits your allergens". Salmon, sweet potato and broccoli behaves the same.
@@ -781,7 +781,7 @@ Screenshot: design/qa/pass5a/q5a-1-recipes-list-verdicts.png, design/qa/pass5a/q
 Suspect: the Recipes hub list checks the name only
 
 ### Q5a-3 · S2 · Nutrition C.10, C.18 · Fast typing in the Log food search drops the end of the text
-Status: Partly fixed in 504dae6: open-time allergen scan burst cut from about 85 s to about 45 s of CPU on the debug emulator; typing still drops injected keys on the emulator. Needs a preview-build and real-device check. Was: Still failing in Pass 5b: same as Q1-3: 'almond milk' became 'almo'. Characters were also lost in the Quick add name and the recipe name at the same speed on this emulator, so part of the loss may be the IME, but only the Log food search ANRs. Q5b-1. Was: Verified fixed in Pass 5b (5822073) for (a), (b), (c), (f): (d), (e), (g) were not rechecked; weight chart has date labels and four y labels, measurement charts read 'in inches. Latest 36.7 in', Settings home lists the portion unit, the profile title is 'Profile & goals' and height reads 72.0. Was: Fixed in ae7e373, needs retest.
+Status: Still failing in Pass 6: same as Q1-3, logged as Q6-3. Was: Partly fixed in 504dae6: open-time allergen scan burst cut from about 85 s to about 45 s of CPU on the debug emulator; typing still drops injected keys on the emulator. Needs a preview-build and real-device check. Was: Still failing in Pass 5b: same as Q1-3: 'almond milk' became 'almo'. Characters were also lost in the Quick add name and the recipe name at the same speed on this emulator, so part of the loss may be the IME, but only the Log food search ANRs. Q5b-1. Was: Verified fixed in Pass 5b (5822073) for (a), (b), (c), (f): (d), (e), (g) were not rechecked; weight chart has date labels and four y labels, measurement charts read 'in inches. Latest 36.7 in', Settings home lists the portion unit, the profile title is 'Profile & goals' and height reads 72.0. Was: Fixed in ae7e373, needs retest.
 Steps: 1. Log food > Search > tap the field. 2. `adb shell input text protein` (also ranch, milk, almond, "almond milk", zzqxvv). 3. Read the field and the results.
 Expected: the field shows what was typed.
 Actual: protein -> "protei", ranch -> "ran", milk -> "mil", almond -> "almo", zzqxvv -> "zzqx", "almond milkzz" -> "almo". The results follow the shortened text ("almo" lists Salmon fillet first). Typing the four keys of "milk" one by one with a 1.5 s gap gave "milk". The recipe paste list, a template name and the weigh-in field took the same fast input in full, so it is this field. The source keeps the text in local state (LogFoodScreen.kt:128), so the cause is probably the main thread being busy recomposing the results (see Q5a-4); it may be much rarer on a phone.
@@ -789,7 +789,7 @@ Screenshot: design/qa/pass5a/q5a-3-search-drops-chars.png ("protei"), design/qa/
 Suspect: ui/addfood/LogFoodScreen.kt TextField (value = query) and the work done on each onQueryChange
 
 ### Q5a-4 · S2 · Nutrition C.10 · ANR while typing in the Log food search (main thread recomposing)
-Status: Partly fixed in 504dae6: open-time allergen scan burst cut from about 85 s to about 45 s of CPU on the debug emulator; typing still drops injected keys on the emulator. Needs a preview-build and real-device check. Was: Still failing in Pass 5b: two ANRs in Log food search on input text 'almond milk' (08:16, 08:23); the saved trace has the main thread idle in the message loop, the log shows 3 to 7 s per key event in that screen, while Quick add took 9 characters with no delay. Q5b-1. Was: Verified fixed in Pass 5b (5822073) for (a), (b), (c), (f): (d), (e), (g) were not rechecked; weight chart has date labels and four y labels, measurement charts read 'in inches. Latest 36.7 in', Settings home lists the portion unit, the profile title is 'Profile & goals' and height reads 72.0. Was: Fixed in ae7e373, needs retest.
+Status: Still failing in Pass 6: ANR again (input dispatching timed out on the last key, main thread in compose layout), logged as Q6-3. Was: Partly fixed in 504dae6: open-time allergen scan burst cut from about 85 s to about 45 s of CPU on the debug emulator; typing still drops injected keys on the emulator. Needs a preview-build and real-device check. Was: Still failing in Pass 5b: two ANRs in Log food search on input text 'almond milk' (08:16, 08:23); the saved trace has the main thread idle in the message loop, the log shows 3 to 7 s per key event in that screen, while Quick add took 9 characters with no delay. Q5b-1. Was: Verified fixed in Pass 5b (5822073) for (a), (b), (c), (f): (d), (e), (g) were not rechecked; weight chart has date labels and four y labels, measurement charts read 'in inches. Latest 36.7 in', Settings home lists the portion unit, the profile title is 'Profile & goals' and height reads 72.0. Was: Fixed in ae7e373, needs retest.
 Steps: 1. Log food > Search with "almo" in the field. 2. Tap the clear (x) and send `input text "almond milk"` at once.
 Expected: the app stays responsive.
 Actual: "ANR in com.zeroindex.intake.preview ... Input dispatching timed out ... KeyEvent keyCode=43" at 19:10:51; the saved trace has the main thread in state R in androidx.compose.runtime GapComposer recompose (no app frame), the app was killed and the launcher showed. Together with Q5a-3 this points at the search screen doing a lot of work per keystroke.
@@ -829,7 +829,7 @@ Screenshot: design/qa/pass5a/q5a-8-landscape-today.png, design/qa/pass5a/q5a-8b-
 Suspect: the content insets in ui/navigation (rail layout) ignore the end navigation-bar inset
 
 ### Q5a-9 · S3 · Nutrition C.42 · Logging a meal template gives no Undo, leaves an inline message that never goes away, and says "to snack"
-Status: Fixed in 504dae6, needs retest. Was: Still failing in Pass 5b: logging Post-workout shake to Snacks gave no message and no Undo at 1, 3, 4 and 12 s; the entry was logged. Logged as Q5b-4. Was: Verified fixed in Pass 5b (5822073) for (a), (b), (c), (f): (d), (e), (g) were not rechecked; weight chart has date labels and four y labels, measurement charts read 'in inches. Latest 36.7 in', Settings home lists the portion unit, the profile title is 'Profile & goals' and height reads 72.0. Was: Fixed in ae7e373, needs retest.
+Status: Still failing in Pass 6: a snackbar 'Logged Post-workout shake to Snacks. Almond milk, unsweetened: check the label for dairy' with Undo now appears, but Undo removed nothing (Q6-2). The log dialog still offers a Drinks slot for a food template. Was: Fixed in 504dae6, needs retest. Was: Still failing in Pass 5b: logging Post-workout shake to Snacks gave no message and no Undo at 1, 3, 4 and 12 s; the entry was logged. Logged as Q5b-4. Was: Verified fixed in Pass 5b (5822073) for (a), (b), (c), (f): (d), (e), (g) were not rechecked; weight chart has date labels and four y labels, measurement charts read 'in inches. Latest 36.7 in', Settings home lists the portion unit, the profile title is 'Profile & goals' and height reads 72.0. Was: Fixed in ae7e373, needs retest.
 Steps: 1. Nutrition > More > Meal templates > ... on Post-workout shake > Log now > Snacks. 2. Look at the screen for 10 s and later.
 Expected: a snackbar with Undo as every other log path now has (food, recipe, drink); one-line message.
 Actual: a text line "Logged Post-workout shake to snack. Almond milk, unsweetened: check the label for dairy" appears above Saved and pushes the list down by about 200 px; it stays, with no Undo and no dismiss. "snack" is lowercase and singular where the slot is "Snacks". The recipe path says "Logged Baked mac and cheese, 1 serving, to snack" too.
@@ -885,7 +885,7 @@ Screenshot: design/qa/pass5a/q5a-15-set-weight-50.png
 Suspect: the set row weight formatting once the set is logged
 
 ### Q5a-16 · S4 · Allergens C.10 · "May contain creamy" on Almond butter, creamy
-Status: Cannot verify on emulator: typing 'almo' showed no USDA rows within 30 s (and fast typing cannot be used), so the almond butter chip was not seen. Was: Verified fixed in Pass 5b (5822073) for (a), (b), (c), (f): (d), (e), (g) were not rechecked; weight chart has date labels and four y labels, measurement charts read 'in inches. Latest 36.7 in', Settings home lists the portion unit, the profile title is 'Profile & goals' and height reads 72.0. Was: Fixed in ae7e373, needs retest.
+Status: Verified fixed in Pass 6 (9a42584): the chip now reads 'May contain dairy' with the line '"creamy" found in the name - often made with milk and dairy, but not always.' (design/qa/pass6/q6-almond-butter.png); the word 'creamy' is gone from the chip. Was: Cannot verify on emulator: typing 'almo' showed no USDA rows within 30 s (and fast typing cannot be used), so the almond butter chip was not seen. Was: Verified fixed in Pass 5b (5822073) for (a), (b), (c), (f): (d), (e), (g) were not rechecked; weight chart has date labels and four y labels, measurement charts read 'in inches. Latest 36.7 in', Settings home lists the portion unit, the profile title is 'Profile & goals' and height reads 72.0. Was: Fixed in ae7e373, needs retest.
 Steps: 1. Log food > Search "almo" > USDA rows.
 Expected: no dairy claim for almond butter, or a clear one.
 Actual: amber chip "May contain creamy", which names the word, not a food. Safe direction, but it reads as nonsense and teaches the person to ignore the chip.
@@ -970,7 +970,7 @@ Method notes: tap coordinates come from `dump`, which lists the nodes in the scr
 Seen on emulator only (Android 11, software rendering, no KVM, 3-button navigation, 5 to 40 s per action). Not seen on a device: typing speed and IME behaviour, performance, haptics, the landscape bar with gesture navigation, notifications, Health Connect, camera, the feel of the encrypted export's wait. Retest tally: 70 items, 62 verified fixed, 7 still failing (Q1-3, Q3-1, Q5a-2, Q5a-3, Q5a-4, Q5a-9, the round 2 "almo" ranking item), 1 cannot verify (Q5a-16). Q4-27 and Q5a-14 are verified for the parts listed in their Status lines.
 
 ### Q5b-1 · S2 · Nutrition C.10, C.11 · Log food search: fast typing still loses characters, ANRs, and "almo" still ranks Salmon
-Status: Partly fixed in 504dae6: open-time allergen scan burst cut from about 85 s to about 45 s of CPU on the debug emulator; typing still drops injected keys on the emulator. Needs a preview-build and real-device check. Was: open
+Status: Still failing in Pass 6: ANR twice, 114 CPU seconds to open Log food, 'almo' still lists Salmon first; slow typing is kept. Logged as Q6-3. Was: Partly fixed in 504dae6: open-time allergen scan burst cut from about 85 s to about 45 s of CPU on the debug emulator; typing still drops injected keys on the emulator. Needs a preview-build and real-device check. Was: open
 Steps: 1. Today > Log food > Search > tap the field. 2. `adb shell input text "almond%smilk"` (also run twice from a fresh launch). 3. Read the field and wait 20 s. 4. Clear it and type a, l, m, o, n, d, space, m, i, l, k one key per 4 s. 5. Clear and type a, l, m, o.
 Expected: every character kept, no ANR; "almond milk" shows the Drinks pointer; Almond results above Salmon.
 Actual: the field kept "almo" (4 of 11 characters) and the app hit an ANR twice (08:16, 08:23); logcat shows 2.9 to 4.2 s per key event in this screen, while the Quick add name field took 9 characters in a burst with no delay. Typed one key per 4 s, "almond milk" is kept and the screen shows "Drinks: almond milk. Drinks matching "almond milk" are logged from Drinks" with no milk chocolate (Q2-16's title is fixed). "almo" lists "Salmon fillet, baked" under My foods and recents and "Salmon, sweet potato and broccoli" under Recipes, and no Almond row appeared within 30 s. Characters were also lost in Quick add and the recipe name at the same speed, so part of this may be the emulator's IME.
@@ -978,7 +978,7 @@ Screenshot: design/qa/pass5b/q5b-1-search-drops-chars.png (also q5b-1-slow-typin
 Suspect: ui/addfood/LogFoodScreen.kt, AddFoodViewModel (work per keystroke on the main thread)
 
 ### Q5b-2 · S2 · Recipes / Allergens C.46, I.4 · The Swap sheet says "Fits your allergens" for recipes every other screen says were only name-checked
-Status: Fixed in 504dae6, needs retest
+Status: Verified fixed in Pass 6 (9a42584): Swap shows 'Only the name was checked' on both recipes, 'Choose anyway' on Turkey chili, red chip on the planned mac and cheese; the Today planned card shows 'Contains your allergen' (design/qa/pass6/q6-swap-sheet.png, q6-today-planned.png). Was: Fixed in 504dae6, needs retest
 Steps: 1. Plan a week with Baked mac and cheese (Nutrition > More > Meal plan > Make a plan > Choose a recipe). 2. Today > Next up > Swap. 3. Compare Salmon, sweet potato and broccoli and Chicken fajita bowls with the Recipes list, Log food > Mine, the recipe page and the plan picker.
 Expected: one verdict. The recipes have no matched ingredients, so "Only the name was checked".
 Actual: the list, Mine, the recipe pages and the plan picker all read amber "Only the name was checked". The Swap sheet shows a green tick "Fits your allergens" on both (and the planned mac and cheese correctly red). A green all-clear for a recipe the app says it did not check, for a strict-dairy user.
@@ -986,7 +986,7 @@ Screenshot: design/qa/pass5b/q5b-2-swap-fits.png (contrast: recipes-list2.png, r
 Suspect: the Swap candidate verdict (SwapGate or the sheet's own scan) versus the recipe verdict used elsewhere
 
 ### Q5b-3 · S3 · Settings / Train D.6 · Plates for a lb user are still the metric plates converted to lb
-Status: Fixed in 504dae6, needs retest
+Status: Verified fixed in Pass 6 (9a42584): fresh install, lb: bar 45, plates 45,35,25,10,5,2.5 (design/qa/pass6/q6-plates-fresh.png). Was: Fixed in 504dae6, needs retest
 Steps: 1. Fresh install, lb, skip the questions. 2. You > Settings > Training.
 Expected: plates of 45, 35, 25, 10, 5, 2.5 lb (Q3-1).
 Actual: Bar weight 45 lb (fixed), but "Plates available per side (lb, comma separated)" reads 55.12,44.09,33.07,22.05,11.02,5.51,2.76; the plate maths and the smallest step up use them. The Settings home row says "45.0 lb bar".
@@ -994,7 +994,7 @@ Screenshot: design/qa/pass5b/q5b-3-plates-metric.png
 Suspect: data/settings plate default (not unit-aware)
 
 ### Q5b-4 · S3 · Nutrition C.42 · Logging a meal template still gives no confirmation and no Undo
-Status: Fixed in 504dae6, needs retest
+Status: Still failing in Pass 6: the confirmation and an Undo button now appear (design/qa/pass6/q6-template-log-1s.png), but Undo did not remove the entries in 4 tries, 1.5 to 4 s after the log (Today went 1 to 8 shakes); logged as Q6-2. Was: Fixed in 504dae6, needs retest
 Steps: 1. Nutrition > More > Meal templates > "..." on Post-workout shake > Log now > Snacks. 2. Look at the screen at 1, 3, 4 and 12 s. 3. Open Today.
 Expected: a snackbar "Logged ... " with Undo, as the recipe and food paths give (Q5a-9).
 Actual: nothing appears, not even the old inline line; the sheet closes and the list is unchanged. Today's Snacks shows +338 kcal, so the entry was logged. The dialog also offers a Drinks slot for a food template.
@@ -1002,7 +1002,7 @@ Screenshot: design/qa/pass5b/q5b-4-template-log-no-undo.png
 Suspect: ui/screens/nutrition meal templates (the log result message is dropped)
 
 ### Q5b-5 · S3 · Recipes C.36, I.4 · Recipe list rows show no allergen chip, and no kcal for the soup, for several seconds
-Status: Fixed in 504dae6, needs retest
+Status: Verified fixed in Pass 6 (9a42584): the list holds back the rows until the verdicts are known, then every row has its chip (q6-recipes-first.png, q6-recipes-8s.png). Was: Fixed in 504dae6, needs retest
 Steps: 1. Nutrition > More > Recipes, screenshot as soon as the list appears, then 5 to 10 s later.
 Expected: a "Checking..." chip as in Log food (Q1-6), or the row held back.
 Actual: the first frames show Baked mac and cheese (dairy) with no chip at all, and Grandma's vegetable soup as "4 servings"; the red chip and "~62 kcal . per serving, estimated" arrive later. A dairy recipe looks like the clear ones while it loads.
@@ -1010,7 +1010,7 @@ Screenshot: design/qa/pass5b/q5b-5-recipes-no-chip.png
 Suspect: ui/screens/recipes list (verdict computed after first draw)
 
 ### Q5b-6 · S4 · Recipes C.36 · The same unchecked recipe has two wordings
-Status: Fixed in 504dae6, needs retest
+Status: Verified fixed in Pass 6 (9a42584): list and recipe page both say 'Only the name was checked'. Was: Fixed in 504dae6, needs retest
 Steps: 1. Recipes list: Grandma's vegetable soup. 2. Open it.
 Expected: one wording.
 Actual: the list, Mine and the plan picker say "Only the name was checked"; the recipe page's Ingredients header says "Allergens not checked".
@@ -1018,7 +1018,7 @@ Screenshot: design/qa/pass5b/q5b-6-soup-wording.png
 Suspect: ui/screens/recipes detail header
 
 ### Q5b-7 · S3 · Today / Nutrition B.1, C.6 · The Today tab and the Nutrition tab keep different days
-Status: Fixed in 504dae6, needs retest
+Status: Verified fixed in Pass 6 (9a42584): Today on Sat, Nov 14 then Nutrition shows Sat, Nov 14. Was: Fixed in 504dae6, needs retest
 Steps: 1. Today > Previous day twice (Sat, Nov 14). 2. Switch to Nutrition. 3. Switch back.
 Expected: shared state ("Arrows share state with Nutrition's day", B.1, C.6), or the checklist is stale.
 Actual: Today stays on Sat, Nov 14; Nutrition shows "Today, Mon, Nov 16". No screenshot kept (taken from the two dumps).
@@ -1026,7 +1026,7 @@ Screenshot: none (reason: seen in dumps only, the two screens differ in the date
 Suspect: separate day state in the Today and Nutrition view models
 
 ### Q5b-8 · S3 · Settings / You G Nutrition, F.2 · Switching "Work my targets out from my data" on and off replaces the hand-set macros, and the protein basis differs
-Status: Fixed in 504dae6, needs retest
+Status: Verified fixed in Pass 6 (9a42584): auto on then off keeps 2,260 kcal and 170 / 70 / 245 g. Note: retyping and saving the calories afterwards gives 166 / 70 / 242 g (1.9 and 0.8 g per kg of body weight, as the setting says). Was: Fixed in 504dae6, needs retest
 Steps: 1. Seeded install (manual 2,260 kcal, 170 / 70 / 245 g). 2. Settings > Nutrition: switch auto on, then off, then type 2260 and Save. 3. You, Today.
 Expected: the hand-set numbers come back, or the switch warns that they will be replaced.
 Actual: calories can be retyped, but protein, fat and carbs are now 159, 67 and 255 g (from 1.9 and 0.8 g per kg of the 185 lb goal weight) and stay so on You, Nutrition and Today, with no message. With auto on, the plan says 166 g = 1.9 x body weight 192.5 lb; the manual path uses the goal weight while the setting says "Per kg of body weight".
@@ -1034,7 +1034,7 @@ Screenshot: design/qa/pass5b/q5b-8-targets-changed.png (Today after the round tr
 Suspect: data/settings targets, domain target maths
 
 ### Q5b-9 · S3 · Settings / You F.8, G Nutrition · A manual target of 1,000 kcal is accepted with no floor warning
-Status: Fixed in 504dae6, needs retest
+Status: Still failing in Pass 6: the floor warning now shows ('1000 kcal is below the usual floor of 2024 kcal (1.1 x your calories at rest). It is saved as you typed it...'), but it is drawn inside the field row and squeezes the 'Calories by hand' label to one letter per line; logged as Q6-1. Was: Fixed in 504dae6, needs retest
 Steps: 1. Settings > Nutrition > Calories by hand 1000 > Save ("Allow calories below the floor" is off, "Normally never below 1.1 x calories at rest"). 2. You, Today, Nutrition.
 Expected: a warning that the target is below the floor (F.8).
 Actual: "Target set to 1000 kcal by hand." You shows "1,000 kcal"; no warning on any screen. The Save button turns grey during entry with no reason.
@@ -1042,7 +1042,7 @@ Screenshot: design/qa/pass5b/q5b-9-1000-kcal-no-warning.png
 Suspect: ui/screens/settings Nutrition, domain target floor
 
 ### Q5b-10 · S3 · Progress E.10, J.14 · Deleting a jump test has no confirmation and no Undo
-Status: Fixed in 504dae6, needs retest
+Status: Verified fixed in Pass 6 (9a42584): 'Jump test deleted' snackbar with Undo (Undo itself did not restore, see Q6-2). Was: Fixed in 504dae6, needs retest
 Steps: 1. Settings > Training > Show jump tests in Progress on. 2. Progress > Log a jump test > vertical 20, reach 90 > Log jump test. 3. Tap the delete icon on the row.
 Expected: a confirmation or an Undo (nothing is hard-deleted, but the user has no way back).
 Actual: the row is gone at once, with no message.
@@ -1050,7 +1050,7 @@ Screenshot: design/qa/pass5b/q5b-10-jump-delete-no-undo.png
 Suspect: ui/screens/progress jump tests
 
 ### Q5b-11 · S4 · Progress J.10 · Empty cards: "Calories vs target" has a blank body, and Measurements shows only its title
-Status: Fixed in 504dae6, needs retest
+Status: Verified fixed in Pass 6 (9a42584) for the seeded 1M view: Calories vs target has its chart and sentence, Measurements has its three charts; the fresh-install empty state was not re-run. Was: Fixed in 504dae6, needs retest
 Steps: 1. Fresh install, Progress, scroll. 2. On the seed at 1M, scroll to Measurements.
 Expected: an empty-state line like the Weight trend and Training cards.
 Actual: "Calories vs target" shows a title, a legend dot and 200 px of white. On the seed at 1M "Measurements" is a bare title bar with nothing under it (the charts exist under All).
@@ -1058,7 +1058,7 @@ Screenshot: design/qa/pass5b/q5b-11-empty-chart.png
 Suspect: ui/screens/progress calories and measurements cards
 
 ### Q5b-12 · S3 · Nutrition A.14 · The NFC template dialog clips its meal chips, and offers no Snacks
-Status: Fixed in 504dae6, needs retest
+Status: Verified fixed in Pass 6 (9a42584): the NFC dialog wraps its chips onto a second row and Snacks is offered (q6-nfc-dialog.png). Was: Fixed in 504dae6, needs retest
 Steps: 1. `adb shell am start -a android.nfc.action.NDEF_DISCOVERED -d intake://log-template/<id of Usual breakfast>` at midday.
 Expected: all meals as chips; "Usual breakfast" preselected on Breakfast, or a reason for the default.
 Actual: "Log Usual breakfast?" shows Breakfast, Lunch (preselected, by the time of day), Dinner and a fourth chip cut off at the right edge. The dialog opens over whatever screen is open (the weekly check-in). Logging then shows a snackbar with Undo (good). A plain `am start -d` (VIEW) is delivered to the running app and shows nothing; only the NDEF action opens the dialog.
@@ -1066,7 +1066,7 @@ Screenshot: design/qa/pass5b/q5b-12-nfc-dialog-clip.png
 Suspect: ui/navigation NFC link dialog
 
 ### Q5b-13 · S4 · Nutrition C.21 · Food page: the top figure (188 kcal) and the printed label (190) differ again
-Status: Fixed in 504dae6, needs retest
+Status: Verified fixed in Pass 6 (9a42584): the chip still reads 188 and the label 190, but the page now has a line explaining that the label rounds calories to the nearest 5. Was: Fixed in 504dae6, needs retest
 Steps: 1. Log food > Mine > Peanut butter.
 Expected: one figure (Q1-17 fixed this; Q5a-22 made the chip equal the logged value).
 Actual: the chip row reads 188 KCAL, the Nutrition Facts block on the same page reads Calories 190.
@@ -1074,7 +1074,7 @@ Screenshot: design/qa/pass5b/q5b-13-188-vs-190.png
 Suspect: ui/screens/food detail (exact value versus label rounding)
 
 ### Q5b-14 · S3 · Eating out J.18 · The Swap sheet speaks in kilometres to a user on lb and miles
-Status: Fixed in 504dae6, needs retest
+Status: Verified fixed in Pass 6 (9a42584): the Swap sheet says 'Your place is rounded to about 0.7 miles'. Was: Fixed in 504dae6, needs retest
 Steps: 1. Today > Next up > Swap, read the "Eat out nearby" card.
 Expected: miles, as Settings > Nutrition now says ("3.2 miles out for 10 min drive").
 Actual: "Your place is rounded to about a kilometre and sent once, when you tap."
@@ -1082,7 +1082,7 @@ Screenshot: design/qa/pass5b/q5b-14-swap-km.png
 Suspect: ui/screens/swap nearby card string
 
 ### Q5b-15 · S3 · Backup H.2, H.3 · Import preview: the settings box is ticked by default, and the line names groups that do not match the change
-Status: Fixed in 504dae6, needs retest
+Status: Cannot verify on emulator: after switching Show salt or sodium to Salt (tap not confirmed) the import preview of an encrypted backup made before it said 'Settings: the same as on this phone, nothing to change'; the settings-box default was not seen. Was: Fixed in 504dae6, needs retest
 Steps: 1. Export an encrypted backup. 2. Change Settings > Nutrition > Show salt or sodium to Salt. 3. Import the backup, enter the passphrase.
 Expected: newer settings kept by default, and the line naming what differs.
 Actual: "Import 1 changes? ... Settings: reminders and videos (1 differ from this phone)" with "Replace these settings with the backup's" ticked; the setting I changed (Nutrition) is not named. Unticking it works (the title becomes "Import 0 changes?" and the Salt setting survives), so the safety part is fixed; the default is what overwrites.
@@ -1090,7 +1090,7 @@ Screenshot: design/qa/pass5b/q5b-15-import-settings-default.png
 Suspect: ui/screens/settings import preview
 
 ### Q5b-16 · S4 · Train D.14 · Pull-Up history shows "TOTAL VOLUME 0 lb"
-Status: Fixed in 504dae6, needs retest
+Status: Verified fixed in Pass 6 (9a42584): TOTAL VOLUME reads '81 reps', BEST SET 'Reps only'. Was: Fixed in 504dae6, needs retest
 Steps: 1. Train > Exercises > Pull-Up, scroll to Your history.
 Expected: reps only for a bodyweight lift (D.14), not "0 lb".
 Actual: BEST SET "Reps only", HEAVIEST "No weight", TOTAL VOLUME "0 lb", SESSIONS "3 . 10 sets".
@@ -1098,7 +1098,7 @@ Screenshot: design/qa/pass5b/q5b-16-bodyweight-volume.png
 Suspect: ui/screens/exercises detail sheet
 
 ### Q5b-17 · S2 · Backup H.5, J.17 · ANR while typing into the Encrypted backup passphrase dialog (first attempt)
-Status: open (not reproduced in two later attempts). Note after the merge: the export passphrase field kept 7/7 characters without an ANR; the import dialog is untested.
+Status: Verified fixed in Pass 6 (9a42584): in the import passphrase dialog 'wrongpass' typed 9 of 9 characters in 8 s with no ANR; the wrong passphrase gave 'That passphrase did not open it. Try again.' and the right one the preview. The export dialog also kept 7 of 7. Was: open (not reproduced in two later attempts). Note after the merge: the export passphrase field kept 7/7 characters without an ANR; the import dialog is untested.
 Steps: 1. Sync and export > Import a backup > pick the .intake file. 2. Tap the Passphrase field, `input text wrongpass`, tap Open.
 Expected: no ANR.
 Actual: once, at 10:29:45, the app was killed with an ANR; the trace's main thread is running (state R) in CoreTextField.notifyFocusedRect (compose text field), not in BackupCrypto, so the PBKDF2 move to a background thread (Q4-8) works: later runs showed the wrong-passphrase message ("That passphrase did not open it. Try again.") and the right one gave the preview, with no ANR. The first tap on the field also needed a second tap before it took the typed text. The same text-field cost shows up in Q5b-1.
@@ -1106,7 +1106,7 @@ Screenshot: none (reason: the ANR killed the screen; see /data/anr trace of that
 Suspect: unknown (text field recomposition under a dialog)
 
 ### Q5b-18 · S2 · Check-in · (owner report) A week with almost nothing logged says "All on track" and "Nothing to change"
-Status: Fixed in 504dae6, needs retest
+Status: Verified fixed in Pass 6 (9a42584): a seeded week with 2 near-empty days shows 'AVG INTAKE 210 kcal · 2 DAYS LOGGED', 'Protein target hit 0 of 2 logged days · 0%', a LOG MORE card 'Not enough data this week to adjust', no 'All on track', and the 'Suggestions' header is whole. With both cards dismissed it still shows them tagged Dismissed. See Q6-4 and Q6-5 for the numbers around it. Was: Fixed in 504dae6, needs retest
 Steps: (owner, real phone, older preview build) Progress > Weekly check-in, week Nov 9-15.
 Expected: a week with 2 barely-logged days is called "not enough data", never "on track"; the protein line and the intake average use the same logged days.
 Actual: Avg weight "195.0 lb · +0.0 lb"; AVG INTAKE 210 kcal (an average over partial days, not real eating); Avg burn 2,230 kcal; "Protein target hit 0 of 7 days · 0%" (the 7 counted unlogged days); then "Check-in of Mon 16 Nov" with an "All on track" pill and "Nothing to change this week. Your numbers are where they should be, so the best move is to keep going." The "Suggestions" header wrapped as "Suggestion / s" beside the caption "You decide. Nothing changes until you tap Apply."
@@ -1116,3 +1116,81 @@ Screenshot: owner's phone (not committed). It shows the Weekly check-in screen w
 Suspect: domain/coach/CoachEngine.kt, ui/screens/checkin/WeeklyCheckInScreen.kt, ui/components/Controls.kt (SectionLine)
 
 Summary for Pass 5b: 17 new findings. S1: 0. S2: 3 (Q5b-1, 2, 17). S3: 10 (Q5b-3, 4, 5, 7, 8, 9, 10, 12, 14, 15). S4: 4 (Q5b-6, 11, 13, 16). Retests: 70 items, 62 verified fixed, 7 still failing, 1 cannot verify. A new pass is needed after fixes; the stop condition is not met. The allergen block was re-run on Log food, Mine, the recipe pages, the plan picker, Swap, templates, menu items, the NFC link and the import: nothing with dairy in its name or ingredients showed as clear; the one wrong all-clear is Q5b-2 (an unchecked recipe in Swap), and Q5b-5 hides a dairy recipe's chip for a few seconds. Nothing here was seen on a device.
+
+
+---
+
+## Pass 6 — Full retest
+Date: 2026-11-16 (device zone America/Los_Angeles, device clock 11:51 to about 14:45, far from midnight; automatic time was off) · Build: the prebuilt release/intake-preview.apk (com.zeroindex.intake.preview), built after 504dae6 (file time 19:31 UTC; the version row reads "Intake 0.1.0+2026-11-16 · build 26111602", the same as Pass 5b, so it carries no commit; head 9a42584) · AVD: phone30 · Seed: tools/qa/seed.sh copied to excluded temporary scripts pointed at the preview package (deleted at the end). The app was installed fresh (uninstall, install, `cmd package compile -m speed -f`), checked on a fresh install for the lb plates, then seeded. A second seed with two near-empty days in the last week (a banana-sized 200 and 220 kcal entry, nothing else since 9 Nov) was used for the weekly check-in. No Gradle was run; the app, wear and wearprotocol build folders were deleted for disk space.
+Search performance on this build (fresh process, seeded data, speed-compiled, 4 emulator cores, software rendering, top sampled every 2 to 3 s): cold start to Today quiet: 71 s wall, 143 CPU s. Today then tap Log food: the app's CPU stays at 170 to 330 percent for about 55 s (114 CPU s) and goes quiet at about 62 s; after that 0 percent. Typing `adb shell input text "almond%smilk"` into the Log food search field after it was quiet: the command took 22 s and 29 s, and the app hit an ANR both times (12:22:09 and 12:27:21 device time; "Input dispatching timed out ... Waited 5009ms for KeyEvent" on the last key; the log shows 7.9 s and 4.2 s spent on single key events; the ANR trace shows the main thread running in Compose layout and RenderNode creation, 95 CPU s on the main thread in total, plus a busy JIT thread). The app was killed each time, so how much text was kept could not be read. Same text into Quick add on the same build: 15.7 s, no ANR, the field kept "almond " (7 of 12 characters, so the emulator's injected input loses characters in other fields too). One keyevent per second (a, l, m, o, n, d, space, m, i, l, k): all 11 characters kept, no ANR, and the screen showed "Drinks: almond milk. Drinks matching "almond milk" are logged from Drinks". "almo" typed slowly lists Salmon fillet, baked first; "almond" lists Almond butter, Oil, Flour, Nuts almonds from the USDA rows after about 20 s.
+Covered: A.1 (welcome, Skip setup), A.3 to A.7 on the screens visited, A.10 to A.14 (font 1.5 and dark on Today; landscape at 1.5 dark; the NFC dialog); B.1, B.2, B.3, B.12 to B.15 on the day with 8 template logs, planned card chips (B planned meal), Swap sheet in full; C meal templates, recipes list and page, shopping list (amounts and the Clear button), Log food search paths, Quick add, food page (peanut butter, almond butter), More; D Pull-Up history; E.1 to E.3 Progress charts, jump tests (log and delete), E.11 weekly check-in (full week, sparse week, dismiss); F You (goals and macros); G Settings Nutrition (auto switch, calories by hand 1000, floor), Training (plates, jump switch), Sync and export (encrypted export, import with passphrase, wrong passphrase, preview); H.2 to H.5; I.1 to I.4 and I.9 on Log food, recipes, Swap, templates; J.1, J.2, J.10, J.14, J.17, J.18 on the screens above.
+Not covered: onboarding steps 2 to 10 (Pass 5b did them); D.1 to D.13 (no workout was started or finished, no program edit); E.5 to E.9, E.13 to E.26 (photos, PDF export, Health Connect); F.4 to F.6; most of G (Food database, Videos, the 17 Health Connect switches, Reminders posting); H.1, H.6 to H.12; I.5 to I.8, I.10 to I.12 (menu import, PDF, custom keywords, Strict to Avoid); eat-out nearby search, camera, AI, network, real location (no key, offline). The import-settings default (Q5b-15) could not be exercised.
+Logcat: no FATAL EXCEPTION and an empty crash buffer for com.zeroindex.*. ANRs for com.zeroindex.intake.preview: 12:22:09 and 12:27:21 (Log food search `input text`, Q6-3). Both times the buffer was inspected before the next `logcat -c`; from the import tests onward (cleared at 14:08) the buffer shows no ANR, no StrictMode line and no fake passphrase text ("qapass1", "wrongpass" counted 0). No other ANR of the app. No key was typed into the app.
+Method notes: the emulator needs 5 to 30 s per action; tap coordinates come from `dump`; a swipe that started over the open keyboard typed "almog" through Gboard's swipe typing (my error, not logged); a Today tap at y 2126 after the snackbar had gone opened an entry's share-of-calories sheet (my error).
+Seen on emulator only (Android 11, software rendering, no KVM, 3-button navigation). Not seen on a device: typing speed, IME behaviour, performance, haptics, notifications, Health Connect, camera, the NFC read itself (the dialog was opened with an NDEF intent), the timing of snackbars on a fast phone.
+
+### Q6-1 · S2 · Settings / You G Nutrition, F.8 · The low-calorie floor warning breaks the Nutrition settings layout
+Status: open
+Steps: 1. Seeded install. 2. You > Settings > Nutrition. 3. Calories by hand: clear, type 1000, tap Save. 4. Leave the keyboard (Back).
+Expected: a warning under the field, with the label, field and Save button where they were.
+Actual: the warning appears (amber box: "1000 kcal is below the usual floor of 2024 kcal (1.1 x your calories at rest). It is saved as you typed it. Eating this low for long costs muscle, energy and mood; consider a higher number.") but it sits in the same row as the field and Save, which are pushed to the left edge; the "Calories by hand" label and its help line are squeezed into a column one letter wide, running down the page for several screens. Typing 2260 and saving again restores the layout. The Save button is grey while the warning shows, and the text says the value "is saved".
+Screenshot: design/qa/pass6/q6-1-floor-row-collapsed.png, design/qa/pass6/q6-1-floor-warning-layout.png
+Suspect: ui/screens/settings Nutrition calories-by-hand row (the warning composable placed inside the Row)
+
+### Q6-2 · S2 · Nutrition / Progress C.42, E.10, J.14 · Undo on the "Logged Post-workout shake" and "Jump test deleted" snackbars did not undo
+Status: open (emulator timing may play a part: see Steps)
+Steps: 1. Nutrition > More > Meal templates > "..." on Post-workout shake > Log now > Snacks. 2. The snackbar "Logged Post-workout shake to Snacks. Almond milk, unsweetened: check the label for dairy" shows with Undo (confirmed in a screenshot). 3. Tap Undo (1.5 s, 4 s and about 10 s after the log, 4 tries in all). 4. Today. Also Progress > Log a jump test (20 and 90) > Delete this jump test > "Jump test deleted · Undo" > tap Undo (3 tries at 1.5 and 3 s).
+Expected: the entries (three foods, 338 kcal) are removed again; the jump test comes back.
+Actual: the snackbar goes away after the tap, but Today's total only grew (1 shake to 8 shakes, 2,600 kcal) and the jump test stayed deleted ("No jump tests yet"). A control (Today entry Delete, then Undo) could not be timed on this emulator, so the snackbar action may be missed because the app takes seconds to react; but Undo was visible and tapped within the snackbar's life in the template case.
+Screenshot: design/qa/pass6/q6-2-template-undo-gone.png, design/qa/pass6/q6-2-jump-undo-snackbar.png (template snackbar: q6-template-log-1s.png)
+Suspect: the template log and jump test Undo callbacks (ui/screens/nutrition meal templates, ui/screens/progress jump tests)
+
+### Q6-3 · S2 · Nutrition C.10, J.17 · Log food search: `input text` still gives an ANR on the preview build, and the screen needs about a minute of CPU to open
+Status: open
+Steps: 1. Fresh process, seeded data (speed-compiled). 2. Today > Log food, wait until the CPU is quiet (about 62 s, 114 CPU s). 3. Tap Search foods, `adb shell input text "almond%smilk"`.
+Expected: no ANR; a human typing pace is kept (it is), and the screen is usable soon after it opens.
+Actual: ANR twice in two runs (numbers in the pass header); the key events took 4 to 8 s each; the field text is lost with the killed app. Typed one key per second, all 11 characters are kept and no ANR. "almo" still ranks Salmon fillet first. The same text into Quick add took 15.7 s without ANR and kept 7 characters, so part of the loss is the emulator's input. The ANR trace shows the main thread in Compose layout (RenderNode creation) for the whole of it.
+Screenshot: design/qa/pass6/q6-3-search-anr-launcher.png (after the ANR the launcher is in front); q6-typed-slow.png, q6-quickadd-fast.png
+Suspect: ui/addfood/LogFoodScreen.kt (rows composed and laid out on the main thread while the allergen scan runs; the scan finishing is what the 55 s of CPU is)
+
+### Q6-4 · S3 · Progress E.11 · Weekly check-in: the week card and the suggestions describe different weeks
+Status: open
+Steps: 1. Seeded install, Mon 16 Nov, 650 kcal logged today. 2. Progress > Weekly check-in.
+Expected: the card and the suggestions refer to the same days, or the suggestions say which days they use.
+Actual: the card is "Week of Nov 16-22", "AVG INTAKE 650 kcal · 1 DAY LOGGED", "Protein target hit 0 of 1 logged day · 0%", and says logged days "average far below your target"; the suggestion below it, headed "Check-in of Mon 16 Nov", says "You averaged 135 g of protein on the 6 days you logged; the target is 170 g (79%)". Today's partial day is the only "logged day" of the week card. The week chips open scrolled so the selected week (Nov 16-22) is the last chip and partly off screen.
+Screenshot: design/qa/pass6/q6-4-checkin-week-card.png, design/qa/pass6/q6-4-checkin-suggestions.png
+Suspect: ui/screens/checkin/WeeklyCheckInScreen.kt (selected week versus the coach's trailing 7 days)
+
+### Q6-5 · S3 · Progress E.11 · Sparse week: the LOG MORE card counts 0 days and 6 weigh-ins while the card above says 2 days and 5
+Status: open
+Steps: 1. Second seed (two days of about 200 kcal in the last week). 2. Progress > Weekly check-in > chip Nov 9-15.
+Expected: one set of counts.
+Actual: the week card says "AVG INTAKE 210 kcal · 2 DAYS LOGGED", "Days logged 2 of 7", "Weigh-ins 5"; the LOG MORE card says "You logged food on 0 of 7 days and weighed in on 6 (need 5 and 3)". The "0 of 7" is days of 800 kcal or more and the "6" a different window, but neither is said. (The verdict itself is right: "Not enough data this week to adjust", no "All on track", the Suggestions header is whole, and a dismissed card stays on the screen tagged Dismissed.)
+Screenshot: design/qa/pass6/q6-5-checkin-sparse-logmore.png (also q6-checkin-sparse2.png, q6-checkin-alldismissed.png)
+Suspect: domain/coach/CoachEngine.kt data-gap card text
+
+### Q6-6 · S3 · Nutrition C.45 · Shopping list "Clear" empties the list and the picks at once, with no confirmation and no Undo
+Status: open
+Steps: 1. Nutrition > More > Shopping list. 2. Tick Baked mac and cheese and Chicken fajita bowls ("9 items · 0 ticked"). 3. Tap Clear.
+Expected: a confirmation or an Undo.
+Actual: the nine items and both picks vanish with no message.
+Screenshot: design/qa/pass6/q6-6-shopping-clear.png
+Suspect: ui/screens/shopping
+
+### Q6-7 · S4 · Progress / Nutrition J.20 · Date and nutrient wording differs between screens for a lb and fl oz user
+Status: open
+Steps: 1. Progress (chart ends): "Sun 18 Oct 2026", "Mon 16 Nov 2026". 2. Today: "Mon, Nov 16". 3. Meal plan > Make a plan: "First day of week 1 (yyyy-mm-dd)". 4. Nutrition: "Fibre" and "Sat fat" while Settings > Nutrition uses US units.
+Expected: one date style and one spelling for a user on lb, in and fl oz.
+Actual: day-month on Progress, month-day on Today, ISO in the plan form; "Fibre" next to imperial units. Chart text alternatives read "target 2260 kcal" where the screen says "2,260 kcal".
+Screenshot: design/qa/pass6/q6-progress-4.png
+Suspect: date formatters in ui/screens/progress, ui/screens/mealplan; strings
+
+### Q6-8 · S4 · Recipes C.36, I.4 · The dairy chip lists the recipe's own name as a matched term
+Status: open
+Steps: 1. Nutrition > More > Recipes (or the plan picker, or Swap).
+Expected: matched ingredient words only, for example butter, cheddar, cheese, cream, milk.
+Actual: "Contains mac and cheese, butter, cheddar, cheese, cream, milk and whole milk": the first term is the recipe name.
+Screenshot: design/qa/pass6/q6-recipes-8s.png
+Suspect: recipe verdict match list includes the name match
+
+Summary for Pass 6: 8 new findings. S1: 0. S2: 3 (Q6-1, Q6-2, Q6-3). S3: 3 (Q6-4, 5, 6). S4: 2 (Q6-7, 8). Retests: 29 items (Pass 1 to 5b statuses with "needs retest" or "Partly fixed", Q5b-17, and three round 2 bullets): 17 verified fixed, 8 still failing (Q1-3, Q5a-3, Q5a-4, Q5b-1, Q5a-9, Q5b-4, Q5b-9, and the "almo" ranking bullet), 3 cannot verify on the emulator (Q5b-15 and two round 2 bullets with no seed rows), 1 not retested (Q1-14, owner decision). The allergen block was re-run on Log food (Recent, almond results), the recipe list, plan picker, Swap, templates, the planned card, shopping and the NFC dialog: nothing with dairy in its name or ingredients showed as clear; Almond butter, creamy shows "May contain dairy" with its reason. A new pass is needed after fixes; the stop condition is not met. Nothing here was seen on a device.
