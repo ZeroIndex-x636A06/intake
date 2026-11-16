@@ -23,6 +23,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -110,8 +111,9 @@ class RecipeSearchViewModel @Inject constructor(
     /** The engine's verdict per recipe, empty when the person avoids nothing. Text work, so off the main thread. */
     private suspend fun chipsFor(recipes: List<RecipeEntity>): Map<String, RowAllergen> {
         if (recipes.isEmpty() || allergens.avoidedAllergens().isEmpty()) return emptyMap()
-        return withContext(Dispatchers.Default) {
+        return withContext(allergens.scanDispatcher) {
             recipes.associate { r ->
+                ensureActive()
                 r.id to logger.rowAllergen(r)
             }
         }
@@ -127,9 +129,13 @@ class RecipeSearchViewModel @Inject constructor(
     private suspend fun candidateOf(r: RecipeEntity): RecipeCandidate {
         if (r.kcalPerServing != null) return RecipeCandidate(r.id, r.name, r.kcalPerServing, r.proteinPerServing)
         val lines = estimateLines(r)
+        // The estimate walks the bundled food database for every ingredient line. The same lines give the same figure,
+        // so it is kept for the process instead of being redone each time Log food opens (Q5b-1).
+        val key = EstimateKey(r.id, r.name, r.servings, r.proteinPerServing, lines)
+        estimateMemo[key]?.let { return it }
         val est = if (lines.isEmpty()) null else runCatching { estimator.estimate(lines, r.servings) }.getOrNull()
         val per = est?.perServing
-        return if (per != null) {
+        val candidate = if (per != null) {
             RecipeCandidate(r.id, r.name, per.kcal, r.proteinPerServing ?: per.protein, estimated = true)
         } else {
             RecipeCandidate(
@@ -137,7 +143,12 @@ class RecipeSearchViewModel @Inject constructor(
                 whyNoKcal = RecipeCandidate.reasonNoKcal(lines.size, est?.notCountedLines?.map { it.line }.orEmpty()),
             )
         }
+        if (estimateMemo.size > 500) estimateMemo.clear()
+        estimateMemo[key] = candidate
+        return candidate
     }
+
+    private data class EstimateKey(val id: String, val name: String, val servings: Int?, val protein: Double?, val lines: List<String>)
 
     private suspend fun estimateLines(r: RecipeEntity): List<String> =
         recipeRepo.view(r.id)?.ingredients?.map { it.text }.orEmpty()
@@ -183,5 +194,9 @@ class RecipeSearchViewModel @Inject constructor(
         val logged = logger.logServings(recipe, slot, estimate = estimateTotalsFor(recipe), servings = 1.0, at = at) ?: return
         val entry = if (overrideNote != null) foodLog.markOverridden(logged, overrideNote) else logged
         messages.post(AppMessage("Logged ${recipe.name} to ${slot.name.lowercase()}", "Undo") { foodLog.softDelete(entry.id) })
+    }
+
+    private companion object {
+        val estimateMemo = java.util.concurrent.ConcurrentHashMap<EstimateKey, RecipeCandidate>()
     }
 }

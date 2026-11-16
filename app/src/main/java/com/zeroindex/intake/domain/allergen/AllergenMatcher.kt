@@ -541,6 +541,6 @@ object AllergenMatcher {
         if (bare.isEmpty()) return null
         avoided.firstOrNull { it == bare }?.let { return it }
         relevant.firstOrNull { it.aliasTerm.trim().lowercase() == bare }?.let { return it.allergen }
-        return relevant.firstOrNull { termRegex(it.aliasTerm).containsMatchIn(bare) }?.allergen
+        return relevant.firstOrNull { matchesOf(it.aliasTerm, bare).any() }?.allergen
     }
 }
