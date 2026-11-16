@@ -22,6 +22,9 @@ import com.zeroindex.intake.domain.plan.PlanSchedule
 import com.zeroindex.intake.domain.model.PlanLoopMode
 import com.zeroindex.intake.data.db.entity.MealPlanEntity
 import com.zeroindex.intake.domain.plan.ShoppingListBuilder
+import com.zeroindex.intake.ui.allergen.chipDetail
+import com.zeroindex.intake.ui.allergen.traceChipLabel
+import com.zeroindex.intake.ui.allergen.verdict
 import com.zeroindex.intake.domain.plan.ShoppingSections
 import com.zeroindex.intake.domain.time.Clock
 import com.zeroindex.intake.domain.units.WeightUnit
@@ -29,6 +32,9 @@ import com.zeroindex.intake.data.plan.PlanImportBuilder
 import com.zeroindex.intake.ui.AppMessage
 import com.zeroindex.intake.ui.AppMessages
 import dagger.hilt.android.lifecycle.HiltViewModel
+import com.zeroindex.intake.domain.allergen.AllergenLogGate
+import com.zeroindex.intake.domain.allergen.AllergenScanResult
+import com.zeroindex.intake.ui.allergen.PendingEntryAllergen
 import java.time.LocalTime
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -41,6 +47,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -133,6 +140,22 @@ class MealPlanViewModel @Inject constructor(
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ShoppingSections(emptyList(), emptyList()))
 
+    /**
+     * The allergen marker of each shopping row (by row id), from the local engine on the item name. Only rows that match
+     * one of the person's allergens have one; nothing is hidden and a clear row says nothing.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val shoppingMarks: StateFlow<Map<String, com.zeroindex.intake.ui.addfood.RowAllergen>> =
+        kotlinx.coroutines.flow.combine(shopping, repo.observeAllergenProfile()) { sections, _ -> sections }.mapLatest { sections ->
+            val rows = sections.sections.flatMap { it.second } + sections.pantry
+            val scans = com.zeroindex.intake.domain.plan.ShoppingAllergenMarks.flagged(repo.shoppingScans(rows.map { it.name }), includeCheckLabel = false)
+            rows.mapNotNull { r ->
+                scans[r.name]?.let { sc ->
+                    r.id to com.zeroindex.intake.ui.addfood.RowAllergen(sc.verdict(), sc.chipDetail(), traceLabel = sc.traceChipLabel())
+                }
+            }.toMap()
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
     private val showAllEatOut = MutableStateFlow(false)
     val showingAllEatOut: StateFlow<Boolean> = showAllEatOut.asStateFlow()
 
@@ -159,6 +182,18 @@ class MealPlanViewModel @Inject constructor(
 
     private val _import = MutableStateFlow(ImportUiState())
     val importState: StateFlow<ImportUiState> = _import.asStateFlow()
+
+    private val _allergenPending = MutableStateFlow<PendingPlanAllergen?>(null)
+    val allergenPending: StateFlow<PendingPlanAllergen?> = _allergenPending.asStateFlow()
+
+    fun dismissAllergenPending() { _allergenPending.value = null }
+
+    /** "Log it anyway" on the warning sheet: a user action, and the entry keeps the "Logged despite" note. */
+    fun confirmAllergenPending() {
+        val p = _allergenPending.value ?: return
+        _allergenPending.value = null
+        doLogMeal(p.content, p.macros, allergenConfirmed = true)
+    }
 
     private val _notice = MutableStateFlow<String?>(null)
     val notice: StateFlow<String?> = _notice.asStateFlow()
@@ -258,6 +293,21 @@ class MealPlanViewModel @Inject constructor(
         if (option.estimatedKcal > 0) doLogEatOut(option, null) else _pending.value = PendingLog.EatOut(option)
     }
 
+    /** [live] with the option's saved verdict added when it is worse than anything found now. It only ever raises. */
+    private fun savedVerdictScan(option: EatOutOptionEntity, live: AllergenScanResult): AllergenScanResult {
+        val kind = when (option.allergenStatus) {
+            AllergenStatus.CONTAINS -> com.zeroindex.intake.domain.model.AllergenMatchKind.CONTAINS
+            AllergenStatus.MAY_CONTAIN -> com.zeroindex.intake.domain.model.AllergenMatchKind.MAY_CONTAIN
+            else -> return live
+        }
+        if (live.hasAnything && (kind != com.zeroindex.intake.domain.model.AllergenMatchKind.CONTAINS || live.blocks)) return live
+        val saved = com.zeroindex.intake.domain.allergen.AllergenMatch(
+            allergen = "allergen", matchedTerm = "a saved warning", field = com.zeroindex.intake.domain.allergen.MatchField.NAME,
+            kind = kind, note = "This saved option was marked as a possible allergen match when it was added.",
+        )
+        return AllergenScanResult(live.matches + saved)
+    }
+
     fun dismissPending() { _pending.value = null }
 
     fun confirmPending(macros: Macros) {
@@ -269,8 +319,15 @@ class MealPlanViewModel @Inject constructor(
         }
     }
 
-    private fun doLogMeal(content: RecipeContent, override: Macros?) = viewModelScope.launch {
-        when (val r = repo.logMeal(content, slotNow(), override)) {
+    private fun doLogMeal(content: RecipeContent, override: Macros?, allergenConfirmed: Boolean = false) = viewModelScope.launch {
+        if (!allergenConfirmed) {
+            val scan = repo.scanMeal(content)
+            if (scan.hasAnything) {
+                _allergenPending.value = PendingPlanAllergen(content, slotNow(), null, override, scan)
+                return@launch
+            }
+        }
+        when (val r = repo.logMeal(content, slotNow(), override, allergenOverride = allergenConfirmed, noteDespite = allergenConfirmed)) {
             is MealLogResult.Blocked -> _notice.value =
                 "Not logged: ${r.terms.joinToString()} matches your allergen profile."
             is MealLogResult.Logged -> messages.post(
@@ -284,8 +341,33 @@ class MealPlanViewModel @Inject constructor(
         }
     }
 
-    private fun doLogEatOut(option: EatOutOptionEntity, override: Macros?) = viewModelScope.launch {
-        val log = repo.logEatOut(option, slotNow(), override)
+    private val _eatOutPending = MutableStateFlow<PendingEntryAllergen?>(null)
+    val eatOutPending: StateFlow<PendingEntryAllergen?> = _eatOutPending.asStateFlow()
+
+    fun dismissEatOutPending() { _eatOutPending.value = null }
+
+    /** "Log it anyway" on the eat-out warning sheet: a user action; the entry keeps "Logged despite: ...". */
+    fun confirmEatOutPending() {
+        val p = _eatOutPending.value ?: return
+        _eatOutPending.value = null
+        val a = p.action as? PendingEntryAllergen.Action.EatOut ?: return
+        doLogEatOut(a.option, a.macros, AllergenLogGate.overrideNote(p.scan))
+    }
+
+    /**
+     * The order text is scanned as it is now, and a saved "contains" or "may contain" verdict on the option counts too
+     * (the card shows the worse of the two). Either one waits behind the warning sheet; nothing logs silently.
+     */
+    private fun doLogEatOut(option: EatOutOptionEntity, override: Macros?, overrideNote: String? = null) = viewModelScope.launch {
+        if (overrideNote == null) {
+            val live = repo.scanEatOut(option)
+            val scan = savedVerdictScan(option, live)
+            if (AllergenLogGate.decide(scan) is AllergenLogGate.Decision.Review) {
+                _eatOutPending.value = PendingEntryAllergen(PendingEntryAllergen.Action.EatOut(option, override), option.venueName, scan)
+                return@launch
+            }
+        }
+        val log = repo.logEatOut(option, slotNow(), override, overrideNote)
         messages.post(
             AppMessage(
                 text = "Logged ${option.venueName} to ${slotNow().name.lowercase()}",

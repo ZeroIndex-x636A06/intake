@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -35,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,10 +51,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.db.entity.AllergenStatus
 import com.zeroindex.intake.data.repository.IngredientView
+import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.recipe.IngredientSections
 import com.zeroindex.intake.domain.recipe.LineAllergenTag
 import com.zeroindex.intake.domain.recipe.RecipeNutritionLabels
+import com.zeroindex.intake.domain.recipe.ResolvedRecipeNutrition
 import com.zeroindex.intake.domain.recipe.RecipeTimes
+import com.zeroindex.intake.domain.recipe.ServingsStep
 import com.zeroindex.intake.ui.allergen.CheckLabelChip
 import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.MacroTiles
@@ -80,16 +85,23 @@ fun RecipeDetailScreen(
     contentPadding: PaddingValues,
     onDeleted: () -> Unit,
     onEdit: (String) -> Unit,
+    /** Opens cook mode for this recipe (it works with no meal plan). */
+    onCook: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: RecipeLibraryViewModel = hiltViewModel(),
 ) {
     val recipes by viewModel.recipes.collectAsStateWithLifecycle()
     val notice by viewModel.notice.collectAsStateWithLifecycle()
+    val pendingServing by viewModel.pendingLog.collectAsStateWithLifecycle()
     val recipe = recipes.firstOrNull { it.id == recipeId } ?: return
     val view by remember(recipeId) { viewModel.viewOf(recipeId) }.collectAsStateWithLifecycle(null)
+    val estimate by remember(recipeId) { viewModel.estimateOf(recipeId) }.collectAsStateWithLifecycle(null)
+    val nutrition = resolveNutrition(recipe, estimate?.perServing)
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var picking by remember { mutableStateOf(false) }
+    // Servings to log, in half steps; the recipe's own amount is one serving.
+    var servings by rememberSaveable(recipeId) { mutableStateOf(1.0) }
     var logged by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
@@ -139,19 +151,28 @@ fun RecipeDetailScreen(
             }
         }
         RecipePhoto(recipe.imageUrl)
-        if (recipe.kcalPerServing != null) {
+        if (nutrition.hasAnything) {
             MacroTiles(
                 listOf(
-                    Triple("${recipe.proteinPerServing?.roundToInt() ?: 0} g", "Protein", ProteinAccent),
-                    Triple("${recipe.carbsPerServing?.roundToInt() ?: 0} g", "Carbs", CarbAccent),
-                    Triple("${recipe.kcalPerServing.roundToInt()}", "kcal", FatAccent),
+                    Triple(ResolvedRecipeNutrition.text(nutrition.protein, "g"), "Protein", ProteinAccent),
+                    Triple(ResolvedRecipeNutrition.text(nutrition.carbs, "g"), "Carbs", CarbAccent),
+                    Triple(nutrition.kcal?.let { (if (it.estimated) "~" else "") + it.value.roundToInt() } ?: ResolvedRecipeNutrition.NOT_LISTED, "kcal", FatAccent),
                 ),
             )
             Text(
-                "Per serving · fat ${recipe.fatPerServing?.roundToInt() ?: 0} g",
+                "Per serving · fat ${ResolvedRecipeNutrition.text(nutrition.fat, "g")}" + if (nutrition.anyEstimated) " · ~ is estimated from ingredients" else "",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        } else {
+            Text(
+                "Nutrition: not listed. The page gave none and the ingredients could not be matched.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        estimate?.takeIf { nutrition.anyEstimated }?.let { est ->
+            RecipeEstimateCard(est, nutrition, onPick = { i, f -> viewModel.pickFood(recipeId, i, f) })
         }
         val extras = RecipeNutritionLabels.extras(
             recipe.fiberPerServing, recipe.sugarPerServing, recipe.saturatedFatPerServing, recipe.sodiumMgPerServing,
@@ -181,13 +202,22 @@ fun RecipeDetailScreen(
                             highlight = !highlight
                             if (highlight) scope.launch { firstFlagged.bringIntoView() }
                         }
-                        .semantics { if (flagged > 0) contentDescription = "Show the $flagged flagged ingredient lines" },
+                        .semantics { if (flagged > 0) contentDescription = flaggedLinesDescription(flagged) },
                 ) {
                     when (recipe.allergenStatus) {
                         AllergenStatus.MAY_CONTAIN -> StatusPill("Check allergens", tone = PillTone.Wait)
                         AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
                         AllergenStatus.CONTAINS -> StatusPill("Contains an allergen", tone = PillTone.Bad)
-                        AllergenStatus.CLEAR -> StatusPill("Passed allergen check")
+                        AllergenStatus.CLEAR -> {
+                            val basis = com.zeroindex.intake.domain.allergen.AllergenEvidence.recipeClearBasis(
+                                if (ingredients.isEmpty() && recipe.ingredientsText.isBlank()) 0 else 1,
+                            )
+                            if (basis.isCaution) {
+                                com.zeroindex.intake.ui.allergen.AllergenChip(com.zeroindex.intake.domain.swap.SwapAllergen.CHECK_LABEL, label = basis.chipText)
+                            } else {
+                                StatusPill(com.zeroindex.intake.domain.allergen.AllergenEvidence.ClearBasis.LABEL_READ.chipText)
+                            }
+                        }
                         AllergenStatus.MENTIONED_AVOIDED -> StatusPill(MentionedAvoided.PILL)
                         else -> StatusPill("Allergens not checked", tone = PillTone.Wait)
                     }
@@ -257,21 +287,63 @@ fun RecipeDetailScreen(
             }
         }
         Spacer(Modifier.height(6.dp))
-        Button(
-            onClick = { picking = true },
-            enabled = recipe.kcalPerServing != null,
-            shape = IntakeShape.Button,
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-        ) { Text(if (logged) "Logged · log another serving" else "Log a serving") }
+        ServingsStepper(
+            servings = servings,
+            onChange = { up -> servings = ServingsStep.next(servings, up) },
+        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (recipe.instructions.isNotBlank()) {
+                OutlinedButton(
+                    onClick = { onCook(recipe.id) },
+                    shape = IntakeShape.Button,
+                    modifier = Modifier.weight(1f).height(52.dp),
+                ) { Text("Cook") }
+            }
+            Button(
+                onClick = { picking = true },
+                enabled = nutrition.kcal != null,
+                shape = IntakeShape.Button,
+                modifier = Modifier.weight(if (recipe.instructions.isNotBlank()) 2f else 1f).height(52.dp),
+            ) {
+                Text(
+                    when {
+                        logged && servings == 1.0 -> "Logged · log another"
+                        logged -> "Logged · log ${ServingsStep.label(servings)}"
+                        servings == 1.0 -> "Log a serving"
+                        else -> "Log ${ServingsStep.label(servings)}"
+                    },
+                )
+            }
+        }
+        if (nutrition.kcal == null) {
+            // The button is off for a reason the person can fix: say what is missing and where to add it.
+            Text(
+                "Log a serving needs a calorie figure, and this recipe has none. Add the ingredients' nutrition in the recipe to turn it on.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            TextButton(onClick = { onEdit(recipe.id) }) { Text("Edit recipe to add nutrition") }
+        }
         notice?.let { SandNote(it) }
         Spacer(Modifier.height(24.dp))
     }
 
     if (picking) {
         SlotPickerSheet(
-            title = "Log a serving to",
+            title = "Log ${ServingsStep.label(servings)} to",
             onDismiss = { picking = false },
-            onPick = { slot -> viewModel.logServing(recipe, slot) { logged = true; picking = false } },
+            onPick = { slot -> picking = false; viewModel.logServing(recipe, slot, estimate, servings) { logged = true } },
+            slots = MealSlot.MEALS,
+        )
+    }
+
+    pendingServing?.let { p ->
+        com.zeroindex.intake.ui.allergen.AllergenWarningSheet(
+            foodName = p.pending.name,
+            scan = p.pending.scan,
+            ingredientText = p.pending.ingredientText,
+            onDismiss = viewModel::dismissPendingServing,
+            onLogAnyway = { viewModel.confirmPendingServing { logged = true } },
         )
     }
 
@@ -293,6 +365,36 @@ fun RecipeDetailScreen(
         )
     }
 }
+
+/** The servings to log, with − and + in half steps. Same look as the checklist's stepper in cook mode. */
+@Composable
+private fun ServingsStepper(servings: Double, onChange: (up: Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text("Servings to log", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+        OutlinedButton(
+            onClick = { onChange(false) },
+            enabled = servings > ServingsStep.MIN,
+            shape = IntakeShape.Button,
+            contentPadding = PaddingValues(0.dp),
+            modifier = Modifier.size(48.dp).semantics { contentDescription = "Fewer servings to log" },
+        ) { Text("−", style = MaterialTheme.typography.titleMedium) }
+        Text(
+            ServingsStep.label(servings),
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(horizontal = 10.dp),
+        )
+        OutlinedButton(
+            onClick = { onChange(true) },
+            shape = IntakeShape.Button,
+            contentPadding = PaddingValues(0.dp),
+            modifier = Modifier.size(48.dp).semantics { contentDescription = "More servings to log" },
+        ) { Text("+", style = MaterialTheme.typography.titleMedium) }
+    }
+}
+
+/** The chip's spoken label for the flagged ingredient lines, singular for one. */
+internal fun flaggedLinesDescription(count: Int): String =
+    "Show the $count flagged ${if (count == 1) "ingredient line" else "ingredient lines"}"
 
 /** "heavy whipping cream · contains dairy": the line, then a small tag when the allergen engine flagged it. */
 @Composable

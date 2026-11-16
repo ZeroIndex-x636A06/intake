@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -60,6 +61,17 @@ fun SubHead(
             )
         }
     }
+}
+
+/** Just the explanatory line of a [SubHead], for a pushed screen whose top bar already shows the title. */
+@Composable
+fun SubCopy(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier.fillMaxWidth().padding(top = 8.dp, bottom = 10.dp),
+    )
 }
 
 /**
@@ -130,6 +142,8 @@ fun Segmented(
                     shape = RoundedCornerShape(9.dp),
                     modifier = Modifier
                         .heightIn(min = 40.dp)
+                        // Clip before the click so the press ripple takes the pill's round corners.
+                        .clip(RoundedCornerShape(9.dp))
                         .clickable(
                             role = Role.RadioButton,
                             onClickLabel = option,
@@ -178,6 +192,8 @@ fun ChoiceChip(
         ),
         modifier = modifier
             .heightIn(min = 48.dp)
+            // Clip before the click so the press ripple follows the chip's shape.
+            .clip(IntakeShape.Chip)
             .clickable(role = Role.RadioButton, onClick = onClick),
     ) {
         Box(

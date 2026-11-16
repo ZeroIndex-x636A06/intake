@@ -5,7 +5,10 @@ import androidx.room.Query
 import androidx.room.Upsert
 import com.zeroindex.intake.data.db.entity.FoodLogEntity
 import com.zeroindex.intake.data.db.projection.DailyIntake
+import com.zeroindex.intake.data.db.projection.LastLoggedFood
 import com.zeroindex.intake.data.db.projection.MacroTotals
+import com.zeroindex.intake.data.db.projection.RecentDrinkLog
+import com.zeroindex.intake.data.db.projection.RecentPrepared
 import com.zeroindex.intake.data.db.projection.SlotTotals
 import com.zeroindex.intake.domain.model.MealSlot
 import kotlinx.coroutines.flow.Flow
@@ -107,8 +110,42 @@ interface FoodLogDao {
         dayLengthMillis: Long = 86_400_000L,
     ): List<DailyIntake>
 
+    /** Each drink logged to a slot (Drinks), latest first, with the size it was last logged at: the Drinks page's Recent row. */
+    @Query(
+        """
+        SELECT foodId AS foodId, quantityGrams AS ml, MAX(loggedAt) AS at FROM food_log
+        WHERE foodId IS NOT NULL AND quantityGrams IS NOT NULL AND mealSlot = :slot AND deletedAt IS NULL
+        GROUP BY foodId ORDER BY at DESC LIMIT :limit
+        """,
+    )
+    fun observeRecentDrinkLogs(slot: MealSlot, limit: Int): Flow<List<RecentDrinkLog>>
+
+    /** Names of rows logged without a food (recipe servings among them), latest first: Log food's recent recipes. */
+    @Query(
+        """
+        SELECT foodNameAtLog AS name, MAX(loggedAt) AS at FROM food_log
+        WHERE foodId IS NULL AND deletedAt IS NULL
+        GROUP BY foodNameAtLog ORDER BY at DESC LIMIT :limit
+        """,
+    )
+    fun observeRecentPrepared(limit: Int): Flow<List<RecentPrepared>>
+
+    /** When each saved food was last logged, for the meal template picker's Recent list. */
+    @Query(
+        """
+        SELECT foodId AS foodId, MAX(loggedAt) AS at FROM food_log
+        WHERE foodId IS NOT NULL AND deletedAt IS NULL
+        GROUP BY foodId
+        """,
+    )
+    fun observeLastLoggedByFood(): Flow<List<LastLoggedFood>>
+
     @Query("UPDATE food_log SET deletedAt = :now, updatedAt = :now WHERE id = :id")
     suspend fun softDelete(id: String, now: Long)
+
+    /** The row whether or not it was deleted: Undo on a drink brings its food row back too. */
+    @Query("SELECT * FROM food_log WHERE id = :id")
+    suspend fun findAny(id: String): FoodLogEntity?
 
     /** How many distinct days have any entry, for "18 of the last 21 days" (SPEC §11). */
     @Query(

@@ -460,6 +460,7 @@ class CoachRepository @Inject constructor(
                 workoutDoneToday = sessionsToday.isNotEmpty(),
                 waterSoFarMl = day?.consumedMl ?: 0.0,
                 waterTargetMl = day?.target?.totalMl ?: 0.0,
+                volumeUnit = settings.settings.first().volumeUnit,
                 baselineMissing = baseline?.takeIf { !it.progress.ready }?.progress?.missing?.firstOrNull()?.what,
                 loggingStreakDays = DailyFocusPicker.streak(idx, loggedDays),
                 daysLoggedThisWeek = loggedDays.count { it >= weekStart },

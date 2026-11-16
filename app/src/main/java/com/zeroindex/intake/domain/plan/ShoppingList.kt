@@ -23,6 +23,8 @@ data class GeneratedShoppingLine(
     val isPantryStaple: Boolean,
     /** Which recipe groups use it: "For the Sauce, For the Chicken". Null when none are grouped. */
     val note: String? = null,
+    /** The recipes that use it, for "where is this used". */
+    val sources: List<String> = emptyList(),
 )
 
 data class ShoppingSections(
@@ -63,6 +65,24 @@ object ShoppingListBuilder {
             }
             .sortedBy { it.key }
 
+    /**
+     * The same, from whole ingredient lines ("2 medium zucchini", "1 tbsp olive oil"): amounts in different units are
+     * added up by [ShoppingQuantities], scaled per recipe, and each line's source recipes are kept.
+     */
+    fun generateFromLines(lines: List<ShoppingContribution>): List<GeneratedShoppingLine> =
+        ShoppingQuantities.aggregate(lines).map { t ->
+            GeneratedShoppingLine(
+                key = t.key,
+                name = t.name,
+                quantity = t.quantity,
+                category = categoryOf(t.key),
+                isPantryStaple = isPantryStaple(t.key),
+                note = listOfNotNull(t.groups.joinToString(", ").takeIf { it.isNotEmpty() }, t.sources.takeIf { it.isNotEmpty() }?.let { "from " + it.joinToString(", ") })
+                    .joinToString(" · ").takeIf { it.isNotEmpty() },
+                sources = t.sources,
+            )
+        }
+
     private val MEAT = setOf(
         "beef", "chicken", "pork", "turkey", "salmon", "tuna", "steak", "ribeye", "chuck", "bacon", "sausage",
         "ham", "shrimp", "fish", "lamb", "cod", "thighs", "breast", "meatballs", "brisket", "franks",
@@ -75,28 +95,60 @@ object ShoppingListBuilder {
     )
     private val FROZEN = setOf("frozen")
     private val PANTRY = setOf(
-        "rice", "pasta", "spaghetti", "penne", "macaroni", "oil", "vinegar", "salt", "sugar", "flour", "cornstarch",
-        "seasoning", "paprika", "cumin", "oregano", "powder", "sauce", "broth", "beans", "mayo", "ketchup",
-        "mustard", "soy", "sriracha", "breadcrumbs", "crackers", "oats", "yeast", "paste", "canned", "almonds",
-        "cashews", "bread", "tortillas", "buns", "rolls",
+        "rice", "pasta", "spaghetti", "penne", "macaroni", "fusilli", "rotini", "linguine", "fettuccine", "rigatoni", "farfalle",
+        "orzo", "noodle", "noodles", "quinoa", "couscous", "lentil", "lentils", "oil", "vinegar", "salt", "sugar", "flour",
+        "cornstarch", "seasoning", "paprika", "cumin", "oregano", "powder", "sauce", "broth", "stock", "bouillon", "beans", "bean", "mayo",
+        "ketchup", "mustard", "soy", "sriracha", "breadcrumbs", "crackers", "oats", "yeast", "paste", "canned", "almonds",
+        "cashews", "bread", "tortillas", "buns", "rolls", "chickpea", "chickpeas", "honey", "syrup", "peanut",
     )
+    private val DAIRY = setOf(
+        "milk", "buttermilk", "cheese", "cheddar", "mozzarella", "parmesan", "feta", "ricotta", "mascarpone", "gouda", "swiss",
+        "provolone", "brie", "paneer", "cottage", "butter", "margarine", "ghee", "yogurt", "yoghurt", "kefir", "cream", "egg", "eggs",
+    )
+    /** A dairy word that is not sold in the dairy aisle when one of these is with it: milk powder, milk chocolate, coconut milk, cream of tartar. */
+    private val NOT_DAIRY_AISLE = setOf(
+        "powder", "powdered", "chocolate", "condensed", "evaporated", "coconut", "dry", "dried", "tartar", "extract", "noodle", "noodles",
+        "bean", "beans", "squash", "lettuce", "soup", "of",
+    )
+    /** Nut and seed butters, cocoa butter and apple butter are pantry; the plant milks (almond, oat, soy) stay with the dairy. */
+    private val SPREAD_WORDS = setOf("peanut", "almond", "cashew", "cocoa", "apple", "sunflower", "shea", "nut", "sesame")
     private val STAPLES = setOf(
         "salt", "pepper", "oil", "vinegar", "sugar", "flour", "cornstarch", "paprika", "cumin", "oregano",
-        "seasoning", "powder", "yeast", "ketchup", "mustard", "sriracha", "mayo", "rice", "pasta",
+        "seasoning", "powder", "yeast", "ketchup", "mustard", "sriracha", "mayo",
     )
 
     private fun tokens(key: String): Set<String> = key.split(Regex("[^a-z]+")).filter { it.isNotEmpty() }.toSet()
 
+    /**
+     * The store section for an item key. One rule per kind of item: rice and every pasta shape are grains, dairy and eggs
+     * share one aisle (so do the plant milks), broth is pantry whatever animal it names.
+     */
     fun categoryOf(key: String): StoreCategory {
         val t = tokens(key)
         return when {
-            t.any { it in FROZEN } -> StoreCategory.FROZEN
+            t.any { it in FROZEN } || ("ice" in t && "cream" in t) -> StoreCategory.FROZEN
+            t.any { it in setOf("broth", "stock", "bouillon", "soup") } -> StoreCategory.PANTRY
+            "butter" in t && t.any { it in SPREAD_WORDS } -> StoreCategory.PANTRY
+            t.any { it in DAIRY } && t.none { it in NOT_DAIRY_AISLE } -> StoreCategory.DAIRY
+            ("half" in t && "and" in t) -> StoreCategory.DAIRY
             t.any { it in MEAT } -> StoreCategory.MEAT
             t.any { it in PRODUCE } && t.none { it in setOf("powder", "sauce", "paste", "canned") } -> StoreCategory.PRODUCE
-            t.any { it in PANTRY } -> StoreCategory.PANTRY
+            t.any { it in PANTRY } || t.any { it in DAIRY } -> StoreCategory.PANTRY
             else -> StoreCategory.OTHER
         }
     }
+
+    /**
+     * Saved rows still filed under Other, with the aisle today's [categoryOf] gives them. Rows saved before the
+     * categoriser learned a word (milk under Other) move to the right aisle; a row the categoriser still calls Other,
+     * a row in any other aisle, and removed rows are left as they are. Nothing but the aisle changes.
+     */
+    fun recategorised(items: List<ShoppingListItemEntity>, now: Long): List<ShoppingListItemEntity> =
+        items.mapNotNull { row ->
+            if (row.deletedAt != null || row.category != StoreCategory.OTHER) return@mapNotNull null
+            val better = categoryOf(normalise(row.name))
+            if (better == StoreCategory.OTHER) null else row.copy(category = better, updatedAt = now)
+        }
 
     fun isPantryStaple(key: String): Boolean {
         val t = tokens(key)
@@ -119,22 +171,14 @@ object ShoppingListBuilder {
     fun sectionTitle(category: StoreCategory): String = when (category) {
         StoreCategory.PRODUCE -> "Produce"
         StoreCategory.MEAT -> "Meat & fish"
+        StoreCategory.DAIRY -> "Dairy & eggs"
         StoreCategory.PANTRY -> "Pantry & grains"
         StoreCategory.FROZEN -> "Frozen"
         StoreCategory.OTHER -> "Other"
     }
 
-    private val GRAMS = Regex("""^(\d+(?:\.\d+)?) g$""")
-
-    /** Stored quantities are grams; show them in the weight unit from settings. Free text passes through. */
-    fun displayQuantity(quantity: String, unit: WeightUnit): String {
-        val grams = GRAMS.matchEntire(quantity.trim())?.groupValues?.get(1)?.toDoubleOrNull() ?: return quantity
-        val kg = grams / 1000.0
-        return when (unit) {
-            WeightUnit.KILOGRAMS -> if (grams >= 1000) "${formatNumber(kg, 2)} kg" else "${formatNumber(grams)} g"
-            WeightUnit.POUNDS -> "${formatNumber(unit.fromKg(kg), 2)} lb"
-        }
-    }
+    /** Stored quantities are metric ("450 g", "250 ml", "2 medium + 200 g"); show them in the units from settings. Free text passes through. */
+    fun displayQuantity(quantity: String, unit: WeightUnit): String = ShoppingQuantities.display(quantity, unit)
 
     /** Plain text for ACTION_SEND: unchecked items first within each section, pantry last. */
     fun shareText(title: String, sections: ShoppingSections, unit: WeightUnit): String = buildString {

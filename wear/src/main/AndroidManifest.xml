@@ -4,11 +4,13 @@
     <uses-feature android:name="android.hardware.type.watch" />
     <!-- Rest timer: a buzz when rest is over. -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- "Workout in progress" and "not logged" notifications (Wear OS 4 and later ask at first launch). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
-        android:label="Intake"
+        android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.DeviceDefault">
 
@@ -25,5 +27,22 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+            Wakes the app when the phone sends something while it is closed: a workout that starts on the phone, and the
+            phone's answer to a quick-remote request. Without it the watch only looked while its screen was open.
+        -->
+        <service
+            android:name=".WatchListenerService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
+                <data android:scheme="wear" android:host="*" android:pathPrefix="/intake/workout/active" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
+                <data android:scheme="wear" android:host="*" android:pathPrefix="/intake/remote/res" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>

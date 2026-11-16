@@ -3,10 +3,12 @@ package com.zeroindex.intake.ui.navigation
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavDestination
@@ -25,13 +27,19 @@ import com.zeroindex.intake.ui.screens.allergen.AllergenKeywordsScreen
 import com.zeroindex.intake.ui.screens.allergen.AllergensScreen
 import com.zeroindex.intake.ui.screens.body.BodyMetricsScreen
 import com.zeroindex.intake.ui.screens.checkin.WeeklyCheckInScreen
+import com.zeroindex.intake.ui.screens.drinks.CustomDrinkScreen
 import com.zeroindex.intake.ui.screens.drinks.DrinksScreen
 import com.zeroindex.intake.ui.screens.fooddata.FoodDetailScreen
-import com.zeroindex.intake.ui.screens.fooddata.MyFoodsScreen
+import com.zeroindex.intake.domain.model.MealSlot
+import com.zeroindex.intake.ui.addfood.AddFoodTab
+import com.zeroindex.intake.ui.addfood.LogFoodScreen
 import com.zeroindex.intake.ui.screens.hub.EatingOutScreen
-import com.zeroindex.intake.ui.screens.hub.FoodHubScreen
+import com.zeroindex.intake.ui.screens.hub.defaultMealSlot
+import com.zeroindex.intake.ui.screens.nutrition.NutritionActions
+import com.zeroindex.intake.ui.screens.nutrition.NutritionMealScreen
+import com.zeroindex.intake.ui.screens.nutrition.NutritionMoreScreen
+import com.zeroindex.intake.ui.screens.nutrition.NutritionHomeScreen
 import com.zeroindex.intake.ui.screens.hub.RecipesScreen
-import com.zeroindex.intake.ui.screens.hub.TrainHubScreen
 import com.zeroindex.intake.ui.screens.menu.MenuSourcesScreen
 import com.zeroindex.intake.ui.screens.more.ScriptReferenceScreen
 import com.zeroindex.intake.ui.screens.performance.PerformanceScreen
@@ -41,7 +49,6 @@ import com.zeroindex.intake.ui.screens.plan.CookModeScreen
 import com.zeroindex.intake.ui.screens.plan.PlanScreen
 import com.zeroindex.intake.ui.screens.plan.RecipeDetailScreen
 import com.zeroindex.intake.ui.screens.plan.RecipeHunterScreen
-import com.zeroindex.intake.ui.screens.planb.PlanBScreen
 import com.zeroindex.intake.ui.screens.profile.ProfileScreen
 import com.zeroindex.intake.ui.screens.profile.YourPlanScreen
 import com.zeroindex.intake.ui.screens.progress.ProgressScreen
@@ -51,14 +58,20 @@ import com.zeroindex.intake.ui.screens.settings.PrivacyScreen
 import com.zeroindex.intake.ui.screens.settings.SettingsGroupScreen
 import com.zeroindex.intake.ui.screens.settings.SettingsHomeScreen
 import com.zeroindex.intake.ui.screens.swap.SwapSheet
+import com.zeroindex.intake.ui.screens.templates.MealTemplateEditorScreen
 import com.zeroindex.intake.ui.screens.templates.MealTemplatesScreen
+import com.zeroindex.intake.ui.screens.shopping.ShoppingListScreen
 import com.zeroindex.intake.ui.screens.today.TodayScreen
-import com.zeroindex.intake.ui.screens.train.ExerciseLibraryScreen
 import com.zeroindex.intake.ui.screens.train.ProgramBuilderScreen
 import com.zeroindex.intake.ui.screens.train.ProgramGeneratorScreen
 import com.zeroindex.intake.ui.screens.train.ProgramTemplatesScreen
-import com.zeroindex.intake.ui.screens.train.TrainScreen
 import com.zeroindex.intake.ui.screens.train.WorkoutHistoryScreen
+import com.zeroindex.intake.ui.screens.train.ProgramsScreen
+import com.zeroindex.intake.ui.screens.train.TrainActions
+import com.zeroindex.intake.ui.screens.train.TrainRootScreen
+import com.zeroindex.intake.ui.screens.videos.MakeWorkoutScreen
+import com.zeroindex.intake.ui.screens.videos.VideoDetailScreen
+import com.zeroindex.intake.ui.screens.workout.WorkoutSummaryScreen
 import com.zeroindex.intake.ui.screens.workout.ActiveWorkoutScreen
 import com.zeroindex.intake.ui.screens.you.YouScreen
 
@@ -82,7 +95,7 @@ private fun AnimatedContentTransitionScope<NavBackStackEntry>.isTabSwitch(): Boo
  * in two graphs, so the pill never jumps tabs. See [Route] for the rule feature agents follow.
  *
  * Every pushed screen is wrapped in [PushedScreen] (top bar with a back arrow, no pill) and every tab root in
- * [TabRootScreen]. Motion: pushes slide horizontally, tabs cross-fade ([Motion]).
+ * [TabRootScreen]. Motion: pushes slide and backs slide the reverse, tabs cross-fade ([NavSpecs]).
  */
 @Composable
 fun IntakeNavHost(
@@ -98,11 +111,15 @@ fun IntakeNavHost(
         navController = navController,
         startDestination = start,
         modifier = modifier,
-        // Moving between tabs fades through; pushing is a horizontal slide, reversed on back.
-        enterTransition = { if (isTabSwitch()) Motion.fadeThroughIn(reduce) else Motion.pushEnter(reduce) },
-        exitTransition = { if (isTabSwitch()) Motion.fadeThroughOut(reduce) else Motion.pushExit(reduce) },
-        popEnterTransition = { if (isTabSwitch()) Motion.fadeThroughIn(reduce) else Motion.popEnter(reduce) },
-        popExitTransition = { if (isTabSwitch()) Motion.fadeThroughOut(reduce) else Motion.popExit(reduce) },
+        // Every transition comes from NavTransitions.kt. Tabs cross-fade; a push slides and a back slides the
+        // exact reverse. The nested tab graphs inherit these, so no graph or route overrides them.
+        enterTransition = { if (isTabSwitch()) tabIn(reduce) else pushIn(reduce) },
+        exitTransition = { if (isTabSwitch()) tabOut(reduce) else pushOut(reduce) },
+        popEnterTransition = { if (isTabSwitch()) tabIn(reduce) else backIn(reduce) },
+        popExitTransition = { if (isTabSwitch()) tabOut(reduce) else backOut(reduce) },
+        // Predictive back (the Android 14+ gesture) follows the same back motion as the button.
+        predictivePopEnterTransition = { _ -> backIn(reduce) },
+        predictivePopExitTransition = { _ -> backOut(reduce) },
     ) {
         val back: () -> Unit = { navController.popBackStack() }
         val openScriptReference = { page: String, anchor: String? ->
@@ -158,6 +175,7 @@ fun IntakeNavHost(
                     onSwap = { slot -> navController.navigate(Route.SwapSheet(slot)) },
                     onOpenPlan = { openTab(TopLevelDestination.NUTRITION) },
                     onOpenSettings = { g, f -> openSettings(g, f) },
+                    onLogFood = { s, at, mode -> navController.navigate(Route.LogFood(s, at, mode)) },
                 )
             }
             // Today has no pushed screens of its own: add new Today routes above this line.
@@ -165,28 +183,31 @@ fun IntakeNavHost(
 
         // ---- Nutrition ----
         navigation<TabGraph.Nutrition>(startDestination = Route.Nutrition) {
+            val nutritionActions = NutritionActions(
+                onOpenAllergens = { navController.navigate(Route.Allergens) },
+                onLogFood = { mode, slot, at -> navController.navigate(Route.LogFood(slot = slot, atMillis = at, mode = mode)) },
+                onOpenMeal = { slot, epochDay -> navController.navigate(Route.NutritionMeal(slot, epochDay)) },
+                onSwap = { slot -> navController.navigate(Route.SwapSheet(slot)) },
+                onOpenMealPlans = { navController.navigate(Route.MealPlans) },
+                onOpenRecipes = { navController.navigate(Route.Recipes) },
+                onOpenMealTemplates = { navController.navigate(Route.MealTemplates) },
+                onOpenShopping = { navController.navigate(Route.ShoppingList) },
+                onOpenEatingOut = { navController.navigate(Route.EatingOut) },
+                onOpenMore = { navController.navigate(Route.NutritionMore) },
+            )
             composable<Route.Nutrition> {
                 TabRootScreen(TopLevelDestination.NUTRITION, "Nutrition", goToToday) { pad ->
-                    FoodHubScreen(
-                        contentPadding = pad,
-                        onOpenMealTemplates = { navController.navigate(Route.MealTemplates) },
-                        onOpenMealPlans = { navController.navigate(Route.MealPlans) },
-                        onOpenRecipes = { navController.navigate(Route.Recipes) },
-                        onOpenEatingOut = { navController.navigate(Route.EatingOut) },
-                        onOpenAllergens = { navController.navigate(Route.Allergens) },
-                        onOpenFoodScriptHelp = { openScriptReference("meal-plan", null) },
-                        onOpenAiSettings = openAi,
-                        onOpenMyFoods = { navController.navigate(Route.MyFoods) },
-                        onOpenFood = { id -> navController.navigate(Route.FoodDetail(id)) },
-                        onOpenDrinks = { navController.navigate(Route.Drinks) },
-                    )
+                    NutritionHomeScreen(contentPadding = pad, actions = nutritionActions)
                 }
+            }
+            composable<Route.NutritionMore> {
+                PushedScreen("More", back) { pad -> NutritionMoreScreen(contentPadding = pad, actions = nutritionActions) }
             }
             composable<Route.MealPlans> {
                 PushedScreen("Meal plans", back) { pad ->
                     PlanScreen(
                         contentPadding = pad,
-                        onOpenPlanB = { navController.navigate(Route.PlanB) },
+                        onOpenSwap = { navController.navigate(Route.SwapSheet(null)) },
                         onOpenCook = { id -> navController.navigate(Route.CookMode(id)) },
                         onOpenScriptReference = openScriptReference,
                     )
@@ -240,6 +261,7 @@ fun IntakeNavHost(
                         contentPadding = pad,
                         onDeleted = { navController.popBackStack() },
                         onEdit = { id -> navController.navigate(Route.RecipeEditor(id)) },
+                        onCook = { id -> navController.navigate(Route.CookMode(id)) },
                     )
                 }
             }
@@ -257,26 +279,41 @@ fun IntakeNavHost(
                 PushedScreen("Eating out", back) { pad ->
                     EatingOutScreen(
                         contentPadding = pad,
-                        onOpenPlanB = { navController.navigate(Route.PlanB) },
                         onOpenMenuImport = { navController.navigate(Route.MenuSources) },
+                        onOpenAiSettings = { openAi() },
+                        onOpenRadiusSetting = { openSettings("nutrition", "eatOutRadius") },
                     )
                 }
             }
-            composable<Route.PlanB> { PushedScreen("Plan B", back) { pad -> PlanBScreen(pad, onOpenAiSettings = openAi) } }
             composable<Route.MenuSources> { PushedScreen("Menu import", back) { pad -> MenuSourcesScreen(pad) } }
-            composable<Route.MealTemplates> { PushedScreen("Meal templates", back) { pad -> MealTemplatesScreen(pad) } }
-            composable<Route.MyFoods> {
-                PushedScreen("My foods", back) { pad ->
-                    MyFoodsScreen(pad, onOpenFood = { id -> navController.navigate(Route.FoodDetail(id)) })
+            composable<Route.MealTemplates> {
+                PushedScreen("Meal templates", back) { pad ->
+                    MealTemplatesScreen(
+                        pad,
+                        onNew = { navController.navigate(Route.MealTemplateEditor()) },
+                        onEdit = { id -> navController.navigate(Route.MealTemplateEditor(id)) },
+                    )
                 }
             }
-            composable<Route.FoodDetail> { entry ->
-                PushedScreen("Food", back) { pad ->
-                    FoodDetailScreen(
-                        foodId = entry.toRoute<Route.FoodDetail>().foodId,
+            composable<Route.MealTemplateEditor> { entry ->
+                PushedScreen("Meal template", back) { pad ->
+                    MealTemplateEditorScreen(
+                        templateId = entry.toRoute<Route.MealTemplateEditor>().templateId,
                         contentPadding = pad,
-                        onBack = { navController.popBackStack() },
-                        onOpenFoodData = { openSettings("fooddb", null) },
+                        onDone = { navController.popBackStack() },
+                    )
+                }
+            }
+            composable<Route.ShoppingList> {
+                PushedScreen("Shopping list", back) { pad -> ShoppingListScreen(contentPadding = pad) }
+            }
+            composable<Route.NutritionMeal> {
+                PushedScreen("Meal", back) { pad ->
+                    NutritionMealScreen(
+                        contentPadding = pad,
+                        onDone = back,
+                        onAddFood = { slot, at -> navController.navigate(Route.LogFood(slot = slot, atMillis = at)) },
+                        onOpenFood = { id, slot, at -> navController.navigate(Route.FoodDetail(id, slot, at)) },
                     )
                 }
             }
@@ -286,29 +323,67 @@ fun IntakeNavHost(
         // ---- Train ----
         navigation<TabGraph.Train>(startDestination = Route.Train) {
             composable<Route.Train> {
-                TabRootScreen(TopLevelDestination.TRAIN, "Train", goToToday) { pad ->
-                    TrainHubScreen(
+                TabRootScreen(
+                    TopLevelDestination.TRAIN,
+                    "Train",
+                    goToToday,
+                    actions = {
+                        IconButton(onClick = { navController.navigate(Route.Programs) }) {
+                            Icon(Icons.AutoMirrored.Filled.ListAlt, contentDescription = "Programs")
+                        }
+                    },
+                ) { pad ->
+                    TrainRootScreen(
                         contentPadding = pad,
-                        onOpenSession = { id -> navController.navigate(Route.ActiveWorkout(id)) },
-                        onOpenPrograms = { navController.navigate(Route.Programs) },
-                        onOpenBuilder = { navController.navigate(Route.ProgramBuilder()) },
-                        onEditWorkout = { id -> navController.navigate(Route.ProgramBuilder(id)) },
-                        onOpenGenerator = { navController.navigate(Route.ProgramGenerator) },
-                        onOpenTemplates = { navController.navigate(Route.ProgramTemplates) },
-                        onOpenExercises = { navController.navigate(Route.ExerciseLibrary) },
-                        onOpenProgramScriptHelp = { openScriptReference("program", null) },
+                        actions = TrainActions(
+                            onOpenSession = { id -> navController.navigate(Route.ActiveWorkout(id)) },
+                            onOpenSummary = { id -> navController.navigate(Route.WorkoutSummary(id)) },
+                            onOpenHistory = { navController.navigate(Route.WorkoutHistory) },
+                            onOpenPrograms = { navController.navigate(Route.Programs) },
+                            onOpenGenerator = { navController.navigate(Route.ProgramGenerator) },
+                            onOpenVideo = { id -> navController.navigate(Route.VideoDetail(id)) },
+                            onMakeWorkout = { id -> navController.navigate(Route.MakeWorkout(id)) },
+                            onOpenKeySettings = { openSettings("keys", null) },
+                        ),
                     )
                 }
             }
             composable<Route.Programs> {
                 PushedScreen("Programs", back) { pad ->
-                    TrainScreen(
+                    ProgramsScreen(
                         contentPadding = pad,
                         onOpenSession = { id -> navController.navigate(Route.ActiveWorkout(id)) },
                         onOpenBuilder = { id -> navController.navigate(Route.ProgramBuilder(id)) },
                         onOpenGenerator = { navController.navigate(Route.ProgramGenerator) },
                         onOpenTemplates = { navController.navigate(Route.ProgramTemplates) },
+                        onOpenVideo = { id -> navController.navigate(Route.VideoDetail(id)) },
                         onOpenScriptReference = openScriptReference,
+                    )
+                }
+            }
+            composable<Route.VideoDetail> {
+                PushedScreen("Video", back) { pad ->
+                    VideoDetailScreen(
+                        contentPadding = pad,
+                        onMakeWorkout = { id -> navController.navigate(Route.MakeWorkout(id)) },
+                        onOpenWorkout = { id -> navController.navigate(Route.ProgramBuilder(id)) },
+                    )
+                }
+            }
+            composable<Route.MakeWorkout> {
+                PushedScreen("Make this a workout", back) { pad ->
+                    MakeWorkoutScreen(
+                        contentPadding = pad,
+                        onSaved = { _, sessionId ->
+                            if (sessionId != null) {
+                                navController.navigate(Route.ActiveWorkout(sessionId)) { popUpTo<Route.MakeWorkout> { inclusive = true } }
+                            } else {
+                                navController.popBackStack()
+                            }
+                        },
+                        onAddByHand = { id ->
+                            navController.navigate(Route.ProgramBuilder(id)) { popUpTo<Route.MakeWorkout> { inclusive = true } }
+                        },
                     )
                 }
             }
@@ -322,7 +397,6 @@ fun IntakeNavHost(
                     )
                 }
             }
-            composable<Route.ExerciseLibrary> { PushedScreen("Exercises", back) { pad -> ExerciseLibraryScreen(pad) } }
             // Add new Train routes above this line.
         }
 
@@ -339,7 +413,6 @@ fun IntakeNavHost(
                     )
                 }
             }
-            composable<Route.WorkoutHistory> { PushedScreen("Training log", back) { pad -> WorkoutHistoryScreen(pad) } }
             // Add new Progress routes above this line.
         }
 
@@ -418,13 +491,86 @@ fun IntakeNavHost(
                 AllergenKeywordsScreen(entry.toRoute<Route.AllergenKeywords>().allergenKey, pad)
             }
         }
-        composable<Route.Drinks> { PushedScreen("Drinks", back) { pad -> DrinksScreen(pad) } }
+        composable<Route.LogFood> { entry ->
+            PushedScreen("Log food", back) { pad ->
+                val args = entry.toRoute<Route.LogFood>()
+                val slot = args.slot?.let { n -> MealSlot.entries.firstOrNull { it.name == n } } ?: defaultMealSlot(java.time.LocalTime.now().hour)
+                // The time to log at: the one the caller passed (Today's selected day), else now, fixed for this visit.
+                val at = remember(entry) { if (args.atMillis > 0) args.atMillis else System.currentTimeMillis() }
+                LogFoodScreen(
+                    slot = slot,
+                    loggedAtMillis = at,
+                    initialTab = AddFoodTab.fromName(args.mode),
+                    contentPadding = pad,
+                    onBack = back,
+                    onOpenFood = { id, chosen -> navController.navigate(Route.FoodDetail(id, chosen.name, at)) },
+                    onOpenDrinks = { q -> navController.navigate(if (q.isBlank()) Route.Drinks else Route.DrinksSearch(q)) },
+                    onOpenAiSettings = openAi,
+                )
+            }
+        }
+        composable<Route.FoodDetail> { entry ->
+            val args = entry.toRoute<Route.FoodDetail>()
+            PushedScreen("Food", back) { pad ->
+                FoodDetailScreen(
+                    foodId = args.foodId,
+                    slot = args.slot,
+                    atMillis = args.atMillis,
+                    contentPadding = pad,
+                    onBack = back,
+                    // Logged from Log food: leave both, back to where it was opened. From Drinks or Mine: just this page.
+                    onLogged = { if (!navController.popBackStack<Route.LogFood>(inclusive = true)) navController.popBackStack() },
+                    onOpenFoodData = { openSettings("fooddb", null) },
+                )
+            }
+        }
+        composable<Route.Drinks> {
+            PushedScreen("Drinks", back) { pad ->
+                DrinksScreen(pad, onOpenFood = { id -> navController.navigate(Route.FoodDetail(id)) }, onCustomise = { id -> navController.navigate(Route.CustomDrink(id)) })
+            }
+        }
+        composable<Route.DrinksSearch> { entry ->
+            val typed = entry.toRoute<Route.DrinksSearch>().query
+            PushedScreen("Drinks", back) { pad ->
+                DrinksScreen(pad, onOpenFood = { id -> navController.navigate(Route.FoodDetail(id)) }, onCustomise = { id -> navController.navigate(Route.CustomDrink(id)) }, initialQuery = typed)
+            }
+        }
+        composable<Route.CustomDrink> { entry ->
+            PushedScreen("Customise drink", back) { pad ->
+                CustomDrinkScreen(entry.toRoute<Route.CustomDrink>().foodId, pad, onDone = back)
+            }
+        }
         dialog<Route.SwapSheet> { entry ->
-            SwapSheet(slot = entry.toRoute<Route.SwapSheet>().slot, onDismiss = back)
+            SwapSheet(
+                slot = entry.toRoute<Route.SwapSheet>().slot,
+                onDismiss = back,
+                onOpenAiSettings = { back(); openAi() },
+                onOpenRadiusSetting = { back(); openSettings("nutrition", "eatOutRadius") },
+            )
         }
         composable<Route.ActiveWorkout> {
             FullScreenTask {
-                ActiveWorkoutScreen(contentPadding = it, onFinished = { navController.popBackStack() })
+                ActiveWorkoutScreen(
+                    contentPadding = it,
+                    // The back arrow minimises: the session keeps running and the session bar brings it back.
+                    onMinimise = back,
+                    onFinished = { id ->
+                        navController.navigate(Route.WorkoutSummary(id)) { popUpTo<Route.ActiveWorkout> { inclusive = true } }
+                    },
+                )
+            }
+        }
+        composable<Route.WorkoutSummary> {
+            PushedScreen("Workout summary", back) { pad -> WorkoutSummaryScreen(
+                    contentPadding = pad,
+                    onDone = back,
+                    onRepeat = { id -> navController.navigate(Route.ActiveWorkout(id)) { popUpTo<Route.WorkoutSummary> { inclusive = true } } },
+                )
+            }
+        }
+        composable<Route.WorkoutHistory> {
+            PushedScreen("Training log", back) { pad ->
+                WorkoutHistoryScreen(pad, onOpenSession = { id -> navController.navigate(Route.WorkoutSummary(id)) })
             }
         }
         composable<Route.ProgramGenerator> {

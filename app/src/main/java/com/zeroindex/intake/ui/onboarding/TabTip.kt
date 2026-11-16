@@ -39,11 +39,13 @@ fun TabTip(
     actionLabel: String,
     onAction: () -> Unit,
     modifier: Modifier = Modifier,
+    /** A first-run tip: pass true once the tab has data, and it stays hidden. */
+    hasHistory: Boolean = false,
     viewModel: TipsViewModel = hiltViewModel(),
 ) {
     val prefs by viewModel.prefs.collectAsStateWithLifecycle()
     // A person still in the welcome flow gets the flow first, not tips.
-    if (!prefs.loaded || !prefs.done || !TipsSeen.shouldShow(key, prefs.tipsSeen)) return
+    if (hasHistory || !prefs.loaded || !prefs.done || !TipsSeen.shouldShow(key, prefs.tipsSeen)) return
     Surface(
         color = MaterialTheme.colorScheme.secondaryContainer,
         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,

@@ -42,21 +42,42 @@ sealed interface Route {
     @Serializable data class RecipeEditor(val recipeId: String? = null) : Route
     @Serializable data class RecipeDetail(val recipeId: String) : Route
     @Serializable data class CookMode(val recipeId: String) : Route
-    @Serializable data object PlanB : Route
     @Serializable data object MenuSources : Route
     @Serializable data object MealTemplates : Route
-    /** Every food on the phone; tap one for [FoodDetail]. */
-    @Serializable data object MyFoods : Route
-    /** Food detail and edit, with "Contribute to Open Food Facts". */
-    @Serializable data class FoodDetail(val foodId: String) : Route
+    /** Make or edit a meal template: name, then foods and recipes with amounts. [templateId] null starts a new one. */
+    @Serializable data class MealTemplateEditor(val templateId: String? = null) : Route
+    /** A shopping list built from chosen recipes and meal templates. Needs no meal plan. */
+    @Serializable data object ShoppingList : Route
     /**
-     * Temporary Drinks page: log a drink and see today's. Pushed from Today ("Log a drink") and Nutrition. The
-     * Nutrition agent replaces its contents (categories, size buttons); its settings stay in Settings.
+     * One meal of one day (opened from a meal row on the Nutrition tab): its totals, what is logged in it, and the ways to add
+     * more. [slot] is a `MealSlot` name, [epochDay] the local calendar day (`LocalDate.toEpochDay`, never later than today).
+     */
+    @Serializable data class NutritionMeal(val slot: String, val epochDay: Long) : Route
+    /** The pushed list behind the Nutrition tab's "More" row: Plan, Recipes, Meals, Eating out and Drinks. */
+    @Serializable data object NutritionMore : Route
+    /**
+     * Log food: a full-screen task with Search, Scan, Photo, Mine and Quick add. Shared (Today and Nutrition open it),
+     * so it is registered once at the root. [slot] is a `MealSlot` name (null picks by the clock), [atMillis] the time
+     * to log at (0 means now) and [mode] an `AddFoodTab` name.
+     */
+    @Serializable data class LogFood(val slot: String? = null, val atMillis: Long = 0L, val mode: String = "SEARCH") : Route
+    /**
+     * Food detail: picture, portion stepper, nutrition label, allergens, Log, Swap for another, edit and contribute.
+     * Shared (Log food, Drinks, Mine open it). [slot] and [atMillis] are what the log goes to (0 means now).
+     */
+    @Serializable data class FoodDetail(val foodId: String, val slot: String? = null, val atMillis: Long = 0L) : Route
+    /**
+     * The Drinks page (Nutrition > Drinks): category chips, search over the food database, quick sizes from Settings,
+     * today's drinks with caffeine and sugar. Pushed from Today, Nutrition and Log food. Its settings stay in Settings.
      */
     @Serializable data object Drinks : Route
+    /** Drinks opened from Log food with the words typed there, so its search starts with them. */
+    @Serializable data class DrinksSearch(val query: String) : Route
+    /** Customise a drink (add-ins with amounts), or edit a saved "My drink"; [foodId] is that drink's food row. Opened from Drinks. */
+    @Serializable data class CustomDrink(val foodId: String) : Route
     /**
-     * Swap the planned meal. A sheet (dialog destination). The Nutrition agent builds the full sheet; for now it
-     * lists the three sections: Plan & recipes, Saved, Eat out nearby.
+     * Swap the planned meal: a bottom sheet (dialog destination) with Plan & recipes, Saved, Saved eat-out options and the
+     * optional "Find healthy options nearby" (AI, on tap). It replaces Plan B as a destination.
      */
     @Serializable data class SwapSheet(val slot: String? = null) : Route
 
@@ -66,9 +87,14 @@ sealed interface Route {
     @Serializable data class ProgramBuilder(val programId: String? = null) : Route
     @Serializable data object ProgramTemplates : Route
     @Serializable data object ProgramGenerator : Route
-    @Serializable data object ExerciseLibrary : Route
+    /** Train > Videos: one video (the player, chapters, save, Make this a workout). Inside the Train graph. */
+    @Serializable data class VideoDetail(val videoId: String) : Route
+    /** "Make this a workout": review what was read from a video, then save it as a My workout. Inside the Train graph. */
+    @Serializable data class MakeWorkout(val videoId: String) : Route
     @Serializable data object Performance : Route
     @Serializable data class ActiveWorkout(val sessionId: String) : Route
+    /** The post-workout summary, also the read-only view of an older session (opened from Train and from the training log). */
+    @Serializable data class WorkoutSummary(val sessionId: String) : Route
 
     // Progress tab.
     @Serializable data object WorkoutHistory : Route

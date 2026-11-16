@@ -2,88 +2,49 @@ package com.zeroindex.intake.ui.screens.train
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.zeroindex.intake.data.db.entity.ExerciseEntity
-import com.zeroindex.intake.data.db.entity.WorkoutSessionEntity
 import com.zeroindex.intake.data.repository.TrainingRepository
 import com.zeroindex.intake.data.settings.AppSettings
 import com.zeroindex.intake.data.settings.SettingsRepository
-import com.zeroindex.intake.domain.training.OneRepMax
+import com.zeroindex.intake.domain.time.Clock
+import com.zeroindex.intake.domain.training.log.LogDay
+import com.zeroindex.intake.domain.training.log.LogSession
+import com.zeroindex.intake.domain.training.log.LogSet
+import com.zeroindex.intake.domain.training.log.LogWeek
+import com.zeroindex.intake.domain.training.log.TrainingLog
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 
 data class WorkoutHistoryUiState(
+    val loaded: Boolean = false,
     val settings: AppSettings = AppSettings(),
-    val exercises: List<ExerciseEntity> = emptyList(),
-    val selectedExercise: ExerciseEntity? = null,
-    /** (timestamp, estimated 1RM in kg), oldest first. */
-    val oneRepMaxSeries: List<Pair<Long, Double>> = emptyList(),
-    val personalRecord: Double? = null,
-    val sessions: List<WorkoutSessionEntity> = emptyList(),
+    /** Every session, newest first, grouped by calendar week. */
+    val weeks: List<LogWeek> = emptyList(),
 )
 
+/** The Training log: all recent sessions. Per-exercise stats live on the exercise's own page (Train > Exercises). */
 @HiltViewModel
 class WorkoutHistoryViewModel @Inject constructor(
-    private val repository: TrainingRepository,
+    repository: TrainingRepository,
     settingsRepository: SettingsRepository,
+    private val clock: Clock,
 ) : ViewModel() {
 
-    private val selectedId = MutableStateFlow<String?>(null)
-
-    @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<WorkoutHistoryUiState> = combine(
-        repository.observeExercises(),
         repository.observeSessions(),
+        repository.observeAllSets(),
+        repository.observeDayLabels(),
         settingsRepository.settings,
-        selectedId,
-    ) { exercises, sessions, settings, chosen ->
-        Quad(exercises, sessions, settings, chosen ?: exercises.firstOrNull()?.id)
-    }.flatMapLatest { (exercises, sessions, settings, chosen) ->
-        val selected = exercises.firstOrNull { it.id == chosen }
-        if (selected == null) {
-            flowOf(
-                WorkoutHistoryUiState(
-                    settings = settings,
-                    exercises = exercises,
-                    sessions = sessions,
-                ),
-            )
-        } else {
-            repository.observeSetPoints(selected.id).let { points ->
-                combine(points, flowOf(Unit)) { setPoints, _ ->
-                    val series = setPoints
-                        .filter { it.reps >= 1 && it.weightKg > 0 }
-                        .map { it.completedAt to OneRepMax.epley(it.weightKg, it.reps) }
-                    WorkoutHistoryUiState(
-                        settings = settings,
-                        exercises = exercises,
-                        selectedExercise = selected,
-                        oneRepMaxSeries = series,
-                        personalRecord = series.maxOfOrNull { it.second },
-                        sessions = sessions,
-                    )
-                }
-            }
-        }
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = WorkoutHistoryUiState(),
-    )
-
-    fun selectExercise(id: String) { selectedId.value = id }
-
-    private data class Quad(
-        val exercises: List<ExerciseEntity>,
-        val sessions: List<WorkoutSessionEntity>,
-        val settings: AppSettings,
-        val chosen: String?,
-    )
+    ) { sessions, sets, labels, settings ->
+        val days = labels.associate { it.dayId to LogDay(it.dayName, it.programName, it.standalone) }
+        val rows = TrainingLog.rows(
+            sessions = sessions.map { LogSession(it.id, it.startedAt, it.finishedAt, it.programDayId) },
+            sets = sets.map { LogSet(it.sessionId, it.exerciseId, it.setIndex, it.weightKg, it.reps, it.isWarmup, it.completedAt) },
+            days = days,
+        )
+        WorkoutHistoryUiState(true, settings, TrainingLog.weeks(rows, clock.nowMillis(), clock.zone()))
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), WorkoutHistoryUiState())
 }

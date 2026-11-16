@@ -54,10 +54,9 @@ import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.motion.MotionRules
 import com.zeroindex.intake.domain.onboarding.TourIds
 import com.zeroindex.intake.domain.settings.ExportReminderRule
+import com.zeroindex.intake.ui.screens.plan.PlanAllergenSheet
 import com.zeroindex.intake.ui.adaptive.LocalWindowSizeClass
 import com.zeroindex.intake.ui.adaptive.isExpanded
-import com.zeroindex.intake.ui.addfood.AddFoodSheet
-import com.zeroindex.intake.ui.addfood.AddFoodTab
 import com.zeroindex.intake.ui.components.SandNote
 import com.zeroindex.intake.ui.components.SectionLine
 import com.zeroindex.intake.ui.motion.StaggerGate
@@ -121,27 +120,31 @@ fun TodayScreen(
     onSwap: (String?) -> Unit = {},
     onOpenPlan: () -> Unit = {},
     onOpenSettings: (group: String, focus: String?) -> Unit = { _, _ -> },
+    /** Opens Log food: a `MealSlot` name, the time to log at, and an `AddFoodTab` name (Search, Scan or Photo). */
+    onLogFood: (slot: String, atMillis: Long, mode: String) -> Unit = { _, _, _ -> },
     viewModel: TodayViewModel = hiltViewModel(),
     extrasViewModel: TodayExtrasViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val pendingCopy by viewModel.pendingCopy.collectAsStateWithLifecycle()
     val extras by extrasViewModel.extras.collectAsStateWithLifecycle()
+    val allergenPending by extrasViewModel.allergenPending.collectAsStateWithLifecycle()
+    allergenPending?.let { PlanAllergenSheet(it, onDismiss = extrasViewModel::dismissAllergenPending, onLogAnyway = extrasViewModel::confirmAllergenPending) }
     val lastCelebrated by viewModel.lastCelebration.collectAsStateWithLifecycle()
     val ringEvents = rememberRingEvents(state, lastCelebrated, viewModel::markCelebrated)
 
-    var addToSlot by remember { mutableStateOf<MealSlot?>(null) }
-    var addTab by remember { mutableStateOf(AddFoodTab.RECENTS) }
     var templateFor by remember { mutableStateOf<MealSlot?>(null) }
     val scope = rememberCoroutineScope()
     var actionsFor by remember { mutableStateOf<FoodLogEntity?>(null) }
     var copyTarget by remember { mutableStateOf<FoodLogEntity?>(null) }
 
-    fun openAdd(slot: MealSlot, tab: AddFoodTab) { addTab = tab; addToSlot = slot }
+    // Log food is a full-screen task (registered once at the nav root), opened for the day Today is showing.
+    fun openAdd(slot: MealSlot, mode: String) = onLogFood(slot.name, viewModel.timestampForSelectedDay(), mode)
     val actions = TodayActions(
         onOpenTrain, onResumeWorkout, onMakeProgram, onOpenProfile, onBuildPlan, onOpenCheckIn, onOpenBodyMetrics,
-        onLogFood = { openAdd(defaultSlotForNow(), AddFoodTab.RECENTS) },
-        onScan = { openAdd(defaultSlotForNow(), AddFoodTab.BARCODE) },
-        onPhoto = { openAdd(defaultSlotForNow(), AddFoodTab.PHOTO) },
+        onLogFood = { openAdd(defaultSlotForNow(), "SEARCH") },
+        onScan = { openAdd(defaultSlotForNow(), "BARCODE") },
+        onPhoto = { openAdd(defaultSlotForNow(), "PHOTO") },
         onOpenDrinks = onOpenDrinks,
         onSwap = onSwap,
         onOpenPlan = onOpenPlan,
@@ -166,7 +169,7 @@ fun TodayScreen(
             onPreviousDay = viewModel::showPreviousDay,
             onNextDay = viewModel::showNextDay,
             onShowToday = viewModel::showToday,
-            onAddToSlot = { openAdd(it, AddFoodTab.RECENTS) },
+            onAddToSlot = { openAdd(it, "SEARCH") },
             onEntryLongPress = { actionsFor = it },
             onEntrySwipedToCopy = { copyTarget = it },
             onWaterMinus = viewModel::removeLast,
@@ -187,16 +190,6 @@ fun TodayScreen(
         )
     }
 
-    addToSlot?.let { slot ->
-        AddFoodSheet(
-            mealSlot = slot,
-            loggedAtMillis = viewModel.timestampForSelectedDay(),
-            onDismiss = { addToSlot = null },
-            onOpenAiSettings = onOpenAiSettings,
-            initialTab = addTab,
-        )
-    }
-
     actionsFor?.let { entry ->
         LogEntryActionsSheet(
             entry = entry,
@@ -205,6 +198,14 @@ fun TodayScreen(
             onQuantityChange = { grams -> viewModel.updateQuantity(entry, grams); actionsFor = null },
             onMoveToSlot = { slot -> viewModel.moveLogToSlot(entry, slot); actionsFor = null },
             onCopyToSlot = { slot -> viewModel.copyLogToSlot(entry, slot); actionsFor = null },
+        )
+    }
+
+    pendingCopy?.let { p ->
+        com.zeroindex.intake.ui.allergen.PendingEntryAllergenSheet(
+            pending = p,
+            onDismiss = viewModel::dismissPendingCopy,
+            onLogAnyway = viewModel::confirmPendingCopy,
         )
     }
 
@@ -224,11 +225,12 @@ private fun DayTitle(date: LocalDate, isToday: Boolean, onPrevious: () -> Unit, 
     Row(verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onPrevious) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous day") }
         Text(
-            (if (isToday) "" else "") + date.format(fmt),
+            date.format(fmt),
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.semantics { heading() },
         )
-        IconButton(onClick = onNext) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next day") }
+        // Today is the last day: Next is off there, as on Nutrition (QA Q1-10).
+        IconButton(onClick = onNext, enabled = !isToday) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next day") }
     }
 }
 
@@ -288,7 +290,7 @@ private fun TodayContent(
                 mainItems(state, extras, actions, extrasViewModel, ringEvents, gate, onShowToday, onWaterMinus, onWaterPlus, onDismissInsight)
             }
             LazyColumn(Modifier.weight(1f).fillMaxHeight(), contentPadding = PaddingValues(top = top, bottom = bottom), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                mealItems(state, gate, onAddToSlot, onEntryLongPress, onEntrySwipedToCopy, onSaveTemplate)
+                mealItems(state, gate, onAddToSlot, onEntryLongPress, onEntrySwipedToCopy, onSaveTemplate, actions.onOpenDrinks)
             }
         }
     } else {
@@ -301,7 +303,7 @@ private fun TodayContent(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             mainItems(state, extras, actions, extrasViewModel, ringEvents, gate, onShowToday, onWaterMinus, onWaterPlus, onDismissInsight)
-            mealItems(state, gate, onAddToSlot, onEntryLongPress, onEntrySwipedToCopy, onSaveTemplate)
+            mealItems(state, gate, onAddToSlot, onEntryLongPress, onEntrySwipedToCopy, onSaveTemplate, actions.onOpenDrinks)
         }
     }
 }
@@ -397,6 +399,7 @@ private fun LazyListScope.mainItems(
             item(key = "water") {
                 HydrationCard(
                     day = day,
+                    isToday = state.isToday,
                     unit = s.volumeUnit,
                     onMinus = onWaterMinus,
                     onPlus = onWaterPlus,
@@ -409,6 +412,11 @@ private fun LazyListScope.mainItems(
     if (s.todayCardWeight) {
         item(key = "weight") {
             WeightTile(state.latestWeightKg, state.weightWeekDeltaKg, s.weightUnit, actions.onOpenBodyMetrics)
+        }
+    }
+    if (s.todayCardActivity && state.isToday) {
+        extras.activity?.let { activity ->
+            item(key = "activity") { com.zeroindex.intake.ui.screens.today.components.ActivityCard(activity) }
         }
     }
     state.insight?.let { insight ->
@@ -424,6 +432,7 @@ private fun LazyListScope.mealItems(
     onEntryLongPress: (FoodLogEntity) -> Unit,
     onEntrySwipedToCopy: (FoodLogEntity) -> Unit,
     onSaveTemplate: (MealSlot) -> Unit,
+    onOpenDrinks: () -> Unit,
 ) {
     if (!state.settings.todayCardMeals) return
     item(key = "meals-heading") {
@@ -434,10 +443,11 @@ private fun LazyListScope.mealItems(
         MealSlotCard(
             modifier = Modifier.staggerIn(gate, "slot-${slotUi.slot.name}", slotUi.slot.ordinal),
             slotUi = slotUi,
-            onAdd = { onAddToSlot(slotUi.slot) },
+            // Drinks belong to no meal: its row opens the Drinks page, not Log food for a meal.
+            onAdd = { if (slotUi.slot == MealSlot.DRINKS) onOpenDrinks() else onAddToSlot(slotUi.slot) },
             onEntryLongPress = onEntryLongPress,
             onEntrySwipedToCopy = onEntrySwipedToCopy,
-            onSaveAsTemplate = { onSaveTemplate(slotUi.slot) },
+            onSaveAsTemplate = if (slotUi.slot == MealSlot.DRINKS) null else ({ onSaveTemplate(slotUi.slot) }),
         )
     }
 }
@@ -502,7 +512,7 @@ private fun NameTemplateDialog(suggested: String, onDismiss: () -> Unit, onSave:
     var name by remember { mutableStateOf(suggested) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Save as meal prep") },
+        title = { Text("Save as meal template") },
         text = {
             OutlinedTextField(value = name, onValueChange = { name = it }, singleLine = true, label = { Text("Name") })
         },

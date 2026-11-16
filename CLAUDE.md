@@ -21,6 +21,7 @@ steps) and `docs/TASKS.md`.
 | `docs/briefs/` | Full briefs for in-progress work. |
 | `docs/TASKS.md` | **Task board.** Open work, who is on it, what is done. |
 | `docs/scripting/` | The Intake script language wiki, also bundled into the app |
+| `docs/WEAR.md` | Watch app: the quick remote, the phone/watch pairing rule, how to install the pair |
 | `docs/ALLERGENS.md`, `PRIVACY.md`, `SYNC-EXPORT.md`, `BENCHMARK.md`, `FOOD-DATA.md`, `MEAL-PLAN.md` | Feature docs |
 | `RESUME.md` | Detailed state of the code, plus what is and isn't verified |
 | `design/mockup-v5/option-a.html` | **Chosen design (Option A)**; frames in `design/mockup-v5/shots/` |
@@ -53,7 +54,9 @@ steps) and `docs/TASKS.md`.
    - Never use `fallbackToDestructiveMigration`.
    - **Schema v2 is RELEASED**, because the user has it installed (APK built at
      4952404). Never edit v2 or `MIGRATION_1_2`.
-   - New changes go into v3 via `MIGRATION_2_3`, until a v3 APK ships.
+   - **Version 3 is closed.** Preview APKs went out with it and later builds edited it in place, which crashed the app on
+     launch after an update. A preview APK counts as shipped: any further schema change bumps the version and adds a
+     migration. `MIGRATION_3_4` repairs older version-3 files and is the model.
    - Every migration needs a `MigrationSchemaTest` case.
 6. **Secrets:**
    - Never commit or print `local.properties`, keystores, `.env` or `*.db` files
@@ -77,6 +80,7 @@ You need JDK 17+ (21 works) and the Android SDK with platform 37 and build-tools
 ./gradlew :app:compileDebugKotlin :app:testDebugUnitTest :app:lintDebug
 ./gradlew :wearprotocol:test :wear:lintDebug
 ./gradlew :app:assembleDebug :wear:assembleDebug          # installable debug APKs
+./gradlew :app:assemblePreview                            # "Intake Preview": installs beside the real app
 python3 server/test_intake_sync.py                          # sync server tests
 ```
 
@@ -85,8 +89,9 @@ Before every merge, all of these must hold:
 - `app/build/reports/lint-results-debug.txt` shows **0 errors**;
 - `MigrationSchemaTest` passes.
 
-There is no emulator in the cloud containers. Say so when UI hasn't been seen on a
-device. Never claim it has.
+An emulator can be run in the cloud containers, slowly and without hardware acceleration
+(`docs/HANDOFF.md` section 4). It is not a phone: say what was seen on the emulator and what
+has not been seen on a device. Never claim more than that.
 
 **Release builds** need the signing properties `RELEASE_STORE_FILE`,
 `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS` and `RELEASE_KEY_PASSWORD` in
@@ -102,10 +107,9 @@ existing app, so the user must move their data across:
 When you hand over that first release, say so. If you don't have a key, build
 debug APKs only.
 
-**In a cloud container:** if Gradle gets HTTP 429 from Maven Central, fetch the
-missing jars with `curl` into `~/.m2/repository`, using the same path layout, and
-add an init script that calls `repositories.mavenLocal()`. Then build with
-`--offline`. On a small machine, use `--no-parallel --max-workers=1`, and don't
+**In a cloud container:** if Gradle gets HTTP 429 from Maven Central, run a local
+caching mirror that fetches with `curl` and point Gradle at it with an init script
+(`docs/HANDOFF.md` section 4). On a small machine, use `--no-parallel --max-workers=1`, and don't
 run two Gradle builds at once, because it can run out of memory.
 
 ## How to work alongside other agents

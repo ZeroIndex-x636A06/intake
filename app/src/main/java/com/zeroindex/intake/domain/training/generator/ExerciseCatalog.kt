@@ -31,7 +31,8 @@ data class CatalogExercise(
     val minExperience: Experience = Experience.NEW,
     val defaultRestSec: Int = if (compound) 150 else 75,
 ) {
-    val id: String get() = idOf(name)
+    /** Hashed from the name once; lists and filters read it for every row. */
+    val id: String by lazy(LazyThreadSafetyMode.PUBLICATION) { idOf(name) }
 
     companion object {
         fun idOf(name: String): String = seedId("exercise", name)
@@ -51,6 +52,15 @@ object Equipment {
     val BODYWEIGHT_ONLY: Set<String> = setOf(BODYWEIGHT)
 
     fun label(value: String): String = value.replaceFirstChar { it.uppercase() }
+
+    /** "Barbell", "Dumbbell · bodyweight"; a bodyweight exercise says "Bodyweight" once, not twice. */
+    fun describe(equipment: String, isBodyweight: Boolean): String = buildString {
+        if (equipment.isNotBlank()) append(label(equipment))
+        if (isBodyweight && !equipment.equals(BODYWEIGHT, ignoreCase = true)) {
+            if (isNotEmpty()) append(" · ")
+            append("bodyweight")
+        }
+    }
 }
 
 object Muscles {

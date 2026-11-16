@@ -124,7 +124,9 @@ session's average effort (RPE of its working sets that were rated):
 This **replaces** the flat training-day amount (default 500 ml). The flat amount remains for a training
 day with no timed workout yet. A day's workout water is capped at 2 L, a session left open counts at
 most 4 hours, and measured active calories (1 ml per kcal, capped at 1 L) only add what is beyond the
-workout already counted, so one workout is not counted twice. The rates are mid-range figures for mild
+workout already counted, so one workout is not counted twice. The active calories are the **all-day** figure from
+Health Connect (what the watch shows, stored as `activeKcalDay`); a day synced before that figure existed falls back to
+the workout-only figure. With no Health Connect data or permission the line is absent, not zero. The rates are mid-range figures for mild
 weather; hot weather is the separate weather line.
 
 **Measure my sweat rate** (water sheet, Advanced). Weigh yourself before and after one session, with
@@ -160,3 +162,101 @@ plain water, so every old total is unchanged, and v2 backup and sync rows withou
 to the same thing. User settings (weather, drink edits, measured sweat) live in their own DataStore,
 `intake_hydration` (`HydrationPrefs`). Volumes are millilitres and times UTC epoch millis. Nothing is
 hard-deleted.
+
+## Drinks are foods (Nutrition > Drinks)
+
+A drink is an ordinary `food` row with `drinkCategory` set (Water, Coffee, Tea, Soda, Juice, Sports & energy, Milk &
+alternatives, Alcohol, Other; added in `migrateDrinks_2_3`). Its nutrition columns are per 100 ml, and it may carry
+caffeine per 100 ml, strength (ABV) and its own hydration factor. About twenty generic drinks are seeded with stable ids
+(`DrinkSeed`); a seeded drink the person removes is never brought back. USDA and Open Food Facts beverages are
+categorised by fixed rules (`DrinkCategorizer`, no AI).
+
+**One flow.** Every way of logging a drink (the Drinks page, a result in Log food, Food detail, Today's water card and its
+quick sizes) goes through `DrinkLogger`. One log writes the hydration row (volume x factor, caffeine, alcohol) and, when
+the drink has calories, macros or sodium, a food-log row, so sugar and calories count in the day. Plain water writes the
+hydration row only. The hydration row keeps the food-log row's id; deleting either soft-deletes both and Undo restores
+both. Factor precedence: the person's own edit (Settings > Water and drinks > Advanced), then the drink's own number,
+then the type's default (so seeded oat milk counts 1.0 where milk counts 1.5).
+
+**The Drinks page, top to bottom.** Today's total; "My drinks" (saved custom drinks) when there are any; the category chips; the chosen category's drinks (the seeded
+ones and any the person added); the quick sizes for the selected drink; then **a search**, directly under those
+predefined options; then what was logged today.
+
+**The drinks search.** It searches what Log food searches (the person's own drinks, the offline USDA database, Open
+Food Facts when online and switched on, and the USDA API on request when a key is saved) and lists **only drinks**.
+Log food lists only foods. Both use the one rule in `DrinkRule` (docs/FOOD-DATA.md, "Foods and drinks are separate
+searches"): the source's category first (USDA "Beverages", Open Food Facts `en:beverages` and the specific drink
+tags), the name rules otherwise; soups, broths, oils and sauces are never drinks, milk and plant milks are. Rows read
+**per 100 ml**, because a drink's nutrition columns are per 100 ml (1 ml counted as 1 g), whatever the source calls it.
+
+Tapping a result from USDA or Open Food Facts copies it to the phone with its drink category set
+(`FoodRefRepository.copyDrinkToMyFoods`, `OffSearchRepository.adopt`), selects it and shows the quick sizes under the
+search field. A size then logs it through `DrinkLogger` like any other drink, so it counts for water and for calories,
+and it is listed under its category from then on. Nothing is saved for results that are not tapped (the USDA API is
+the exception, as in Log food: it saves what it returns). Log food's "Log a drink" row opens this page with the
+words typed there already in the search.
+
+**Drinks have no meal.** A drink logged from the Drinks page, Today's water card, its quick sizes or the watch is stored with
+`mealSlot = DRINKS` ("no meal"): it appears in a "Drinks" group on Today, not under Breakfast, Lunch, Dinner or Snacks, and its calories and
+sugar still count in the day's totals. A drink logged from a meal's Log food (that meal's + button, or its Food detail) stays in that meal. It used
+to take the meal of the time of day, which put a 12:30 coffee from Drinks in Lunch. Rows written before this keep the slot they have (no rewrite). The
+value is stored by name in the existing text column, so there is no schema change for it.
+
+**Reaching Drinks.** Today's water/drinks card opens it, and Log food has a "Drinks" chip. It is not on the Nutrition tab's meals card or in More.
+
+## Custom drinks
+
+Drinks page, a drink, **Customise**: pick add-ins with amounts and see what the glass comes to, then **Log it once** or **Save as My drink**.
+The maths is `domain/drinks/CustomDrink.kt` (tested); a millilitre is counted as a gram, as everywhere.
+
+| Add-in | Units | Per 100 g or ml (USDA reference figures, rounded) |
+| --- | --- | --- |
+| Sugar | tsp = 4.2 g (USDA household measure) | 387 kcal, 99.8 g sugar |
+| Honey | tsp = 7 g | 304 kcal, 82.1 g sugar |
+| Flavoured syrup | pump = 10 ml, or ml | 260 kcal, 65 g sugar (typical, brands vary) |
+| Sweetener | packet | 0 kcal |
+| Whole, 2% and skim milk | tbsp = 15 ml, or ml | 61, 50, 34 kcal |
+| Heavy cream, half-and-half | tbsp, ml | 340, 131 kcal |
+| Non-dairy creamer | tbsp, ml | 140 kcal (typical) |
+| Oat, almond, soy milk | tbsp, ml | 48, 15, 33 kcal (typical) |
+
+Any food from the search (the person's own, or the bundled USDA file) can also be an add-in, by grams (millilitres for a drink).
+
+- **Nutrition** is the base drink at its volume plus each add-in. The glass is the base volume plus the liquid add-ins (sugar dissolves and adds none).
+  A saved drink stores the glass **per 100 ml**, so logging 240 ml of it gives the glass back. Black coffee 240 ml + 3 tsp sugar is about 51 kcal and 12.6 g sugar.
+- **Hydration factor** comes from the base drink and is stored on the saved drink. Caffeine and strength keep the same amount in the glass, so they read lower per 100 ml when milk is added.
+- **Allergens** are the union of the base drink's and every add-in's (milk, cream and half-and-half carry `en:milk`, soy milk `en:soybeans`, plus each add-in's name as ingredient
+  text), read by the same local engine, and nothing removes a warning. A log is checked on the finished drink first.
+- **Saved drinks** are food rows with `customDrink` set (recipe JSON: base drink, its volume, the add-ins), listed under "My drinks" at the top of Drinks and found by the drinks
+  search. Edit changes it in place; Delete is a soft delete with Undo. Past logs keep their numbers. A one-off log writes the same two rows as any drink, named for the glass
+  ("Coffee, black + 3 tsp sugar"), and saves nothing. Schema v5 (`MIGRATION_4_5`): `food.customDrink`, nullable, existing foods unchanged.
+
+**Allergens.** Every drink goes through the local allergen engine before it is written (the red sheet on a match), and
+each row on the Drinks page, search results included, shows its verdict. The quick sizes, the target and the drink values are Settings, not part
+of the Drinks page.
+
+## Round 5 corrections (items 12 and 13)
+
+**The Drinks page is one list.** From the top: a compact strip (today's total against the target, a thin bar, then caffeine, sugar, calories and
+alcohol on one line); one search field (this phone, the offline USDA file, Open Food Facts, the USDA API, drinks only); category chips (All and the
+nine categories) that filter the list; "My drinks" and "Recent" as quick-tap cards (a tap logs the card's size, the last size that drink was logged at;
+a long press opens the options); the drinks; and "Logged today" with a remove. Choosing a drink opens one bottom sheet: the quick sizes from Settings, a
+"Custom amount" chip, what that size comes to, then **Customise** (Edit for a saved drink, with Delete) and **Log**. Logging still writes the water row and
+the food-log row (Drinks slot) together, after the local allergen check. "Recent" reads the Drinks-slot food-log rows (`FoodLogDao.observeRecentDrinkLogs`); no schema change.
+
+**The tea with 3 tsp sugar (item 13).** Root causes:
+
+- **Protein and the extra calories.** The base was a packaged or searched "Hot Tea" row whose own numbers were not a brew's (about 0.5 g protein and a few kcal per 100 ml),
+  so every glass carried them. The add-ins were fine (the sugar add-in has no protein and is not scaled by the glass). `domain/drinks/PlainBrew.kt` now checks a plain tea or coffee
+  base (name with no milk, cream, syrup, flavour or mix; no milk in its allergen text; carbohydrate at most 0.5 g per 100 ml): above 0.35 g protein, 0.3 g fat or 10 kcal per 100 ml it
+  is not a brew's numbers, and the USDA SR Legacy brewed values stand in (tea 1 kcal, 0 g protein, 0.3 g carbohydrate, 3 mg sodium; coffee 1 kcal, 0.12 g protein, 2 mg sodium). Customise says so. A saved
+  "My drink" made on such a base is rebuilt from its recipe when Drinks opens (`DrinkRepository.repairCustomDrinks`); nothing is deleted. Milky, sweetened and flavoured drinks are never touched.
+- **Sugars "not listed".** A base from Open Food Facts or USDA search keeps "sugar" in its unlisted list, and the finished drink inherits the union. A plain brew has no sugar, so for it sugar,
+  fibre and saturated fat are known zeros. The seeded drinks already list them (their sugars are 0, not unknown), and the sugar add-in carries 99.8 g per 100 g. A non-plain base that does not list sugar still leaves it unlisted.
+- **65 against 70 kcal.** The tiles rounded 65.4 to 65; the label applies the FDA rounding (calories to the nearest 5 up to 50, the nearest 10 above), which gives 70. A drink's tiles now use the
+  label's rounding (`LabelFormat`), so they agree, and Food detail says how the label rounds.
+- **The cookie.** The icon came from guessing a food category from the name, and "sugar" is a sweet. A drink's icon now comes from its stored drink category (a tea cup for tea, a coffee cup, a glass, a bar glass, a water drop).
+- **Teaspoon.** A teaspoon of sugar is now 4.2 g (the USDA household measure), so 3 tsp is 12.6 g of sugar and 48.8 kcal. Recipes saved before keep the 4 g they were saved with.
+
+The owner's tea, 16 fl oz (473 ml) with 3 tsp sugar: about 53 kcal, 14 g carbohydrate (12.6 g of it sugars, 1.4 g from the brew), 0 g protein, 0 g fat. Regression tests are
+`CustomDrinkRegressionTest`, `PlainBrewTest` and `OwnerTeaTest` (tea, coffee and milk at 8 and 16 fl oz; the seeds against USDA).

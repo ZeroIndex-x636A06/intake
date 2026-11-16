@@ -26,6 +26,10 @@ interface MealTemplateDao {
     @Query("SELECT * FROM meal_template_item WHERE deletedAt IS NULL")
     suspend fun allItems(): List<MealTemplateItemEntity>
 
+    /** Editing a template replaces its items: the old rows are soft-deleted, never removed. */
+    @Query("UPDATE meal_template_item SET deletedAt = :now, updatedAt = :now WHERE id = :id")
+    suspend fun softDeleteItem(id: String, now: Long)
+
     @Query("UPDATE meal_template SET deletedAt = :now, updatedAt = :now WHERE id = :id")
     suspend fun softDelete(id: String, now: Long)
 }

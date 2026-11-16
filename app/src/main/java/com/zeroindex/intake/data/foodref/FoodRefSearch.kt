@@ -39,7 +39,9 @@ object FoodRefSearch {
 
     /** Lower-cased letter and digit runs: "Greek yogurt, 2%" becomes [greek, yogurt, 2]. */
     fun tokenize(text: String): List<String> =
-        text.lowercase().split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }
+        text.lowercase().split(NOT_LETTER_OR_DIGIT).filter { it.isNotEmpty() }
+
+    private val NOT_LETTER_OR_DIGIT = Regex("[^\\p{L}\\p{N}]+")
 
     /**
      * Query tokens, at most [MAX_TOKENS]. A one-letter token matches too much to be
@@ -53,17 +55,29 @@ object FoodRefSearch {
 
     /**
      * Ranking tiers, best first:
-     *  0. every token starts a word and the name begins with the first token ("apple" -> "Apples, raw");
-     *  1. every token starts a word somewhere in the name ("raw apple" -> "Apples, raw");
-     *  2. at least one token only matches inside a word ("ple" -> "Apples").
+     *  0. a multi-word query that appears as a phrase: the words sit next to each other in the name, in the query's
+     *     order, each starting a word ("almond milk" -> "Beverages, almond milk, unsweetened", ahead of
+     *     "Candies, milk chocolate, with almonds"). One word has no phrase, so it starts at tier 1;
+     *  1. every token starts a word and the name begins with the first token ("apple" -> "Apples, raw");
+     *  2. every token starts a word somewhere in the name ("raw apple" -> "Apples, raw");
+     *  3. at least one token only matches inside a word ("ple" -> "Apples").
      * Ties go to the shorter name, then alphabetical order.
      */
     fun tier(name: String, tokens: List<String>): Int {
-        if (tokens.isEmpty()) return 2
+        if (tokens.isEmpty()) return 3
         val words = tokenize(name)
         val allWordStart = tokens.all { token -> words.any { it.startsWith(token) } }
-        if (!allWordStart) return 2
-        return if (words.firstOrNull()?.startsWith(tokens.first()) == true) 0 else 1
+        if (!allWordStart) return 3
+        if (tokens.size >= 2 && hasPhrase(words, tokens)) return 0
+        return if (words.firstOrNull()?.startsWith(tokens.first()) == true) 1 else 2
+    }
+
+    /** True when [tokens] start [words] that are next to each other and in the same order. */
+    private fun hasPhrase(words: List<String>, tokens: List<String>): Boolean {
+        for (start in 0..words.size - tokens.size) {
+            if (tokens.indices.all { words[start + it].startsWith(tokens[it]) }) return true
+        }
+        return false
     }
 
     fun rank(query: String, candidates: List<RefFoodEntity>, limit: Int = RESULT_LIMIT): List<RefFoodEntity> {
@@ -74,12 +88,11 @@ object FoodRefSearch {
                 val lower = entity.name.lowercase()
                 tokens.all { lower.contains(it) }
             }
-            .sortedWith(
-                compareBy<RefFoodEntity> { tier(it.name, tokens) }
-                    .thenBy { it.name.length }
-                    .thenBy { it.name.lowercase() },
-            )
+            // The tier is worked out once per food, not on every comparison of the sort.
+            .map { Triple(tier(it.name, tokens), it.name.lowercase(), it) }
+            .sortedWith(compareBy<Triple<Int, String, RefFoodEntity>> { it.first }.thenBy { it.second.length }.thenBy { it.second })
             .take(limit)
+            .map { it.third }
     }
 
     /** "1 cup, diced|132;1 slice|28" -> two portions. Malformed pieces are skipped. */

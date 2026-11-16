@@ -12,6 +12,8 @@ import com.zeroindex.intake.data.remote.openfoodfacts.OffUserAgent
 import com.zeroindex.intake.data.remote.openfoodfacts.OffWriteResponse
 import com.zeroindex.intake.data.repository.ContributionOutcome
 import com.zeroindex.intake.data.repository.OffContributionRepository
+import com.zeroindex.intake.data.repository.OffSearchRepository
+import com.zeroindex.intake.domain.drinks.SearchScope
 import com.zeroindex.intake.domain.model.FoodSource
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
@@ -58,6 +60,48 @@ class OpenFoodFactsTest {
         assertThat(food.source).isEqualTo(FoodSource.OPEN_FOOD_FACTS)
         assertThat(food.allergenTags).isEqualTo("en:gluten")
         assertThat(food.servingSizeGrams).isEqualTo(100.0)
+    }
+
+    @Test
+    fun aSearchHitKeepsItsTraceTagsMainLanguageAndDrinkCategory() {
+        // The shape search.openfoodfacts.org answers with (fields: lang, lc, allergens_tags, traces_tags, categories_tags).
+        val body = """{"hits":[
+            {"code":"8718452361205","lang":"nl","lc":"nl","product_name":"Kip cordon blue","product_name_nl":"Kip cordon blue",
+             "allergens_tags":["en:gluten","en:milk"],"traces_tags":["en:peanuts"],
+             "categories_tags":["en:meats"],"nutriments":{"energy-kcal_100g":210}},
+            {"code":"5449000000996","lc":"en","product_name":"Original Taste",
+             "categories_tags":["en:beverages","en:carbonated-drinks","en:sodas"],"nutriments":{"energy-kcal_100g":42}}
+        ]}"""
+        val hits = json.decodeFromString<OffSearchResponse>(body).hits
+        assertThat(hits.map { it.mainLanguage }).containsExactly("nl", "en").inOrder()
+        val kip = OffMapping.fromHit(hits[0], listOf("en"))!!
+        // The trace tag is stored beside the allergen tags: never dropped, never downgraded.
+        assertThat(kip.food.allergenTags).isEqualTo("en:gluten,en:milk,en:peanuts")
+        assertThat(kip.food.drinkCategory).isNull()
+        assertThat(kip.isShown(showOtherLanguages = false)).isFalse()
+        val cola = OffMapping.fromHit(hits[1], listOf("en"))!!
+        assertThat(cola.food.drinkCategory).isEqualTo("SODA")
+        assertThat(cola.isShown(showOtherLanguages = false)).isTrue()
+    }
+
+    @Test
+    fun theDrinksSearchAddsOnlyTheBeveragesFilterToTheWordsTyped() {
+        assertThat(OffSearchRepository.queryFor("mcdonald's chicken", SearchScope.FOODS)).isEqualTo("mcdonald's chicken")
+        assertThat(OffSearchRepository.queryFor("coke zero", SearchScope.DRINKS)).isEqualTo("coke zero categories_tags:\"en:beverages\"")
+        // Characters that mean something in the query syntax are taken out of the typed words; hyphens and apostrophes stay.
+        assertThat(OffSearchRepository.queryFor("coca-cola \"zero\" (can): 330", SearchScope.DRINKS))
+            .isEqualTo("coca-cola zero can 330 categories_tags:\"en:beverages\"")
+    }
+
+    @Test
+    fun `the product's own serving text is kept as the serving label, with its grams`() {
+        val body = """{"status":1,"product":{"product_name":"Instant Oatmeal Apples & Cinnamon","brands":"Quaker",""" +
+            """"serving_size":"1 packet (43 g)","serving_quantity":43,"nutriments":{"energy-kcal_100g":378,"proteins_100g":13,""" +
+            """"carbohydrates_100g":65,"fat_100g":6}}}"""
+        val product = json.decodeFromString<OffProductResponse>(body).product!!
+        val food = OffMapping.fromProduct(product, "123")!!
+        assertThat(food.servingLabel).isEqualTo("1 packet (43 g)")
+        assertThat(food.servingSizeGrams).isEqualTo(43.0)
     }
 
     @Test

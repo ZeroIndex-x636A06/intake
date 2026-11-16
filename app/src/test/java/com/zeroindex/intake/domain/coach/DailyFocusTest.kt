@@ -48,6 +48,13 @@ class DailyFocusTest {
         assertThat(done.target).isNotEqualTo(FocusTarget.WORKOUT)
     }
 
+    @Test fun theWaterLineUsesTheDrinksUnit() {
+        val inputs = base().copy(hourOfDay = 16, waterSoFarMl = 300.0, waterTargetMl = 2_500.0)
+        assertThat(DailyFocusPicker.pick(inputs).line).startsWith("300 of 2,500 ml so far")
+        val ounces = inputs.copy(volumeUnit = com.zeroindex.intake.domain.units.VolumeUnit.US_FLUID_OUNCES)
+        assertThat(DailyFocusPicker.pick(ounces).line).startsWith("10.1 of 84.5 fl oz so far")
+    }
+
     @Test fun thenWaterBehindForTheTimeOfDay() {
         val behind = DailyFocusPicker.pick(base().copy(hourOfDay = 16, waterSoFarMl = 300.0, waterTargetMl = 2_500.0))
         assertThat(behind.target).isEqualTo(FocusTarget.WATER)

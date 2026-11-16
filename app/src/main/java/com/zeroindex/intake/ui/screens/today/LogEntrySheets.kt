@@ -2,6 +2,8 @@
 
 package com.zeroindex.intake.ui.screens.today
 
+import com.zeroindex.intake.domain.nutrition.CoreMacro
+import com.zeroindex.intake.domain.nutrition.Unlisted
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -66,8 +68,12 @@ fun LogEntryActionsSheet(
                 modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 4.dp),
             )
             Text(
-                text = "${entry.kcal.roundToInt()} kcal · ${entry.protein.roundToInt()} g protein · " +
-                    "${entry.carbs.roundToInt()} g carbs · ${entry.fat.roundToInt()} g fat",
+                text = run {
+                    val unknown = Unlisted.decodeMacros(entry.unlistedNutrients)
+                    fun g(v: Double, m: CoreMacro) = if (m in unknown) "${m.label} not listed" else "${v.roundToInt()} g ${m.label}"
+                    "${entry.kcal.roundToInt()} kcal · ${g(entry.protein, CoreMacro.PROTEIN)} · " +
+                        "${g(entry.carbs, CoreMacro.CARBS)} · ${g(entry.fat, CoreMacro.FAT)}"
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 24.dp),
@@ -146,6 +152,8 @@ fun SlotPickerSheet(
     title: String,
     onDismiss: () -> Unit,
     onPick: (MealSlot) -> Unit,
+    /** The slots offered. A recipe is a meal, so its callers pass [MealSlot.MEALS] and Drinks is not offered. */
+    slots: List<MealSlot> = MealSlot.entries,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
@@ -157,7 +165,7 @@ fun SlotPickerSheet(
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(start = 24.dp, bottom = 8.dp),
             )
-            MealSlot.entries.forEach { slot ->
+            slots.forEach { slot ->
                 ListItem(
                     headlineContent = { Text(slot.displayName()) },
                     modifier = Modifier.clickableRow { onPick(slot) },

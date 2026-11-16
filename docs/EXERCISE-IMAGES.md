@@ -92,3 +92,12 @@ and kept in the app's private `photos` folder; only its file name is in the `exe
 backup and sync formats carry rows, not files (see `docs/BACKUP.md`), so after a restore or on a second device
 the exercise comes back without its photo. The form says so. Camera use asks for the camera permission only
 when you tap "Take a photo".
+
+## The body diagram (round 5)
+
+The front and back muscle figure in the app (`MuscleMapView`, the Workout week card) is **original artwork drawn for this
+app** from coordinates in `tools/musclemap/build_musclemap.py`: a silhouette, 20 muscle regions and a few anatomy lines.
+It is not traced from, copied from or derived from any third-party image, library or app. It is covered by the repository
+licence like the rest of the code. No outside asset was used, so there is nothing to attribute. The generated data is
+`app/src/main/java/com/zeroindex/intake/domain/training/muscles/MuscleGeometry.kt`; the preview is
+`design/mockup-r5/muscle-map.png`.

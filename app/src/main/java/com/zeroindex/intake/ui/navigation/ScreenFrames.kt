@@ -29,6 +29,9 @@ val PillHeight: Dp = 92.dp
 /** True when the pill is drawn as a vertical rail at the start edge (wide screens): no bottom clearance then. */
 val LocalPillIsRail = compositionLocalOf { false }
 
+/** Extra room tab roots leave at the bottom while the minimised session bar floats above the pill (0 when it is not shown). */
+val LocalSessionBarSpace = compositionLocalOf { 0.dp }
+
 /** The avatar initial and what tapping it does, provided once by the app shell. */
 class ShellActions(val avatarInitial: String, val onAvatar: () -> Unit)
 
@@ -71,7 +74,7 @@ fun TabRootScreen(
         content(
             PaddingValues(
                 top = inner.calculateTopPadding(),
-                bottom = if (rail) nav else nav + PillHeight,
+                bottom = (if (rail) nav else nav + PillHeight) + LocalSessionBarSpace.current,
                 start = inner.calculateLeftPadding(LocalLayoutDirection.current),
                 end = inner.calculateRightPadding(LocalLayoutDirection.current),
             ),

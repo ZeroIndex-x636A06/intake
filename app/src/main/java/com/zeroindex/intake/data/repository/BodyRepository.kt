@@ -19,6 +19,9 @@ class BodyRepository @Inject constructor(
     private val dao: BodyMetricDao,
     private val clock: Clock,
 ) {
+    /** True when any weigh-in exists, deleted ones included: the Progress tip is first-run only. */
+    suspend fun hasAnyWeighIn(): Boolean = dao.hasAnyRow()
+
     fun observeAll(): Flow<List<BodyMetricEntity>> = dao.observeAll()
     fun observeLatest(): Flow<BodyMetricEntity?> = dao.observeLatest()
     fun observeWithPhotos(): Flow<List<BodyMetricEntity>> = dao.observeWithPhotos()
@@ -31,7 +34,7 @@ class BodyRepository @Inject constructor(
 
     /** SPEC §8: the trend line, not the raw weigh-ins, is what gets displayed. */
     fun observeTrend(from: LocalDate, to: LocalDate): Flow<List<TrendPoint>> =
-        observeInRange(from, to).map { metrics -> WeightTrend.smooth(metrics.toWeightPoints()) }
+        observeInRange(from, to).map { metrics -> WeightTrend.smoothByTime(metrics.toWeightPoints()) }
 
     suspend fun weightPointsSince(from: LocalDate): List<WeightPoint> =
         dao.inRange(clock.rangeFor(from).startInclusive, clock.nowMillis() + 1).toWeightPoints()

@@ -51,7 +51,8 @@ class TimerService : Service() {
                 val seconds = intent.getIntExtra(EXTRA_SECONDS, 0)
                 val label = intent.getStringExtra(EXTRA_LABEL) ?: "Rest"
                 val vibrate = intent.getBooleanExtra(EXTRA_VIBRATE, true)
-                if (seconds > 0) start(seconds, label, vibrate) else stopSelf()
+                val total = intent.getIntExtra(EXTRA_TOTAL, seconds).coerceAtLeast(seconds)
+                if (seconds > 0) start(seconds, label, vibrate, total) else stopSelf()
             }
             ACTION_STOP -> stopTimer()
             else -> stopSelf()
@@ -59,9 +60,9 @@ class TimerService : Service() {
         return START_NOT_STICKY
     }
 
-    private fun start(seconds: Int, label: String, vibrate: Boolean) {
+    private fun start(seconds: Int, label: String, vibrate: Boolean, total: Int = seconds) {
         countdown?.cancel()
-        _state.value = TimerState(label = label, remainingSeconds = seconds, running = true, totalSeconds = seconds)
+        _state.value = TimerState(label = label, remainingSeconds = seconds, running = true, totalSeconds = total)
         startForeground(NOTIFICATION_ID, buildNotification(label, seconds))
 
         countdown = scope.launch {
@@ -69,7 +70,7 @@ class TimerService : Service() {
             while (isActive && remaining > 0) {
                 delay(1_000)
                 remaining -= 1
-                _state.value = TimerState(label, remaining, running = remaining > 0, totalSeconds = seconds)
+                _state.value = TimerState(label, remaining, running = remaining > 0, totalSeconds = total)
                 if (remaining > 0) {
                     notificationManager().notify(
                         NOTIFICATION_ID,
@@ -80,7 +81,7 @@ class TimerService : Service() {
             if (isActive) {
                 if (vibrate) vibrate()
                 notificationManager().notify(NOTIFICATION_ID, buildDoneNotification(label))
-                _state.value = TimerState(label, 0, running = false, totalSeconds = seconds)
+                _state.value = TimerState(label, 0, running = false, totalSeconds = total)
                 // Leave the "done" notification up but drop the foreground
                 // state, so the service is not holding resources needlessly.
                 stopForeground(STOP_FOREGROUND_DETACH)
@@ -172,6 +173,7 @@ class TimerService : Service() {
         const val EXTRA_SECONDS = "seconds"
         const val EXTRA_LABEL = "label"
         const val EXTRA_VIBRATE = "vibrate"
+        const val EXTRA_TOTAL = "total"
 
         private val _state = MutableStateFlow(TimerState())
 
@@ -184,6 +186,20 @@ class TimerService : Service() {
                     .setAction(ACTION_START)
                     .putExtra(EXTRA_SECONDS, seconds)
                     .putExtra(EXTRA_LABEL, label)
+                    .putExtra(EXTRA_VIBRATE, vibrate),
+            )
+        }
+
+        /** "+15 s" on the rest strip: the countdown carries on with [seconds] more, and the ring's total grows with it. */
+        fun extend(context: Context, seconds: Int, vibrate: Boolean) {
+            val now = _state.value
+            if (!now.running && now.remainingSeconds <= 0) return
+            context.startService(
+                Intent(context, TimerService::class.java)
+                    .setAction(ACTION_START)
+                    .putExtra(EXTRA_SECONDS, now.remainingSeconds + seconds)
+                    .putExtra(EXTRA_TOTAL, now.totalSeconds + seconds)
+                    .putExtra(EXTRA_LABEL, now.label)
                     .putExtra(EXTRA_VIBRATE, vibrate),
             )
         }

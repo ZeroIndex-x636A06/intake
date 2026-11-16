@@ -3,6 +3,9 @@ package com.zeroindex.intake.ui.screens.today
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroindex.intake.data.coach.CoachRepository
+import com.zeroindex.intake.data.db.dao.HealthSummaryDao
+import com.zeroindex.intake.data.health.toDailyHealth
+import com.zeroindex.intake.domain.health.ActivityToday
 import com.zeroindex.intake.data.repository.MealPlanRepository
 import com.zeroindex.intake.data.repository.MealLogResult
 import com.zeroindex.intake.data.repository.RecipeContent
@@ -28,7 +31,10 @@ import kotlinx.coroutines.flow.SharingStarted
 import com.zeroindex.intake.domain.training.ScheduleDay
 import com.zeroindex.intake.domain.training.TodayPlan
 import com.zeroindex.intake.domain.training.WorkoutSchedule
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import com.zeroindex.intake.ui.screens.plan.PendingPlanAllergen
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -63,7 +69,10 @@ sealed interface WorkoutCardState {
     ) : WorkoutCardState
 }
 
-/** The planned or prepped meal: the main recipe of this week of the active plan, and the slot it belongs in now. */
+/**
+ * The planned or prepped meal: the main recipe of this week of the active plan, and the meal it is logged to now.
+ * A plan week names no slot, so this is the time-of-day meal (never a snack): see [PlannedMealSlot].
+ */
 data class NextMealUi(val content: RecipeContent, val slot: MealSlot)
 
 data class TodayExtras(
@@ -75,6 +84,8 @@ data class TodayExtras(
     val baseline: BaselineSnapshot? = null,
     /** "One thing to do today"; null until the first calculation. */
     val focus: DailyFocus? = null,
+    /** Steps, last night's sleep and active calories from Health Connect; null with no data or no permission. */
+    val activity: ActivityToday? = null,
 )
 
 /**
@@ -91,6 +102,7 @@ class TodayExtrasViewModel @Inject constructor(
     hydration: HydrationRepository,
     private val plans: MealPlanRepository,
     private val settingsRepository: SettingsRepository,
+    private val healthDao: HealthSummaryDao,
     private val messages: AppMessages,
     private val clock: Clock,
 ) : ViewModel() {
@@ -101,7 +113,7 @@ class TodayExtrasViewModel @Inject constructor(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private val nextMeal = plans.observeCurrentWeekNumber().flatMapLatest { plans.observeWeekContent(it) }.map { week ->
-        week?.main?.let { NextMealUi(it, com.zeroindex.intake.domain.nfc.TemplateLink.slotFor(java.time.LocalTime.now(clock.zone()))) }
+        week?.main?.let { NextMealUi(it, com.zeroindex.intake.domain.plan.PlannedMealSlot.forTime(java.time.LocalTime.now(clock.zone()))) }
     }
 
     private val exportState = settingsRepository.settings.map {
@@ -111,7 +123,30 @@ class TodayExtrasViewModel @Inject constructor(
     /** "Log it": one tap logs the planned meal. An allergen match blocks it, exactly as on the Plan screen. */
     fun logNextMeal(next: NextMealUi) {
         viewModelScope.launch {
-            when (val r = plans.logMeal(next.content, next.slot)) {
+            val scan = plans.scanMeal(next.content)
+            if (scan.hasAnything) {
+                _allergenPending.value = PendingPlanAllergen(next.content, next.slot, null, null, scan)
+                return@launch
+            }
+            doLogNextMeal(next, confirmed = false)
+        }
+    }
+
+    private val _allergenPending = MutableStateFlow<PendingPlanAllergen?>(null)
+    val allergenPending: StateFlow<PendingPlanAllergen?> = _allergenPending.asStateFlow()
+
+    fun dismissAllergenPending() { _allergenPending.value = null }
+
+    /** "Log it anyway": the entry keeps "Logged despite: ...". */
+    fun confirmAllergenPending() {
+        val p = _allergenPending.value ?: return
+        _allergenPending.value = null
+        viewModelScope.launch { doLogNextMeal(NextMealUi(p.content, p.slot), confirmed = true) }
+    }
+
+    private suspend fun doLogNextMeal(next: NextMealUi, confirmed: Boolean) {
+        run {
+            when (val r = plans.logMeal(next.content, next.slot, allergenOverride = confirmed, noteDespite = confirmed)) {
                 is MealLogResult.Blocked -> messages.post(AppMessage("Not logged: ${r.terms.joinToString()} matches your allergen profile."))
                 is MealLogResult.Logged -> messages.post(
                     AppMessage(
@@ -132,7 +167,8 @@ class TodayExtrasViewModel @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     private val workout = training.observeActiveProgram().flatMapLatest { program ->
         val days = if (program == null) flowOf(emptyList()) else training.observeDays(program.id)
-        combine(days, training.observeInProgress()) { dayList, inProgress ->
+        combine(days, training.observeInProgress(), training.observeSessionStats(1)) { dayList, inProgress, last ->
+            val finished = last.firstOrNull()?.finishedAt
             when {
                 inProgress != null -> WorkoutCardState.InProgress(inProgress.id, program?.name)
                 program == null -> WorkoutCardState.NoProgram
@@ -142,6 +178,7 @@ class TodayExtrasViewModel @Inject constructor(
                         dayList.map { ScheduleDay(it.dayIndex, it.name, it.weekday) },
                         program.currentDayIndex,
                         clock.today().dayOfWeek.value,
+                        trainedToday = finished != null && com.zeroindex.intake.domain.time.localDateOf(finished, clock.zone()) == clock.today(),
                     )
                     when (plan) {
                         is TodayPlan.Train -> WorkoutCardState.Next(
@@ -167,7 +204,10 @@ class TodayExtrasViewModel @Inject constructor(
         profile.observeBaseline(),
     ).let { fs -> combine(fs) { Unit } }.mapLatest { runCatching { coach.dailyFocus() }.getOrNull() }
 
-    val extras: StateFlow<TodayExtras> = combine(workout, profile.observeBaseline(), focus, nextMeal, exportState) { w, b, f, n, e ->
-        TodayExtras(nextMeal = n, exportDue = e.first, lastExportAt = e.second, workout = w, baseline = b, focus = f)
+    private val activity = healthDao.observeForDay(clock.todayRange().startInclusive).map { ActivityToday.from(it?.toDailyHealth()) }
+
+    val extras: StateFlow<TodayExtras> = combine(workout, profile.observeBaseline(), focus, nextMeal, combine(exportState, activity) { e, a -> e to a }) { w, b, f, n, ea ->
+        val (e, a) = ea
+        TodayExtras(nextMeal = n, exportDue = e.first, lastExportAt = e.second, workout = w, baseline = b, focus = f, activity = a)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TodayExtras())
 }

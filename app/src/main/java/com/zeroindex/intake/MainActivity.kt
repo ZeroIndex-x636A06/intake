@@ -88,13 +88,17 @@ class MainActivity : ComponentActivity() {
             when (val result = templates.log(id)) {
                 is TemplateLogResult.Logged -> messages.post(
                     AppMessage(
-                        text = "Logged ${result.template.name} to ${result.slot.name.lowercase()}",
+                        text = "Logged ${result.template.name} to ${result.slot.name.lowercase()}" +
+                            (result.allergenNote?.let { ". $it" } ?: ""),
                         actionLabel = "Undo",
                         onAction = { templates.undo(result.logs) },
                     ),
                 )
                 is TemplateLogResult.Blocked -> messages.post(
                     AppMessage("Not logged: ${result.foods.joinToString()} now matches your allergen profile"),
+                )
+                is TemplateLogResult.NeedsReview -> messages.post(
+                    AppMessage("Not logged: ${result.foods.joinToString()} may contain something you avoid. Open Meal templates to review and log it."),
                 )
                 TemplateLogResult.NotFound -> messages.post(
                     AppMessage("That tag's meal no longer exists. Write the tag again from Nutrition, Meal templates."),

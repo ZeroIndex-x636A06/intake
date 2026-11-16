@@ -42,6 +42,7 @@ object ProgramBlueprintBuilder {
             name = name,
             description = blueprint.description,
             isActive = activate,
+            deloadEveryWeeks = blueprint.deloadEveryWeeks.takeIf { it >= 2 },
             createdAt = now,
             updatedAt = now,
         )

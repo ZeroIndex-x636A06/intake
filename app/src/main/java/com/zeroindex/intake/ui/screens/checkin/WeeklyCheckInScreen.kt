@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.checkin
 
+import com.zeroindex.intake.domain.units.KcalFormat
 import android.content.Context
 import android.os.Bundle
 import android.os.CancellationSignal
@@ -236,7 +237,7 @@ private fun WeekCard(s: WeekSummary, unit: WeightUnit) {
         } ?: "not enough weigh-ins"
         val pct = s.trendPctPerWeek?.let { " (${if (it >= 0) "+" else "−"}${"%.1f".format(Locale.US, abs(it))}% a week)" }.orEmpty()
         SummaryLine("Weight trend", change + pct)
-        SummaryLine("Calories (average)", s.avgKcal?.let { "%,d kcal".format(Locale.US, it) } ?: "no days logged")
+        SummaryLine("Calories (average)", s.avgKcal?.let { "${KcalFormat.format(it)} kcal" } ?: "no days logged")
         SummaryLine("Protein (average)", s.avgProteinG?.let { "$it g" } ?: "no days logged")
         SummaryLine("Days logged", "${s.daysLogged} of ${s.daysInWindow}")
         SummaryLine("Weigh-ins", "${s.weighIns}")

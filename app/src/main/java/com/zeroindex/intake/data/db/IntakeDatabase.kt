@@ -116,6 +116,11 @@ import com.zeroindex.intake.data.db.entity.WorkoutSessionEntity
         CoachSuggestionEntity::class,
         AiUsageEntity::class,
         ProgressPhotoEntity::class,
+        // Train and Videos.
+        com.zeroindex.intake.data.db.entity.VideoCacheEntity::class,
+        com.zeroindex.intake.data.db.entity.VideoSearchEntity::class,
+        com.zeroindex.intake.data.db.entity.SavedVideoEntity::class,
+        com.zeroindex.intake.data.db.entity.DownloadedVideoEntity::class,
     ],
 )
 abstract class IntakeDatabase : RoomDatabase() {
@@ -145,9 +150,10 @@ abstract class IntakeDatabase : RoomDatabase() {
     abstract fun coachDao(): CoachDao
     abstract fun aiUsageDao(): AiUsageDao
     abstract fun progressPhotoDao(): ProgressPhotoDao
+    abstract fun videoDao(): com.zeroindex.intake.data.db.dao.VideoDao
 
     companion object {
-        const val VERSION = 3
+        const val VERSION = 6
         const val NAME = "intake.db"
 
         /** Seeds the allergen alias table the moment the database is created. */

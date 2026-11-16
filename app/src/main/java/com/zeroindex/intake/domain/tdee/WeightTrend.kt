@@ -48,6 +48,32 @@ object WeightTrend {
     }
 
     /**
+     * The same average, but with time in it. [alpha] is the pull of ONE day; after a gap of g days the pull is
+     * 1 - (1 - alpha)^g, so a weigh-in after three silent weeks moves the trend most of the way to it instead of 10%.
+     * [smooth] steps once per weigh-in day however far apart they are, which is right for a daily log and wrong for a
+     * sparse one: the trend then lags months behind the dots. With one weigh-in every day the two agree exactly.
+     */
+    fun smoothByTime(points: List<WeightPoint>, alpha: Double = DEFAULT_ALPHA): List<TrendPoint> {
+        require(alpha > 0.0 && alpha <= 1.0) { "alpha must be in (0, 1], was $alpha" }
+        if (points.isEmpty()) return emptyList()
+        val perDay = points
+            .groupBy { it.dayIndex }
+            .map { (day, readings) -> WeightPoint(day, readings.map { it.weightKg }.average()) }
+            .sortedBy { it.dayIndex }
+        var trend = perDay.first().weightKg
+        var previousDay = perDay.first().dayIndex
+        return perDay.mapIndexed { i, point ->
+            if (i > 0) {
+                val gap = (point.dayIndex - previousDay).coerceAtLeast(1)
+                val pull = 1.0 - Math.pow(1.0 - alpha, gap.toDouble())
+                trend += pull * (point.weightKg - trend)
+            }
+            previousDay = point.dayIndex
+            TrendPoint(dayIndex = point.dayIndex, rawKg = point.weightKg, trendKg = trend)
+        }
+    }
+
+    /**
      * Least-squares slope of the smoothed trend, in kilograms per day. Negative
      * while losing. Null when there are fewer than two distinct days, because a
      * slope through one point is not a slope.

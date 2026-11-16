@@ -1,6 +1,7 @@
 package com.zeroindex.intake.data.ai.vision
 
 import com.zeroindex.intake.data.ai.S
+import com.zeroindex.intake.domain.ai.HiddenCalorieRules
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 
@@ -19,7 +20,15 @@ data class VisionEstimate(
     val overallConfidence: String,
     /** True when the photo is not of food at all. */
     val notFood: Boolean,
+    /** Up to three short questions, only when the model is not confident. Empty otherwise. */
+    val questions: List<VisionQuestion> = emptyList(),
+    /** Brand and product name when the food looks like a packaged product (a label beats a guess); else null. */
+    val packagedProduct: String? = null,
 )
+
+/** One question with the answers offered, as the model returns it. */
+@Serializable
+data class VisionQuestion(val question: String, val choices: List<String>)
 
 @Serializable
 data class VisionItem(
@@ -38,7 +47,12 @@ data class VisionItem(
 )
 
 @Serializable
-data class HiddenCalories(val source: String, val kcal: Double)
+data class HiddenCalories(
+    val source: String,
+    val kcal: Double,
+    /** What shows it is there: see `HiddenCalorieRules.BASES`. Defaults to seen so an older reply still reads. */
+    val basis: String = "seen_in_photo",
+)
 
 /**
  * The plausible span for the whole plate. "Conservative" for someone eating to
@@ -78,7 +92,11 @@ internal object VisionSchema {
             ),
         ),
         "hiddenCalorieSources" to S.array(
-            S.obj("source" to S.string("e.g. '1 tbsp olive oil in the pan'"), "kcal" to S.number()),
+            S.obj(
+                "source" to S.string("e.g. '1 tbsp olive oil in the pan'"),
+                "kcal" to S.number(),
+                "basis" to S.enumOf(*HiddenCalorieRules.BASES.toTypedArray()),
+            ),
         ),
         "range" to S.obj(
             "kcalLow" to S.number(), "kcalHigh" to S.number(),
@@ -89,6 +107,15 @@ internal object VisionSchema {
         "portionAssumption" to S.string("The one assumption that most moves the numbers, e.g. 'a 2-cup bowl'"),
         "overallConfidence" to confidence,
         "notFood" to S.boolean(),
+        "questions" to S.array(
+            S.obj(
+                "question" to S.string("A short question the person can answer by tapping, e.g. 'Cooked with water or milk?'"),
+                "choices" to S.array(S.string("A short answer, 1 to 4 words")),
+            ),
+        ),
+        "packagedProduct" to S.nullableString(
+            "Brand and product name when this looks like a specific packaged or branded product, else null",
+        ),
     )
 
     fun systemPrompt(avoided: Collection<String>): String = buildString {
@@ -99,8 +126,11 @@ internal object VisionSchema {
                 "high bound around it.",
         )
         appendLine(
-            "Account for calories a photo hides: cooking oil, butter, sauces, dressings, sugar in drinks. " +
-                "List each in hiddenCalorieSources and include it in the matching item's numbers.",
+            "Account for calories a photo hides (cooking oil, butter, milk, sauces, dressings, sugar in drinks) only " +
+                "when something shows them: a visible sheen or sauce, the person's note, or their answers. List each " +
+                "one you counted in hiddenCalorieSources with its basis and include it in the matching item's numbers. " +
+                "Never add butter, milk or oil by default when nothing in the photo or the note shows it. If it " +
+                "matters and you cannot tell, ask a question instead of guessing.",
         )
         appendLine(
             "Give a range for the whole plate that covers the realistic uncertainty. Be conservative: when " +
@@ -117,6 +147,17 @@ internal object VisionSchema {
         appendLine(
             "The user may add a note about what the photo cannot show (for example cooked in butter, a large portion, " +
                 "sauce on the side). Treat it as true, fold it into the numbers, and never let it lower the allergen warnings.",
+        )
+        appendLine(
+            "Set overallConfidence to high only when you are sure what each food is and roughly how much. When you " +
+                "are not sure (what a food is, whether it is a packaged product, how it was cooked, a portion that moves " +
+                "the calories a lot), put up to 3 short questions in questions, each with 2 to 4 short choices, most " +
+                "likely first. When you are confident, return questions as an empty list. Never ask what the photo or " +
+                "the note already answers.",
+        )
+        appendLine(
+            "If the food looks like a specific packaged or branded product, put its brand and product name in " +
+                "packagedProduct, otherwise null.",
         )
         appendLine("If the photo is not food, set notFood to true and return empty lists and zeros.")
         append("Reply with JSON only, matching the schema. No prose, no markdown.")

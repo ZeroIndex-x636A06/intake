@@ -113,7 +113,7 @@ import kotlinx.coroutines.withContext
 @Composable
 fun PlanScreen(
     contentPadding: PaddingValues,
-    onOpenPlanB: () -> Unit,
+    onOpenSwap: () -> Unit,
     onOpenCook: (String) -> Unit,
     onOpenScriptReference: (page: String, anchor: String?) -> Unit,
     modifier: Modifier = Modifier,
@@ -131,12 +131,15 @@ fun PlanScreen(
     val content by viewModel.content.collectAsStateWithLifecycle()
     val meta by viewModel.meta.collectAsStateWithLifecycle()
     val shopping by viewModel.shopping.collectAsStateWithLifecycle()
+    val shoppingMarks by viewModel.shoppingMarks.collectAsStateWithLifecycle()
     val recipes by viewModel.recipes.collectAsStateWithLifecycle()
     val unit by viewModel.weightUnit.collectAsStateWithLifecycle()
     val eatOut by viewModel.eatOut.collectAsStateWithLifecycle()
     val hidden by viewModel.hiddenEatOutCount.collectAsStateWithLifecycle()
     val showingAll by viewModel.showingAllEatOut.collectAsStateWithLifecycle()
     val pending by viewModel.pending.collectAsStateWithLifecycle()
+    val allergenPending by viewModel.allergenPending.collectAsStateWithLifecycle()
+    val eatOutPending by viewModel.eatOutPending.collectAsStateWithLifecycle()
     val importState by viewModel.importState.collectAsStateWithLifecycle()
     val notice by viewModel.notice.collectAsStateWithLifecycle()
     val checkTerms by viewModel.checkLabelTerms.collectAsStateWithLifecycle()
@@ -187,7 +190,7 @@ fun PlanScreen(
                 Row(verticalAlignment = Alignment.Bottom) {
                     Column(Modifier.weight(1f)) {
                         SubHead(
-                            activePlan?.name ?: "Your meal plan",
+                            activePlan?.name ?: "No plan yet",
                             position?.label() ?: "Make a plan of any length, or import one.",
                         )
                     }
@@ -306,6 +309,7 @@ fun PlanScreen(
                 item(key = "shop") {
                     ShoppingAccordion(
                         sections = shopping,
+                        marks = shoppingMarks,
                         unit = unit,
                         onCheck = viewModel::setChecked,
                         onRemove = viewModel::removeItem,
@@ -360,7 +364,7 @@ fun PlanScreen(
                 Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
                     Text("Can't eat what I cooked?", style = MaterialTheme.typography.titleSmall)
                     Text(
-                        "Find a safer option nearby · works offline",
+                        "Find another option nearby · works offline",
                         style = MaterialTheme.typography.labelSmall,
                     )
                 }
@@ -443,9 +447,19 @@ fun PlanScreen(
             weekLabel = content?.let { "week ${it.week.weekNumber} (${it.week.proteinType.ifBlank { "no protein set" }})" } ?: "any week",
             onToggleAll = viewModel::toggleShowAllEatOut,
             onLog = { row -> parking = false; viewModel.logEatOut(row.option) },
-            onOpenPlanB = { parking = false; onOpenPlanB() },
+            onOpenSwap = { parking = false; onOpenSwap() },
             onDismiss = { parking = false },
         )
+    }
+    eatOutPending?.let { p ->
+        com.zeroindex.intake.ui.allergen.PendingEntryAllergenSheet(
+            pending = p,
+            onDismiss = viewModel::dismissEatOutPending,
+            onLogAnyway = viewModel::confirmEatOutPending,
+        )
+    }
+    allergenPending?.let { p ->
+        PlanAllergenSheet(p, onDismiss = viewModel::dismissAllergenPending, onLogAnyway = viewModel::confirmAllergenPending)
     }
     pending?.let { p ->
         when (p) {
@@ -611,7 +625,11 @@ private fun DishCard(content: WeekContent, onEditProtein: () -> Unit, onChange: 
                     AllergenStatus.CONTAINS -> StatusPill("Contains an allergen", tone = PillTone.Bad)
                     AllergenStatus.MAY_CONTAIN -> StatusPill("Check allergens", tone = PillTone.Wait)
                     AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
-                    AllergenStatus.CLEAR -> StatusPill("Passed allergen check")
+                    AllergenStatus.CLEAR -> {
+                        val basis = com.zeroindex.intake.domain.allergen.AllergenEvidence.recipeClearBasis(main.ingredientLines.size)
+                        if (basis.isCaution) com.zeroindex.intake.ui.allergen.AllergenChip(com.zeroindex.intake.domain.swap.SwapAllergen.CHECK_LABEL, label = basis.chipText)
+                        else StatusPill(basis.chipText)
+                    }
                     AllergenStatus.MENTIONED_AVOIDED -> StatusPill(MentionedAvoided.PILL)
                     AllergenStatus.UNKNOWN -> StatusPill("Allergens not checked", tone = PillTone.Wait)
                 }
@@ -684,6 +702,7 @@ private fun Accordion(
 @Composable
 private fun ShoppingAccordion(
     sections: com.zeroindex.intake.domain.plan.ShoppingSections,
+    marks: Map<String, com.zeroindex.intake.ui.addfood.RowAllergen>,
     unit: WeightUnit,
     onCheck: (String, Boolean) -> Unit,
     onRemove: (String) -> Unit,
@@ -697,11 +716,11 @@ private fun ShoppingAccordion(
             }
             sections.sections.forEach { (category, items) ->
                 Eyebrow(ShoppingListBuilder.sectionTitle(category), Modifier.padding(top = 8.dp))
-                items.forEach { ShoppingRow(it, unit, onCheck, onRemove) }
+                items.forEach { ShoppingRow(it, unit, marks[it.id], onCheck, onRemove) }
             }
             if (sections.pantry.isNotEmpty()) {
                 Accordion("Pantry staples · ${sections.pantry.size}", nested = true) {
-                    sections.pantry.forEach { ShoppingRow(it, unit, onCheck, onRemove) }
+                    sections.pantry.forEach { ShoppingRow(it, unit, marks[it.id], onCheck, onRemove) }
                 }
             }
             AddItemRow(onAdd)
@@ -718,6 +737,7 @@ private fun ShoppingAccordion(
 private fun ShoppingRow(
     item: ShoppingListItemEntity,
     unit: WeightUnit,
+    allergen: com.zeroindex.intake.ui.addfood.RowAllergen?,
     onCheck: (String, Boolean) -> Unit,
     onRemove: (String) -> Unit,
 ) {
@@ -759,6 +779,8 @@ private fun ShoppingRow(
             item.note?.let {
                 Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            // A row that matches one of the person's allergens is marked (never hidden): the local engine on the item name.
+            allergen?.let { Box(Modifier.padding(top = 2.dp)) { com.zeroindex.intake.ui.addfood.RowAllergenChip(it) } }
             // Shopping is where the label gets read, so this is the most useful place for the nudge.
             if (!item.isChecked) checkLabelReasonFor(item.name)?.let { CheckLabelChip(it, Modifier.padding(top = 2.dp)) }
         }
@@ -861,7 +883,15 @@ private fun EveryWeekAccordion(meta: PlanMeta) {
 }
 
 @Composable
-internal fun RecipeRow(recipe: RecipeEntity, onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun RecipeRow(
+    recipe: RecipeEntity,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    /** Today's verdict from the local engine, when the person avoids anything. Replaces the stored flag below. */
+    allergen: com.zeroindex.intake.ui.addfood.RowAllergen? = null,
+    /** Calories per serving estimated from the ingredient lines, when the page gave none. Shown with a "~". */
+    estimatedKcal: Double? = null,
+) {
     IntakeCard(modifier = modifier.pressScale().clickable(onClick = onClick)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (recipe.imageUrl != null) {
@@ -874,9 +904,14 @@ internal fun RecipeRow(recipe: RecipeEntity, onClick: () -> Unit, modifier: Modi
                 Text(recipe.name, style = MaterialTheme.typography.titleSmall)
                 Text(
                     text = listOfNotNull(
-                        recipe.kcalPerServing?.let { "${it.roundToInt()} kcal" },
+                        recipe.kcalPerServing?.let { "${it.roundToInt()} kcal" }
+                            ?: estimatedKcal?.let { "~${it.roundToInt()} kcal" },
                         recipe.proteinPerServing?.let { "${it.roundToInt()} g protein" },
-                        "per serving".takeIf { recipe.kcalPerServing != null },
+                        when {
+                            recipe.kcalPerServing != null -> "per serving"
+                            estimatedKcal != null -> "per serving, estimated"
+                            else -> null
+                        },
                     ).joinToString(" · ").ifBlank { "${recipe.servings} servings" },
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -884,7 +919,10 @@ internal fun RecipeRow(recipe: RecipeEntity, onClick: () -> Unit, modifier: Modi
             }
             if (recipe.origin == RecipeOrigin.HUNTER) Tag("From the web") else if (recipe.origin == RecipeOrigin.LINK) Tag("From a link")
         }
-        if (recipe.allergenStatus == AllergenStatus.MAY_CONTAIN) {
+        if (allergen != null) {
+            Spacer(Modifier.height(6.dp))
+            com.zeroindex.intake.ui.addfood.RowAllergenChip(allergen)
+        } else if (recipe.allergenStatus == AllergenStatus.MAY_CONTAIN) {
             Spacer(Modifier.height(6.dp))
             Flag("Check allergens")
         } else if (recipe.allergenStatus == AllergenStatus.CHECK_LABEL) {
