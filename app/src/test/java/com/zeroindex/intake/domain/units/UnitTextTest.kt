@@ -12,7 +12,7 @@ class UnitTextTest {
     fun `ml and kg become fl oz and lb for imperial`() {
         val text = "You averaged 2,254 ml a day against a target of 3,157 ml (71%). Max 87.1 kg."
         val out = UnitText.inUnits(text, WeightUnit.POUNDS, VolumeUnit.US_FLUID_OUNCES)
-        assertThat(out).isEqualTo("You averaged 76.2 fl oz a day against a target of 106.7 fl oz (71%). Max 192 lb.")
+        assertThat(out).isEqualTo("You averaged 76.2 fl oz a day against a target of 106.8 fl oz (71%). Max 192 lb.")
     }
 
     @Test

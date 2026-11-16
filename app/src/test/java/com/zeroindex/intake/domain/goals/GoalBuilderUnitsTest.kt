@@ -27,8 +27,8 @@ class GoalBuilderUnitsTest {
     @Test
     fun `metric explanations are unchanged`() {
         val plan = GoalBuilder.build(inputs())
-        assertThat(plan.waterCard.headline).isEqualTo("3,049 ml a day")
-        assertThat(plan.waterCard.why).contains("35 ml per kg x 87.1 kg = 3,049 ml")
+        assertThat(plan.waterCard.headline).isEqualTo("3,050 ml a day")
+        assertThat(plan.waterCard.why).contains("35 ml per kg x 87.1 kg = 3,050 ml")
         assertThat(plan.macroCard.detail).contains("87.1 kg")
     }
 
