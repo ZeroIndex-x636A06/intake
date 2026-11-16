@@ -57,6 +57,8 @@ import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.LoadingState
 import com.zeroindex.intake.ui.components.PillTone
 import com.zeroindex.intake.ui.components.SandNote
+import com.zeroindex.intake.domain.coach.CoachEngine
+import com.zeroindex.intake.domain.report.formatWeightChange
 import com.zeroindex.intake.ui.components.SectionLine
 import com.zeroindex.intake.ui.components.StatusPill
 import com.zeroindex.intake.ui.components.SummaryTile
@@ -68,7 +70,6 @@ import java.io.File
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -164,14 +165,34 @@ fun WeeklyCheckInScreen(
             item(key = "latest-head") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Check-in of ${dayLabel(latest.record.day)}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    val noRows = latest.rows.isEmpty()
+                    val onTrack = noRows && latest.record.headline == CoachEngine.HEADLINE_ON_TRACK
                     StatusPill(
-                        if (latest.rows.isEmpty()) "All on track" else "${latest.rows.count { it.status == SuggestionStatus.PENDING }} to review",
-                        tone = if (latest.rows.any { it.status == SuggestionStatus.PENDING }) PillTone.Wait else PillTone.Ok,
+                        when {
+                            !noRows -> "${latest.rows.count { it.status == SuggestionStatus.PENDING }} to review"
+                            onTrack -> "All on track"
+                            latest.record.headline == CoachEngine.HEADLINE_NOT_ENOUGH_DATA -> "Not enough data"
+                            else -> "No suggestions"
+                        },
+                        tone = if (!noRows) {
+                            if (latest.rows.any { it.status == SuggestionStatus.PENDING }) PillTone.Wait else PillTone.Ok
+                        } else if (onTrack) PillTone.Ok else PillTone.Wait,
                     )
                 }
             }
             if (latest.rows.isEmpty()) {
-                item(key = "on-track") { SandNote("Nothing to change this week. Your numbers are where they should be, so the best move is to keep going.") }
+                item(key = "on-track") {
+                    SandNote(
+                        when (latest.record.headline) {
+                            CoachEngine.HEADLINE_ON_TRACK ->
+                                "Nothing to change this week. Your numbers are where they should be, so the best move is to keep going."
+                            CoachEngine.HEADLINE_NOT_ENOUGH_DATA ->
+                                "Not enough logged this week to judge. Log full days to get suggestions."
+                            else ->
+                                "No new suggestions. That does not mean everything is on track: check the protein and intake figures above, and log full days for a clearer read."
+                        },
+                    )
+                }
             }
             items(latest.rows, key = { it.id }) { row ->
                 SuggestionCard(row, state.weightUnit, state.volumeUnit, enabled = !state.working, onApply = { viewModel.apply(row) }, onDismiss = { viewModel.dismiss(row) })
@@ -188,7 +209,7 @@ fun WeeklyCheckInScreen(
                             IntakeCard {
                                 Text(dayLabel(past.record.day), style = MaterialTheme.typography.titleSmall)
                                 if (past.rows.isEmpty()) {
-                                    Text("All on track", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(if (past.record.headline == CoachEngine.HEADLINE_ON_TRACK) "All on track" else "No suggestions", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 past.rows.forEach { row ->
                                     Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -232,10 +253,7 @@ private fun WeekCard(r: WeeklyReport, unit: WeightUnit) {
                 label = "Your week",
             )
         }
-        val change = f.weightChangeKg?.let {
-            val v = unit.fromKg(it)
-            (if (v >= 0) "+" else "−") + "%.1f".format(Locale.US, abs(v)) + " ${unit.label}"
-        } ?: "not enough weigh-ins"
+        val change = f.weightChangeKg?.let { formatWeightChange(unit.fromKg(it), unit.label) } ?: "not enough weigh-ins"
         SummaryLine("Weight trend", change)
         SummaryLine("Calories (average)", f.avgKcal?.let { "${KcalFormat.format(it)} kcal" } ?: "no days logged")
         SummaryLine("Protein (average)", f.avgProteinG?.let { "$it g" } ?: "no days logged")
@@ -309,11 +327,11 @@ private fun SuggestionCard(
 private fun Glance(r: WeeklyReport, unit: WeightUnit) {
     fun n(v: Double?) = v?.let { "%,d".format(it.roundToInt()) }
     val weight = r.average { it.weightKg }?.let { "%.1f %s".format(unit.fromKg(it), unit.label) }
-    val change = r.weightChangeKg?.let { "%+.1f %s".format(unit.fromKg(it), unit.label) }
+    val change = r.weightChangeKg?.let { formatWeightChange(unit.fromKg(it), unit.label) }
     val sleep = r.average { it.sleepMinutes }?.let { "${it.toInt() / 60}h ${it.toInt() % 60}m" }
     val tiles = listOf(
         (weight ?: "—") to ("Avg weight" + (change?.let { " · $it" } ?: "")),
-        (n(r.average { it.kcal })?.let { "$it kcal" } ?: "—") to "Avg intake",
+        (n(r.average { it.kcal })?.let { "$it kcal" } ?: "—") to ("Avg intake" + r.daysLogged.takeIf { it > 0 }?.let { " · $it day${if (it == 1) "" else "s"} logged" }.orEmpty()),
         (n(r.average { it.burned })?.let { "$it kcal" } ?: "—") to "Avg burn",
         (sleep ?: "—") to "Avg sleep",
         (n(r.average { it.restingHr })?.let { "$it bpm" } ?: "—") to "Resting HR",
@@ -324,13 +342,11 @@ private fun Glance(r: WeeklyReport, unit: WeightUnit) {
             pair.forEach { (value, caption) -> SummaryTile(value, caption.uppercase(), Modifier.weight(1f)) }
         }
     }
-    val target = r.proteinTarget
-    val logged = r.days.filter { it.protein != null }
-    if (target != null && logged.isNotEmpty()) {
-        val hit = logged.count { (it.protein ?: 0.0) >= target }
+    r.proteinHit()?.let { ConfidenceLine(it.label, modifier = Modifier.padding(top = 8.dp)) }
+    if (r.intakeLooksUnderLogged()) {
         ConfidenceLine(
-            "Protein target hit $hit of ${r.days.size} days · ${(hit * 100.0 / r.days.size).roundToInt()}%",
-            modifier = Modifier.padding(top = 8.dp),
+            "Logged days average far below your target. That usually means meals were not all logged, so it is not a real low intake.",
+            modifier = Modifier.padding(top = 4.dp),
         )
     }
     if (r.daysLogged == 0) {

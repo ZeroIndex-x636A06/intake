@@ -43,6 +43,60 @@ class CoachEngineTest {
 
     private fun CheckIn.cal() = suggestions.firstOrNull { it.kind == SuggestionKind.WEIGHT_TREND }
 
+    // ---------------------------------------------------------------- honest verdict (owner report)
+
+    @Test fun sparseWeekSaysNotEnoughDataNeverOnTrack() {
+        // Two tiny partial days (about 210 kcal) and nothing else: the week cannot be judged.
+        val sparse = listOf(FoodDayIn(today, 20.0, 2.0, 1), FoodDayIn(today - 1, 400.0, 10.0, 2))
+        val r = CoachEngine.review(inputs { it.copy(foodDays = sparse) })
+        assertThat(r.verdict).isEqualTo(CheckInVerdict.NOT_ENOUGH_DATA)
+        assertThat(r.headline).isEqualTo(CoachEngine.HEADLINE_NOT_ENOUGH_DATA)
+        assertThat(r.headline).isNotEqualTo("All on track")
+        assertThat(r.suggestions.map { it.kind }).contains(SuggestionKind.DATA_GAP)
+        assertThat(r.suggestions.map { it.kind }).doesNotContain(SuggestionKind.PROTEIN)
+        assertThat(r.cal()).isNull() // never "eat more" from unlogged days
+    }
+
+    @Test fun sparseWeekStillSaysNotEnoughDataWhenTheGapCardWasDismissedBefore() {
+        val sparse = listOf(FoodDayIn(today, 300.0, 5.0, 1))
+        val r = CoachEngine.review(inputs { it.copy(foodDays = sparse, suppressedKeys = setOf("gap")) })
+        assertThat(r.verdict).isEqualTo(CheckInVerdict.NOT_ENOUGH_DATA)
+        assertThat(r.suggestions.map { it.kind }).contains(SuggestionKind.DATA_GAP)
+    }
+
+    @Test fun lowProteinHitRateWithEnoughDataSuggestsProtein() {
+        // 7 full days of food, protein reached on 2 of 7 days (target 170 g, hit = 144.5 g).
+        val days = (0 until 14).map {
+            val hit = it in 0..1
+            FoodDayIn(today - it, if (it < 7) 2_000.0 else 0.0, if (it >= 7) 0.0 else if (hit) 165.0 else 140.0, if (it < 7) 4 else 0)
+        }
+        val r = CoachEngine.review(inputs { it.copy(foodDays = days) })
+        val s = r.suggestions.first { it.kind == SuggestionKind.PROTEIN }
+        assertThat(s.why).contains("2 of 7 logged days")
+        assertThat(r.headline).isNotEqualTo("All on track")
+        assertThat(r.verdict).isEqualTo(CheckInVerdict.SUGGESTIONS)
+    }
+
+    @Test fun lowProteinAlreadyDismissedIsNotCalledOnTrack() {
+        val days = food(days = 7, protein = 100.0)
+        val r = CoachEngine.review(inputs { it.copy(foodDays = days, suppressedKeys = setOf("protein")) })
+        assertThat(r.suggestions).isEmpty()
+        assertThat(r.verdict).isEqualTo(CheckInVerdict.NEEDS_ATTENTION)
+        assertThat(r.headline).isNotEqualTo("All on track")
+    }
+
+    @Test fun intakeFarBelowTargetIsNotCalledOnTrack() {
+        val r = CoachEngine.review(inputs { it.copy(foodDays = food(days = 7, kcal = 900.0, protein = 170.0)) })
+        assertThat(r.verdict).isNotEqualTo(CheckInVerdict.ON_TRACK)
+    }
+
+    @Test fun proteinHitRateDenominatorCountsLoggedDaysOnly() {
+        val c = CoachConfig()
+        val days = listOf(FoodDayIn(1, 2_000.0, 170.0, 3), FoodDayIn(2, 2_000.0, 50.0, 3))
+        assertThat(CoachEngine.proteinHitRate(days, 170, c)).isEqualTo(0.5)
+        assertThat(CoachEngine.proteinHitRate(emptyList(), 170, c)).isNull()
+    }
+
     // ---------------------------------------------------------------- weight trend
 
     @Test fun cutOnPaceSuggestsNothing() {

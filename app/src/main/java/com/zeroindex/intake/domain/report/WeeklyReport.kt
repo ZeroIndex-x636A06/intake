@@ -68,6 +68,19 @@ data class WeekFigures(
     val weightChangeKg: Double?,
 )
 
+/** Days on which protein reached the hit share of the target, out of the days with food logged. */
+data class ProteinHit(val hitDays: Int, val loggedDays: Int) {
+    val percent: Int get() = if (loggedDays == 0) 0 else Math.round(hitDays * 100.0 / loggedDays).toInt()
+    val label: String get() = "Protein target hit $hitDays of $loggedDays logged day${if (loggedDays == 1) "" else "s"} · $percent%"
+}
+
+/** "+0.4 lb", "−0.4 lb", or "no change" when the change rounds to zero. [displayDelta] is already in the display unit. */
+fun formatWeightChange(displayDelta: Double, unitLabel: String): String {
+    val v = Math.round(displayDelta * 10.0) / 10.0
+    if (v == 0.0) return "no change"
+    return (if (v > 0) "+" else "−") + "%.1f".format(java.util.Locale.US, Math.abs(v)) + " $unitLabel"
+}
+
 /**
  * Amendment §3's weekly check-in, as data. Everything the PDF prints is
  * computed here, so the numbers on paper are the tested ones.
@@ -102,9 +115,27 @@ data class WeeklyReport(
     val totalVolumeKg: Double get() = sessions.sumOf { it.volumeKg }
     val totalSets: Int get() = sessions.sumOf { it.sets }
 
-    /** Start of week to end of week on the smoothed trend, if both ends exist. */
+    /** Start of week to end of week on the smoothed trend. The trend has one point per weigh-in day, so one weigh-in gives null. */
     val weightChangeKg: Double? get() =
         if (weightTrend.size >= 2) weightTrend.last().second - weightTrend.first().second else null
+
+    /**
+     * Protein hit count over the same days as the average intake (days with food logged), never over the whole week.
+     * Null without a protein target or without any logged day.
+     */
+    fun proteinHit(fraction: Double = 0.9): ProteinHit? {
+        val target = proteinTarget ?: return null
+        val logged = days.filter { (it.kcal ?: 0.0) > 0 }
+        if (logged.isEmpty()) return null
+        return ProteinHit(logged.count { (it.protein ?: 0.0) >= target * fraction }, logged.size)
+    }
+
+    /** True when the logged days average far under the calorie target: likely under-logging, not real eating. */
+    fun intakeLooksUnderLogged(share: Double = 0.7): Boolean {
+        val target = kcalTarget?.takeIf { it > 0 } ?: return false
+        val avg = days.filter { (it.kcal ?: 0.0) > 0 }.mapNotNull { it.kcal }.takeIf { it.isNotEmpty() }?.average() ?: return false
+        return avg < share * target
+    }
 
     /**
      * How regular bedtime was: the standard deviation of sleep start, in

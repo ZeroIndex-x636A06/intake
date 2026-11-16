@@ -46,15 +46,45 @@ object CoachEngine {
         water(i, c, window)?.let { out += it }
 
         val shown = out
-            .filter { it.key !in i.suppressedKeys }
+            .filter { it.kind == SuggestionKind.DATA_GAP || it.key !in i.suppressedKeys }
             .sortedWith(compareBy({ it.priority }, { it.key }))
             .take(c.maxSuggestions)
-        val headline = when {
-            shown.isEmpty() -> "All on track"
-            shown.size == 1 -> "1 suggestion this week"
-            else -> "${shown.size} suggestions this week"
+        val verdict = when {
+            gateFailed -> CheckInVerdict.NOT_ENOUGH_DATA
+            shown.isNotEmpty() -> CheckInVerdict.SUGGESTIONS
+            weekContradictsOnTrack(i, c, logged) -> CheckInVerdict.NEEDS_ATTENTION
+            else -> CheckInVerdict.ON_TRACK
         }
-        return CheckIn(summary, shown, headline)
+        val headline = when (verdict) {
+            CheckInVerdict.NOT_ENOUGH_DATA -> HEADLINE_NOT_ENOUGH_DATA
+            CheckInVerdict.NEEDS_ATTENTION -> HEADLINE_NOTHING_NEW
+            CheckInVerdict.ON_TRACK -> HEADLINE_ON_TRACK
+            CheckInVerdict.SUGGESTIONS -> if (shown.size == 1) "1 suggestion this week" else "${shown.size} suggestions this week"
+        }
+        return CheckIn(summary, shown, headline, verdict)
+    }
+
+    const val HEADLINE_ON_TRACK = "All on track"
+    const val HEADLINE_NOT_ENOUGH_DATA = "Not enough logged this week to judge"
+    const val HEADLINE_NOTHING_NEW = "Nothing new to suggest"
+
+    /** Fraction of [days] with protein at or above the hit share of the target; null with no days or no target. */
+    fun proteinHitRate(days: List<FoodDayIn>, targetProteinG: Int, c: CoachConfig): Double? {
+        if (targetProteinG <= 0 || days.isEmpty()) return null
+        return days.count { it.proteinG >= targetProteinG * c.proteinHitFraction }.toDouble() / days.size
+    }
+
+    /**
+     * True when the week's own numbers say "not on track", so the coach must not claim it: protein is hit on
+     * too few logged days, or logged days average far under the calorie target (the person is likely not logging
+     * everything; that is a logging problem, never a reason to eat more).
+     */
+    private fun weekContradictsOnTrack(i: WeekInputs, c: CoachConfig, logged: List<FoodDayIn>): Boolean {
+        if (logged.isEmpty()) return true
+        val hit = proteinHitRate(logged, i.targetProteinG, c)
+        if (hit != null && logged.size >= c.proteinMinLoggedDays && hit < c.proteinMinHitRate) return true
+        if (i.currentKcal > 0 && logged.map { it.kcal }.average() < c.intakeFarBelowShare * i.currentKcal) return true
+        return false
     }
 
     // ------------------------------------------------------------------------------ weight trend
@@ -490,14 +520,16 @@ object CoachEngine {
         if (days.size < c.proteinMinLoggedDays) return null
         val avg = days.map { it.proteinG }.average()
         val share = avg / i.targetProteinG
-        if (share >= c.proteinShare) return null
+        val hitRate = proteinHitRate(days, i.targetProteinG, c) ?: return null
+        if (share >= c.proteinShare && hitRate >= c.proteinMinHitRate) return null
+        val hits = days.count { it.proteinG >= i.targetProteinG * c.proteinHitFraction }
         val ideas = i.proteinIdeas.take(3)
         return Suggestion(
             key = "protein",
             kind = SuggestionKind.PROTEIN,
             title = "Protein is running low",
             why = "You averaged ${avg.roundToInt()} g of protein on the ${days.size} days you logged; the target is " +
-                "${i.targetProteinG} g (${(share * 100).roundToInt()}%).",
+                "${i.targetProteinG} g (${(share * 100).roundToInt()}%). You reached it on $hits of ${days.size} logged days.",
             details = if (ideas.isEmpty()) {
                 "Protein protects muscle while you diet and builds it when you train. Try adding a protein food to each meal."
             } else {
