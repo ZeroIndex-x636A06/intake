@@ -38,6 +38,19 @@ class RecipeLogger @Inject constructor(
         }
     }
 
+    /**
+     * The one allergen chip of a saved recipe, for every surface that lists or opens it (`recipeRowAllergenOf`): the
+     * scan above plus how many of its ingredient lines were read from a label or allergen tags.
+     */
+    suspend fun rowAllergen(recipe: RecipeEntity): com.zeroindex.intake.ui.addfood.RowAllergen {
+        val drafts = runCatching { recipes.load(recipe.id)?.ingredients }.getOrNull()
+        val lines = drafts?.filter { it.name.isNotBlank() }
+        val scan = if (drafts != null) recipes.scan(recipe.name, drafts) else scan(recipe)
+        val total = lines?.size ?: recipe.ingredientsText.lines().count(String::isNotBlank)
+        val read = lines?.count { it.allergenTags.isNotBlank() } ?: 0
+        return com.zeroindex.intake.ui.addfood.recipeRowAllergenOf(scan, total, read)
+    }
+
     suspend fun logServings(
         recipe: RecipeEntity,
         slot: MealSlot,

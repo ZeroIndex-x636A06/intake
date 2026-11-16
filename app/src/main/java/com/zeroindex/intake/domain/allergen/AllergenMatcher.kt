@@ -149,7 +149,30 @@ object AllergenMatcher {
         panelText: String? = null,
     ): AllergenScanResult {
         if (avoidedAllergens.isEmpty()) return AllergenScanResult.CLEAN
+        return scanClean(
+            aliases, avoidedAllergens,
+            // "(Logged despite: dairy)" is a note about a person's choice, not something the food says.
+            name = AllergenOverride.stripNoteOrNull(name), brand = AllergenOverride.stripNoteOrNull(brand),
+            ingredients = AllergenOverride.stripNoteOrNull(ingredients),
+            structuredContains = structuredContains, structuredTraces = structuredTraces,
+            checkLabelTerms = checkLabelTerms, checkLabelInIngredients = checkLabelInIngredients,
+            freeText = freeText, panelText = panelText,
+        )
+    }
 
+    private fun scanClean(
+        aliases: List<AllergenAlias>,
+        avoidedAllergens: Set<String>,
+        name: String?,
+        brand: String?,
+        ingredients: String?,
+        structuredContains: List<String>,
+        structuredTraces: List<String>,
+        checkLabelTerms: List<CheckLabelTerm>,
+        checkLabelInIngredients: Boolean,
+        freeText: Boolean,
+        panelText: String?,
+    ): AllergenScanResult {
         val avoided = avoidedAllergens.map { it.trim().lowercase() }.filter { it.isNotEmpty() }.toSet()
         val relevant = aliases.filter { it.allergen.trim().lowercase() in avoided }
         val found = LinkedHashMap<String, AllergenMatch>()

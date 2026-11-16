@@ -31,6 +31,29 @@ data class IngredientDraft(
         get() = (grams ?: 0.0) > 0.0 && kcalPer100g != null && proteinPer100g != null &&
             carbsPer100g != null && fatPer100g != null
 
+    /**
+     * Why this line is not counted in the macros, in words: names only what is actually missing ("needs grams", "needs
+     * calories, protein, carbs and fat per 100 g", or both). Null when the line is counted.
+     */
+    val notCountedReason: String?
+        get() {
+            if (hasNutrition) return null
+            val needsGrams = (grams ?: 0.0) <= 0.0
+            val missing = buildList {
+                if (kcalPer100g == null) add("calories")
+                if (proteinPer100g == null) add("protein")
+                if (carbsPer100g == null) add("carbs")
+                if (fatPer100g == null) add("fat")
+            }
+            val per100 = when {
+                missing.isEmpty() -> null
+                missing.size == 4 -> "macros per 100 g"
+                else -> missing.dropLast(1).joinToString(", ").let { if (it.isEmpty()) missing.last() else "$it and ${missing.last()}" } + " per 100 g"
+            }
+            val needs = listOfNotNull(if (needsGrams) "grams" else null, per100).joinToString(" and ")
+            return "Not counted: needs $needs"
+        }
+
     /** The line shown in the recipe and used for allergen scanning: "2 cups milk" or "250 g chicken". */
     val line: String
         get() = listOf(

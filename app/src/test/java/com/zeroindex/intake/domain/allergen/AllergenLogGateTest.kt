@@ -55,9 +55,9 @@ class AllergenLogGateTest {
     }
 
     @Test fun `a recipe with no ingredient lines is never a pass`() {
-        assertThat(AllergenEvidence.recipeClearBasis(0)).isEqualTo(AllergenEvidence.ClearBasis.NAME_ONLY)
-        assertThat(AllergenEvidence.recipeClearBasis(0).chipText).isEqualTo("Only the name was checked")
-        assertThat(AllergenEvidence.recipeClearBasis(0).isCaution).isTrue()
-        assertThat(AllergenEvidence.recipeClearBasis(3)).isEqualTo(AllergenEvidence.ClearBasis.LABEL_READ)
+        assertThat(AllergenEvidence.recipeClearBasis(0, 0)).isEqualTo(AllergenEvidence.ClearBasis.NAME_ONLY)
+        assertThat(AllergenEvidence.recipeClearBasis(0, 0).chipText).isEqualTo("Only the name was checked")
+        assertThat(AllergenEvidence.recipeClearBasis(0, 0).isCaution).isTrue()
+        assertThat(AllergenEvidence.recipeClearBasis(3, 3)).isEqualTo(AllergenEvidence.ClearBasis.LABEL_READ)
     }
 }

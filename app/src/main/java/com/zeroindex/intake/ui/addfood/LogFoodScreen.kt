@@ -349,7 +349,10 @@ private fun FoodRow(
                         maxLines = 2,
                         modifier = Modifier.weight(1f, fill = false),
                     )
-                    if (isSafe) {
+                    // One signal: the tick is a "safe" mark, so it never sits beside a chip that says the name was the
+                    // only thing checked, an ingredient list is missing, or anything is flagged or still checking.
+                    val chipAllowsTick = allergen == null || allergen.allowsSafeTick
+                    if (isSafe && chipAllowsTick) {
                         Spacer(Modifier.size(5.dp))
                         Icon(
                             imageVector = Icons.Filled.CheckCircle,

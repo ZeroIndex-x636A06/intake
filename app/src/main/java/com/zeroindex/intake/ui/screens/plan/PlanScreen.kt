@@ -118,6 +118,7 @@ fun PlanScreen(
     onOpenScriptReference: (page: String, anchor: String?) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MealPlanViewModel = hiltViewModel(),
+    recipeLibrary: RecipeLibraryViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -133,6 +134,7 @@ fun PlanScreen(
     val shopping by viewModel.shopping.collectAsStateWithLifecycle()
     val shoppingMarks by viewModel.shoppingMarks.collectAsStateWithLifecycle()
     val recipes by viewModel.recipes.collectAsStateWithLifecycle()
+    val recipeVerdicts by recipeLibrary.verdicts.collectAsStateWithLifecycle()
     val unit by viewModel.weightUnit.collectAsStateWithLifecycle()
     val eatOut by viewModel.eatOut.collectAsStateWithLifecycle()
     val hidden by viewModel.hiddenEatOutCount.collectAsStateWithLifecycle()
@@ -379,6 +381,7 @@ fun PlanScreen(
             initialProtein = content?.week?.proteinType.orEmpty(),
             onDismiss = { assigning = false },
             onPick = { recipe, protein -> viewModel.assign(week, recipe, protein); assigning = false },
+            verdicts = recipeVerdicts,
         )
     }
     if (showPlans) {
@@ -609,7 +612,7 @@ private fun DishCard(content: WeekContent, onEditProtein: () -> Unit, onChange: 
         }
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Stat(content.week.proteinType.ifBlank { "Not set" }, "Protein", Modifier.weight(1f))
+            Stat(content.week.proteinType.ifBlank { "Not set" }, "Protein type", Modifier.weight(1f))
             Stat(main?.recipe?.servings?.toString() ?: "–", "Servings", Modifier.weight(1f))
             Stat(main?.recipe?.totalTimeMinutes?.takeIf { it > 0 }?.let { "$it min" } ?: "–", "Total", Modifier.weight(1f))
         }
@@ -626,7 +629,7 @@ private fun DishCard(content: WeekContent, onEditProtein: () -> Unit, onChange: 
                     AllergenStatus.MAY_CONTAIN -> StatusPill("Check allergens", tone = PillTone.Wait)
                     AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
                     AllergenStatus.CLEAR -> {
-                        val basis = com.zeroindex.intake.domain.allergen.AllergenEvidence.recipeClearBasis(main.ingredientLines.size)
+                        val basis = com.zeroindex.intake.domain.allergen.AllergenEvidence.recipeClearBasis(main.ingredientLines.size, 0)
                         if (basis.isCaution) com.zeroindex.intake.ui.allergen.AllergenChip(com.zeroindex.intake.domain.swap.SwapAllergen.CHECK_LABEL, label = basis.chipText)
                         else StatusPill(basis.chipText)
                     }

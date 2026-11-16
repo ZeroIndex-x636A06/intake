@@ -68,16 +68,10 @@ class MealTemplatesViewModel @Inject constructor(
             kotlinx.coroutines.withContext(Dispatchers.Default) {
                 repository.verdicts(list).mapValues { (id, scan) ->
                     val summary = list.first { it.template.id == id }
-                    val read = summary.items.isNotEmpty() && summary.items.all { (f, _) -> f.allergenTags.isNotBlank() }
-                    com.zeroindex.intake.ui.addfood.RowAllergen(
-                        scan.verdict(),
-                        scan.chipDetail(),
-                        traceLabel = scan.traceChipLabel(),
-                        basis = if (read) {
-                            com.zeroindex.intake.domain.allergen.AllergenEvidence.ClearBasis.LABEL_READ
-                        } else {
-                            com.zeroindex.intake.domain.allergen.AllergenEvidence.ClearBasis.NAME_ONLY
-                        },
+                    com.zeroindex.intake.ui.addfood.recipeRowAllergenOf(
+                        scan,
+                        ingredientLineCount = summary.items.size,
+                        readLineCount = summary.items.count { (f, _) -> f.allergenTags.isNotBlank() },
                     )
                 }
             }

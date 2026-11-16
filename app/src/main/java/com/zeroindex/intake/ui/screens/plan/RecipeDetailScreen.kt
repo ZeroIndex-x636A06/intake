@@ -96,6 +96,7 @@ fun RecipeDetailScreen(
     val recipe = recipes.firstOrNull { it.id == recipeId } ?: return
     val view by remember(recipeId) { viewModel.viewOf(recipeId) }.collectAsStateWithLifecycle(null)
     val estimate by remember(recipeId) { viewModel.estimateOf(recipeId) }.collectAsStateWithLifecycle(null)
+    val liveVerdict by remember(recipeId) { viewModel.verdictOf(recipeId) }.collectAsStateWithLifecycle(null)
     val nutrition = resolveNutrition(recipe, estimate?.perServing)
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -204,22 +205,20 @@ fun RecipeDetailScreen(
                         }
                         .semantics { if (flagged > 0) contentDescription = flaggedLinesDescription(flagged) },
                 ) {
-                    when (recipe.allergenStatus) {
-                        AllergenStatus.MAY_CONTAIN -> StatusPill("Check allergens", tone = PillTone.Wait)
-                        AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
-                        AllergenStatus.CONTAINS -> StatusPill("Contains an allergen", tone = PillTone.Bad)
-                        AllergenStatus.CLEAR -> {
-                            val basis = com.zeroindex.intake.domain.allergen.AllergenEvidence.recipeClearBasis(
-                                if (ingredients.isEmpty() && recipe.ingredientsText.isBlank()) 0 else 1,
-                            )
-                            if (basis.isCaution) {
-                                com.zeroindex.intake.ui.allergen.AllergenChip(com.zeroindex.intake.domain.swap.SwapAllergen.CHECK_LABEL, label = basis.chipText)
-                            } else {
-                                StatusPill(com.zeroindex.intake.domain.allergen.AllergenEvidence.ClearBasis.LABEL_READ.chipText)
-                            }
+                    // The same single verdict as the Recipes list and Log food > Mine (RecipeLogger.rowAllergen).
+                    // The stored status is only a fallback while that verdict loads or when nothing is avoided, and a
+                    // stored "clear" is never shown as a pass: only a live read of every ingredient line can be green.
+                    val live = liveVerdict
+                    if (live != null) {
+                        com.zeroindex.intake.ui.addfood.RowAllergenChip(live)
+                    } else {
+                        when (recipe.allergenStatus) {
+                            AllergenStatus.MAY_CONTAIN -> StatusPill("Check allergens", tone = PillTone.Wait)
+                            AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
+                            AllergenStatus.CONTAINS -> StatusPill("Contains an allergen", tone = PillTone.Bad)
+                            AllergenStatus.MENTIONED_AVOIDED -> StatusPill(MentionedAvoided.PILL)
+                            else -> StatusPill("Allergens not checked", tone = PillTone.Wait)
                         }
-                        AllergenStatus.MENTIONED_AVOIDED -> StatusPill(MentionedAvoided.PILL)
-                        else -> StatusPill("Allergens not checked", tone = PillTone.Wait)
                     }
                 }
             }

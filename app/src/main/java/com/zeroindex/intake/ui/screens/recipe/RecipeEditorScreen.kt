@@ -257,7 +257,7 @@ fun RecipeEditorScreen(
         }
 
         MacroSummary(macros, servings, state.carried)
-        AllergenChips(state.scan, ingredientLineCount = state.ingredients.size)
+        AllergenChips(state.scan, ingredientLineCount = state.ingredients.size, readLineCount = state.ingredients.count { it.allergenTags.isNotBlank() })
 
         OutlinedTextField(
             state.stepsText, viewModel::setSteps,
@@ -294,7 +294,7 @@ private fun IngredientRow(d: IngredientDraft, onEdit: () -> Unit, onRemove: () -
         Column(Modifier.weight(1f).padding(vertical = 6.dp)) {
             Text(d.line, style = MaterialTheme.typography.bodyMedium)
             Text(
-                if (d.hasNutrition) "Counted in the macros" else "Not counted: needs grams and macros per 100 g",
+                d.notCountedReason ?: "Counted in the macros",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -350,14 +350,14 @@ internal fun MacroSummary(
 
 /** The local engine's verdict for the ingredients, as chips. Never softened by anything on the page. */
 @Composable
-internal fun AllergenChips(scan: AllergenScanResult, ingredientLineCount: Int = 1) {
+internal fun AllergenChips(scan: AllergenScanResult, ingredientLineCount: Int = 1, readLineCount: Int = 0) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         when {
             scan.contains.isNotEmpty() -> StatusPill("Contains ${scan.contains.map { it.matchedTerm }.distinct().joinToString()}", tone = PillTone.Bad)
-            scan.mayContain.isNotEmpty() -> StatusPill("May contain ${scan.mayContain.map { it.matchedTerm }.distinct().joinToString()}", tone = PillTone.Wait)
+            scan.mayContain.isNotEmpty() -> StatusPill("May contain ${com.zeroindex.intake.domain.allergen.ChipWords.allergenNames(scan.mayContain)}", tone = PillTone.Wait)
             // Nothing with no ingredient data reads as passed: an empty recipe says only the name was checked.
             scan.checkLabel.isEmpty() -> {
-                val basis = com.zeroindex.intake.domain.allergen.AllergenEvidence.recipeClearBasis(ingredientLineCount)
+                val basis = com.zeroindex.intake.domain.allergen.AllergenEvidence.recipeClearBasis(ingredientLineCount, readLineCount)
                 if (basis.isCaution) {
                     com.zeroindex.intake.ui.allergen.AllergenChip(com.zeroindex.intake.domain.swap.SwapAllergen.CHECK_LABEL, label = basis.chipText)
                 } else {

@@ -53,7 +53,7 @@ fun AllergenScanResult.verdict(): SwapAllergen = com.zeroindex.intake.domain.swa
 /** The words a row chip adds after "Contains" / "May contain": the worst tier's matched terms, or null when clear. */
 fun AllergenScanResult.chipDetail(): String? = when {
     contains.isNotEmpty() -> contains.termsText()
-    mayContain.isNotEmpty() -> mayContain.termsText()
+    mayContain.isNotEmpty() -> com.zeroindex.intake.domain.allergen.ChipWords.allergenNames(mayContain)
     checkLabel.isNotEmpty() -> checkLabel.termsText()
     else -> null
 }
@@ -90,7 +90,7 @@ fun AllergenBanner(scan: AllergenScanResult, modifier: Modifier = Modifier) {
         scan.mayContain.isNotEmpty() -> SolidBanner(
             color = AllergenColors.amber,
             icon = Icons.Filled.Warning,
-            title = "May contain ${scan.mayContain.termsText()}",
+            title = "May contain ${com.zeroindex.intake.domain.allergen.ChipWords.allergenNames(scan.mayContain)}",
             body = scan.mayContain.first().note,
             modifier = modifier,
         )

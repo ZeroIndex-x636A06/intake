@@ -34,11 +34,16 @@ object AllergenEvidence {
     }
 
     /**
-     * The basis of a clear scan of a recipe: with no ingredient lines there is nothing to read but the name, so a
-     * clear result is "Only the name was checked", never a pass (QA Q2-2).
+     * The ONE rule for what a clear scan of a recipe (or a template, which is a set of foods) rests on. Every surface
+     * that shows a recipe verdict goes through here (Recipes list, Log food > Mine, recipe page, plan picker,
+     * templates), so one recipe never reads differently in two places.
+     *
+     * Green ([ClearBasis.LABEL_READ]) needs at least one ingredient line and every line read from a label or allergen
+     * tags ([readLineCount] == [ingredientLineCount]). A recipe with no lines, or with any line that carries nothing
+     * but its own words, only had its name and line text checked: "Only the name was checked", never a pass.
      */
-    fun recipeClearBasis(ingredientLineCount: Int): ClearBasis =
-        if (ingredientLineCount > 0) ClearBasis.LABEL_READ else ClearBasis.NAME_ONLY
+    fun recipeClearBasis(ingredientLineCount: Int, readLineCount: Int): ClearBasis =
+        if (ingredientLineCount > 0 && readLineCount >= ingredientLineCount) ClearBasis.LABEL_READ else ClearBasis.NAME_ONLY
 
     /** The basis of a clear scan of a food row, from what the row carries. */
     fun clearBasis(source: FoodSource, isVerified: Boolean, storedAllergenText: String): ClearBasis = when {

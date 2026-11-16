@@ -60,6 +60,8 @@ class RecipeSearchViewModel @Inject constructor(
     foodLogDao: FoodLogDao,
     private val allergens: AllergenRepository,
     private val logger: RecipeLogger,
+    private val recipeRepo: com.zeroindex.intake.data.repository.RecipeRepository,
+    private val estimator: com.zeroindex.intake.data.recipe.RecipeNutritionEstimator,
     private val foodLog: FoodLogRepository,
     private val messages: AppMessages,
 ) : ViewModel() {
@@ -79,7 +81,7 @@ class RecipeSearchViewModel @Inject constructor(
         allergens.observeAliases(),
     ) { q, recipes, prepared, _, _ -> Triple(q, recipes, prepared) }.mapLatest { (q, recipes, prepared) ->
         val logged = prepared.map { RecipeSearch.LoggedName(it.name, it.at) }
-        val candidates = RecipeSearch.withLastLogged(recipes.map(::candidateOf), logged)
+        val candidates = RecipeSearch.withLastLogged(withContext(Dispatchers.Default) { recipes.map { candidateOf(it) } }, logged)
         val byId = recipes.associateBy { it.id }
         val shown = RecipeSearch.rank(q, candidates).take(12)
         val recents = if (q.isBlank()) RecipeSearch.recents(candidates, logged) else emptyList()
@@ -94,15 +96,43 @@ class RecipeSearchViewModel @Inject constructor(
         if (recipes.isEmpty() || allergens.avoidedAllergens().isEmpty()) return emptyMap()
         return withContext(Dispatchers.Default) {
             recipes.associate { r ->
-                val scan = scanOf(r)
-                r.id to RowAllergen(scan.verdict(), scan.chipDetail(), traceLabel = scan.traceChipLabel())
+                r.id to logger.rowAllergen(r)
             }
         }
     }
 
     private suspend fun scanOf(r: RecipeEntity): AllergenScanResult = logger.scan(r)
 
-    private fun candidateOf(r: RecipeEntity) = RecipeCandidate(r.id, r.name, r.kcalPerServing, r.proteinPerServing)
+    /**
+     * The recipe as Log food shows it: its stored per-serving figures, or, for a recipe the page gave none for, the
+     * estimate from its ingredient lines (the same one the Recipes list and the recipe page use), marked "~". A recipe
+     * that still has no figure says why. Offline and deterministic.
+     */
+    private suspend fun candidateOf(r: RecipeEntity): RecipeCandidate {
+        if (r.kcalPerServing != null) return RecipeCandidate(r.id, r.name, r.kcalPerServing, r.proteinPerServing)
+        val lines = estimateLines(r)
+        val est = if (lines.isEmpty()) null else runCatching { estimator.estimate(lines, r.servings) }.getOrNull()
+        val per = est?.perServing
+        return if (per != null) {
+            RecipeCandidate(r.id, r.name, per.kcal, r.proteinPerServing ?: per.protein, estimated = true)
+        } else {
+            RecipeCandidate(
+                r.id, r.name, null, r.proteinPerServing,
+                whyNoKcal = RecipeCandidate.reasonNoKcal(lines.size, est?.notCountedLines?.map { it.line }.orEmpty()),
+            )
+        }
+    }
+
+    private suspend fun estimateLines(r: RecipeEntity): List<String> =
+        recipeRepo.view(r.id)?.ingredients?.map { it.text }.orEmpty()
+
+    /** The estimate to log with, only for a recipe with no stored calories. Null otherwise. */
+    private suspend fun estimateTotalsFor(r: RecipeEntity): com.zeroindex.intake.domain.recipe.EstimateTotals? {
+        if (r.kcalPerServing != null) return null
+        val lines = estimateLines(r)
+        if (lines.isEmpty()) return null
+        return runCatching { estimator.estimate(lines, r.servings).perServing }.getOrNull()
+    }
 
     /**
      * The "+" on a recipe row: one serving through the one recipe logging path. The allergen scan runs first, and a
@@ -110,7 +140,7 @@ class RecipeSearchViewModel @Inject constructor(
      */
     fun requestLog(row: RecipeRowUi, slot: MealSlot, at: Long) = viewModelScope.launch {
         if (!row.recipe.loggable) {
-            messages.post(AppMessage("${row.recipe.name} has no calories listed. Open it in Recipes to estimate them."))
+            messages.post(AppMessage(row.recipe.whyNoKcal ?: "${row.recipe.name} has no calories listed. Open it in Recipes to estimate them."))
             return@launch
         }
         val recipe = recipeDao.findById(row.recipe.id) ?: return@launch
@@ -134,7 +164,7 @@ class RecipeSearchViewModel @Inject constructor(
     fun dismissPending() { _pending.value = null }
 
     private suspend fun logNow(recipe: RecipeEntity, slot: MealSlot, at: Long, overrideNote: String? = null) {
-        val logged = logger.logServings(recipe, slot, estimate = null, servings = 1.0, at = at) ?: return
+        val logged = logger.logServings(recipe, slot, estimate = estimateTotalsFor(recipe), servings = 1.0, at = at) ?: return
         val entry = if (overrideNote != null) foodLog.markOverridden(logged, overrideNote) else logged
         messages.post(AppMessage("Logged ${recipe.name} to ${slot.name.lowercase()}", "Undo") { foodLog.softDelete(entry.id) })
     }

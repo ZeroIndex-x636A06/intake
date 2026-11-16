@@ -99,6 +99,12 @@ data class RowAllergen(
     /** True when this is a clear result that must not read as clear: the chip says what was (not) checked. */
     val cautionClear: Boolean get() = verdict == SwapAllergen.CLEAR && basis.isCaution
 
+    /**
+     * True when the green "logged before, no flag" tick may sit beside the name: only a plain clear that rests on a read
+     * label. Never beside a name-only or no-list chip, a flag or a placeholder (Q5a-24: one signal per row).
+     */
+    val allowsSafeTick: Boolean get() = !checking && !cautionClear && verdict == SwapAllergen.CLEAR
+
     companion object {
         /** The neutral placeholder for a row that has no verdict yet while the person avoids something. */
         val Checking = RowAllergen(SwapAllergen.CHECK_LABEL, null, checking = true)
@@ -115,6 +121,19 @@ fun rowAllergenOf(food: FoodEntity, scan: AllergenScanResult): RowAllergen {
         traceLabel = scan.traceChipLabel(),
     )
 }
+
+/**
+ * The chip for a saved recipe or a template: THE one mapper every recipe surface uses (Recipes list, Log food > Mine,
+ * recipe page, plan picker, templates), so one recipe never reads differently in two places. [ingredientLineCount] is
+ * how many ingredient lines (foods, for a template) it has; [readLineCount] how many of them were read from a label or
+ * allergen tags. A clear verdict is green only when every line was read (`AllergenEvidence.recipeClearBasis`).
+ */
+fun recipeRowAllergenOf(scan: AllergenScanResult, ingredientLineCount: Int, readLineCount: Int): RowAllergen = RowAllergen(
+    verdict = scan.verdict(),
+    detail = scan.chipDetail(),
+    traceLabel = scan.traceChipLabel(),
+    basis = AllergenEvidence.recipeClearBasis(ingredientLineCount, readLineCount),
+)
 
 /**
  * The chip for an imported menu item, from today's scan. [statesNothing] is `MenuAllergenEvidence.statesNothing`: an
