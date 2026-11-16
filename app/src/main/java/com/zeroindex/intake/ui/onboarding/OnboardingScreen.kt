@@ -572,8 +572,12 @@ private fun EquipmentStep(viewModel: ProfileViewModel) {
                 EquipmentPreset.HOME_DUMBBELLS -> "Adjustable dumbbells, a bench and a pull-up bar"
                 else -> "Your own bodyweight and a pull-up bar"
             },
-            selected = profile.equipmentPreset == p,
-            onClick = { viewModel.update { it.withEquipmentPreset(p) } },
+            // One card is selected at a time: while the item list is open, the Advanced card is the one.
+            selected = !advanced && profile.equipmentPreset == p,
+            onClick = {
+                advanced = false
+                viewModel.update { it.withEquipmentPreset(p) }
+            },
             modifier = Modifier.fillMaxWidth(),
         )
     }

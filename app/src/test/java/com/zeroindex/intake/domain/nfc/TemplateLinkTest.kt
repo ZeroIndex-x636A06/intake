@@ -35,4 +35,15 @@ class TemplateLinkTest {
         assertThat(TemplateLink.slotFor(LocalTime.of(18, 45))).isEqualTo(MealSlot.DINNER)
         assertThat(TemplateLink.slotFor(LocalTime.of(22, 10))).isEqualTo(MealSlot.SNACK)
     }
+
+    @Test
+    fun `a tag tap asks first and a bad id is shown, not dropped (Q4-25)`() {
+        assertThat(TemplateLink.parse("intake://log-template/not-a-real-id")).isNull()
+        val candidates = listOf(java.io.File("src/main/java/com/zeroindex/intake/MainActivity.kt"), java.io.File("app/src/main/java/com/zeroindex/intake/MainActivity.kt"))
+        val source = candidates.first { it.isFile }.readText()
+        // The only call that logs is inside logTemplate, which only the dialog's Log button reaches.
+        assertThat(Regex("templates\\.log\\(").findAll(source).count()).isEqualTo(1)
+        assertThat(source).contains("PlannedMealSlot.forTime")
+        assertThat(source).contains("This tag does not hold a meal")
+    }
 }

@@ -48,12 +48,14 @@ import com.zeroindex.intake.domain.goals.Phase
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.domain.hydration.DrinkType
 import com.zeroindex.intake.domain.settings.MuscleRegion
+import com.zeroindex.intake.domain.time.ClockLabel
 import com.zeroindex.intake.domain.settings.SodiumDisplay
 import com.zeroindex.intake.domain.settings.TodayCard
 import com.zeroindex.intake.domain.settings.WeeklySets
 import com.zeroindex.intake.domain.settings.ControlKind
 import com.zeroindex.intake.domain.food.OffLanguage
 import com.zeroindex.intake.domain.settings.SettingSpec
+import com.zeroindex.intake.domain.settings.SettingsGroup
 import com.zeroindex.intake.domain.units.LengthUnit
 import com.zeroindex.intake.domain.units.PortionUnit
 import com.zeroindex.intake.domain.units.UnitConverter
@@ -87,7 +89,6 @@ class SettingsNav(
     val goToToday: () -> Unit,
 )
 
-private val AI_FAMILIES = listOf("aiModel.", "aiUses.")
 private val HEALTH_FAMILIES = listOf("hc.read.", "hc.write.")
 
 /**
@@ -107,9 +108,11 @@ fun SettingControl(
     val s = state.settings
     val id = spec.id
     val askNotifications = rememberNotificationPermissionAsk()
+    val is24 = android.text.format.DateFormat.is24HourFormat(androidx.compose.ui.platform.LocalContext.current)
     Column(modifier.fillMaxWidth()) {
         when {
-            AI_FAMILIES.any { id.startsWith(it) } -> AiSettingControl(id)
+            // Every control of the AI group, main ones (switch, budget, privacy ...) as well as the Advanced rows.
+            spec.group == SettingsGroup.AI -> AiSettingControl(id)
             HEALTH_FAMILIES.any { id.startsWith(it) } -> HealthControl(id)
             else -> when (id) {
                 // ---- Appearance and units ----
@@ -269,28 +272,28 @@ fun SettingControl(
                     "Workout reminder", "On a training day, at the time below. Not sent once today's workout is done.", s.workoutReminderOn,
                 ) { on -> if (on) askNotifications(); viewModel.setWorkoutReminder(on) }
                 "workoutTime" -> ChipSetting(
-                    "Workout reminder time", null, WORKOUT_TIMES, s.workoutReminderMinute, { clockLabel(it) },
+                    "Workout reminder time", null, WORKOUT_TIMES, s.workoutReminderMinute, { ClockLabel.fromMinute(it, is24) },
                 ) { viewModel.setWorkoutReminderMinute(it) }
                 "mealRemind" -> SwitchSetting(
                     "Meal reminders", "At each meal's time, only if nothing is logged for that meal yet.", s.mealReminderOn,
                 ) { on -> if (on) askNotifications(); viewModel.setMealReminder(on) }
-                "breakfastTime" -> ChipSetting("Breakfast reminder time", null, BREAKFAST_TIMES, s.breakfastReminderMinute, { clockLabel(it) }) {
+                "breakfastTime" -> ChipSetting("Breakfast reminder time", null, BREAKFAST_TIMES, s.breakfastReminderMinute, { ClockLabel.fromMinute(it, is24) }) {
                     viewModel.setMealReminderMinute(MealSlot.BREAKFAST, it)
                 }
-                "lunchTime" -> ChipSetting("Lunch reminder time", null, LUNCH_TIMES, s.lunchReminderMinute, { clockLabel(it) }) {
+                "lunchTime" -> ChipSetting("Lunch reminder time", null, LUNCH_TIMES, s.lunchReminderMinute, { ClockLabel.fromMinute(it, is24) }) {
                     viewModel.setMealReminderMinute(MealSlot.LUNCH, it)
                 }
-                "dinnerTime" -> ChipSetting("Dinner reminder time", null, DINNER_TIMES, s.dinnerReminderMinute, { clockLabel(it) }) {
+                "dinnerTime" -> ChipSetting("Dinner reminder time", null, DINNER_TIMES, s.dinnerReminderMinute, { ClockLabel.fromMinute(it, is24) }) {
                     viewModel.setMealReminderMinute(MealSlot.DINNER, it)
                 }
                 "waterRemind" -> SwitchSetting(
                     "Water reminders", "Every two hours between the hours below, only when you are behind for the time of day.", s.waterReminderOn,
                 ) { on -> if (on) askNotifications(); viewModel.setWaterReminder(on) }
                 "waterHours" -> Column {
-                    ChipSetting("Water reminders from", null, WATER_START_HOURS, s.waterReminderStartHour, { hourLabel(it) }) {
+                    ChipSetting("Water reminders from", null, WATER_START_HOURS, s.waterReminderStartHour, { ClockLabel.fromHour(it, is24) }) {
                         viewModel.setWaterReminderHours(it, s.waterReminderEndHour)
                     }
-                    ChipSetting("Water reminders until", null, WATER_END_HOURS, s.waterReminderEndHour, { hourLabel(it) }) {
+                    ChipSetting("Water reminders until", null, WATER_END_HOURS, s.waterReminderEndHour, { ClockLabel.fromHour(it, is24) }) {
                         viewModel.setWaterReminderHours(s.waterReminderStartHour, it)
                     }
                 }
@@ -370,12 +373,6 @@ private val LUNCH_TIMES = listOf(11 * 60, 11 * 60 + 30, 12 * 60, 12 * 60 + 30, 1
 private val DINNER_TIMES = listOf(17 * 60, 18 * 60, 18 * 60 + 30, 19 * 60, 20 * 60)
 private val WATER_START_HOURS = listOf(7, 8, 9, 10, 11, 12)
 private val WATER_END_HOURS = listOf(16, 18, 20, 21, 22)
-
-/** "7:30", from minutes after midnight. */
-private fun clockLabel(minute: Int): String = "%d:%02d".format(minute / 60, minute % 60)
-
-/** "8:00", from an hour of the day. */
-private fun hourLabel(hour: Int): String = "%d:00".format(hour)
 
 /**
  * Android 13+ asks for notification permission the first time a reminder is switched on, the same way the
@@ -495,7 +492,7 @@ private fun QuickSizes(
     Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
         Text("Quick sizes", style = MaterialTheme.typography.titleSmall)
         Text(
-            "The size buttons in Nutrition > Drinks. Remove one with the cross, or add your own.",
+            "The size buttons on Today's water card and the drinks page (open it from Log food). Remove one with the cross, or add your own.",
             style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 6.dp)) {
@@ -589,7 +586,7 @@ private fun WeekdayRow(isoWeekday: Int?, onSet: (Int?) -> Unit) {
     Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
         Text("Check-in day", style = MaterialTheme.typography.titleSmall)
         Text(
-            "The weekday the weekly check-in is made. None picks the day your baseline started, else Monday.",
+            "The weekday the weekly check-in is made. Tap the chosen day again to clear it; with no day chosen it uses the day your baseline started, else Monday.",
             style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 6.dp)) {

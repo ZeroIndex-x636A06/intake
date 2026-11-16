@@ -43,7 +43,7 @@ data class DashboardModel(
 /** Builds the dashboard's rows from the day's aggregate; pure, so "unknown is not zero" is unit tested. */
 object NutritionDashboard {
 
-    fun build(day: DayNutrition, target: MacroTarget?, saltInsteadOfSodium: Boolean): DashboardModel {
+    fun build(day: DayNutrition, target: MacroTarget?, saltInsteadOfSodium: Boolean, showSodiumTile: Boolean = true): DashboardModel {
         val eaten = day.kcal.roundToInt()
         val left = target?.let { it.kcal - eaten }
         val ring = CalorieRing(
@@ -68,7 +68,7 @@ object NutritionDashboard {
             DashRow("satfat", "Sat fat", day.saturatedFat.value, "g", ReferenceLimits.SATURATED_FAT_G, true, day.saturatedFat.note),
             DashRow("sugar", "Sugar", day.sugar.value, "g", null, false, day.sugar.note),
             sodiumRow,
-        )
+        ).filter { showSodiumTile || (it.id != "sodium" && it.id != "salt") }
         return DashboardModel(ring, macros, others, others.mapNotNull { it.note }, day.entries)
     }
 

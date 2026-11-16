@@ -81,7 +81,7 @@ private fun SettingsGroup.icon(): ImageVector = when (this) {
 
 /** The one-line summary under a group's name on the Settings home, from the live settings. */
 internal fun groupSummary(group: SettingsGroup, s: AppSettings, hasOpenRouter: Boolean, hasYoutube: Boolean, hasUsda: Boolean): String = when (group) {
-    SettingsGroup.APPEARANCE -> "${s.weightUnit.label} · ${s.lengthUnit.label} · ${s.volumeUnit.label} · ${s.themeMode.name.lowercase().replaceFirstChar(Char::uppercase)}"
+    SettingsGroup.APPEARANCE -> "${s.weightUnit.label} · ${s.lengthUnit.label} · ${s.volumeUnit.label} · ${s.portionUnit.label} · ${s.themeMode.name.lowercase().replaceFirstChar(Char::uppercase)}"
     SettingsGroup.NUTRITION -> (if (s.autoCalculateTargets) "Auto targets" else "Targets by hand") + " · ${s.proteinGramsPerKg} g protein per kg"
     SettingsGroup.WATER -> (s.hydrationBaseMl?.let { s.volumeUnit.format(it) } ?: "Target from your weight") + if (s.hydrationDynamic) " · adjusts daily" else ""
     SettingsGroup.TRAINING -> "${s.defaultRestSec / 60}:${"%02d".format(s.defaultRestSec % 60)} rest · ${s.weightUnit.format(s.barWeightKg)} bar"

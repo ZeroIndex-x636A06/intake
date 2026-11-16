@@ -65,6 +65,14 @@ class SettingsRegistryTest {
     }
 
     @Test
+    fun `every AI group row is routed to the AI controls, not only the model and uses rows`() {
+        val source = uiDir.resolve("settings/SettingsControls.kt").readText()
+        assertThat(source).contains("spec.group == SettingsGroup.AI -> AiSettingControl(id)")
+        val main = SettingsRegistry.inGroup(SettingsGroup.AI).filter { !it.advanced }.map { it.id }
+        assertThat(main).containsAtLeast("aiEnabled", "aiBudget", "aiPrivacy", "dailyInsight")
+    }
+
+    @Test
     fun `search finds a control by its words and an empty query finds nothing`() {
         assertThat(SettingsRegistry.search("sodium").map { it.id }).contains("showSodium")
         assertThat(SettingsRegistry.search("default rest").map { it.id }).contains("defaultRestSec")
