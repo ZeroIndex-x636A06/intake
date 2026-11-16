@@ -115,9 +115,12 @@ fun MenuSourcesScreen(
         }
         if (!state.hasKey) {
             item(key = "nokey") {
-                EmptyState(
-                    title = "AI is off or has no key",
-                    body = "A link whose page publishes its menu as structured data is read without AI. A PDF with a nutrition table is read on this phone without AI (Android 15 or later). Any other page, a PDF the phone cannot read, or pasted text is read by an AI model: turn on “Use AI features” and add a key in Settings → AI. Saved menus keep working without one.",
+                // A left-aligned intro in normal body text (not a centred empty-state card).
+                Text(
+                    "AI is off or has no key. A link whose page publishes its menu as structured data is read without AI. A PDF with a nutrition table is read on this phone without AI (Android 15 or later). Any other page, a PDF the phone cannot read, or pasted text is read by an AI model: turn on “Use AI features” and add a key in Settings → AI. Saved menus keep working without one.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Start,
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                 )
             }
         }

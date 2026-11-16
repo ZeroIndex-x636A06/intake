@@ -39,4 +39,12 @@ class KcalFormatTest {
     fun negativeValuesKeepTheirSign() {
         assertThat(KcalFormat.format(-1250)).isEqualTo("-1,250")
     }
+
+    @Test
+    fun doubleTotalsFromMealsAndFoodsAreGroupedToo() {
+        // Today's meal cards pass Double totals (QA Q5a-14: "1476 kcal" should read "1,476 kcal").
+        assertThat(KcalFormat.format(1476.0)).isEqualTo("1,476")
+        assertThat(KcalFormat.format(1187.4)).isEqualTo("1,187")
+        assertThat(KcalFormat.format(122.6)).isEqualTo("123")
+    }
 }

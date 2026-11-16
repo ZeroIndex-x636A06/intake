@@ -2,6 +2,7 @@
 
 package com.zeroindex.intake.ui.screens.recipe
 
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -23,8 +24,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -41,6 +42,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.BackHandler
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -100,11 +102,26 @@ class RecipeEditorViewModel @Inject constructor(
     private var nextKey = 0
     private var started = false
 
+    /** What the person edits, as it stood when the editor opened: [hasUnsavedChanges] compares against it. */
+    private var baseline: List<Any?>? = null
+
+    private fun editable(s: EditorState): List<Any?> = listOf(s.name, s.servings, s.minutes, s.stepsText, s.ingredients, s.notes)
+
+    private fun markBaseline() { baseline = editable(_state.value) }
+
+    /** True when the editor holds typed changes that are not saved, so leaving needs a "Discard changes?" answer. */
+    fun hasUnsavedChanges(): Boolean {
+        val s = _state.value
+        val base = baseline ?: return false
+        return s.savedId == null && editable(s) != base
+    }
+
     fun start(recipeId: String?) {
         if (started) return
         started = true
         if (recipeId == null) {
             _state.update { it.copy(loaded = true) }
+            markBaseline()
             return
         }
         viewModelScope.launch {
@@ -131,6 +148,7 @@ class RecipeEditorViewModel @Inject constructor(
                     notes = r.notes.orEmpty(),
                 )
             }
+            markBaseline()
             rescan()
         }
     }
@@ -196,6 +214,27 @@ class RecipeEditorViewModel @Inject constructor(
     }
 
     fun clearError() = _state.update { it.copy(error = null) }
+}
+
+/**
+ * Back from the recipe editor, from the system back and the top bar alike. With typed changes that are not saved it asks
+ * "Discard changes?" first (Keep editing or Discard); with none it leaves at once. Returns the back action to give the top bar.
+ */
+@Composable
+fun rememberRecipeEditorBack(viewModel: RecipeEditorViewModel, onLeave: () -> Unit): () -> Unit {
+    var asking by remember { mutableStateOf(false) }
+    val back: () -> Unit = { if (viewModel.hasUnsavedChanges()) asking = true else onLeave() }
+    BackHandler { back() }
+    if (asking) {
+        AlertDialog(
+            onDismissRequest = { asking = false },
+            title = { Text("Discard changes?") },
+            text = { Text("This recipe has changes that are not saved.") },
+            confirmButton = { TextButton(onClick = { asking = false; onLeave() }) { Text("Discard") } },
+            dismissButton = { TextButton(onClick = { asking = false }) { Text("Keep editing") } },
+        )
+    }
+    return back
 }
 
 @Composable
@@ -392,9 +431,10 @@ private fun IngredientSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp).verticalScroll(rememberScrollState())) {
             Text(if (initial == null) "Add ingredients" else "Edit ingredient", style = MaterialTheme.typography.titleMedium)
-            PrimaryTabRow(selectedTabIndex = tab) {
+            // Scrollable, so "From my foods" is never cut to "From my" on a narrow sheet.
+            ScrollableTabRow(selectedTabIndex = tab, edgePadding = 0.dp) {
                 listOf("From my foods", "Type it", "Paste a list").forEachIndexed { i, label ->
-                    Tab(selected = tab == i, onClick = { tab = i }, text = { Text(label, maxLines = 1) })
+                    Tab(selected = tab == i, onClick = { tab = i }, text = { Text(label, maxLines = 1, softWrap = false) })
                 }
             }
             Spacer(Modifier.height(10.dp))

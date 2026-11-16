@@ -131,20 +131,28 @@ class SwapViewModel @Inject constructor(
     private var found: List<SwapEntry> = emptyList()
     private var loadedFor: String? = "\u0000"
 
-    /** Reads today's planned meal and the options on this phone. Safe to call again with the same slot. */
+    private var planJob: kotlinx.coroutines.Job? = null
+
+    /**
+     * Reads today's planned meal and the options on this phone. The planned meal is collected live, the same way Today
+     * reads it, so the sheet waits for the plan to load and then agrees with Today. Safe to call again with the same slot.
+     */
     fun load(slotName: String?) {
         if (loadedFor == slotName) return
         loadedFor = slotName
         val slot = slotName?.let { n -> MealSlot.entries.firstOrNull { it.name == n } }
             ?: TemplateLink.slotFor(java.time.LocalTime.now(clock.zone()))
         _state.update { it.copy(slot = slot, loading = true) }
-        viewModelScope.launch {
-            val planned = repo.planned()
-            offline = repo.offlineEntries(planned)
+        planJob?.cancel()
+        planJob = viewModelScope.launch {
             val budget = settings.settings.first().eatOutTravel
-            _state.update { it.copy(planned = planned, loading = false, nearby = it.nearby.copy(budget = budget)) }
-            refreshPermissions()
-            publish()
+            _state.update { it.copy(nearby = it.nearby.copy(budget = budget)) }
+            repo.observePlanned().collect { planned ->
+                offline = repo.offlineEntries(planned)
+                _state.update { it.copy(planned = planned, loading = false) }
+                refreshPermissions()
+                publish()
+            }
         }
     }
 

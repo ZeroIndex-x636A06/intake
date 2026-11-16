@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
@@ -71,14 +72,14 @@ fun TabRootScreen(
         },
     ) { inner ->
         val nav = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-        content(
-            PaddingValues(
-                top = inner.calculateTopPadding(),
-                bottom = (if (rail) nav else nav + PillHeight) + LocalSessionBarSpace.current,
-                start = inner.calculateLeftPadding(LocalLayoutDirection.current),
-                end = inner.calculateRightPadding(LocalLayoutDirection.current),
-            ),
-        )
+        InsetSides(inner) {
+            content(
+                PaddingValues(
+                    top = inner.calculateTopPadding(),
+                    bottom = (if (rail) nav else nav + PillHeight) + LocalSessionBarSpace.current,
+                ),
+            )
+        }
     }
 }
 
@@ -99,7 +100,25 @@ fun PushedScreen(
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
         topBar = { IntakeTopBar(title = title, onBack = onBack, actions = actions) },
-    ) { inner -> content(inner) }
+    ) { inner ->
+        InsetSides(inner) { content(PaddingValues(top = inner.calculateTopPadding(), bottom = inner.calculateBottomPadding())) }
+    }
+}
+
+/**
+ * Keeps the content clear of the start and end insets (the navigation bar in landscape with three-button navigation,
+ * a cutout). They are applied here, once, for every tab root and pushed screen: a screen that builds its own
+ * horizontal padding (16 dp) then sits inside them instead of under the bar (QA Q5a-8).
+ */
+@Composable
+private fun InsetSides(inner: PaddingValues, content: @Composable () -> Unit) {
+    val direction = LocalLayoutDirection.current
+    Box(
+        Modifier.fillMaxSize().padding(
+            start = inner.calculateLeftPadding(direction),
+            end = inner.calculateRightPadding(direction),
+        ),
+    ) { content() }
 }
 
 /**

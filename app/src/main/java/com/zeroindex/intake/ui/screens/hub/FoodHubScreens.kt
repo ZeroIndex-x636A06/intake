@@ -99,7 +99,7 @@ fun RecipesScreen(
             ),
             HubItem(
                 title = "Import from a link",
-                description = "Paste a recipe page. Read straight off the page, no AI",
+                description = "Paste a recipe link. Intake reads the recipe data on that page, with no AI",
                 icon = Icons.Filled.Link,
                 onClick = onOpenImport,
             ),
@@ -253,8 +253,9 @@ fun EatingOutScreen(
         },
     )
     choosing?.let { e ->
+        // The option's name (the venue, as the card headline), not its description of what to order (QA Q5a-19).
         SlotPickerSheet(
-            title = "Log ${e.option.title} to",
+            title = "Log ${(e.source as? SwapSource.EatOut)?.option?.venueName ?: e.option.title} to",
             onDismiss = { choosing = null },
             onPick = { slot -> choosing = null; viewModel.choose(e, slot) },
         )

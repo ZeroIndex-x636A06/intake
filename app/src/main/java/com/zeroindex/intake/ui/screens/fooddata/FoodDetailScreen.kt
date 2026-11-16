@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.fooddata
 
+import com.zeroindex.intake.domain.units.KcalFormat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -261,15 +262,14 @@ fun FoodDetailScreen(
                             DrinkSizes.defaults(volumeUnit).forEach { s -> ChoiceChip(s.label, kotlin.math.abs(amount - s.ml) < 1.0, { setAmount(s.ml) }) }
                         }
                     }
-                    // The tiles and the printed label use the same rounding (LabelFormat), so 190 kcal on the tile is 190 on the
-                    // label, for food and drinks alike.
+                    // The kcal tile shows the exact figure the entry logs (the same as the list row), not the printed label's rounding (QA Q5a-22).
                     fun grams(v: Double) = "${LabelFormat.grams(v)} g"
                     MacroTiles(
                         listOf(
                             Triple(grams(food.proteinPer100g * f), "protein", ProteinAccent),
                             Triple(grams(food.carbsPer100g * f), "carbs", CarbAccent),
                             Triple(grams(food.fatPer100g * f), "fat", FatAccent),
-                            Triple(LabelFormat.calories(food.kcalPer100g * f).toString(), "kcal", MaterialTheme.colorScheme.onSurface),
+                            Triple(KcalFormat.format(food.kcalPer100g * f), "kcal", MaterialTheme.colorScheme.onSurface),
                         ),
                     )
                     MacroSplitBar(food.proteinPer100g * f, food.carbsPer100g * f, food.fatPer100g * f)
@@ -353,7 +353,7 @@ fun FoodDetailScreen(
             foodName = food.name,
             scan = state.scan,
             ingredientText = food.allergenTags.takeIf { it.isNotBlank() },
-            foodDetail = "$amountShown · ${LabelFormat.calories(food.kcalPer100g * f)} kcal",
+            foodDetail = "$amountShown · ${KcalFormat.format(food.kcalPer100g * f)} kcal",
             onDismiss = viewModel::dismissConfirm,
             onLogAnyway = { viewModel.log(food, amount, slotChoice.name, atMillis, confirmed = true, onLogged = onLogged) },
         )

@@ -54,6 +54,9 @@ import com.zeroindex.intake.ui.screens.profile.YourPlanScreen
 import com.zeroindex.intake.ui.screens.progress.ProgressScreen
 import com.zeroindex.intake.ui.screens.progress.TrainingStatsScreen
 import com.zeroindex.intake.ui.screens.recipe.RecipeEditorScreen
+import com.zeroindex.intake.ui.screens.recipe.RecipeEditorViewModel
+import com.zeroindex.intake.ui.screens.recipe.rememberRecipeEditorBack
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.zeroindex.intake.ui.screens.recipe.RecipeImportScreen
 import com.zeroindex.intake.ui.screens.settings.PrivacyScreen
 import com.zeroindex.intake.ui.screens.settings.SettingsGroupScreen
@@ -245,10 +248,13 @@ fun IntakeNavHost(
                 }
             }
             composable<Route.RecipeEditor> { entry ->
-                PushedScreen("Recipe", back) { pad ->
+                val editor: RecipeEditorViewModel = hiltViewModel()
+                val editorBack = rememberRecipeEditorBack(editor) { navController.popBackStack() }
+                PushedScreen("Recipe", editorBack) { pad ->
                     RecipeEditorScreen(
                         recipeId = entry.toRoute<Route.RecipeEditor>().recipeId,
                         contentPadding = pad,
+                        viewModel = editor,
                         onDone = { id ->
                             navController.navigate(Route.RecipeDetail(id)) { popUpTo<Route.RecipeEditor> { inclusive = true } }
                         },
