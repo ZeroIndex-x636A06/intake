@@ -1106,7 +1106,7 @@ Screenshot: none (reason: the ANR killed the screen; see /data/anr trace of that
 Suspect: unknown (text field recomposition under a dialog)
 
 ### Q5b-18 · S2 · Check-in · (owner report) A week with almost nothing logged says "All on track" and "Nothing to change"
-Status: Fixed in 102d8ec, needs retest
+Status: Fixed in 7eadaad, needs retest
 Steps: (owner, real phone, older preview build) Progress > Weekly check-in, week Nov 9-15.
 Expected: a week with 2 barely-logged days is called "not enough data", never "on track"; the protein line and the intake average use the same logged days.
 Actual: Avg weight "195.0 lb · +0.0 lb"; AVG INTAKE 210 kcal (an average over partial days, not real eating); Avg burn 2,230 kcal; "Protein target hit 0 of 7 days · 0%" (the 7 counted unlogged days); then "Check-in of Mon 16 Nov" with an "All on track" pill and "Nothing to change this week. Your numbers are where they should be, so the best move is to keep going." The "Suggestions" header wrapped as "Suggestion / s" beside the caption "You decide. Nothing changes until you tap Apply."
