@@ -326,7 +326,8 @@ class MealTemplateRepository @Inject constructor(
     }
 
     /** Undo for the "logged from tag" snackbar. */
-    suspend fun undo(logs: List<FoodLogEntity>) = logs.forEach { foodLog.softDelete(it.id) }
+    suspend fun undo(logs: List<FoodLogEntity>) =
+        com.zeroindex.intake.domain.template.TemplateUndo.softDeleteLogged(logs.map { it.id }) { foodLog.softDelete(it) }
 
     suspend fun markWritten(templateId: String, tagUid: String) {
         val template = templateDao.all().firstOrNull { it.id == templateId } ?: return

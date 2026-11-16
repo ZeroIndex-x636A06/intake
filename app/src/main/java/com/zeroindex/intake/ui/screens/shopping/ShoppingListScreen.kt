@@ -145,7 +145,13 @@ fun ShoppingListScreen(
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                     ) { Text("Share") }
                     OutlinedButton(
-                        onClick = { recipePicks = emptyMap(); templatePicks = emptyMap(); ticked = emptySet() },
+                        onClick = {
+                            val oldRecipes = recipePicks
+                            val oldTemplates = templatePicks
+                            val oldTicked = ticked
+                            recipePicks = emptyMap(); templatePicks = emptyMap(); ticked = emptySet()
+                            viewModel.cleared { recipePicks = oldRecipes; templatePicks = oldTemplates; ticked = oldTicked }
+                        },
                         shape = IntakeShape.Button,
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                     ) { Text("Clear") }

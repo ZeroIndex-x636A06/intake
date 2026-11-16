@@ -28,7 +28,13 @@ class ShoppingListViewModel @Inject constructor(
     settings: SettingsRepository,
     private val builder: ShoppingBuilderRepository,
     private val allergens: com.zeroindex.intake.data.repository.AllergenRepository,
+    private val messages: com.zeroindex.intake.ui.AppMessages,
 ) : ViewModel() {
+    /** "Cleared" with an Undo that puts the picks and ticks back. Nothing is stored or deleted: the picks are screen state. */
+    fun cleared(restore: () -> Unit) {
+        messages.post(com.zeroindex.intake.ui.AppMessage("Shopping list cleared", "Undo") { restore() })
+    }
+
     val recipes: StateFlow<List<RecipeEntity>> =
         recipeDao.observeAll().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 

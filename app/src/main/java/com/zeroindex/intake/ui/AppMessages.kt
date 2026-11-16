@@ -2,7 +2,14 @@ package com.zeroindex.intake.ui
 
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,12 +33,33 @@ data class AppMessage(
  * screen (or before the shell is collecting) is not dropped.
  */
 @Singleton
-class AppMessages @Inject constructor() {
+class AppMessages(private val actionScope: CoroutineScope) {
+    @Inject constructor() : this(CoroutineScope(SupervisorJob() + Dispatchers.Default))
+
     private val queue = Channel<AppMessage>(Channel.UNLIMITED)
     val events: Flow<AppMessage> = queue.receiveAsFlow()
 
     fun post(message: AppMessage) {
         queue.trySend(message)
+    }
+
+    /**
+     * Runs a message's action (an Undo) in the application's own scope, never in the scope of the screen that posted the
+     * message or of the snackbar collector: those are cancelled when the screen leaves, the activity is recreated or the
+     * shell recomposes, and an Undo cancelled that way silently does nothing (QA Q6-2). The action also runs to the end
+     * once started. Returns the job, or null when the message has no action.
+     */
+    fun perform(message: AppMessage): Job? {
+        val action = message.onAction ?: return null
+        return actionScope.launch {
+            withContext(NonCancellable) {
+                try {
+                    action()
+                } catch (e: Exception) {
+                    runCatching { android.util.Log.w("AppMessages", "Action for \"${message.actionLabel}\" failed", e) }
+                }
+            }
+        }
     }
 
     /** A screen to open, asked for from outside (a notification tap). Consumed by the app shell. */
