@@ -158,6 +158,16 @@ class PortableSettingsTest {
         assertThat(PortableSettings.describe(emptySet())).contains("none")
     }
 
+    // Q5b-15: changing Nutrition > Show salt or sodium must name Nutrition, not "reminders and videos".
+    @Test fun aChangedSaltSettingNamesTheNutritionGroup() {
+        assertThat(PortableSettings.describe(setOf("show_sodium"))).isEqualTo("Settings: nutrition settings")
+        assertThat(PortableSettings.describe(setOf("eat_out_minutes", "jump_tests"))).isEqualTo("Settings: nutrition settings, workout timer and plates")
+        assertThat(PortableSettings.describe(setOf("show_sodium"))).doesNotContain("reminders")
+        assertThat(PortableSettings.describe(setOf("workout_reminder_on", "videos_hide_shorts"))).isEqualTo("Settings: reminders and videos")
+        assertThat(PortableSettings.describe(setOf("water_reminder_on"))).isEqualTo("Settings: reminders and videos")
+        assertThat(PortableSettings.describe(setOf("weather_place"))).isEqualTo("Settings: water")
+    }
+
     @Test fun everyPreferenceNameInTheStoresIsDeliberatelyIncludedOrExcluded() {
         val deviceLocal = setOf(
             "backup_destination_json", "sync_server_url", "sync_device_id", "sync_device_name", "sync_pulled_seq",

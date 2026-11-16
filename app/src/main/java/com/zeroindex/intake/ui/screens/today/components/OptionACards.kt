@@ -216,7 +216,8 @@ fun NextUpCard(
                             AllergenStatus.MAY_CONTAIN -> StatusPill("May contain", tone = PillTone.Bad)
                             AllergenStatus.CHECK_LABEL -> StatusPill("Check the label", tone = PillTone.Wait)
                             AllergenStatus.UNKNOWN -> StatusPill("Not checked", tone = PillTone.Wait)
-                            else -> StatusPill("Fits your allergens", tone = PillTone.Ok)
+                            else -> if (meal.content.clearBasis.isCaution) StatusPill(meal.content.clearBasis.chipText, tone = PillTone.Wait)
+                            else StatusPill("Fits your allergens", tone = PillTone.Ok)
                         }
                     }
                     Text(meal.content.recipe.name, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 4.dp))

@@ -135,6 +135,7 @@ fun PlanScreen(
     val shoppingMarks by viewModel.shoppingMarks.collectAsStateWithLifecycle()
     val recipes by viewModel.recipes.collectAsStateWithLifecycle()
     val recipeVerdicts by recipeLibrary.verdicts.collectAsStateWithLifecycle()
+    val recipeAvoids by recipeLibrary.avoidsAnything.collectAsStateWithLifecycle()
     val unit by viewModel.weightUnit.collectAsStateWithLifecycle()
     val eatOut by viewModel.eatOut.collectAsStateWithLifecycle()
     val hidden by viewModel.hiddenEatOutCount.collectAsStateWithLifecycle()
@@ -382,6 +383,7 @@ fun PlanScreen(
             onDismiss = { assigning = false },
             onPick = { recipe, protein -> viewModel.assign(week, recipe, protein); assigning = false },
             verdicts = recipeVerdicts,
+            avoids = recipeAvoids,
         )
     }
     if (showPlans) {
@@ -629,12 +631,12 @@ private fun DishCard(content: WeekContent, onEditProtein: () -> Unit, onChange: 
                     AllergenStatus.MAY_CONTAIN -> StatusPill("Check allergens", tone = PillTone.Wait)
                     AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
                     AllergenStatus.CLEAR -> {
-                        val basis = com.zeroindex.intake.domain.allergen.AllergenEvidence.recipeClearBasis(main.ingredientLines.size, 0)
+                        val basis = com.zeroindex.intake.domain.allergen.AllergenEvidence.recipeClearBasis(main.ingredientLineCount, main.readLineCount)
                         if (basis.isCaution) com.zeroindex.intake.ui.allergen.AllergenChip(com.zeroindex.intake.domain.swap.SwapAllergen.CHECK_LABEL, label = basis.chipText)
                         else StatusPill(basis.chipText)
                     }
                     AllergenStatus.MENTIONED_AVOIDED -> StatusPill(MentionedAvoided.PILL)
-                    AllergenStatus.UNKNOWN -> StatusPill("Allergens not checked", tone = PillTone.Wait)
+                    AllergenStatus.UNKNOWN -> StatusPill(com.zeroindex.intake.domain.allergen.AllergenEvidence.ClearBasis.NAME_ONLY.chipText, tone = PillTone.Wait)
                 }
                 if (main.macros.isEmpty) Tag("Macros: no data")
                 else Text(

@@ -1,5 +1,8 @@
 package com.zeroindex.intake.data.repository
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.sync.withPermit
 import com.zeroindex.intake.data.db.entity.FoodLogEntity
 import com.zeroindex.intake.data.db.entity.RecipeEntity
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
@@ -50,6 +53,17 @@ class RecipeLogger @Inject constructor(
         val read = lines?.count { it.allergenTags.isNotBlank() } ?: 0
         return com.zeroindex.intake.ui.addfood.recipeRowAllergenOf(scan, total, read)
     }
+
+    /**
+     * [rowAllergen] for a whole list, off the main thread and in parallel (a few at a time) so the Recipes list does not
+     * wait on one recipe after another (Q5b-5). Every verdict is still read fresh: nothing is cached across calls, because
+     * a stale "clear" after a food or allergen edit must never be possible.
+     */
+    suspend fun rowAllergens(list: List<RecipeEntity>): Map<String, com.zeroindex.intake.ui.addfood.RowAllergen> =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val gate = kotlinx.coroutines.sync.Semaphore(4)
+            kotlinx.coroutines.coroutineScope { list.map { r -> async { gate.withPermit { r.id to rowAllergen(r) } } }.awaitAll().toMap() }
+        }
 
     suspend fun logServings(
         recipe: RecipeEntity,

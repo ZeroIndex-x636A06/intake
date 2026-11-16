@@ -62,6 +62,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
@@ -103,6 +105,10 @@ class HealthierNearbyViewModel @Inject constructor(
 
     private val _state = MutableStateFlow(HealthierUiState(zone = clock.zone()))
     val state: StateFlow<HealthierUiState> = _state.asStateFlow()
+
+    /** The length setting, so the nearby card speaks in miles for a user on inches (Q5b-14). */
+    val lengthUnit: StateFlow<com.zeroindex.intake.domain.units.LengthUnit> = settings.settings.map { it.lengthUnit }
+        .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Eagerly, com.zeroindex.intake.domain.units.LengthUnit.INCHES)
 
     private val foundLock = kotlinx.coroutines.sync.Mutex()
 
@@ -306,6 +312,7 @@ fun rememberHealthierBlock(
             item(key = "healthier-nearby-card") {
                 NearbyCard(
                     nearby = state.nearby,
+                    lengthUnit = viewModel.lengthUnit.collectAsStateWithLifecycle().value,
                     title = "Find healthier options nearby",
                     blurb = " Healthier orders on the menus near you, by protein for the calories, fibre, saturated fat, sugar and salt.",
                     foundTime = state.nearby.foundAt?.let { timeFmt.format(Instant.ofEpochMilli(it)) },
