@@ -20,6 +20,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -35,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -47,6 +50,9 @@ import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.data.db.entity.SetLogEntity
 import com.zeroindex.intake.data.repository.ExercisePrescription
 import com.zeroindex.intake.domain.training.PlateLine
+import com.zeroindex.intake.domain.training.Effort
+import com.zeroindex.intake.domain.training.EffortBand
+import com.zeroindex.intake.domain.training.EffortScale
 import com.zeroindex.intake.domain.training.PrKind
 import com.zeroindex.intake.domain.training.PreviousSets
 import com.zeroindex.intake.domain.training.RepTarget
@@ -69,8 +75,9 @@ import com.zeroindex.intake.ui.theme.IntakeShape
 internal fun SetRowsBlock(
     item: ExercisePrescription,
     state: ActiveWorkoutUiState,
-    onLogSet: (setIndex: Int, weightKg: Double, reps: Int, isFailure: Boolean) -> Unit,
+    onLogSet: (setIndex: Int, weightKg: Double, reps: Int, isFailure: Boolean, rpe: Double?) -> Unit,
     onUndoSet: (String) -> Unit,
+    onSetEffort: (setId: String, rpe: Double?) -> Unit,
     onShowPlates: (kg: Double, label: String) -> Unit,
     onAddSet: () -> Unit,
 ) {
@@ -78,7 +85,8 @@ internal fun SetRowsBlock(
     val exerciseId = item.exercise.id
     val prescription = item.prescription
     val logged = state.setsFor(exerciseId).filter { !it.isWarmup }
-    val lastResults = remember(item.lastSession) { item.lastSession.map { SetResult(it.weightKg, it.reps) } }
+    val lastResults = remember(item.lastSession) { item.lastSession.map { SetResult(it.weightKg, it.reps, it.rpe) } }
+    val effortScale = state.settings.effortScale
     val amrap = prescription != null && RepTarget.isAmrap(prescription.repsMin, prescription.repsMax)
     val bodyweight = item.exercise.isBodyweight
 
@@ -86,6 +94,8 @@ internal fun SetRowsBlock(
     val edits = remember(exerciseId) { mutableStateMapOf<Int, Pair<String, String>>() }
     var flashTick by remember(exerciseId) { mutableIntStateOf(0) }
     val flashed = remember(exerciseId) { mutableStateMapOf<Int, Int>() }
+    // Effort picked on a row that is not logged yet; it is saved with the set.
+    val pendingEffort = remember(exerciseId) { mutableStateMapOf<Int, Double>() }
 
     fun defaults(index: Int): Pair<String, String> {
         val prev = PreviousSets.forSet(lastResults, index)
@@ -101,9 +111,10 @@ internal fun SetRowsBlock(
     Column(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             HeaderCell(Modifier.width(32.dp), "Set")
-            HeaderCell(Modifier.weight(1.1f), "Previous")
+            HeaderCell(Modifier.weight(if (effortScale == EffortScale.OFF) 1.1f else 0.95f), "Previous")
             HeaderCell(Modifier.weight(1f), if (bodyweight) "+${unit.label}" else unit.label)
             HeaderCell(Modifier.weight(0.9f), "Reps")
+            if (effortScale != EffortScale.OFF) HeaderCell(Modifier.weight(0.8f), effortScale.label)
             Spacer(Modifier.width(52.dp))
         }
         rows.forEach { row ->
@@ -115,6 +126,18 @@ internal fun SetRowsBlock(
                 existing = existing,
                 record = existing?.let { state.records[it.id] } ?: PrKind.NONE,
                 previous = previous?.let { SetRowText.previous(it.weightKg, it.reps, bodyweight, unit) },
+                previousEffort = if (effortScale == EffortScale.OFF) null else previous?.rpe?.let { Effort.shortFor(it, effortScale) },
+                effortScale = effortScale,
+                effort = existing?.rpe ?: pendingEffort[row.index],
+                onEffortChange = { next ->
+                    if (existing != null) {
+                        onSetEffort(existing.id, next)
+                    } else if (next == null) {
+                        pendingEffort.remove(row.index)
+                    } else {
+                        pendingEffort[row.index] = next
+                    }
+                },
                 weight = weightText,
                 reps = repsText,
                 unitLabel = unit.label,
@@ -140,7 +163,9 @@ internal fun SetRowsBlock(
                             unit.toKg(w),
                             r,
                             prescription != null && r < prescription.repsMin && !amrap,
+                            pendingEffort[row.index],
                         )
+                        pendingEffort.remove(row.index)
                         // A record flashes the row once; the trophy itself comes from the saved set.
                         val prior = lastResults + logged.filter { it.setIndex != row.index }.map { SetResult(it.weightKg, it.reps) } +
                             (state.history[exerciseId].orEmpty())
@@ -202,6 +227,10 @@ private fun SetLine(
     existing: SetLogEntity?,
     record: PrKind,
     previous: String?,
+    previousEffort: String?,
+    effortScale: EffortScale,
+    effort: Double?,
+    onEffortChange: (Double?) -> Unit,
     weight: String,
     reps: String,
     unitLabel: String,
@@ -229,7 +258,7 @@ private fun SetLine(
         }
         Box(
             Modifier
-                .weight(1.1f)
+                .weight(if (effortScale == EffortScale.OFF) 1.1f else 0.95f)
                 .heightIn(min = 48.dp)
                 .then(if (onCopyPrevious != null && !done) Modifier.clickable(role = Role.Button, onClickLabel = "Use last time's numbers", onClick = onCopyPrevious) else Modifier),
             contentAlignment = Alignment.Center,
@@ -242,6 +271,9 @@ private fun SetLine(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )
+                if (!done && previousEffort != null) {
+                    Text(previousEffort, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                }
                 if (done && record != PrKind.NONE) {
                     Text(record.label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 }
@@ -253,6 +285,9 @@ private fun SetLine(
         } else {
             NumberCell(Modifier.weight(1f), weight, onWeightChange, "Set $number weight in $unitLabel", weightPlaceholder)
             NumberCell(Modifier.weight(0.9f), reps, onRepsChange, "Set $number reps")
+        }
+        if (effortScale != EffortScale.OFF) {
+            EffortCell(Modifier.weight(0.8f), number, effortScale, effort, onEffortChange)
         }
         val enabled = done || canLog
         Box(
@@ -344,6 +379,73 @@ private fun NumberCell(
                     .onFocusChanged { focused = it.isFocused }
                     .semantics { contentDescription = label },
             )
+        }
+    }
+}
+
+/** The colour of an effort band: easy sits quiet, near failure is loud. The cell always carries the number as well. */
+@Composable
+internal fun effortColor(band: EffortBand): Color = when (band) {
+    EffortBand.EASY -> MaterialTheme.colorScheme.surfaceVariant
+    EffortBand.MODERATE -> MaterialTheme.colorScheme.secondaryContainer
+    EffortBand.HARD -> MaterialTheme.colorScheme.primaryContainer
+    EffortBand.VERY_HARD -> MaterialTheme.colorScheme.tertiaryContainer
+    EffortBand.MAX -> MaterialTheme.colorScheme.errorContainer
+}
+
+/**
+ * The effort of one set: a small cell that shows the rating as a number on a tint (RIR 2 or RPE 8) and opens a short list
+ * of the five levels, each with a plain line such as "2 left in the tank". Tapping the chosen level again clears it.
+ */
+@Composable
+private fun EffortCell(modifier: Modifier, setNumber: Int, scale: EffortScale, effort: Double?, onChange: (Double?) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val description = if (effort == null) {
+        "Set $setNumber effort, not rated. Opens the ${scale.label} choices."
+    } else {
+        "Set $setNumber effort, ${Effort.shortFor(effort, scale)}, ${Effort.line(effort)}. Opens the ${scale.label} choices."
+    }
+    Box(modifier.padding(horizontal = 3.dp), contentAlignment = Alignment.Center) {
+        Surface(
+            color = effort?.let { effortColor(Effort.band(it)) } ?: MaterialTheme.colorScheme.surface,
+            shape = IntakeShape.ExtraSmall,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(44.dp)
+                .clickable(role = Role.Button, onClick = { open = true })
+                .semantics { contentDescription = description },
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    effort?.let { Effort.cellText(it, scale) } ?: "–",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = if (effort == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                )
+            }
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            Effort.levels(scale).forEach { level ->
+                val selected = effort == level.rpe
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Text(level.short, style = MaterialTheme.typography.titleSmall)
+                            Text(level.line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    },
+                    leadingIcon = {
+                        Surface(color = effortColor(level.band), shape = IntakeShape.ExtraSmall, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), modifier = Modifier.size(20.dp)) {}
+                    },
+                    onClick = {
+                        open = false
+                        onChange(if (selected) null else level.rpe)
+                    },
+                )
+            }
+            if (effort != null) {
+                DropdownMenuItem(text = { Text("Clear") }, onClick = { open = false; onChange(null) })
+            }
         }
     }
 }

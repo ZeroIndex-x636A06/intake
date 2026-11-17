@@ -30,12 +30,12 @@ class SettingsRegistryTest {
     )
 
     @Test
-    fun `the inventory has 127 controls in 12 groups`() {
-        assertThat(rows).hasSize(127)
+    fun `the inventory has 131 controls in 12 groups`() {
+        assertThat(rows).hasSize(131)
         assertThat(rows.map { it.group }.toSet()).isEqualTo(titleOf.keys)
         assertThat(SettingsGroup.entries).hasSize(12)
-        assertThat(SettingsRegistry.all).hasSize(127)
-        assertThat(SettingsRegistry.all.count { it.isStored }).isEqualTo(110)
+        assertThat(SettingsRegistry.all).hasSize(131)
+        assertThat(SettingsRegistry.all.count { it.isStored }).isEqualTo(114)
         assertThat(SettingsRegistry.all.count { it.kind == ControlKind.ACTION }).isEqualTo(16)
     }
 
@@ -87,7 +87,7 @@ class SettingsRegistryTest {
             "photo_reminder_weeks", "export_reminder", "export_include_photos",
             "workout_reminder_on", "workout_reminder_minute", "meal_reminder_on", "breakfast_reminder_minute",
             "lunch_reminder_minute", "dinner_reminder_minute", "water_reminder_on", "water_reminder_start_hour",
-            "water_reminder_end_hour",
+            "water_reminder_end_hour", "effort_scale", "rest_end_sound", "rest_end_flash", "keep_screen_awake",
         ).forEach { assertWithMessage(it).that(PortableSettings.isPortable(it)).isTrue() }
         assertThat(PortableSettings.isPortable("first_use_at_ms")).isFalse()
         assertThat(PortableSettings.isPortable("youtube_api_key")).isFalse()

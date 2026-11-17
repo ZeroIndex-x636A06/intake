@@ -47,7 +47,7 @@ data class SettingSpec(
 }
 
 /**
- * The settings registry: all 125 controls of the inventory (108 stored settings, 16 actions, 1 read-only line), each
+ * The settings registry: all 131 controls of the inventory (114 stored settings, 16 actions, 1 read-only line), each
  * with its group. A test checks it against the inventory file and that the UI renders every id.
  */
 object SettingsRegistry {
@@ -100,6 +100,10 @@ object SettingsRegistry {
         SettingSpec(132, "oneRepMaxFormula", SettingsGroup.TRAINING, ControlKind.CHIPS, "Estimated 1RM formula", advanced = false, isNew = true),
         SettingSpec(45, "weeklySets", SettingsGroup.TRAINING, ControlKind.NUMBER, "Weekly sets target per muscle region", advanced = true, isNew = true),
         SettingSpec(131, "idleFinish", SettingsGroup.TRAINING, ControlKind.NUMBER, "Ask \"Still training?\" after", advanced = false, isNew = true),
+        SettingSpec(133, "effortScale", SettingsGroup.TRAINING, ControlKind.CHIPS, "Rate effort on each set", advanced = false, isNew = true),
+        SettingSpec(134, "restEndSound", SettingsGroup.TRAINING, ControlKind.CHIPS, "Sound when rest ends", advanced = false, isNew = true),
+        SettingSpec(135, "restEndFlash", SettingsGroup.TRAINING, ControlKind.SWITCH, "Flash the screen when rest ends", advanced = false, isNew = true),
+        SettingSpec(136, "keepAwake", SettingsGroup.TRAINING, ControlKind.SWITCH, "Keep the screen on during a workout", advanced = false, isNew = true),
         SettingSpec(61, "hcOpen", SettingsGroup.HEALTH, ControlKind.ACTION, "Allow all Health Connect permissions", advanced = false, isNew = false),
         SettingSpec(46, "hc.read.Exercisesessions", SettingsGroup.HEALTH, ControlKind.SWITCH, "Exercise sessions", advanced = false, isNew = false),
         SettingSpec(47, "hc.read.Totalcaloriesburned", SettingsGroup.HEALTH, ControlKind.SWITCH, "Total calories burned", advanced = false, isNew = false),

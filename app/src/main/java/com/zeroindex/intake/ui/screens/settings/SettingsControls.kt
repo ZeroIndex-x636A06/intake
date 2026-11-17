@@ -217,8 +217,19 @@ fun SettingControl(
                 "sweatMeasure", "sweatUse" -> Unit // part of the drink values and sweat block
 
                 // ---- Training ----
-                "defaultRestSec" -> NumberSetting("Default rest", "Seconds between sets.", s.defaultRestSec.toDouble(), "sec", 10.0..900.0) { viewModel.setRestSeconds(it.toInt()) }
+                "defaultRestSec" -> NumberSetting("Default rest", "Seconds between sets, up to 900 (15 minutes). 0 means no timer.", s.defaultRestSec.toDouble(), "sec", 0.0..900.0) { viewModel.setRestSeconds(it.toInt()) }
                 "restVibrate" -> SwitchSetting("Vibrate when rest ends", null, s.restTimerVibrate, viewModel::setRestVibrate)
+                "restEndSound" -> ChipSetting(
+                    "Sound when rest ends", "A short built-in tone. Off by default. It plays with the notification volume.",
+                    com.zeroindex.intake.domain.training.RestSound.entries, s.restEndSound, { it.label },
+                ) { viewModel.setRestEndSound(it) }
+                "restEndFlash" -> SwitchSetting("Flash the screen when rest ends", "A brief light pulse while the workout is open. Off by default.", s.restEndFlash, viewModel::setRestEndFlash)
+                "keepAwake" -> SwitchSetting("Keep the screen on during a workout", "Stops the screen locking between sets while a workout is open.", s.keepScreenAwake, viewModel::setKeepScreenAwake)
+                "effortScale" -> ChipSetting(
+                    "Rate effort on each set",
+                    "RIR is reps in reserve: 2 means 2 left in the tank. RPE is the 6 to 10 scale: 8 is the same set. Both are saved the same way. Off by default.",
+                    com.zeroindex.intake.domain.training.EffortScale.entries, s.effortScale, { it.label },
+                ) { viewModel.setEffortScale(it) }
                 "barWeight" -> NumberSetting("Bar weight", "Used for the plate maths.", UnitConverter.round(s.weightUnit.fromKg(s.barWeightKg), 1), s.weightUnit.label, 0.0..60.0) { viewModel.setBarWeightKg(s.weightUnit.toKg(it)) }
                 "plates" -> PlatesRow(s.availablePlatesKg, s.weightUnit, viewModel::setPlates)
                 "oneRepMaxFormula" -> ChipSetting(

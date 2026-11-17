@@ -3,10 +3,14 @@
 package com.zeroindex.intake.ui.screens.workout
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,6 +29,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.AlertDialog
@@ -44,15 +50,19 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -62,10 +72,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.repository.ExercisePrescription
 import com.zeroindex.intake.domain.motion.MotionRules
 import com.zeroindex.intake.domain.training.RankedSwap
+import com.zeroindex.intake.domain.training.RestRules
+import com.zeroindex.intake.domain.training.UpNext
+import com.zeroindex.intake.domain.training.WorkoutClock
 import com.zeroindex.intake.domain.training.RepTarget
 import com.zeroindex.intake.domain.training.TrainText
 import com.zeroindex.intake.timer.TimerService
 import com.zeroindex.intake.ui.components.AccentNote
+import com.zeroindex.intake.ui.components.ChoiceChip
 import com.zeroindex.intake.ui.components.ExerciseThumb
 import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.PlateVisual
@@ -99,11 +113,15 @@ fun ActiveWorkoutScreen(
     var plateSheetFor by remember { mutableStateOf<Pair<Double, String>?>(null) }
     var confirmFinish by remember { mutableStateOf(false) }
     var confirmDiscard by remember { mutableStateOf(false) }
+    var restSheetFor by remember { mutableStateOf<String?>(null) }
 
+    // Clock: trained time, which stops while the workout is paused (the pause lives in memory and preferences, not the database).
     val startedAt = state.session?.startedAt
-    val elapsed by produceState(0L, startedAt) {
+    val pause = state.pause
+    val paused = pause?.isPaused == true
+    val elapsed by produceState(0L, startedAt, pause) {
         while (startedAt != null) {
-            value = System.currentTimeMillis() - startedAt
+            value = WorkoutClock.trainedMs(startedAt, pause, System.currentTimeMillis())
             delay(1_000)
         }
     }
@@ -128,14 +146,40 @@ fun ActiveWorkoutScreen(
         )
     }
 
+    // The screen stays on while a workout is open, unless the person turned that off in Settings > Training.
+    val view = LocalView.current
+    DisposableEffect(state.settings.keepScreenAwake) {
+        view.keepScreenOn = state.settings.keepScreenAwake
+        onDispose { view.keepScreenOn = false }
+    }
+
+    // A short light pulse when a rest runs out (only if the setting is on). Skipping or ending a rest by hand does not pulse.
+    var lastRemaining by remember { mutableIntStateOf(0) }
+    var pulse by remember { mutableStateOf(false) }
+    LaunchedEffect(timer.remainingSeconds, timer.totalSeconds) {
+        if (state.settings.restEndFlash && lastRemaining > 0 && timer.remainingSeconds == 0 && timer.totalSeconds > 0) {
+            pulse = true
+            delay(450)
+            pulse = false
+        }
+        lastRemaining = timer.remainingSeconds
+    }
+    val pulseAlpha by animateFloatAsState(if (pulse) 0.35f else 0f, tween(if (pulse) 80 else 350), label = "rest-end-pulse")
+
+    val setPaused = { value: Boolean ->
+        viewModel.setPaused(value)
+        if (value) TimerService.pause(context) else TimerService.resume(context)
+    }
+
     val finishNow = {
         TimerService.stop(context)
         viewModel.finish(onFinished)
         Unit
     }
 
+    Box(modifier.fillMaxSize()) {
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
             .padding(top = contentPadding.calculateTopPadding())
             .imePadding(),
@@ -144,6 +188,8 @@ fun ActiveWorkoutScreen(
             title = state.title,
             clock = TrainText.clock(elapsed),
             progress = TrainText.setsProgress(state.doneSets, state.totalSets),
+            paused = paused,
+            onTogglePause = { setPaused(!paused) },
             onMinimise = onMinimise,
             onFinish = { confirmFinish = true },
         )
@@ -189,26 +235,37 @@ fun ActiveWorkoutScreen(
                             onMove = { delta -> viewModel.move(state.currentIndex, delta) },
                             onAddSet = { viewModel.addSet(current.exercise.id) },
                             onShowPlates = { kg, label -> plateSheetFor = kg to label },
-                            onLogSet = { setIndex, weightKg, reps, isFailure ->
+                            onLogSet = { setIndex, weightKg, reps, isFailure, rpe ->
+                                // Logging a set carries a paused workout on.
+                                if (paused) setPaused(false)
                                 viewModel.logSet(
                                     exerciseId = current.exercise.id,
                                     setIndex = setIndex,
                                     weightKg = weightKg,
                                     reps = reps,
-                                    rpe = null,
+                                    rpe = rpe,
                                     isWarmup = false,
                                     isFailure = isFailure,
                                     restTakenSec = null,
                                 )
-                                // SPEC §10: rest starts when a set is done.
-                                TimerService.start(
-                                    context = context,
-                                    seconds = current.programExercise?.restSec ?: current.exercise.defaultRestSec,
-                                    label = "Rest · ${current.exercise.name}",
-                                    vibrate = state.settings.restTimerVibrate,
-                                )
+                                // SPEC §10: rest starts when a set is done. "No timer" (0 seconds) starts nothing.
+                                val restSeconds = RestRules.clamp(state.restSecFor(current))
+                                if (restSeconds > RestRules.NO_TIMER) {
+                                    TimerService.start(
+                                        context = context,
+                                        seconds = restSeconds,
+                                        label = "Rest · ${current.exercise.name}",
+                                        vibrate = state.settings.restTimerVibrate,
+                                        sound = state.settings.restEndSound,
+                                    )
+                                } else {
+                                    TimerService.stop(context)
+                                }
                             },
                             onUndoSet = viewModel::deleteSet,
+                            onSetEffort = viewModel::setEffort,
+                            restSec = state.restSecFor(current),
+                            onOpenRest = { restSheetFor = current.exercise.id },
                         )
                     }
                     val others = state.prescriptions.withIndex().filter { it.index != state.currentIndex }
@@ -268,14 +325,40 @@ fun ActiveWorkoutScreen(
                 remaining = timer.remainingSeconds,
                 total = timer.totalSeconds,
                 label = timer.label.ifBlank { "Rest" },
-                onAdd = { TimerService.extend(context, 15, state.settings.restTimerVibrate) },
+                paused = timer.paused,
+                upNext = state.upNext?.let { next ->
+                    val unit = state.settings.weightUnit
+                    val weight = when {
+                        next.weightKg > 0 -> com.zeroindex.intake.domain.units.WeightText.format(next.weightKg, unit).let { if (next.bodyweight) "+$it" else it }
+                        next.bodyweight -> com.zeroindex.intake.domain.training.SetRowText.BODYWEIGHT
+                        else -> ""
+                    }
+                    UpNext.text(next, weight)
+                },
+                onAdd = { TimerService.extend(context, RestRules.STEP_SECONDS, state.settings.restTimerVibrate) },
+                onSubtract = { TimerService.extend(context, -RestRules.STEP_SECONDS, state.settings.restTimerVibrate) },
                 onSkip = { TimerService.stop(context) },
                 modifier = Modifier.padding(bottom = contentPadding.calculateBottomPadding()),
             )
         }
     }
+    if (pulseAlpha > 0f) {
+        Box(Modifier.fillMaxSize().alpha(pulseAlpha).background(MaterialTheme.colorScheme.primary))
+    }
+    }
 
     detailFor?.let { id -> ExerciseDetailSheet(exerciseId = id, onDismiss = { detailFor = null }) }
+    restSheetFor?.let { id ->
+        val p = state.prescriptions.firstOrNull { it.exercise.id == id }
+        if (p != null) {
+            RestSheet(
+                exerciseName = p.exercise.name,
+                seconds = state.restSecFor(p),
+                onChange = { viewModel.setRest(id, it) },
+                onDismiss = { restSheetFor = null },
+            )
+        }
+    }
     if (picking) {
         ExercisePickerSheet(
             title = "Add an exercise",
@@ -417,7 +500,15 @@ private fun FinishDialog(
 
 /** The mockup's `.workout-top`: minimise, the day and the clock, Finish. */
 @Composable
-private fun WorkoutHeader(title: String, clock: String, progress: String, onMinimise: () -> Unit, onFinish: () -> Unit) {
+private fun WorkoutHeader(
+    title: String,
+    clock: String,
+    progress: String,
+    paused: Boolean,
+    onTogglePause: () -> Unit,
+    onMinimise: () -> Unit,
+    onFinish: () -> Unit,
+) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -428,10 +519,16 @@ private fun WorkoutHeader(title: String, clock: String, progress: String, onMini
         Column(Modifier.weight(1f).padding(horizontal = 4.dp)) {
             Text(title, style = MaterialTheme.typography.titleLarge, maxLines = 1, color = MaterialTheme.colorScheme.onBackground)
             Text(
-                "$clock · $progress",
+                if (paused) "$clock · Paused · $progress" else "$clock · $progress",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.semantics { contentDescription = "Elapsed $clock, $progress" },
+                color = if (paused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.semantics { contentDescription = (if (paused) "Paused at $clock" else "Elapsed $clock") + ", $progress" },
+            )
+        }
+        IconButton(onClick = onTogglePause, modifier = Modifier.size(48.dp)) {
+            Icon(
+                if (paused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                contentDescription = if (paused) "Resume the workout clock" else "Pause the workout clock and rest timer",
             )
         }
         Button(
@@ -442,34 +539,97 @@ private fun WorkoutHeader(title: String, clock: String, progress: String, onMini
     }
 }
 
-/** Rest, pinned at the bottom while it runs: a ring that empties, the time, +15 s and Skip. */
+/** Rest, pinned at the bottom while it runs: a ring that empties, the time, -15 s, +15 s and Skip, and the next set below. */
 @Composable
-private fun RestStrip(remaining: Int, total: Int, label: String, onAdd: () -> Unit, onSkip: () -> Unit, modifier: Modifier = Modifier) {
+private fun RestStrip(
+    remaining: Int,
+    total: Int,
+    label: String,
+    paused: Boolean,
+    upNext: String?,
+    onAdd: () -> Unit,
+    onSubtract: () -> Unit,
+    onSkip: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Surface(
         color = MaterialTheme.colorScheme.primaryContainer,
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
         shape = IntakeShape.Banner,
         modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            RestRing(
-                remainingFraction = MotionRules.restRemainingFraction(remaining, total),
-                size = 48.dp,
-                stroke = 5.dp,
-                color = MaterialTheme.colorScheme.primary,
-                track = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
-                description = "$label, ${TimerService.format(remaining)} left",
-            ) {}
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(TimerService.format(remaining), style = MaterialTheme.typography.headlineSmall)
-                Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RestRing(
+                    remainingFraction = MotionRules.restRemainingFraction(remaining, total),
+                    size = 48.dp,
+                    stroke = 5.dp,
+                    color = MaterialTheme.colorScheme.primary,
+                    track = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                    description = "$label, ${TimerService.format(remaining)} left" + if (paused) ", paused" else "",
+                ) {}
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(TimerService.format(remaining), style = MaterialTheme.typography.headlineSmall)
+                    Text(if (paused) "Paused" else label, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                }
+                TextButton(onClick = onSubtract, modifier = Modifier.heightIn(min = 48.dp)) { Text("-15 s") }
+                TextButton(onClick = onAdd, modifier = Modifier.heightIn(min = 48.dp)) { Text("+15 s") }
+                TextButton(onClick = onSkip, modifier = Modifier.heightIn(min = 48.dp)) { Text("Skip") }
             }
-            TextButton(onClick = onAdd, modifier = Modifier.heightIn(min = 48.dp)) { Text("+15 s") }
-            TextButton(onClick = onSkip, modifier = Modifier.heightIn(min = 48.dp)) { Text("Skip") }
+            if (upNext != null) {
+                Text(
+                    "Up next: $upNext",
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * The rest for one exercise, for this workout only: a "No timer" choice and the usual times as chips, with a 15 s stepper up
+ * to 15 minutes. The program is not changed. Choosing takes effect from the next set you log.
+ */
+@Composable
+private fun RestSheet(exerciseName: String, seconds: Int, onChange: (Int) -> Unit, onDismiss: () -> Unit) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Rest after $exerciseName", style = MaterialTheme.typography.headlineSmall)
+            Text(
+                "This workout only: your program keeps its own rest. It applies from the next set you log.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                OutlinedButton(
+                    onClick = { onChange(RestRules.step(seconds, -1)) },
+                    enabled = seconds > RestRules.NO_TIMER,
+                    shape = IntakeShape.Button,
+                    modifier = Modifier.heightIn(min = 48.dp),
+                ) { Text("-15 s") }
+                Text(
+                    RestRules.label(seconds),
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.width(150.dp).padding(horizontal = 8.dp),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
+                OutlinedButton(
+                    onClick = { onChange(RestRules.step(seconds, 1)) },
+                    enabled = seconds < RestRules.MAX_SECONDS,
+                    shape = IntakeShape.Button,
+                    modifier = Modifier.heightIn(min = 48.dp),
+                ) { Text("+15 s") }
+            }
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                RestRules.presets.forEach { preset ->
+                    ChoiceChip(RestRules.label(preset), seconds == preset, { onChange(preset) })
+                }
+            }
+            Button(onClick = onDismiss, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("Done") }
         }
     }
 }
@@ -587,8 +747,11 @@ private fun ExerciseSetsCard(
     onMove: (Int) -> Unit,
     onAddSet: () -> Unit,
     onShowPlates: (kg: Double, label: String) -> Unit,
-    onLogSet: (setIndex: Int, weightKg: Double, reps: Int, isFailure: Boolean) -> Unit,
+    onLogSet: (setIndex: Int, weightKg: Double, reps: Int, isFailure: Boolean, rpe: Double?) -> Unit,
     onUndoSet: (String) -> Unit,
+    onSetEffort: (setId: String, rpe: Double?) -> Unit,
+    restSec: Int,
+    onOpenRest: () -> Unit,
 ) {
     val unit = state.settings.weightUnit
     val prescription = item.prescription
@@ -659,9 +822,14 @@ private fun ExerciseSetsCard(
             )
             Text(com.zeroindex.intake.domain.units.WeightText.inUnit(prescription.reason, unit), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        TextButton(onClick = onOpenRest, modifier = Modifier.heightIn(min = 48.dp)) {
+            Icon(Icons.Filled.Timer, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(if (restSec > 0) "Rest ${RestRules.label(restSec)}" else "No rest timer")
+        }
 
         Spacer(Modifier.height(12.dp))
-        SetRowsBlock(item = item, state = state, onLogSet = onLogSet, onUndoSet = onUndoSet, onShowPlates = onShowPlates, onAddSet = onAddSet)
+        SetRowsBlock(item = item, state = state, onLogSet = onLogSet, onUndoSet = onUndoSet, onSetEffort = onSetEffort, onShowPlates = onShowPlates, onAddSet = onAddSet)
     }
 }
 

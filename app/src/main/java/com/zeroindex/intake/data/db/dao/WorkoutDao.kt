@@ -154,6 +154,13 @@ interface WorkoutDao {
     @Query("UPDATE set_log SET exerciseId = :exerciseId, updatedAt = :now WHERE id = :id AND deletedAt IS NULL")
     suspend fun updateSetExercise(id: String, exerciseId: String, now: Long)
 
+    /** The saved start moves later by the time spent paused, so finish minus start is trained time (see WorkoutClock.netStart). */
+    @Query("UPDATE workout_session SET startedAt = :startedAt, updatedAt = :now WHERE id = :id")
+    suspend fun updateSessionStart(id: String, startedAt: Long, now: Long)
+
+    @Query("UPDATE set_log SET rpe = :rpe, updatedAt = :now WHERE id = :id AND deletedAt IS NULL")
+    suspend fun updateSetRpe(id: String, rpe: Double?, now: Long)
+
     @Query("UPDATE workout_session SET deletedAt = :now, updatedAt = :now WHERE id = :id")
     suspend fun softDeleteSession(id: String, now: Long)
 
