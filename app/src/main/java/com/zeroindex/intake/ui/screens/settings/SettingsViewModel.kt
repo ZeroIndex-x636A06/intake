@@ -200,6 +200,7 @@ class SettingsViewModel @Inject constructor(
     fun setBarWeightKg(kg: Double) = launchSetting { setBarWeightKg(kg) }
     fun setPlates(csv: String) = launchSetting { setAvailablePlates(csv) }
     fun setJumpTests(on: Boolean) = launchSetting { setJumpTests(on) }
+    fun setIdleFinishHours(hours: Int) = launchSetting { setIdleFinishHours(hours) }
     fun setWeeklySets(csv: String) = launchSetting { setWeeklySetsCsv(csv) }
 
     // ---- Food database ----

@@ -73,6 +73,7 @@ import com.zeroindex.intake.ui.components.Tag
 import com.zeroindex.intake.ui.motion.RestRing
 import com.zeroindex.intake.ui.screens.train.ExerciseDetailSheet
 import com.zeroindex.intake.ui.screens.train.ExercisePickerSheet
+import com.zeroindex.intake.domain.training.history.ForgottenWorkoutPolicy
 import com.zeroindex.intake.ui.theme.IntakeShape
 import kotlinx.coroutines.delay
 
@@ -105,6 +106,26 @@ fun ActiveWorkoutScreen(
             value = System.currentTimeMillis() - startedAt
             delay(1_000)
         }
+    }
+
+    // "Still training?": a workout with no activity for the threshold (Settings > Training) offers to end at the last set.
+    var keepGoingAt by remember { mutableStateOf<Long?>(null) }
+    val nowTick by produceState(System.currentTimeMillis()) {
+        while (true) {
+            value = System.currentTimeMillis()
+            delay(30_000)
+        }
+    }
+    val forgotten = state.session?.takeIf { !state.loading && it.finishedAt == null }?.let { session ->
+        val last = state.loggedSets.maxByOrNull { it.completedAt }
+        ForgottenWorkoutPolicy.check(
+            startedAt = session.startedAt,
+            lastSetAt = last?.completedAt,
+            lastSetRestSec = last?.restTakenSec,
+            keepGoingAt = keepGoingAt,
+            now = nowTick,
+            thresholdMillis = ForgottenWorkoutPolicy.thresholdMillis(state.settings.idleFinishHours),
+        )
     }
 
     val finishNow = {
@@ -291,6 +312,19 @@ fun ActiveWorkoutScreen(
             onDiscard = { confirmFinish = false; confirmDiscard = true },
         )
     }
+    if (forgotten != null && !confirmFinish && !confirmDiscard) {
+        StillTrainingDialog(
+            idleSince = forgotten.idleSince,
+            finishAt = forgotten.finishAt,
+            now = nowTick,
+            onFinish = {
+                TimerService.stop(context)
+                viewModel.finishAt(forgotten.finishAt, onFinished)
+            },
+            onKeepGoing = { keepGoingAt = System.currentTimeMillis() },
+            onDiscard = { keepGoingAt = System.currentTimeMillis(); confirmDiscard = true },
+        )
+    }
     if (confirmDiscard) {
         AlertDialog(
             onDismissRequest = { confirmDiscard = false },
@@ -306,6 +340,46 @@ fun ActiveWorkoutScreen(
             dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text("Keep going") } },
         )
     }
+}
+
+/**
+ * "Still training?" after a long quiet stretch. Finish ends the workout at the last set and its rest, never at the moment you
+ * answer, so the length stays honest; nothing is thrown away.
+ */
+@Composable
+private fun StillTrainingDialog(
+    idleSince: Long,
+    finishAt: Long?,
+    now: Long,
+    onFinish: () -> Unit,
+    onKeepGoing: () -> Unit,
+    onDiscard: () -> Unit,
+) {
+    val time = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
+    fun clockOf(millis: Long) = time.format(java.time.Instant.ofEpochMilli(millis).atZone(java.time.ZoneId.systemDefault()))
+    val hours = ((now - idleSince) / 3_600_000L).toInt().coerceAtLeast(1)
+    AlertDialog(
+        onDismissRequest = onKeepGoing,
+        title = { Text("Still training?") },
+        text = {
+            Text(
+                if (finishAt != null) {
+                    "Nothing has been logged for about $hours ${if (hours == 1) "hour" else "hours"}. Your last set was at ${clockOf(idleSince)}. " +
+                        "Finish this workout at ${clockOf(finishAt)}, or keep going."
+                } else {
+                    "No set has been logged in this workout for about $hours ${if (hours == 1) "hour" else "hours"}. Keep going, or discard it."
+                },
+            )
+        },
+        confirmButton = {
+            if (finishAt != null) TextButton(onClick = onFinish) { Text("Finish at ${clockOf(finishAt)}") }
+            else TextButton(onClick = onKeepGoing) { Text("Keep going") }
+        },
+        dismissButton = {
+            if (finishAt != null) TextButton(onClick = onKeepGoing) { Text("Keep going") }
+            else TextButton(onClick = onDiscard) { Text("Discard", color = MaterialTheme.colorScheme.error) }
+        },
+    )
 }
 
 /** Finish is a choice, not a tap you can regret: finish, keep going, or throw the session away. */

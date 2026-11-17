@@ -101,6 +101,7 @@ Rest timer, bar and plates, equipment and volume targets.
 | 43 | My equipment: items | `equipment` (UserProfile.equipmentItems, a JSON set of item ids in the existing profile value, plus UserProfile.dumbbellMaxKg; UserProfile.equipment still holds the five old kinds, kept in step) | Training | grouped checklist (40 items in four groups, heaviest dumbbell) | Profile "Training you can do" | Training |
 | 44 | Show jump tests in Progress **(new)** | `jumpTests` (new) | Training | switch | none (v4 default) | Training |
 | 45 | Weekly sets target per muscle region **(new)** | `weeklySets` (new) | Training | number field, Advanced | none (planned) | Training |
+| 131 | Ask "Still training?" after **(new)** | `idleFinish` (new; idle_finish_hours, default 3, 1 to 12) | Training | number field, hours | none | Training |
 
 ## E. Health Connect
 

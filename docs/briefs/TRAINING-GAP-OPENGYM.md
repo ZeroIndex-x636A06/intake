@@ -90,7 +90,7 @@ exists but a visible part is missing; **missing** = nothing.
 | Live volume, exercise chips, focus view, collapse finished | **partial**: header shows sets done and time; no volume, chips, focus view | |
 | Minimised session bar and resume | **has**: `SessionBar.kt` | none |
 | Keep screen awake during a workout | **missing** in the workout (only Cook mode and the watch) | |
-| "Still training?" prompt, auto-finish | **missing** | |
+| "Still training?" prompt, auto-finish | **has (WP-16 branch agent/wp16-history)**: prompt, threshold in Settings > Training; no silent auto-finish | |
 | Per-exercise note at log time, standing note | **partial**: program notes shown; `exercise.notes` | |
 | "Don't count for progression" | **missing** | |
 | Finish summary: records, muscles worked, next time, repeat | **has**: `WorkoutSummaryScreen.kt`, `WorkoutSummaryViewModel` | none |
@@ -300,6 +300,7 @@ line" marker unless a second tab opens them.
 - **Conflicts:** **licence.** openGym's catalogue and animations must not be used or mirrored, ids included. Use original text and art, or public-domain data with the licence recorded in a provenance doc like `docs/FOOD-DATA.md`.
 
 ### WP-16 History (P1, M, no schema; day notes v7+)
+- **Status:** implemented on branch `agent/wp16-history` (edit date/start/duration, add/remove sets with Undo, change a set's exercise, backdated workout, undo Finish, calendar month view, Still training? prompt, Repeat this workout). Copy as text and day notes are not part of it. Not seen on a device.
 - **Behaviour:** edit a finished workout's date, start and duration (weights and reps already editable), add a set or exercise to it; log a past workout; undo Finish and reopen for 24 hours; copy as text; calendar view in the Training log; "Still training?" after a quiet stretch with finish-by-itself that never discards.
 - **Domain:** extend `SetEdit` into `SessionEditor` (validates, recomputes duration and records), `ForgottenWorkoutPolicy` (end = last set plus its rest, never "now"), `WorkoutText`.
 - **Screens:** `WorkoutHistory`, `WorkoutSummary`, `ActiveWorkout` (prompt).

@@ -241,6 +241,10 @@ fun SettingControl(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
                 "jumpTests" -> SwitchSetting("Show jump tests in Progress", "Hidden until you switch it on.", s.jumpTests, viewModel::setJumpTests)
+                "idleFinish" -> NumberSetting(
+                    "Ask \"Still training?\" after", "Hours with no set logged before a running workout offers to finish at the last set.",
+                    s.idleFinishHours.toDouble(), "hours", 1.0..12.0,
+                ) { viewModel.setIdleFinishHours(it.toInt()) }
                 "weeklySets" -> WeeklySetsRow(s.weeklySetsCsv, viewModel::setWeeklySets)
 
                 // ---- Health Connect is drawn by HealthControl above (hc.*, hcOpen) ----

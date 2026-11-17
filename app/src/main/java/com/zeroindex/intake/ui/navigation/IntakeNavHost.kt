@@ -577,6 +577,7 @@ fun IntakeNavHost(
                     contentPadding = pad,
                     onDone = back,
                     onRepeat = { id -> navController.navigate(Route.ActiveWorkout(id)) { popUpTo<Route.WorkoutSummary> { inclusive = true } } },
+                    onReopened = { id -> navController.navigate(Route.ActiveWorkout(id)) { popUpTo<Route.WorkoutSummary> { inclusive = true } } },
                 )
             }
         }

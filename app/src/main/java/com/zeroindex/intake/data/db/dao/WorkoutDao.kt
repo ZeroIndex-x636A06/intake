@@ -135,6 +135,25 @@ interface WorkoutDao {
     @Query("UPDATE workout_session SET finishedAt = :now, updatedAt = :now WHERE id = :id")
     suspend fun finishSession(id: String, now: Long)
 
+    /** Finish at a chosen time (a forgotten workout ends at its last set, not now). */
+    @Query("UPDATE workout_session SET finishedAt = :finishedAt, updatedAt = :now WHERE id = :id")
+    suspend fun finishSessionAt(id: String, finishedAt: Long, now: Long)
+
+    /** Undo Finish: the session is the active one again. */
+    @Query("UPDATE workout_session SET finishedAt = NULL, updatedAt = :now WHERE id = :id")
+    suspend fun reopenSession(id: String, now: Long)
+
+    /** History editing: a finished session's start and end. */
+    @Query("UPDATE workout_session SET startedAt = :startedAt, finishedAt = :finishedAt, updatedAt = :now WHERE id = :id")
+    suspend fun updateSessionTimes(id: String, startedAt: Long, finishedAt: Long, now: Long)
+
+    /** Moves every set of a session (removed ones too, so an Undo lands in the right place) by [delta] millis. */
+    @Query("UPDATE set_log SET completedAt = completedAt + :delta, updatedAt = :now WHERE sessionId = :sessionId")
+    suspend fun shiftSetTimes(sessionId: String, delta: Long, now: Long)
+
+    @Query("UPDATE set_log SET exerciseId = :exerciseId, updatedAt = :now WHERE id = :id AND deletedAt IS NULL")
+    suspend fun updateSetExercise(id: String, exerciseId: String, now: Long)
+
     @Query("UPDATE workout_session SET deletedAt = :now, updatedAt = :now WHERE id = :id")
     suspend fun softDeleteSession(id: String, now: Long)
 

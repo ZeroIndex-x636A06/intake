@@ -165,7 +165,9 @@ class ActiveWorkoutViewModel @Inject constructor(
         )
         // Exercises that were added or swapped in and already have sets (this is a resumed session) stay in the list.
         val have = base.map { it.exercise.id }.toSet()
-        val extra = repository.sets(sessionId).sortedBy { it.completedAt }.map { it.exerciseId }.distinct()
+        // A repeated blank workout starts with last time's exercises, with no sets logged yet.
+        val seeded = repository.takeRepeatSeed(sessionId)
+        val extra = (repository.sets(sessionId).sortedBy { it.completedAt }.map { it.exerciseId } + seeded).distinct()
             .filter { it !in have }
             .mapNotNull { repository.freestylePrescription(it, sessionId) }
         val all = base + extra
@@ -284,6 +286,12 @@ class ActiveWorkoutViewModel @Inject constructor(
     /** Finishes the session, then reports its id so the screen can open the summary. */
     fun finish(onFinished: (sessionId: String) -> Unit) = viewModelScope.launch {
         repository.finishSession(sessionId)
+        onFinished(sessionId)
+    }
+
+    /** "Still training?" > "Finish it": ends the workout at [finishAt] (the last set and its rest), not now. */
+    fun finishAt(finishAt: Long?, onFinished: (sessionId: String) -> Unit) = viewModelScope.launch {
+        repository.finishSession(sessionId, finishAt)
         onFinished(sessionId)
     }
 
