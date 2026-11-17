@@ -46,7 +46,7 @@ object PortableSettings {
         "profile_json", "baseline_json", "plan_history_json", "week_pattern_json",
         // Round 3: You and Settings (all plain preferences; never a secret or a device id).
         "profile_display_name", "portion_unit", "today_card_next", "today_card_water", "today_card_weight",
-        "today_card_meals", "today_card_activity", "show_sodium", "eat_out_radius_mi", "eat_out_minutes", "eat_out_travel", "jump_tests", "weekly_sets_csv",
+        "today_card_meals", "today_card_activity", "show_sodium", "eat_out_radius_mi", "eat_out_minutes", "eat_out_travel", "jump_tests", "weekly_sets_csv", "idle_finish_hours",
         "videos_only_workouts", "videos_personalise", "videos_hide_shorts", "photo_reminder_weeks", "export_reminder",
         "export_include_photos",
         // Round 3, item D: daily reminders (the switches and times). NOT the last-sent markers: those are device-local.
@@ -189,7 +189,7 @@ object PortableSettings {
             // Q5b-15: these used to be filed under "reminders and videos", so a changed salt setting named the wrong group.
             "nutrition settings" to setOf("show_sodium", "eat_out_radius_mi", "eat_out_minutes", "eat_out_travel"),
             "workout timer and plates" to setOf(
-                "default_rest_sec", "rest_vibrate", "bar_weight_kg", "available_plates_kg", "jump_tests", "weekly_sets_csv",
+                "default_rest_sec", "rest_vibrate", "bar_weight_kg", "available_plates_kg", "jump_tests", "weekly_sets_csv", "idle_finish_hours",
             ),
             "targets" to setOf(
                 "goal_weight_kg", "goal_rate_kg_per_week", "protein_g_per_kg", "fat_g_per_kg", "auto_targets",

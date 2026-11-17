@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
@@ -17,6 +18,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import com.zeroindex.intake.domain.training.SetEdit
+import com.zeroindex.intake.domain.training.history.ReopenOutcome
+import com.zeroindex.intake.ui.screens.train.ExercisePickerSheet
 import com.zeroindex.intake.ui.screens.train.ExerciseDetailSheet
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Arrangement
@@ -85,11 +88,18 @@ fun WorkoutSummaryScreen(
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
     onRepeat: (sessionId: String) -> Unit = {},
+    /** Undo Finish worked: open the session as the active workout again. */
+    onReopened: (sessionId: String) -> Unit = {},
     viewModel: WorkoutSummaryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf<SummarySetRow?>(null) }
     var detailFor by remember { mutableStateOf<String?>(null) }
+    var editingTime by remember { mutableStateOf(false) }
+    var addingSetFor by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var pickingExercise by remember { mutableStateOf(false) }
+    var changingExerciseOf by remember { mutableStateOf<String?>(null) }
+    var reopenConflict by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var keepName by remember { mutableStateOf("Workout " + java.time.format.DateTimeFormatter.ofPattern("d MMM").format(java.time.LocalDate.now())) }
@@ -167,6 +177,11 @@ fun WorkoutSummaryScreen(
                                                             .wrapContentHeight(Alignment.CenterVertically),
                                                     )
                                                 }
+                                                if (state.session?.finishedAt != null) {
+                                                    TextButton(onClick = { addingSetFor = e.exerciseId to e.name }, modifier = Modifier.heightIn(min = 48.dp)) {
+                                                        Text("Add a set")
+                                                    }
+                                                }
                                             }
                                             if (e.records.isNotEmpty()) Tag("PR")
                                         }
@@ -176,13 +191,53 @@ fun WorkoutSummaryScreen(
                             }
                         }
                     }
-                    if (state.canRepeat) {
-                        item(key = "repeat") {
-                            OutlinedButton(
-                                onClick = { viewModel.repeat(onRepeat) },
-                                shape = IntakeShape.Button,
-                                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-                            ) { Text("Repeat this workout") }
+                    if (state.session != null) {
+                        item(key = "edit") {
+                            IntakeCard {
+                                Text("Edit this workout", style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    "Fix the date, time or length, add a set you forgot, or change a set's exercise by tapping the set.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 2.dp, bottom = 10.dp),
+                                )
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    if (state.session?.finishedAt != null) {
+                                        OutlinedButton(
+                                            onClick = { editingTime = true },
+                                            shape = IntakeShape.Button,
+                                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                                        ) { Text("Change date, time and length") }
+                                        OutlinedButton(
+                                            onClick = { pickingExercise = true },
+                                            shape = IntakeShape.Button,
+                                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                                        ) { Text("Add an exercise") }
+                                    }
+                                    if (state.reopen == ReopenOutcome.Allowed || state.reopen is ReopenOutcome.AnotherActive) {
+                                        OutlinedButton(
+                                            onClick = {
+                                                viewModel.reopen(false, onReopened) { reopenConflict = true }
+                                            },
+                                            shape = IntakeShape.Button,
+                                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                                        ) { Text("Reopen this workout") }
+                                    }
+                                    if (state.canRepeat) {
+                                        OutlinedButton(
+                                            onClick = {
+                                                viewModel.repeat { id ->
+                                                    if (id != null) onRepeat(id) else scope.launch {
+                                                        snackbar.showSnackbar("Another workout is running. Finish it first, then repeat this one.")
+                                                    }
+                                                }
+                                            },
+                                            shape = IntakeShape.Button,
+                                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                                        ) { Text("Repeat this workout") }
+                                    }
+                                }
+                            }
                         }
                     }
                     if (state.nextTime.isNotEmpty()) {
@@ -260,6 +315,64 @@ fun WorkoutSummaryScreen(
     }
 
     detailFor?.let { id -> ExerciseDetailSheet(exerciseId = id, onDismiss = { detailFor = null }) }
+    if (editingTime) {
+        val session = state.session
+        val finished = session?.finishedAt
+        if (session != null && finished != null) {
+            EditTimeDialog(
+                startedAt = session.startedAt,
+                finishedAt = finished,
+                today = java.time.LocalDate.now(),
+                problemWith = viewModel::timeProblem,
+                onSave = { date, time, minutes -> editingTime = false; viewModel.retime(date, time, minutes) },
+                onDismiss = { editingTime = false },
+            )
+        }
+    }
+    if (pickingExercise) {
+        ExercisePickerSheet(
+            title = "Add an exercise",
+            onPick = { id -> pickingExercise = false; viewModel.askAddSet(id) { name -> addingSetFor = id to name } },
+            onDismiss = { pickingExercise = false },
+        )
+    }
+    changingExerciseOf?.let { setId ->
+        ExercisePickerSheet(
+            title = "Change the exercise",
+            onPick = { id -> changingExerciseOf = null; viewModel.changeExercise(setId, id) },
+            onDismiss = { changingExerciseOf = null },
+        )
+    }
+    addingSetFor?.let { (exerciseId, name) ->
+        val last = state.exercises.firstOrNull { it.exerciseId == exerciseId }?.setRows?.lastOrNull { !it.isWarmup }
+        AddSetDialog(
+            exerciseName = name,
+            unit = state.unit,
+            initialWeightKg = last?.weightKg ?: 0.0,
+            initialReps = last?.reps,
+            onSave = { weight, reps -> viewModel.addSet(exerciseId, weight, reps); addingSetFor = null },
+            onDismiss = { addingSetFor = null },
+        )
+    }
+    if (reopenConflict) {
+        AlertDialog(
+            onDismissRequest = { reopenConflict = false },
+            title = { Text("Another workout is running") },
+            text = {
+                Text(
+                    "Only one workout can be running at a time. Finish the other one first, then this one reopens. " +
+                        "If the other workout has no sets in it, it is discarded instead.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    reopenConflict = false
+                    viewModel.reopen(true, onReopened) {}
+                }) { Text("Finish it and reopen this") }
+            },
+            dismissButton = { TextButton(onClick = { reopenConflict = false }) { Text("Cancel") } },
+        )
+    }
     editing?.let { row ->
         EditSetDialog(
             row = row,
@@ -273,6 +386,7 @@ fun WorkoutSummaryScreen(
                     if (result == SnackbarResult.ActionPerformed) viewModel.restoreSet(row.setId)
                 }
             },
+            onChangeExercise = { editing = null; changingExerciseOf = row.setId },
             onDismiss = { editing = null },
         )
     }
@@ -285,6 +399,7 @@ private fun EditSetDialog(
     unit: WeightUnit,
     onSave: (weight: String, reps: String) -> Unit,
     onRemove: () -> Unit,
+    onChangeExercise: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     var weight by remember(row.setId) { mutableStateOf(SetEdit.weightText(row.weightKg, unit)) }
@@ -319,6 +434,7 @@ private fun EditSetDialog(
                     Checkbox(checked = done, onCheckedChange = null)
                     Text("  Done (untick to take it out of the totals)", style = MaterialTheme.typography.bodyMedium)
                 }
+                TextButton(onClick = onChangeExercise, modifier = Modifier.heightIn(min = 48.dp)) { Text("Change exercise") }
                 TextButton(onClick = onRemove, modifier = Modifier.heightIn(min = 48.dp)) {
                     Text("Delete this set", color = MaterialTheme.colorScheme.error)
                 }
@@ -449,4 +565,90 @@ private fun NextTimeCard(changes: List<NextTimeChange>, unit: WeightUnit) {
             }
         }
     }
+}
+
+
+/** Add a set to a finished workout: weight in the person's unit and reps, starting from the exercise's last set. */
+@Composable
+private fun AddSetDialog(
+    exerciseName: String,
+    unit: WeightUnit,
+    initialWeightKg: Double,
+    initialReps: Int?,
+    onSave: (weight: String, reps: String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var weight by remember(exerciseName) { mutableStateOf(if (initialWeightKg > 0) SetEdit.weightText(initialWeightKg, unit) else "") }
+    var reps by remember(exerciseName) { mutableStateOf(initialReps?.toString().orEmpty()) }
+    val valid = SetEdit.parse(weight, reps, unit) != null
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add a set: $exerciseName") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = weight,
+                    onValueChange = { v -> weight = v.filter { it.isDigit() || it == '.' }.take(7) },
+                    label = { Text("Weight (${unit.label}), blank for bodyweight") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = reps,
+                    onValueChange = { v -> reps = v.filter { it.isDigit() }.take(3) },
+                    label = { Text("Reps") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = { onSave(weight, reps) }, enabled = valid) { Text("Add") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+/** Change a finished workout's date, start time and length. Refusals are shown in words and Save stays off. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun EditTimeDialog(
+    startedAt: Long,
+    finishedAt: Long,
+    today: java.time.LocalDate,
+    problemWith: (java.time.LocalDate, java.time.LocalTime, Int?) -> String?,
+    onSave: (java.time.LocalDate, java.time.LocalTime, Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val zone = java.time.ZoneId.systemDefault()
+    val start = java.time.Instant.ofEpochMilli(startedAt).atZone(zone)
+    var date by remember { mutableStateOf(start.toLocalDate()) }
+    var minutesText by remember { mutableStateOf(com.zeroindex.intake.domain.training.history.SessionEditor.durationMin(startedAt, finishedAt).toString()) }
+    val timeState = androidx.compose.material3.rememberTimePickerState(
+        initialHour = start.hour,
+        initialMinute = start.minute,
+        is24Hour = android.text.format.DateFormat.is24HourFormat(androidx.compose.ui.platform.LocalContext.current),
+    )
+    val time = java.time.LocalTime.of(timeState.hour, timeState.minute)
+    val minutes = minutesText.toIntOrNull()
+    val problem = problemWith(date, time, minutes)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Change date, time and length") },
+        text = {
+            Column(Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                com.zeroindex.intake.ui.screens.train.WhenFields(date, { date = it }, timeState, minutesText, { minutesText = it }, today)
+                Text(
+                    "The sets move with the start time.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                problem?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(date, time, minutes ?: return@TextButton) }, enabled = problem == null) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }

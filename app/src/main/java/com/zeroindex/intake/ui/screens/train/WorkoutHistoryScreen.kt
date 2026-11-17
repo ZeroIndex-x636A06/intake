@@ -17,6 +17,15 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.OutlinedButton
+import com.zeroindex.intake.domain.training.history.TrainingCalendar
+import java.time.LocalDate
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -48,7 +57,12 @@ fun WorkoutHistoryScreen(
     viewModel: WorkoutHistoryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val dayChoices by viewModel.dayChoices.collectAsStateWithLifecycle()
     val unit = state.settings.weightUnit
+    var calendar by rememberSaveable { mutableStateOf(false) }
+    var selectedDay by rememberSaveable { mutableStateOf<String?>(null) }
+    var logging by remember { mutableStateOf(false) }
+    val zone = ZoneId.systemDefault()
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
@@ -60,6 +74,61 @@ fun WorkoutHistoryScreen(
         ),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        item(key = "controls") {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                FilterChip(selected = !calendar, onClick = { calendar = false }, label = { Text("List") })
+                FilterChip(selected = calendar, onClick = { calendar = true }, label = { Text("Calendar") })
+                Spacer(Modifier.weight(1f))
+                OutlinedButton(onClick = { logging = true }, shape = IntakeShape.Button, modifier = Modifier.heightIn(min = 48.dp)) {
+                    Text("Log a past workout")
+                }
+            }
+        }
+        if (calendar) {
+            item(key = "calendar") {
+                TrainingCalendarView(
+                    sessionStarts = state.rows.map { it.startedAt },
+                    zone = zone,
+                    today = viewModel.today(),
+                    selected = selectedDay?.let { LocalDate.parse(it) },
+                    onSelect = { selectedDay = it.toString() },
+                )
+            }
+            item(key = "day") {
+                val day = selectedDay?.let { LocalDate.parse(it) }
+                val onDay = if (day == null) emptyList() else TrainingCalendar.on(day, state.rows, zone) { it.startedAt }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    when {
+                        day == null -> Text(
+                            "Tap a day to see its sessions.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        onDay.isEmpty() -> Text(
+                            DAY_TITLE.format(day) + ": no training logged.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        else -> {
+                            Eyebrow(DAY_TITLE.format(day), color = MaterialTheme.colorScheme.primary)
+                            Surface(
+                                color = MaterialTheme.colorScheme.surface,
+                                shape = IntakeShape.Card,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Column {
+                                    onDay.forEachIndexed { i, s ->
+                                        SessionRow(s, unit) { onOpenSession(s.sessionId) }
+                                        if (i != onDay.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
         if (state.loaded && state.weeks.isEmpty()) {
             item(key = "empty") {
                 EmptyState(
@@ -68,7 +137,7 @@ fun WorkoutHistoryScreen(
                 )
             }
         }
-        state.weeks.forEach { week ->
+        if (!calendar) state.weeks.forEach { week ->
             item(key = "week-${week.weekStart}") {
                 Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Eyebrow(week.label, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
@@ -95,6 +164,19 @@ fun WorkoutHistoryScreen(
                 }
             }
         }
+    }
+
+    if (logging) {
+        PastWorkoutDialog(
+            today = viewModel.today(),
+            days = dayChoices,
+            problemWith = viewModel::problemWith,
+            onCreate = { date, time, minutes, dayId ->
+                logging = false
+                viewModel.logPast(date, time, minutes, dayId, onOpenSession)
+            },
+            onDismiss = { logging = false },
+        )
     }
 }
 
@@ -136,3 +218,4 @@ private fun SessionRow(s: SessionLogRow, unit: WeightUnit, onClick: () -> Unit) 
 }
 
 private val DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE d MMM")
+private val DAY_TITLE: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE d MMMM")

@@ -98,6 +98,7 @@ object SettingsRegistry {
         SettingSpec(43, "equipment", SettingsGroup.TRAINING, ControlKind.CHIPS, "My equipment: items", advanced = false, isNew = false),
         SettingSpec(44, "jumpTests", SettingsGroup.TRAINING, ControlKind.SWITCH, "Show jump tests in Progress", advanced = false, isNew = true),
         SettingSpec(45, "weeklySets", SettingsGroup.TRAINING, ControlKind.NUMBER, "Weekly sets target per muscle region", advanced = true, isNew = true),
+        SettingSpec(131, "idleFinish", SettingsGroup.TRAINING, ControlKind.NUMBER, "Ask \"Still training?\" after", advanced = false, isNew = true),
         SettingSpec(61, "hcOpen", SettingsGroup.HEALTH, ControlKind.ACTION, "Allow all Health Connect permissions", advanced = false, isNew = false),
         SettingSpec(46, "hc.read.Exercisesessions", SettingsGroup.HEALTH, ControlKind.SWITCH, "Exercise sessions", advanced = false, isNew = false),
         SettingSpec(47, "hc.read.Totalcaloriesburned", SettingsGroup.HEALTH, ControlKind.SWITCH, "Total calories burned", advanced = false, isNew = false),

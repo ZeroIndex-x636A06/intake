@@ -13,6 +13,11 @@ import com.zeroindex.intake.domain.training.NextTimeChange
 import com.zeroindex.intake.domain.training.PrKind
 import com.zeroindex.intake.domain.training.RegionVolume
 import com.zeroindex.intake.domain.training.SetEdit
+import com.zeroindex.intake.domain.training.history.ReopenOutcome
+import com.zeroindex.intake.domain.training.history.SessionEditor
+import com.zeroindex.intake.domain.training.history.TimeOutcome
+import java.time.LocalDate
+import java.time.LocalTime
 import com.zeroindex.intake.domain.training.SessionSummaries
 import com.zeroindex.intake.domain.training.SessionSummary
 import com.zeroindex.intake.domain.training.SummarySet
@@ -59,8 +64,12 @@ data class WorkoutSummaryState(
     val kept: String? = null,
     val notes: String = "",
     val hint: String? = null,
-    /** A session that was started from a program day can be started again on the same day. */
+    /** Any past workout can be started again: a program day again, or a blank workout with the same exercises. */
     val canRepeat: Boolean = false,
+    /** Whether Undo Finish is possible, and if not why (see ReopenRules). Null while loading. */
+    val reopen: ReopenOutcome? = null,
+    /** The time of the last logged set, so a new length cannot cut it off. */
+    val lastSetAt: Long? = null,
 )
 
 /**
@@ -158,7 +167,9 @@ class WorkoutSummaryViewModel @Inject constructor(
             notes = if (_state.value.loading) session.notes.orEmpty() else _state.value.notes,
             kept = _state.value.kept,
             hint = WeeklyVolume.hint(week),
-            canRepeat = session.programDayId != null,
+            canRepeat = true,
+            reopen = repository.reopenCheck(sessionId),
+            lastSetAt = rows.maxOfOrNull { it.completedAt },
         )
     }
 
@@ -175,10 +186,54 @@ class WorkoutSummaryViewModel @Inject constructor(
         }
     }
 
-    /** Starts a new session on the same program day ("Repeat this workout"). */
-    fun repeat(onStarted: (String) -> Unit) = viewModelScope.launch {
-        val dayId = _state.value.session?.programDayId ?: return@launch
-        onStarted(repository.startSession(dayId).id)
+    /** Starts a new session that repeats this one. The id is null when another workout is already running. */
+    fun repeat(onResult: (String?) -> Unit) = viewModelScope.launch {
+        onResult(repository.repeatSession(sessionId)?.id)
+    }
+
+    /** The reason a new date, start or length cannot be used, in plain words, or null when it can. */
+    fun timeProblem(date: LocalDate, time: LocalTime, minutes: Int?): String? {
+        val session = _state.value.session ?: return null
+        if (minutes == null) return "Type the length in minutes."
+        val start = SessionEditor.combine(date, time, clock.zone())
+        val out = SessionEditor.retime(session.startedAt, session.finishedAt, _state.value.lastSetAt, start, minutes, clock.nowMillis())
+        return (out as? TimeOutcome.Refused)?.let { SessionEditor.words(it.problem) }
+    }
+
+    /** Saves a new date, start time and length; the sets move with the start. */
+    fun retime(date: LocalDate, time: LocalTime, minutes: Int) = viewModelScope.launch {
+        repository.retimeSession(sessionId, SessionEditor.combine(date, time, clock.zone()), minutes)
+        load()
+    }
+
+    /** The name of an exercise just picked, for the "Add a set" dialog. */
+    fun askAddSet(exerciseId: String, onName: (String) -> Unit) = viewModelScope.launch {
+        onName(repository.exerciseAnyState(exerciseId)?.name ?: "this exercise")
+    }
+
+    /** Adds a set (typed in the person's unit) to an exercise of this finished workout. */
+    fun addSet(exerciseId: String, weightText: String, repsText: String) = viewModelScope.launch {
+        val values = SetEdit.parse(weightText, repsText, _state.value.unit) ?: return@launch
+        repository.addSetToSession(sessionId, exerciseId, values.weightKg, values.reps)
+        load()
+    }
+
+    /** Moves a logged set to another exercise. */
+    fun changeExercise(setId: String, newExerciseId: String) = viewModelScope.launch {
+        repository.changeSetExercise(setId, newExerciseId)
+        load()
+    }
+
+    /**
+     * Undo Finish. [onOpened] gets the session id to open as the active workout. When another workout is running and
+     * [finishTheOther] is false, nothing changes and [onConflict] is called so the person can choose.
+     */
+    fun reopen(finishTheOther: Boolean, onOpened: (String) -> Unit, onConflict: () -> Unit) = viewModelScope.launch {
+        when (repository.reopenSession(sessionId, finishTheOther)) {
+            ReopenOutcome.Allowed -> onOpened(sessionId)
+            is ReopenOutcome.AnotherActive -> onConflict()
+            else -> load()
+        }
     }
 
     /** Changes a logged set's weight and reps (typed in the person's unit), then recomputes records and totals. */

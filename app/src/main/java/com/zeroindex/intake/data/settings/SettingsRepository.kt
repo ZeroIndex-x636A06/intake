@@ -140,6 +140,8 @@ data class AppSettings(
     val jumpTests: Boolean = false,
     /** Settings > Training > Advanced: weekly sets per region (six numbers, chest..core) or empty = suggested. */
     val weeklySetsCsv: String = "",
+    /** Hours with nothing logged before a running workout asks "Still training?" (Settings > Training). */
+    val idleFinishHours: Int = com.zeroindex.intake.domain.training.history.ForgottenWorkoutPolicy.DEFAULT_HOURS,
     /** Settings > Videos (consumed by the Videos feature). */
     val onlyWorkouts: Boolean = true,
     /** Videos: leave YouTube Shorts out of search results and Recommended. */
@@ -270,6 +272,7 @@ class SettingsRepository @Inject constructor(
         val eatOutTravel = stringPreferencesKey("eat_out_travel")
         val jumpTests = booleanPreferencesKey("jump_tests")
         val weeklySets = stringPreferencesKey("weekly_sets_csv")
+        val idleFinishHours = intPreferencesKey("idle_finish_hours")
         val onlyWorkouts = booleanPreferencesKey("videos_only_workouts")
         val hideShorts = booleanPreferencesKey("videos_hide_shorts")
         val directVideos = booleanPreferencesKey("videos_direct_ytdlp")
@@ -370,6 +373,8 @@ class SettingsRepository @Inject constructor(
             },
             jumpTests = p[Keys.jumpTests] ?: false,
             weeklySetsCsv = p[Keys.weeklySets].orEmpty(),
+            idleFinishHours = (p[Keys.idleFinishHours] ?: com.zeroindex.intake.domain.training.history.ForgottenWorkoutPolicy.DEFAULT_HOURS)
+                .coerceIn(com.zeroindex.intake.domain.training.history.ForgottenWorkoutPolicy.MIN_HOURS, com.zeroindex.intake.domain.training.history.ForgottenWorkoutPolicy.MAX_HOURS),
             onlyWorkouts = p[Keys.onlyWorkouts] ?: true,
             hideShorts = p[Keys.hideShorts] ?: true,
             directVideos = p[Keys.directVideos] ?: false,
@@ -495,6 +500,7 @@ class SettingsRepository @Inject constructor(
         it[Keys.eatOutTravel] = budget.mode.id
     }
     suspend fun setJumpTests(on: Boolean) = put { it[Keys.jumpTests] = on }
+    suspend fun setIdleFinishHours(hours: Int) = put { it[Keys.idleFinishHours] = hours }
     suspend fun setWeeklySetsCsv(csv: String) = put { if (csv.isBlank()) it.remove(Keys.weeklySets) else it[Keys.weeklySets] = csv }
     suspend fun setOnlyWorkouts(on: Boolean) = put { it[Keys.onlyWorkouts] = on }
     suspend fun setHideShorts(on: Boolean) = put { it[Keys.hideShorts] = on }
