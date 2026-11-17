@@ -2,6 +2,11 @@ package com.zeroindex.intake.domain.goals
 
 import com.zeroindex.intake.domain.hydration.HydrationTarget
 import com.zeroindex.intake.domain.training.generator.GeneratedProgram
+import com.zeroindex.intake.domain.units.UnitConverter
+import com.zeroindex.intake.domain.units.UnitText
+import com.zeroindex.intake.domain.units.VolumeUnit
+import com.zeroindex.intake.domain.units.WeightText
+import com.zeroindex.intake.domain.units.WeightUnit
 import kotlin.math.roundToInt
 
 /** One extra line on the water target. Weather and drinks (Hydration v2) add these later. */
@@ -28,7 +33,10 @@ object WaterPlanner {
         trainingDaysPerWeek: Int,
         manualBaseMl: Int? = null,
         extras: List<WaterAdjustment> = emptyList(),
+        weightUnit: WeightUnit = WeightUnit.KILOGRAMS,
+        volumeUnit: VolumeUnit = VolumeUnit.MILLILITRES,
     ): WaterPlan {
+        fun vol(ml: Number) = volumeUnit.format(ml.toDouble())
         val rest = HydrationTarget.compute(
             manualBaseMl = manualBaseMl?.toDouble(),
             bodyweightKg = weightKg,
@@ -48,14 +56,18 @@ object WaterPlanner {
         val bonus = training.reasons.sumOf { it.ml }.roundToInt()
         val why = buildString {
             if (manualBaseMl != null) {
-                append("${base.grouped()} ml is the number you chose")
+                append("${vol(base)} is the number you chose")
             } else {
-                append("${HydrationTarget.ML_PER_KG.roundToInt()} ml per kg x ${fmt1(weightKg)} kg = ${base.grouped()} ml")
+                // The rate is per unit of body weight in the unit the person reads, so lb users see per lb.
+                val perUnitMl = HydrationTarget.ML_PER_KG * if (weightUnit == WeightUnit.POUNDS) UnitConverter.KG_PER_LB else 1.0
+                val rate = if (volumeUnit == VolumeUnit.MILLILITRES) "${perUnitMl.roundToInt()} ml"
+                else "${String.format(java.util.Locale.US, "%.2f", volumeUnit.fromMl(perUnitMl))} ${volumeUnit.label}"
+                append("$rate per ${weightUnit.label} x ${WeightText.format(weightKg, weightUnit)} = ${vol(base)}")
             }
             if (trainingDaysPerWeek > 0 && bonus > 0) {
-                append(", plus $bonus ml on each of your $trainingDaysPerWeek training days")
+                append(", plus ${vol(bonus)} on each of your $trainingDaysPerWeek training days")
             }
-            extras.forEach { append(", ${if (it.ml >= 0) "plus" else "minus"} ${kotlin.math.abs(it.ml)} ml ${it.label}") }
+            extras.forEach { append(", ${if (it.ml >= 0) "plus" else "minus"} ${vol(kotlin.math.abs(it.ml))} ${it.label}") }
             append(".")
         }
         return WaterPlan(
@@ -80,6 +92,12 @@ data class GoalInputs(
     /** What the person eats now; the reverse diet starts from it. Defaults to the baseline average. */
     val averageIntake: Double? = null,
     val waterExtras: List<WaterAdjustment> = emptyList(),
+    /** The Settings protein and fat in g per kg. They apply unless the person edited the plan or set Advanced values. */
+    val proteinPerKg: Double? = null,
+    val fatPerKg: Double? = null,
+    /** The units the plan's explanations are written in. */
+    val weightUnit: WeightUnit = WeightUnit.KILOGRAMS,
+    val volumeUnit: VolumeUnit = VolumeUnit.MILLILITRES,
 )
 
 /** Edits the person made on the plan screen. Anything null is left as the engine worked it out. */
@@ -168,8 +186,8 @@ object GoalBuilder {
             weightKg = weight,
             leanMassKg = leanMass,
             phase = profile.phase,
-            proteinPerKg = overrides.proteinPerKg ?: profile.proteinPerKg.takeIf { advanced },
-            fatPerKg = overrides.fatPerKg ?: profile.fatPerKg.takeIf { advanced },
+            proteinPerKg = overrides.proteinPerKg ?: profile.proteinPerKg.takeIf { advanced } ?: inputs.proteinPerKg,
+            fatPerKg = overrides.fatPerKg ?: profile.fatPerKg.takeIf { advanced } ?: inputs.fatPerKg,
         )
 
         val floorKcal = (bmr.kcal * PhasePlanner.FLOOR_OF_BMR).roundToInt()
@@ -196,11 +214,14 @@ object GoalBuilder {
             trainingDaysPerWeek = profile.trainingDaysPerWeek,
             manualBaseMl = overrides.waterMl,
             extras = inputs.waterExtras,
+            weightUnit = inputs.weightUnit,
+            volumeUnit = inputs.volumeUnit,
         )
+        val units = { text: String -> UnitText.inUnits(text, inputs.weightUnit, inputs.volumeUnit) }
 
         val warnings = buildList {
-            addAll(calories.warnings)
-            macros.notes.forEach { add(PlanWarning(WarningLevel.INFO, it)) }
+            addAll(calories.warnings.map { it.copy(text = units(it.text)) })
+            macros.notes.forEach { add(PlanWarning(WarningLevel.INFO, units(it))) }
             week?.warnings?.let(::addAll)
             week?.notes?.forEach { add(PlanWarning(WarningLevel.INFO, it)) }
             if (blend.source == TdeeSource.ESTIMATE) {
@@ -218,27 +239,27 @@ object GoalBuilder {
         val calorieCard = PlanCard(
             title = "Calories",
             headline = "${calories.kcal.grouped()} kcal",
-            why = calories.why,
-            detail = listOf(
+            why = units(calories.why),
+            detail = units(listOf(
                 "Daily calorie burn: ${tdee.roundToInt().grouped()} kcal (${blend.source.label}).",
                 blend.why,
                 "Calories at rest: ${bmr.why}",
                 "Activity ${activity.why}",
                 "Expected change: $paceWords.",
-            ).joinToString("\n"),
+            ).joinToString("\n")),
         )
         val macroCard = PlanCard(
             title = "Macros",
             headline = "P ${macros.proteinG} g · C ${macros.carbsG} g · F ${macros.fatG} g",
             why = "Protein ${fmt1(macros.proteinPerKg)} g/kg of ${macros.proteinBasis.label}, fat at least " +
                 "${fmt1(macros.fatPerKg)} g/kg, carbs fill the rest of ${macros.kcal.grouped()} kcal.",
-            detail = listOf(macros.proteinWhy, macros.fatWhy, macros.carbsWhy).joinToString("\n"),
+            detail = units(listOf(macros.proteinWhy, macros.fatWhy, macros.carbsWhy).joinToString("\n")),
         )
         val waterCard = PlanCard(
             title = "Water",
-            headline = "${water.baseMl.grouped()} ml a day",
+            headline = "${inputs.volumeUnit.format(water.baseMl.toDouble())} a day",
             why = water.why,
-            detail = "Training days: ${water.trainingDayMl.grouped()} ml. Heat, sweat and drinks can add to this " +
+            detail = "Training days: ${inputs.volumeUnit.format(water.trainingDayMl.toDouble())}. Heat, sweat and drinks can add to this " +
                 "later; the number here is the plain starting point.",
         )
 
@@ -250,7 +271,7 @@ object GoalBuilder {
             estimate = estimate,
             tdee = tdee,
             tdeeSource = blend.source,
-            tdeeWhy = blend.why,
+            tdeeWhy = units(blend.why),
             calories = calories,
             macros = macros,
             week = week,

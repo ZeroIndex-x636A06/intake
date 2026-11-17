@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Active workout</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c2d55ca210a28925c2ccf0c9b8a5b709">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.sr{display:grid;grid-template-columns:32px minmax(0,1fr) 64px 56px 44px;gap:8px;align-items:center;font-size:14px;min-height:48px;padding:0 8px;border-radius:14px}
+.sr.done{background:var(--ok-bg)}
+.sr.cur{box-shadow:inset 0 0 0 2px var(--ink)}
+.cell{height:40px;border-radius:12px;background:var(--soft);display:flex;align-items:center;justify-content:center;font-weight:600}
+.tick{width:40px;height:40px;border-radius:12px;border:0;background:var(--soft);color:var(--muted);display:inline-flex;align-items:center;justify-content:center}
+.sr.done .tick{background:var(--ok);color:#fff}
+.sr.done .cell{background:transparent}
+</style>
+</helmet>
+<div class="phone {{themeCls}}" style="--accent: {{accent}}; width: 390px; height: 1200px">
+  <header class="top">
+    <a class="iconbtn" href="Today.dc.html" aria-label="Minimise the workout. It keeps running."><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></a>
+    <div class="grow" style="text-align: center"><p class="h3">Push A</p><p class="sub num" style="font-size: 14px">32:14</p></div>
+    <a class="btn accent sm" href="WorkoutSummary.dc.html">Finish</a>
+  </header>
+  <div class="pad stack" style="gap: 14px">
+    <section class="card inkc rowx" style="padding: 14px 14px 14px 18px" aria-label="Resting">
+      <div class="grow"><p class="eyebrow">Resting</p><p class="num" style="font-size: 30px">1:24</p></div>
+      <button class="btn sm" style="background: rgba(255,255,255,.12); color: inherit">−15</button>
+      <button class="btn sm" style="background: rgba(255,255,255,.12); color: inherit">+15</button>
+      <button class="btn sm accent">Skip</button>
+    </section>
+
+    <section class="card stack" style="gap: 10px" aria-label="Bench press">
+      <div class="between">
+        <div><p class="h2">Bench press</p><p class="sub">4 × 6–8 · effort 8 · rest 2:00</p></div>
+        <button class="iconbtn soft" aria-label="Exercise options: swap, move earlier or later, remove"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg></button>
+      </div>
+      <div class="sr" style="color: var(--muted); font-size: 12px; min-height: 24px"><span>Set</span><span>Previous</span><span style="text-align: center">lb</span><span style="text-align: center">Reps</span><span></span></div>
+      <div class="sr done"><span class="h3">1</span><span class="sub">185 × 8</span><span class="cell">190</span><span class="cell">8</span><button class="tick" aria-label="Set 1 done"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></button></div>
+      <div class="sr done"><span class="h3">2</span><span class="sub">185 × 7</span><span class="cell">190</span><span class="cell">7</span><button class="tick" aria-label="Set 2 done"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></button></div>
+      <div class="sr cur"><span class="h3">3</span><span class="sub">185 × 7</span><span class="cell">190</span><span class="cell" style="color: var(--muted)">7</span><button class="tick" aria-label="Mark set 3 done"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></button></div>
+      <div class="sr"><span class="h3">4</span><span class="sub">185 × 6</span><span class="cell" style="color: var(--muted)">190</span><span class="cell" style="color: var(--muted)">6</span><button class="tick" aria-label="Mark set 4 done"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></button></div>
+      <div class="card soft rowx" style="padding: 10px 12px; gap: 8px">
+        <svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h3M18 12h3M6 8v8M18 8v8M9 6v12M15 6v12M9 12h6"/></svg>
+        <span class="sub grow" style="color: var(--ink)">Per side: 45 + 25 + 2.5</span>
+        <span class="chip" style="background: var(--card)">45 bar</span>
+      </div>
+      <div class="wrap">
+        <button class="btn sm">Use last time's numbers</button>
+        <button class="btn sm">Pick a weight</button>
+        <button class="btn sm">Show the plates</button>
+        <button class="btn sm line"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Add set</button>
+      </div>
+      <div class="field"><label for="fn">Form note</label><input id="fn" class="input" value="Pause 1 s on the chest"></div>
+    </section>
+
+    <section class="card rowx" aria-label="Up next">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      <div class="grow"><p class="sub">Up next</p><p class="h3">Incline dumbbell press · 3 × 8–10</p></div>
+      <button class="btn sm ghost">Swap</button>
+    </section>
+
+    <button class="btn line block" style="min-height: 52px"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Add exercise</button>
+    <button class="btn ghost block" style="color: var(--bad)">Discard workout</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["Light","Dark"],"default":"Light"},"accent":{"editor":"color","default":"#D4F25A","options":["#D4F25A","#7CE0C3","#FFB86B","#B9A8FF"]},"$preview":{"width":390,"height":1200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themeCls: this.props.theme === 'Dark' ? 'dark' : '', accent: this.props.accent ?? '#D4F25A' };
+  }
+}
+</script>
+</body>
+</html>

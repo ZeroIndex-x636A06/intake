@@ -17,4 +17,8 @@ class AllergenSeedTest {
     @Test fun `seed ids are distinguishable from a user keyword`() {
         assertThat(AllergenSeed.keywordId("tree nuts", "pine nut")).startsWith("seed-")
     }
+
+    @Test fun `a fresh install avoids nothing until the user picks`() {
+        assertThat(AllergenSeed.DEFAULT_AVOIDED).isEmpty()
+    }
 }

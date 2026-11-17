@@ -20,7 +20,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 @Entity(
     tableName = "food",
-    indices = [Index("barcode"), Index("name"), Index("deletedAt"), Index("timesLogged")],
+    indices = [Index("barcode"), Index("name"), Index("deletedAt"), Index("timesLogged"), Index("drinkCategory")],
 )
 data class FoodEntity(
     @PrimaryKey override val id: String = newId(),
@@ -51,6 +51,27 @@ data class FoodEntity(
      * stored: the picture is fetched again when it is needed and is never part of a backup.
      */
     val imageUrl: String? = null,
+    /**
+     * Which optional nutrients (fibre, sugar, sodium, saturated fat) the source did not give, as a comma-joined list of
+     * `NutrientKey` codes. Their columns hold 0.0 then; this says that 0.0 means "not listed", not "none".
+     */
+    @ColumnInfo(defaultValue = "") val unlistedNutrients: String = "",
+    /**
+     * A `DrinkCategory` name when this food is a drink (logged by volume), else null. A drink's nutrition columns are
+     * per 100 ml (1 ml counted as 1 g), so the same per-100 maths and the same label work for it.
+     */
+    val drinkCategory: String? = null,
+    /** Caffeine per 100 ml, or null to use the drink type's default. */
+    val caffeineMgPer100ml: Double? = null,
+    /** Alcohol by volume in percent, or null for none / the type's default. */
+    val abvPercent: Double? = null,
+    /** What one ml counts for toward the day's water, or null to use the drink type's default. */
+    val hydrationFactor: Double? = null,
+    /**
+     * Set for a saved "My drink" (a custom version of a drink): the JSON of its recipe, a `CustomDrinkRecipe` (the base
+     * drink, its volume and the add-ins). The nutrition columns above are that recipe's result per 100 ml. Null otherwise.
+     */
+    val customDrink: String? = null,
     override val createdAt: Long,
     override val updatedAt: Long,
     override val deletedAt: Long? = null,
@@ -97,6 +118,8 @@ data class FoodLogEntity(
     val sourcePhotoUri: String? = null,
     val aiConfidence: AiConfidence? = null,
     val wasEdited: Boolean = false,
+    /** Copied from the food at log time (see [FoodEntity.unlistedNutrients]); typed-in rows list what was left blank. */
+    @ColumnInfo(defaultValue = "") val unlistedNutrients: String = "",
     override val createdAt: Long,
     override val updatedAt: Long,
     override val deletedAt: Long? = null,

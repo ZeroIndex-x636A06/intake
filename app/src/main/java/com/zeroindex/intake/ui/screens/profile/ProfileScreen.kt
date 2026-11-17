@@ -47,6 +47,7 @@ import com.zeroindex.intake.domain.goals.UserProfile
 import com.zeroindex.intake.domain.training.generator.EquipmentPreset
 import com.zeroindex.intake.domain.training.generator.Experience
 import com.zeroindex.intake.domain.training.generator.TrainingGoal
+import com.zeroindex.intake.domain.units.LengthText
 import com.zeroindex.intake.domain.units.LengthUnit
 import com.zeroindex.intake.domain.units.UnitConverter
 import com.zeroindex.intake.domain.units.WeightUnit
@@ -117,12 +118,18 @@ fun ProfileScreen(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item(key = "head") {
-            SubHead("Profile & goals", "What your plan is built from. It stays on this phone.")
+            // The screen's one name is "Profile & goals" (the top bar); this line says what it is for.
+            Text(
+                "What your plan is built from. It stays on this phone.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp, bottom = 2.dp),
+            )
         }
         // ---------------------------------------------------------------- Basics
         item(key = "basics") {
             IntakeCard {
-                Eyebrow("About you")
+                Eyebrow("Basics")
                 Spacer(Modifier.height(8.dp))
                 CommitField(
                     label = "Name (optional)",
@@ -151,12 +158,14 @@ fun ProfileScreen(
                     val lengthUnit = settings.lengthUnit
                     CommitField(
                         label = "Height (${lengthUnit.label})",
-                        saved = profile.heightCm?.let { num(lengthUnit.fromCm(it)) } ?: "",
+                        saved = profile.heightCm?.let { LengthText.entry(it, lengthUnit) } ?: "",
                         placeholder = if (lengthUnit == LengthUnit.INCHES) "70" else "178",
                         modifier = Modifier.weight(1f),
                         onCommit = { text ->
-                            val cm = text.trim().toDoubleOrNull()?.let(lengthUnit::toCm)
-                            if (cm != null && cm in 100.0..250.0) viewModel.update { it.copy(heightCm = cm) }
+                            // Only a changed number is stored: the field's own one decimal must not round the height.
+                            LengthText.typed(text, profile.heightCm, lengthUnit)
+                                ?.takeIf { it in 100.0..250.0 }
+                                ?.let { cm -> viewModel.update { it.copy(heightCm = cm) } }
                         },
                     )
                 }

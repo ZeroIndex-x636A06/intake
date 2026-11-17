@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.systemGestures
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
@@ -24,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -49,6 +51,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
@@ -238,7 +241,8 @@ fun FloatingPillBar(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 destinations.forEachIndexed { index, destination ->
-                    item(index, destination, Modifier.size(width = 64.dp, height = 60.dp))
+                    // Grows with its label: a larger font scale widens the rail rather than cutting a word.
+                    item(index, destination, Modifier.widthIn(min = 64.dp).heightIn(min = 60.dp))
                 }
             }
         } else {
@@ -261,7 +265,11 @@ private fun PillItem(
     modifier: Modifier,
 ) {
     val reduce = LocalReduceMotion.current
+    val density = LocalDensity.current
     val label = stringResource(destination.labelRes)
+    // The label starts at its normal size and steps down while it does not fit its item (a larger font scale), down to
+    // MinLabelSp. It is never cut mid-word; past the floor it ends with an ellipsis. Reset when the font scale changes.
+    var labelSize by remember(label, density.fontScale) { mutableFloatStateOf(LabelSp) }
     val tint by animateColorAsState(
         targetValue = if (highlighted) colors.selected else colors.unselected,
         animationSpec = Motion.standardTween(reduce, Motion.DurationShort),
@@ -288,13 +296,19 @@ private fun PillItem(
         Text(
             text = label,
             color = tint,
-            fontSize = 11.sp,
+            fontSize = labelSize.sp,
             maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
+            onTextLayout = { if (it.hasVisualOverflow && labelSize > MinLabelSp) labelSize -= 0.5f },
             style = MaterialTheme.typography.labelSmall,
             modifier = Modifier.padding(top = 2.dp),
         )
     }
 }
+
+private const val LabelSp = 11f
+private const val MinLabelSp = 8f
 
 /** Colours for the pill, all taken from the active colour scheme. */
 internal class PillColors(

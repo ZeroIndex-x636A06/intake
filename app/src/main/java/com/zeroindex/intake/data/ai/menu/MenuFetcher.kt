@@ -1,6 +1,8 @@
 package com.zeroindex.intake.data.ai.menu
 
 import com.zeroindex.intake.domain.ai.MenuText
+import com.zeroindex.intake.domain.menu.DownloadClassifier
+import com.zeroindex.intake.domain.menu.DownloadVerdict
 import com.zeroindex.intake.domain.pdf.PdfChunkPlanner
 import java.io.ByteArrayOutputStream
 import java.io.IOException
@@ -27,6 +29,9 @@ sealed interface Fetched {
     class Page(val html: String?, val text: String?) : Fetched
     class Pdf(val bytes: ByteArray) : Fetched
     data object Unavailable : Fetched
+
+    /** The site refused (401, 403, 429) or sent a web page where a PDF was expected. [message] is shown as is. */
+    class Refused(val message: String) : Fetched
 }
 
 /** Download progress: bytes so far and, when the server said, the total. */
@@ -73,6 +78,11 @@ class MenuFetcher @Inject constructor(private val http: OkHttpClient) {
                 return@withContext Fetched.Unavailable
             }
             response.use { r ->
+                val host = DownloadClassifier.hostOf(url)
+                // A refusal is decided from the status alone: its body (an "Access Denied" page) is never read or parsed.
+                if (DownloadClassifier.isRefusalStatus(r.code)) {
+                    return@withContext Fetched.Refused(DownloadClassifier.refusedMessage(host, r.code))
+                }
                 if (!r.isSuccessful) return@withContext Fetched.Unavailable
                 val type = r.header("Content-Type").orEmpty().lowercase()
                 val length = r.body.contentLength().takeIf { it >= 0 }
@@ -91,10 +101,15 @@ class MenuFetcher @Inject constructor(private val http: OkHttpClient) {
                     if (looksPdf) throw MenuImportException(PdfChunkPlanner.tooBigMessage(bytes.size.toLong()))
                     // A web page past the cap is read as far as it goes: the menu is near the top of a page.
                 }
-                val isPdf = looksPdf || startsWithPdf(bytes)
-                if (isPdf) {
-                    if (bytes.size > PdfChunkPlanner.MAX_PDF_BYTES) throw MenuImportException(PdfChunkPlanner.tooBigMessage(bytes.size.toLong()))
-                    return@withContext Fetched.Pdf(bytes)
+                when (DownloadClassifier.classify(r.code, type, url, bytes.copyOf(minOf(bytes.size, DownloadClassifier.HEAD_BYTES)))) {
+                    DownloadVerdict.Pdf -> {
+                        if (bytes.size > PdfChunkPlanner.MAX_PDF_BYTES) throw MenuImportException(PdfChunkPlanner.tooBigMessage(bytes.size.toLong()))
+                        return@withContext Fetched.Pdf(bytes)
+                    }
+                    DownloadVerdict.NotPdf -> return@withContext Fetched.Refused(DownloadClassifier.notPdfMessage(host))
+                    is DownloadVerdict.Refused -> return@withContext Fetched.Refused(DownloadClassifier.refusedMessage(host, r.code))
+                    is DownloadVerdict.Failed -> return@withContext Fetched.Unavailable
+                    DownloadVerdict.Page -> Unit
                 }
                 val body = String(bytes, Charsets.UTF_8)
                 val isHtml = "html" in type || body.trimStart().startsWith("<")

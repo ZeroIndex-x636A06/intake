@@ -26,6 +26,12 @@ data class AllergenMatch(
     val note: String,
     /** One plain line for lists and the import preview: "Says butter", "Mentions butter as something to avoid". */
     val reason: String = note,
+    /**
+     * The hit sits in a "may contain / traces of" statement on a label. The tier is NOT lowered (a panel's trace line
+     * still blocks behind the confirmation sheet, as before); this only lets the screens word it as a possible trace
+     * instead of "Contains".
+     */
+    val trace: Boolean = false,
 )
 
 data class AllergenScanResult(
@@ -48,6 +54,9 @@ data class AllergenScanResult(
 
     /** True when something stronger than "check the label" was found (the sheets key off this). */
     val hasAnything: Boolean = contains.isNotEmpty() || mayContain.isNotEmpty()
+
+    /** True when every CONTAINS hit is a label's "may contain" trace line: worded as a trace, still a warning. */
+    val containsOnlyTraces: Boolean = contains.isNotEmpty() && contains.all { it.trace }
     val hasCheckLabel: Boolean = checkLabel.isNotEmpty()
     val hasMentionedAvoided: Boolean = mentionedAvoided.isNotEmpty()
 
@@ -108,6 +117,24 @@ object AllergenMatcher {
         Regex("(?<![\\p{L}\\p{N}])(non[\\-\\s]?)?($body)$plural(?![\\p{L}\\p{N}])")
     }
 
+    private val needleCache = ConcurrentHashMap<String, String>()
+
+    /**
+     * Every match of [term] in [text] (already normalised). A whole-word match needs the term's first word as a plain
+     * substring, so that cheap check runs first and the regex only runs when it can match. Same results, far fewer
+     * matcher objects: on a slow phone the matcher setup per keyword per field dominated a list's scan (Q5b-1).
+     */
+    private fun matchesOf(term: String, text: String): Sequence<MatchResult> {
+        val needle = needleCache.getOrPut(term) {
+            Negation.normalize(term).trim().split(WHITESPACE_OR_HYPHEN).firstOrNull { it.isNotEmpty() }.orEmpty()
+        }
+        return if (needle.isNotEmpty() && !text.contains(needle)) emptySequence() else termRegex(term).findAll(text)
+    }
+
+    private val WHITESPACE_OR_HYPHEN = Regex("[\\s\\-]+")
+
+    private val WHITESPACE_RUN = Regex("\\s+")
+
     private val FREE_AFTER = Regex("^(?:-|\\s+)free(?![\\p{L}\\p{N}])(?!\\s+(?:of|from)\\b)")
 
     fun scan(
@@ -140,14 +167,38 @@ object AllergenMatcher {
         panelText: String? = null,
     ): AllergenScanResult {
         if (avoidedAllergens.isEmpty()) return AllergenScanResult.CLEAN
+        return scanClean(
+            aliases, avoidedAllergens,
+            // "(Logged despite: dairy)" is a note about a person's choice, not something the food says.
+            name = AllergenOverride.stripNoteOrNull(name), brand = AllergenOverride.stripNoteOrNull(brand),
+            ingredients = AllergenOverride.stripNoteOrNull(ingredients),
+            structuredContains = structuredContains, structuredTraces = structuredTraces,
+            checkLabelTerms = checkLabelTerms, checkLabelInIngredients = checkLabelInIngredients,
+            freeText = freeText, panelText = panelText,
+        )
+    }
 
+    private fun scanClean(
+        aliases: List<AllergenAlias>,
+        avoidedAllergens: Set<String>,
+        name: String?,
+        brand: String?,
+        ingredients: String?,
+        structuredContains: List<String>,
+        structuredTraces: List<String>,
+        checkLabelTerms: List<CheckLabelTerm>,
+        checkLabelInIngredients: Boolean,
+        freeText: Boolean,
+        panelText: String?,
+    ): AllergenScanResult {
         val avoided = avoidedAllergens.map { it.trim().lowercase() }.filter { it.isNotEmpty() }.toSet()
         val relevant = aliases.filter { it.allergen.trim().lowercase() in avoided }
         val found = LinkedHashMap<String, AllergenMatch>()
 
         fun add(key: String, match: AllergenMatch) {
             val existing = found[key]
-            if (existing == null || match.kind.rank > existing.kind.rank) found[key] = match
+            // A real ingredient hit beats a trace statement of the same word; otherwise the stronger tier wins.
+            if (existing == null || match.kind.rank > existing.kind.rank || (match.kind.rank == existing.kind.rank && existing.trace && !match.trace)) found[key] = match
         }
 
         // SPEC §7.3: structured tags are the primary signal where they exist. Never downgraded.
@@ -186,18 +237,36 @@ object AllergenMatcher {
 
         // Second pass over free text, field by field.
         val freeIngredients = checkLabelInIngredients
+        // "May contain milk" on a panel is a trace statement: a possible cross-contact, read one tier below an
+        // ingredient (still a warning). A real ingredient hit for the same word keeps the stronger tier.
+        val ingredientSplit = TraceText.split(ingredients)
+        val panelSplit = TraceText.split(panelText)
         val fields = listOf(
             FieldText(MatchField.NAME, name, claims = true, negation = freeText),
             FieldText(MatchField.BRAND, brand, claims = true, negation = freeText),
-            FieldText(MatchField.INGREDIENTS, ingredients, claims = freeIngredients, negation = freeText && freeIngredients),
-            FieldText(MatchField.INGREDIENTS, panelText, claims = false, negation = false),
+            FieldText(MatchField.INGREDIENTS, ingredientSplit.main, claims = freeIngredients, negation = freeText && freeIngredients),
+            FieldText(MatchField.INGREDIENTS, panelSplit.main, claims = false, negation = false),
+            FieldText(MatchField.INGREDIENTS, ingredientSplit.traces, claims = false, negation = false, traceOnly = true),
+            FieldText(MatchField.INGREDIENTS, panelSplit.traces, claims = false, negation = false, traceOnly = true),
         )
         val byAllergen = relevant.groupBy { it.allergen.trim().lowercase() }
         for (ft in fields) {
             if (ft.text.isNullOrBlank()) continue
             for ((allergen, list) in byAllergen) {
                 scanField(ft, allergen, list).forEach { hit ->
-                    add("$allergen|${hit.term}", hit.toMatch(ft.field))
+                    val m = hit.toMatch(ft.field)
+                    add(
+                        "$allergen|${hit.term}",
+                        if (ft.traceOnly && m.kind == AllergenMatchKind.CONTAINS) {
+                            m.copy(
+                                note = "The label says it may contain \"${m.matchedTerm}\" (a possible trace, not an ingredient).",
+                                reason = "The label lists ${m.matchedTerm} as a possible trace",
+                                trace = true,
+                            )
+                        } else {
+                            m
+                        },
+                    )
                 }
             }
         }
@@ -209,22 +278,22 @@ object AllergenMatcher {
             .map { it.allergen.lowercase() }.toSet()
         val softFields = buildList {
             add(FieldText(MatchField.NAME, name, claims = true, negation = freeText))
-            if (checkLabelInIngredients) add(FieldText(MatchField.INGREDIENTS, ingredients, claims = true, negation = freeText))
+            if (checkLabelInIngredients) add(FieldText(MatchField.INGREDIENTS, ingredientSplit.main, claims = true, negation = freeText))
         }
         val seenPhrases = HashSet<String>()
+        // Normalised once per field, not once per term: each call used to rebuild a regex (hundreds of terms per scan).
+        val softNormalized = softFields.map { ft -> ft.text?.takeIf { it.isNotBlank() }?.let { Negation.normalize(it) } }
         checkLabelTerms.forEach { term ->
             val allergen = term.allergen.trim().lowercase()
             if (allergen !in avoided || allergen in strongerFor) return@forEach
             var field: MatchField? = null
             var hit: String? = null
-            for (ft in softFields) {
-                val text = ft.text
-                if (text.isNullOrBlank()) continue
-                val norm = Negation.normalize(text)
+            for ((i, ft) in softFields.withIndex()) {
+                val norm = softNormalized[i] ?: continue
                 val m = term.findIn(norm) ?: continue
                 if (ft.negation && isHandled(norm, m.range.first)) continue
                 field = ft.field
-                hit = m.value.lowercase().replace(Regex("\\s+"), " ")
+                hit = m.value.lowercase().replace(WHITESPACE_RUN, " ")
                 break
             }
             if (field == null || hit == null) return@forEach
@@ -259,7 +328,14 @@ object AllergenMatcher {
         return reading.isNegated(position) || reading.isBeingChecked(position)
     }
 
-    private class FieldText(val field: MatchField, val text: String?, val claims: Boolean, val negation: Boolean)
+    private class FieldText(
+        val field: MatchField,
+        val text: String?,
+        val claims: Boolean,
+        val negation: Boolean,
+        /** The text is a "may contain / traces of" statement: an ingredient-level hit in it is a possible trace. */
+        val traceOnly: Boolean = false,
+    )
 
     private class Hit(
         val term: String,
@@ -272,8 +348,7 @@ object AllergenMatcher {
         val softened: Boolean,
         val allergen: String,
     ) {
-        fun toMatch(field: MatchField) = AllergenMatch(allergen, term, field, kind, note, reason)
-    }
+        fun toMatch(field: MatchField) = AllergenMatch(allergen, term, field, kind, note, reason)    }
 
     private class Occurrence(
         val alias: AllergenAlias,
@@ -297,7 +372,7 @@ object AllergenMatcher {
         for (alias in withKey) {
             val term = alias.aliasTerm.trim()
             if (term.isEmpty()) continue
-            for (m in termRegex(term).findAll(text)) {
+            for (m in matchesOf(term, text)) {
                 val core = m.groups[2]!!
                 val nonGroup = m.groups[1]
                 val start = nonGroup?.range?.first ?: core.range.first
@@ -318,7 +393,7 @@ object AllergenMatcher {
 
         // Exclusions: "peanut butter" is not butter, "almond flour" is not wheat flour.
         val exclusions = AllergenCatalog.NOT_THE_ALLERGEN[allergen].orEmpty().flatMap { phrase ->
-            termRegex(phrase).findAll(text).map { (it.groups[2]!!.range.first) until (it.range.last + 1) }.toList()
+            matchesOf(phrase, text).map { (it.groups[2]!!.range.first) until (it.range.last + 1) }.toList()
         }
 
         // "-free" claims for this allergen, per clause (lactose-free is not one).
@@ -466,6 +541,6 @@ object AllergenMatcher {
         if (bare.isEmpty()) return null
         avoided.firstOrNull { it == bare }?.let { return it }
         relevant.firstOrNull { it.aliasTerm.trim().lowercase() == bare }?.let { return it.allergen }
-        return relevant.firstOrNull { termRegex(it.aliasTerm).containsMatchIn(bare) }?.allergen
+        return relevant.firstOrNull { matchesOf(it.aliasTerm, bare).any() }?.allergen
     }
 }

@@ -84,4 +84,38 @@ class FoodRefSearchTest {
         val ref = with(FoodRefSearch) { food(1, "Salt").toRefFood() }
         assertThat(ref.defaultPortion).isEqualTo(RefPortion("100 g", 100.0))
     }
+
+    @Test
+    fun aMultiWordPhraseBeatsNamesThatOnlyShareTheWords() {
+        val names = listOf(
+            food(1, "Candies, milk chocolate, with almonds"),
+            food(2, "Beverages, almond milk, unsweetened"),
+            food(3, "Nuts, almonds, dry roasted, with milk powder"),
+        )
+        val ranked = FoodRefSearch.rank("almond milk", names).map { it.id }
+        // The phrase "almond milk" sits together only in the beverage, even though it is not the first word.
+        assertThat(ranked.first()).isEqualTo(2)
+        assertThat(FoodRefSearch.tier("Beverages, almond milk, unsweetened", listOf("almond", "milk"))).isEqualTo(0)
+        assertThat(FoodRefSearch.tier("Candies, milk chocolate, with almonds", listOf("almond", "milk"))).isEqualTo(2)
+    }
+
+    @Test
+    fun aSingleWordKeepsTheNameStartsWithFirstOrder() {
+        assertThat(FoodRefSearch.tier("Apples, raw", listOf("apple"))).isEqualTo(1)
+        assertThat(FoodRefSearch.tier("Raw apples", listOf("apple"))).isEqualTo(2)
+        assertThat(FoodRefSearch.tier("Pineapple", listOf("apple"))).isEqualTo(3)
+    }
+
+    @Test
+    fun aWordStartBeatsAMidWordMatchWhateverTheNameLength() {
+        val names = listOf(
+            food(1, "Fish, salmon, Atlantic, wild, cooked"),
+            food(2, "Beverages, almond milk, unsweetened, plain, refrigerated"),
+            food(3, "Salmon"),
+        )
+        val ranked = FoodRefSearch.rank("almo", names).map { it.id }
+        assertThat(ranked.first()).isEqualTo(2)
+        assertThat(FoodRefSearch.tier("Beverages, almond milk, unsweetened, plain, refrigerated", listOf("almo"))).isEqualTo(2)
+        assertThat(FoodRefSearch.tier("Salmon", listOf("almo"))).isEqualTo(3)
+    }
 }

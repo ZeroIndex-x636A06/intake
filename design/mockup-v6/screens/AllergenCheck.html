@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Food safety check</title>
+<link rel="stylesheet" href="intake.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>body{margin:0;background:#E7E9E2}</style>
+</helmet>
+<div class="phone " style="--accent: #D4F25A; width: 390px; height: 844px; background: #0B0D0C; color: #fff">
+  <header class="top">
+    <a class="iconbtn" href="LogFood.html" aria-label="Back" style="background: rgba(255,255,255,.12); color: #fff"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a>
+    <h1 class="h2 grow">Scan a barcode</h1>
+    <button class="iconbtn" aria-label="Torch" style="background: rgba(255,255,255,.12); color: #fff"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></button>
+  </header>
+  <div style="margin: 40px auto 0; width: 280px; height: 180px; border-radius: 28px; box-shadow: 0 0 0 3px #D4F25A, 0 0 0 999px rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center">
+    <span style="width: 230px; height: 2px; background: #D4F25A"></span>
+  </div>
+  <p style="text-align: center; margin-top: 20px; opacity: .8; font-size: 14px">Found it · 0 41570 05432 1</p>
+
+  <div class="scrim" style="background: rgba(0,0,0,.4)"></div>
+  <section class="sheet" role="dialog" aria-label="Food safety check" style="color: var(--ink)">
+    <div class="grab"></div>
+    <div class="rowx" style="gap: 12px; margin-bottom: 14px">
+      <span class="ic" style="background: var(--bad-bg); color: var(--bad); width: 48px; height: 48px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M12 8v5M12 16v.5"/></svg></span>
+      <div><p class="eyebrow" style="color: var(--bad)">Food safety check</p><h2 class="h2">This contains an ingredient you avoid</h2></div>
+    </div>
+    <div class="card soft stack" style="gap: 10px">
+      <div class="between"><span class="h3">Honey nut granola bar</span><span class="chip bad">Contains</span></div>
+      <p class="sub" style="color: var(--ink)">Matched <b>peanut flour</b> in the ingredients, for your allergen <b>Peanuts</b>.</p>
+      <p class="sub">Checked on this phone against the label · Strict mode</p>
+    </div>
+    <p class="sub" style="margin: 14px 2px 18px">Only log it anyway if you have personally verified this food is safe for you.</p>
+    <div class="stack" style="gap: 8px">
+      <a class="btn primary block" href="LogFood.html" style="min-height: 52px">Don't log it</a>
+      <button class="btn danger block">Log it anyway</button>
+      <a class="btn ghost block" href="SwapNearby.html">Find a safer swap</a>
+    </div>
+  </section>
+</div>
+</x-dc>
+</body>
+</html>

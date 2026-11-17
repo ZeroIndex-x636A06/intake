@@ -1,0 +1,121 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Intake round 3: simpler food layout</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0c0d10;color:#f1f0f5;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:14px;padding:28px}
+h1{font-size:22px;margin-bottom:4px} .lead{color:#a6a6ae;margin-bottom:22px;max-width:980px;line-height:1.5}
+.opt{display:inline-flex;flex-direction:column;gap:10px;margin:0 22px 34px 0;vertical-align:top}
+.opt h2{font-size:17px} .opt p.why{color:#a6a6ae;max-width:740px;line-height:1.45;font-size:13px}
+.row{display:flex;gap:18px}
+.phone{width:360px;height:760px;background:#121318;border-radius:34px;border:1px solid #34353c;overflow:hidden;position:relative;padding:14px 16px 0}
+.cap{color:#a6a6ae;font-size:12px;text-align:center;margin-top:6px}
+.top{display:flex;align-items:center;justify-content:space-between;margin:8px 0 12px}
+.top .t{font-size:20px;font-weight:700} .av{width:34px;height:34px;border-radius:50%;background:#263d37;color:#8fd6c4;display:flex;align-items:center;justify-content:center;font-weight:700}
+.card{background:#1a1b21;border:1px solid #34353c;border-radius:20px;padding:14px;margin-bottom:10px}
+.sub{color:#a6a6ae;font-size:12px} .big{font-size:38px;font-weight:800;line-height:1} .mid{font-size:17px;font-weight:700}
+.bar{height:10px;border-radius:6px;background:#2a2b33;overflow:hidden;display:flex;margin:8px 0 4px}
+.bar i{display:block;height:100%} .p{background:#8fd6c4}.c{background:#d9c78e}.f{background:#ffb5a0}.k{background:#8fd6c4}
+.pct{display:flex;font-size:11px;font-weight:700} .pct span{display:block}
+.tiles{display:flex;gap:8px;margin-top:10px} .tile{flex:1;background:#1e1f25;border-radius:14px;padding:8px 10px}
+.tile b{font-size:16px} .tile small{color:#a6a6ae;display:block;font-size:11px}
+.meal{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid #2a2b33} .meal:first-child{border-top:0}
+.ico{width:40px;height:40px;border-radius:12px;background:#263d37;display:flex;align-items:center;justify-content:center;font-size:18px}
+.meal .n{flex:1} .meal .n b{display:block;font-size:15px} .plus{width:34px;height:34px;border-radius:50%;border:1px solid #34353c;display:flex;align-items:center;justify-content:center;color:#8fd6c4;font-size:20px}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:700}
+.red{background:#472b27;color:#ffb5a0} .ghost{border:1px solid #34353c;color:#f1f0f5}
+.pill{position:absolute;left:16px;right:16px;bottom:14px;height:58px;border-radius:30px;background:#26272e;display:flex;align-items:center;justify-content:space-around;font-size:11px;color:#a6a6ae}
+.pill b{color:#8fd6c4;background:#263d37;border-radius:22px;padding:14px 16px}
+.btn{background:#8fd6c4;color:#00201a;border-radius:16px;text-align:center;padding:14px;font-weight:800;margin-top:6px}
+.btn.o{background:transparent;border:1px solid #34353c;color:#f1f0f5}
+.search{display:flex;align-items:center;gap:10px;background:#1e1f25;border-radius:16px;padding:12px 14px;margin-bottom:10px;color:#a6a6ae}
+.search span{flex:1} .step{display:flex;gap:8px} .step i{width:30px;height:30px;border-radius:50%;background:#2a2b33;display:flex;align-items:center;justify-content:center;font-style:normal}
+.mini{height:5px;border-radius:3px;display:flex;overflow:hidden;width:110px;margin-top:5px}
+.ring{width:92px;height:92px;border-radius:50%;background:conic-gradient(#8fd6c4 0 26%,#2a2b33 0);display:flex;align-items:center;justify-content:center}
+.ring div{width:70px;height:70px;border-radius:50%;background:#1a1b21;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800}
+.ring small{font-size:10px;color:#a6a6ae;font-weight:400}
+</style></head><body>
+<h1>Simpler food layout: three options</h1>
+<p class="lead">Nothing here is built. Same data as today (calories, macros, allergens, plan, recipes, drinks); the question is how much of it sits on the first screen. Every option adds the split bar you liked: one bar divided protein / carbs / fat, with each share of calories under it, next to the numbers we already show.</p>
+
+<div class="opt"><h2>Option 1 · Day at a glance (closest to Samsung Health)</h2>
+<p class="why">One number, one bar, then the four meals. Each meal is a row with a plus. Allergens shrink to one chip. Plan, recipes, eating out and the extra nutrients move behind a single “More” row, so they are one tap away and not on the first screen.</p>
+<div class="row">
+<div><div class="phone">
+ <div class="top"><div class="t">Nutrition</div><div class="av">Y</div></div>
+ <div style="margin-bottom:10px"><span class="chip red">⛨ Avoiding: Milk and dairy ›</span></div>
+ <div class="card">
+  <div style="display:flex;align-items:flex-end;gap:10px"><div class="big">610</div><div class="sub" style="padding-bottom:5px">of 2,260 kcal · 1,650 left</div></div>
+  <div class="bar"><i class="k" style="width:27%"></i></div>
+  <div class="bar" style="margin-top:12px"><i class="p" style="width:22%"></i><i class="c" style="width:55%"></i><i class="f" style="width:23%"></i></div>
+  <div class="pct"><span style="width:22%;color:#8fd6c4">22%</span><span style="width:55%;color:#d9c78e">55%</span><span style="width:23%;color:#ffb5a0">23%</span></div>
+  <div class="tiles"><div class="tile"><small>Protein</small><b>34</b><small>/ 170 g</small></div><div class="tile"><small>Carbs</small><b>84</b><small>/ 250 g</small></div><div class="tile"><small>Fat</small><b>16</b><small>/ 65 g</small></div></div>
+ </div>
+ <div class="card" style="padding:4px 14px">
+  <div class="meal"><div class="ico">🌅</div><div class="n"><b>Breakfast</b><span class="sub">Instant oatmeal, banana · 265 kcal</span><div class="mini"><i class="p" style="width:10%"></i><i class="c" style="width:80%"></i><i class="f" style="width:10%"></i></div></div><div class="plus">+</div></div>
+  <div class="meal"><div class="ico">☀️</div><div class="n"><b>Lunch</b><span class="sub">Chicken wrap · 345 kcal</span><div class="mini"><i class="p" style="width:30%"></i><i class="c" style="width:42%"></i><i class="f" style="width:28%"></i></div></div><div class="plus">+</div></div>
+  <div class="meal"><div class="ico">🌙</div><div class="n"><b>Dinner</b><span class="sub">Planned: Turkey chili · Log it</span></div><div class="plus">+</div></div>
+  <div class="meal"><div class="ico">🍎</div><div class="n"><b>Snacks</b><span class="sub">Nothing yet</span></div><div class="plus">+</div></div>
+  <div class="meal"><div class="ico">💧</div><div class="n"><b>Drinks</b><span class="sub">24 of 84 fl oz</span></div><div class="plus">+</div></div>
+ </div>
+ <div class="card" style="padding:12px 14px;display:flex;justify-content:space-between"><b>More: plan, recipes, eating out, nutrients</b><span>›</span></div>
+ <div class="pill"><span>Today</span><b>Nutrition</b><span>Train</span><span>Progress</span></div>
+</div><div class="cap">Nutrition tab</div></div>
+<div><div class="phone">
+ <div class="top"><div class="t">‹ &nbsp;Breakfast ▾</div><div style="color:#a6a6ae">🗑</div></div>
+ <div style="text-align:center;margin-bottom:10px"><span class="chip ghost">9:45 AM</span></div>
+ <div class="card"><div class="mid">265 kcal</div>
+  <div class="bar"><i class="p" style="width:10%"></i><i class="c" style="width:80%"></i><i class="f" style="width:10%"></i></div>
+  <div class="pct"><span style="width:10%;color:#8fd6c4">10%</span><span style="width:80%;color:#d9c78e">80%</span><span style="width:10%;color:#ffb5a0">10%</span></div>
+  <div class="sub" style="margin-top:6px">Protein 5 g · Carbs 62 g · Fat 2 g</div></div>
+ <div class="card" style="padding:4px 14px">
+  <div class="meal"><div class="n"><b>Instant Oatmeal Apples &amp; Cinnamon</b><span class="sub">160 kcal · 1 packet (43 g) · ✓ no allergens found</span></div><div class="step"><i>−</i><i>+</i></div></div>
+  <div class="meal"><div class="n"><b>Banana</b><span class="sub">105 kcal · 1 medium (118 g)</span></div><div class="step"><i>−</i><i>+</i></div></div>
+  <div class="meal"><div class="n"><b>Add food</b><span class="sub">Search, scan or photo</span></div><div class="plus">+</div></div>
+  <div class="meal"><div class="n"><b>Add calories</b><span class="sub">When you only know the numbers</span></div><div class="plus">+</div></div>
+ </div>
+ <div class="card" style="padding:12px 14px"><b>Save as a meal</b></div>
+ <div class="btn" style="position:absolute;left:16px;right:16px;bottom:18px">Done</div>
+</div><div class="cap">Tapping a meal</div></div>
+</div></div>
+
+<div class="opt"><h2>Option 2 · Keep today’s screen, tidy it</h2>
+<p class="why">The least change. Search, Scan and Photo become one bar. The ring stays, with the split bar beside it. The planned meal and the meals list share one card. The four sections become a row of chips at the bottom.</p>
+<div class="row"><div><div class="phone">
+ <div class="top"><div class="t">Nutrition</div><div class="av">Y</div></div>
+ <div style="margin-bottom:10px"><span class="chip red">⛨ Avoiding: Milk and dairy ›</span></div>
+ <div class="search">🔍<span>Log food</span>▦ &nbsp;📷</div>
+ <div class="card"><div style="display:flex;gap:14px;align-items:center">
+  <div class="ring"><div>610<small>of 2,260</small></div></div>
+  <div style="flex:1"><div class="bar"><i class="p" style="width:22%"></i><i class="c" style="width:55%"></i><i class="f" style="width:23%"></i></div>
+  <div class="pct"><span style="width:22%;color:#8fd6c4">22%</span><span style="width:55%;color:#d9c78e">55%</span><span style="width:23%;color:#ffb5a0">23%</span></div>
+  <div class="sub" style="margin-top:8px;line-height:1.6">Protein 34 / 170 g<br>Carbs 84 / 250 g<br>Fat 16 / 65 g</div></div></div>
+  <div class="sub" style="margin-top:10px;color:#8fd6c4;font-weight:700">Fibre, sugar, sodium and more ⌄</div></div>
+ <div class="card" style="padding:4px 14px">
+  <div class="meal"><div class="n"><b>Breakfast · 265 kcal</b><span class="sub">Instant oatmeal, banana</span></div><div class="plus">+</div></div>
+  <div class="meal"><div class="n"><b>Lunch · 345 kcal</b><span class="sub">Chicken wrap</span></div><div class="plus">+</div></div>
+  <div class="meal"><div class="n"><b>Dinner</b><span class="sub">Planned: Turkey chili</span></div><span class="chip ghost">Swap</span><span class="chip" style="background:#8fd6c4;color:#00201a">Log it</span></div>
+  <div class="meal"><div class="n"><b>Snacks</b><span class="sub">Nothing yet</span></div><div class="plus">+</div></div>
+ </div>
+ <div style="display:flex;gap:6px;flex-wrap:wrap"><span class="chip ghost">Drinks 24/84</span><span class="chip ghost">Plan</span><span class="chip ghost">Recipes</span><span class="chip ghost">Meals</span><span class="chip ghost">Eating out</span></div>
+ <div class="pill"><span>Today</span><b>Nutrition</b><span>Train</span><span>Progress</span></div>
+</div><div class="cap">Nutrition tab</div></div></div></div>
+
+<div class="opt"><h2>Option 3 · Meals first</h2>
+<p class="why">The day is a list of meals with their foods showing, each with its own split bar and steppers, like the Samsung meal page but for the whole day. Totals sit in a slim strip at the top. Best if you mostly adjust what you already logged; longest to scroll.</p>
+<div class="row"><div><div class="phone">
+ <div class="top"><div class="t">Nutrition</div><div class="av">Y</div></div>
+ <div class="card" style="padding:10px 14px"><div style="display:flex;justify-content:space-between"><b>610 kcal</b><span class="sub">1,650 left</span></div>
+  <div class="bar"><i class="p" style="width:22%"></i><i class="c" style="width:55%"></i><i class="f" style="width:23%"></i></div>
+  <div class="sub">P 34 g · C 84 g · F 16 g &nbsp;·&nbsp; <span style="color:#ffb5a0">⛨ Dairy</span></div></div>
+ <div class="card"><div style="display:flex;justify-content:space-between"><b>Breakfast</b><span class="sub">265 kcal · 9:45 AM</span></div>
+  <div class="bar"><i class="p" style="width:10%"></i><i class="c" style="width:80%"></i><i class="f" style="width:10%"></i></div>
+  <div class="meal"><div class="n"><b style="font-size:14px">Instant Oatmeal Apples &amp; Cinnamon</b><span class="sub">160 kcal · 1 packet (43 g)</span></div><div class="step"><i>−</i><i>+</i></div></div>
+  <div class="meal"><div class="n"><b style="font-size:14px">Banana</b><span class="sub">105 kcal · 1 medium</span></div><div class="step"><i>−</i><i>+</i></div></div>
+  <div class="sub" style="color:#8fd6c4;font-weight:700;margin-top:6px">+ Add food</div></div>
+ <div class="card"><div style="display:flex;justify-content:space-between"><b>Lunch</b><span class="sub">345 kcal · 12:30 PM</span></div>
+  <div class="bar"><i class="p" style="width:30%"></i><i class="c" style="width:42%"></i><i class="f" style="width:28%"></i></div>
+  <div class="meal"><div class="n"><b style="font-size:14px">Chicken wrap</b><span class="sub">345 kcal · 1 wrap</span></div><div class="step"><i>−</i><i>+</i></div></div>
+  <div class="sub" style="color:#8fd6c4;font-weight:700;margin-top:6px">+ Add food</div></div>
+ <div class="card"><div style="display:flex;justify-content:space-between"><b>Dinner</b><span class="sub">Planned: Turkey chili</span></div><div class="btn o" style="padding:9px">Log it</div></div>
+ <div class="pill"><span>Today</span><b>Nutrition</b><span>Train</span><span>Progress</span></div>
+</div><div class="cap">Nutrition tab</div></div></div></div>
+</body></html>

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Recipe Hunter</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c2d55ca210a28925c2ccf0c9b8a5b709">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.lim{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:18px;background:var(--soft)}
+</style>
+</helmet>
+<div class="phone {{themeCls}}" style="--accent: {{accent}}; width: 390px; height: 1320px">
+  <header class="top">
+    <a class="iconbtn" href="Recipes.dc.html" aria-label="Back"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a>
+    <h1 class="h2 grow">Recipe Hunter</h1>
+    <button class="btn ghost sm">Recent</button>
+  </header>
+  <div class="pad stack" style="gap: 14px">
+    <section class="card stack" style="gap: 12px" aria-label="Limits">
+      <div class="grid2" style="gap: 8px">
+        <div class="lim"><span class="sub">Protein per serving, at least</span><span class="num" style="font-size: 22px">40 g</span></div>
+        <div class="lim"><span class="sub">Calories, no more than</span><span class="num" style="font-size: 22px">650</span></div>
+        <div class="lim"><span class="sub">Servings</span><span class="num" style="font-size: 22px">4</span></div>
+        <div class="lim"><span class="sub">Prep, max minutes</span><span class="num" style="font-size: 22px">30</span></div>
+      </div>
+      <span class="eyebrow">Cuisine</span>
+      <div class="wrap"><span class="chip">Any cuisine</span><span class="chip inkb">Mexican</span><span class="chip">Thai</span><span class="chip">Italian</span><span class="chip">Korean</span><span class="chip">Indian</span><span class="chip out">+14</span></div>
+      <div class="field"><label for="w">Words to include</label><input id="w" class="input" value="sheet pan, chicken"></div>
+      <div class="between" style="padding: 4px 0">
+        <div class="grow"><p class="h3">Use AI to read pages the phone can't <span class="chip ai" style="min-height: 20px; padding: 0 6px; font-size: 11px">AI</span></p><p class="sub">Needs your OpenRouter key · off</p></div>
+        <button class="sw" role="switch" aria-checked="false" aria-label="Use AI to read pages the phone can't"></button>
+      </div>
+      <button class="btn primary block" style="min-height: 52px">Search recipes</button>
+    </section>
+
+    <div class="sec"><h2 class="h2">Results</h2><span class="sub">3 passed every check</span></div>
+
+    <article class="card stack" style="gap: 10px">
+      <div class="between"><p class="h3">Sheet-pan chicken fajitas</p><span class="num">52 g P</span></div>
+      <p class="sub">580 kcal · 4 servings · 25 min</p>
+      <div class="wrap"><span class="chip ok">Fits your allergens</span><span class="chip">Ingredients checked locally</span></div>
+      <div class="rowx" style="gap: 6px"><a class="btn sm primary" href="RecipeDetail.dc.html">View recipe</a><button class="btn sm">Save adapted copy</button><button class="iconbtn clear" aria-label="Open the page"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></button></div>
+    </article>
+
+    <article class="card stack" style="gap: 10px">
+      <div class="between"><p class="h3">Chipotle chicken rice bowls</p><span class="num">44 g P</span></div>
+      <p class="sub">610 kcal · 4 servings · 30 min</p>
+      <div class="wrap"><span class="chip ai">Read by AI</span><span class="chip warn">Check allergens</span></div>
+      <div class="rowx" style="gap: 6px"><a class="btn sm primary" href="RecipeDetail.dc.html">View recipe</a><button class="btn sm">Save adapted copy</button></div>
+    </article>
+
+    <article class="card stack" style="gap: 10px">
+      <div class="between"><p class="h3">Chicken tinga tostadas</p><span class="num">41 g P</span></div>
+      <p class="sub">Nutrition not stated on the page · estimated from ingredients</p>
+      <div class="wrap"><span class="chip warn">Not checked</span></div>
+      <div class="rowx" style="gap: 6px"><a class="btn sm primary" href="RecipeDetail.dc.html">View recipe</a><button class="btn sm">Open the page</button></div>
+    </article>
+
+    <div class="grid2"><button class="btn">Change the search</button><button class="btn line">Find more</button></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["Light","Dark"],"default":"Light"},"accent":{"editor":"color","default":"#D4F25A","options":["#D4F25A","#7CE0C3","#FFB86B","#B9A8FF"]},"$preview":{"width":390,"height":1320}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themeCls: this.props.theme === 'Dark' ? 'dark' : '', accent: this.props.accent ?? '#D4F25A' };
+  }
+}
+</script>
+</body>
+</html>

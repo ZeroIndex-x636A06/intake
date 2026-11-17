@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.today.components
 
+import com.zeroindex.intake.domain.units.KcalFormat
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,6 +41,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.zeroindex.intake.ui.navigation.LocalSessionBarSpace
 import com.zeroindex.intake.data.db.entity.AllergenStatus
 import com.zeroindex.intake.domain.coach.DailyFocus
 import com.zeroindex.intake.domain.nutrition.DayProgress
@@ -59,6 +61,16 @@ import com.zeroindex.intake.ui.theme.FatAccent
 import com.zeroindex.intake.ui.theme.ProteinAccent
 import kotlin.math.abs
 import kotlin.math.roundToInt
+
+/** The calorie card's size with nothing in it, shown until the first database read so no false "No target yet" appears. */
+@Composable
+fun CalorieCardSkeleton(modifier: Modifier = Modifier) {
+    IntakeCard(modifier) {
+        Box(Modifier.fillMaxWidth().height(CalorieCardSkeletonHeight))
+    }
+}
+
+private val CalorieCardSkeletonHeight = 290.dp
 
 /**
  * Option A's calorie card: the ring with the kcal left, what was eaten against the target, then protein, fat and carbs
@@ -84,8 +96,8 @@ fun CalorieCard(
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Box(
                 Modifier.size(150.dp).pulseOn(pulseTrigger).clearAndSetSemantics {
-                    contentDescription = if (left == null) "Calories eaten ${progress.consumed.kcal.roundToInt()}. No target set." else
-                        (if (left >= 0) "$left calories left of ${target?.kcal}" else "${abs(left)} calories over ${target?.kcal}")
+                    contentDescription = if (left == null) "Calories eaten ${KcalFormat.format(progress.consumed.kcal)}. No target set." else
+                        (if (left >= 0) "${KcalFormat.format(left)} calories left of ${target?.kcal?.let { KcalFormat.format(it) }}" else "${KcalFormat.format(abs(left))} calories over ${target?.kcal?.let { KcalFormat.format(it) }}")
                 },
                 contentAlignment = Alignment.Center,
             ) {
@@ -96,15 +108,15 @@ fun CalorieCard(
                     drawArc(ringColor, -90f, 360f * fraction, false, Offset(w / 2, w / 2), arc, style = Stroke(w, cap = StrokeCap.Round))
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(left?.let { "%,d".format(abs(it)) } ?: "%,d".format(progress.consumed.kcal.roundToInt()), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
+                    Text(left?.let { KcalFormat.format(abs(it)) } ?: KcalFormat.format(progress.consumed.kcal), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
                     Text(if (left == null) "kcal eaten" else if (left >= 0) "kcal left" else "kcal over", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
                 Text("Eaten", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("%,d".format(progress.consumed.kcal.roundToInt()), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
-                Text(if (target != null) "of ${"%,d".format(target.kcal)} kcal" else "No target yet", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(KcalFormat.format(progress.consumed.kcal), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
+                Text(if (target != null) "of ${KcalFormat.format(target.kcal)} kcal" else "No target yet", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (activityBonusKcal > 0) {
                     Text("Includes +$activityBonusKcal kcal from workouts", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary, modifier = Modifier.padding(top = 4.dp))
                 }
@@ -136,10 +148,15 @@ private fun MacroTile(label: String, eaten: Double, targetG: Int?, fraction: Flo
             contentDescription = "$label ${eaten.roundToInt()} of ${targetG ?: "no target"} grams"
         }) {
             Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text("${eaten.roundToInt()}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = color)
-                Text(" / ${targetG ?: "—"} g", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 2.dp))
-            }
+            // Stacked, one line each, so the figure and "/ 170 g" keep their unit at large font scales (QA Q5a-20).
+            Text(
+                "${eaten.roundToInt()}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = color,
+                maxLines = 1, softWrap = false,
+            )
+            Text(
+                "/ ${targetG ?: "—"} g", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1, softWrap = false,
+            )
             Spacer(Modifier.height(6.dp))
             AnimatedBar(fraction, color, MaterialTheme.colorScheme.surfaceVariant, height = 6.dp)
         }
@@ -168,7 +185,9 @@ fun NextUpCard(
     workoutModifier: Modifier = Modifier,
 ) {
     val mealShown = showMeal && meal != null
-    val workoutShown = workout !is WorkoutCardState.Loading
+    // While the session bar shows, it is the entry back into a running workout, so the card does not repeat it.
+    val barUp = LocalSessionBarSpace.current > 0.dp
+    val workoutShown = workout !is WorkoutCardState.Loading && !(barUp && workout is WorkoutCardState.InProgress)
     if (!mealShown && !workoutShown && focus == null) return
     IntakeCard(modifier) {
         Eyebrow("Next up")
@@ -197,12 +216,13 @@ fun NextUpCard(
                             AllergenStatus.MAY_CONTAIN -> StatusPill("May contain", tone = PillTone.Bad)
                             AllergenStatus.CHECK_LABEL -> StatusPill("Check the label", tone = PillTone.Wait)
                             AllergenStatus.UNKNOWN -> StatusPill("Not checked", tone = PillTone.Wait)
-                            else -> StatusPill("No allergens", tone = PillTone.Ok)
+                            else -> if (meal.content.clearBasis.isCaution) StatusPill(meal.content.clearBasis.chipText, tone = PillTone.Wait)
+                            else StatusPill("Fits your allergens", tone = PillTone.Ok)
                         }
                     }
                     Text(meal.content.recipe.name, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 4.dp))
                     Text(
-                        if (meal.content.macros.isComplete) "${m.kcal.roundToInt()} kcal · P ${m.protein.roundToInt()} · C ${m.carbs.roundToInt()} · F ${m.fat.roundToInt()}" else "Macros incomplete. Open the plan to confirm.",
+                        if (meal.content.macros.isComplete) "${KcalFormat.format(m.kcal)} kcal · P ${m.protein.roundToInt()} · C ${m.carbs.roundToInt()} · F ${m.fat.roundToInt()}" else "Macros incomplete. Open the plan to confirm.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

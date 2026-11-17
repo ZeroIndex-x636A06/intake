@@ -37,7 +37,7 @@ fun ProgramTemplatesScreen(
     contentPadding: PaddingValues,
     onCreated: (programId: String) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: TrainViewModel = hiltViewModel(),
+    viewModel: ProgramsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     LazyColumn(
@@ -51,7 +51,7 @@ fun ProgramTemplatesScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item(key = "heading") {
-            SubHead("Templates", "Pick one to make your own copy. Change anything afterwards.")
+            Text("Pick one to make your own copy. Change anything afterwards.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         items(items = ProgramTemplates.ALL, key = { it.id }) { template ->
             TemplateCard(template, busy = state.isWorking, onUse = { viewModel.createFromTemplate(template.id, onCreated) })

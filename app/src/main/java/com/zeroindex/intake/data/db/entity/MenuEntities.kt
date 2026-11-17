@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
 
 enum class MenuSourceKind { URL, PDF, TEXT }
 
-enum class MenuRunStatus { NEVER_RUN, OK, FAILED, RUNNING }
+enum class MenuRunStatus { NEVER_RUN, OK, FAILED, RUNNING, TO_REVIEW }
 
 /**
  * Amendment §1, menu ingestion: where a restaurant's menu comes from.

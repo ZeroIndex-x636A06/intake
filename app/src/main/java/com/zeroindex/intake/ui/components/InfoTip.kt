@@ -52,7 +52,7 @@ fun InfoTip(
 object Glossary {
     const val MACROS = "Macros are the three nutrients that make up your calories: protein (builds and repairs muscle), carbs (quick energy) and fat (steady energy). Protein is the one to watch most."
     const val EFFORT = "How hard a set felt, from 1 (very easy) to 10 (no reps left). 8 means about two more reps were possible."
-    const val ESTIMATED_MAX = "The most you could lift once, worked out from your sets using the Epley formula. It is an estimate, not a test."
+    const val ESTIMATED_MAX = "The most you could lift once, worked out from your sets with the formula you chose in Settings > Training (Epley unless you changed it). It is an estimate, not a test."
     const val AS_MANY_AS_YOU_CAN = "Keep going until you cannot do another clean rep, then log how many you did."
     const val DELOAD = "A lighter week with fewer sets and less weight, so your body can recover and come back stronger."
 }

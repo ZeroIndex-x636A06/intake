@@ -55,6 +55,8 @@ data class OffProduct(
     val nutriments: OffNutriments? = null,
     @SerialName("image_front_small_url") val imageFrontSmallUrl: String? = null,
     @SerialName("image_front_url") val imageFrontUrl: String? = null,
+    /** Category tags such as `en:beverages`, `en:sodas`: only used to tell drinks apart (DrinkCategorizer). */
+    @SerialName("categories_tags") val categoriesTags: List<String> = emptyList(),
 )
 
 /** Open Food Facts reports per-100g values under the `_100g` suffix. */
@@ -98,7 +100,7 @@ interface OpenFoodFactsService {
         const val BASE_URL = "https://world.openfoodfacts.org/"
         const val FIELDS =
             "product_name,brands,serving_size,serving_quantity,ingredients_text," +
-                "allergens_tags,traces_tags,nutriments,image_front_small_url,image_front_url"
+                "allergens_tags,traces_tags,nutriments,image_front_small_url,image_front_url,categories_tags"
     }
 }
 

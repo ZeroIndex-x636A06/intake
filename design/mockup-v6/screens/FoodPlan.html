@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Food · Plan</title>
+<link rel="stylesheet" href="intake.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.wk{min-width:52px;min-height:44px;border-radius:14px;border:0;background:var(--card);font:600 13px Inter,sans-serif;color:var(--ink);display:inline-flex;align-items:center;justify-content:center}
+.wk.on{background:var(--ink);color:var(--ink-on)}
+</style>
+</helmet>
+<div class="phone " style="--accent: #D4F25A; width: 390px; height: 1620px">
+  <header class="top">
+    <h1 class="title">Food</h1>
+    <div class="rowx" style="gap: 8px">
+      <a class="chip ok" href="Allergens.html" style="min-height: 36px; padding: 0 12px"><svg class="i xs" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>Avoiding 2</a>
+      <a class="avatar" href="You.html" aria-label="Open You">Y</a>
+    </div>
+  </header>
+  <div class="pad stack" style="gap: 14px">
+    <nav class="seg" aria-label="Food sections"><a href="FoodDiary.html">Diary</a><a class="on" href="FoodPlan.html" aria-current="page">Plan</a><a href="Recipes.html">Recipes</a><a href="FoodLibrary.html">Library</a></nav>
+
+    <section class="card inkc stack" style="gap: 12px" aria-label="Active plan">
+      <div class="between">
+        <div><p class="eyebrow">Active plan</p><p class="h2" style="margin-top: 2px">Lean bulk · 8 weeks</p><p class="sub">Started Nov 2 · repeats 2×</p></div>
+        <button class="iconbtn" aria-label="Plan options" style="background: rgba(255,255,255,.12); color: inherit"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg></button>
+      </div>
+      <div class="wrap">
+        <button class="chip" style="background: rgba(255,255,255,.12); color: inherit; min-height: 34px">All plans</button>
+        <button class="chip" style="background: rgba(255,255,255,.12); color: inherit; min-height: 34px">New plan</button>
+        <button class="chip" style="background: rgba(255,255,255,.12); color: inherit; min-height: 34px">Import a plan file</button>
+        <button class="chip" style="background: rgba(255,255,255,.12); color: inherit; min-height: 34px">Export as script</button>
+        <button class="chip" style="background: rgba(255,255,255,.12); color: inherit; min-height: 34px">Script docs</button>
+      </div>
+    </section>
+
+    <div class="rowx" style="gap: 6px; overflow: hidden">
+      <button class="wk">W1</button><button class="wk on">W2</button><button class="wk">W3</button><button class="wk">W4</button>
+      <button class="wk" aria-label="Week 2 options: edit, duplicate, move, remove"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg></button>
+      <button class="wk" aria-label="Add a week"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+    </div>
+    <div class="grid4" style="grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px">
+      <button class="wk on" style="min-width: 0">M</button><button class="wk" style="min-width: 0">T</button><button class="wk" style="min-width: 0">W</button><button class="wk" style="min-width: 0">T</button><button class="wk" style="min-width: 0">F</button><button class="wk" style="min-width: 0">S</button><button class="wk" style="min-width: 0">S</button>
+    </div>
+
+    <section class="card stack" style="gap: 12px; padding: 0; overflow: hidden" aria-label="Main dish">
+      <div style="height: 120px; background: var(--soft); display: flex; align-items: flex-end; padding: 14px; gap: 6px"><span class="chip lime">Main dish</span><span class="chip ok">Fits your allergens</span></div>
+      <div class="stack" style="gap: 12px; padding: 0 18px 18px">
+        <div><p class="h2">Chicken burrito bowl</p><p class="sub">Chicken · 4 servings · 640 kcal, 48 g protein each</p></div>
+        <p class="sub" style="color: var(--ink)">Serve over rice with black beans, pico and lime. Leftovers go in tomorrow's lunch.</p>
+        <div class="grid2"><button class="btn primary">Log this meal</button><a class="btn" href="CookMode.html">Cook this meal</a></div>
+        <div class="between"><button class="btn ghost sm" style="padding: 0">Change recipe</button><a class="btn ghost sm" href="SwapNearby.html" style="padding: 0">Can't eat it? Find another</a></div>
+      </div>
+    </section>
+
+    <section class="card rowx" aria-label="Second dish">
+      <span class="thumb" style="width: 56px; height: 56px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h18a9 9 0 0 1-18 0zM8 8c0-2 2-2 2-4M13 8c0-2 2-2 2-4"/></svg></span>
+      <div class="grow"><p class="h3">Turkey chili</p><p class="sub">Dinner · 3 servings</p><span class="chip warn" style="margin-top: 6px">Macros are incomplete</span></div>
+    </section>
+
+    <section class="list" aria-label="Every week">
+      <div class="li"><span class="h3 grow">Every week</span><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></div>
+      <div class="li"><div class="grow"><p class="sub">Standing breakfasts</p><p style="font-size: 14px">Greek yogurt bowl · Egg wrap</p></div></div>
+      <div class="li"><div class="grow"><p class="sub">Standing snacks</p><p style="font-size: 14px">Protein bar · Apple and peanut-free butter</p></div></div>
+      <div class="li"><div class="grow"><p class="sub">Hidden dairy checklist</p><p style="font-size: 14px">Whey, casein, ghee, lactose: check labels</p></div><span class="chip warn">4</span></div>
+      <div class="li"><div class="grow"><p class="sub">Pantry: buy once</p><p style="font-size: 14px">Rice, black beans, cumin, olive oil</p></div></div>
+    </section>
+
+    <section class="list" aria-label="Eating out this week">
+      <div class="li"><span class="h3 grow">Eating out this week</span><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></div>
+    </section>
+
+    <button class="btn line block"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4"/></svg>Share this week's shopping list</button>
+  </div>
+
+  <nav class="dock" aria-label="Main">
+    <a class="tab" href="Today.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Today</a>
+    <a class="tab on" href="FoodDiary.html" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v20M4 2v6a3 3 0 0 0 6 0V2M17 22V2c-2 0-3.5 3-3.5 7s1.5 4 3.5 4"/></svg>Food</a>
+    <a class="fab" href="QuickLog.html" aria-label="Log something"><svg class="i l" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></a>
+    <a class="tab" href="Train.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7v10M3 9.5v5M18 7v10M21 9.5v5M6 12h12"/></svg>Train</a>
+    <a class="tab" href="Insights.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M6 16l4-5 4 3 5-7"/></svg>Insights</a>
+  </nav>
+</div>
+</x-dc>
+</body>
+</html>

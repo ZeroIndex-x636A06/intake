@@ -48,11 +48,22 @@ object ProgressionLabels {
     private fun number(json: String, key: String): Double? =
         Regex("\"$key\"\\s*:\\s*(-?[0-9]+(?:\\.[0-9]+)?)").find(json)?.groupValues?.get(1)?.toDoubleOrNull()
 
-    fun summary(type: ProgressionType, paramsJson: String): String {
+    /** The step the stock rules carry. It stands for the smallest step the person's gym can load. */
+    const val STOCK_INCREMENT_KG = 2.5
+
+    /** The step a rule means for someone working in [unit]: the stock 2.5 kg is 5 lb in a pound gym. */
+    fun stepKg(ruleIncrementKg: Double, unit: com.zeroindex.intake.domain.units.WeightUnit): Double =
+        if (unit == com.zeroindex.intake.domain.units.WeightUnit.POUNDS && ruleIncrementKg == STOCK_INCREMENT_KG) unit.toKg(5.0) else ruleIncrementKg
+
+    fun summary(
+        type: ProgressionType,
+        paramsJson: String,
+        unit: com.zeroindex.intake.domain.units.WeightUnit = com.zeroindex.intake.domain.units.WeightUnit.KILOGRAMS,
+    ): String {
         val inc = incrementOf(paramsJson)
         return when (type) {
             ProgressionType.LINEAR, ProgressionType.DOUBLE_PROGRESSION ->
-                title(type) + (inc?.let { " (+${ProgressionEvaluator.fmt(it)} kg)" } ?: "")
+                title(type) + (inc?.let { " (+${com.zeroindex.intake.domain.units.WeightText.format(stepKg(it, unit), unit)})" } ?: "")
             ProgressionType.PERCENTAGE_1RM ->
                 percentOf(paramsJson)?.let { "${ProgressionEvaluator.fmt(it)}% of max" } ?: title(type)
             else -> title(type)

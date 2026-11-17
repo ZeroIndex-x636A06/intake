@@ -66,6 +66,10 @@ fun AssignRecipeSheet(
     initialProtein: String,
     onDismiss: () -> Unit,
     onPick: (RecipeEntity, String) -> Unit,
+    /** The single recipe verdict per id (`RecipeLogger.rowAllergen`), the same chip as the Recipes list. Empty when nothing is avoided. */
+    verdicts: Map<String, com.zeroindex.intake.ui.addfood.RowAllergen> = emptyMap(),
+    /** True while the person avoids anything: a recipe with no verdict yet shows "Checking..." rather than no chip. */
+    avoids: Boolean = verdicts.isNotEmpty(),
 ) {
     var protein by remember { mutableStateOf(initialProtein) }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
@@ -91,12 +95,17 @@ fun AssignRecipeSheet(
                         ListItem(
                             headlineContent = { Text(r.name) },
                             supportingContent = {
-                                Text(
-                                    listOfNotNull(
-                                        "${r.servings} servings",
-                                        r.totalTimeMinutes.takeIf { it > 0 }?.let { "$it min" },
-                                    ).joinToString(" · "),
-                                )
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(
+                                        listOfNotNull(
+                                            "${r.servings} servings",
+                                            r.totalTimeMinutes.takeIf { it > 0 }?.let { "$it min" },
+                                        ).joinToString(" · "),
+                                    )
+                                    // Never chipless for a person who avoids something: "Checking" until the verdict lands.
+                                    val chip = verdicts[r.id] ?: com.zeroindex.intake.ui.addfood.RowAllergen.Checking.takeIf { avoids }
+                                    chip?.let { com.zeroindex.intake.ui.addfood.RowAllergenChip(it) }
+                                }
                             },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)
                                 .clickable { onPick(r, protein) },
@@ -119,7 +128,7 @@ fun EatOutSheet(
     weekLabel: String,
     onToggleAll: () -> Unit,
     onLog: (EatOutRow) -> Unit,
-    onOpenPlanB: () -> Unit,
+    onOpenSwap: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
@@ -140,7 +149,7 @@ fun EatOutSheet(
             if (rows.isEmpty()) {
                 EmptyState(
                     title = "No saved options for this week",
-                    body = "Import a plan file with eat-out options, or find a place with Plan B.",
+                    body = "Import a plan file with eat-out options, or use Swap to find a place nearby.",
                 )
             }
             rows.forEach { row -> EatOutCard(row, onLog = { onLog(row) }) }
@@ -152,10 +161,10 @@ fun EatOutSheet(
                 ) { Text(if (showingAll) "Show only this week's protein" else "Show all options ($hiddenCount more)") }
             }
             OutlinedButton(
-                onClick = onOpenPlanB,
+                onClick = onOpenSwap,
                 shape = IntakeShape.Button,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-            ) { Text("Plan B · find a place nearby") }
+            ) { Text("Swap · find a place nearby") }
             Spacer(Modifier.height(16.dp))
         }
     }

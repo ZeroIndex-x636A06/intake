@@ -9,6 +9,7 @@ import com.zeroindex.intake.data.db.entity.AllergenProfileEntity
 import com.zeroindex.intake.data.db.entity.FoodEntity
 import com.zeroindex.intake.data.db.entity.seedId
 import com.zeroindex.intake.domain.allergen.AllergenAlias
+import com.zeroindex.intake.data.remote.openfoodfacts.FoodIngredients
 import com.zeroindex.intake.domain.allergen.AllergenMatcher
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
 import com.zeroindex.intake.domain.allergen.CheckLabelTerm
@@ -22,7 +23,11 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 
 /** One row of the "My allergens" list. */
 data class AllergenListItem(
@@ -51,11 +56,24 @@ class AllergenRepository @Inject constructor(
     fun observeProfile(): Flow<AllergenProfileEntity?> = allergenDao.observeProfile()
 
     /** Keywords the engine uses (switched-off ones excluded). */
-    fun observeAliases(): Flow<List<AllergenAliasEntity>> = allergenDao.observeAliases()
+    fun observeAliases(): Flow<List<AllergenAliasEntity>> = sharedAliases
+
+    /**
+     * One query for every observer. The keyword table is about a thousand rows and a dozen view models watch it; each
+     * watcher used to run (and re-run, on every change) its own copy of the query, which kept all the database threads
+     * busy on a slow phone (Q5b-1). Kept for five seconds after the last watcher leaves.
+     */
+    private val sharedAliases: Flow<List<AllergenAliasEntity>> by lazy {
+        allergenDao.observeAliases().shareIn(
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Default),
+            kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000),
+            replay = 1,
+        )
+    }
 
     /** Grouped for the reference screen (SPEC §7.6). */
     fun observeAliasesByAllergen(): Flow<Map<String, List<String>>> =
-        allergenDao.observeAliases().map { rows ->
+        observeAliases().map { rows ->
             rows.groupBy { it.allergen }.mapValues { (_, v) -> v.map { it.aliasTerm }.sorted() }
         }
 
@@ -70,7 +88,7 @@ class AllergenRepository @Inject constructor(
         combine(
             observeAvoidedAllergens(),
             planDao.observeActivePlan(),
-            allergenDao.observeAliases(),
+            observeAliases(),
         ) { avoided, plan, aliases ->
             val own = aliases.filter { it.level == KeywordLevel.CHECK_LABEL }.map {
                 CheckLabelTerm(it.allergen, it.aliasTerm, "Says ${it.aliasTerm} - check the label")
@@ -101,6 +119,7 @@ class AllergenRepository @Inject constructor(
                 updatedAt = now,
             ),
         )
+        refreshIndex()
     }
 
     // ---- My allergens ----------------------------------------------------------------------
@@ -168,6 +187,7 @@ class AllergenRepository @Inject constructor(
         allergenDao.softDeleteDefinition(def.id, now)
         allergenDao.softDeleteCustomAliasesOf(key, now)
         setAvoided(key, false)
+        refreshIndex()
     }
 
     /** Adds (or revives, or re-levels) a keyword the user wrote. Works on built-in and custom allergens. */
@@ -191,6 +211,7 @@ class AllergenRepository @Inject constructor(
                 existing.copy(level = newLevel, isEnabled = true, deletedAt = null, updatedAt = now),
             )
         }
+        refreshIndex()
     }
 
     /** Compatibility with the old Settings editor. */
@@ -199,18 +220,21 @@ class AllergenRepository @Inject constructor(
     suspend fun setKeywordLevel(id: String, level: KeywordLevel) {
         val row = allergenDao.aliasById(id)?.takeIf { it.isCustom } ?: return
         allergenDao.upsertAlias(row.copy(level = level, updatedAt = clock.nowMillis()))
+        refreshIndex()
     }
 
     /** The soft flag: turns a keyword off (or back on) without deleting anything. */
     suspend fun setKeywordEnabled(id: String, enabled: Boolean) {
         val row = allergenDao.aliasById(id) ?: return
         allergenDao.upsertAlias(row.copy(isEnabled = enabled, updatedAt = clock.nowMillis()))
+        refreshIndex()
     }
 
     /** Removes a keyword the user added (soft delete). Built-in keywords can only be switched off. */
     suspend fun removeKeyword(id: String) {
         val row = allergenDao.aliasById(id)?.takeIf { it.isCustom } ?: return
         allergenDao.softDeleteAlias(row.id, clock.nowMillis())
+        refreshIndex()
     }
 
     suspend fun removeAlias(id: String) = removeKeyword(id)
@@ -228,25 +252,34 @@ class AllergenRepository @Inject constructor(
         structuredTraces: List<String> = emptyList(),
         /** True when [ingredients] is free-text recipe lines rather than a label panel. */
         checkLabelInIngredients: Boolean = false,
+        /**
+         * True when [name] (and [ingredients], with [checkLabelInIngredients]) is wording a person or a menu wrote
+         * about an order ("Whopper without cheese"), so a clearly negated mention is not counted as the ingredient.
+         * It never applies to ingredient panels, Open Food Facts tags or stated allergen lists.
+         */
+        freeText: Boolean = false,
     ): AllergenScanResult {
-        val avoided = allergenDao.profile().avoidedSet()
-        if (avoided.isEmpty()) return AllergenScanResult.CLEAN
-        val aliases = allergenDao.aliases().map {
-            AllergenAlias(allergen = it.allergen, aliasTerm = it.aliasTerm, level = it.level)
+        val index = index()
+        if (index.avoided.isEmpty()) return AllergenScanResult.CLEAN
+        // The matching is pure text work over every keyword; lists scan a row at a time, so it stays off the main thread.
+        return kotlinx.coroutines.withContext(scanDispatcher) {
+            AllergenMatcher.scan(
+                aliases = index.aliases,
+                avoidedAllergens = index.avoided,
+                name = name,
+                brand = brand,
+                ingredients = ingredients,
+                structuredContains = structuredContains,
+                structuredTraces = structuredTraces,
+                checkLabelTerms = index.checkTerms,
+                checkLabelInIngredients = checkLabelInIngredients,
+                freeText = freeText,
+            )
         }
-        return AllergenMatcher.scan(
-            aliases = aliases,
-            avoidedAllergens = avoided,
-            name = name,
-            brand = brand,
-            ingredients = ingredients,
-            structuredContains = structuredContains,
-            structuredTraces = structuredTraces,
-            checkLabelTerms = HiddenCarriers.forAllergens(avoided) +
-                PlanWatchTerms.extract(PlanMeta.decode(planDao.activePlan()?.metaJson).hiddenDairyChecklist),
-            checkLabelInIngredients = checkLabelInIngredients,
-        )
     }
+
+    /** The free-text notes on the allergen profile ("no pork either"), trimmed, or blank. Sent to the model only on a tap. */
+    suspend fun profileNotes(): String = allergenDao.profile()?.notes.orEmpty().trim()
 
     /**
      * One engine setup for many short texts, so a recipe's ingredient lines do not each reload the profile
@@ -254,21 +287,132 @@ class AllergenRepository @Inject constructor(
      * `checkLabelInIngredients`), never read for negation.
      */
     suspend fun lineScanner(): (String) -> AllergenScanResult {
+        val index = index()
+        if (index.avoided.isEmpty()) return { AllergenScanResult.CLEAN }
+        return { line ->
+            AllergenMatcher.scan(
+                aliases = index.aliases,
+                avoidedAllergens = index.avoided,
+                name = null,
+                ingredients = line,
+                checkLabelTerms = index.checkTerms,
+                checkLabelInIngredients = true,
+            )
+        }
+    }
+
+    /** The local scan of each shopping item name, one engine setup for the list. Names are read as ingredient lines, never negated. */
+    suspend fun shoppingScans(names: Collection<String>): Map<String, AllergenScanResult> {
+        val scan = lineScanner()
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { names.distinct().associateWith(scan) }
+    }
+
+    /**
+     * One engine setup for a whole list of foods (search results, a drink category), so a list of fifty rows reads the
+     * profile and keyword table once. Each food is scanned exactly as [scan] does it.
+     */
+    suspend fun foodScanner(): (FoodEntity) -> AllergenScanResult {
+        val index = index()
+        if (index.avoided.isEmpty()) return { AllergenScanResult.CLEAN }
+        return { food ->
+            // The scan is pure: the same words under the same keywords and terms give the same answer, so a list that
+            // is rebuilt (a keystroke, a new recent) does not scan its unchanged rows again (Q5b-1).
+            val key = ScanKey(food.name, food.brand, food.allergenTags)
+            index.memo[key] ?: AllergenMatcher.scan(
+                aliases = index.aliases,
+                avoidedAllergens = index.avoided,
+                name = food.name,
+                brand = food.brand,
+                ingredients = food.allergenTags.takeIf { it.isNotBlank() },
+                structuredContains = storedTags(food),
+                checkLabelTerms = index.checkTerms,
+            ).also {
+                if (index.memo.size >= SCAN_MEMO_MAX) index.memo.clear()
+                index.memo[key] = it
+            }
+        }
+    }
+
+    /**
+     * Everything a scan needs, built once and shared by every scanner: the avoided set, the keywords of those allergens
+     * (already narrowed to them) and the check-the-label terms. Rebuilt only when the profile, the keyword table or the
+     * active plan change, so no screen re-reads the keyword table. A new index starts with an empty memo.
+     */
+    class ScanIndex internal constructor(
+        val avoided: Set<String>,
+        val aliases: List<AllergenAlias>,
+        val checkTerms: List<CheckLabelTerm>,
+    ) {
+        internal val memo = java.util.concurrent.ConcurrentHashMap<ScanKey, AllergenScanResult>()
+    }
+
+    internal data class ScanKey(val name: String, val brand: String?, val tags: String)
+
+    private val indexScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Default)
+    private val indexState = kotlinx.coroutines.flow.MutableStateFlow<ScanIndex?>(null)
+
+    private val indexWatcher by lazy {
+        indexScope.launch {
+            combine(allergenDao.observeProfile(), observeAliases(), planDao.observeActivePlan()) { profile, aliases, plan ->
+                buildIndex(profile, aliases, plan)
+            }.collect { indexState.value = it }
+        }
+    }
+
+    internal fun buildIndex(profile: AllergenProfileEntity?, aliases: List<AllergenAliasEntity>, plan: com.zeroindex.intake.data.db.entity.MealPlanEntity?): ScanIndex {
+        val avoided = profile.avoidedSet()
+        if (avoided.isEmpty()) return ScanIndex(avoided, emptyList(), emptyList())
+        val relevant = com.zeroindex.intake.domain.allergen.ScanIndexBuilder.relevantAliases(
+            aliases.map { AllergenAlias(allergen = it.allergen, aliasTerm = it.aliasTerm, level = it.level) },
+            avoided,
+        )
+        val checkTerms = HiddenCarriers.forAllergens(avoided) +
+            PlanWatchTerms.extract(PlanMeta.decode(plan?.metaJson).hiddenDairyChecklist)
+        return ScanIndex(avoided, relevant, checkTerms)
+    }
+
+    /** The shared index; waits for the first build. */
+    suspend fun index(): ScanIndex {
+        indexWatcher
+        return indexState.value ?: indexState.filterNotNull().first()
+    }
+
+    /** After a write here: rebuild from the tables now, so the next scan cannot see the old keywords. */
+    private suspend fun refreshIndex() {
+        indexState.value = buildIndex(allergenDao.profile(), allergenDao.aliases(), planDao.activePlan())
+    }
+
+    /** Text scans share this: two threads, so a long list never takes every core from the screen. */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val scanDispatcher: kotlinx.coroutines.CoroutineDispatcher = kotlinx.coroutines.Dispatchers.Default.limitedParallelism(2)
+
+    /**
+     * One engine setup for many imported menu items. Each item is scanned by its name, description and ingredient
+     * text, and the "Contains: ... ; May contain: ..." line a restaurant's chart stated for it is also handed over as
+     * structured allergens (`StatedAllergens`). A stated list can only raise the result.
+     */
+    suspend fun menuScanner(): (name: String, description: String, ingredients: String) -> AllergenScanResult {
         val avoided = allergenDao.profile().avoidedSet()
-        if (avoided.isEmpty()) return { AllergenScanResult.CLEAN }
+        if (avoided.isEmpty()) return { _, _, _ -> AllergenScanResult.CLEAN }
         val aliases = allergenDao.aliases().map {
             AllergenAlias(allergen = it.allergen, aliasTerm = it.aliasTerm, level = it.level)
         }
         val checkTerms = HiddenCarriers.forAllergens(avoided) +
             PlanWatchTerms.extract(PlanMeta.decode(planDao.activePlan()?.metaJson).hiddenDairyChecklist)
-        return { line ->
+        return { name, description, ingredients ->
+            val stated = com.zeroindex.intake.domain.menu.StatedAllergens.parse(ingredients)
             AllergenMatcher.scan(
                 aliases = aliases,
                 avoidedAllergens = avoided,
-                name = null,
-                ingredients = line,
+                name = name,
+                ingredients = listOf(description, com.zeroindex.intake.domain.menu.StatedAllergens.textForScan(ingredients).orEmpty())
+                    .filter { it.isNotBlank() }.joinToString("\n").ifBlank { null },
+                structuredContains = stated.contains,
+                structuredTraces = stated.mayContain,
                 checkLabelTerms = checkTerms,
-                checkLabelInIngredients = true,
+                // Only the item's name is read for negation ("Whopper without cheese"); the description and the stated
+                // allergen list are label-like and are never downgraded.
+                freeText = true,
             )
         }
     }
@@ -277,7 +421,16 @@ class AllergenRepository @Inject constructor(
         name = food.name,
         brand = food.brand,
         ingredients = food.allergenTags.takeIf { it.isNotBlank() },
+        structuredContains = storedTags(food),
     )
+
+    /**
+     * The Open Food Facts tags kept on a food ("en:milk,en:nuts"), handed to the engine as the product's own
+     * allergen list as well as being read as text. Allergen and trace tags are stored together, so a trace counts
+     * as "contains" here: stricter than the product, never weaker.
+     */
+    private fun storedTags(food: FoodEntity): List<String> =
+        FoodIngredients.tags(food.allergenTags).split(',').map { it.trim() }.filter { it.isNotEmpty() }
 
     /**
      * SPEC §7.5: any food logged three or more times with no allergen flag gets
@@ -306,5 +459,6 @@ class AllergenRepository @Inject constructor(
 
     private companion object {
         const val SAFE_FOOD_THRESHOLD = 3
+        const val SCAN_MEMO_MAX = 2_000
     }
 }

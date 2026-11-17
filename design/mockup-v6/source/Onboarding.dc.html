@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Welcome flow</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c2d55ca210a28925c2ccf0c9b8a5b709">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="phone {{themeCls}}" style="--accent: {{accent}}; width: 1346px; height: 924px; padding: 40px; display: flex; gap: 48px; background: var(--soft)">
+
+  <!-- 1 Welcome -->
+  <div class="phone {{themeCls}}" style="--accent: {{accent}}; width: 390px; height: 844px; border-radius: 44px; background: var(--ink); color: var(--ink-on); display: flex; flex-direction: column; padding: 20px 24px 32px">
+    <div class="between">
+      <span class="eyebrow" style="color: var(--ink-on); opacity: .7">Step 1 of 10</span>
+      <button class="btn ghost" style="color: var(--ink-on)">Skip setup</button>
+    </div>
+    <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 28px">
+      <div style="position: relative; width: 168px; height: 168px">
+        <span style="position: absolute; inset: 0; border-radius: 999px; border: 14px solid var(--accent)"></span>
+        <span style="position: absolute; inset: 34px; border-radius: 999px; border: 14px solid rgba(255,255,255,.18)"></span>
+        <span style="position: absolute; left: 68px; top: 68px; width: 32px; height: 32px; border-radius: 99px; background: var(--accent)"></span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 12px">
+        <h1 class="title" style="font-size: 40px">Track everything. Keep it on your phone.</h1>
+        <p style="font-size: 16px; opacity: .78">Food, water, training, weight, sleep and more, in one place.</p>
+      </div>
+      <div class="stack" style="gap: 10px; font-size: 14.5px">
+        <span class="rowx"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true" style="color: var(--accent)"><path d="M5 12l5 5 9-10"/></svg>No account to make</span>
+        <span class="rowx"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true" style="color: var(--accent)"><path d="M5 12l5 5 9-10"/></svg>Works without internet</span>
+        <span class="rowx"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true" style="color: var(--accent)"><path d="M5 12l5 5 9-10"/></svg>No AI needed, ever</span>
+      </div>
+    </div>
+    <a class="btn accent block" href="Today.dc.html" style="min-height: 56px; font-size: 16px">Get started</a>
+  </div>
+
+  <!-- 2 Goal -->
+  <div class="phone {{themeCls}}" style="--accent: {{accent}}; width: 390px; height: 844px; border-radius: 44px; display: flex; flex-direction: column; padding: 20px 20px 28px; gap: 18px">
+    <div class="between">
+      <button class="iconbtn" aria-label="Back"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="sub">Step 4 of 10 · Goal</span>
+      <button class="btn ghost">Skip setup</button>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px" aria-label="Units, About you, Goal, Equipment, Foods you avoid, How to start, Your plans, Optional extras, Done">
+      <span style="height: 5px; border-radius: 9px; background: var(--ink)"></span><span style="height: 5px; border-radius: 9px; background: var(--ink)"></span><span style="height: 5px; border-radius: 9px; background: var(--ink)"></span><span style="height: 5px; border-radius: 9px; background: var(--accent); box-shadow: inset 0 0 0 1px rgba(0,0,0,.2)"></span><span style="height: 5px; border-radius: 9px; background: var(--line)"></span><span style="height: 5px; border-radius: 9px; background: var(--line)"></span><span style="height: 5px; border-radius: 9px; background: var(--line)"></span><span style="height: 5px; border-radius: 9px; background: var(--line)"></span><span style="height: 5px; border-radius: 9px; background: var(--line)"></span><span style="height: 5px; border-radius: 9px; background: var(--line)"></span>
+    </div>
+    <h1 class="title">What are you working toward?</h1>
+    <div class="grid2">
+      <button class="card" style="border: 0; text-align: left; display: flex; flex-direction: column; gap: 8px; color: var(--ink)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M6 14l6 6 6-6"/></svg><span class="h3">Lose fat</span><span class="sub">Keep strength</span></button>
+      <button class="card inkc" style="border: 0; text-align: left; display: flex; flex-direction: column; gap: 8px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color: var(--accent)"><path d="M6 7v10M3 9.5v5M18 7v10M21 9.5v5M6 12h12"/></svg><span class="h3">Build muscle</span><span class="sub">Lean gain</span></button>
+      <button class="card" style="border: 0; text-align: left; display: flex; flex-direction: column; gap: 8px; color: var(--ink)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg><span class="h3">Recompose</span><span class="sub">Same weight, new shape</span></button>
+      <button class="card" style="border: 0; text-align: left; display: flex; flex-direction: column; gap: 8px; color: var(--ink)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16"/></svg><span class="h3">Maintain</span><span class="sub">Hold steady</span></button>
+    </div>
+    <div class="stack" style="gap: 8px">
+      <span class="eyebrow">Your build</span>
+      <div class="seg"><button>Slim</button><button class="on">Average</button><button>Muscular</button></div>
+    </div>
+    <div class="stack" style="gap: 8px">
+      <span class="eyebrow">Pace</span>
+      <div class="seg"><button>Gentle</button><button class="on">Steady</button><button>Fast</button></div>
+    </div>
+    <button class="btn ghost" style="align-self: flex-start; padding: 0">Advanced: pick each item</button>
+    <div style="flex: 1"></div>
+    <button class="btn primary block" style="min-height: 56px">Next</button>
+  </div>
+
+  <!-- 3 Extras -->
+  <div class="phone {{themeCls}}" style="--accent: {{accent}}; width: 390px; height: 844px; border-radius: 44px; display: flex; flex-direction: column; padding: 20px 20px 28px; gap: 18px">
+    <div class="between">
+      <button class="iconbtn" aria-label="Back"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="sub">Step 9 of 10 · Optional extras</span>
+      <span style="width: 44px"></span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px" aria-hidden="true">
+      <span style="height: 5px; border-radius: 9px; background: var(--ink)"></span><span style="height: 5px; border-radius: 9px; background: var(--ink)"></span><span style="height: 5px; border-radius: 9px; background: var(--ink)"></span><span style="height: 5px; border-radius: 9px; background: var(--ink)"></span><span style="height: 5px; border-radius: 9px; background: var(--ink)"></span><span style="height: 5px; border-radius: 9px; background: var(--ink)"></span><span style="height: 5px; border-radius: 9px; background: var(--ink)"></span><span style="height: 5px; border-radius: 9px; background: var(--ink)"></span><span style="height: 5px; border-radius: 9px; background: var(--accent); box-shadow: inset 0 0 0 1px rgba(0,0,0,.2)"></span><span style="height: 5px; border-radius: 9px; background: var(--line)"></span>
+    </div>
+    <h1 class="title">Nice to have. None of it is needed.</h1>
+    <p class="sub" style="font-size: 14.5px">Everything here stays off until you set it up. You can come back from Settings any time.</p>
+    <div class="list">
+      <div class="li"><span class="ic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></span><div class="grow"><p class="h3">Health Connect</p><p class="sub">Steps, sleep and weight from your watch or scale</p></div><button class="btn sm">Set up</button></div>
+      <div class="li"><span class="ic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></svg></span><div class="grow"><p class="h3">Backups</p><p class="sub">Export or sync to your own server</p></div><button class="btn sm">Set up</button></div>
+      <div class="li"><span class="ic" style="background: var(--ai-bg); color: var(--ai)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg></span><div class="grow"><p class="h3">AI shortcuts</p><p class="sub">Photo estimates and more, with your own key</p></div><button class="btn sm">Set up</button></div>
+    </div>
+    <div class="card soft" style="display: flex; gap: 12px; align-items: flex-start">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <p class="sub" style="color: var(--ink)">You chose <b>Learn my baseline first</b>. Log normally for 7 days and Intake builds your plan from real numbers.</p>
+    </div>
+    <div style="flex: 1"></div>
+    <button class="btn primary block" style="min-height: 56px">Continue</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["Light","Dark"],"default":"Light"},"accent":{"editor":"color","default":"#D4F25A","options":["#D4F25A","#7CE0C3","#FFB86B","#B9A8FF"]},"$preview":{"width":1346,"height":924}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themeCls: this.props.theme === 'Dark' ? 'dark' : '', accent: this.props.accent ?? '#D4F25A' };
+  }
+}
+</script>
+</body>
+</html>

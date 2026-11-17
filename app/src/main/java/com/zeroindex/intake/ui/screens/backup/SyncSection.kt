@@ -96,7 +96,7 @@ fun SyncSection(viewModel: SyncViewModel = hiltViewModel()) {
                         label = "Pairing code",
                         value = code,
                         onValueChange = { viewModel.code.value = it.uppercase().take(9) },
-                        placeholder = "QCBQ-8FQS",
+                        placeholder = "XXXX-XXXX",
                         modifier = Modifier.weight(1f),
                     )
                     LabeledField(

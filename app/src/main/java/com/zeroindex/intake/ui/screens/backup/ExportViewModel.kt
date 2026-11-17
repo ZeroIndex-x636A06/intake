@@ -10,10 +10,12 @@ import com.zeroindex.intake.data.backup.ImportPreview
 import com.zeroindex.intake.data.backup.WrongPassphraseException
 import com.zeroindex.intake.data.photos.ProgressPhotoRepository
 import com.zeroindex.intake.data.settings.SettingsRepository
+import com.zeroindex.intake.domain.backup.ImportMessages
 import com.zeroindex.intake.domain.time.Clock
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -26,7 +28,11 @@ import kotlinx.coroutines.withContext
 sealed interface ImportStage {
     data object Idle : ImportStage
     data class NeedsPassphrase(val bytes: ByteArray, val wrong: Boolean = false) : ImportStage
-    data class Review(val preview: ImportPreview) : ImportStage
+    /** Decrypting or reading the file (slow key derivation); the UI shows a spinner and stays responsive. */
+    data class Working(val label: String) : ImportStage
+
+    /** [restoreSettings]: whether the listed setting differences are applied. Nothing else touches settings. */
+    data class Review(val preview: ImportPreview, val restoreSettings: Boolean = true) : ImportStage
 }
 
 /**
@@ -51,14 +57,24 @@ class ExportViewModel @Inject constructor(
     val message = MutableStateFlow<String?>(null)
     val import = MutableStateFlow<ImportStage>(ImportStage.Idle)
 
-    fun setIncludePhotos(on: Boolean) { viewModelScope.launch { settingsRepository.setExportIncludePhotos(on) } }
+    /** Set while an export is being encrypted and written, so the screen can show progress. */
+    val exporting = MutableStateFlow(false)
+
+    fun setIncludePhotos(on: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setExportIncludePhotos(on)
+            message.value = if (on) "Saved: progress photos are included in the export." else "Saved: progress photos are left out of the export."
+        }
+    }
 
     fun exportTo(uri: Uri, passphrase: String) = viewModelScope.launch {
+        exporting.value = true
         val ok = runCatching {
             val bytes = backupService.exportBytes(passphrase.takeIf { it.isNotEmpty() }?.toCharArray())
             withContext(Dispatchers.IO) { context.contentResolver.openOutputStream(uri)?.use { it.write(bytes) } ?: error("no stream") }
             settingsRepository.setLastExportAt(clock.nowMillis())
         }.isSuccess
+        exporting.value = false
         message.value = if (ok) {
             "Exported." + if (passphrase.isEmpty()) " The file is not encrypted: keep it somewhere private." else ""
         } else {
@@ -95,19 +111,28 @@ class ExportViewModel @Inject constructor(
         if (backupService.needsPassphrase(bytes)) import.value = ImportStage.NeedsPassphrase(bytes) else preview(bytes, null)
     }
 
+
     fun unlockImport(passphrase: String) {
         val stage = import.value as? ImportStage.NeedsPassphrase ?: return
         viewModelScope.launch { preview(stage.bytes, passphrase.toCharArray()) }
     }
 
+    /** The heavy work runs in [BackupService.preview] on a background dispatcher; this only shows progress. */
     private suspend fun preview(bytes: ByteArray, passphrase: CharArray?) {
+        import.value = ImportStage.Working(if (passphrase != null) "Unlocking the backup..." else "Reading the backup...")
         try {
             import.value = ImportStage.Review(backupService.preview(bytes, passphrase))
         } catch (e: WrongPassphraseException) {
             import.value = ImportStage.NeedsPassphrase(bytes, wrong = true)
         } catch (e: ImportException) {
             import.value = ImportStage.Idle
-            message.value = e.message
+            message.value = e.message ?: ImportMessages.UNREADABLE
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Anything unexpected (for example an out-of-range value in a damaged file) is a plain sentence, never a crash.
+            import.value = ImportStage.Idle
+            message.value = ImportMessages.UNREADABLE
         } finally {
             passphrase?.fill('\u0000')
         }
@@ -115,9 +140,16 @@ class ExportViewModel @Inject constructor(
 
     fun applyImport() = viewModelScope.launch {
         val stage = import.value as? ImportStage.Review ?: return@launch
-        message.value = runCatching { backupService.apply(stage.preview) }
-            .fold({ "Imported ${stage.preview.totalChanges} changes." }, { "Import failed; nothing was changed." })
+        val settingsToo = stage.restoreSettings && stage.preview.settingsCount > 0
+        val count = stage.preview.totalChanges + if (settingsToo) stage.preview.settingsCount else 0
+        message.value = runCatching { backupService.apply(stage.preview, restoreSettings = stage.restoreSettings) }
+            .fold({ "Imported $count changes." }, { "Import failed; nothing was changed." })
         import.value = ImportStage.Idle
+    }
+
+    fun setRestoreSettings(on: Boolean) {
+        val stage = import.value as? ImportStage.Review ?: return
+        import.value = stage.copy(restoreSettings = on)
     }
 
     fun cancelImport() { import.value = ImportStage.Idle }

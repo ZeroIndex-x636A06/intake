@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -62,6 +63,17 @@ fun SubHead(
     }
 }
 
+/** Just the explanatory line of a [SubHead], for a pushed screen whose top bar already shows the title. */
+@Composable
+fun SubCopy(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier.fillMaxWidth().padding(top = 8.dp, bottom = 10.dp),
+    )
+}
+
 /**
  * `.sectionline`: a bare heading row between cards, with an optional trailing
  * action or note. Unlike [SectionCard] this draws no container.
@@ -79,18 +91,20 @@ fun SectionLine(
             .padding(top = 13.dp, bottom = 8.dp, start = 1.dp, end = 1.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f),
-        )
-        if (note != null) {
+        // The title never shares a line with the caption, so it cannot be squeezed into breaking mid-word.
+        Column(Modifier.weight(1f)) {
             Text(
-                text = note,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
             )
+            if (note != null) {
+                Text(
+                    text = note,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         trailing?.invoke()
     }
@@ -130,6 +144,8 @@ fun Segmented(
                     shape = RoundedCornerShape(9.dp),
                     modifier = Modifier
                         .heightIn(min = 40.dp)
+                        // Clip before the click so the press ripple takes the pill's round corners.
+                        .clip(RoundedCornerShape(9.dp))
                         .clickable(
                             role = Role.RadioButton,
                             onClickLabel = option,
@@ -178,6 +194,8 @@ fun ChoiceChip(
         ),
         modifier = modifier
             .heightIn(min = 48.dp)
+            // Clip before the click so the press ripple follows the chip's shape.
+            .clip(IntakeShape.Chip)
             .clickable(role = Role.RadioButton, onClick = onClick),
     ) {
         Box(
@@ -301,6 +319,7 @@ fun SettingRow(
     subtitle: String? = null,
     modifier: Modifier = Modifier,
     showDivider: Boolean = true,
+    note: (@Composable () -> Unit)? = null,
     control: @Composable () -> Unit,
 ) {
     Column(modifier) {
@@ -325,6 +344,8 @@ fun SettingRow(
             }
             control()
         }
+        // Q6-1: a long note (a warning, say) goes under the row at full width, never in the control slot.
+        if (note != null) Box(Modifier.fillMaxWidth().padding(bottom = 6.dp)) { note() }
         if (showDivider) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }

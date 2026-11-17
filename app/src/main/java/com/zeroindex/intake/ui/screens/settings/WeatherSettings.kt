@@ -15,6 +15,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import com.zeroindex.intake.domain.units.DistanceText
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -120,6 +121,8 @@ class WeatherSettingsViewModel @Inject constructor(
  */
 @Composable
 fun WeatherSettingsSection(
+    lengthUnit: com.zeroindex.intake.domain.units.LengthUnit,
+    volumeUnit: com.zeroindex.intake.domain.units.VolumeUnit,
     modifier: Modifier = Modifier,
     viewModel: WeatherSettingsViewModel = hiltViewModel(),
 ) {
@@ -138,8 +141,11 @@ fun WeatherSettingsSection(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 InfoTip(
-                    "Uses the day's forecast high (and humidity when it is hot): 25 to 30 °C adds 250 ml, 30 to 35 °C 500 ml, " +
-                        "above 35 °C 750 ml, and a humid day a little more, up to 1 litre. Cooler days add nothing.",
+                    com.zeroindex.intake.domain.units.UnitText.volumeInUnit(
+                        "Uses the day's forecast high (and humidity when it is hot): 25 to 30 °C adds 250 ml, 30 to 35 °C 500 ml, " +
+                            "above 35 °C 750 ml, and a humid day a little more, up to 1 litre. Cooler days add nothing.",
+                        volumeUnit,
+                    ),
                     label = "How weather changes the target",
                 )
                 Switch(checked = settings.weatherEnabled, onCheckedChange = viewModel::setEnabled)
@@ -157,8 +163,11 @@ fun WeatherSettingsSection(
 
         if (settings.locationMode == WeatherLocationMode.APPROXIMATE) {
             Text(
-                "Uses the coarse permission only. The app takes one fix when Today opens and the forecast is a day old, " +
-                    "rounds it to about 10 km, and sends only that.",
+                DistanceText.inUnit(
+                    "Uses the coarse permission only. The app takes one fix when Today opens and the forecast is a day old, " +
+                        "rounds it to about 10 km, and sends only that.",
+                    lengthUnit,
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -172,7 +181,10 @@ fun WeatherSettingsSection(
             ) { Text(if (ui.hasPermission) "Use my approximate location" else "Allow approximate location") }
         } else {
             Text(
-                "Type a city or ZIP code. Only that text is sent, once, to find coordinates; the app keeps them rounded to about 10 km.",
+                DistanceText.inUnit(
+                    "Type a city or ZIP code. Only that text is sent, once, to find coordinates; the app keeps them rounded to about 10 km.",
+                    lengthUnit,
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -210,7 +222,7 @@ fun WeatherSettingsSection(
                 buildString {
                     append("Using ")
                     settings.placeName?.let { append("$it, ") }
-                    append("%.1f, %.1f (rounded to about 10 km).".format(settings.lat, settings.lon))
+                    append(DistanceText.inUnit("%.1f, %.1f (rounded to about 10 km).".format(settings.lat, settings.lon), lengthUnit))
                     settings.weatherCache?.let { append(" Today's high: ${it.day.tempMaxC.toInt()} °C.") }
                 },
                 style = MaterialTheme.typography.bodySmall,

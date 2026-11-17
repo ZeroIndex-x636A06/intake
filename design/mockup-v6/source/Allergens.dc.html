@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Allergens</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c2d55ca210a28925c2ccf0c9b8a5b709">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="phone {{themeCls}}" style="--accent: {{accent}}; width: 390px; height: 1300px">
+  <header class="top">
+    <a class="iconbtn" href="FoodDiary.dc.html" aria-label="Back"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a>
+    <h1 class="h2 grow">Allergens</h1>
+  </header>
+  <div class="pad stack" style="gap: 14px">
+    <section class="card inkc stack" style="gap: 14px">
+      <div class="rowx"><span class="ic lime" style="width: 48px; height: 48px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg></span><div><p class="h2">Avoiding peanuts and milk</p><p class="sub">Checked on this phone, never by AI</p></div></div>
+      <span class="eyebrow">How careful should Intake be?</span>
+      <div class="seg" style="background: rgba(255,255,255,.12)"><button style="color: inherit">Avoid · warn me</button><button class="on">Strict · block it</button></div>
+    </section>
+
+    <label class="search"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input placeholder="Search allergens" aria-label="Search allergens"></label>
+    <section class="list" aria-label="Your allergens">
+      <div class="li"><span class="h3 grow">Peanuts</span><button class="btn ghost sm">Keywords</button><button class="sw on" role="switch" aria-checked="true" aria-label="Peanuts"></button></div>
+      <div class="li"><span class="h3 grow">Milk</span><button class="btn ghost sm">Keywords</button><button class="sw on" role="switch" aria-checked="true" aria-label="Milk"></button></div>
+      <div class="li"><span class="h3 grow">Tree nuts</span><button class="sw" role="switch" aria-checked="false" aria-label="Tree nuts"></button></div>
+      <div class="li"><span class="h3 grow">Sesame</span><button class="sw" role="switch" aria-checked="false" aria-label="Sesame"></button></div>
+      <div class="li"><span class="h3 grow">Shellfish</span><button class="sw" role="switch" aria-checked="false" aria-label="Shellfish"></button></div>
+      <button class="li" style="width: 100%; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--ink); text-align: left"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="h3">Add your own allergen</span></button>
+    </section>
+
+    <div class="sec"><h2 class="h2">Peanuts · keywords</h2><button class="btn ghost sm" style="padding: 0">Add keyword</button></div>
+    <section class="card stack" style="gap: 10px">
+      <div class="between"><span style="font-size: 14px">peanut, groundnut</span><span class="chip bad">Contains</span></div>
+      <div class="between"><span style="font-size: 14px">arachis oil <span class="sub">· yours</span></span><span class="chip bad">Contains</span></div>
+      <div class="between"><span style="font-size: 14px">may contain nuts</span><span class="chip warn">May contain</span></div>
+      <div class="between"><span style="font-size: 14px">shared facility <span class="sub">· built in</span></span><span class="chip warn">Check the label</span></div>
+      <hr class="hr">
+      <div class="between"><button class="btn ghost sm" style="padding: 0">Hide built-in reminders</button><button class="btn ghost sm" style="padding: 0; color: var(--bad)">Remove this allergen</button></div>
+    </section>
+
+    <a class="card rowx" href="Allergens.dc.html">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-2z"/><path d="M8 7h6M8 11h6"/></svg></span>
+      <div class="grow"><p class="h3">Hidden-ingredient reference</p><p class="sub">Every term that means milk or peanuts is present</p></div>
+      <svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </a>
+
+    <div class="sec"><h2 class="h2">Recently flagged</h2></div>
+    <section class="list">
+      <div class="li"><div class="grow"><p class="h3">Honey nut granola bar</p><p class="sub">Scanned · today</p></div><span class="chip bad">Contains</span></div>
+      <div class="li"><div class="grow"><p class="h3">Overnight oats</p><p class="sub">Recipe · whey protein</p></div><span class="chip warn">May contain</span></div>
+      <div class="li"><div class="grow"><p class="h3">Mole enchiladas</p><p class="sub">Taqueria Sol menu</p></div><span class="chip bad">Contains</span></div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["Light","Dark"],"default":"Light"},"accent":{"editor":"color","default":"#D4F25A","options":["#D4F25A","#7CE0C3","#FFB86B","#B9A8FF"]},"$preview":{"width":390,"height":1300}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themeCls: this.props.theme === 'Dark' ? 'dark' : '', accent: this.props.accent ?? '#D4F25A' };
+  }
+}
+</script>
+</body>
+</html>

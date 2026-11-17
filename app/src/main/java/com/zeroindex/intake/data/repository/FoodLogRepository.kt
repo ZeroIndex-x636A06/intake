@@ -2,14 +2,20 @@ package com.zeroindex.intake.data.repository
 
 import com.zeroindex.intake.data.db.dao.FoodDao
 import com.zeroindex.intake.data.db.dao.FoodLogDao
+import com.zeroindex.intake.data.db.dao.HydrationDao
 import com.zeroindex.intake.data.db.entity.FoodEntity
 import com.zeroindex.intake.data.db.entity.FoodLogEntity
 import com.zeroindex.intake.data.db.entity.newId
 import com.zeroindex.intake.data.db.projection.DailyIntake
+import com.zeroindex.intake.domain.progress.DayTotals
+import com.zeroindex.intake.domain.progress.IntakeDays
+import com.zeroindex.intake.domain.progress.IntakeRow
 import com.zeroindex.intake.data.db.projection.SlotTotals
 import com.zeroindex.intake.domain.model.AiConfidence
 import com.zeroindex.intake.domain.model.MealSlot
+import com.zeroindex.intake.domain.nutrition.CoreMacro
 import com.zeroindex.intake.domain.nutrition.Macros
+import com.zeroindex.intake.domain.nutrition.Unlisted
 import com.zeroindex.intake.domain.time.Clock
 import com.zeroindex.intake.domain.time.localDateOf
 import java.time.LocalDate
@@ -22,6 +28,7 @@ import kotlinx.coroutines.flow.map
 class FoodLogRepository @Inject constructor(
     private val foodLogDao: FoodLogDao,
     private val foodDao: FoodDao,
+    private val hydrationDao: HydrationDao,
     private val clock: Clock,
 ) {
     fun observeDay(date: LocalDate): Flow<List<FoodLogEntity>> {
@@ -46,19 +53,35 @@ class FoodLogRepository @Inject constructor(
         return foodLogDao.observeSlotTotalsInRange(range.startInclusive, range.endExclusive)
     }
 
+    /** Local-day totals for [from]..[to] inclusive, bucketed by local date (see [IntakeDays]). */
     fun observeDailyIntake(from: LocalDate, to: LocalDate): Flow<List<DailyIntake>> =
-        foodLogDao.observeDailyIntake(
+        foodLogDao.observeIntakeRows(
             clock.rangeFor(from).startInclusive,
             clock.rangeFor(to).endExclusive,
-            zoneOffsetMillis(from),
+        ).map { toDailyIntake(it) }
+
+    /** The same day totals as [observeDailyIntake], once. */
+    suspend fun dailyIntake(from: LocalDate, to: LocalDate): List<DailyIntake> =
+        toDailyIntake(
+            foodLogDao.intakeRows(
+                clock.rangeFor(from).startInclusive,
+                clock.rangeFor(to).endExclusive,
+            ),
         )
 
-    suspend fun dailyIntake(from: LocalDate, to: LocalDate): List<DailyIntake> =
-        foodLogDao.dailyIntake(
+    /** Per-day calories and protein, for Progress. One definition of "a day" for every figure there. */
+    fun observeDayTotalsByDate(from: LocalDate, to: LocalDate): Flow<Map<LocalDate, DayTotals>> =
+        foodLogDao.observeIntakeRows(
             clock.rangeFor(from).startInclusive,
             clock.rangeFor(to).endExclusive,
-            zoneOffsetMillis(from),
-        )
+        ).map { IntakeDays.byDay(it, clock.zone()) }
+
+    private fun toDailyIntake(rows: List<IntakeRow>): List<DailyIntake> {
+        val zone = clock.zone()
+        return IntakeDays.byDay(rows, zone).toSortedMap().map { (date, t) ->
+            DailyIntake(dayStartMillis = clock.rangeFor(date).startInclusive, kcal = t.kcal)
+        }
+    }
 
     /**
      * Protein totals per local day, bucketed in Kotlin rather than SQL: the
@@ -74,13 +97,6 @@ class FoodLogRepository @Inject constructor(
             .groupBy { localDateOf(it.loggedAt, clock.zone()) }
             .mapValues { (_, dayLogs) -> dayLogs.sumOf { it.protein } }
     }
-
-    suspend fun countDaysLogged(from: LocalDate, to: LocalDate): Int =
-        foodLogDao.countDaysLogged(
-            clock.rangeFor(from).startInclusive,
-            clock.rangeFor(to).endExclusive,
-            zoneOffsetMillis(from),
-        )
 
     suspend fun findById(id: String): FoodLogEntity? = foodLogDao.findById(id)
 
@@ -110,6 +126,7 @@ class FoodLogRepository @Inject constructor(
             slot = slot,
             macros = macros,
             at = at,
+            unlisted = food.unlistedNutrients,
         )
         foodLogDao.upsert(log)
         foodDao.incrementTimesLogged(food.id, clock.nowMillis())
@@ -146,6 +163,11 @@ class FoodLogRepository @Inject constructor(
         photoUri: String? = null,
         aiConfidence: AiConfidence? = null,
         at: Long = clock.nowMillis(),
+        /**
+         * Protein, carbs or fat nobody gave a number for. The row stores 0 (its columns are not nullable) and lists
+         * them as unlisted, so the screens say "not listed" rather than "0 g".
+         */
+        unknownMacros: Set<CoreMacro> = emptySet(),
     ): FoodLogEntity {
         val log = newLog(
             foodId = null,
@@ -157,9 +179,21 @@ class FoodLogRepository @Inject constructor(
             at = at,
             photoUri = photoUri,
             aiConfidence = aiConfidence,
+            unlisted = if (unknownMacros.isEmpty()) null else Unlisted.encode(Unlisted.forTypedMacros(macros), unknownMacros),
         )
         foodLogDao.upsert(log)
         return log
+    }
+
+    /**
+     * Keeps the person's override on the entry: the note ("Logged despite: dairy") is added to its name and serving
+     * label. The allergen warning itself is never cleared; this only records that the person chose it anyway.
+     */
+    suspend fun markOverridden(log: FoodLogEntity, note: String): FoodLogEntity {
+        val (name, label) = com.zeroindex.intake.domain.allergen.AllergenOverride.annotate(log.foodNameAtLog, log.servingLabelAtLog, note)
+        val marked = log.copy(foodNameAtLog = name, servingLabelAtLog = label, updatedAt = clock.nowMillis())
+        foodLogDao.upsert(marked)
+        return marked
     }
 
     /** Rescales an entry to a new gram amount, proportionally to what was logged. */
@@ -188,16 +222,38 @@ class FoodLogRepository @Inject constructor(
     }
 
     /** SPEC §5: swipe to copy an entry into another slot. */
-    suspend fun copyToSlot(log: FoodLogEntity, slot: MealSlot) {
+    suspend fun copyToSlot(log: FoodLogEntity, slot: MealSlot): FoodLogEntity {
         val now = clock.nowMillis()
-        foodLogDao.upsert(log.copy(id = newId(), mealSlot = slot, createdAt = now, updatedAt = now))
+        val copy = log.copy(id = newId(), mealSlot = slot, createdAt = now, updatedAt = now)
+        foodLogDao.upsert(copy)
+        return copy
     }
 
     suspend fun moveToSlot(log: FoodLogEntity, slot: MealSlot) {
         foodLogDao.upsert(log.copy(mealSlot = slot, updatedAt = clock.nowMillis()))
     }
 
-    suspend fun softDelete(id: String) = foodLogDao.softDelete(id, clock.nowMillis())
+    /**
+     * Soft delete. A drink's food row has a hydration row beside it (the one drink flow), so removing it here removes
+     * that too: the water total and the meals never disagree.
+     */
+    suspend fun softDelete(id: String) {
+        val now = clock.nowMillis()
+        foodLogDao.softDelete(id, now)
+        hydrationDao.softDeleteByFoodLog(id, now)
+    }
+
+    /** True when the food log holds any row, deleted or not: an install with history is not a first run (QA Q1-18). */
+    suspend fun hasAnyLog(): Boolean = foodLogDao.hasAnyRow()
+
+    /** Undo of [softDelete]: brings the rows back as they were, drink hydration rows included. Nothing is hard-deleted. */
+    suspend fun restore(logs: List<FoodLogEntity>) {
+        val now = clock.nowMillis()
+        logs.forEach {
+            foodLogDao.upsert(it.copy(deletedAt = null, updatedAt = now))
+            hydrationDao.restoreByFoodLog(it.id, now)
+        }
+    }
 
     private fun newLog(
         foodId: String?,
@@ -209,6 +265,7 @@ class FoodLogRepository @Inject constructor(
         at: Long,
         photoUri: String? = null,
         aiConfidence: AiConfidence? = null,
+        unlisted: String? = null,
     ) = FoodLogEntity(
         id = newId(),
         foodId = foodId,
@@ -227,16 +284,9 @@ class FoodLogRepository @Inject constructor(
         saturatedFat = macros.saturatedFat,
         sourcePhotoUri = photoUri,
         aiConfidence = aiConfidence,
+        // A food's own list, or for typed-in rows (quick add, recipes, estimates) whatever was left at zero.
+        unlistedNutrients = unlisted ?: Unlisted.encode(Unlisted.forTypedMacros(macros)),
         createdAt = at,
         updatedAt = at,
     )
-
-    /**
-     * SQL buckets days by integer division, which needs the zone's offset. Taken
-     * from the start of the window: a DST shift inside a long range moves one
-     * boundary by an hour, which the charts tolerate and the per-day queries
-     * (which use DayRange) do not rely on.
-     */
-    private fun zoneOffsetMillis(on: LocalDate): Long =
-        clock.zone().rules.getOffset(on.atStartOfDay()).totalSeconds * 1000L
 }

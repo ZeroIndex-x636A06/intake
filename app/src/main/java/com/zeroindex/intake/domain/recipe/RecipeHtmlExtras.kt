@@ -37,7 +37,7 @@ object RecipeHtmlExtras {
     )
 
     /** An element found by class: where it starts and ends in the text, and the markup between. */
-    private class Element(val tag: String, val outerStart: Int, val innerStart: Int, val innerEnd: Int, val outerEnd: Int, val text: String) {
+    internal class Element(val tag: String, val outerStart: Int, val innerStart: Int, val innerEnd: Int, val outerEnd: Int, val text: String) {
         val inner: String get() = text.substring(innerStart, innerEnd)
     }
 
@@ -67,7 +67,7 @@ object RecipeHtmlExtras {
     }
 
     /** Every element in [text] whose class list has [token] as a whole word, in document order. */
-    private fun withClass(text: String, token: String): List<Element> {
+    internal fun withClass(text: String, token: String): List<Element> {
         val out = ArrayList<Element>()
         var skipUntil = -1
         for (m in TAG.findAll(text)) {
@@ -85,7 +85,7 @@ object RecipeHtmlExtras {
         return out
     }
 
-    private fun first(text: String, token: String): Element? = withClass(text, token).firstOrNull()
+    internal fun first(text: String, token: String): Element? = withClass(text, token).firstOrNull()
 
     /** [markup] with every element of the given classes cut out (checkboxes and screen-reader text). */
     private fun without(markup: String, vararg tokens: String): String {
@@ -111,7 +111,7 @@ object RecipeHtmlExtras {
 
     // ---- groups ------------------------------------------------------------------------------
 
-    private fun wprmGroups(body: String): List<HtmlIngredientGroup> =
+    internal fun wprmGroups(body: String): List<HtmlIngredientGroup> =
         withClass(body, "wprm-recipe-ingredient-group").map { group ->
             val inner = group.inner
             val name = first(inner, "wprm-recipe-group-name")?.let { IngredientCleaner.cleanLabel(it.inner) }
@@ -120,7 +120,7 @@ object RecipeHtmlExtras {
         }.filter { it.ingredients.isNotEmpty() }
 
     /** "16 ounces dry fettuccine pasta", from the amount, unit and name spans, with a note in brackets. */
-    private fun wprmLine(li: String): String? {
+    internal fun wprmLine(li: String): String? {
         fun part(token: String) = first(li, token)?.let { HtmlText.plain(it.inner) }.orEmpty()
         val name = part("wprm-recipe-ingredient-name")
         val text = if (name.isNotEmpty()) {
@@ -134,7 +134,7 @@ object RecipeHtmlExtras {
         return IngredientCleaner.clean(text).takeIf { it.isNotEmpty() }
     }
 
-    private fun tastyGroups(body: String): List<HtmlIngredientGroup> {
+    internal fun tastyGroups(body: String): List<HtmlIngredientGroup> {
         val container = first(body, "tasty-recipes-ingredients") ?: return emptyList()
         val scope = first(container.inner, "tasty-recipes-ingredients-body")?.inner ?: container.inner
         val groups = ArrayList<HtmlIngredientGroup>()

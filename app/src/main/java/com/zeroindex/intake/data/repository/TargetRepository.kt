@@ -64,6 +64,20 @@ class TargetRepository @Inject constructor(
     private fun MacroTarget.plusActivity(kcal: Int): MacroTarget =
         if (kcal <= 0) this else copy(kcal = this.kcal + kcal, carbsG = carbsG + kcal / 4)
 
+    /** Every stored target as a dated point, for [com.zeroindex.intake.domain.goals.ManualTargets]. */
+    suspend fun points(): List<com.zeroindex.intake.domain.goals.ManualTargets.Point> =
+        dao.all().map { com.zeroindex.intake.domain.goals.ManualTargets.Point(it.effectiveFrom, it.toDomain(), it.isAutoCalculated) }
+
+    /**
+     * Switching automatic targets off: the person's latest hand-set target becomes the active one again (a new dated
+     * target, so history is kept). Returns it, or null when there is none or it is already active.
+     */
+    suspend fun restoreManualTarget(): MacroTarget? {
+        val restore = com.zeroindex.intake.domain.goals.ManualTargets.restoreOnAutoOff(points(), latestEntity()?.toDomain()) ?: return null
+        setTarget(restore, isAutoCalculated = false)
+        return restore
+    }
+
     fun observeHistory(): Flow<List<NutritionTargetEntity>> = dao.observeHistory()
 
     suspend fun latestEntity(): NutritionTargetEntity? = dao.effectiveAt(clock.nowMillis())

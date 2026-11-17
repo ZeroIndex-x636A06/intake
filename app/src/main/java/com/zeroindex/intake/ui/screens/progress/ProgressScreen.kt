@@ -1,8 +1,11 @@
 package com.zeroindex.intake.ui.screens.progress
 
+import com.zeroindex.intake.domain.time.DateText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -24,12 +27,14 @@ import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import com.zeroindex.intake.ui.components.EmptyState
 import com.zeroindex.intake.ui.motion.SkeletonList
 import com.zeroindex.intake.ui.motion.pressScale
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,10 +47,16 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.zeroindex.intake.domain.model.TdeeConfidence
+import com.zeroindex.intake.domain.units.LengthUnit
 import com.zeroindex.intake.domain.units.UnitConverter
 import com.zeroindex.intake.ui.adaptive.LocalWindowSizeClass
 import com.zeroindex.intake.ui.adaptive.isExpanded
 import com.zeroindex.intake.ui.components.AdherenceHeatmap
+import com.zeroindex.intake.domain.charts.ChartMath
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import com.zeroindex.intake.domain.health.DayPoint
+import com.zeroindex.intake.domain.health.HealthSeries
 import com.zeroindex.intake.ui.components.ChartLegend
 import com.zeroindex.intake.ui.components.ChartPoint
 import com.zeroindex.intake.ui.components.ChoiceChip
@@ -75,8 +86,14 @@ fun ProgressScreen(
     onOpenCheckIn: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ProgressViewModel = hiltViewModel(),
+    trainingModel: TrainingStatsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val training by trainingModel.uiState.collectAsStateWithLifecycle()
+    // Side insets (the navigation bar in landscape with three-button navigation, a cutout) come from the shell's padding.
+    val startInset = contentPadding.calculateStartPadding(androidx.compose.ui.unit.LayoutDirection.Ltr)
+    val endInset = contentPadding.calculateEndPadding(androidx.compose.ui.unit.LayoutDirection.Ltr)
+    val hasHistory by viewModel.hasHistory.collectAsStateWithLifecycle()
     if (LocalWindowSizeClass.current.isExpanded) {
         // Amendment §3, mockup `tabletProgress()`: heading and range selector
         // span the top; weight and adherence sit on the left, intake and the
@@ -87,7 +104,7 @@ fun ProgressScreen(
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .padding(top = contentPadding.calculateTopPadding() + 12.dp, start = 16.dp, end = 16.dp),
+                .padding(top = contentPadding.calculateTopPadding() + 12.dp, start = 16.dp + startInset, end = 16.dp + endInset),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -103,6 +120,7 @@ fun ProgressScreen(
                 body = com.zeroindex.intake.ui.onboarding.TabTipCopy.PROGRESS,
                 actionLabel = "Log weight",
                 onAction = onAddMeasurement,
+                hasHistory = hasHistory,
             )
             Row(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -118,6 +136,7 @@ fun ProgressScreen(
                         item(key = "loading") { SkeletonList(rows = 2, rowHeight = 150.dp, label = "Loading your progress") }
                     } else {
                         item(key = "weight") { WeightCard(state, onAddMeasurement) }
+                        healthItem(state)
                         item(key = "adherence") { AdherenceCard(state) }
                         detailItems(state)
                     }
@@ -129,8 +148,9 @@ fun ProgressScreen(
                 ) {
                     item(key = "calories") { CaloriesCard(state) }
                     item(key = "summary") { WeeklySummaryCard(state, viewModel) }
-                    item(key = "performance") {
-                        if (state.settings.jumpTests) PerformanceCard(state = state, onAddJump = onAddJumpTest)
+                    item(key = "training") { TrainingStatsCard(training, onOpenLog = null) }
+                    if (state.settings.jumpTests) {
+                        item(key = "performance") { PerformanceCard(state = state, onAddJump = onAddJumpTest) }
                     }
                     item(key = "reports") {
                         ProgressLinks(onOpenTrainingStats, onOpenCheckIn)
@@ -144,20 +164,18 @@ fun ProgressScreen(
             contentPadding = PaddingValues(
                 top = contentPadding.calculateTopPadding() + 12.dp,
                 bottom = contentPadding.calculateBottomPadding() + 24.dp,
-                start = 16.dp,
-                end = 16.dp,
+                start = 16.dp + startInset,
+                end = 16.dp + endInset,
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            item(key = "heading") {
-                SubHead("Progress", "Patterns over time, without the noise.")
-            }
             item(key = "tip") {
                 com.zeroindex.intake.ui.onboarding.TabTip(
                     key = com.zeroindex.intake.domain.onboarding.TipKey.PROGRESS,
                     body = com.zeroindex.intake.ui.onboarding.TabTipCopy.PROGRESS,
                     actionLabel = "Log weight",
                     onAction = onAddMeasurement,
+                    hasHistory = hasHistory,
                 )
             }
             // The one obvious action on this screen.
@@ -168,11 +186,13 @@ fun ProgressScreen(
                 item(key = "loading") { SkeletonList(rows = 3, rowHeight = 150.dp, label = "Loading your progress") }
             } else {
                 item(key = "weight") { WeightCard(state, onAddMeasurement) }
+                healthItem(state)
                 item(key = "summary") { WeeklySummaryCard(state, viewModel) }
                 item(key = "adherence") { AdherenceCard(state) }
                 item(key = "calories") { CaloriesCard(state) }
-                item(key = "performance") {
-                    if (state.settings.jumpTests) PerformanceCard(state = state, onAddJump = onAddJumpTest)
+                item(key = "training") { TrainingStatsCard(training, onOpenLog = null) }
+                if (state.settings.jumpTests) {
+                    item(key = "performance") { PerformanceCard(state = state, onAddJump = onAddJumpTest) }
                 }
                 detailItems(state)
             }
@@ -233,9 +253,11 @@ private fun RangeSelector(
 private fun WeightCard(state: ProgressUiState, onAddMeasurement: () -> Unit) {
     val unit = state.settings.weightUnit
     SectionCard(title = "Weight trend", caption = state.range.caption) {
-        // The headline figure is the latest raw weigh-in, labelled as
-        // such; the trend it sits on is the line in the chart below.
+        // The headline figure is the latest raw weigh-in, and says so with its date; the smoothed trend value is
+        // named beside it, because the two differ and the line in the chart is the trend.
         state.metrics.lastOrNull()?.let { latest ->
+            val zone = ZoneId.systemDefault()
+            val date = DateText.medium(ChartMath.localDate(latest.measuredAt, zone))
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     text = format(unit.fromKg(latest.weightKg)),
@@ -244,29 +266,40 @@ private fun WeightCard(state: ProgressUiState, onAddMeasurement: () -> Unit) {
                 )
                 Spacer(Modifier.width(5.dp))
                 Text(
-                    text = "${unit.label} · raw weigh-ins",
+                    text = "${unit.label} · latest weigh-in, $date",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 3.dp),
                 )
             }
+            state.trendWeightKg?.let { trendKg ->
+                Text(
+                    text = "Trend ${format(unit.fromKg(trendKg))} ${unit.label}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
         }
         // SPEC §8: the trend line is what is shown, with raw points
         // behind it rather than instead of it.
+        // One message when there is nothing to draw; the Log weight button above the card is the way in.
         if (state.metrics.isEmpty()) {
-            EmptyState(
-                body = "No weigh-ins in this range yet. Log your weight and the trend line appears here.",
-                action = { Button(onClick = onAddMeasurement, modifier = Modifier.heightIn(min = 48.dp)) { Text("Log weight") } },
-            )
+            EmptyState(body = "No weigh-ins in this range yet. Log your weight and the trend line appears here.")
+            return@SectionCard
         }
+        // Dots and trend share one time base: real instants, the trend at the start of its local day (not UTC midnight).
+        val zone = ZoneId.systemDefault()
         TrendLineChart(
             raw = state.metrics.map {
-                ChartPoint(it.measuredAt.toDouble(), unit.fromKg(it.weightKg))
+                ChartPoint(it.measuredAt.toDouble(), unit.fromKg(it.weightKg), ChartMath.sourceLabel(it.source))
             },
             trend = state.trend.map {
-                ChartPoint(it.dayIndex.toDouble() * 86_400_000.0, unit.fromKg(it.trendKg))
+                ChartPoint(ChartMath.localDayStartMillis(it.dayIndex, zone).toDouble(), unit.fromKg(it.trendKg))
             },
             description = weightDescription(state, unit.label),
+            valueSuffix = unit.label,
+            maxTicks = 6,
+            dateLabels = true,
         )
         val weekly = state.weeklyChangeKg
         ChartLegend(
@@ -288,6 +321,54 @@ private fun WeightCard(state: ProgressUiState, onAddMeasurement: () -> Unit) {
     }
 }
 
+/**
+ * Sleep, steps and resting heart rate over the selected range, from Health Connect. The whole card is absent when none of
+ * the three has a day with data (no permission, no watch): days with no reading are left out of the lines, not drawn as zero.
+ */
+private fun LazyListScope.healthItem(state: ProgressUiState) {
+    val sleep = HealthSeries.sleepHours(state.health)
+    val steps = HealthSeries.steps(state.health)
+    val resting = HealthSeries.restingHeartRate(state.health)
+    if (sleep.isEmpty() && steps.isEmpty() && resting.isEmpty()) return
+    item(key = "health") {
+        SectionCard(title = "Sleep, steps and heart rate", caption = "from Health Connect · ${state.range.caption}") {
+            HealthSeriesChart("Sleep", sleep, "h a night") { "%.1f".format(it) }
+            HealthSeriesChart("Steps", steps, "a day", { v, d -> "%,.${d}f".format(v) }) { "%,d".format(it.roundToInt()) }
+            HealthSeriesChart("Resting heart rate", resting, "bpm") { it.roundToInt().toString() }
+        }
+    }
+}
+
+@Composable
+private fun HealthSeriesChart(
+    label: String,
+    points: List<DayPoint>,
+    unit: String,
+    formatY: (Double, Int) -> String = { v, d -> "%.${d}f".format(v) },
+    show: (Double) -> String,
+) {
+    if (points.isEmpty()) return
+    val average = points.map { it.value }.average()
+    Eyebrow(text = label, modifier = Modifier.padding(top = 10.dp, bottom = 2.dp))
+    Text(
+        text = "${show(average)} $unit on average · latest ${show(points.last().value)} · ${points.size} ${if (points.size == 1) "day" else "days"} with data",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    if (points.size >= 2) {
+        val chart = points.map { ChartPoint(it.dayStartMillis.toDouble(), it.value, "Health Connect") }
+        TrendLineChart(
+            raw = chart,
+            trend = chart,
+            description = "$label over time, from Health Connect. Average ${show(average)} $unit, latest ${show(points.last().value)}.",
+            plotHeight = 120.dp,
+            valueSuffix = unit,
+            formatValue = show,
+            formatY = formatY,
+        )
+    }
+}
+
 /** Progress's primary action. Everything else on the screen is something to read. */
 @Composable
 private fun LogWeightButton(onClick: () -> Unit) {
@@ -302,7 +383,7 @@ private fun LogWeightButton(onClick: () -> Unit) {
 private fun AdherenceCard(state: ProgressUiState) {
     SectionCard(
         title = "Days logged",
-        caption = "last ${minOf(state.daysInWindow, 28)} days",
+        caption = "last ${state.daysInWindow} days",
     ) {
         // SPEC §11: never a streak that resets to zero on one bad day.
         Row(verticalAlignment = Alignment.Bottom) {
@@ -321,8 +402,14 @@ private fun AdherenceCard(state: ProgressUiState) {
         }
         Spacer(Modifier.height(11.dp))
         AdherenceHeatmap(
-            days = state.dailyKcal.takeLast(28),
+            days = state.adherence,
             target = state.target?.kcal?.toDouble(),
+        )
+        Text(
+            text = "Filled: logged. Pale: under 60% of your target. Grey: nothing logged. Outline: today.",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp),
         )
     }
 }
@@ -330,6 +417,11 @@ private fun AdherenceCard(state: ProgressUiState) {
 @Composable
 private fun CaloriesCard(state: ProgressUiState) {
     SectionCard(title = "Calories vs target", caption = state.range.caption) {
+        // No logged day in the range: say so rather than drawing an empty chart.
+        if (state.dailyKcal.all { it == null }) {
+            EmptyState(body = "No meals logged in this range yet. Log food and each day's calories appear here against your target.")
+            return@SectionCard
+        }
         TargetBarChart(
             values = state.dailyKcal.map { it ?: 0.0 },
             target = state.target?.kcal?.toDouble(),
@@ -398,7 +490,7 @@ private fun WeeklySummaryCard(state: ProgressUiState, viewModel: ProgressViewMod
     val unit = state.settings.weightUnit
     val weekly = state.weeklyChangeKg
 
-    SectionCard(title = "This week", caption = state.range.caption) {
+    SectionCard(title = "Averages", caption = state.range.caption) {
         val tiles = listOf(
             (state.averageIntake?.let { "${"%,d".format(it.roundToInt())}" } ?: "—")
                 to "avg kcal / day",
@@ -411,9 +503,9 @@ private fun WeeklySummaryCard(state: ProgressUiState, viewModel: ProgressViewMod
             // SPEC §8: when data is too sparse, say so plainly rather than
             // showing a confident number.
             (tdee?.let { "≈${"%,d".format(it.estimatedTdee.roundToInt())}" } ?: "—")
-                to "maintenance kcal",
+                to "maintenance kcal (latest estimate)",
             (state.proteinHitRate?.let { "${(it * 100).roundToInt()}%" } ?: "—")
-                to "protein target hit",
+                to "protein target hit, ${state.range.caption}",
         )
 
         tiles.chunked(2).forEach { pair ->
@@ -451,13 +543,22 @@ private fun WeeklySummaryCard(state: ProgressUiState, viewModel: ProgressViewMod
         }
 
         Spacer(Modifier.height(10.dp))
+        // The label colour is set here, not left to the outlined default, so it reads as a live action on the dark theme.
         OutlinedButton(
             onClick = viewModel::recalculateTdee,
             enabled = !state.isRecalculating,
             shape = IntakeShape.Button,
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = MaterialTheme.colorScheme.primary,
+                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
             modifier = Modifier.fillMaxWidth().height(50.dp),
         ) {
-            Text(if (state.isRecalculating) "Recalculating…" else "Recalculate now")
+            Text(
+                if (state.isRecalculating) "Recalculating…" else "Recalculate now",
+                style = MaterialTheme.typography.labelLarge,
+            )
         }
     }
 }
@@ -473,11 +574,18 @@ private fun MeasurementLines(state: ProgressUiState) {
         Triple("Hip", { it.hipCm }, unit.label),
     )
 
-    sites.forEach { (label, selector, suffix) ->
+    val drawn = sites.mapNotNull { (label, selector, suffix) ->
         val points = state.metrics.mapNotNull { metric ->
-            selector(metric)?.let { ChartPoint(metric.measuredAt.toDouble(), unit.fromCm(it)) }
+            selector(metric)?.let { ChartPoint(metric.measuredAt.toDouble(), unit.fromCm(it), ChartMath.sourceLabel(metric.source)) }
         }
-        if (points.size < 2) return@forEach
+        if (points.size < 2) null else Triple(label, points, suffix)
+    }
+    // A site needs two readings to draw a line. With none in this range, say so instead of a bare title.
+    if (drawn.isEmpty()) {
+        EmptyState(body = "No measurements in this range yet. Two readings of a site, such as your waist, draw its line here.")
+        return
+    }
+    drawn.forEach { (label, points, suffix) ->
         Eyebrow(
             text = label,
             modifier = Modifier.padding(top = 10.dp, bottom = 2.dp),
@@ -485,9 +593,15 @@ private fun MeasurementLines(state: ProgressUiState) {
         TrendLineChart(
             raw = points,
             trend = points,
-            description = "$label over time, in $suffix. " +
+            description = "$label over time, in ${if (unit == LengthUnit.INCHES) "inches" else "centimetres"}. " +
                 "Latest ${format(points.last().y)} $suffix.",
-            modifier = Modifier.height(120.dp),
+            valueSuffix = suffix,
+            gapDays = null,
+            // A flat-ish tape reading is wobble, not a trend: the axis is at least 5 cm or 2 in tall.
+            minYSpan = if (unit == LengthUnit.INCHES) 2.0 else 5.0,
+            maxTicks = 5,
+            dateLabels = true,
+            plotHeight = 120.dp,
         )
     }
 }
@@ -518,17 +632,17 @@ private fun weightDescription(state: ProgressUiState, unitLabel: String): String
 }
 
 private fun intakeDescription(state: ProgressUiState): String {
-    val logged = state.dailyKcal.count { it != null && it > 0 }
+    val stats = state.intakeStats
     val target = state.target?.kcal
-    val over = state.dailyKcal.count { it != null && target != null && it > target }
     return buildString {
-        append("Calories per day across $logged logged days")
-        if (target != null) append(", target $target kcal, $over days over")
+        append("Calories per day across ${stats.loggedDays} logged days")
+        if (target != null) append(", target ${com.zeroindex.intake.domain.units.KcalFormat.format(target)} kcal, ${stats.daysOverTarget} days over")
         append(".")
     }
 }
 
 private fun format(value: Double): String = UnitConverter.round(value, 1).toString()
+
 
 /**
  * Amendment §2: does more training volume come with a better jump, or a
@@ -542,7 +656,16 @@ private fun PerformanceCard(state: ProgressUiState, onAddJump: () -> Unit) {
     val jumps = weeks.mapNotNull { it.bestVerticalCm }
     val latest = jumps.lastOrNull()
 
-    SectionCard(title = "Explosive output", caption = "weekly") {
+    SectionCard(title = "Jump tests", caption = "weekly, ${state.range.caption}") {
+        if (jumps.isEmpty()) {
+            EmptyState(body = "No jump tests in this range yet. Log one and your best vertical shows here next to your weekly training volume.")
+            OutlinedButton(
+                onClick = onAddJump,
+                shape = IntakeShape.Button,
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+            ) { Text("Log a jump test") }
+            return@SectionCard
+        }
         if (latest != null) {
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(

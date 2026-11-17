@@ -284,7 +284,7 @@ class ProgramGeneratorTest {
         assertThat(generateProgram(GeneratorInputs(experience = Experience.EXPERIENCED)).deloadEveryWeeks).isEqualTo(5)
         val p = generateProgram(GeneratorInputs(deloadEveryWeeks = 4))
         assertThat(p.deloadEveryWeeks).isEqualTo(4)
-        assertThat(p.description).contains("Deload: every 4 weeks")
+        assertThat(p.description).contains("Easy week: every 4 weeks")
     }
 
     // ------------------------------------------------- determinism and shape

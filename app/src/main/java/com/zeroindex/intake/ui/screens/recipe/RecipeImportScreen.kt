@@ -1,5 +1,7 @@
 package com.zeroindex.intake.ui.screens.recipe
 
+import com.zeroindex.intake.ui.components.scrollIntoViewOnFocus
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -219,14 +221,14 @@ fun RecipeImportScreen(
     LaunchedEffect(stage) { (stage as? ImportStage.Saved)?.let { onSaved(it.recipeId) } }
 
     Column(
-        modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(contentPadding).padding(horizontal = 16.dp),
+        modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(contentPadding).padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        SubHead("Import from a link", "Paste a recipe page. Intake reads the recipe data on the page, with no AI.")
+        SubHead("Recipe link", "Paste a recipe link. Intake reads the recipe data on that page, with no AI.")
         OutlinedTextField(
             url, viewModel::setUrl, label = { Text("Recipe web address") }, singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().scrollIntoViewOnFocus(),
         )
         Button(
             onClick = viewModel::import, enabled = url.isNotBlank() && stage != ImportStage.Fetching,
@@ -297,7 +299,7 @@ private fun Preview(s: ImportStage.Preview, vm: RecipeImportViewModel) {
         label = { Text("Ingredients, one per line") }, minLines = 4, modifier = Modifier.fillMaxWidth(),
         supportingText = { Text("A line starting with ## is a group heading, like \"## For the Sauce\".") },
     )
-    AllergenChips(s.scan)
+    AllergenChips(s.scan, ingredientLineCount = f.ingredientsText.lines().count { it.isNotBlank() && !it.trimStart().startsWith("##") })
     OutlinedTextField(
         f.stepsText, { v -> vm.edit { it.copy(stepsText = v) } },
         label = { Text("Steps, one per line") }, minLines = 4, modifier = Modifier.fillMaxWidth(),
@@ -310,12 +312,18 @@ private fun Preview(s: ImportStage.Preview, vm: RecipeImportViewModel) {
         IntakeCard {
             Text("From the recipe page", style = MaterialTheme.typography.titleSmall)
             Text(
-                "${n.kcal!!.roundToInt()} kcal · ${(n.proteinG ?: 0.0).roundToInt()} g protein · ${(n.carbsG ?: 0.0).roundToInt()} g carbs · ${(n.fatG ?: 0.0).roundToInt()} g fat per serving",
+                "${n.kcal!!.roundToInt()} kcal · protein ${n.proteinG.listed()} · carbs ${n.carbsG.listed()} · fat ${n.fatG.listed()} per serving",
                 style = MaterialTheme.typography.bodyMedium,
             )
             RecipeNutritionLabels.extras(n.fiberG, n.sugarG, n.saturatedFatG, n.sodiumMg).takeIf { it.isNotEmpty() }?.let { extras ->
                 Text(
                     extras.joinToString(" · ") { (label, value) -> "$label $value" },
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            if (n.proteinG == null || n.carbsG == null || n.fatG == null) {
+                Text(
+                    "The page did not list everything. Intake will estimate what is missing from the ingredients and label it as an estimate.",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
@@ -325,7 +333,7 @@ private fun Preview(s: ImportStage.Preview, vm: RecipeImportViewModel) {
             )
         }
     } ?: Text(
-        "The page published no nutrition. You can add ingredient macros later by editing the recipe.",
+        "The page published no nutrition. Intake will estimate it from the ingredients, labelled as an estimate, or you can add ingredient macros by editing the recipe.",
         style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     if (f.sourceUrl.isNotBlank()) {
@@ -336,3 +344,6 @@ private fun Preview(s: ImportStage.Preview, vm: RecipeImportViewModel) {
         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
     ) { Text("Save recipe") }
 }
+
+/** "12 g", or "not listed" for a number the page did not give. Never "0 g" for a missing one. */
+private fun Double?.listed(): String = this?.let { "${it.roundToInt()} g" } ?: "not listed"

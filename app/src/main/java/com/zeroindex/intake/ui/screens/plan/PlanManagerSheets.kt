@@ -41,6 +41,7 @@ import com.zeroindex.intake.data.db.entity.PlanWeekEntity
 import com.zeroindex.intake.domain.model.PlanLoopMode
 import com.zeroindex.intake.domain.plan.PlanSchedule
 import com.zeroindex.intake.domain.plan.PlanWeekExtras
+import com.zeroindex.intake.domain.time.DateText
 import com.zeroindex.intake.ui.components.StatusPill
 import com.zeroindex.intake.ui.theme.IntakeShape
 import java.time.LocalDate
@@ -111,10 +112,11 @@ fun PlanFormDialog(
     var weeks by remember { mutableStateOf("4") }
     var mode by remember { mutableStateOf(initial?.loopMode ?: PlanLoopMode.NONE) }
     var count by remember { mutableStateOf((initial?.loopCount?.takeIf { it >= 2 } ?: 2).toString()) }
-    var start by remember { mutableStateOf(initial?.let { PlanSchedule.date(it.startDate) }?.toString() ?: today.toString()) }
-    val startDate = runCatching { LocalDate.parse(start.trim()) }.getOrNull()
+    // Q6-7: the start day is picked from a calendar and shown in the device's date style, not typed as yyyy-mm-dd.
+    var startDate by remember { mutableStateOf(initial?.let { PlanSchedule.date(it.startDate) } ?: today) }
+    var pickingStart by remember { mutableStateOf(false) }
     val weeksN = weeks.toIntOrNull()
-    val valid = name.isNotBlank() && startDate != null && (initial != null || (weeksN != null && weeksN in 1..PlanSchedule.MAX_WEEKS)) &&
+    val valid = name.isNotBlank() && (initial != null || (weeksN != null && weeksN in 1..PlanSchedule.MAX_WEEKS)) &&
         (mode != PlanLoopMode.REPEAT_N || (count.toIntOrNull() ?: 0) >= 2)
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -128,10 +130,10 @@ fun PlanFormDialog(
                         singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                OutlinedTextField(
-                    start, { start = it }, label = { Text("First day of week 1 (yyyy-mm-dd)") }, singleLine = true,
-                    isError = startDate == null, modifier = Modifier.fillMaxWidth(),
-                )
+                Text("First day of week 1", style = MaterialTheme.typography.labelLarge)
+                OutlinedButton(onClick = { pickingStart = true }, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    Text(DateText.medium(startDate))
+                }
                 Text("When it ends", style = MaterialTheme.typography.labelLarge)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     FilterChip(mode == PlanLoopMode.NONE, { mode = PlanLoopMode.NONE }, label = { Text("Stop") })
@@ -149,11 +151,29 @@ fun PlanFormDialog(
         confirmButton = {
             TextButton(
                 enabled = valid,
-                onClick = { onSave(name.trim(), weeksN ?: 1, mode, count.toIntOrNull() ?: 2, startDate!!.toEpochDay()) },
+                onClick = { onSave(name.trim(), weeksN ?: 1, mode, count.toIntOrNull() ?: 2, startDate.toEpochDay()) },
             ) { Text(if (initial == null) "Create" else "Save") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
+    if (pickingStart) {
+        val picker = androidx.compose.material3.rememberDatePickerState(
+            // The date picker speaks UTC midnight of the calendar date.
+            initialSelectedDateMillis = startDate.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli(),
+        )
+        androidx.compose.material3.DatePickerDialog(
+            onDismissRequest = { pickingStart = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    picker.selectedDateMillis?.let {
+                        startDate = java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneOffset.UTC).toLocalDate()
+                    }
+                    pickingStart = false
+                }) { Text("Use this day") }
+            },
+            dismissButton = { TextButton(onClick = { pickingStart = false }) { Text("Cancel") } },
+        ) { androidx.compose.material3.DatePicker(state = picker) }
+    }
 }
 
 /** The hand-made parts of a week: dish name, protein, a note and one-line variation ideas. */

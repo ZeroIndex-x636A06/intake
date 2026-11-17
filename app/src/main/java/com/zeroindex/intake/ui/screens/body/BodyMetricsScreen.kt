@@ -25,7 +25,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.zeroindex.intake.ui.components.ScreenHeading
 
 @Composable
 fun BodyMetricsScreen(
@@ -55,7 +54,6 @@ fun BodyMetricsScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        ScreenHeading("Log weight")
         Text(
             // SPEC §3.5: entered in the display unit, stored in kilograms.
             text = "Entered in ${weightUnit.label} and ${lengthUnit.label}; stored in " +

@@ -60,6 +60,14 @@ class MigrationSchemaTest {
         return connection
     }
 
+    /** The columns a table has now, as the 3 -> 4 repair reads them on a phone. */
+    private fun columnsOf(c: Connection, table: String): Set<String> =
+        c.rows("PRAGMA table_info(`$table`)").map { it["name"] as String }.toSet()
+
+    /** The migration's statements; version 3 is computed from the file's current columns. */
+    private fun statementsFrom(from: Int, c: Connection): List<String> =
+        if (from == 3) migrateRepair_3_4 { columnsOf(c, it) } else MIGRATION_STATEMENTS.getValue(from)
+
     private fun Connection.exec(sql: String) = createStatement().use { it.execute(sql) }
 
     private fun Connection.rows(sql: String): List<Map<String, Any?>> =
@@ -79,7 +87,7 @@ class MigrationSchemaTest {
         val latest = IntakeDatabase.VERSION
         for (from in 1 until latest) {
             val connection = createAt(from)
-            MIGRATION_STATEMENTS.getValue(from).forEach { connection.exec(it) }
+            statementsFrom(from, connection).forEach { connection.exec(it) }
             assertMatches(connection, from + 1)
             connection.close()
         }
@@ -89,7 +97,7 @@ class MigrationSchemaTest {
     fun chainedFromVersionOneReachesTheLatestSchema() {
         val connection = createAt(1)
         for (from in 1 until IntakeDatabase.VERSION) {
-            MIGRATION_STATEMENTS.getValue(from).forEach { connection.exec(it) }
+            statementsFrom(from, connection).forEach { connection.exec(it) }
         }
         assertMatches(connection, IntakeDatabase.VERSION)
         connection.close()
@@ -161,6 +169,100 @@ class MigrationSchemaTest {
         assertThat(v2.rows("SELECT angle FROM progress_photo").single()["angle"]).isEqualTo("FRONT")
         assertMatches(v2, 3)
         v2.close()
+    }
+
+    @Test
+    fun migrationTwoToThreeAddsTheAllDayActiveCaloriesToHealthSummariesAndKeepsOldRows() {
+        val v2 = createAt(2)
+        v2.exec(
+            "INSERT INTO health_daily_summary (id, dayStartMillis, steps, sleepMinutes, syncedAt, createdAt, updatedAt, deletedAt) " +
+                "VALUES ('h1', 1700000000000, 8000, 450, 1, 1, 1, NULL)",
+        )
+        MIGRATION_2_3_STATEMENTS.forEach { v2.exec(it) }
+        val row = v2.rows("SELECT steps, sleepMinutes, activeKcalDay FROM health_daily_summary").single()
+        assertThat(row["steps"]).isEqualTo(8000)
+        assertThat(row["sleepMinutes"]).isEqualTo(450)
+        assertThat(row["activeKcalDay"]).isNull()
+        v2.exec("UPDATE health_daily_summary SET activeKcalDay = 412.5 WHERE id = 'h1'")
+        assertThat(v2.rows("SELECT activeKcalDay FROM health_daily_summary").single()["activeKcalDay"]).isEqualTo(412.5)
+        assertMatches(v2, 3)
+        v2.close()
+    }
+
+    @Test
+    fun migrationTwoToThreeAddsTheDeloadCadenceAndLeavesExistingProgramsWithoutOne() {
+        val v2 = createAt(2)
+        v2.exec(
+            "INSERT INTO program (id, name, description, isActive, currentWeek, currentDayIndex, createdAt, updatedAt, deletedAt) " +
+                "VALUES ('p1', 'Upper lower', '', 1, 5, 0, 1, 1, NULL)",
+        )
+        MIGRATION_2_3_STATEMENTS.forEach { v2.exec(it) }
+        val row = v2.rows("SELECT name, currentWeek, deloadEveryWeeks FROM program").single()
+        assertThat(row["currentWeek"]).isEqualTo(5)
+        assertThat(row["deloadEveryWeeks"]).isNull()
+        v2.exec("UPDATE program SET deloadEveryWeeks = 6 WHERE id = 'p1'")
+        assertThat(v2.rows("SELECT deloadEveryWeeks FROM program").single()["deloadEveryWeeks"]).isEqualTo(6)
+        assertMatches(v2, 3)
+        v2.close()
+    }
+
+    @Test
+    fun migrationTwoToThreeAddsTheVideoTablesAndTheWorkoutVideoLinkAndKeepsEveryProgram() {
+        val v2 = createAt(2)
+        fun programColumns(v: Int) = entities(v).getValue("program")["fields"]!!.jsonArray.map { it.jsonObject["columnName"]!!.jsonPrimitive.content }
+        assertThat(programColumns(2)).doesNotContain("videoId")
+        assertThat(entities(2)).doesNotContainKey("saved_video")
+        v2.exec(
+            "INSERT INTO program (id, name, description, isActive, currentWeek, currentDayIndex, createdAt, updatedAt, deletedAt) " +
+                "VALUES ('p1', 'Upper lower', '', 1, 2, 1, 1, 1, NULL)",
+        )
+        MIGRATION_2_3_STATEMENTS.forEach { v2.exec(it) }
+        // The old program is untouched and has no video.
+        val row = v2.rows("SELECT name, isActive, currentWeek, videoId FROM program").single()
+        assertThat(row["name"]).isEqualTo("Upper lower")
+        assertThat(row["currentWeek"]).isEqualTo(2)
+        assertThat(row["videoId"]).isNull()
+        // The new tables are empty and usable.
+        assertThat(v2.rows("SELECT COUNT(*) AS n FROM video_cache").single()["n"]).isEqualTo(0)
+        assertThat(v2.rows("SELECT COUNT(*) AS n FROM video_search").single()["n"]).isEqualTo(0)
+        v2.exec(
+            "INSERT INTO saved_video (id, videoId, title, createdAt, updatedAt, deletedAt) VALUES ('s1', 'dQw4w9WgXcQ', 'Leg day', 5, 5, NULL)",
+        )
+        v2.exec("UPDATE program SET videoId = 'dQw4w9WgXcQ' WHERE id = 'p1'")
+        assertThat(v2.rows("SELECT videoId FROM program").single()["videoId"]).isEqualTo("dQw4w9WgXcQ")
+        assertThat(v2.rows("SELECT title FROM saved_video").single()["title"]).isEqualTo("Leg day")
+        assertMatches(v2, 3)
+        v2.close()
+    }
+
+    @Test
+    fun migrationFiveToSixKeepsCachedVideosAddsTheirPlayerSizeAndCreatesDownloads() {
+        val v5 = createAt(5)
+        assertThat(entities(5)).doesNotContainKey("downloaded_video")
+        v5.exec(
+            "INSERT INTO video_cache (videoId, title, description, channelTitle, categoryId, durationSec, thumbnailUrl, publishedAt, viewCount, fetchedAt) " +
+                "VALUES ('dQw4w9WgXcQ', 'Back day', '', 'Coach', '17', 62, NULL, '', NULL, 9)",
+        )
+        v5.exec("INSERT INTO saved_video (id, videoId, title, createdAt, updatedAt, deletedAt) VALUES ('s1', 'dQw4w9WgXcQ', 'Back day', 5, 5, NULL)")
+        MIGRATION_5_6_STATEMENTS.forEach { v5.exec(it) }
+        // The cached row is kept, its player size is unknown (so Hide Shorts falls back to the length rule), and saves are untouched.
+        val cached = v5.rows("SELECT title, durationSec, embedWidth, embedHeight FROM video_cache").single()
+        assertThat(cached["title"]).isEqualTo("Back day")
+        assertThat(cached["durationSec"]).isEqualTo(62)
+        assertThat(cached["embedWidth"]).isNull()
+        assertThat(cached["embedHeight"]).isNull()
+        assertThat(v5.rows("SELECT title FROM saved_video").single()["title"]).isEqualTo("Back day")
+        // The downloads table is empty and usable, and a new cached row can carry a player size.
+        assertThat(v5.rows("SELECT COUNT(*) AS n FROM downloaded_video").single()["n"]).isEqualTo(0)
+        v5.exec(
+            "INSERT INTO downloaded_video (id, videoId, title, channelTitle, durationSec, thumbnailUrl, fileName, sizeBytes, createdAt, updatedAt, deletedAt) " +
+                "VALUES ('d1', 'dQw4w9WgXcQ', 'Back day', 'Coach', 62, NULL, 'dQw4w9WgXcQ.mp4', 1048576, 7, 7, NULL)",
+        )
+        assertThat(v5.rows("SELECT sizeBytes FROM downloaded_video").single()["sizeBytes"]).isEqualTo(1048576)
+        v5.exec("UPDATE video_cache SET embedWidth = 360, embedHeight = 640")
+        assertThat(v5.rows("SELECT embedHeight FROM video_cache").single()["embedHeight"]).isEqualTo(640)
+        assertMatches(v5, 6)
+        v5.close()
     }
 
     @Test
@@ -419,6 +521,49 @@ class MigrationSchemaTest {
         c.close()
     }
 
+    /**
+     * The launch crash on the owner's phone: version 3 was edited in place after a preview build had created a version-3
+     * file, so the newer build found an old file under the same version number and Room refused to open it. This builds
+     * such a file (2 -> 3 without the columns added later), puts rows in it, runs the 3 -> 4 repair and checks the
+     * result is exactly the current schema with every row kept.
+     */
+    @Test
+    fun versionThreeFileFromAnEarlierBuildIsRepairedByThreeToFour() {
+        val later = setOf("deloadEveryWeeks", "activeKcalDay")
+        val c = createAt(2)
+        MIGRATION_2_3_STATEMENTS.filterNot { sql -> later.any { it in sql } }.forEach { c.exec(it) }
+        assertThat(columnsOf(c, "program")).doesNotContain("deloadEveryWeeks")
+        assertThat(columnsOf(c, "health_daily_summary")).doesNotContain("activeKcalDay")
+        c.exec(
+            "INSERT INTO health_daily_summary (id, dayStartMillis, syncedAt, createdAt, updatedAt) VALUES ('h1', 20000, 1, 1, 1)",
+        )
+        val before = c.rows("SELECT * FROM health_daily_summary").single()
+        statementsFrom(3, c).forEach { c.exec(it) }
+        assertMatches(c, 4)
+        val after = c.rows("SELECT * FROM health_daily_summary").single()
+        assertThat(after["id"]).isEqualTo(before["id"])
+        assertThat(after["activeKcalDay"]).isNull()
+        c.close()
+    }
+
+    @Test
+    fun threeToFourOnACurrentVersionThreeFileDoesNothing() {
+        val c = createAt(3)
+        val statements = migrateRepair_3_4 { columnsOf(c, it) }
+        assertThat(statements.filter { it.startsWith("ALTER", ignoreCase = true) }).isEmpty()
+        statements.forEach { c.exec(it) }
+        assertMatches(c, 4)
+        // And again: a repair that has run once is a no-op.
+        migrateRepair_3_4 { columnsOf(c, it) }.forEach { c.exec(it) }
+        assertMatches(c, 4)
+        c.close()
+    }
+
+    @Test
+    fun versionFourSchemaIsTheCurrentVersionThreeSchema() {
+        assertThat(entities(4).keys).isEqualTo(entities(3).keys)
+    }
+
     @Test
     fun fullChainOneToTwoToThreeMatchesTheCurrentSchema() {
         val c = createAt(1)
@@ -426,7 +571,50 @@ class MigrationSchemaTest {
         assertMatches(c, 2)
         MIGRATION_2_3_STATEMENTS.forEach { c.exec(it) }
         assertMatches(c, 3)
-        assertThat(IntakeDatabase.VERSION).isEqualTo(3)
+        // 3 -> 4 repairs a file from an earlier build of 3 and changes nothing on a current one.
+        statementsFrom(3, c).forEach { c.exec(it) }
+        assertMatches(c, 4)
+        // 4 -> 5 adds the saved custom drinks' recipe column.
+        statementsFrom(4, c).forEach { c.exec(it) }
+        assertMatches(c, 5)
+        // 5 -> 6 adds the video player size and the downloaded videos table.
+        statementsFrom(5, c).forEach { c.exec(it) }
+        assertMatches(c, 6)
+        assertThat(IntakeDatabase.VERSION).isEqualTo(6)
+        c.close()
+    }
+
+    /** 4 -> 5 (round 4, custom drinks): one nullable column on `food`; every existing food is kept and has no recipe. */
+    @Test
+    fun migrationFourToFiveAddsTheCustomDrinkColumnAndKeepsEveryFood() {
+        fun foodColumns(v: Int) = entities(v).getValue("food")["fields"]!!.jsonArray.map { it.jsonObject["columnName"]!!.jsonPrimitive.content }
+        assertThat(foodColumns(4)).doesNotContain("customDrink")
+        assertThat(foodColumns(5)).contains("customDrink")
+        assertThat(entities(5).keys).isEqualTo(entities(4).keys)
+
+        val c = createAt(4)
+        c.exec(
+            "INSERT INTO food (id, name, servingSizeGrams, servingLabel, kcalPer100g, proteinPer100g, carbsPer100g, fatPer100g, " +
+                "fiberPer100g, sugarPer100g, sodiumPer100g, saturatedFatPer100g, source, allergenTags, isVerified, isFavorite, timesLogged, " +
+                "unlistedNutrients, drinkCategory, createdAt, updatedAt) VALUES ('f1', 'Coffee, black', 240, '1 cup', 1, 0.1, 0, 0, 0, 0, 2, 0, " +
+                "'DATABASE', '', 1, 0, 3, '', 'COFFEE', 1, 1)",
+        )
+        c.exec(
+            "INSERT INTO food_log (id, foodId, loggedAt, mealSlot, quantityGrams, foodNameAtLog, servingLabelAtLog, kcal, protein, carbs, fat, " +
+                "fiber, sugar, sodium, saturatedFat, unlistedNutrients, wasEdited, createdAt, updatedAt) VALUES " +
+                "('l1', 'f1', 1000, 'LUNCH', 240, 'Coffee, black', '240 ml', 2, 0, 0, 0, 0, 0, 5, 0, '', 0, 1, 1)",
+        )
+        statementsFrom(4, c).forEach { c.exec(it) }
+        assertMatches(c, 5)
+        val food = c.rows("SELECT * FROM food WHERE id = 'f1'").single()
+        assertThat(food["name"]).isEqualTo("Coffee, black")
+        assertThat(food["timesLogged"]).isEqualTo(3)
+        assertThat(food["customDrink"]).isNull()
+        // Existing history keeps its meal: nothing is rewritten, and the new slot value is only ever added.
+        assertThat(c.rows("SELECT mealSlot AS s FROM food_log WHERE id = 'l1'").single()["s"]).isEqualTo("LUNCH")
+        // A saved custom drink fits the column.
+        c.exec("UPDATE food SET customDrink = '{\"baseFoodId\":\"f1\"}' WHERE id = 'f1'")
+        assertThat(c.rows("SELECT customDrink AS d FROM food").single()["d"]).isEqualTo("{\"baseFoodId\":\"f1\"}")
         c.close()
     }
 

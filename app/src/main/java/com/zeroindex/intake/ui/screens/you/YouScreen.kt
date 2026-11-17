@@ -1,5 +1,7 @@
 package com.zeroindex.intake.ui.screens.you
 
+import com.zeroindex.intake.domain.time.DateText
+import com.zeroindex.intake.domain.units.KcalFormat
 import com.zeroindex.intake.domain.units.format
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -141,24 +143,37 @@ fun YouScreen(
                         ).joinToString(" · ").ifEmpty { "Add your basics to build a plan" }
                         Text(line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    IconButton(onClick = onEditProfile) { Icon(Icons.Filled.Edit, contentDescription = "Edit your profile") }
+                    IconButton(onClick = onEditProfile) { Icon(Icons.Filled.Edit, contentDescription = "Open Profile & goals") }
                 }
             }
         }
 
-        item(key = "goals-head") { SectionLine("Goals and plan", note = if (s.autoCalculateTargets) "worked out from your data" else "set by hand") }
+        // Say "worked out" only when it is true: the switch is on and the data it needs is there (QA Q4-12).
+        val missing = com.zeroindex.intake.domain.goals.AutoTargetReadiness.sentence(p, state.weightKg != null)
+        val worked = s.autoCalculateTargets && missing == null
+        item(key = "goals-head") {
+            SectionLine("Goals and plan", note = when {
+                worked -> "worked out from your data"
+                s.autoCalculateTargets -> "waiting for your details"
+                else -> "set by hand"
+            })
+        }
         item(key = "goals") {
             Card {
                 val t = state.target
-                PlanRow("Calories", if (s.autoCalculateTargets) "from your weight trend and a ${p.pace.label.lowercase()} pace" else "set by hand",
-                    t?.let { "%,d kcal".format(it.kcal) } ?: "No target yet") { onChangeSetting("nutrition", "manualCalories") }
-                PlanRow("Protein · fat · carbs", "${s.proteinGramsPerKg} and ${s.fatGramsPerKg} g per kg",
+                PlanRow("Calories", when {
+                    worked -> "from your weight trend and a ${p.pace.label.lowercase()} pace"
+                    s.autoCalculateTargets -> missing ?: "not worked out yet"
+                    else -> "set by hand"
+                },
+                    t?.let { "${KcalFormat.format(it.kcal)} kcal" } ?: "No target yet") { onChangeSetting("nutrition", "manualCalories") }
+                PlanRow("Protein · fat · carbs", if (t == null && missing != null) "needs the same details" else "${s.proteinGramsPerKg} and ${s.fatGramsPerKg} g per kg",
                     t?.let { "${it.proteinG} · ${it.fatG} · ${it.carbsG} g" } ?: "—") { onChangeSetting("nutrition", "proteinPerKg") }
                 PlanRow("Water", if (s.hydrationDynamic) "adjusts for the day" else "fixed target",
                     state.waterMl?.let { s.volumeUnit.format(it) } ?: "—") { onChangeSetting("water", "hydrationBase") }
                 PlanRow("Training", p.experience.label.lowercase() + " · " + p.effectiveTrainingGoal.label.lowercase(),
                     "${p.effectiveTrainingDays} days · ${p.sessionMinutes} min") { onChangeSetting("training", null) }
-                PlanRow("Phase and pace", "${p.phase.label} · ${p.pace.label.lowercase()}", null, last = true) { onEditProfile() }
+                PlanRow("Phase and pace", if (p.hasBasics) "${p.phase.label} · ${p.pace.label.lowercase()}" else "choose in your profile", null, last = true) { onEditProfile() }
                 TextButton(onClick = onOpenPlan, modifier = Modifier.heightIn(min = 48.dp)) { Text("How this was worked out") }
             }
         }
@@ -174,7 +189,7 @@ fun YouScreen(
                             Box(Modifier.weight(1f).aspectRatio(0.72f)) {
                                 PhotoImage(d.cover?.let(viewModel::fileOf), Modifier.matchParentSize(), targetPx = 400)
                                 Text(
-                                    LocalDate.ofEpochDay(d.epochDay).format(DateTimeFormatter.ofPattern("MMM d")),
+                                    DateText.medium(LocalDate.ofEpochDay(d.epochDay)),
                                     style = MaterialTheme.typography.labelSmall, color = androidx.compose.ui.graphics.Color.White,
                                     modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
                                 )

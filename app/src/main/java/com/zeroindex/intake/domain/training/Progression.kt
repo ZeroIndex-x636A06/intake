@@ -10,6 +10,8 @@ data class SetResult(
     val reps: Int,
     val rpe: Double? = null,
     val isFailure: Boolean = false,
+    /** The session the set came from, when known: the best session volume needs it. */
+    val sessionId: String? = null,
 )
 
 /** What to put on the bar next time, and why (SPEC §10). */
@@ -308,7 +310,7 @@ object ProgressionEvaluator {
                 repsMax = target.repsMax,
                 targetRpe = target.targetRpe,
                 reason = "${fmt(weight)} kg, ${fmt(params.percentageOf1rm)}% of an estimated " +
-                    "${fmt(oneRm)} kg max (${OneRepMax.FORMULA}).",
+                    "${fmt(oneRm)} kg max (${OneRepMax.formulaText}).",
             ),
         )
     }

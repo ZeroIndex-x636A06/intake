@@ -178,7 +178,8 @@ class ProfileRepository @Inject constructor(
 
     /** Null until the profile basics and one weigh-in exist. */
     suspend fun goalInputs(): GoalInputs? {
-        val profile = profile()
+        val app = settings.settings.first()
+        val profile = app.profile
         if (!profile.hasBasics) return null
         val latest = bodyRepository.latest() ?: return null
         val snap = baselineSnapshot()
@@ -193,6 +194,11 @@ class ProfileRepository @Inject constructor(
             averageSteps = steps,
             baseline = snap?.measured,
             adaptive = adaptive,
+            // The Settings g/kg are the person's own numbers, so the plan honours them (QA Q4-7).
+            proteinPerKg = app.proteinGramsPerKg,
+            fatPerKg = app.fatGramsPerKg,
+            weightUnit = app.weightUnit,
+            volumeUnit = app.volumeUnit,
         )
     }
 
@@ -221,9 +227,9 @@ class ProfileRepository @Inject constructor(
             isAutoCalculated = false,
         )
         settings.setGoalRateKgPerWeek(((plan.calories.kgPerWeek * 20).roundToInt() / 20.0))
-        // The nightly updater reads these as grams per kg of body weight, even when the plan used lean mass.
-        settings.setProteinPerKg(m.proteinG / plan.weightKg)
-        settings.setFatPerKg(m.fatG / plan.weightKg)
+        // The same ratios the plan used, so the next automatic recalculation reproduces this plan.
+        settings.setProteinPerKg(m.proteinPerKg)
+        settings.setFatPerKg(m.fatPerKg)
         settings.setHydrationBaseMl(plan.water.baseMl.toDouble())
         settings.setWeekPattern(plan.week?.pattern)
         if (needsManualTargets(plan)) settings.setAutoCalculateTargets(false)

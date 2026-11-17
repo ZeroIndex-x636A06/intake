@@ -11,6 +11,8 @@ import com.zeroindex.intake.work.SyncScheduler
 import com.zeroindex.intake.work.TdeeWorker
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 @HiltAndroidApp
 class IntakeApplication : Application(), Configuration.Provider {
@@ -21,6 +23,7 @@ class IntakeApplication : Application(), Configuration.Provider {
     @Inject lateinit var credentials: com.zeroindex.intake.data.backup.remote.BackupCredentialStore
     @Inject lateinit var syncScheduler: SyncScheduler
     @Inject lateinit var wearBridge: WearBridge
+    @Inject lateinit var settingsRepository: com.zeroindex.intake.data.settings.SettingsRepository
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -29,6 +32,12 @@ class IntakeApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        // Every estimated 1RM follows the formula setting. Reading the settings once here puts it in place for code that
+        // never collects settings itself (workers, the coach); the settings flow keeps it current after that.
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch { settingsRepository.settings.first() }
+        // Warm the exercise photo index in the background, so the first exercise list or sheet does not parse it on
+        // the main thread.
+        Thread({ com.zeroindex.intake.ui.components.ExerciseImages.index(this) }, "exercise-index").start()
         // SPEC §8: nightly recalculation. KEEP, so an existing schedule is not
         // reset on every launch.
         TdeeWorker.schedule(WorkManager.getInstance(this))
@@ -39,6 +48,9 @@ class IntakeApplication : Application(), Configuration.Provider {
         BaselineWorker.schedule(WorkManager.getInstance(this))
         // Coach: a daily look at whether the weekly check-in is due.
         com.zeroindex.intake.work.CoachWorker.schedule(WorkManager.getInstance(this))
+        // Round 3, item D: daily reminders (workout, meals, water, progress photo). A 15-minute check that does nothing
+        // while every reminder is off.
+        com.zeroindex.intake.work.ReminderWorker.schedule(WorkManager.getInstance(this))
         // SPEC §12: Health Connect follows local writes, debounced - never a timer.
         healthSync.start()
         // The remote WebDAV / SFTP / SMB backup is gone. An old install may still have its nightly job queued and

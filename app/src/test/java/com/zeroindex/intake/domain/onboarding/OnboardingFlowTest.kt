@@ -14,7 +14,7 @@ class OnboardingFlowTest {
     @Test
     fun stepsRunInTheBriefsOrder() {
         assertEquals(
-            listOf("welcome", "units", "about_you", "goal", "allergens", "how_to_start", "plans", "extras", "done"),
+            listOf("welcome", "units", "about_you", "goal", "equipment", "allergens", "how_to_start", "plans", "extras", "done"),
             OnboardingFlow.steps.map { it.key },
         )
     }
@@ -53,8 +53,8 @@ class OnboardingFlowTest {
 
     @Test
     fun positionIsOneBased() {
-        assertEquals(1 to 9, OnboardingFlow.position(OnboardingStep.WELCOME))
-        assertEquals(9 to 9, OnboardingFlow.position(OnboardingStep.DONE))
+        assertEquals(1 to 10, OnboardingFlow.position(OnboardingStep.WELCOME))
+        assertEquals(10 to 10, OnboardingFlow.position(OnboardingStep.DONE))
     }
 
     @Test

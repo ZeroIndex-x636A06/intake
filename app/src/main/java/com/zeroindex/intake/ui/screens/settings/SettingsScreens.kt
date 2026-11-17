@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.settings
 
+import androidx.compose.foundation.layout.imePadding
 import com.zeroindex.intake.domain.units.format
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -57,6 +58,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.settings.AppSettings
 import com.zeroindex.intake.domain.settings.SettingSpec
+import com.zeroindex.intake.domain.settings.SettingVisibility
 import com.zeroindex.intake.domain.settings.SettingsGroup
 import com.zeroindex.intake.domain.settings.SettingsRegistry
 import com.zeroindex.intake.ui.navigation.PushedScreen
@@ -80,14 +82,20 @@ private fun SettingsGroup.icon(): ImageVector = when (this) {
 
 /** The one-line summary under a group's name on the Settings home, from the live settings. */
 internal fun groupSummary(group: SettingsGroup, s: AppSettings, hasOpenRouter: Boolean, hasYoutube: Boolean, hasUsda: Boolean): String = when (group) {
-    SettingsGroup.APPEARANCE -> "${s.weightUnit.label} · ${s.lengthUnit.label} · ${s.volumeUnit.label} · ${s.themeMode.name.lowercase().replaceFirstChar(Char::uppercase)}"
+    SettingsGroup.APPEARANCE -> "${s.weightUnit.label} · ${s.lengthUnit.label} · ${s.volumeUnit.label} · ${s.portionUnit.label} · ${s.themeMode.name.lowercase().replaceFirstChar(Char::uppercase)}"
     SettingsGroup.NUTRITION -> (if (s.autoCalculateTargets) "Auto targets" else "Targets by hand") + " · ${s.proteinGramsPerKg} g protein per kg"
     SettingsGroup.WATER -> (s.hydrationBaseMl?.let { s.volumeUnit.format(it) } ?: "Target from your weight") + if (s.hydrationDynamic) " · adjusts daily" else ""
     SettingsGroup.TRAINING -> "${s.defaultRestSec / 60}:${"%02d".format(s.defaultRestSec % 60)} rest · ${s.weightUnit.format(s.barWeightKg)} bar"
     SettingsGroup.HEALTH -> "Read and write switches per record type"
     SettingsGroup.FOOD_DB -> "Open Food Facts and offline USDA"
     SettingsGroup.VIDEOS -> (if (s.onlyWorkouts) "Workouts only" else "Everything") + if (hasYoutube) " · key set" else " · no key"
-    SettingsGroup.REMINDERS -> (if (s.coachNotify) "Check-in on" else "Check-in off") + (if (s.photoReminderWeeks > 0) " · photo ${s.photoReminderWeeks} wk" else "")
+    SettingsGroup.REMINDERS -> (if (s.coachNotify) "Check-in on" else "Check-in off") +
+        (if (s.photoReminderWeeks > 0) " · photo ${s.photoReminderWeeks} wk" else "") +
+        listOfNotNull(
+            "workout".takeIf { s.workoutReminderOn },
+            "meals".takeIf { s.mealReminderOn },
+            "water".takeIf { s.waterReminderOn },
+        ).let { if (it.isEmpty()) "" else " · " + it.joinToString(", ") }
     SettingsGroup.SYNC -> if (s.sync.paired) "Paired" else "Not paired · export to a file"
     SettingsGroup.AI -> if (s.aiEnabled) (if (hasOpenRouter) "On · \$${"%.0f".format(s.aiMonthlyBudgetUsd)} cap" else "On · no key") else "Off"
     SettingsGroup.KEYS -> listOf("OpenRouter" to hasOpenRouter, "USDA" to hasUsda, "YouTube" to hasYoutube).filter { it.second }.joinToString(" · ") { it.first }.ifEmpty { "No keys saved" }
@@ -106,7 +114,7 @@ fun SettingsHomeScreen(
     var query by rememberSaveable { mutableStateOf("") }
     val results = remember(query) { SettingsRegistry.search(query) }
     LazyColumn(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().imePadding(),
         contentPadding = PaddingValues(
             top = contentPadding.calculateTopPadding() + 4.dp,
             bottom = contentPadding.calculateBottomPadding() + 24.dp,
@@ -208,9 +216,13 @@ fun SettingsGroupScreen(
 
 @Composable
 private fun GroupContent(group: SettingsGroup, focus: String?, nav: SettingsNav, pad: PaddingValues) {
-    val all = remember(group) { SettingsRegistry.inGroup(group) }
-    val main = remember(group) { all.filter { !it.advanced } }
-    val advanced = remember(group) { all.filter { it.advanced } }
+    // Only the rows this profile draws: the Advanced count must match what opens (a Cut has no contest or reverse row).
+    val profile = hiltViewModel<SettingsViewModel>().uiState.collectAsStateWithLifecycle().value.settings.profile
+    val shownRows = remember(group, profile.phase, profile.carbCycling) {
+        SettingsRegistry.inGroup(group).filter { SettingVisibility.shown(it.id, profile.phase, profile.carbCycling) }
+    }
+    val main = remember(shownRows) { shownRows.filter { !it.advanced } }
+    val advanced = remember(shownRows) { shownRows.filter { it.advanced } }
     var showAdvanced by rememberSaveable(group.id) { mutableStateOf(focus != null && advanced.any { it.id == focus }) }
     val listState = rememberLazyListState()
     // Header items before the controls: the blurb (and the Health status block).
@@ -228,7 +240,7 @@ private fun GroupContent(group: SettingsGroup, focus: String?, nav: SettingsNav,
     }
     LazyColumn(
         state = listState,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().imePadding(),
         contentPadding = PaddingValues(
             top = pad.calculateTopPadding() + 4.dp,
             bottom = pad.calculateBottomPadding() + 24.dp,

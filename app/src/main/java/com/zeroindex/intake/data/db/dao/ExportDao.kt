@@ -119,4 +119,6 @@ interface ExportDao {
     @Upsert suspend fun upsertCoachSuggestion(rows: List<CoachSuggestionEntity>)
     @Query("SELECT * FROM progress_photo") suspend fun progressPhoto(): List<ProgressPhotoEntity>
     @Upsert suspend fun upsertProgressPhoto(rows: List<ProgressPhotoEntity>)
+    @Query("SELECT * FROM saved_video") suspend fun savedVideo(): List<com.zeroindex.intake.data.db.entity.SavedVideoEntity>
+    @Upsert suspend fun upsertSavedVideo(rows: List<com.zeroindex.intake.data.db.entity.SavedVideoEntity>)
 }

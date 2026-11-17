@@ -3,18 +3,18 @@ package com.zeroindex.intake.domain.settings
 /** Salt or sodium on the Nutrition dashboard (Settings > Nutrition). */
 enum class SodiumDisplay(val label: String) { OFF("Off"), SODIUM("Sodium"), SALT("Salt") }
 
-/** The four optional Today cards. Calories is always shown. */
-enum class TodayCard { NEXT, WATER, WEIGHT, MEALS }
+/** The five optional Today cards. Calories is always shown. */
+enum class TodayCard { NEXT, WATER, WEIGHT, MEALS, ACTIVITY }
 
 /** The twelve Settings pages, in the order the home lists them (docs/SETTINGS-INVENTORY.md). */
 enum class SettingsGroup(val id: String, val title: String, val blurb: String) {
     APPEARANCE("appearance", "Appearance and units", "How numbers and colours look. Nothing here changes your data."),
     NUTRITION("nutrition", "Nutrition", "How your targets are worked out and what the dashboard shows. Your allergens are on the Allergens screen in Nutrition, because they are safety data."),
-    WATER("water", "Water and drinks", "The water target, how it adjusts, and which sizes you tap. Logging a drink is in Nutrition > Drinks."),
+    WATER("water", "Water and drinks", "The water target, how it adjusts, and which sizes you tap. Log a drink from the water card on Today or from Log food."),
     TRAINING("training", "Training", "Rest timer, bar and plates, equipment and volume targets."),
     HEALTH("health", "Health Connect", "Which records Intake may read from and write to Health Connect."),
     FOOD_DB("fooddb", "Food database", "Where food data comes from. The USDA key is under API keys."),
-    VIDEOS("videos", "Videos", "Videos need internet and your own YouTube key (under API keys). Intake never downloads a video."),
+    VIDEOS("videos", "Videos", "Videos need internet and your own YouTube key (under API keys). Intake downloads a video only if you turn on Offline downloads and direct playback here (off by default)."),
     REMINDERS("reminders", "Reminders", "When Intake may nudge you. Nothing is sent anywhere."),
     SYNC("sync", "Sync and export", "Your own server and your own files."),
     AI("ai", "AI (optional)", "Optional. Intake works with no network, no account and no AI. AI runs only when you ask."),
@@ -47,7 +47,7 @@ data class SettingSpec(
 }
 
 /**
- * The settings registry: all 113 controls of the inventory (96 stored settings, 16 actions, 1 read-only line), each
+ * The settings registry: all 132 controls of the inventory (115 stored settings, 16 actions, 1 read-only line), each
  * with its group. A test checks it against the inventory file and that the UI renders every id.
  */
 object SettingsRegistry {
@@ -63,13 +63,14 @@ object SettingsRegistry {
         SettingSpec(9, "todayCard.water", SettingsGroup.APPEARANCE, ControlKind.SWITCH, "Today card: Water", advanced = false, isNew = true),
         SettingSpec(10, "todayCard.weight", SettingsGroup.APPEARANCE, ControlKind.SWITCH, "Today card: Weight", advanced = false, isNew = true),
         SettingSpec(11, "todayCard.meals", SettingsGroup.APPEARANCE, ControlKind.SWITCH, "Today card: Meals", advanced = false, isNew = true),
+        SettingSpec(116, "todayCard.activity", SettingsGroup.APPEARANCE, ControlKind.SWITCH, "Today card: Activity", advanced = false, isNew = true),
         SettingSpec(12, "autoTargets", SettingsGroup.NUTRITION, ControlKind.SWITCH, "Work my targets out from my data", advanced = false, isNew = false),
         SettingSpec(13, "manualCalories", SettingsGroup.NUTRITION, ControlKind.NUMBER, "Calories by hand", advanced = false, isNew = false),
         SettingSpec(14, "proteinPerKg", SettingsGroup.NUTRITION, ControlKind.NUMBER, "Protein", advanced = false, isNew = false),
         SettingSpec(15, "fatPerKg", SettingsGroup.NUTRITION, ControlKind.NUMBER, "Fat", advanced = false, isNew = false),
         SettingSpec(16, "addActiveKcal", SettingsGroup.NUTRITION, ControlKind.SWITCH, "Add active calories to my target", advanced = false, isNew = false),
         SettingSpec(17, "showSodium", SettingsGroup.NUTRITION, ControlKind.SEGMENTED, "Show salt or sodium on the dashboard", advanced = false, isNew = true),
-        SettingSpec(18, "eatOutRadius", SettingsGroup.NUTRITION, ControlKind.SEGMENTED, "Eat out nearby: search radius", advanced = false, isNew = true),
+        SettingSpec(18, "eatOutRadius", SettingsGroup.NUTRITION, ControlKind.SEGMENTED, "Eat out nearby: how far", advanced = false, isNew = true),
         SettingSpec(19, "recalc", SettingsGroup.NUTRITION, ControlKind.ACTION, "Recalculate from my data", advanced = false, isNew = false),
         SettingSpec(20, "allowBelowFloor", SettingsGroup.NUTRITION, ControlKind.SWITCH, "Allow calories below the floor", advanced = true, isNew = false),
         SettingSpec(21, "carbCycling", SettingsGroup.NUTRITION, ControlKind.SWITCH, "Carb cycling", advanced = true, isNew = false),
@@ -96,7 +97,14 @@ object SettingsRegistry {
         SettingSpec(42, "equipmentPreset", SettingsGroup.TRAINING, ControlKind.CHIPS, "My equipment: preset", advanced = false, isNew = false),
         SettingSpec(43, "equipment", SettingsGroup.TRAINING, ControlKind.CHIPS, "My equipment: items", advanced = false, isNew = false),
         SettingSpec(44, "jumpTests", SettingsGroup.TRAINING, ControlKind.SWITCH, "Show jump tests in Progress", advanced = false, isNew = true),
+        SettingSpec(132, "oneRepMaxFormula", SettingsGroup.TRAINING, ControlKind.CHIPS, "Estimated 1RM formula", advanced = false, isNew = true),
         SettingSpec(45, "weeklySets", SettingsGroup.TRAINING, ControlKind.NUMBER, "Weekly sets target per muscle region", advanced = true, isNew = true),
+        SettingSpec(131, "idleFinish", SettingsGroup.TRAINING, ControlKind.NUMBER, "Ask \"Still training?\" after", advanced = false, isNew = true),
+        SettingSpec(133, "effortScale", SettingsGroup.TRAINING, ControlKind.CHIPS, "Rate effort on each set", advanced = false, isNew = true),
+        SettingSpec(134, "restEndSound", SettingsGroup.TRAINING, ControlKind.CHIPS, "Sound when rest ends", advanced = false, isNew = true),
+        SettingSpec(135, "restEndFlash", SettingsGroup.TRAINING, ControlKind.SWITCH, "Flash the screen when rest ends", advanced = false, isNew = true),
+        SettingSpec(136, "keepAwake", SettingsGroup.TRAINING, ControlKind.SWITCH, "Keep the screen on during a workout", advanced = false, isNew = true),
+        SettingSpec(61, "hcOpen", SettingsGroup.HEALTH, ControlKind.ACTION, "Allow all Health Connect permissions", advanced = false, isNew = false),
         SettingSpec(46, "hc.read.Exercisesessions", SettingsGroup.HEALTH, ControlKind.SWITCH, "Exercise sessions", advanced = false, isNew = false),
         SettingSpec(47, "hc.read.Totalcaloriesburned", SettingsGroup.HEALTH, ControlKind.SWITCH, "Total calories burned", advanced = false, isNew = false),
         SettingSpec(48, "hc.read.Activecalories", SettingsGroup.HEALTH, ControlKind.SWITCH, "Active calories", advanced = false, isNew = false),
@@ -112,18 +120,29 @@ object SettingsRegistry {
         SettingSpec(58, "hc.write.Weight", SettingsGroup.HEALTH, ControlKind.SWITCH, "Weight", advanced = false, isNew = false),
         SettingSpec(59, "hc.write.Hydration", SettingsGroup.HEALTH, ControlKind.SWITCH, "Hydration", advanced = false, isNew = false),
         SettingSpec(60, "hc.write.Workouts", SettingsGroup.HEALTH, ControlKind.SWITCH, "Workouts", advanced = false, isNew = false),
-        SettingSpec(61, "hcOpen", SettingsGroup.HEALTH, ControlKind.ACTION, "Health Connect permissions", advanced = false, isNew = false),
+        SettingSpec(117, "hc.read.Olderhistory", SettingsGroup.HEALTH, ControlKind.SWITCH, "Older history", advanced = false, isNew = true),
         SettingSpec(62, "offSearch", SettingsGroup.FOOD_DB, ControlKind.SWITCH, "Search Open Food Facts while typing", advanced = false, isNew = false),
+        SettingSpec(115, "offLanguage", SettingsGroup.FOOD_DB, ControlKind.CHIPS, "Food search language", advanced = false, isNew = true),
         SettingSpec(63, "offOtherLanguages", SettingsGroup.FOOD_DB, ControlKind.SWITCH, "Show products in other languages", advanced = false, isNew = false),
         SettingSpec(64, "offContribute", SettingsGroup.FOOD_DB, ControlKind.SWITCH, "Allow contributing to Open Food Facts", advanced = false, isNew = false),
         SettingSpec(65, "offUsername", SettingsGroup.FOOD_DB, ControlKind.TEXT, "Open Food Facts username", advanced = false, isNew = false),
         SettingSpec(66, "offPassword", SettingsGroup.FOOD_DB, ControlKind.SECRET, "Open Food Facts password", advanced = false, isNew = false),
         SettingSpec(67, "onlyWorkouts", SettingsGroup.VIDEOS, ControlKind.SWITCH, "Show only workouts by default", advanced = false, isNew = true),
         SettingSpec(68, "personalise", SettingsGroup.VIDEOS, ControlKind.SWITCH, "Personalise Recommended from this phone's data", advanced = false, isNew = true),
+        SettingSpec(114, "hideShorts", SettingsGroup.VIDEOS, ControlKind.SWITCH, "Hide Shorts", advanced = false, isNew = true),
+        SettingSpec(130, "directVideos", SettingsGroup.VIDEOS, ControlKind.SWITCH, "Offline downloads and direct playback", advanced = false, isNew = true),
         SettingSpec(69, "coachNotify", SettingsGroup.REMINDERS, ControlKind.SWITCH, "Weekly check-in notification", advanced = false, isNew = false),
         SettingSpec(70, "coachWeekday", SettingsGroup.REMINDERS, ControlKind.CHIPS, "Check-in day", advanced = false, isNew = false),
         SettingSpec(71, "photoReminder", SettingsGroup.REMINDERS, ControlKind.SEGMENTED, "Progress photo reminder", advanced = false, isNew = true),
         SettingSpec(72, "exportReminder", SettingsGroup.REMINDERS, ControlKind.SWITCH, "Export reminder", advanced = false, isNew = true),
+        SettingSpec(122, "workoutRemind", SettingsGroup.REMINDERS, ControlKind.SWITCH, "Workout reminder", advanced = false, isNew = true),
+        SettingSpec(123, "workoutTime", SettingsGroup.REMINDERS, ControlKind.CHIPS, "Workout reminder time", advanced = false, isNew = true),
+        SettingSpec(124, "mealRemind", SettingsGroup.REMINDERS, ControlKind.SWITCH, "Meal reminders", advanced = false, isNew = true),
+        SettingSpec(125, "breakfastTime", SettingsGroup.REMINDERS, ControlKind.CHIPS, "Breakfast reminder time", advanced = false, isNew = true),
+        SettingSpec(126, "lunchTime", SettingsGroup.REMINDERS, ControlKind.CHIPS, "Lunch reminder time", advanced = false, isNew = true),
+        SettingSpec(127, "dinnerTime", SettingsGroup.REMINDERS, ControlKind.CHIPS, "Dinner reminder time", advanced = false, isNew = true),
+        SettingSpec(128, "waterRemind", SettingsGroup.REMINDERS, ControlKind.SWITCH, "Water reminders", advanced = false, isNew = true),
+        SettingSpec(129, "waterHours", SettingsGroup.REMINDERS, ControlKind.CHIPS, "Water reminder hours", advanced = false, isNew = true),
         SettingSpec(73, "syncServer", SettingsGroup.SYNC, ControlKind.TEXT, "Self-hosted sync server URL", advanced = false, isNew = false),
         SettingSpec(74, "pairCode", SettingsGroup.SYNC, ControlKind.TEXT, "Pairing code", advanced = false, isNew = false),
         SettingSpec(75, "deviceName", SettingsGroup.SYNC, ControlKind.TEXT, "Name this device", advanced = false, isNew = false),

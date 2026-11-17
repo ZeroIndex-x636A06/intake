@@ -265,7 +265,7 @@ class BenchmarkRunner @Inject constructor(
         AiError.NoKey, AiError.Off, is AiError.BudgetReached, is AiError.NotAllowed,
             AiError.Unauthorized, AiError.InsufficientCredits, is AiError.Network -> true
         is AiError.RateLimited, AiError.Timeout, is AiError.Refused, is AiError.NoModel,
-            AiError.NoEndpointForPrivacy, is AiError.Server, is AiError.BadResponse -> false
+            AiError.NoEndpointForPrivacy, AiError.NoEndpointForParameters, is AiError.Server, is AiError.BadResponse -> false
     }
 
     companion object {

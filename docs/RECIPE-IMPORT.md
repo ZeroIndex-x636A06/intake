@@ -17,6 +17,19 @@ what is read, where it is stored and why. Privacy is in `docs/PRIVACY.md` ("Reci
 Units: the app stores sodium in **milligrams** everywhere (foods, logs), so a page's "1.2 g" becomes 1200 and a bare
 number is read as milligrams. Fibre, sugar and saturated fat are grams; "2000 mg" becomes 2.
 
+## JSON-LD wrapped in comments
+
+Some sites (eatwell101.com, among others) wrap the JSON-LD in a CDATA comment with a space after the marker:
+`// <![CDATA[ {...} // ]]>`. The reader strips `//<![CDATA[`, `// <![CDATA[`, `/* <![CDATA[ */` and their closing forms
+(`CDATA_OPEN` / `CDATA_CLOSE` in `RecipePageParser`) before parsing. Before this, the Recipe block failed to parse and the
+page was reported as having no recipe data. Fixture: `recipes/eatwell101-cdata.html` (the page's own Recipe block, unchanged).
+
+## Tracking parameters
+
+`RecipeUrl.check` removes query parameters named `utm_*` (any case), `fbclid` and `gclid` before anything is fetched, and
+the fetcher stores the final address the same way, so the "Open original" link has no tracking. Other parameters and their
+order are kept (`RecipeUrl.stripTracking`).
+
 ## Clean-up
 
 `IngredientCleaner` runs on every ingredient line: WP Recipe Maker's `(, cut into cubes)` becomes `(cut into cubes)`,

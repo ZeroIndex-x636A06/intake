@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Today</title>
+<link rel="stylesheet" href="intake.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>body{margin:0;background:#E7E9E2}</style>
+</helmet>
+<div class="phone " style="--accent: #D4F25A; width: 390px; height: 2120px">
+
+  <header class="top">
+    <div class="stack" style="gap: 2px">
+      <span class="eyebrow">Today</span>
+      <h1 class="title">Mon, Nov 16</h1>
+    </div>
+    <a class="avatar" href="You.html" aria-label="Open You">Y</a>
+  </header>
+
+  <div class="pad" style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; padding-bottom: 14px">
+    <button class="btn" style="flex-direction: column; gap: 0; min-height: 56px; padding: 0; border-radius: 18px; background: transparent; font-size: 12px; color: var(--muted)">T<span class="num" style="font-size: 16px; color: var(--ink)">10</span></button>
+    <button class="btn" style="flex-direction: column; gap: 0; min-height: 56px; padding: 0; border-radius: 18px; background: transparent; font-size: 12px; color: var(--muted)">W<span class="num" style="font-size: 16px; color: var(--ink)">11</span></button>
+    <button class="btn" style="flex-direction: column; gap: 0; min-height: 56px; padding: 0; border-radius: 18px; background: transparent; font-size: 12px; color: var(--muted)">T<span class="num" style="font-size: 16px; color: var(--ink)">12</span></button>
+    <button class="btn" style="flex-direction: column; gap: 0; min-height: 56px; padding: 0; border-radius: 18px; background: transparent; font-size: 12px; color: var(--muted)">F<span class="num" style="font-size: 16px; color: var(--ink)">13</span></button>
+    <button class="btn" style="flex-direction: column; gap: 0; min-height: 56px; padding: 0; border-radius: 18px; background: transparent; font-size: 12px; color: var(--muted)">S<span class="num" style="font-size: 16px; color: var(--ink)">14</span></button>
+    <button class="btn" style="flex-direction: column; gap: 0; min-height: 56px; padding: 0; border-radius: 18px; background: transparent; font-size: 12px; color: var(--muted)">S<span class="num" style="font-size: 16px; color: var(--ink)">15</span></button>
+    <button class="btn primary" style="flex-direction: column; gap: 0; min-height: 56px; padding: 0; border-radius: 18px; font-size: 12px">M<span class="num" style="font-size: 16px">16</span></button>
+  </div>
+
+  <main class="pad stack">
+
+    <section class="card lime" style="display: flex; flex-direction: column; gap: 12px" aria-label="Baseline week">
+      <div class="between">
+        <div><p class="eyebrow">Baseline week · Collecting</p><p class="h2" style="margin-top: 2px">Day 3 of 7</p></div>
+        <svg class="i l" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px" aria-hidden="true">
+        <span style="height: 6px; border-radius: 9px; background: #111514"></span><span style="height: 6px; border-radius: 9px; background: #111514"></span><span style="height: 6px; border-radius: 9px; background: #111514"></span><span style="height: 6px; border-radius: 9px; background: rgba(17,21,20,.18)"></span><span style="height: 6px; border-radius: 9px; background: rgba(17,21,20,.18)"></span><span style="height: 6px; border-radius: 9px; background: rgba(17,21,20,.18)"></span><span style="height: 6px; border-radius: 9px; background: rgba(17,21,20,.18)"></span>
+      </div>
+      <div class="rowx" style="gap: 8px">
+        <a class="btn sm" href="You.html" style="background: rgba(17,21,20,.1); color: #111514">See my baseline</a>
+        <a class="btn sm primary" href="YourPlan.html" style="background: #111514; color: #fff">Build my plan</a>
+      </div>
+    </section>
+
+    <section class="card soft" style="display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 16px" aria-label="Export reminder">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></svg>
+      <p class="sub grow" style="color: var(--ink)">Without sync, this phone holds the only copy.</p>
+      <a class="btn sm" href="Settings.html" style="background: var(--card)">Export now</a>
+    </section>
+
+    <section class="card inkc" style="display: flex; flex-direction: column; gap: 18px; padding: 20px" aria-label="Calories">
+      <div class="rowx" style="gap: 18px">
+        <svg width="132" height="132" viewBox="0 0 132 132" role="img" aria-label="Calories: 1,116 of 2,400 eaten">
+          <circle cx="66" cy="66" r="56" fill="none" stroke="currentColor" stroke-opacity=".14" stroke-width="12"/>
+          <circle cx="66" cy="66" r="56" fill="none" stroke="#D4F25A" stroke-width="12" stroke-linecap="round" stroke-dasharray="163 352" transform="rotate(-90 66 66)"/>
+          <text x="66" y="66" text-anchor="middle" font-family="Space Grotesk" font-weight="600" font-size="30" fill="currentColor">1,284</text>
+          <text x="66" y="86" text-anchor="middle" font-family="Inter" font-size="12" fill="currentColor" fill-opacity=".72">kcal left</text>
+        </svg>
+        <div class="stack grow" style="gap: 10px">
+          <div><div class="between sub"><span>Protein</span><span>96 / 165 g</span></div><div class="bar" style="background: rgba(255,255,255,.14); margin-top: 4px"><span style="width: 58%; background: var(--pro)"></span></div></div>
+          <div><div class="between sub"><span>Carbs</span><span>118 / 260 g</span></div><div class="bar" style="background: rgba(255,255,255,.14); margin-top: 4px"><span style="width: 45%; background: var(--carb)"></span></div></div>
+          <div><div class="between sub"><span>Fat</span><span>38 / 72 g</span></div><div class="bar" style="background: rgba(255,255,255,.14); margin-top: 4px"><span style="width: 53%; background: var(--fat)"></span></div></div>
+        </div>
+      </div>
+      <div class="between sub"><span>Eaten 1,116 · Target 2,400</span><button class="btn ghost sm" style="color: inherit; padding: 0">More detail</button></div>
+      <div class="rowx" style="gap: 8px">
+        <a class="btn accent grow" href="LogFood.html">Log food</a>
+        <a class="iconbtn" href="LogFood.html" aria-label="Scan a barcode" style="background: rgba(255,255,255,.12); color: inherit"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2M8 8v8M11 8v8M14 8v8M17 8v8"/></svg></a>
+        <a class="iconbtn" href="LogFood.html" aria-label="Estimate from a photo, uses AI" style="background: rgba(255,255,255,.12); color: inherit"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="3"/><circle cx="12" cy="13.5" r="3.5"/><path d="M9 7l1.5-3h3L15 7"/></svg></a>
+      </div>
+    </section>
+
+    <div class="sec"><h2 class="h2">Next up</h2><span class="sub">3 things</span></div>
+    <section class="list" aria-label="Next up">
+      <div class="li" style="align-items: flex-start">
+        <span class="ic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v20M4 2v6a3 3 0 0 0 6 0V2M17 22V2c-2 0-3.5 3-3.5 7s1.5 4 3.5 4"/></svg></span>
+        <div class="grow stack" style="gap: 8px">
+          <div><p class="sub">Lunch · planned</p><p class="h3">Chicken burrito bowl · 640 kcal</p></div>
+          <div class="rowx" style="gap: 6px"><button class="btn sm primary">Log it</button><a class="btn sm" href="SwapNearby.html">Swap</a><a class="btn sm ghost" href="FoodPlan.html">Open plan</a></div>
+        </div>
+      </div>
+      <div class="li">
+        <span class="ic lime"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg></span>
+        <div class="grow"><p class="sub">Coach focus</p><p class="h3">Get protein to 165 g. Last week averaged 128 g.</p></div>
+      </div>
+      <div class="li" style="align-items: flex-start">
+        <span class="ic inkb"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7v10M3 9.5v5M18 7v10M21 9.5v5M6 12h12"/></svg></span>
+        <div class="grow stack" style="gap: 8px">
+          <div><p class="sub">Workout · Push A</p><p class="h3">6 exercises · about 55 min</p></div>
+          <a class="btn sm accent" href="ActiveWorkout.html" style="align-self: flex-start">Start</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="card stack" aria-label="Water" style="gap: 12px">
+      <div class="between">
+        <div class="rowx" style="gap: 10px"><span class="ic sm" style="background: var(--water); color: #fff"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg></span><span class="h3">Water</span></div>
+        <span><span class="num" style="font-size: 20px">42</span><span class="sub"> / 101 fl oz</span></span>
+      </div>
+      <div class="bar"><span style="width: 42%; background: var(--water)"></span></div>
+      <div class="between"><span class="sub" style="color: var(--ink)">Water 8 fl oz × 3</span><div class="stepper"><button aria-label="Remove one"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button><button aria-label="Add one more"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></div></div>
+      <div class="between"><span class="sub" style="color: var(--ink)">Cold brew 12 fl oz × 1</span><div class="stepper"><button aria-label="Remove one"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button><button aria-label="Add one more"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></div></div>
+      <a class="btn sm line" href="Drinks.html" style="align-self: flex-start">Log a different drink</a>
+    </section>
+
+    <div class="grid2">
+      <section class="card stack" style="gap: 6px" aria-label="Weight">
+        <span class="eyebrow">Weight</span>
+        <span><span class="num" style="font-size: 28px">184.6</span><span class="sub"> lb</span></span>
+        <span class="chip ok" style="align-self: flex-start">−0.8 this week</span>
+        <a class="btn sm" href="QuickLog.html" style="margin-top: 6px">Weigh in</a>
+      </section>
+      <section class="card stack" style="gap: 6px" aria-label="Activity">
+        <span class="eyebrow">Activity</span>
+        <span><span class="num" style="font-size: 28px">7,842</span><span class="sub"> steps</span></span>
+        <span class="sub">412 active kcal</span>
+        <span class="sub">Resting HR 58</span>
+      </section>
+    </div>
+
+    <section class="card stack" style="gap: 10px; box-shadow: inset 0 0 0 1.5px var(--ai-bg)" aria-label="Today's insight">
+      <div class="between"><span class="chip ai"><svg class="i xs" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>Today's insight</span><button class="btn ghost sm">Dismiss</button></div>
+      <p class="h3">Most of your protein lands at dinner. A 30 g breakfast would even the day out.</p>
+      <button class="btn ghost sm" style="align-self: flex-start; padding: 0">Why this suggestion?</button>
+    </section>
+
+    <div class="sec"><h2 class="h2">Meals</h2><span class="sub">Long-press an entry to edit</span></div>
+    <section class="list" aria-label="Meals">
+      <div class="li" style="flex-direction: column; align-items: stretch; gap: 10px">
+        <div class="between"><span class="h3">Breakfast</span><span class="sub">540 kcal</span></div>
+        <div class="between"><div><p style="font-size: 14px">Greek yogurt, berries, granola</p><p class="sub">320 kcal · 28 g protein</p></div><span class="chip ok">Fits</span></div>
+        <div class="between"><div><p style="font-size: 14px">Oat latte</p><p class="sub">220 kcal · 7 g protein</p></div><span class="chip warn">May contain</span></div>
+        <div class="rowx" style="gap: 6px"><a class="btn sm" href="LogFood.html">Add food</a><a class="btn sm ghost" href="Drinks.html">Log a drink</a><button class="iconbtn clear" aria-label="Breakfast options: save as meal template" style="margin-left: auto"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg></button></div>
+      </div>
+      <div class="li"><span class="h3 grow">Lunch</span><span class="sub">Not logged</span><a class="iconbtn soft" href="LogFood.html" aria-label="Add food to lunch"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></a></div>
+      <div class="li"><span class="h3 grow">Dinner</span><span class="sub">Not logged</span><a class="iconbtn soft" href="LogFood.html" aria-label="Add food to dinner"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></a></div>
+      <div class="li"><div class="grow"><p class="h3">Snacks</p><p class="sub">Protein bar · 210 kcal · 20 g protein</p></div><a class="iconbtn soft" href="LogFood.html" aria-label="Add food to snacks"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></a></div>
+      <div class="li"><div class="grow"><p class="h3">Drinks</p><p class="sub">Cold brew · 5 kcal · 190 mg caffeine</p></div><a class="iconbtn soft" href="Drinks.html" aria-label="Log a drink"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></a></div>
+    </section>
+  </main>
+
+  <div class="snack" style="bottom: 170px" role="status"><span>Copied to Snacks</span><button class="btn sm">Undo</button></div>
+
+  <a class="live" href="ActiveWorkout.html" aria-label="Workout running, 32 minutes. Resume">
+    <span class="pulse"></span>
+    <div class="grow"><p class="h3">Workout · Push A</p><p class="sub">32:14 elapsed</p></div>
+    <span class="btn sm primary">Resume</span>
+  </a>
+
+  <nav class="dock" aria-label="Main">
+    <a class="tab on" href="Today.html" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Today</a>
+    <a class="tab" href="FoodDiary.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v20M4 2v6a3 3 0 0 0 6 0V2M17 22V2c-2 0-3.5 3-3.5 7s1.5 4 3.5 4"/></svg>Food</a>
+    <a class="fab" href="QuickLog.html" aria-label="Log something"><svg class="i l" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></a>
+    <a class="tab" href="Train.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7v10M3 9.5v5M18 7v10M21 9.5v5M6 12h12"/></svg>Train</a>
+    <a class="tab" href="Insights.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M6 16l4-5 4 3 5-7"/></svg>Insights</a>
+  </nav>
+</div>
+</x-dc>
+</body>
+</html>

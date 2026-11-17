@@ -39,6 +39,8 @@ data class StartingWeightContext(
     val platesKg: List<Double> = listOf(25.0, 20.0, 15.0, 10.0, 5.0, 2.5, 1.25),
     /** Smallest jump on dumbbells, machines and cables. */
     val smallStepKg: Double = 2.5,
+    /** The heaviest dumbbell the person owns (the equipment settings), kg; null when not given. Dumbbell starts never exceed it. */
+    val dumbbellMaxKg: Double? = null,
 )
 
 /**
@@ -46,7 +48,7 @@ data class StartingWeightContext(
  * rules every time:
  *
  * 1. **The same lift has history.** Take the best estimated max from the last session
- *    ([OneRepMax.epley]), work out the weight for the new rep range, and start at 87.5% of it (the
+ *    ([OneRepMax.estimate]), work out the weight for the new rep range, and start at 87.5% of it (the
  *    middle of 85 to 90%). Early sessions are for finding the groove, not for testing.
  * 2. **A related lift has history** (a dumbbell press when the person has benched). The same sum,
  *    scaled by how heavy the two lifts usually are against each other (see [FAMILIES]).
@@ -125,7 +127,7 @@ object StartingWeightEstimator {
 
     /** The weight (kg) a person who can do [weightKg] for [reps] could do for [targetReps]. */
     fun equivalentWeight(weightKg: Double, reps: Int, targetReps: Int): Double {
-        val e1rm = OneRepMax.epley(weightKg, reps.coerceAtLeast(1))
+        val e1rm = OneRepMax.estimate(weightKg, reps.coerceAtLeast(1))
         return e1rm / (1.0 + targetReps.coerceAtLeast(1) / 30.0)
     }
 
@@ -163,7 +165,7 @@ object StartingWeightEstimator {
                     val set = bestSet(lastSets(other.id)) ?: return@mapNotNull null
                     Triple(other, set, otherFactor)
                 }
-                .maxByOrNull { (_, set, _) -> OneRepMax.epley(set.first, set.second) }
+                .maxByOrNull { (_, set, _) -> OneRepMax.estimate(set.first, set.second) }
             if (related != null) {
                 val (other, set, otherFactor) = related
                 val same = equivalentWeight(set.first, set.second, targetReps)
@@ -224,7 +226,7 @@ object StartingWeightEstimator {
 
     private fun bestSet(sets: List<PastSet>): Pair<Double, Int>? =
         sets.filter { it.weightKg > 0 && it.reps >= 1 }
-            .maxByOrNull { OneRepMax.epley(it.weightKg, it.reps) }
+            .maxByOrNull { OneRepMax.estimate(it.weightKg, it.reps) }
             ?.let { it.weightKg to it.reps }
 
     /**
@@ -241,7 +243,11 @@ object StartingWeightEstimator {
             return load.totalKg
         }
         val step = context.smallStepKg.coerceAtLeast(0.5)
-        val steps = floor(kg / step).toInt()
+        // A dumbbell start never goes past the heaviest dumbbell the person has (a weight they cannot pick up is no start).
+        val cap = context.dumbbellMaxKg?.takeIf { exercise.equipment == Equipment.DUMBBELL && it > 0 }
+        val limited = if (cap != null) minOf(kg, cap) else kg
+        // The small epsilon keeps 150 lb (68.0389 kg) from falling to 145 through floating point.
+        val steps = floor(limited / step + 1e-6).toInt()
         return if (steps < 1) null else steps * step
     }
 

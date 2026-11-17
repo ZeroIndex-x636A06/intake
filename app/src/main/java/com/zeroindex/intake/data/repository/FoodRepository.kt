@@ -74,6 +74,8 @@ class FoodRepository @Inject constructor(
         source: FoodSource,
         allergenTags: String = "",
         isVerified: Boolean = false,
+        /** Optional nutrients the person did not enter (see [FoodEntity.unlistedNutrients]). */
+        unlistedNutrients: String = "",
     ): FoodEntity {
         val now = clock.nowMillis()
         val food = FoodEntity(
@@ -94,6 +96,7 @@ class FoodRepository @Inject constructor(
             source = source,
             allergenTags = allergenTags,
             isVerified = isVerified,
+            unlistedNutrients = unlistedNutrients,
             createdAt = now,
             updatedAt = now,
         )

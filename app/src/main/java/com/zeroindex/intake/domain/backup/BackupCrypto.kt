@@ -9,6 +9,8 @@ import javax.crypto.spec.PBEKeySpec
 import javax.crypto.spec.SecretKeySpec
 
 /**
+ * Key derivation is deliberately slow (PBKDF2, 210,000 rounds): call [encrypt] and [decrypt] off the main thread.
+ *
  * Optional passphrase encryption for backups that leave the phone
  * (amendment §2). The VPN protects the file in transit; this protects it at
  * rest on the server, so a compromised home server does not mean a leaked
@@ -27,6 +29,9 @@ object BackupCrypto {
     private const val KEY_BITS = 256
     private const val TAG_BITS = 128
 
+    /** The file ends before the header or the authentication tag does. */
+    class Truncated : Exception("The encrypted backup is incomplete.")
+
     class WrongPassphrase : Exception("Wrong passphrase, or the file has been altered.")
 
     fun isEncrypted(bytes: ByteArray): Boolean =
@@ -42,6 +47,7 @@ object BackupCrypto {
 
     fun decrypt(data: ByteArray, passphrase: CharArray): ByteArray {
         require(isEncrypted(data)) { "Not an encrypted Intake backup" }
+        if (data.size < MAGIC.size + SALT + IV + TAG_BITS / 8) throw Truncated()
         var o = MAGIC.size
         val salt = data.copyOfRange(o, o + SALT).also { o += SALT }
         val iv = data.copyOfRange(o, o + IV).also { o += IV }

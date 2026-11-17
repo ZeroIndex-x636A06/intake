@@ -35,9 +35,24 @@ object RecipeUrl {
         val withScheme = if (Regex("""^[a-zA-Z][a-zA-Z0-9+.-]*://""").containsMatchIn(raw)) raw else "https://$raw"
         val url = withScheme.toHttpUrlOrNull()
             ?: return Checked.Bad("That does not look like a web address.")
-        if (url.isHttps) return Checked.Ok(url)
-        if (isLocalHost(url.host)) return Checked.Ok(url)
+        if (url.isHttps) return Checked.Ok(stripTracking(url))
+        if (isLocalHost(url.host)) return Checked.Ok(stripTracking(url))
         return Checked.Bad("Only https:// addresses can be imported. Try the https:// version of the link.")
+    }
+
+    /** Query parameters that only track where a link came from: `utm_*`, `fbclid`, `gclid`. */
+    fun isTrackingParam(name: String): Boolean {
+        val n = name.lowercase()
+        return n.startsWith("utm_") || n == "fbclid" || n == "gclid"
+    }
+
+    /** The same address without tracking parameters. Other parameters, and their order, are kept. */
+    fun stripTracking(url: HttpUrl): HttpUrl {
+        val names = url.queryParameterNames.filter(::isTrackingParam)
+        if (names.isEmpty()) return url
+        val builder = url.newBuilder()
+        names.forEach { builder.removeAllQueryParameters(it) }
+        return builder.build()
     }
 
     fun isLocalHost(host: String): Boolean {
@@ -95,7 +110,7 @@ class RecipeFetcher @Inject constructor(client: OkHttpClient) {
                 if (declared > MAX_BYTES) return FetchResult.Failed("That page is larger than 5 MB, which is too big to import.")
                 val bytes = readCapped(body.source())
                     ?: return FetchResult.Failed("That page is larger than 5 MB, which is too big to import.")
-                FetchResult.Page(r.request.url.toString(), String(bytes, type?.charset(Charsets.UTF_8) ?: Charsets.UTF_8))
+                FetchResult.Page(RecipeUrl.stripTracking(r.request.url).toString(), String(bytes, type?.charset(Charsets.UTF_8) ?: Charsets.UTF_8))
             }
         } catch (e: IOException) {
             FetchResult.Failed("Could not reach that page. Check the address and your connection.")
