@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Where every feature lives</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c2d55ca210a28925c2ccf0c9b8a5b709">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.m{display:grid;grid-template-columns:14px minmax(0,1fr) minmax(0,1.1fr);gap:10px;align-items:baseline;padding:8px 0;border-top:1px solid var(--line);font-size:13.5px}
+.m b{font-weight:600}
+.m span:last-child{color:var(--muted)}
+.d{width:8px;height:8px;border-radius:99px;background:var(--accent);box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)}
+.o{width:8px;height:8px;border-radius:99px;box-shadow:inset 0 0 0 1.5px var(--muted)}
+</style>
+</helmet>
+<div class="phone {{themeCls}}" style="--accent: {{accent}}; width: 1440px; height: 1500px; padding: 64px 80px; display: flex; flex-direction: column; gap: 32px">
+  <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 40px">
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <span class="eyebrow">Coverage map · 49 routes, 12 settings groups, 7 watch screens</span>
+      <h1 class="title" style="font-size: 44px">Where every feature lives now</h1>
+    </div>
+    <div class="rowx" style="gap: 20px; font-size: 13px">
+      <span class="rowx" style="gap: 8px"><span class="d"></span>Drawn on this canvas</span>
+      <span class="rowx" style="gap: 8px"><span class="o"></span>Placed, uses a drawn pattern</span>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px; align-items: start">
+
+    <div style="display: flex; flex-direction: column; gap: 28px">
+      <div>
+        <h2 class="h2" style="margin-bottom: 8px">Start and Today</h2>
+        <div class="m"><span class="d"></span><b>Welcome flow (10 steps)</b><span>First run · Settings › Help › Show the welcome again</span></div>
+        <div class="m"><span class="o"></span><b>Tour spotlight, tab tips</b><span>Settings › Help › Replay the tour / Show screen tips again</span></div>
+        <div class="m"><span class="d"></span><b>Today</b><span>Tab 1</span></div>
+        <div class="m"><span class="d"></span><b>Baseline week, export reminder</b><span>Top of Today, only when relevant</span></div>
+        <div class="m"><span class="d"></span><b>Calories card, macros</b><span>Today hero (ring, macros, water)</span></div>
+        <div class="m"><span class="d"></span><b>Next up: meal, coach focus, workout</b><span>Today timeline</span></div>
+        <div class="m"><span class="d"></span><b>Water, weight, activity, insight</b><span>Today tiles</span></div>
+        <div class="m"><span class="d"></span><b>Meals, entry actions, slot picker</b><span>Today › Meals (long-press, swipe)</span></div>
+        <div class="m"><span class="d"></span><b>Session bar, snackbars + Undo</b><span>Floating above the dock</span></div>
+        <div class="m"><span class="d"></span><b>Quick log (new)</b><span>Centre + on every tab</span></div>
+        <div class="m"><span class="d"></span><b>Log food: Search, Scan, Photo, Mine, Quick add</b><span>+ › Food, or + on any meal</span></div>
+        <div class="m"><span class="d"></span><b>Food detail, edit, contribute, remove</b><span>Any food row</span></div>
+        <div class="m"><span class="d"></span><b>Food safety check, Log it anyway</b><span>Sheet on any flagged log</span></div>
+        <div class="m"><span class="d"></span><b>Drinks, drinks search, customise</b><span>+ › Drink · Food › Library</span></div>
+      </div>
+      <div>
+        <h2 class="h2" style="margin-bottom: 8px">Watch and system</h2>
+        <div class="m"><span class="d"></span><b>Watch: 7 screens</b><span>Watch board</span></div>
+        <div class="m"><span class="o"></span><b>Notifications (11 channels)</b><span>Settings › Reminders</span></div>
+        <div class="m"><span class="o"></span><b>NFC "Log this meal?" dialog</b><span>Opens over Today</span></div>
+        <div class="m"><span class="o"></span><b>Delete, discard, name dialogs</b><span>One dialog pattern</span></div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 28px">
+      <div>
+        <h2 class="h2" style="margin-bottom: 8px">Food (was Nutrition)</h2>
+        <div class="m"><span class="d"></span><b>Nutrition home, overview, more nutrients</b><span>Food › Diary</span></div>
+        <div class="m"><span class="d"></span><b>Day switcher, allergen strip</b><span>Food header + shield</span></div>
+        <div class="m"><span class="o"></span><b>Nutrition meal (time, totals, clear)</b><span>Tap a meal in Diary</span></div>
+        <div class="m"><span class="d"></span><b>More list</b><span>Replaced by four segments</span></div>
+        <div class="m"><span class="d"></span><b>Meal plan, weeks, dish cards</b><span>Food › Plan</span></div>
+        <div class="m"><span class="o"></span><b>Plans sheet, week edit, import preview</b><span>Plan › options menu</span></div>
+        <div class="m"><span class="d"></span><b>Recipes hub, add, import a link</b><span>Food › Recipes</span></div>
+        <div class="m"><span class="d"></span><b>Recipe Hunter</b><span>Recipes, featured card</span></div>
+        <div class="m"><span class="d"></span><b>Recipe detail, cook mode</b><span>Any recipe</span></div>
+        <div class="m"><span class="o"></span><b>Recipe editor</b><span>Recipe › options › Edit</span></div>
+        <div class="m"><span class="d"></span><b>Meal templates, NFC write, editor</b><span>Food › Library</span></div>
+        <div class="m"><span class="d"></span><b>Shopping list, eating out</b><span>Food › Library</span></div>
+        <div class="m"><span class="d"></span><b>Menu import and review</b><span>Library › Restaurant menus</span></div>
+        <div class="m"><span class="d"></span><b>Swap sheet, nearby search</b><span>Swap on any planned meal</span></div>
+        <div class="m"><span class="d"></span><b>Allergens, keywords, reference, flagged</b><span>Shield in Food header</span></div>
+      </div>
+      <div>
+        <h2 class="h2" style="margin-bottom: 8px">Insights (was Progress)</h2>
+        <div class="m"><span class="d"></span><b>Weekly check-in, PDF, print</b><span>Insights hero</span></div>
+        <div class="m"><span class="d"></span><b>Weight, sleep, steps, heart rate</b><span>Insights bento</span></div>
+        <div class="m"><span class="d"></span><b>Days logged, calories vs target</b><span>Insights</span></div>
+        <div class="m"><span class="d"></span><b>Measurements, averages, maintenance</b><span>Insights</span></div>
+        <div class="m"><span class="o"></span><b>Training stats, jump tests</b><span>Insights cards</span></div>
+        <div class="m"><span class="o"></span><b>Log weight / body metrics</b><span>+ › Weight</span></div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 28px">
+      <div>
+        <h2 class="h2" style="margin-bottom: 8px">Train</h2>
+        <div class="m"><span class="d"></span><b>Today card, other ways to start</b><span>Train › Workout</span></div>
+        <div class="m"><span class="d"></span><b>This week volume, recent sessions</b><span>Train › Workout</span></div>
+        <div class="m"><span class="o"></span><b>Training log</b><span>Recent sessions › All sessions</span></div>
+        <div class="m"><span class="d"></span><b>Programs, My workouts</b><span>Header action + card</span></div>
+        <div class="m"><span class="o"></span><b>Program builder, templates, import</b><span>Programs › New</span></div>
+        <div class="m"><span class="d"></span><b>Make me a program</b><span>Programs · empty states</span></div>
+        <div class="m"><span class="d"></span><b>Active workout, rest, plates, finish</b><span>Full screen, minimises to pill</span></div>
+        <div class="m"><span class="d"></span><b>Workout summary, keep this workout</b><span>After Finish · Training log</span></div>
+        <div class="m"><span class="d"></span><b>Exercises, filters, detail, add own</b><span>Train › Exercises</span></div>
+        <div class="m"><span class="d"></span><b>Videos, video detail, Shorts</b><span>Train › Videos</span></div>
+        <div class="m"><span class="o"></span><b>Make this a workout</b><span>Video detail</span></div>
+      </div>
+      <div>
+        <h2 class="h2" style="margin-bottom: 8px">You and Settings</h2>
+        <div class="m"><span class="d"></span><b>You</b><span>Avatar, top right of every tab</span></div>
+        <div class="m"><span class="o"></span><b>Profile and goals, baseline week</b><span>You › Profile</span></div>
+        <div class="m"><span class="d"></span><b>Your plan</b><span>You › Goals and plan</span></div>
+        <div class="m"><span class="d"></span><b>Progress photos, compare</b><span>You · Insights</span></div>
+        <div class="m"><span class="d"></span><b>Settings + search, 12 groups</b><span>Gear on You</span></div>
+        <div class="m"><span class="d"></span><b>AI (optional), API keys</b><span>Settings › Connections and data</span></div>
+        <div class="m"><span class="o"></span><b>Health Connect, sync and export</b><span>Settings › Connections and data</span></div>
+        <div class="m"><span class="o"></span><b>What leaves this phone</b><span>You › Help · Settings › Help</span></div>
+        <div class="m"><span class="o"></span><b>Script language docs</b><span>You › Help · Plan and Programs menus</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["Light","Dark"],"default":"Light"},"accent":{"editor":"color","default":"#D4F25A","options":["#D4F25A","#7CE0C3","#FFB86B","#B9A8FF"]},"$preview":{"width":1440,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themeCls: this.props.theme === 'Dark' ? 'dark' : '', accent: this.props.accent ?? '#D4F25A' };
+  }
+}
+</script>
+</body>
+</html>

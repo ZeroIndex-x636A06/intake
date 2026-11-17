@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cook mode</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c2d55ca210a28925c2ccf0c9b8a5b709">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.ck{display:flex;align-items:center;gap:12px;min-height:44px;font-size:15px}
+.box{width:22px;height:22px;border-radius:7px;box-shadow:inset 0 0 0 2px currentColor;display:inline-flex;align-items:center;justify-content:center;flex:none}
+</style>
+</helmet>
+<div class="phone dark" style="--accent: {{accent}}; width: 390px; height: 844px; display: flex; flex-direction: column">
+  <header class="top">
+    <a class="iconbtn" href="RecipeDetail.dc.html" aria-label="Close cook mode"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></a>
+    <span class="sub">Chicken burrito bowl · Step 2 of 3</span>
+    <button class="iconbtn" aria-label="Show ingredients"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.5M4 12h.5M4 18h.5"/></svg></button>
+  </header>
+  <div class="pad" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px"><span style="height: 5px; border-radius: 9px; background: var(--accent)"></span><span style="height: 5px; border-radius: 9px; background: var(--accent)"></span><span style="height: 5px; border-radius: 9px; background: var(--line)"></span></div>
+
+  <div class="pad stack" style="gap: 22px; flex: 1; padding-top: 36px">
+    <p class="title" style="font-size: 32px; line-height: 1.2">Cook the rice. Warm the beans with a pinch of salt.</p>
+    <div class="rowx" style="gap: 8px">
+      <button class="pill" style="background: var(--accent); color: #111514"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg>Rice · 18:00</button>
+      <button class="pill">Beans · 5:00</button>
+    </div>
+    <section class="card stack" style="gap: 4px">
+      <div class="between" style="margin-bottom: 6px">
+        <span class="h3">Ingredients</span>
+        <div class="stepper"><button aria-label="Fewer servings"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button><span>4</span><button aria-label="More servings"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></div>
+      </div>
+      <div class="ck muted"><span class="box" style="background: var(--accent); box-shadow: none; color: #111514"><svg class="i xs" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></span><s>Chicken thighs · 680 g</s></div>
+      <div class="ck"><span class="box"></span>Long-grain rice · 300 g</div>
+      <div class="ck"><span class="box"></span>Black beans · 1 can</div>
+    </section>
+    <p class="sub" style="text-align: center">Swipe left or right for the next step</p>
+  </div>
+
+  <div class="pad rowx" style="gap: 10px; padding-bottom: 28px">
+    <button class="btn" style="min-height: 56px">Back</button>
+    <button class="btn accent grow" style="min-height: 56px">Next step</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#D4F25A","options":["#D4F25A","#7CE0C3","#FFB86B","#B9A8FF"]},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { accent: this.props.accent ?? '#D4F25A' };
+  }
+}
+</script>
+</body>
+</html>

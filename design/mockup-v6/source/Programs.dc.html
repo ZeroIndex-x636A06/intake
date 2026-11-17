@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Programs</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c2d55ca210a28925c2ccf0c9b8a5b709">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.np{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:14px;border-radius:20px;background:var(--card);border:0;color:var(--ink);text-align:left;font:inherit}
+</style>
+</helmet>
+<div class="phone {{themeCls}}" style="--accent: {{accent}}; width: 390px; height: 1240px">
+  <header class="top">
+    <a class="iconbtn" href="Train.dc.html" aria-label="Back"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a>
+    <h1 class="h2 grow">Programs</h1>
+    <button class="btn ghost sm">Script help</button>
+  </header>
+  <div class="pad stack" style="gap: 14px">
+    <section class="card inkc stack" style="gap: 12px" aria-label="Active program">
+      <div class="between"><span class="chip lime">Active</span><button class="iconbtn" aria-label="Program options: duplicate, export as script, archive" style="background: rgba(255,255,255,.12); color: inherit"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg></button></div>
+      <div><p class="h2">Push / Pull / Legs</p><p class="sub">6 days · progression: +5 lb when all reps hit</p></div>
+      <div class="wrap"><span class="chip" style="background: rgba(255,255,255,.12); color: inherit">Push A</span><span class="chip" style="background: rgba(255,255,255,.12); color: inherit">Pull A</span><span class="chip" style="background: rgba(255,255,255,.12); color: inherit">Legs A</span><span class="chip" style="background: rgba(255,255,255,.12); color: inherit">Push B</span><span class="chip" style="background: rgba(255,255,255,.12); color: inherit">+2</span></div>
+      <p class="sub">Next in the rotation: Push A</p>
+      <div class="grid2"><button class="btn accent">Edit program</button><button class="btn" style="background: rgba(255,255,255,.12); color: inherit">Export as script</button></div>
+    </section>
+
+    <div class="sec"><h2 class="h2">New program</h2></div>
+    <div class="grid2">
+      <a class="np" href="ProgramGenerator.dc.html"><span class="ic lime sm"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M4 12h16M4 18h7M18 4v4M16 6h4"/></svg></span><span class="h3">Make me one</span><span class="sub">Fits your days, time and gear</span></a>
+      <button class="np"><span class="ic sm"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></span><span class="h3">Build from scratch</span><span class="sub">Days, exercises, sets, progression</span></button>
+      <button class="np"><span class="ic sm"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg></span><span class="h3">From a template</span><span class="sub">Copy one, change anything</span></button>
+      <button class="np"><span class="ic sm"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></svg></span><span class="h3">Import a script</span><span class="sub">A program saved as text</span></button>
+    </div>
+
+    <div class="sec"><h2 class="h2">Your other programs</h2><button class="btn ghost sm" style="padding: 0">Show archived</button></div>
+    <section class="list">
+      <div class="li"><div class="grow"><p class="h3">Upper / Lower</p><p class="sub">4 days · last used in August</p></div><button class="btn sm">Make active</button></div>
+      <div class="li"><div class="grow"><p class="h3">Hotel bodyweight</p><p class="sub">3 days · bodyweight and a band</p></div><button class="btn sm">Make active</button></div>
+    </section>
+
+    <div class="sec"><h2 class="h2">My workouts</h2><span class="sub">Saved routines</span></div>
+    <section class="list">
+      <div class="li"><div class="grow"><p class="h3">20-min core finisher</p><p class="sub">5 exercises · from a video</p></div><a class="btn sm primary" href="ActiveWorkout.dc.html">Start</a><button class="iconbtn clear" aria-label="Options: edit exercises, watch the video, rename, duplicate, delete"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg></button></div>
+      <div class="li"><div class="grow"><p class="h3">Push A (saved)</p><p class="sub">6 exercises</p></div><a class="btn sm primary" href="ActiveWorkout.dc.html">Start</a><button class="iconbtn clear" aria-label="Options"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg></button></div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["Light","Dark"],"default":"Light"},"accent":{"editor":"color","default":"#D4F25A","options":["#D4F25A","#7CE0C3","#FFB86B","#B9A8FF"]},"$preview":{"width":390,"height":1240}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themeCls: this.props.theme === 'Dark' ? 'dark' : '', accent: this.props.accent ?? '#D4F25A' };
+  }
+}
+</script>
+</body>
+</html>

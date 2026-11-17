@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Wear OS companion</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c2d55ca210a28925c2ccf0c9b8a5b709">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.w{display:flex;flex-direction:column;align-items:center;gap:14px}
+.face{width:184px;height:184px;border-radius:999px;background:#0B0D0C;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;box-shadow:0 0 0 8px #2A302E;font-size:12px;padding:22px}
+.wt{font-size:10px;letter-spacing:.12em;font-weight:700;color:#A9B1AE}
+.wb{min-height:30px;padding:0 12px;border-radius:99px;border:0;background:#262C2A;color:#fff;font:600 11.5px Inter,sans-serif;display:inline-flex;align-items:center;gap:4px}
+.wb.a{background:var(--accent);color:#111514}
+.wr{width:100%;display:flex;justify-content:space-between;font-size:11.5px;padding:3px 0;border-bottom:1px solid #262C2A}
+</style>
+</helmet>
+<div class="phone {{themeCls}}" style="--accent: {{accent}}; width: 1500px; height: 560px; padding: 48px 48px; display: flex; flex-direction: column; gap: 40px">
+  <div class="between">
+    <div><h1 class="title" style="font-size: 34px">Your watch is a remote for the phone</h1><p class="sub" style="font-size: 15px">The phone stays the source of truth. No AI on the watch. "Contains" is refused, "may contain" finishes on the phone.</p></div>
+  </div>
+  <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 16px">
+    <div class="w">
+      <div class="face">
+        <span class="wt">INTAKE</span>
+        <span class="num" style="font-size: 26px">1,116</span>
+        <span style="color: #A9B1AE; margin-top: -6px">of 2,400 kcal</span>
+        <span>P 96 g · Water 42 oz</span>
+        <div style="display: flex; gap: 6px"><button class="wb">+ Water</button><button class="wb a">+ Food</button></div>
+      </div>
+      <span class="h3">Home</span>
+    </div>
+    <div class="w">
+      <div class="face">
+        <span class="wt">ADD WATER</span>
+        <div style="display: flex; gap: 4px"><button class="wb">8</button><button class="wb">12</button><button class="wb">16</button></div>
+        <div style="display: flex; align-items: center; gap: 10px"><button class="wb" aria-label="Less water">−</button><span class="num" style="font-size: 22px">12 oz</span><button class="wb" aria-label="More water">+</button></div>
+        <button class="wb a">Add this amount</button>
+      </div>
+      <span class="h3">Add water</span>
+    </div>
+    <div class="w">
+      <div class="face" style="gap: 2px">
+        <span class="wt">ADD FOOD</span>
+        <button class="wb" style="min-height: 24px; margin-bottom: 4px">Lunch · tap to change</button>
+        <div class="wr"><span>Log it · burrito bowl</span></div>
+        <div class="wr"><span>Recent foods</span></div>
+        <div class="wr"><span>Favourites · Saved meals</span></div>
+        <div class="wr" style="border: 0"><span>Quick add calories</span></div>
+      </div>
+      <span class="h3">Add food</span>
+    </div>
+    <div class="w">
+      <div class="face">
+        <span class="wt">SAVED MEALS</span>
+        <div class="wr"><span>Gym-day breakfast</span><span>610</span></div>
+        <div class="wr" style="border: 0"><span>Office lunch</span><span>540</span></div>
+        <span style="color: #A9B1AE; font-size: 10.5px">Save a meal on the phone to find it here.</span>
+      </div>
+      <span class="h3">Saved meals</span>
+    </div>
+    <div class="w">
+      <div class="face">
+        <span class="wt">QUICK ADD</span>
+        <span class="num" style="font-size: 30px; color: var(--accent)">250</span>
+        <span style="color: #A9B1AE; margin-top: -4px">kcal · Snacks</span>
+        <button class="wb a">Log</button>
+      </div>
+      <span class="h3">Quick add</span>
+    </div>
+    <div class="w">
+      <div class="face">
+        <span class="wt">START WORKOUT</span>
+        <button class="wb a" style="width: 100%; justify-content: center">Push A · today</button>
+        <button class="wb" style="width: 100%; justify-content: center">Empty workout</button>
+        <span style="color: #A9B1AE; font-size: 10.5px">The phone starts it, the watch shows it.</span>
+      </div>
+      <span class="h3">Start workout</span>
+    </div>
+    <div class="w">
+      <div class="face">
+        <span class="wt">LOG SET · 3 OF 4</span>
+        <span class="h3" style="color: #fff">Bench 190 lb</span>
+        <div style="display: flex; align-items: center; gap: 10px"><button class="wb" aria-label="One rep fewer">−</button><span class="num" style="font-size: 26px">8</span><button class="wb" aria-label="One rep more">+</button></div>
+        <span style="color: #A9B1AE">RPE 8 · Prescribed 6–8</span>
+        <button class="wb a">Log set</button>
+      </div>
+      <span class="h3">Workout</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["Light","Dark"],"default":"Light"},"accent":{"editor":"color","default":"#D4F25A","options":["#D4F25A","#7CE0C3","#FFB86B","#B9A8FF"]},"$preview":{"width":1500,"height":560}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themeCls: this.props.theme === 'Dark' ? 'dark' : '', accent: this.props.accent ?? '#D4F25A' };
+  }
+}
+</script>
+</body>
+</html>

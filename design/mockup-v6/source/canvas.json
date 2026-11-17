@@ -1,0 +1,370 @@
+{
+  "v": 3,
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-11-16T23:05:00Z"
+  },
+  "title": "Intake — Modern Health App Mockup",
+  "launch": {
+    "view": "canvas"
+  },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 1180,
+      "title": "Intake 2.0 — what changed"
+    },
+    "Map.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 1500,
+      "title": "Where every feature lives"
+    },
+    "Onboarding.dc.html": {
+      "x": 0,
+      "y": 1920,
+      "w": 1346,
+      "h": 924,
+      "title": "Welcome flow"
+    },
+    "Today.dc.html": {
+      "x": 1426,
+      "y": 1920,
+      "w": 390,
+      "h": 2120,
+      "title": "Today",
+      "is_interactive": true
+    },
+    "QuickLog.dc.html": {
+      "x": 1896,
+      "y": 1920,
+      "w": 390,
+      "h": 844,
+      "title": "Quick log (+)",
+      "is_interactive": true
+    },
+    "LogFood.dc.html": {
+      "x": 2366,
+      "y": 1920,
+      "w": 390,
+      "h": 1020,
+      "title": "Log food",
+      "is_interactive": true
+    },
+    "FoodDetail.dc.html": {
+      "x": 2836,
+      "y": 1920,
+      "w": 390,
+      "h": 1240,
+      "title": "Food detail",
+      "is_interactive": true
+    },
+    "AllergenCheck.dc.html": {
+      "x": 3306,
+      "y": 1920,
+      "w": 390,
+      "h": 844,
+      "title": "Food safety check",
+      "is_interactive": true
+    },
+    "Drinks.dc.html": {
+      "x": 3776,
+      "y": 1920,
+      "w": 390,
+      "h": 1080,
+      "title": "Drinks",
+      "is_interactive": true
+    },
+    "FoodDiary.dc.html": {
+      "x": 0,
+      "y": 4460,
+      "w": 390,
+      "h": 1500,
+      "title": "Food · Diary",
+      "is_interactive": true
+    },
+    "FoodPlan.dc.html": {
+      "x": 470,
+      "y": 4460,
+      "w": 390,
+      "h": 1620,
+      "title": "Food · Plan",
+      "is_interactive": true
+    },
+    "Recipes.dc.html": {
+      "x": 940,
+      "y": 4460,
+      "w": 390,
+      "h": 1180,
+      "title": "Food · Recipes",
+      "is_interactive": true
+    },
+    "RecipeHunter.dc.html": {
+      "x": 1410,
+      "y": 4460,
+      "w": 390,
+      "h": 1320,
+      "title": "Recipe Hunter",
+      "is_interactive": true
+    },
+    "RecipeDetail.dc.html": {
+      "x": 1880,
+      "y": 4460,
+      "w": 390,
+      "h": 1460,
+      "title": "Recipe detail",
+      "is_interactive": true
+    },
+    "CookMode.dc.html": {
+      "x": 2350,
+      "y": 4460,
+      "w": 390,
+      "h": 844,
+      "title": "Cook mode",
+      "is_interactive": true
+    },
+    "FoodLibrary.dc.html": {
+      "x": 2820,
+      "y": 4460,
+      "w": 390,
+      "h": 1180,
+      "title": "Food · Library",
+      "is_interactive": true
+    },
+    "SwapNearby.dc.html": {
+      "x": 3290,
+      "y": 4460,
+      "w": 390,
+      "h": 844,
+      "title": "Swap · nearby options",
+      "is_interactive": true
+    },
+    "MenuImport.dc.html": {
+      "x": 3760,
+      "y": 4460,
+      "w": 390,
+      "h": 1060,
+      "title": "Menu import",
+      "is_interactive": true
+    },
+    "Allergens.dc.html": {
+      "x": 4230,
+      "y": 4460,
+      "w": 390,
+      "h": 1300,
+      "title": "Allergens",
+      "is_interactive": true
+    },
+    "Train.dc.html": {
+      "x": 0,
+      "y": 6500,
+      "w": 390,
+      "h": 1720,
+      "title": "Train · Workout",
+      "is_interactive": true
+    },
+    "ActiveWorkout.dc.html": {
+      "x": 470,
+      "y": 6500,
+      "w": 390,
+      "h": 1200,
+      "title": "Active workout",
+      "is_interactive": true
+    },
+    "WorkoutSummary.dc.html": {
+      "x": 940,
+      "y": 6500,
+      "w": 390,
+      "h": 1380,
+      "title": "Workout summary",
+      "is_interactive": true
+    },
+    "Programs.dc.html": {
+      "x": 1410,
+      "y": 6500,
+      "w": 390,
+      "h": 1240,
+      "title": "Programs",
+      "is_interactive": true
+    },
+    "ProgramGenerator.dc.html": {
+      "x": 1880,
+      "y": 6500,
+      "w": 390,
+      "h": 844,
+      "title": "Make me a program",
+      "is_interactive": true
+    },
+    "Exercises.dc.html": {
+      "x": 2350,
+      "y": 6500,
+      "w": 390,
+      "h": 1000,
+      "title": "Train · Exercises",
+      "is_interactive": true
+    },
+    "Videos.dc.html": {
+      "x": 2820,
+      "y": 6500,
+      "w": 390,
+      "h": 1240,
+      "title": "Train · Videos",
+      "is_interactive": true
+    },
+    "Insights.dc.html": {
+      "x": 0,
+      "y": 8640,
+      "w": 390,
+      "h": 2000,
+      "title": "Insights",
+      "is_interactive": true
+    },
+    "WeeklyCheckIn.dc.html": {
+      "x": 470,
+      "y": 8640,
+      "w": 390,
+      "h": 1500,
+      "title": "Weekly check-in",
+      "is_interactive": true
+    },
+    "PhotoCompare.dc.html": {
+      "x": 940,
+      "y": 8640,
+      "w": 390,
+      "h": 844,
+      "title": "Compare photos",
+      "is_interactive": true
+    },
+    "You.dc.html": {
+      "x": 1490,
+      "y": 8640,
+      "w": 390,
+      "h": 1100,
+      "title": "You",
+      "is_interactive": true
+    },
+    "YourPlan.dc.html": {
+      "x": 1960,
+      "y": 8640,
+      "w": 390,
+      "h": 1200,
+      "title": "Your plan",
+      "is_interactive": true
+    },
+    "Settings.dc.html": {
+      "x": 2430,
+      "y": 8640,
+      "w": 390,
+      "h": 1400,
+      "title": "Settings",
+      "is_interactive": true
+    },
+    "SettingsAI.dc.html": {
+      "x": 2900,
+      "y": 8640,
+      "w": 390,
+      "h": 1240,
+      "title": "Settings · AI (optional)",
+      "is_interactive": true
+    },
+    "Watch.dc.html": {
+      "x": 0,
+      "y": 11060,
+      "w": 1500,
+      "h": 560,
+      "title": "Wear OS companion"
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "Map.dc.html",
+    "Onboarding.dc.html",
+    "Today.dc.html",
+    "QuickLog.dc.html",
+    "LogFood.dc.html",
+    "FoodDetail.dc.html",
+    "AllergenCheck.dc.html",
+    "Drinks.dc.html",
+    "FoodDiary.dc.html",
+    "FoodPlan.dc.html",
+    "Recipes.dc.html",
+    "RecipeHunter.dc.html",
+    "RecipeDetail.dc.html",
+    "CookMode.dc.html",
+    "FoodLibrary.dc.html",
+    "SwapNearby.dc.html",
+    "MenuImport.dc.html",
+    "Allergens.dc.html",
+    "Train.dc.html",
+    "ActiveWorkout.dc.html",
+    "WorkoutSummary.dc.html",
+    "Programs.dc.html",
+    "ProgramGenerator.dc.html",
+    "Exercises.dc.html",
+    "Videos.dc.html",
+    "Insights.dc.html",
+    "WeeklyCheckIn.dc.html",
+    "PhotoCompare.dc.html",
+    "You.dc.html",
+    "YourPlan.dc.html",
+    "Settings.dc.html",
+    "SettingsAI.dc.html",
+    "Watch.dc.html"
+  ],
+  "notes": {
+    "n_overview": {
+      "x": 0,
+      "y": -300,
+      "text": "Intake 2.0 — overview",
+      "kind": "title1",
+      "maxW": 2960
+    },
+    "n_today": {
+      "x": 0,
+      "y": 1660,
+      "text": "Start, Today and logging",
+      "kind": "title1",
+      "maxW": 4166
+    },
+    "n_food": {
+      "x": 0,
+      "y": 4200,
+      "text": "Food",
+      "kind": "title1",
+      "maxW": 4620
+    },
+    "n_train": {
+      "x": 0,
+      "y": 6240,
+      "text": "Train",
+      "kind": "title1",
+      "maxW": 3210
+    },
+    "n_insights": {
+      "x": 0,
+      "y": 8380,
+      "text": "Insights",
+      "kind": "title1",
+      "maxW": 1330
+    },
+    "n_you": {
+      "x": 1490,
+      "y": 8380,
+      "text": "You and Settings",
+      "kind": "title1",
+      "maxW": 1800
+    },
+    "n_watch": {
+      "x": 0,
+      "y": 10800,
+      "text": "Watch",
+      "kind": "title1",
+      "maxW": 1500
+    }
+  },
+  "designSystems": []
+}

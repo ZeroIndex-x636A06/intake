@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c2d55ca210a28925c2ccf0c9b8a5b709">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="phone {{themeCls}}" style="--accent: {{accent}}; width: 390px; height: 1400px">
+  <header class="top">
+    <a class="iconbtn" href="You.dc.html" aria-label="Back"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a>
+    <h1 class="h2 grow">Settings</h1>
+  </header>
+  <div class="pad stack" style="gap: 12px">
+    <label class="search"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input placeholder="Search settings" aria-label="Search settings"></label>
+
+    <span class="eyebrow" style="padding: 6px 4px 0">Display and you</span>
+    <section class="list">
+      <div class="li"><span class="ic sm"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4v16" /><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg></span><div class="grow"><p class="h3">Appearance and units</p><p class="sub">lb, in, fl oz, g · theme · Today cards</p></div><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></div>
+      <div class="li"><span class="ic sm"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></svg></span><div class="grow"><p class="h3">Reminders</p><p class="sub">Check-in, meals, water, workout, photos</p></div><span class="chip">2 on</span></div>
+    </section>
+
+    <span class="eyebrow" style="padding: 6px 4px 0">Tracking</span>
+    <section class="list">
+      <div class="li"><span class="ic sm"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v20M4 2v6a3 3 0 0 0 6 0V2M17 22V2c-2 0-3.5 3-3.5 7s1.5 4 3.5 4"/></svg></span><div class="grow"><p class="h3">Nutrition</p><p class="sub">Targets, carb cycling, diet breaks</p></div><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></div>
+      <div class="li"><span class="ic sm"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg></span><div class="grow"><p class="h3">Water and drinks</p><p class="sub">Target, weather, quick sizes, sweat rate</p></div><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></div>
+      <div class="li"><span class="ic sm"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7v10M3 9.5v5M18 7v10M21 9.5v5M6 12h12"/></svg></span><div class="grow"><p class="h3">Training</p><p class="sub">Rest, bar and plates, equipment, jump tests</p></div><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></div>
+      <div class="li"><span class="ic sm"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></span><div class="grow"><p class="h3">Food database</p><p class="sub">Open Food Facts, language, contributing</p></div><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></div>
+      <div class="li"><span class="ic sm"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9l5 3-5 3z"/></svg></span><div class="grow"><p class="h3">Videos</p><p class="sub">Workouts only, Shorts, offline playback</p></div><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></div>
+    </section>
+
+    <span class="eyebrow" style="padding: 6px 4px 0">Connections and data</span>
+    <section class="list">
+      <div class="li"><span class="ic sm"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10z"/></svg></span><div class="grow"><p class="h3">Health Connect</p><p class="sub">Read 12 · write 4 · synced 2 min ago</p></div><span class="chip ok">On</span></div>
+      <div class="li"><span class="ic sm"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3M18 3v4h-4M6 21v-4h4"/></svg></span><div class="grow"><p class="h3">Sync and export</p><p class="sub">Not paired · last export 9 days ago</p></div><span class="chip warn">Export due</span></div>
+      <a class="li" href="SettingsAI.dc.html"><span class="ic sm" style="background: var(--ai-bg); color: var(--ai)"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg></span><div class="grow"><p class="h3">AI (optional)</p><p class="sub">Off until you add a key</p></div><span class="chip">Off</span></a>
+      <div class="li"><span class="ic sm"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></svg></span><div class="grow"><p class="h3">API keys</p><p class="sub">OpenRouter · USDA · YouTube</p></div><span class="chip">1 of 3</span></div>
+    </section>
+
+    <span class="eyebrow" style="padding: 6px 4px 0">Help</span>
+    <section class="list">
+      <div class="li"><span class="ic sm"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7M12 17v.5"/></svg></span><div class="grow"><p class="h3">About and help</p><p class="sub">Tour, welcome, tips, scripts, privacy, credits</p></div><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></div>
+    </section>
+    <p class="sub" style="text-align: center; padding-top: 6px">Intake 2.0 · no account · everything stays on this phone</p>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["Light","Dark"],"default":"Light"},"accent":{"editor":"color","default":"#D4F25A","options":["#D4F25A","#7CE0C3","#FFB86B","#B9A8FF"]},"$preview":{"width":390,"height":1400}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themeCls: this.props.theme === 'Dark' ? 'dark' : '', accent: this.props.accent ?? '#D4F25A' };
+  }
+}
+</script>
+</body>
+</html>

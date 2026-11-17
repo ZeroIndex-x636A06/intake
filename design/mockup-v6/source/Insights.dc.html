@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Insights</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c2d55ca210a28925c2ccf0c9b8a5b709">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.bars{display:flex;align-items:flex-end;gap:5px;height:56px}
+.bars span{flex:1;border-radius:5px 5px 2px 2px}
+</style>
+</helmet>
+<div class="phone {{themeCls}}" style="--accent: {{accent}}; width: 390px; height: 2000px">
+  <header class="top">
+    <div class="stack" style="gap: 2px"><h1 class="title">Insights</h1><p class="sub">Patterns over time, without the noise.</p></div>
+    <a class="avatar" href="You.dc.html" aria-label="Open You">Y</a>
+  </header>
+  <div class="pad stack" style="gap: 14px">
+    <a class="card lime stack" href="WeeklyCheckIn.dc.html" style="gap: 10px">
+      <div class="between"><span class="eyebrow">Weekly check-in · Nov 9–15</span><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></div>
+      <p class="h2">Your week is ready. 3 suggestions to look at.</p>
+      <p class="sub">Summary, suggestions you can apply, and a PDF to export or print.</p>
+    </a>
+    <div class="grid2">
+      <a class="card stack" href="WorkoutSummary.dc.html" style="gap: 6px"><span class="ic sm"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7v10M3 9.5v5M18 7v10M21 9.5v5M6 12h12"/></svg></span><span class="h3">Training stats</span><span class="sub">Records, volume, est. max</span></a>
+      <a class="card stack" href="QuickLog.dc.html" style="gap: 6px"><span class="ic sm inkb"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span class="h3">Log weight</span><span class="sub">and measurements</span></a>
+    </div>
+
+    <div class="seg"><button>1M</button><button class="on">3M</button><button>6M</button><button>1Y</button><button>All</button></div>
+
+    <section class="card stack" style="gap: 10px" aria-label="Weight trend">
+      <div class="between"><div><p class="eyebrow">Weight trend</p><p><span class="num" style="font-size: 28px">184.6</span><span class="sub"> lb</span></p></div><span class="chip ok">−4.2 in 3 months</span></div>
+      <svg viewBox="0 0 350 120" width="350" height="120" role="img" aria-label="Weight trend falling from 188.8 to 184.6 pounds over three months">
+        <g fill="var(--muted)" fill-opacity=".45"><circle cx="10" cy="22" r="2.5"/><circle cx="34" cy="30" r="2.5"/><circle cx="58" cy="20" r="2.5"/><circle cx="82" cy="36" r="2.5"/><circle cx="106" cy="40" r="2.5"/><circle cx="130" cy="34" r="2.5"/><circle cx="154" cy="52" r="2.5"/><circle cx="178" cy="48" r="2.5"/><circle cx="202" cy="62" r="2.5"/><circle cx="226" cy="58" r="2.5"/><circle cx="250" cy="72" r="2.5"/><circle cx="274" cy="80" r="2.5"/><circle cx="298" cy="76" r="2.5"/><circle cx="322" cy="92" r="2.5"/><circle cx="340" cy="96" r="2.5"/></g>
+        <path d="M10 25 C60 28, 100 36, 150 46 S250 70, 340 94" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="340" cy="94" r="6" fill="{{accent}}" stroke="var(--ink)" stroke-width="2"/>
+      </svg>
+    </section>
+
+    <div class="grid2">
+      <section class="card stack" style="gap: 8px" aria-label="Sleep">
+        <span class="eyebrow">Sleep</span><p class="num" style="font-size: 22px">7h 12m</p>
+        <div class="bars"><span style="height: 70%; background: var(--sleep)"></span><span style="height: 80%; background: var(--sleep)"></span><span style="height: 55%; background: var(--sleep)"></span><span style="height: 90%; background: var(--sleep)"></span><span style="height: 75%; background: var(--sleep)"></span><span style="height: 85%; background: var(--sleep)"></span><span style="height: 78%; background: var(--sleep)"></span></div>
+      </section>
+      <section class="card stack" style="gap: 8px" aria-label="Steps">
+        <span class="eyebrow">Steps</span><p class="num" style="font-size: 22px">8,240</p>
+        <div class="bars"><span style="height: 60%; background: var(--ink)"></span><span style="height: 95%; background: var(--ink)"></span><span style="height: 40%; background: var(--ink)"></span><span style="height: 70%; background: var(--ink)"></span><span style="height: 85%; background: var(--ink)"></span><span style="height: 50%; background: var(--ink)"></span><span style="height: 65%; background: {{accent}}; box-shadow: inset 0 0 0 1.5px var(--ink)"></span></div>
+      </section>
+      <section class="card stack" style="gap: 8px" aria-label="Resting heart rate">
+        <span class="eyebrow">Resting HR</span><p class="num" style="font-size: 22px">58 <span class="sub">bpm</span></p>
+        <svg viewBox="0 0 140 56" width="140" height="56" aria-hidden="true"><path d="M2 20 L22 26 L42 22 L62 30 L82 28 L102 36 L122 34 L138 40" fill="none" stroke="var(--heart)" stroke-width="2.5" stroke-linecap="round"/></svg>
+      </section>
+      <section class="card stack" style="gap: 8px" aria-label="Days logged">
+        <span class="eyebrow">Days logged</span><p class="num" style="font-size: 22px">6 <span class="sub">of 7</span></p>
+        <div class="rowx" style="gap: 5px; height: 56px; align-items: center"><span class="dot" style="width: 14px; height: 14px; background: var(--ink)"></span><span class="dot" style="width: 14px; height: 14px; background: var(--ink)"></span><span class="dot" style="width: 14px; height: 14px; background: var(--ink)"></span><span class="dot" style="width: 14px; height: 14px; background: var(--line)"></span><span class="dot" style="width: 14px; height: 14px; background: var(--ink)"></span><span class="dot" style="width: 14px; height: 14px; background: var(--ink)"></span><span class="dot" style="width: 14px; height: 14px; background: var(--ink)"></span></div>
+      </section>
+    </div>
+    <p class="sub" style="padding: 0 4px">Sleep, steps and heart rate from Health Connect · last synced 2 min ago</p>
+
+    <section class="card stack" style="gap: 10px" aria-label="Calories vs target">
+      <div class="between"><span class="eyebrow">Calories vs target</span><span class="sub">avg 2,310 / 2,400</span></div>
+      <div style="position: relative">
+        <div class="bars" style="height: 90px"><span style="height: 88%; background: var(--soft)"></span><span style="height: 95%; background: var(--soft)"></span><span style="height: 102%; background: var(--carb)"></span><span style="height: 70%; background: var(--soft)"></span><span style="height: 92%; background: var(--soft)"></span><span style="height: 110%; background: var(--carb)"></span><span style="height: 96%; background: var(--soft)"></span></div>
+        <span style="position: absolute; left: 0; right: 0; top: 0; border-top: 2px dashed var(--ink)"></span>
+      </div>
+      <div class="rowx sub" style="gap: 14px"><span class="rowx" style="gap: 6px"><span class="dot" style="background: var(--soft); box-shadow: inset 0 0 0 1px var(--muted)"></span>Calories logged</span><span class="rowx" style="gap: 6px"><span style="width: 14px; border-top: 2px dashed var(--ink)"></span>Target</span><span class="rowx" style="gap: 6px"><span class="dot" style="background: var(--carb)"></span>Over</span></div>
+    </section>
+
+    <section class="card stack" style="gap: 10px" aria-label="Measurements">
+      <span class="eyebrow">Measurements</span>
+      <div class="between"><span>Waist</span><span class="h3">33.5 in <span class="chip ok">−0.75</span></span></div>
+      <div class="between"><span>Chest</span><span class="h3">41.0 in <span class="chip">+0.25</span></span></div>
+      <div class="between"><span>Thigh</span><span class="h3">23.5 in <span class="chip">±0</span></span></div>
+    </section>
+
+    <a class="card rowx" href="PhotoCompare.dc.html" aria-label="Progress photos">
+      <div class="thumb" style="width: 56px; height: 72px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg></div>
+      <div class="grow"><p class="h3">Progress photos</p><p class="sub">12 photos · latest Nov 1 · one is due</p></div>
+      <span class="chip warn">Due</span>
+    </a>
+
+    <div class="grid2">
+      <section class="card stack" style="gap: 6px" aria-label="Averages">
+        <span class="eyebrow">Weekly averages</span>
+        <p class="sub" style="color: var(--ink)">Intake 2,310 kcal</p><p class="sub" style="color: var(--ink)">Protein 142 g</p><p class="sub" style="color: var(--ink)">Weight −0.4 lb/wk</p>
+      </section>
+      <section class="card inkc stack" style="gap: 6px" aria-label="Maintenance estimate">
+        <span class="eyebrow">Maintenance</span>
+        <p class="num" style="font-size: 24px">2,640</p>
+        <p class="sub">Provisional · 5 weeks of data</p>
+        <button class="btn sm" style="background: rgba(255,255,255,.12); color: inherit; margin-top: 4px">Recalculate</button>
+      </section>
+    </div>
+
+    <section class="card rowx" aria-label="Jump tests">
+      <span class="ic sm"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V6M7 11l5-5 5 5M5 3h14"/></svg></span>
+      <div class="grow"><p class="h3">Jump tests</p><p class="sub">Shown because it's on in Settings · 24.5 in last</p></div>
+      <button class="btn sm">Log one</button>
+    </section>
+  </div>
+
+  <nav class="dock" aria-label="Main">
+    <a class="tab" href="Today.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Today</a>
+    <a class="tab" href="FoodDiary.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v20M4 2v6a3 3 0 0 0 6 0V2M17 22V2c-2 0-3.5 3-3.5 7s1.5 4 3.5 4"/></svg>Food</a>
+    <a class="fab" href="QuickLog.dc.html" aria-label="Log something"><svg class="i l" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></a>
+    <a class="tab" href="Train.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7v10M3 9.5v5M18 7v10M21 9.5v5M6 12h12"/></svg>Train</a>
+    <a class="tab on" href="Insights.dc.html" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M6 16l4-5 4 3 5-7"/></svg>Insights</a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["Light","Dark"],"default":"Light"},"accent":{"editor":"color","default":"#D4F25A","options":["#D4F25A","#7CE0C3","#FFB86B","#B9A8FF"]},"$preview":{"width":390,"height":2000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themeCls: this.props.theme === 'Dark' ? 'dark' : '', accent: this.props.accent ?? '#D4F25A' };
+  }
+}
+</script>
+</body>
+</html>
