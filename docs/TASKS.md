@@ -8,6 +8,8 @@ with its merge commit. Read `CLAUDE.md` before you claim anything.
 
 ## In progress
 
+**QA pass 6 and training merge** (`claude/optimistic-noether-fullk5`): the Pass 6 fixes (Q6-1, 2, 4, 5, 6, 7, 8, the "almo" ranking) and training WP-1 (effort), WP-4 (rest and clock polish), WP-6 (records, 1RM formula, calculators) and WP-16 (history editing, calendar) of `docs/briefs/TRAINING-GAP-OPENGYM.md` are landed. They have unit tests only and have not been seen on the emulator or a device. Settings numbers 130 to 136 are unique now (see `docs/SETTINGS-INVENTORY.md`). `agent/design-v6` (docs and images only) is merged too. Q6-3 (search ANR) is still open on `agent/qa6-perf`.
+
 **Round 5 merge done** on `claude/optimistic-noether-fullk5` (all seven round-5 branches merged, schema v6). The entries below say "not pushed"; they are merged now. Phone testing still to do.
 
 **Round 5 Drinks, items 12 and 13** (branch `worktree-agent-adf99e3f71c45bf4e`, not pushed, not seen on a device). Tea/sugar numbers fixed (plain-brew check, sugars known, tile and label rounding, drink icon, 4.2 g teaspoon);

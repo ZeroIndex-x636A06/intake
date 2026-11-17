@@ -415,7 +415,7 @@ Round 2 fixes merged (3fb7f70, bc0c873, eb928a4, 6976495, 795a8d4). Every status
 - Verified fixed in Pass 5a (4321255): picker rows show 'Fits your allergens', 'Only the name was checked', 'Contains ...' and 'May contain milk (trace)'. Was: Fixed in b73f977, needs retest: the template editor's food picker rows have no allergen chip (chips added).
 - Verified fixed in Pass 5a (4321255): Butter, Cheddar cheese and Milk carry red 'Contains ...' marks. Was: Fixed in b73f977, needs retest: shopping list dairy items have no allergen marker for a dairy-avoiding user.
 - Cannot verify on emulator in Pass 6 (9a42584): no saved shopping rows from an older build in the seed. Was: Cannot verify on emulator in Pass 5a (4321255): the seed has no saved shopping rows from an older build. Was: Fixed in b73f977, needs retest: old saved shopping rows keep their old aisles (aisle repair).
-- Still failing in Pass 6: 'almo' typed key by key (1 per s) still lists Salmon fillet, baked first under My foods, no Drinks pointer for 'almo'; 'almond' gives the Almond rows first (design/qa/pass6/q6-almo.png). Was: Still failing in Pass 5b: 'almo' typed key by key lists Salmon fillet, baked first under My foods and Salmon, sweet potato and broccoli under Recipes, and no Almond food row appeared (Q5b-1). Was: Still failing in Pass 5a (4321255): 'almo' still lists Salmon fillet, baked first under My foods (see Q2-16, Q5a-3). Was: Fixed in b73f977, needs retest: the substring "almo" ranks Salmon first under My foods (word-start ranking).
+- Fixed in b738d31, needs retest (ranking only; the fast-typing ANR is Q6-3). Was: Still failing in Pass 6: 'almo' typed key by key (1 per s) still lists Salmon fillet, baked first under My foods, no Drinks pointer for 'almo'; 'almond' gives the Almond rows first (design/qa/pass6/q6-almo.png). Was: Still failing in Pass 5b: 'almo' typed key by key lists Salmon fillet, baked first under My foods and Salmon, sweet potato and broccoli under Recipes, and no Almond food row appeared (Q5b-1). Was: Still failing in Pass 5a (4321255): 'almo' still lists Salmon fillet, baked first under My foods (see Q2-16, Q5a-3). Was: Fixed in b73f977, needs retest: the substring "almo" ranks Salmon first under My foods (word-start ranking).
 - Still open: Q2-7 zip lookup is not verified on a real network.
 - Still open: Q1-14 (Dark chocolate "may contain milk" shown as a hard red warning) is waiting for the owner's decision.
 
@@ -829,7 +829,7 @@ Screenshot: design/qa/pass5a/q5a-8-landscape-today.png, design/qa/pass5a/q5a-8b-
 Suspect: the content insets in ui/navigation (rail layout) ignore the end navigation-bar inset
 
 ### Q5a-9 · S3 · Nutrition C.42 · Logging a meal template gives no Undo, leaves an inline message that never goes away, and says "to snack"
-Status: Still failing in Pass 6: a snackbar 'Logged Post-workout shake to Snacks. Almond milk, unsweetened: check the label for dairy' with Undo now appears, but Undo removed nothing (Q6-2). The log dialog still offers a Drinks slot for a food template. Was: Fixed in 504dae6, needs retest. Was: Still failing in Pass 5b: logging Post-workout shake to Snacks gave no message and no Undo at 1, 3, 4 and 12 s; the entry was logged. Logged as Q5b-4. Was: Verified fixed in Pass 5b (5822073) for (a), (b), (c), (f): (d), (e), (g) were not rechecked; weight chart has date labels and four y labels, measurement charts read 'in inches. Latest 36.7 in', Settings home lists the portion unit, the profile title is 'Profile & goals' and height reads 72.0. Was: Fixed in ae7e373, needs retest.
+Status: Fixed in 01f950c, needs retest. Was: Still failing in Pass 6: a snackbar 'Logged Post-workout shake to Snacks. Almond milk, unsweetened: check the label for dairy' with Undo now appears, but Undo removed nothing (Q6-2). The log dialog still offers a Drinks slot for a food template. Was: Fixed in 504dae6, needs retest. Was: Still failing in Pass 5b: logging Post-workout shake to Snacks gave no message and no Undo at 1, 3, 4 and 12 s; the entry was logged. Logged as Q5b-4. Was: Verified fixed in Pass 5b (5822073) for (a), (b), (c), (f): (d), (e), (g) were not rechecked; weight chart has date labels and four y labels, measurement charts read 'in inches. Latest 36.7 in', Settings home lists the portion unit, the profile title is 'Profile & goals' and height reads 72.0. Was: Fixed in ae7e373, needs retest.
 Steps: 1. Nutrition > More > Meal templates > ... on Post-workout shake > Log now > Snacks. 2. Look at the screen for 10 s and later.
 Expected: a snackbar with Undo as every other log path now has (food, recipe, drink); one-line message.
 Actual: a text line "Logged Post-workout shake to snack. Almond milk, unsweetened: check the label for dairy" appears above Saved and pushes the list down by about 200 px; it stays, with no Undo and no dismiss. "snack" is lowercase and singular where the slot is "Snacks". The recipe path says "Logged Baked mac and cheese, 1 serving, to snack" too.
@@ -994,7 +994,7 @@ Screenshot: design/qa/pass5b/q5b-3-plates-metric.png
 Suspect: data/settings plate default (not unit-aware)
 
 ### Q5b-4 · S3 · Nutrition C.42 · Logging a meal template still gives no confirmation and no Undo
-Status: Still failing in Pass 6: the confirmation and an Undo button now appear (design/qa/pass6/q6-template-log-1s.png), but Undo did not remove the entries in 4 tries, 1.5 to 4 s after the log (Today went 1 to 8 shakes); logged as Q6-2. Was: Fixed in 504dae6, needs retest
+Status: Fixed in 01f950c, needs retest. Was: Still failing in Pass 6: the confirmation and an Undo button now appear (design/qa/pass6/q6-template-log-1s.png), but Undo did not remove the entries in 4 tries, 1.5 to 4 s after the log (Today went 1 to 8 shakes); logged as Q6-2. Was: Fixed in 504dae6, needs retest
 Steps: 1. Nutrition > More > Meal templates > "..." on Post-workout shake > Log now > Snacks. 2. Look at the screen at 1, 3, 4 and 12 s. 3. Open Today.
 Expected: a snackbar "Logged ... " with Undo, as the recipe and food paths give (Q5a-9).
 Actual: nothing appears, not even the old inline line; the sheet closes and the list is unchanged. Today's Snacks shows +338 kcal, so the entry was logged. The dialog also offers a Drinks slot for a food template.
@@ -1034,7 +1034,7 @@ Screenshot: design/qa/pass5b/q5b-8-targets-changed.png (Today after the round tr
 Suspect: data/settings targets, domain target maths
 
 ### Q5b-9 · S3 · Settings / You F.8, G Nutrition · A manual target of 1,000 kcal is accepted with no floor warning
-Status: Still failing in Pass 6: the floor warning now shows ('1000 kcal is below the usual floor of 2024 kcal (1.1 x your calories at rest). It is saved as you typed it...'), but it is drawn inside the field row and squeezes the 'Calories by hand' label to one letter per line; logged as Q6-1. Was: Fixed in 504dae6, needs retest
+Status: Layout fixed in b738d31 (Q6-1), needs retest. Was: Still failing in Pass 6: the floor warning now shows ('1000 kcal is below the usual floor of 2024 kcal (1.1 x your calories at rest). It is saved as you typed it...'), but it is drawn inside the field row and squeezes the 'Calories by hand' label to one letter per line; logged as Q6-1. Was: Fixed in 504dae6, needs retest
 Steps: 1. Settings > Nutrition > Calories by hand 1000 > Save ("Allow calories below the floor" is off, "Normally never below 1.1 x calories at rest"). 2. You, Today, Nutrition.
 Expected: a warning that the target is below the floor (F.8).
 Actual: "Target set to 1000 kcal by hand." You shows "1,000 kcal"; no warning on any screen. The Save button turns grey during entry with no reason.
@@ -1130,7 +1130,7 @@ Method notes: the emulator needs 5 to 30 s per action; tap coordinates come from
 Seen on emulator only (Android 11, software rendering, no KVM, 3-button navigation). Not seen on a device: typing speed, IME behaviour, performance, haptics, notifications, Health Connect, camera, the NFC read itself (the dialog was opened with an NDEF intent), the timing of snackbars on a fast phone.
 
 ### Q6-1 · S2 · Settings / You G Nutrition, F.8 · The low-calorie floor warning breaks the Nutrition settings layout
-Status: open
+Status: Fixed in b738d31, needs retest. Was: open
 Steps: 1. Seeded install. 2. You > Settings > Nutrition. 3. Calories by hand: clear, type 1000, tap Save. 4. Leave the keyboard (Back).
 Expected: a warning under the field, with the label, field and Save button where they were.
 Actual: the warning appears (amber box: "1000 kcal is below the usual floor of 2024 kcal (1.1 x your calories at rest). It is saved as you typed it. Eating this low for long costs muscle, energy and mood; consider a higher number.") but it sits in the same row as the field and Save, which are pushed to the left edge; the "Calories by hand" label and its help line are squeezed into a column one letter wide, running down the page for several screens. Typing 2260 and saving again restores the layout. The Save button is grey while the warning shows, and the text says the value "is saved".
@@ -1138,7 +1138,7 @@ Screenshot: design/qa/pass6/q6-1-floor-row-collapsed.png, design/qa/pass6/q6-1-f
 Suspect: ui/screens/settings Nutrition calories-by-hand row (the warning composable placed inside the Row)
 
 ### Q6-2 · S2 · Nutrition / Progress C.42, E.10, J.14 · Undo on the "Logged Post-workout shake" and "Jump test deleted" snackbars did not undo
-Status: open (emulator timing may play a part: see Steps)
+Status: Fixed in 01f950c, needs retest. Was: open (emulator timing may play a part: see Steps)
 Steps: 1. Nutrition > More > Meal templates > "..." on Post-workout shake > Log now > Snacks. 2. The snackbar "Logged Post-workout shake to Snacks. Almond milk, unsweetened: check the label for dairy" shows with Undo (confirmed in a screenshot). 3. Tap Undo (1.5 s, 4 s and about 10 s after the log, 4 tries in all). 4. Today. Also Progress > Log a jump test (20 and 90) > Delete this jump test > "Jump test deleted · Undo" > tap Undo (3 tries at 1.5 and 3 s).
 Expected: the entries (three foods, 338 kcal) are removed again; the jump test comes back.
 Actual: the snackbar goes away after the tap, but Today's total only grew (1 shake to 8 shakes, 2,600 kcal) and the jump test stayed deleted ("No jump tests yet"). A control (Today entry Delete, then Undo) could not be timed on this emulator, so the snackbar action may be missed because the app takes seconds to react; but Undo was visible and tapped within the snackbar's life in the template case.
@@ -1154,7 +1154,7 @@ Screenshot: design/qa/pass6/q6-3-search-anr-launcher.png (after the ANR the laun
 Suspect: ui/addfood/LogFoodScreen.kt (rows composed and laid out on the main thread while the allergen scan runs; the scan finishing is what the 55 s of CPU is)
 
 ### Q6-4 · S3 · Progress E.11 · Weekly check-in: the week card and the suggestions describe different weeks
-Status: open
+Status: Fixed in b738d31, needs retest. Was: open
 Steps: 1. Seeded install, Mon 16 Nov, 650 kcal logged today. 2. Progress > Weekly check-in.
 Expected: the card and the suggestions refer to the same days, or the suggestions say which days they use.
 Actual: the card is "Week of Nov 16-22", "AVG INTAKE 650 kcal · 1 DAY LOGGED", "Protein target hit 0 of 1 logged day · 0%", and says logged days "average far below your target"; the suggestion below it, headed "Check-in of Mon 16 Nov", says "You averaged 135 g of protein on the 6 days you logged; the target is 170 g (79%)". Today's partial day is the only "logged day" of the week card. The week chips open scrolled so the selected week (Nov 16-22) is the last chip and partly off screen.
@@ -1162,7 +1162,7 @@ Screenshot: design/qa/pass6/q6-4-checkin-week-card.png, design/qa/pass6/q6-4-che
 Suspect: ui/screens/checkin/WeeklyCheckInScreen.kt (selected week versus the coach's trailing 7 days)
 
 ### Q6-5 · S3 · Progress E.11 · Sparse week: the LOG MORE card counts 0 days and 6 weigh-ins while the card above says 2 days and 5
-Status: open
+Status: Fixed in b738d31, needs retest. Was: open
 Steps: 1. Second seed (two days of about 200 kcal in the last week). 2. Progress > Weekly check-in > chip Nov 9-15.
 Expected: one set of counts.
 Actual: the week card says "AVG INTAKE 210 kcal · 2 DAYS LOGGED", "Days logged 2 of 7", "Weigh-ins 5"; the LOG MORE card says "You logged food on 0 of 7 days and weighed in on 6 (need 5 and 3)". The "0 of 7" is days of 800 kcal or more and the "6" a different window, but neither is said. (The verdict itself is right: "Not enough data this week to adjust", no "All on track", the Suggestions header is whole, and a dismissed card stays on the screen tagged Dismissed.)
@@ -1170,7 +1170,7 @@ Screenshot: design/qa/pass6/q6-5-checkin-sparse-logmore.png (also q6-checkin-spa
 Suspect: domain/coach/CoachEngine.kt data-gap card text
 
 ### Q6-6 · S3 · Nutrition C.45 · Shopping list "Clear" empties the list and the picks at once, with no confirmation and no Undo
-Status: open
+Status: Fixed in 01f950c, needs retest. Was: open
 Steps: 1. Nutrition > More > Shopping list. 2. Tick Baked mac and cheese and Chicken fajita bowls ("9 items · 0 ticked"). 3. Tap Clear.
 Expected: a confirmation or an Undo.
 Actual: the nine items and both picks vanish with no message.
@@ -1178,7 +1178,7 @@ Screenshot: design/qa/pass6/q6-6-shopping-clear.png
 Suspect: ui/screens/shopping
 
 ### Q6-7 · S4 · Progress / Nutrition J.20 · Date and nutrient wording differs between screens for a lb and fl oz user
-Status: open
+Status: Fixed in b738d31, needs retest. Was: open
 Steps: 1. Progress (chart ends): "Sun 18 Oct 2026", "Mon 16 Nov 2026". 2. Today: "Mon, Nov 16". 3. Meal plan > Make a plan: "First day of week 1 (yyyy-mm-dd)". 4. Nutrition: "Fibre" and "Sat fat" while Settings > Nutrition uses US units.
 Expected: one date style and one spelling for a user on lb, in and fl oz.
 Actual: day-month on Progress, month-day on Today, ISO in the plan form; "Fibre" next to imperial units. Chart text alternatives read "target 2260 kcal" where the screen says "2,260 kcal".
@@ -1186,7 +1186,7 @@ Screenshot: design/qa/pass6/q6-progress-4.png
 Suspect: date formatters in ui/screens/progress, ui/screens/mealplan; strings
 
 ### Q6-8 · S4 · Recipes C.36, I.4 · The dairy chip lists the recipe's own name as a matched term
-Status: open
+Status: Fixed in b738d31, needs retest. Was: open
 Steps: 1. Nutrition > More > Recipes (or the plan picker, or Swap).
 Expected: matched ingredient words only, for example butter, cheddar, cheese, cream, milk.
 Actual: "Contains mac and cheese, butter, cheddar, cheese, cream, milk and whole milk": the first term is the recipe name.

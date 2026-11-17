@@ -3,6 +3,10 @@
 Read this first when picking the work back up. Latest work: branch
 `claude/optimistic-noether-fullk5` (not yet merged into `claude/app-build-k2ag1d`).
 
+## QA pass 6 fixes and training WP-1, 4, 6, 16 merged (branch `claude/optimistic-noether-fullk5`)
+
+Merged in order: `agent/qa6-undo` (Q6-2, Q6-6), `agent/qa6-copy` (Q6-1, 4, 5, 7, 8, "almo" ranking), `docs/FEATURES.md`, the OpenGym gap brief, WP-16 (history editing, calendar, Still training?), WP-6 (records, 1RM formula, calculators), WP-1 and WP-4 (effort, rest and clock polish) and `design/mockup-v6` (docs and images). Training WP-1, 4, 6 and 16 are landed and **not yet seen on the emulator or a device** (unit tests only). QA-LOG items Q6-1, 2, 4, 5, 6, 7, 8, Q5a-9, Q5b-4 and the "almo" bullet say "Fixed in <hash>, needs retest". Settings registry: 131 controls, 114 stored; numbers 133 to 136 are effort, rest-end sound, rest-end flash and keep-awake; 132 is the 1RM formula. `finishSession` takes both `finishedAt` (forgotten workout) and `pausedMs` (clock pause). No schema change. Q6-3 (search ANR) is still open on `agent/qa6-perf`.
+
 ## QA pass 5b fixes merged (branch `claude/optimistic-noether-fullk5`)
 
 - Merged qa5b-verdicts, qa5b-misc, owner-checkin and qa5b-perf (with qa5b-search). No textual conflicts. Q5b-2 to 16 and 18, Q3-1 and Q5a-9 are marked "Fixed, needs retest" in `docs/QA-LOG.md`.
