@@ -105,4 +105,17 @@ class FoodRefSearchTest {
         assertThat(FoodRefSearch.tier("Raw apples", listOf("apple"))).isEqualTo(2)
         assertThat(FoodRefSearch.tier("Pineapple", listOf("apple"))).isEqualTo(3)
     }
+
+    @Test
+    fun aWordStartBeatsAMidWordMatchWhateverTheNameLength() {
+        val names = listOf(
+            food(1, "Fish, salmon, Atlantic, wild, cooked"),
+            food(2, "Beverages, almond milk, unsweetened, plain, refrigerated"),
+            food(3, "Salmon"),
+        )
+        val ranked = FoodRefSearch.rank("almo", names).map { it.id }
+        assertThat(ranked.first()).isEqualTo(2)
+        assertThat(FoodRefSearch.tier("Beverages, almond milk, unsweetened, plain, refrigerated", listOf("almo"))).isEqualTo(2)
+        assertThat(FoodRefSearch.tier("Salmon", listOf("almo"))).isEqualTo(3)
+    }
 }

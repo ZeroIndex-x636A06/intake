@@ -33,7 +33,8 @@ object CoachEngine {
         val gateFailed = logged.size < c.minLoggedDays || weighDays < c.minWeighIns
 
         if (gateFailed) {
-            out += dataGap(logged.size, weighDays, c)
+            val anyLogged = i.foodDays.filter { it.dayIndex in window && it.kcal > 0.0 }.map { it.dayIndex }.distinct().size
+            out += dataGap(anyLogged, logged.size, weighDays, window, c)
         } else if (!i.calorieCooldown) {
             weightTrend(i, c, trend)?.let { out += it }
         }
@@ -321,17 +322,26 @@ object CoachEngine {
 
     // ------------------------------------------------------------------------------ data gate
 
-    private fun dataGap(loggedDays: Int, weighDays: Int, c: CoachConfig): Suggestion {
+    /**
+     * The data-gap card. It says which days it counted ([window], the same trailing days the rules use) and what
+     * counts as a full day, so it can sit beside a calendar-week card without seeming to contradict it (Q6-5).
+     */
+    private fun dataGap(anyLoggedDays: Int, fullDays: Int, weighDays: Int, window: LongRange, c: CoachConfig): Suggestion {
         val needs = buildList {
-            if (loggedDays < c.minLoggedDays) add("food on ${c.minLoggedDays - loggedDays} more day${plural(c.minLoggedDays - loggedDays)}")
+            if (fullDays < c.minLoggedDays) add("food on ${c.minLoggedDays - fullDays} more full day${plural(c.minLoggedDays - fullDays)}")
             if (weighDays < c.minWeighIns) add("${c.minWeighIns - weighDays} more weigh-in${plural(c.minWeighIns - weighDays)}")
         }
+        val period = com.zeroindex.intake.domain.report.WeekLabel.range(
+            java.time.LocalDate.ofEpochDay(window.first), java.time.LocalDate.ofEpochDay(window.last),
+        )
         return Suggestion(
             key = "gap",
             kind = SuggestionKind.DATA_GAP,
             title = "Not enough data this week to adjust",
-            why = "You logged food on $loggedDays of ${c.windowDays} days and weighed in on $weighDays " +
-                "(need ${c.minLoggedDays} and ${c.minWeighIns}). Here's what to log: ${needs.joinToString(" and ")}.",
+            why = "For the ${c.windowDays} days $period: you logged food on $anyLoggedDays day${plural(anyLoggedDays)}, " +
+                "$fullDays of them full days (${c.loggedDayMinKcal.roundToInt()} kcal or more), and weighed in on $weighDays " +
+                "day${plural(weighDays)}. The check needs ${c.minLoggedDays} full days and ${c.minWeighIns} weigh-ins. " +
+                "Here's what to log: ${needs.joinToString(" and ")}.",
             details = "Your calories stay as they are. Changing them from a thin week would be a guess, and the point of the " +
                 "coach is to work from your real numbers. A weigh-in on the same morning each day, and logging every meal " +
                 "(even a rough one), is all it needs.",

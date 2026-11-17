@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.components
 
+import com.zeroindex.intake.domain.time.DateText
 import com.zeroindex.intake.domain.units.KcalFormat
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -100,7 +101,7 @@ fun TrendLineChart(
     formatValue: (Double) -> String = { UnitConverter.round(it, 1).toString() },
     formatY: (Double, Int) -> String = { v, decimals -> "%.${decimals}f".format(v) },
     gapDays: Int? = ChartMath.GAP_DAYS,
-    formatX: (Double) -> String = { ChartMath.localDate(it.toLong(), ZoneId.systemDefault()).format(TOOLTIP_DATE) },
+    formatX: (Double) -> String = { DateText.mediumWithWeekday(ChartMath.localDate(it.toLong(), ZoneId.systemDefault())) },
     /** The y axis is never shorter than this, so a flat series does not look like a trend. In the chart's own unit. */
     minYSpan: Double = 0.0,
     /** More ticks for a short series, so a weight chart does not end up with two labels. */
@@ -287,7 +288,6 @@ fun TrendLineChart(
     }
 }
 
-private val TOOLTIP_DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE d MMM yyyy")
 
 /**
  * Calories against target, with the target as a labelled dashed reference line

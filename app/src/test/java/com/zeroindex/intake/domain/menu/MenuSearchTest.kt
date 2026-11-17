@@ -51,4 +51,12 @@ class MenuSearchTest {
         assertThat(MenuSearch.hasNoIngredientInfo("Contains: Milk")).isFalse()
         assertThat(MenuSearch.hasNoIngredientInfo("Restaurant chart: no major allergens listed")).isFalse()
     }
+
+    @Test
+    fun `a word that starts a word of the name ranks above one inside a word`() {
+        val menu = listOf(Item("Salmon Bowl", "Fishco"), Item("Iced Almond Latte", "Beans"), Item("Almond Croissant", "Beans"))
+        val ranked = MenuSearch.search(menu, "almo", { it.name }, { it.restaurant }).map { it.name }
+        // Q6: "almo" listed Salmon first. Name-first, then a later word, then the mid-word match last.
+        assertThat(ranked).containsExactly("Almond Croissant", "Iced Almond Latte", "Salmon Bowl").inOrder()
+    }
 }

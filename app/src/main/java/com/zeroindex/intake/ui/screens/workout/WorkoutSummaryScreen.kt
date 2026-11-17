@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.workout
 
+import com.zeroindex.intake.domain.time.DateText
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -92,7 +93,7 @@ fun WorkoutSummaryScreen(
     var detailFor by remember { mutableStateOf<String?>(null) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    var keepName by remember { mutableStateOf("Workout " + java.time.format.DateTimeFormatter.ofPattern("d MMM").format(java.time.LocalDate.now())) }
+    var keepName by remember { mutableStateOf("Workout " + DateText.medium(java.time.LocalDate.now())) }
 
     Column(modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
         when {

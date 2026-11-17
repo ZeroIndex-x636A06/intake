@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.train
 
+import com.zeroindex.intake.domain.time.DateText
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -100,7 +101,7 @@ fun WorkoutHistoryScreen(
 
 @Composable
 private fun SessionRow(s: SessionLogRow, unit: WeightUnit, onClick: () -> Unit) {
-    val date = DATE.format(Instant.ofEpochMilli(s.startedAt).atZone(ZoneId.systemDefault()))
+    val date = DateText.mediumWithWeekday(s.startedAt)
     val facts = buildList {
         add(if (s.unfinished) "Unfinished" else s.minutes?.let { "$it min" } ?: "")
         add("${s.workingSets} ${if (s.workingSets == 1) "set" else "sets"}")
@@ -135,4 +136,3 @@ private fun SessionRow(s: SessionLogRow, unit: WeightUnit, onClick: () -> Unit) 
     }
 }
 
-private val DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE d MMM")

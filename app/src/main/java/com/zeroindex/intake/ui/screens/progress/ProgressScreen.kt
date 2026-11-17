@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.progress
 
+import com.zeroindex.intake.domain.time.DateText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -256,7 +257,7 @@ private fun WeightCard(state: ProgressUiState, onAddMeasurement: () -> Unit) {
         // named beside it, because the two differ and the line in the chart is the trend.
         state.metrics.lastOrNull()?.let { latest ->
             val zone = ZoneId.systemDefault()
-            val date = ChartMath.localDate(latest.measuredAt, zone).format(HEADLINE_DATE)
+            val date = DateText.medium(ChartMath.localDate(latest.measuredAt, zone))
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     text = format(unit.fromKg(latest.weightKg)),
@@ -635,14 +636,13 @@ private fun intakeDescription(state: ProgressUiState): String {
     val target = state.target?.kcal
     return buildString {
         append("Calories per day across ${stats.loggedDays} logged days")
-        if (target != null) append(", target $target kcal, ${stats.daysOverTarget} days over")
+        if (target != null) append(", target ${com.zeroindex.intake.domain.units.KcalFormat.format(target)} kcal, ${stats.daysOverTarget} days over")
         append(".")
     }
 }
 
 private fun format(value: Double): String = UnitConverter.round(value, 1).toString()
 
-private val HEADLINE_DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM")
 
 /**
  * Amendment §2: does more training volume come with a better jump, or a

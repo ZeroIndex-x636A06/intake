@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.today
 
+import com.zeroindex.intake.domain.time.DateText
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -222,11 +223,10 @@ fun TodayScreen(
 /** The top bar's centre: the date between two arrows. */
 @Composable
 private fun DayTitle(date: LocalDate, isToday: Boolean, onPrevious: () -> Unit, onNext: () -> Unit) {
-    val fmt = remember { DateTimeFormatter.ofPattern("EEE, MMM d") }
     Row(verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onPrevious) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous day") }
         Text(
-            date.format(fmt),
+            DateText.mediumWithWeekday(date),
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.semantics { heading() },
         )

@@ -454,7 +454,11 @@ private fun <T> ChipSetting(title: String, subtitle: String?, options: List<T>, 
 private fun ManualCaloriesRow(currentKcal: Int?, onSet: (Int) -> Unit, warning: String? = null) {
     var text by remember(currentKcal) { mutableStateOf(currentKcal?.toString().orEmpty()) }
     val kcal = text.toIntOrNull()?.takeIf { it in 800..8000 }
-    SettingRow("Calories by hand", "Used when the switch above is off, or as a fine-tune. Saving also turns the switch off.") {
+    // Q6-1: the warning is the row's note, below it at full width, not inside the control slot beside the field.
+    SettingRow(
+        "Calories by hand", "Used when the switch above is off, or as a fine-tune. Saving also turns the switch off.",
+        note = warning?.let { w -> { SandNote(w) } },
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             OutlinedTextField(
                 value = text,
@@ -467,8 +471,6 @@ private fun ManualCaloriesRow(currentKcal: Int?, onSet: (Int) -> Unit, warning: 
             )
             Button(onClick = { kcal?.let(onSet) }, enabled = kcal != null && kcal != currentKcal, shape = IntakeShape.Chip) { Text("Save") }
         }
-        // Q5b-9: a saved figure under the floor keeps a visible warning, here and not only in a passing message.
-        warning?.let { com.zeroindex.intake.ui.components.SandNote(it) }
     }
 }
 

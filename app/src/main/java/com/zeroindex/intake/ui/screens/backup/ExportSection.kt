@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.backup
 
+import com.zeroindex.intake.domain.time.DateText
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -50,8 +51,8 @@ fun ExportSection(modifier: Modifier = Modifier, viewModel: ExportViewModel = hi
     val exporting by viewModel.exporting.collectAsStateWithLifecycle()
     val lastExport by viewModel.lastExportAt.collectAsStateWithLifecycle()
     val includePhotos by viewModel.includePhotos.collectAsStateWithLifecycle()
-    val whenFmt = remember { DateTimeFormatter.ofPattern("MMM d, h:mm a") }
-    fun at(millis: Long) = whenFmt.format(Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()))
+    val timeFmt = remember { DateTimeFormatter.ofPattern("h:mm a") }
+    fun at(millis: Long) = DateText.medium(millis) + ", " + timeFmt.format(Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()))
 
     var passphrase by remember { mutableStateOf("") }
     var pendingCsv by remember { mutableStateOf(CsvKind.FOOD) }

@@ -2,6 +2,7 @@
 
 package com.zeroindex.intake.ui.screens.train
 
+import com.zeroindex.intake.domain.time.DateText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -338,7 +339,7 @@ private fun YourHistory(stats: ExerciseStats, unit: WeightUnit) {
 }
 
 private fun shortDate(millis: Long): String =
-    DateTimeFormatter.ofPattern("d MMM yyyy").format(Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()))
+    DateText.medium(millis)
 
 private fun dateText(millis: Long): String =
-    DateTimeFormatter.ofPattern("EEE d MMM yyyy").format(Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()))
+    DateText.mediumWithWeekday(millis)

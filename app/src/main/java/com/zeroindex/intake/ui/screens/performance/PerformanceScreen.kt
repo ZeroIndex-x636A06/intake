@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.performance
 
+import com.zeroindex.intake.domain.time.DateText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -64,7 +65,6 @@ fun PerformanceScreen(
     var notes by remember { mutableStateOf("") }
 
     val preview = JumpMetrics.complete(vertical.toDoubleOrNull(), standing.toDoubleOrNull(), total.toDoubleOrNull())
-    val dates = remember { DateTimeFormatter.ofPattern("EEE d MMM yyyy") }
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
@@ -150,7 +150,7 @@ fun PerformanceScreen(
                 ) {
                     Column(Modifier.weight(1f)) {
                         Text(
-                            text = dates.format(Instant.ofEpochMilli(m.measuredAt).atZone(ZoneId.systemDefault())),
+                            text = DateText.mediumWithWeekday(m.measuredAt),
                             style = MaterialTheme.typography.titleSmall,
                         )
                         Text(

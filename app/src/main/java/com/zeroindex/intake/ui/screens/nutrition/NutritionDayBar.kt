@@ -2,6 +2,7 @@
 
 package com.zeroindex.intake.ui.screens.nutrition
 
+import com.zeroindex.intake.domain.time.DateText
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -54,7 +55,7 @@ internal fun DaySwitcher(
     onPick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val full = remember(date) { date.format(DateTimeFormatter.ofPattern("EEEE, MMMM d")) }
+    val full = remember(date) { DateText.mediumWithWeekday(date) }
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         IconButton(onClick = onPrevious, modifier = Modifier.size(48.dp)) {
             Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous day")
@@ -69,7 +70,7 @@ internal fun DaySwitcher(
             Column(Modifier.padding(horizontal = 16.dp, vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 Text(label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, modifier = Modifier.semantics { heading() })
                 if (label == "Today" || label == "Yesterday") {
-                    Text(date.format(DateTimeFormatter.ofPattern("EEE, MMM d")), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(DateText.mediumWithWeekday(date), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }

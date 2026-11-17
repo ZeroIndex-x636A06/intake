@@ -39,8 +39,10 @@ interface RefFoodDao {
     /**
      * Rows whose name contains every token (up to four; the caller passes "" for the
      * unused ones). Tokens are letters and digits only, so LIKE needs no escaping.
-     * Shortest names first, because the ranker prefers them and the limit would
-     * otherwise cut them off. A scan of about 8,000 short rows takes a few milliseconds.
+     * Names with a word that starts with the first token come first ("almo": "Beverages, almond milk" before
+     * "Fish, salmon"), then shortest names, because the ranker prefers them and the limit would otherwise cut them
+     * off: a word-start match must never lose its place in the 500 to a mid-word one (Q6 "almo"). A scan of about
+     * 8,000 short rows takes a few milliseconds.
      */
     @Query(
         """
@@ -49,7 +51,10 @@ interface RefFoodDao {
           AND (:b = '' OR name LIKE '%' || :b || '%')
           AND (:c = '' OR name LIKE '%' || :c || '%')
           AND (:d = '' OR name LIKE '%' || :d || '%')
-        ORDER BY LENGTH(name), name
+        ORDER BY CASE WHEN name LIKE :a || '%' OR name LIKE '% ' || :a || '%' OR name LIKE '%,' || :a || '%'
+                        OR name LIKE '%(' || :a || '%' OR name LIKE '%-' || :a || '%' OR name LIKE '%/' || :a || '%'
+                      THEN 0 ELSE 1 END,
+          LENGTH(name), name
         LIMIT :limit
         """,
     )

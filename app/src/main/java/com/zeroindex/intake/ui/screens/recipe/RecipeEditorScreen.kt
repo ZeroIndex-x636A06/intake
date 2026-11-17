@@ -392,7 +392,7 @@ internal fun MacroSummary(
 internal fun AllergenChips(scan: AllergenScanResult, ingredientLineCount: Int = 1, readLineCount: Int = 0) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         when {
-            scan.contains.isNotEmpty() -> StatusPill("Contains ${scan.contains.map { it.matchedTerm }.distinct().joinToString()}", tone = PillTone.Bad)
+            scan.contains.isNotEmpty() -> StatusPill("Contains ${com.zeroindex.intake.domain.allergen.ChipWords.ingredientTerms(scan.contains)}", tone = PillTone.Bad)
             scan.mayContain.isNotEmpty() -> StatusPill("May contain ${com.zeroindex.intake.domain.allergen.ChipWords.allergenNames(scan.mayContain)}", tone = PillTone.Wait)
             // Nothing with no ingredient data reads as passed: an empty recipe says only the name was checked.
             scan.checkLabel.isEmpty() -> {
