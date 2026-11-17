@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Drinks</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c2d55ca210a28925c2ccf0c9b8a5b709">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.dk{display:flex;flex-direction:column;gap:8px;padding:14px;border-radius:20px;background:var(--card);border:0;color:var(--ink);text-align:left;min-width:0}
+</style>
+</helmet>
+<div class="phone {{themeCls}}" style="--accent: {{accent}}; width: 390px; height: 1080px">
+  <header class="top">
+    <a class="iconbtn" href="Today.dc.html" aria-label="Back"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a>
+    <h1 class="h2 grow">Drinks</h1>
+    <button class="iconbtn" aria-label="Make a custom drink"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+  </header>
+
+  <div class="pad stack" style="gap: 14px">
+    <section class="card inkc stack" style="gap: 12px" aria-label="Logged today">
+      <span class="eyebrow">Logged today</span>
+      <div class="grid3">
+        <div><p class="num" style="font-size: 24px">42<span style="font-size: 13px"> fl oz</span></p><p class="sub">hydration</p></div>
+        <div><p class="num" style="font-size: 24px">190<span style="font-size: 13px"> mg</span></p><p class="sub">caffeine</p></div>
+        <div><p class="num" style="font-size: 24px">12<span style="font-size: 13px"> g</span></p><p class="sub">sugar</p></div>
+      </div>
+      <div class="wrap"><span class="chip" style="background: rgba(255,255,255,.12); color: inherit">Water × 3</span><span class="chip" style="background: rgba(255,255,255,.12); color: inherit">Cold brew</span><span class="chip" style="background: rgba(255,255,255,.12); color: inherit">Oat latte</span></div>
+    </section>
+
+    <label class="search"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input placeholder="Search drinks" aria-label="Search drinks"></label>
+
+    <div class="sec"><h2 class="h2">My drinks</h2><span class="sub">Tap logs · hold for options</span></div>
+    <div class="grid3">
+      <button class="dk"><span class="ic sm" style="background: var(--water); color: #fff"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg></span><span class="h3">Water</span><span class="sub">8 fl oz</span></button>
+      <button class="dk"><span class="ic sm"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h12v6a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5zM17 10h2a2 2 0 0 1 0 4h-2"/></svg></span><span class="h3">Iced latte</span><span class="sub">16 fl oz · custom</span></button>
+      <button class="dk"><span class="ic sm"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12l-1.5 17a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1z"/></svg></span><span class="h3">Electrolyte</span><span class="sub">20 fl oz</span></button>
+    </div>
+
+    <div class="sec"><span class="eyebrow">Recent</span></div>
+    <div class="list">
+      <div class="li"><div class="grow"><p class="h3">Cold brew, black</p><p class="sub">12 fl oz · 5 kcal · 190 mg caffeine</p></div><span class="chip">Name checked</span><button class="iconbtn soft" aria-label="Log cold brew"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></div>
+      <div class="li"><div class="grow"><p class="h3">Oat latte</p><p class="sub">12 fl oz · 220 kcal</p></div><span class="chip warn">May contain</span><button class="iconbtn soft" aria-label="Log oat latte"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></div>
+    </div>
+
+    <div class="sec"><h2 class="h2">Customise a drink</h2></div>
+    <section class="card stack" style="gap: 12px" aria-label="Customise drink">
+      <span class="eyebrow">What goes in</span>
+      <div class="between"><span style="font-size: 14px">Espresso, double</span><span class="sub">2 fl oz</span></div>
+      <div class="between"><span style="font-size: 14px">Oat milk</span><span class="sub">10 fl oz</span></div>
+      <div class="between"><span style="font-size: 14px">Vanilla syrup</span><span class="sub">1 pump</span></div>
+      <button class="btn sm line" style="align-self: flex-start"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Add an add-in or any food</button>
+      <hr class="hr">
+      <span class="eyebrow">The finished drink</span>
+      <input class="input" value="Iced vanilla latte" aria-label="Drink name">
+      <div class="rowx" style="gap: 8px"><button class="btn sm grow">Log it once</button><button class="btn sm primary grow">Save as My drink</button></div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["Light","Dark"],"default":"Light"},"accent":{"editor":"color","default":"#D4F25A","options":["#D4F25A","#7CE0C3","#FFB86B","#B9A8FF"]},"$preview":{"width":390,"height":1080}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themeCls: this.props.theme === 'Dark' ? 'dark' : '', accent: this.props.accent ?? '#D4F25A' };
+  }
+}
+</script>
+</body>
+</html>

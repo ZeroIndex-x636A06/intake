@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Your plan</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c2d55ca210a28925c2ccf0c9b8a5b709">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.pr{display:flex;flex-direction:column;gap:4px;padding:14px 18px;border-top:1px solid var(--line)}
+.pr:first-child{border-top:0}
+</style>
+</helmet>
+<div class="phone {{themeCls}}" style="--accent: {{accent}}; width: 390px; height: 1200px">
+  <header class="top">
+    <a class="iconbtn" href="You.dc.html" aria-label="Back"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a>
+    <h1 class="h2 grow">Your plan</h1>
+  </header>
+  <div class="pad stack" style="gap: 14px">
+    <p class="sub" style="font-size: 14.5px">Every number says why. Change any of them before you apply.</p>
+    <section class="list" aria-label="Targets">
+      <div class="pr"><div class="between"><span class="h3">Calories</span><span class="num" style="font-size: 22px">2,400</span></div><p class="sub">Maintenance 2,640 minus a slow cut for lean gain. <span class="chip ok" style="min-height: 22px">Built from your measured burn</span></p></div>
+      <div class="pr"><div class="between"><span class="h3">Protein</span><span class="num" style="font-size: 22px; color: var(--pro)">165 g</span></div><p class="sub">2.0 g per kg of body weight.</p></div>
+      <div class="pr"><div class="between"><span class="h3">Fat</span><span class="num" style="font-size: 22px; color: var(--fat)">72 g</span></div><p class="sub">0.8 g per kg, above the healthy floor.</p></div>
+      <div class="pr"><div class="between"><span class="h3">Carbs</span><span class="num" style="font-size: 22px; color: var(--carb)">260 g</span></div><p class="sub">What's left after protein and fat.</p></div>
+      <div class="pr"><div class="between"><span class="h3">Water</span><span class="num" style="font-size: 22px; color: var(--water)">101 fl oz</span></div><p class="sub">From your weight, plus more on training days. <span class="chip" style="min-height: 22px">Built from your baseline</span></p></div>
+    </section>
+
+    <section class="card soft rowx" style="align-items: flex-start; background: var(--warn-bg); color: var(--warn)">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16v.5"/></svg>
+      <p style="font-size: 14px"><b>Heads up.</b> Week 9 adds 100 kcal for the reverse diet. Intake won't change your target by itself, so switch it when the week comes.</p>
+    </section>
+
+    <section class="card stack" style="gap: 12px" aria-label="Training">
+      <div class="between"><h2 class="h2">Training</h2><button class="btn ghost sm" style="padding: 0">Edit</button></div>
+      <p class="sub" style="color: var(--ink)">Push / Pull / Legs · 6 days · 60 min · full gym</p>
+      <button class="btn ghost sm" style="align-self: flex-start; padding: 0">See the full program</button>
+      <div class="between"><div class="grow"><p class="h3">Create this program when I apply</p><p class="sub">It becomes active. Your current one is kept.</p></div><button class="sw on" role="switch" aria-checked="true" aria-label="Create this program when I apply"></button></div>
+    </section>
+
+    <button class="btn primary block" style="min-height: 56px">Apply this plan</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["Light","Dark"],"default":"Light"},"accent":{"editor":"color","default":"#D4F25A","options":["#D4F25A","#7CE0C3","#FFB86B","#B9A8FF"]},"$preview":{"width":390,"height":1200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themeCls: this.props.theme === 'Dark' ? 'dark' : '', accent: this.props.accent ?? '#D4F25A' };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Food · Library</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c2d55ca210a28925c2ccf0c9b8a5b709">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="phone {{themeCls}}" style="--accent: {{accent}}; width: 390px; height: 1180px">
+  <header class="top">
+    <h1 class="title">Food</h1>
+    <div class="rowx" style="gap: 8px">
+      <a class="chip ok" href="Allergens.dc.html" style="min-height: 36px; padding: 0 12px"><svg class="i xs" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>Avoiding 2</a>
+      <a class="avatar" href="You.dc.html" aria-label="Open You">Y</a>
+    </div>
+  </header>
+  <div class="pad stack" style="gap: 14px">
+    <nav class="seg" aria-label="Food sections"><a href="FoodDiary.dc.html">Diary</a><a href="FoodPlan.dc.html">Plan</a><a href="Recipes.dc.html">Recipes</a><a class="on" href="FoodLibrary.dc.html" aria-current="page">Library</a></nav>
+
+    <div class="sec"><h2 class="h2">Meal templates</h2><button class="btn ghost sm" style="padding: 0">New</button></div>
+    <section class="list">
+      <div class="li"><span class="ic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 0 8M10 6a9 9 0 0 1 0 12M14 4a12 12 0 0 1 0 16"/></svg></span><div class="grow"><p class="h3">Gym-day breakfast</p><p class="sub">3 foods · 610 kcal · On an NFC tag</p></div><button class="btn sm primary">Log now</button></div>
+      <div class="li"><span class="ic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span><div class="grow"><p class="h3">Office lunch</p><p class="sub">2 foods · 540 kcal · No NFC tag</p></div><button class="btn sm primary">Log now</button></div>
+    </section>
+
+    <a class="card rowx" href="FoodLibrary.dc.html" aria-label="Shopping list">
+      <span class="ic lime"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.5 11h10L20 7H6.5"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></svg></span>
+      <div class="grow"><p class="h3">Shopping list</p><p class="sub">3 recipes picked · 18 items, amounts added up</p></div>
+      <svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </a>
+
+    <div class="sec"><h2 class="h2">Eating out</h2><span class="sub">2 saved</span></div>
+    <a class="card inkc rowx" href="SwapNearby.dc.html">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6 7-12a7 7 0 0 0-14 0c0 6 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>
+      <div class="grow"><p class="h3">Find healthier options nearby</p><p class="sub">On this phone first · AI only if you tap it</p></div>
+    </a>
+    <section class="list">
+      <div class="li"><div class="grow"><p class="h3">Chipotle-style bowl, double chicken</p><p class="sub">Saved · 720 kcal · 62 g protein</p></div><span class="chip ok">Fits</span></div>
+      <div class="li"><div class="grow"><p class="h3">Grilled salmon plate</p><p class="sub">Saved · 640 kcal</p></div><span class="chip warn">May contain</span></div>
+    </section>
+
+    <a class="card rowx" href="MenuImport.dc.html">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 12h6M9 16h6"/></svg></span>
+      <div class="grow"><p class="h3">Restaurant menus</p><p class="sub">3 sources · 1 to review · works offline</p></div>
+      <span class="chip warn">Review</span>
+    </a>
+
+    <div class="grid2">
+      <a class="card stack" href="LogFood.dc.html" style="gap: 8px"><span class="ic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></span><span class="h3">My foods</span><span class="sub">Create a food by hand</span></a>
+      <a class="card stack" href="Drinks.dc.html" style="gap: 8px"><span class="ic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12l-1.5 17a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1z"/><path d="M6.5 8h11"/></svg></span><span class="h3">Drinks</span><span class="sub">My drinks and custom mixes</span></a>
+    </div>
+  </div>
+
+  <nav class="dock" aria-label="Main">
+    <a class="tab" href="Today.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Today</a>
+    <a class="tab on" href="FoodDiary.dc.html" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v20M4 2v6a3 3 0 0 0 6 0V2M17 22V2c-2 0-3.5 3-3.5 7s1.5 4 3.5 4"/></svg>Food</a>
+    <a class="fab" href="QuickLog.dc.html" aria-label="Log something"><svg class="i l" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></a>
+    <a class="tab" href="Train.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7v10M3 9.5v5M18 7v10M21 9.5v5M6 12h12"/></svg>Train</a>
+    <a class="tab" href="Insights.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M6 16l4-5 4 3 5-7"/></svg>Insights</a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["Light","Dark"],"default":"Light"},"accent":{"editor":"color","default":"#D4F25A","options":["#D4F25A","#7CE0C3","#FFB86B","#B9A8FF"]},"$preview":{"width":390,"height":1180}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themeCls: this.props.theme === 'Dark' ? 'dark' : '', accent: this.props.accent ?? '#D4F25A' };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Make me a program</title>
+<link rel="stylesheet" href="intake.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.dn{height:72px;border-radius:22px;border:0;background:var(--card);font:600 26px 'Space Grotesk',sans-serif;color:var(--ink)}
+.dn.on{background:var(--ink);color:var(--ink-on)}
+</style>
+</helmet>
+<div class="phone " style="--accent: #D4F25A; width: 390px; height: 844px; display: flex; flex-direction: column">
+  <header class="top">
+    <a class="iconbtn" href="Programs.html" aria-label="Close"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></a>
+    <span class="sub">Make me a program · 4 of 9</span>
+    <button class="btn ghost sm">Skip</button>
+  </header>
+  <div class="pad" style="display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 4px" aria-hidden="true">
+    <span style="height: 5px; border-radius: 9px; background: var(--ink)"></span><span style="height: 5px; border-radius: 9px; background: var(--ink)"></span><span style="height: 5px; border-radius: 9px; background: var(--ink)"></span><span style="height: 5px; border-radius: 9px; background: var(--accent); box-shadow: inset 0 0 0 1px rgba(0,0,0,.2)"></span><span style="height: 5px; border-radius: 9px; background: var(--line)"></span><span style="height: 5px; border-radius: 9px; background: var(--line)"></span><span style="height: 5px; border-radius: 9px; background: var(--line)"></span><span style="height: 5px; border-radius: 9px; background: var(--line)"></span><span style="height: 5px; border-radius: 9px; background: var(--line)"></span>
+  </div>
+  <div class="pad stack" style="gap: 18px; flex: 1; padding-top: 28px">
+    <h1 class="title" style="font-size: 34px">How many days a week can you train?</h1>
+    <p class="sub" style="font-size: 15px">Three good days beat five you skip.</p>
+    <div class="grid3">
+      <button class="dn">2</button><button class="dn">3</button><button class="dn on">4</button>
+      <button class="dn">5</button><button class="dn">6</button><button class="dn" style="font-size: 15px; font-family: Inter">Not sure</button>
+    </div>
+    <section class="card soft stack" style="gap: 8px">
+      <span class="eyebrow">Your answers so far</span>
+      <div class="wrap"><span class="chip" style="background: var(--card)">Build muscle</span><span class="chip" style="background: var(--card)">2–5 years training</span><span class="chip" style="background: var(--card)">Bench 190 × 8</span></div>
+      <p class="sub">Still to come: session length, equipment, muscles to bring up, areas to protect.</p>
+    </section>
+    <button class="btn ghost sm" style="align-self: flex-start; padding: 0">Advanced: sets per muscle, rep ranges, deload</button>
+  </div>
+  <div class="pad rowx" style="gap: 10px; padding-bottom: 28px">
+    <button class="btn" style="min-height: 56px">Back</button>
+    <button class="btn primary grow" style="min-height: 56px">Next</button>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

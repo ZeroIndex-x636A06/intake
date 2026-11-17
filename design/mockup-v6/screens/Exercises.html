@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Train · Exercises</title>
+<link rel="stylesheet" href="intake.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>body{margin:0;background:#E7E9E2}</style>
+</helmet>
+<div class="phone " style="--accent: #D4F25A; width: 390px; height: 1000px">
+  <header class="top">
+    <h1 class="title">Train</h1>
+    <div class="rowx" style="gap: 8px">
+      <a class="iconbtn" href="Programs.html" aria-label="Programs"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 13h3M8 17h6"/></svg></a>
+      <a class="avatar" href="You.html" aria-label="Open You">Y</a>
+    </div>
+  </header>
+  <div class="pad stack" style="gap: 12px">
+    <nav class="seg" aria-label="Train sections"><a href="Train.html">Workout</a><a class="on" href="Exercises.html" aria-current="page">Exercises</a><a href="Videos.html">Videos</a></nav>
+    <label class="search"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input placeholder="Search exercises" aria-label="Search exercises"></label>
+    <div class="wrap"><span class="chip inkb">My equipment</span><span class="chip">Muscle</span><span class="chip">Equipment</span><span class="chip out">Show hidden</span></div>
+    <section class="list">
+      <div class="li"><div class="grow"><p class="h3">Romanian deadlift</p><p class="sub">Hamstrings, glutes · barbell</p></div></div>
+      <div class="li"><div class="grow"><p class="h3">Cable fly, low to high</p><p class="sub">Chest · cable</p></div></div>
+      <div class="li"><div class="grow"><p class="h3">Banded pull-apart</p><p class="sub">Upper back · band</p></div><span class="chip lime">Custom</span></div>
+    </section>
+  </div>
+
+  <div class="scrim"></div>
+  <section class="sheet" role="dialog" aria-label="Exercise detail: Romanian deadlift" style="display: flex; flex-direction: column; gap: 12px">
+    <div class="grab" style="margin-bottom: 4px"></div>
+    <div class="rowx" style="gap: 12px">
+      <div class="thumb" style="width: 96px; height: 96px"><svg class="i l" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 8"/></svg></div>
+      <div class="grow stack" style="gap: 6px"><h2 class="h2">Romanian deadlift</h2><div class="wrap"><span class="chip">Hamstrings</span><span class="chip">Glutes</span><span class="chip out">Lower back</span></div></div>
+    </div>
+    <div class="grid4" style="text-align: center">
+      <div class="card soft" style="padding: 10px 4px"><p class="num" style="font-size: 17px">225×8</p><p class="sub" style="font-size: 11.5px">best set</p></div>
+      <div class="card soft" style="padding: 10px 4px"><p class="num" style="font-size: 17px">245</p><p class="sub" style="font-size: 11.5px">heaviest</p></div>
+      <div class="card soft" style="padding: 10px 4px"><p class="num" style="font-size: 17px">281</p><p class="sub" style="font-size: 11.5px">est. max</p></div>
+      <div class="card soft" style="padding: 10px 4px"><p class="num" style="font-size: 17px">14</p><p class="sub" style="font-size: 11.5px">sessions</p></div>
+    </div>
+    <svg viewBox="0 0 350 70" width="350" height="70" role="img" aria-label="Estimated max rising from 252 to 281 lb over 14 sessions">
+      <path d="M4 60 L50 56 L96 52 L142 50 L188 40 L234 34 L280 22 L346 12" fill="none" stroke="var(--ink)" stroke-width="2.5" stroke-linecap="round"/>
+      <circle cx="346" cy="12" r="5" fill="#D4F25A" stroke="var(--ink)" stroke-width="2"/>
+    </svg>
+    <p class="sub">How to: hinge at the hips with soft knees, bar close to the legs, stop when the hamstrings are tight.</p>
+    <div class="rowx" style="gap: 8px"><button class="btn sm">Edit</button><button class="btn sm">Hide</button><button class="btn sm line grow">Add your own exercise</button></div>
+  </section>
+</div>
+</x-dc>
+</body>
+</html>

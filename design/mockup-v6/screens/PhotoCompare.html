@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Compare photos</title>
+<link rel="stylesheet" href="intake.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>body{margin:0;background:#E7E9E2}</style>
+</helmet>
+<div class="phone " style="--accent: #D4F25A; width: 390px; height: 844px">
+  <header class="top">
+    <a class="iconbtn" href="You.html" aria-label="Back"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a>
+    <h1 class="h2 grow">Compare photos</h1>
+    <button class="iconbtn" aria-label="Add a photo"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+  </header>
+  <div class="pad stack" style="gap: 14px">
+    <div class="between"><span class="chip inkb" style="min-height: 36px">Aug 2</span><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg><span class="chip inkb" style="min-height: 36px">Nov 1</span></div>
+    <div class="seg"><button class="on">Front</button><button>Side</button><button>Back</button></div>
+    <div style="position: relative; height: 420px; border-radius: 28px; overflow: hidden; display: flex">
+      <div style="flex: 1; background: #DADDD5; display: flex; align-items: center; justify-content: center; color: #6A716F"><svg viewBox="0 0 24 24" width="120" height="120" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><circle cx="12" cy="6" r="3"/><path d="M6 22v-8a6 6 0 0 1 12 0v8"/></svg></div>
+      <div style="flex: 1; background: #C9CEC4; display: flex; align-items: center; justify-content: center; color: #555C5A"><svg viewBox="0 0 24 24" width="120" height="120" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><circle cx="12" cy="6" r="3"/><path d="M7 22v-8a5 5 0 0 1 10 0v8"/></svg></div>
+      <span style="position: absolute; top: 0; bottom: 0; left: 50%; width: 3px; margin-left: -1.5px; background: #fff"></span>
+      <button aria-label="Drag to compare" style="position: absolute; top: 50%; left: 50%; width: 48px; height: 48px; margin: -24px 0 0 -24px; border-radius: 99px; border: 0; background: var(--accent); color: #111514; display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l-6 6 6 6M15 6l6 6-6 6"/></svg></button>
+    </div>
+    <div class="grid2">
+      <div class="card" style="padding: 14px"><p class="eyebrow">Aug 2</p><p class="num" style="font-size: 20px">189.4 lb</p><p class="sub">Waist 34.25 in</p></div>
+      <div class="card" style="padding: 14px"><p class="eyebrow">Nov 1</p><p class="num" style="font-size: 20px">184.6 lb</p><p class="sub">Waist 33.5 in</p></div>
+    </div>
+    <p class="sub" style="text-align: center">Photos are stored on this phone only.</p>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

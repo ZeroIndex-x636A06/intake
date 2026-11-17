@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Log food</title>
+<link rel="stylesheet" href="intake.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>body{margin:0;background:#E7E9E2}</style>
+</helmet>
+<div class="phone " style="--accent: #D4F25A; width: 390px; height: 1020px">
+  <header class="top">
+    <a class="iconbtn" href="Today.html" aria-label="Back"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a>
+    <h1 class="h2 grow">Log food</h1>
+    <button class="chip inkb" style="min-height: 36px; padding: 0 12px">to Lunch<svg class="i xs" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+  </header>
+
+  <div class="pad stack" style="gap: 14px">
+    <div class="rowx" style="gap: 6px; overflow: hidden" role="tablist" aria-label="How to log">
+      <button class="pill on" role="tab" aria-selected="true"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>Search</button>
+      <button class="pill" role="tab">Scan</button>
+      <button class="pill" role="tab">Photo <span class="chip ai" style="min-height: 20px; padding: 0 6px; font-size: 11px">AI</span></button>
+      <button class="pill" role="tab">Mine</button>
+      <button class="pill" role="tab">Quick</button>
+    </div>
+
+    <label class="search"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input value="chicken" aria-label="Search foods"><button class="iconbtn clear" aria-label="Scan a barcode instead" style="width: 36px; height: 36px"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2M8 8v8M12 8v8M16 8v8"/></svg></button></label>
+
+    <div class="wrap">
+      <span class="chip inkb">All sources</span>
+      <span class="chip">Mine</span>
+      <span class="chip">Recipes</span>
+      <span class="chip">USDA · offline</span>
+      <span class="chip">Open Food Facts</span>
+      <span class="chip">Restaurant menus</span>
+    </div>
+
+    <div class="sec"><span class="eyebrow">Favourites and recent</span></div>
+    <div class="list">
+      <a class="li" href="FoodDetail.html"><span class="thumb" style="width: 44px; height: 44px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21c-5 0-8-3-8-7 0-3 2-5 4-6 1-3 3-5 4-5s3 2 4 5c2 1 4 3 4 6 0 4-3 7-8 7z"/></svg></span><div class="grow"><p class="h3">Grilled chicken breast</p><p class="sub">165 kcal · 31 g protein · 100 g · Made by you</p></div><span class="chip ok">Fits</span></a>
+      <a class="li" href="FoodDetail.html"><span class="thumb" style="width: 44px; height: 44px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span><div class="grow"><p class="h3">Chicken burrito bowl</p><p class="sub">640 kcal · 1 serving · Recipe</p></div><span class="chip ok">Fits</span></a>
+    </div>
+
+    <div class="sec"><span class="eyebrow">Food database · works offline</span></div>
+    <div class="list">
+      <a class="li" href="FoodDetail.html"><div class="grow"><p class="h3">Chicken thigh, roasted</p><p class="sub">229 kcal · 100 g · USDA database</p></div><span class="chip">Name checked</span></a>
+      <a class="li" href="FoodDetail.html"><div class="grow"><p class="h3">Chicken noodle soup</p><p class="sub">62 kcal · 100 ml · USDA database</p></div><span class="chip bad">Contains</span></a>
+    </div>
+
+    <div class="sec"><span class="eyebrow">Packaged foods · Open Food Facts</span></div>
+    <div class="list">
+      <a class="li" href="FoodDetail.html"><div class="grow"><p class="h3">Chicken sausage, apple</p><p class="sub">140 kcal · 1 link · Open Food Facts</p></div><span class="chip warn">May contain</span></a>
+      <a class="li" href="FoodDetail.html"><div class="grow"><p class="h3">Chicken bone broth</p><p class="sub">40 kcal · 1 cup · Open Food Facts</p></div><span class="chip">Checking…</span></a>
+    </div>
+
+    <div class="card soft rowx" style="padding: 14px 16px">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M21 3l-9 9"/></svg>
+      <div class="grow"><p class="h3">Also search USDA online</p><p class="sub">Uses your key · off</p></div>
+      <button class="sw" role="switch" aria-checked="false" aria-label="Also search USDA online"></button>
+    </div>
+    <a class="card rowx" href="Drinks.html" style="padding: 14px 16px; box-shadow: inset 0 0 0 1.5px var(--line); background: transparent">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12l-1.5 17a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1z"/><path d="M6.5 8h11"/></svg>
+      <p class="grow sub" style="color: var(--ink)">Looking for a drink? Search Drinks for "chicken"</p>
+      <svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </a>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

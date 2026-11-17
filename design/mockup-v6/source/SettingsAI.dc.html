@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings · AI (optional)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c2d55ca210a28925c2ccf0c9b8a5b709">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.rad{width:22px;height:22px;border-radius:99px;box-shadow:inset 0 0 0 2px var(--muted);flex:none}
+.rad.on{box-shadow:inset 0 0 0 7px var(--ink)}
+</style>
+</helmet>
+<div class="phone {{themeCls}}" style="--accent: {{accent}}; width: 390px; height: 1240px">
+  <header class="top">
+    <a class="iconbtn" href="Settings.dc.html" aria-label="Back"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a>
+    <h1 class="h2 grow">AI (optional)</h1>
+  </header>
+  <div class="pad stack" style="gap: 14px">
+    <section class="card stack" style="gap: 12px; background: var(--ai-bg)">
+      <div class="rowx"><span class="ic" style="background: var(--card); color: var(--ai)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg></span><div class="grow"><p class="h3" style="color: var(--ai)">No key · AI off</p><p class="sub" style="color: var(--ink)">Nothing in Intake needs AI. Targets, allergens, plans and lookups never use it.</p></div></div>
+      <button class="btn primary">Add an OpenRouter key</button>
+    </section>
+
+    <section class="list">
+      <div class="li"><div class="grow"><p class="h3">Use AI features</p><p class="sub">Master switch · needs a key</p></div><button class="sw" role="switch" aria-checked="false" aria-label="Use AI features" disabled style="opacity: .5"></button></div>
+      <div class="li" style="flex-direction: column; align-items: stretch; gap: 8px"><div class="between"><span class="h3">Monthly budget</span><span class="num" style="font-size: 18px">$5.00</span></div><div class="bar"><span style="width: 0%"></span></div><p class="sub">Calls pause at 100% until next month, unless you raise it.</p></div>
+    </section>
+
+    <span class="eyebrow" style="padding: 4px 4px 0">Privacy for AI requests</span>
+    <section class="list">
+      <div class="li"><span class="rad on"></span><div class="grow"><p class="h3">Only models that don't keep prompts</p><p class="sub">Recommended</p></div></div>
+      <div class="li"><span class="rad"></span><div class="grow"><p class="h3">Any model</p><p class="sub">Some may keep your prompts</p></div></div>
+      <div class="li"><div class="grow"><p class="h3">Suggest free models</p><p class="sub">Free models are often paid for with your data.</p></div><button class="sw" role="switch" aria-checked="false" aria-label="Suggest free models"></button></div>
+    </section>
+
+    <span class="eyebrow" style="padding: 4px 4px 0">Runs on a schedule</span>
+    <section class="list">
+      <div class="li"><div class="grow"><p class="h3">Daily insight</p><p class="sub">One suggestion on Today</p></div><button class="sw" role="switch" aria-checked="false" aria-label="Daily insight"></button></div>
+      <div class="li"><div class="grow"><p class="h3">Reword my check-in</p><p class="sub">Friendlier words, same numbers</p></div><button class="sw" role="switch" aria-checked="false" aria-label="Reword my check-in"></button></div>
+      <div class="li"><div class="grow"><p class="h3">Refresh saved menus weekly</p></div><button class="sw" role="switch" aria-checked="false" aria-label="Refresh saved menus weekly"></button></div>
+    </section>
+
+    <span class="eyebrow" style="padding: 4px 4px 0">Runs only when you tap</span>
+    <div class="wrap"><span class="chip ai">Photo estimate</span><span class="chip ai">Recipe Hunter pages</span><span class="chip ai">Recipe import fallback</span><span class="chip ai">Menu PDFs</span><span class="chip ai">Nearby menus</span><span class="chip ai">Video to workout</span></div>
+
+    <section class="list">
+      <div class="li"><span class="h3 grow">Advanced</span><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></div>
+      <div class="li"><div class="grow"><p class="h3">Model per task</p><p class="sub">Pickers with Free or Paid tags · refresh prices</p></div></div>
+      <div class="li"><div class="grow"><p class="h3">Uses a day per feature</p></div><span class="sub">Photo 10 · Hunter 5</span></div>
+      <div class="li" style="gap: 8px"><button class="btn sm grow">Reset usage counters</button><button class="btn sm line grow">Run benchmark</button></div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["Light","Dark"],"default":"Light"},"accent":{"editor":"color","default":"#D4F25A","options":["#D4F25A","#7CE0C3","#FFB86B","#B9A8FF"]},"$preview":{"width":390,"height":1240}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themeCls: this.props.theme === 'Dark' ? 'dark' : '', accent: this.props.accent ?? '#D4F25A' };
+  }
+}
+</script>
+</body>
+</html>

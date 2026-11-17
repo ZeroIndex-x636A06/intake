@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Train · Workout</title>
+<link rel="stylesheet" href="intake.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.st{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:14px;border-radius:20px;background:var(--card);border:0;color:var(--ink);text-align:left;font:inherit}
+.mv{display:grid;grid-template-columns:84px minmax(0,1fr) 72px;gap:10px;align-items:center;font-size:13.5px}
+.track{position:relative;height:10px;border-radius:99px;background:var(--soft)}
+.band{position:absolute;top:0;bottom:0;left:50%;width:30%;background:var(--line);border-radius:99px}
+.fill{position:absolute;top:2px;bottom:2px;left:2px;border-radius:99px;background:var(--ink)}
+</style>
+</helmet>
+<div class="phone " style="--accent: #D4F25A; width: 390px; height: 1720px">
+  <header class="top">
+    <h1 class="title">Train</h1>
+    <div class="rowx" style="gap: 8px">
+      <a class="iconbtn" href="Programs.html" aria-label="Programs"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 13h3M8 17h6"/></svg></a>
+      <a class="avatar" href="You.html" aria-label="Open You">Y</a>
+    </div>
+  </header>
+  <div class="pad stack" style="gap: 14px">
+    <nav class="seg" aria-label="Train sections"><a class="on" href="Train.html" aria-current="page">Workout</a><a href="Exercises.html">Exercises</a><a href="Videos.html">Videos</a></nav>
+
+    <section class="card inkc stack" style="gap: 14px" aria-label="Today's workout">
+      <div class="between"><div><p class="eyebrow">Today · Push / Pull / Legs</p><p class="h2" style="margin-top: 2px">Push A</p></div><span class="chip" style="background: rgba(255,255,255,.12); color: inherit">~55 min</span></div>
+      <div class="stack" style="gap: 8px; font-size: 14px">
+        <div class="between"><span>Bench press</span><span class="sub">4 × 6–8</span></div>
+        <div class="between"><span>Incline dumbbell press</span><span class="sub">3 × 8–10</span></div>
+        <div class="between"><span>Overhead press</span><span class="sub">3 × 6–8</span></div>
+        <div class="between"><span>Lateral raise · Pushdown · Dips</span><span class="sub">+3</span></div>
+      </div>
+      <a class="btn accent block" href="ActiveWorkout.html" style="min-height: 52px"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z"/></svg>Start workout</a>
+    </section>
+
+    <div class="sec"><h2 class="h2">Other ways to start</h2></div>
+    <div class="grid2">
+      <a class="st" href="ActiveWorkout.html"><span class="ic sm"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span class="h3">Empty workout</span><span class="sub">Add exercises as you go</span></a>
+      <a class="st" href="Programs.html"><span class="ic sm"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18"/></svg></span><span class="h3">From a program</span><span class="sub">Any day of any program</span></a>
+      <a class="st" href="Programs.html"><span class="ic sm"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"/></svg></span><span class="h3">My workouts</span><span class="sub">Saved routines</span></a>
+      <a class="st" href="Videos.html"><span class="ic sm"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9l5 3-5 3z"/></svg></span><span class="h3">From a video</span><span class="sub">YouTube to workout</span></a>
+    </div>
+    <button class="btn line block"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7M4 4v4h4"/></svg>Repeat last · Pull A, Thu</button>
+
+    <a class="card lime rowx" href="ProgramGenerator.html">
+      <svg class="i l" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M4 12h16M4 18h7M18 4v4M16 6h4"/></svg>
+      <div class="grow"><p class="h3">Make me a program</p><p class="sub">A few questions, a plan that fits your days and gear</p></div>
+    </a>
+
+    <div class="sec"><h2 class="h2">This week</h2><span class="sub">sets vs target</span></div>
+    <section class="card stack" style="gap: 12px" aria-label="Muscle volume this week">
+      <div class="mv"><span>Chest</span><div class="track"><span class="band"></span><span class="fill" style="width: 62%"></span></div><span class="chip ok">In range</span></div>
+      <div class="mv"><span>Back</span><div class="track"><span class="band"></span><span class="fill" style="width: 70%"></span></div><span class="chip ok">In range</span></div>
+      <div class="mv"><span>Shoulders</span><div class="track"><span class="band"></span><span class="fill" style="width: 34%"></span></div><span class="chip warn">Under</span></div>
+      <div class="mv"><span>Arms</span><div class="track"><span class="band"></span><span class="fill" style="width: 90%"></span></div><span class="chip">Over</span></div>
+      <div class="mv"><span>Legs</span><div class="track"><span class="band"></span><span class="fill" style="width: 22%"></span></div><span class="chip warn">Under</span></div>
+      <div class="mv"><span>Core</span><div class="track"><span class="band"></span><span class="fill" style="width: 55%"></span></div><span class="chip ok">In range</span></div>
+      <p class="sub">A set counts fully for its main muscle and by half for the helpers. Tap a muscle to see which exercises counted.</p>
+    </section>
+
+    <div class="sec"><h2 class="h2">Recent sessions</h2><button class="btn ghost sm" style="padding: 0">All sessions</button></div>
+    <section class="list">
+      <a class="li" href="WorkoutSummary.html"><div class="grow"><p class="h3">Pull A</p><p class="sub">Thu, Nov 12 · 58 min · 11,420 lb</p></div><span class="chip lime">2 records</span></a>
+      <a class="li" href="WorkoutSummary.html"><div class="grow"><p class="h3">Legs A</p><p class="sub">Tue, Nov 10 · Unfinished</p></div><span class="chip warn">Unfinished</span></a>
+    </section>
+  </div>
+
+  <nav class="dock" aria-label="Main">
+    <a class="tab" href="Today.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Today</a>
+    <a class="tab" href="FoodDiary.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v20M4 2v6a3 3 0 0 0 6 0V2M17 22V2c-2 0-3.5 3-3.5 7s1.5 4 3.5 4"/></svg>Food</a>
+    <a class="fab" href="QuickLog.html" aria-label="Log something"><svg class="i l" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></a>
+    <a class="tab on" href="Train.html" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7v10M3 9.5v5M18 7v10M21 9.5v5M6 12h12"/></svg>Train</a>
+    <a class="tab" href="Insights.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M6 16l4-5 4 3 5-7"/></svg>Insights</a>
+  </nav>
+</div>
+</x-dc>
+</body>
+</html>

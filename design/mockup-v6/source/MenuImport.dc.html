@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Menu import</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c2d55ca210a28925c2ccf0c9b8a5b709">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="phone {{themeCls}}" style="--accent: {{accent}}; width: 390px; height: 1060px">
+  <header class="top">
+    <a class="iconbtn" href="FoodLibrary.dc.html" aria-label="Back"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a>
+    <h1 class="h2 grow">Restaurant menus</h1>
+  </header>
+  <div class="pad stack" style="gap: 14px">
+    <p class="sub">Local copies of menus you trust. Search them offline from Log food.</p>
+    <section class="card stack" style="gap: 10px" aria-label="Add a source">
+      <span class="h3">Add a menu</span>
+      <div class="grid3">
+        <button class="btn sm" style="flex-direction: column; min-height: 72px; gap: 4px"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>Paste link</button>
+        <button class="btn sm" style="flex-direction: column; min-height: 72px; gap: 4px"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/></svg>Choose PDF</button>
+        <button class="btn sm" style="flex-direction: column; min-height: 72px; gap: 4px"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9"/></svg>Paste text</button>
+      </div>
+    </section>
+
+    <section class="list" aria-label="Saved sources">
+      <div class="li"><div class="grow"><p class="h3">Taqueria Sol</p><p class="sub">PDF · imported today</p></div><span class="chip warn">To review</span></div>
+      <div class="li"><div class="grow"><p class="h3">Green Bowl Co.</p><p class="sub">Link · refreshed Nov 9</p></div><span class="chip ok">Ready</span></div>
+      <div class="li"><div class="grow"><p class="h3">Harbor Grill</p><p class="sub">Link · no table read on this phone</p></div><span class="chip bad">Failed</span></div>
+    </section>
+    <button class="btn sm line" style="align-self: flex-start">Read Harbor Grill with AI <span class="chip ai" style="min-height: 20px; padding: 0 6px; font-size: 11px">AI</span></button>
+
+    <div class="sec"><h2 class="h2">Review Taqueria Sol</h2><span class="sub">24 items</span></div>
+    <section class="list" aria-label="Review imported menu">
+      <div class="li"><div class="grow"><p class="h3">Chicken bowl</p><p class="sub">680 kcal · 52 g protein</p></div><span class="chip ok">Accepted</span></div>
+      <div class="li" style="flex-direction: column; align-items: stretch; gap: 8px">
+        <div class="between"><div><p class="h3">Mole enchiladas</p><p class="sub">Peanuts listed in the sauce</p></div><span class="chip bad">Allergen match · review</span></div>
+        <div class="rowx" style="gap: 6px"><button class="btn sm">Accept item</button><button class="btn sm ghost">Reject</button></div>
+      </div>
+      <div class="li" style="flex-direction: column; align-items: stretch; gap: 8px">
+        <div class="between"><div><p class="h3">Churro bites</p><p class="sub">Check with staff before ordering</p></div><span class="chip warn">Possible match</span></div>
+        <div class="rowx" style="gap: 6px"><button class="btn sm">Accept item</button><button class="btn sm ghost">Reject</button></div>
+      </div>
+    </section>
+    <div class="rowx" style="gap: 8px"><button class="btn sm">Add nutrition menu</button><button class="btn sm danger">Discard import</button></div>
+
+    <div class="card soft between" style="padding: 14px 16px">
+      <div class="grow"><p class="h3">Refresh saved menus weekly</p><p class="sub">Uses AI · off</p></div>
+      <button class="sw" role="switch" aria-checked="false" aria-label="Refresh saved menus weekly"></button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["Light","Dark"],"default":"Light"},"accent":{"editor":"color","default":"#D4F25A","options":["#D4F25A","#7CE0C3","#FFB86B","#B9A8FF"]},"$preview":{"width":390,"height":1060}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themeCls: this.props.theme === 'Dark' ? 'dark' : '', accent: this.props.accent ?? '#D4F25A' };
+  }
+}
+</script>
+</body>
+</html>
