@@ -36,6 +36,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "intake_settings")
 
@@ -51,6 +52,8 @@ data class AppSettings(
     val barWeightKg: Double = 20.0,
     /** Comma-joined plate weights in kg, one side. */
     val availablePlatesKg: String = "25,20,15,10,5,2.5,1.25",
+    /** The one formula behind every estimated 1RM in the app (Settings > Training). */
+    val oneRepMaxFormula: com.zeroindex.intake.domain.training.OneRepMaxFormula = com.zeroindex.intake.domain.training.OneRepMaxFormula.DEFAULT,
     val goalWeightKg: Double? = null,
     /** Negative to lose, positive to gain, kg per week. */
     val goalRateKgPerWeek: Double = 0.0,
@@ -213,6 +216,7 @@ class SettingsRepository @Inject constructor(
         val restVibrate = booleanPreferencesKey("rest_vibrate")
         val barWeight = doublePreferencesKey("bar_weight_kg")
         val plates = stringPreferencesKey("available_plates_kg")
+        val oneRepMaxFormula = stringPreferencesKey("one_rep_max_formula")
         val goalWeight = doublePreferencesKey("goal_weight_kg")
         val goalRate = doublePreferencesKey("goal_rate_kg_per_week")
         val proteinPerKg = doublePreferencesKey("protein_g_per_kg")
@@ -304,6 +308,7 @@ class SettingsRepository @Inject constructor(
             // Until the person sets their own, the bar and plates are the ones a gym in their unit has.
             barWeightKg = com.zeroindex.intake.domain.training.PlateDefaults.effectiveBarKg(p[Keys.barWeight], weightUnit),
             availablePlatesKg = com.zeroindex.intake.domain.training.PlateDefaults.effectivePlatesCsvKg(p[Keys.plates], weightUnit),
+            oneRepMaxFormula = com.zeroindex.intake.domain.training.OneRepMaxFormula.byId(p[Keys.oneRepMaxFormula]),
             goalWeightKg = p[Keys.goalWeight],
             goalRateKgPerWeek = p[Keys.goalRate] ?: 0.0,
             proteinGramsPerKg = p[Keys.proteinPerKg] ?: 2.0,
@@ -388,7 +393,7 @@ class SettingsRepository @Inject constructor(
             waterReminderEndHour = (p[Keys.waterReminderEndHour] ?: 20).coerceIn(0, 23),
             firstUseAtMillis = p[Keys.firstUseAt],
         )
-    }
+    }.onEach { com.zeroindex.intake.domain.training.OneRepMax.formula = it.oneRepMaxFormula }
 
     suspend fun setWeightUnit(unit: WeightUnit) = put { it[Keys.weightUnit] = unit.name }
     suspend fun setLengthUnit(unit: LengthUnit) = put { it[Keys.lengthUnit] = unit.name }
@@ -398,6 +403,7 @@ class SettingsRepository @Inject constructor(
     suspend fun setRestVibrate(enabled: Boolean) = put { it[Keys.restVibrate] = enabled }
     suspend fun setBarWeightKg(kg: Double) = put { it[Keys.barWeight] = kg }
     suspend fun setAvailablePlates(csv: String) = put { it[Keys.plates] = csv }
+    suspend fun setOneRepMaxFormula(formula: com.zeroindex.intake.domain.training.OneRepMaxFormula) = put { it[Keys.oneRepMaxFormula] = formula.id }
     suspend fun setGoalWeightKg(kg: Double?) = put {
         if (kg == null) it.remove(Keys.goalWeight) else it[Keys.goalWeight] = kg
     }

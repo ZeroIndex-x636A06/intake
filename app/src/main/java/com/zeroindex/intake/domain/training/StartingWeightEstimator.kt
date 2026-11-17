@@ -48,7 +48,7 @@ data class StartingWeightContext(
  * rules every time:
  *
  * 1. **The same lift has history.** Take the best estimated max from the last session
- *    ([OneRepMax.epley]), work out the weight for the new rep range, and start at 87.5% of it (the
+ *    ([OneRepMax.estimate]), work out the weight for the new rep range, and start at 87.5% of it (the
  *    middle of 85 to 90%). Early sessions are for finding the groove, not for testing.
  * 2. **A related lift has history** (a dumbbell press when the person has benched). The same sum,
  *    scaled by how heavy the two lifts usually are against each other (see [FAMILIES]).
@@ -127,7 +127,7 @@ object StartingWeightEstimator {
 
     /** The weight (kg) a person who can do [weightKg] for [reps] could do for [targetReps]. */
     fun equivalentWeight(weightKg: Double, reps: Int, targetReps: Int): Double {
-        val e1rm = OneRepMax.epley(weightKg, reps.coerceAtLeast(1))
+        val e1rm = OneRepMax.estimate(weightKg, reps.coerceAtLeast(1))
         return e1rm / (1.0 + targetReps.coerceAtLeast(1) / 30.0)
     }
 
@@ -165,7 +165,7 @@ object StartingWeightEstimator {
                     val set = bestSet(lastSets(other.id)) ?: return@mapNotNull null
                     Triple(other, set, otherFactor)
                 }
-                .maxByOrNull { (_, set, _) -> OneRepMax.epley(set.first, set.second) }
+                .maxByOrNull { (_, set, _) -> OneRepMax.estimate(set.first, set.second) }
             if (related != null) {
                 val (other, set, otherFactor) = related
                 val same = equivalentWeight(set.first, set.second, targetReps)
@@ -226,7 +226,7 @@ object StartingWeightEstimator {
 
     private fun bestSet(sets: List<PastSet>): Pair<Double, Int>? =
         sets.filter { it.weightKg > 0 && it.reps >= 1 }
-            .maxByOrNull { OneRepMax.epley(it.weightKg, it.reps) }
+            .maxByOrNull { OneRepMax.estimate(it.weightKg, it.reps) }
             ?.let { it.weightKg to it.reps }
 
     /**

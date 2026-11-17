@@ -35,7 +35,7 @@ object PortableSettings {
     /** The exact preference names that are portable. */
     private val exact: Set<String> = setOf(
         "weight_unit", "length_unit", "theme_mode", "dynamic_color", "reduce_motion",
-        "default_rest_sec", "rest_vibrate", "bar_weight_kg", "available_plates_kg",
+        "default_rest_sec", "rest_vibrate", "bar_weight_kg", "available_plates_kg", "one_rep_max_formula",
         "goal_weight_kg", "goal_rate_kg_per_week", "protein_g_per_kg", "fat_g_per_kg",
         "auto_targets", "add_active_kcal", "current_plan_week",
         "volume_unit",

@@ -29,29 +29,46 @@ object PreviousSets {
         lastSession.getOrNull(setIndex) ?: lastSession.lastOrNull()
 }
 
+/**
+ * The four kinds of record a set can earn. All of them are computed from logged sets and never stored, so they follow the
+ * history if a set is edited or removed. The order here is the order a single flag is picked in: the estimated max first.
+ */
 enum class PrKind(val label: String) {
     NONE(""),
     ESTIMATED_MAX("New estimated max"),
+    HEAVIEST_WEIGHT("Heaviest weight"),
     REP_RECORD("Rep record"),
+    BEST_VOLUME("Best session volume"),
 }
 
 /**
- * Live PR flag while logging. A set is a record when it beats the best estimated 1-rep max of the history, or has more reps
- * than any earlier set at the same weight. With no history the first set is not a record ("first time ever" is not one).
+ * Live PR flag while logging. A set is a record when it beats the best estimated 1-rep max of the history, is heavier than
+ * any earlier set, or has more reps than any earlier set at the same weight (for a bodyweight set, at no added weight).
+ * With no history the first set is not a record ("first time ever" is not one). The fourth kind, the best session volume,
+ * needs the whole session and is [ExerciseRecordsCalc.volumeRecord].
  */
 object PrDetector {
     private const val EPS = 0.05
 
-    fun check(weightKg: Double, reps: Int, history: List<SetResult>): PrKind {
-        if (weightKg <= 0.0 || reps < 1) return PrKind.NONE
-        val past = history.filter { it.weightKg > 0 && it.reps >= 1 }
-        if (past.isEmpty()) return PrKind.NONE
-        val bestMax = OneRepMax.best(past) ?: return PrKind.NONE
-        if (OneRepMax.epley(weightKg, reps) > bestMax + EPS) return PrKind.ESTIMATED_MAX
+    /** Every set-level record this set earns, in [PrKind] order. */
+    fun kinds(weightKg: Double, reps: Int, history: List<SetResult>): List<PrKind> {
+        if (weightKg < 0.0 || reps < 1) return emptyList()
+        val past = history.filter { it.weightKg >= 0 && it.reps >= 1 }
+        if (past.isEmpty()) return emptyList()
+        val out = mutableListOf<PrKind>()
+        val weighted = past.filter { it.weightKg > 0 }
+        if (weightKg > 0.0 && weighted.isNotEmpty()) {
+            if (OneRepMax.estimate(weightKg, reps) > OneRepMax.best(weighted)!! + EPS) out += PrKind.ESTIMATED_MAX
+            if (weightKg > weighted.maxOf { it.weightKg } + 0.01) out += PrKind.HEAVIEST_WEIGHT
+        }
         val sameWeight = past.filter { abs(it.weightKg - weightKg) < 0.01 }
-        if (sameWeight.isNotEmpty() && reps > sameWeight.maxOf { it.reps }) return PrKind.REP_RECORD
-        return PrKind.NONE
+        if (sameWeight.isNotEmpty() && reps > sameWeight.maxOf { it.reps }) out += PrKind.REP_RECORD
+        return out
     }
+
+    /** The one flag to show for a set: the first of [kinds]. */
+    fun check(weightKg: Double, reps: Int, history: List<SetResult>): PrKind =
+        kinds(weightKg, reps, history).firstOrNull() ?: PrKind.NONE
 }
 
 /** What a swap candidate is, for ranking. */
@@ -188,9 +205,9 @@ data class SummarySet(
 data class RecordLine(
     val exerciseName: String,
     val kind: PrKind,
-    /** The new best (kg for [PrKind.ESTIMATED_MAX], reps for [PrKind.REP_RECORD]). */
+    /** The new best: kg for the estimated max, heaviest weight and session volume; reps for [PrKind.REP_RECORD]. */
     val value: Double,
-    /** The earlier best, or null for a rep record at a new weight. */
+    /** The earlier best, or null when there is none to compare. */
     val previous: Double?,
     val weightKg: Double,
 )
@@ -222,25 +239,35 @@ object SessionSummaries {
         val volume = working.sumOf { it.weightKg * it.reps }
         val records = mutableListOf<RecordLine>()
         working.groupBy { it.exerciseId }.forEach { (id, exerciseSets) ->
-            val before = historyBefore[id].orEmpty().filter { it.weightKg > 0 && it.reps >= 1 }
+            val before = historyBefore[id].orEmpty().filter { it.weightKg >= 0 && it.reps >= 1 }
             if (before.isEmpty()) return@forEach // the first time ever is not a record
             val name = exerciseSets.first().exerciseName
-            val bestBefore = OneRepMax.best(before)
-            val topSet = exerciseSets.filter { it.weightKg > 0 && it.reps >= 1 }.maxByOrNull { OneRepMax.epley(it.weightKg, it.reps) }
+            val weightedBefore = before.filter { it.weightKg > 0 }
+            val bestBefore = OneRepMax.best(weightedBefore)
+            val weighted = exerciseSets.filter { it.weightKg > 0 && it.reps >= 1 }
+            val topSet = weighted.maxByOrNull { OneRepMax.estimate(it.weightKg, it.reps) }
             if (topSet != null && bestBefore != null) {
-                val e = OneRepMax.epley(topSet.weightKg, topSet.reps)
+                val e = OneRepMax.estimate(topSet.weightKg, topSet.reps)
                 if (e > bestBefore + 0.05) records += RecordLine(name, PrKind.ESTIMATED_MAX, e, bestBefore, topSet.weightKg)
             }
-            // Rep records: the best reps this session at a weight that was lifted before.
-            exerciseSets.groupBy { Math.round(it.weightKg * 100) }.forEach { (_, same) ->
+            // Heaviest weight: the heaviest working set of the session, when it is heavier than any set before.
+            val heaviest = weighted.maxByOrNull { it.weightKg }
+            if (heaviest != null && weightedBefore.isNotEmpty() && heaviest.weightKg > weightedBefore.maxOf { it.weightKg } + 0.01) {
+                records += RecordLine(name, PrKind.HEAVIEST_WEIGHT, heaviest.weightKg, weightedBefore.maxOf { it.weightKg }, heaviest.weightKg)
+            }
+            // Rep records: the best reps this session at a weight that was lifted before (no added weight counts as a weight).
+            exerciseSets.filter { it.reps >= 1 }.groupBy { Math.round(it.weightKg * 100) }.forEach { (_, same) ->
                 val w = same.first().weightKg
                 val earlier = before.filter { abs(it.weightKg - w) < 0.01 }
                 val best = same.maxOf { it.reps }
-                if (w > 0 && earlier.isNotEmpty() && best > earlier.maxOf { it.reps } &&
+                if (w >= 0 && earlier.isNotEmpty() && best > earlier.maxOf { it.reps } &&
                     records.none { it.exerciseName == name && it.kind == PrKind.ESTIMATED_MAX && abs(it.weightKg - w) < 0.01 }
                 ) {
                     records += RecordLine(name, PrKind.REP_RECORD, best.toDouble(), earlier.maxOf { it.reps }.toDouble(), w)
                 }
+            }
+            ExerciseRecordsCalc.volumeRecord(before, exerciseSets.map { SetResult(it.weightKg, it.reps) })?.let {
+                records += RecordLine(name, PrKind.BEST_VOLUME, it.volumeKg, it.previousKg, 0.0)
             }
         }
         val regionSets = linkedMapOf<BodyRegion, Double>()

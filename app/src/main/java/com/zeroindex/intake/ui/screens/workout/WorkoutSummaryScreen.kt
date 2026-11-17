@@ -353,9 +353,18 @@ internal fun recordText(r: RecordLine, unit: WeightUnit): String = when (r.kind)
         val up = r.previous?.let { ", up ${fmt(unit.fromKg(r.value - it))} ${unit.label}" }.orEmpty()
         "${r.exerciseName}: estimated 1-rep max $now ${unit.label}$up"
     }
+    PrKind.HEAVIEST_WEIGHT -> {
+        val up = r.previous?.let { " (was ${fmt(unit.fromKg(it))})" }.orEmpty()
+        "${r.exerciseName}: heaviest weight ${fmt(unit.fromKg(r.value))} ${unit.label}$up"
+    }
+    PrKind.BEST_VOLUME -> {
+        val was = r.previous?.let { " (was ${TrainText.thousands(unit.fromKg(it))})" }.orEmpty()
+        "${r.exerciseName}: best session volume ${TrainText.thousands(unit.fromKg(r.value))} ${unit.label}$was"
+    }
     PrKind.REP_RECORD -> {
         val was = r.previous?.let { " (was ${it.toInt()})" }.orEmpty()
-        "${r.exerciseName}: ${r.value.toInt()} reps at ${fmt(unit.fromKg(r.weightKg))} ${unit.label}$was"
+        val at = if (r.weightKg == 0.0) "" else " at ${fmt(unit.fromKg(r.weightKg))} ${unit.label}"
+        "${r.exerciseName}: ${r.value.toInt()} reps$at$was"
     }
     PrKind.NONE -> r.exerciseName
 }

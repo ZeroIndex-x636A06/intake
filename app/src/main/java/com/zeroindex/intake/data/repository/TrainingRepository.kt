@@ -1091,7 +1091,7 @@ class TrainingRepository @Inject constructor(
         if (exerciseIds.isEmpty()) return emptyMap()
         val before = workoutDao.findSession(sessionId)?.startedAt ?: clock.nowMillis()
         return workoutDao.historyBefore(sessionId, before, exerciseIds.toList())
-            .groupBy({ it.exerciseId }, { SetResult(it.weightKg, it.reps, it.rpe, it.isFailure) })
+            .groupBy({ it.exerciseId }, { SetResult(it.weightKg, it.reps, it.rpe, it.isFailure, it.sessionId) })
     }
 
     /** "Discard workout": hides the session and its sets (soft delete), and stops the program rotation from moving. */

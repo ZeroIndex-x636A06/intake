@@ -13,6 +13,7 @@ import com.zeroindex.intake.data.settings.AppSettings
 import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.training.PlateCalculator
 import com.zeroindex.intake.domain.training.PlateLoad
+import com.zeroindex.intake.domain.training.ExerciseRecordsCalc
 import com.zeroindex.intake.domain.training.PrDetector
 import com.zeroindex.intake.domain.training.PrKind
 import com.zeroindex.intake.domain.training.Prescription
@@ -144,10 +145,21 @@ class ActiveWorkoutViewModel @Inject constructor(
         val out = mutableMapOf<String, PrKind>()
         sets.filter { !it.isWarmup }.groupBy { it.exerciseId }.forEach { (exerciseId, rows) ->
             val past = hist[exerciseId].orEmpty().toMutableList()
+            val today = mutableListOf<SetResult>()
+            val earlier = hist[exerciseId].orEmpty()
             rows.sortedBy { it.completedAt }.forEach { s ->
-                val kind = PrDetector.check(s.weightKg, s.reps, past)
+                var kind = PrDetector.check(s.weightKg, s.reps, past)
+                val result = SetResult(s.weightKg, s.reps)
+                // The fourth record, the best session volume, goes to the set that takes the day past the old best.
+                if (kind == PrKind.NONE &&
+                    ExerciseRecordsCalc.volumeRecord(earlier, today) == null &&
+                    ExerciseRecordsCalc.volumeRecord(earlier, today + result) != null
+                ) {
+                    kind = PrKind.BEST_VOLUME
+                }
                 if (kind != PrKind.NONE) out[s.id] = kind
-                past += SetResult(s.weightKg, s.reps)
+                past += result
+                today += result
             }
         }
         return out

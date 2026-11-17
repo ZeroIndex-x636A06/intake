@@ -101,13 +101,15 @@ class ExerciseDetailViewModel @Inject constructor(
         } else {
             combine(
                 flow { emit(repository.exerciseAnyState(exerciseId)) },
-                repository.observeExerciseSets(exerciseId)
-                    .map { ExerciseHistoryCalc.summarize(it, java.util.TimeZone.getDefault().rawOffset.toLong()) },
-                repository.observeSetsForExercise(exerciseId).map { rows ->
-                    ExerciseStatsBuilder.build(rows.map { LogSet(it.sessionId, it.exerciseId, it.setIndex, it.weightKg, it.reps, it.isWarmup, it.completedAt) })
-                },
+                repository.observeExerciseSets(exerciseId),
+                repository.observeSetsForExercise(exerciseId),
                 settings.settings,
-            ) { exercise, history, stats, s -> ExerciseDetailState(exercise, history, stats, s.weightUnit) }
+            ) { exercise, historyRows, rows, s ->
+                val history = ExerciseHistoryCalc.summarize(historyRows, java.util.TimeZone.getDefault().rawOffset.toLong())
+                // Built here, after the settings arrived, so a change of 1RM formula recomputes the estimates.
+                val stats = ExerciseStatsBuilder.build(rows.map { LogSet(it.sessionId, it.exerciseId, it.setIndex, it.weightKg, it.reps, it.isWarmup, it.completedAt) })
+                ExerciseDetailState(exercise, history, stats, s.weightUnit)
+            }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ExerciseDetailState())
 }
@@ -278,7 +280,7 @@ private fun YourHistory(stats: ExerciseStats, unit: WeightUnit) {
     }
     if (stats.estimatedMaxSeries.isNotEmpty()) {
         Text("Estimated max over time", style = MaterialTheme.typography.titleSmall)
-        Text(OneRepMax.FORMULA, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(OneRepMax.formulaText, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         val points = stats.estimatedMaxSeries.map { ChartPoint(it.first.toDouble(), unit.fromKg(it.second)) }
         TrendLineChart(
             raw = points,
@@ -302,19 +304,9 @@ private fun YourHistory(stats: ExerciseStats, unit: WeightUnit) {
             )
         }
     }
-    if (stats.bestRepsAtWeight.isNotEmpty()) {
-        Text("Best reps at each weight", style = MaterialTheme.typography.titleSmall)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            stats.bestRepsAtWeight.take(12).forEach { (kg, reps) ->
-                Text(
-                    "${w(kg)} × $reps",
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier
-                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
-                )
-            }
-        }
+    if (!stats.records.isEmpty) {
+        Text("Records", style = MaterialTheme.typography.titleSmall)
+        RecordsBlock(stats.records, unit)
     }
     Text(
         HistoryFormat.sessionsHeading(stats.sessions.size, stats.recordCount),

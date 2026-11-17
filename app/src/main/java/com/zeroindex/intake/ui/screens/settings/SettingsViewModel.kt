@@ -199,6 +199,7 @@ class SettingsViewModel @Inject constructor(
     fun setRestVibrate(enabled: Boolean) = launchSetting { setRestVibrate(enabled) }
     fun setBarWeightKg(kg: Double) = launchSetting { setBarWeightKg(kg) }
     fun setPlates(csv: String) = launchSetting { setAvailablePlates(csv) }
+    fun setOneRepMaxFormula(formula: com.zeroindex.intake.domain.training.OneRepMaxFormula) = launchSetting { setOneRepMaxFormula(formula) }
     fun setJumpTests(on: Boolean) = launchSetting { setJumpTests(on) }
     fun setWeeklySets(csv: String) = launchSetting { setWeeklySetsCsv(csv) }
 

@@ -247,8 +247,8 @@ class WorkoutLogicTest {
             listOf(s("Bench", 105.0, 5)),
             mapOf("Bench" to listOf(SetResult(100.0, 5))), 0, 1,
         )
-        val record = sum.records.single()
-        assertThat(record.kind).isEqualTo(PrKind.ESTIMATED_MAX)
+        // 105 x 5 is also the heaviest weight; the estimated max is the one with a delta.
+        val record = sum.records.single { it.kind == PrKind.ESTIMATED_MAX }
         assertThat(record.value).isGreaterThan(record.previous!!)
     }
 

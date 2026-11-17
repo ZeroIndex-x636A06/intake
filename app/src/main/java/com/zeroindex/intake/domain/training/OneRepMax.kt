@@ -3,26 +3,31 @@ package com.zeroindex.intake.domain.training
 import kotlin.math.roundToInt
 
 /**
- * SPEC §10: estimated 1RM over time, with the formula shown. Epley, stated
- * openly so the number is never a black box:
+ * SPEC §10: estimated 1RM over time, with the formula shown, so the number is never a black box. The formula is the
+ * person's choice (Settings > Training, [OneRepMaxFormula]); every figure in the app goes through [estimate], so one
+ * setting changes them all. Epley is the default:
  *
  *     1RM = weight x (1 + reps / 30)
  */
 object OneRepMax {
 
-    const val FORMULA = "Epley: 1RM = weight x (1 + reps / 30)"
+    /** The formula in use. Set from the settings at start-up and whenever the person changes it. */
+    @Volatile
+    var formula: OneRepMaxFormula = OneRepMaxFormula.DEFAULT
 
-    fun epley(weightKg: Double, reps: Int): Double {
-        require(reps >= 1) { "reps must be at least 1, was $reps" }
-        // A true single needs no estimating.
-        if (reps == 1) return weightKg
-        return weightKg * (1.0 + reps / 30.0)
-    }
+    /** "Epley: 1RM = weight x (1 + reps / 30)", for the formula in use. */
+    val formulaText: String get() = formula.description
+
+    /** Estimated one-rep max with the formula in use. A single is the weight itself. */
+    fun estimate(weightKg: Double, reps: Int): Double = formula.estimate(weightKg, reps)
+
+    /** Epley whatever the setting is: for stating the default formula in tests. */
+    fun epley(weightKg: Double, reps: Int): Double = OneRepMaxFormula.EPLEY.estimate(weightKg, reps)
 
     /** Best estimated 1RM across a set of logged sets, or null if there are none. */
     fun best(sets: List<SetResult>): Double? = sets
         .filter { it.reps >= 1 && it.weightKg > 0 }
-        .maxOfOrNull { epley(it.weightKg, it.reps) }
+        .maxOfOrNull { estimate(it.weightKg, it.reps) }
 
     /**
      * Weight for a target percentage of 1RM, rounded to the nearest

@@ -366,8 +366,8 @@ class CoachRepository @Inject constructor(
     private fun sessionSummary(day: Long, sets: List<SetResult>): ExerciseSession {
         val loaded = sets.filter { it.weightKg > 0 && it.reps >= 1 }
         return if (loaded.isNotEmpty()) {
-            val top = loaded.maxByOrNull { OneRepMax.epley(it.weightKg, it.reps) }!!
-            ExerciseSession(day, OneRepMax.epley(top.weightKg, top.reps), loaded.sumOf { it.weightKg * it.reps }, top.weightKg, top.reps)
+            val top = loaded.maxByOrNull { OneRepMax.estimate(it.weightKg, it.reps) }!!
+            ExerciseSession(day, OneRepMax.estimate(top.weightKg, top.reps), loaded.sumOf { it.weightKg * it.reps }, top.weightKg, top.reps)
         } else {
             // Bodyweight only: reps are the progress.
             val best = sets.maxOfOrNull { it.reps } ?: 0

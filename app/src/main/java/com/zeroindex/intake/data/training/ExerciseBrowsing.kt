@@ -60,7 +60,7 @@ object ExerciseHistoryCalc {
         val weighted = working.filter { it.weightKg > 0 && it.reps >= 1 }
         return ExerciseHistory(
             days = days,
-            bestEstimatedMaxKg = weighted.maxOfOrNull { OneRepMax.epley(it.weightKg, it.reps) },
+            bestEstimatedMaxKg = weighted.maxOfOrNull { OneRepMax.estimate(it.weightKg, it.reps) },
             heaviestKg = weighted.maxOfOrNull { it.weightKg },
             totalSets = working.size,
         )

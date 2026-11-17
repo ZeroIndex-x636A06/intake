@@ -21,11 +21,13 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.domain.charts.ChartMath
+import com.zeroindex.intake.domain.training.OneRepMax
 import com.zeroindex.intake.domain.training.WeeklyVolume
 import com.zeroindex.intake.domain.units.UnitConverter
 import com.zeroindex.intake.ui.components.EmptyState
 import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.ui.components.SectionCard
+import com.zeroindex.intake.ui.screens.train.RecordsBlock
 import com.zeroindex.intake.ui.theme.IntakeShape
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -67,11 +69,16 @@ fun TrainingStatsCard(
                 )
             }
             Text(
-                "Epley: weight x (1 + reps / 30). An estimate, not a tested max.",
+                "${OneRepMax.formulaText}. An estimate, not a tested max. Change the formula in Settings > Training.",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp),
             )
+            Eyebrow(text = "Records by exercise", modifier = Modifier.padding(top = 12.dp, bottom = 2.dp))
+            state.stats.records.forEach { lift ->
+                Text(lift.name, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 6.dp, bottom = 2.dp))
+                RecordsBlock(lift.records, unit)
+            }
             Eyebrow(text = "Recent records", modifier = Modifier.padding(top = 12.dp, bottom = 2.dp))
             if (state.stats.recentPrs.isEmpty()) {
                 Text(
@@ -83,7 +90,7 @@ fun TrainingStatsCard(
             state.stats.recentPrs.forEach { pr ->
                 Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
                     Text(
-                        "${pr.exerciseName}: ${w(pr.weightKg)} ${unit.label} x ${pr.reps}",
+                        "${pr.exerciseName}: " + (if (pr.weightKg == 0.0) "${pr.reps} reps" else "${w(pr.weightKg)} ${unit.label} x ${pr.reps}"),
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.weight(1f),
                     )
@@ -131,6 +138,7 @@ fun TrainingStatsScreen(
     contentPadding: PaddingValues,
     onOpenLog: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenCalculators: (() -> Unit)? = null,
     viewModel: TrainingStatsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -145,5 +153,14 @@ fun TrainingStatsScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item { TrainingStatsCard(state, onOpenLog) }
+        if (onOpenCalculators != null) {
+            item {
+                OutlinedButton(
+                    onClick = onOpenCalculators,
+                    shape = IntakeShape.Button,
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                ) { Text("Calculators: 1RM, percentages, plates") }
+            }
+        }
     }
 }

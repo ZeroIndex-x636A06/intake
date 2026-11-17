@@ -1,5 +1,7 @@
 package com.zeroindex.intake.domain.training.log
 
+import com.zeroindex.intake.domain.training.ExerciseRecords
+import com.zeroindex.intake.domain.training.ExerciseRecordsCalc
 import com.zeroindex.intake.domain.training.OneRepMax
 import com.zeroindex.intake.domain.training.PrDetector
 import com.zeroindex.intake.domain.training.PrKind
@@ -126,6 +128,8 @@ data class ExerciseStats(
     val recordCount: Int,
     /** Reps across the working sets: the figure to show for a bodyweight lift, where the volume is 0. */
     val totalReps: Int = 0,
+    /** The four records of this exercise, from the logged working sets. */
+    val records: ExerciseRecords = ExerciseRecords(null, emptyList(), null, null),
 ) {
     val isEmpty: Boolean get() = sessionCount == 0
 
@@ -163,9 +167,9 @@ object ExerciseStatsBuilder {
         }
 
         val rated = working.filter { it.weightKg > 0 && it.reps >= 1 }
-        val best = rated.maxByOrNull { OneRepMax.epley(it.weightKg, it.reps) }
+        val best = rated.maxByOrNull { OneRepMax.estimate(it.weightKg, it.reps) }
         val series = sessions.mapNotNull { s ->
-            val e = s.sets.filter { !it.isWarmup && it.weightKg > 0 && it.reps >= 1 }.maxOfOrNull { OneRepMax.epley(it.weightKg, it.reps) }
+            val e = s.sets.filter { !it.isWarmup && it.weightKg > 0 && it.reps >= 1 }.maxOfOrNull { OneRepMax.estimate(it.weightKg, it.reps) }
             e?.let { s.at to it }
         }
         val repsAt = rated.groupBy { Math.round(it.weightKg * 100) / 100.0 }
@@ -173,7 +177,7 @@ object ExerciseStatsBuilder {
             .sortedByDescending { it.first }
 
         return ExerciseStats(
-            bestSet = best?.let { BestSet(it.weightKg, it.reps, OneRepMax.epley(it.weightKg, it.reps), it.completedAt) },
+            bestSet = best?.let { BestSet(it.weightKg, it.reps, OneRepMax.estimate(it.weightKg, it.reps), it.completedAt) },
             heaviestKg = rated.maxOfOrNull { it.weightKg },
             bestRepsAtWeight = repsAt,
             totalVolumeKg = working.sumOf { it.weightKg * it.reps },
@@ -183,6 +187,7 @@ object ExerciseStatsBuilder {
             sessions = sessions.sortedByDescending { it.at }.take(limit),
             recordCount = recordCount,
             totalReps = working.sumOf { it.reps },
+            records = ExerciseRecordsCalc.compute(working.map { SetResult(it.weightKg, it.reps, sessionId = it.sessionId) }),
         )
     }
 }

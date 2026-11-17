@@ -20,6 +20,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 
@@ -43,7 +45,9 @@ class TrainingStatsViewModel @Inject constructor(
         repository.observeSessions(),
         repository.observeAllSets(),
         repository.observeExercises(),
-    ) { sessions, logged, exercises ->
+        // The estimates follow the 1RM formula setting, so a change of formula rebuilds them.
+        settingsRepository.settings.map { it.oneRepMaxFormula }.distinctUntilChanged(),
+    ) { sessions, logged, exercises, _ ->
         val start = sessions.associate { it.id to it.startedAt }
         val names = exercises.associate { it.id to it.name }
         TrainingStats.build(
