@@ -175,7 +175,7 @@ fun MacroRing(
                     Text(
                         text = if (remaining >= 0) "kcal left" else "kcal over",
                         style = MaterialTheme.typography.labelLarge,
-                        color = if (remaining >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
+                        color = if (remaining >= 0) MaterialTheme.colorScheme.onSurface else CarbAccent,
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(

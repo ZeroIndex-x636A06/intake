@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.ui.components.IntakeTopBar
 
-/** Height the floating pill takes at the bottom of a tab root: the pill (72 dp), its gap and its top margin. */
+/** Height the floating dock takes at the bottom of a tab root: the dock (70 dp), its gap and its top margin. */
 val PillHeight: Dp = 92.dp
 
 /** True when the pill is drawn as a vertical rail at the start edge (wide screens): no bottom clearance then. */

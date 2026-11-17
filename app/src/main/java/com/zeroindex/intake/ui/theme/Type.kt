@@ -10,146 +10,124 @@ import androidx.compose.ui.unit.sp
 import com.zeroindex.intake.R
 
 /**
- * Typography from design/intake-mockup.html: Manrope for anything structural or
- * numeric, DM Sans for prose. Both are bundled as variable fonts so the app
- * needs no network to render correctly (SPEC §3.1) - weights come from the
- * `wght` axis rather than separate files.
+ * Typography (DESIGN-V6 a.2): Space Grotesk for titles and every number, Inter for everything read. Both are SIL OFL 1.1
+ * variable fonts bundled in res/font (licences in design/fonts, credited under Settings > About and help), so the app needs no
+ * network and no Google Play services to render correctly (SPEC section 3.1). Weights come from the `wght` axis.
  *
- * The mockup's heavy Manrope with negative tracking is what gives the numbers
- * their presence, so the weights and letter spacing here are deliberate and
- * worth preserving when editing.
+ * The files are subset to Latin and Latin Extended plus common symbols; Inter is pinned to its text optical size. Space Grotesk
+ * spans 300-700 and Inter 400-700, so a request for a heavier weight (ExtraBold, Black) resolves to Bold.
  */
-private fun manrope(weight: Int) = Font(
-    resId = R.font.manrope_variable,
+private fun spaceGrotesk(weight: Int) = Font(
+    resId = R.font.space_grotesk_variable,
     weight = FontWeight(weight),
     variationSettings = FontVariation.Settings(FontVariation.weight(weight)),
 )
 
-private fun dmSans(weight: Int) = Font(
-    resId = R.font.dm_sans_variable,
+private fun inter(weight: Int) = Font(
+    resId = R.font.inter_variable,
     weight = FontWeight(weight),
     variationSettings = FontVariation.Settings(FontVariation.weight(weight)),
 )
 
-val Manrope = FontFamily(manrope(400), manrope(500), manrope(600), manrope(700), manrope(800))
-val DmSans = FontFamily(dmSans(400), dmSans(500), dmSans(600), dmSans(700))
+val SpaceGrotesk = FontFamily(spaceGrotesk(400), spaceGrotesk(500), spaceGrotesk(600), spaceGrotesk(700))
+val Inter = FontFamily(inter(400), inter(500), inter(600), inter(700))
 
 /**
- * Sizes track the mockup, with one deliberate change: body text is floored at
- * 12sp and labels at 11sp. The mockup's 10-11px reads fine in a browser at
- * 390px, but Android applies the user's font scale on top and anything smaller
- * fails the accessibility bar SPEC §3.7 sets. The hierarchy is unchanged.
+ * Sizes track the mockup. Body text is floored at 12 sp and labels at 11 sp (the mockup's 11 and 11.5 are exactly at the floor),
+ * because Android applies the user's font scale on top. Tracking is the mockup's em value times the size. All text is in sp.
  */
 internal val IntakeTypography = Typography(
-    // Big numbers: the macro ring centre, weight, headline stats.
+    // Hero number (Weekly "48").
     displayLarge = TextStyle(
-        fontFamily = Manrope,
-        fontWeight = FontWeight.ExtraBold,
-        fontSize = 40.sp,
-        lineHeight = 44.sp,
-        letterSpacing = (-2).sp,
+        fontFamily = SpaceGrotesk, fontWeight = FontWeight.SemiBold,
+        fontSize = 48.sp, lineHeight = 48.sp, letterSpacing = (-1.4).sp,
     ),
+    // Big stat, onboarding and summary titles.
     displayMedium = TextStyle(
-        fontFamily = Manrope,
-        fontWeight = FontWeight.ExtraBold,
-        fontSize = 34.sp,
-        lineHeight = 39.sp,
-        letterSpacing = (-1.7).sp,
+        fontFamily = SpaceGrotesk, fontWeight = FontWeight.SemiBold,
+        fontSize = 34.sp, lineHeight = 37.sp, letterSpacing = (-0.85).sp,
     ),
     displaySmall = TextStyle(
-        fontFamily = Manrope,
-        fontWeight = FontWeight.ExtraBold,
-        fontSize = 28.sp,
-        lineHeight = 33.sp,
-        letterSpacing = (-1.1).sp,
+        fontFamily = SpaceGrotesk, fontWeight = FontWeight.SemiBold,
+        fontSize = 28.sp, lineHeight = 31.sp, letterSpacing = (-0.84).sp,
     ),
-    // Cook mode's one-step-at-a-time heading.
+    // `.title`: tab-root and screen titles.
     headlineLarge = TextStyle(
-        fontFamily = Manrope,
-        fontWeight = FontWeight.ExtraBold,
-        fontSize = 32.sp,
-        lineHeight = 37.sp,
-        letterSpacing = (-1.6).sp,
+        fontFamily = SpaceGrotesk, fontWeight = FontWeight.SemiBold,
+        fontSize = 30.sp, lineHeight = 32.sp, letterSpacing = (-0.75).sp,
     ),
+    // Stat numbers in tiles and cards.
     headlineMedium = TextStyle(
-        fontFamily = Manrope,
-        fontWeight = FontWeight.ExtraBold,
-        fontSize = 26.sp,
-        lineHeight = 31.sp,
-        letterSpacing = (-1).sp,
+        fontFamily = SpaceGrotesk, fontWeight = FontWeight.SemiBold,
+        fontSize = 24.sp, lineHeight = 28.sp, letterSpacing = (-0.72).sp,
     ),
-    // Screen titles ("Progress", "Train", "Add food").
+    // Sheet title, in-screen heading.
     headlineSmall = TextStyle(
-        fontFamily = Manrope,
-        fontWeight = FontWeight.ExtraBold,
-        fontSize = 22.sp,
-        lineHeight = 27.sp,
-        letterSpacing = (-0.9).sp,
+        fontFamily = SpaceGrotesk, fontWeight = FontWeight.SemiBold,
+        fontSize = 22.sp, lineHeight = 26.sp, letterSpacing = (-0.44).sp,
     ),
+    // `.h2`: section and card titles.
     titleLarge = TextStyle(
-        fontFamily = Manrope,
-        fontWeight = FontWeight.ExtraBold,
-        fontSize = 19.sp,
-        lineHeight = 24.sp,
-        letterSpacing = (-0.6).sp,
+        fontFamily = SpaceGrotesk, fontWeight = FontWeight.SemiBold,
+        fontSize = 19.sp, lineHeight = 23.sp, letterSpacing = (-0.3).sp,
     ),
-    // Section headings and card titles.
+    // `.h3`: row title.
     titleMedium = TextStyle(
-        fontFamily = Manrope,
-        fontWeight = FontWeight.Bold,
-        fontSize = 15.sp,
-        lineHeight = 20.sp,
-        letterSpacing = (-0.2).sp,
+        fontFamily = Inter, fontWeight = FontWeight.SemiBold,
+        fontSize = 15.sp, lineHeight = 20.sp,
     ),
     titleSmall = TextStyle(
-        fontFamily = Manrope,
-        fontWeight = FontWeight.Bold,
-        fontSize = 13.sp,
-        lineHeight = 18.sp,
+        fontFamily = Inter, fontWeight = FontWeight.SemiBold,
+        fontSize = 13.5.sp, lineHeight = 18.sp,
     ),
     bodyLarge = TextStyle(
-        fontFamily = DmSans,
-        fontWeight = FontWeight.Normal,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
+        fontFamily = Inter, fontWeight = FontWeight.Normal,
+        fontSize = 15.sp, lineHeight = 21.sp,
     ),
+    // `.sub`.
     bodyMedium = TextStyle(
-        fontFamily = DmSans,
-        fontWeight = FontWeight.Normal,
-        fontSize = 13.sp,
-        lineHeight = 19.sp,
+        fontFamily = Inter, fontWeight = FontWeight.Normal,
+        fontSize = 13.sp, lineHeight = 18.sp,
     ),
     bodySmall = TextStyle(
-        fontFamily = DmSans,
-        fontWeight = FontWeight.Normal,
-        fontSize = 12.sp,
-        lineHeight = 17.sp,
+        fontFamily = Inter, fontWeight = FontWeight.Normal,
+        fontSize = 12.sp, lineHeight = 16.sp,
     ),
+    // `.btn`.
     labelLarge = TextStyle(
-        fontFamily = DmSans,
-        fontWeight = FontWeight.Bold,
-        fontSize = 13.sp,
-        lineHeight = 17.sp,
+        fontFamily = Inter, fontWeight = FontWeight.SemiBold,
+        fontSize = 14.5.sp, lineHeight = 20.sp,
     ),
+    // `.chip` and field labels.
     labelMedium = TextStyle(
-        fontFamily = DmSans,
-        fontWeight = FontWeight.Bold,
-        fontSize = 12.sp,
-        lineHeight = 16.sp,
+        fontFamily = Inter, fontWeight = FontWeight.SemiBold,
+        fontSize = 12.5.sp, lineHeight = 16.sp,
     ),
+    // Dock tab label and small captions.
     labelSmall = TextStyle(
-        fontFamily = DmSans,
-        fontWeight = FontWeight.Bold,
-        fontSize = 11.sp,
-        lineHeight = 15.sp,
+        fontFamily = Inter, fontWeight = FontWeight.SemiBold,
+        fontSize = 11.sp, lineHeight = 15.sp,
     ),
 )
 
-/** The mockup's uppercase micro-label: `.label` and `.warn-top`. */
+/** `.eyebrow`: 11.5 sp, +0.08 em, uppercase (the caller uppercases the existing string, see Eyebrow). */
 val EyebrowStyle = TextStyle(
-    fontFamily = DmSans,
-    fontWeight = FontWeight.ExtraBold,
-    fontSize = 11.sp,
+    fontFamily = Inter,
+    fontWeight = FontWeight.SemiBold,
+    fontSize = 11.5.sp,
     lineHeight = 15.sp,
-    letterSpacing = 1.1.sp,
+    letterSpacing = 0.9.sp,
 )
+
+/** `.num` 16 to 20: day-strip date, small stats. Not an M3 slot. */
+val NumberSmall = TextStyle(
+    fontFamily = SpaceGrotesk,
+    fontWeight = FontWeight.SemiBold,
+    fontSize = 18.sp,
+    lineHeight = 22.sp,
+    letterSpacing = (-0.54).sp,
+    fontFeatureSettings = "tnum",
+)
+
+/** Numbers that change live (timers, set weights): tabular figures so the digits do not jitter. */
+fun TextStyle.tabular(): TextStyle = copy(fontFeatureSettings = "tnum")

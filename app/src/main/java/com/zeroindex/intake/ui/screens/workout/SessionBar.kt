@@ -1,19 +1,16 @@
 package com.zeroindex.intake.ui.screens.workout
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material3.Icon
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -35,7 +32,10 @@ import com.zeroindex.intake.domain.training.WorkoutPause
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.zeroindex.intake.domain.training.TrainText
 import com.zeroindex.intake.timer.TimerService
+import com.zeroindex.intake.ui.theme.IntakeElevation
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.intake
+import com.zeroindex.intake.ui.theme.tabular
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -72,7 +72,7 @@ class SessionBarViewModel @Inject constructor(
 val SessionBarHeight: Dp = 72.dp
 
 /**
- * The minimised session bar (IA v5 2.5): shown above the pill on the tab roots while a workout runs. Shows the day, the
+ * The minimised session bar, the redesign's live pill (a 20 dp card with a lime pulse dot and an ink Resume pill): shown above the dock on the tab roots while a workout runs. Shows the day, the
  * clock and the rest countdown when one is running; tapping it goes back into the workout.
  */
 @Composable
@@ -88,35 +88,54 @@ fun SessionBar(session: RunningSession, onResume: () -> Unit, modifier: Modifier
         }
     }
     val resting = timer.running && timer.remainingSeconds > 0
+    val c = MaterialTheme.intake
     Surface(
-        color = MaterialTheme.colorScheme.primaryContainer,
-        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-        shape = IntakeShape.Banner,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
-        shadowElevation = 4.dp,
+        color = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = IntakeShape.Live,
+        shadowElevation = IntakeElevation.Live,
         modifier = modifier
             .fillMaxWidth()
             .clickable(role = Role.Button, onClickLabel = "Go back into your workout", onClick = onResume),
     ) {
         Row(
-            modifier = Modifier.heightIn(min = 56.dp).padding(horizontal = 14.dp),
+            modifier = Modifier.heightIn(min = 58.dp).padding(start = 16.dp, end = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Icon(Icons.Filled.FitnessCenter, contentDescription = null, modifier = Modifier.size(22.dp))
+            // `.pulse`: a 10 dp lime dot with a 5 dp, 25% lime halo.
+            Box(
+                Modifier
+                    .size(20.dp)
+                    .background(c.accent.copy(alpha = 0.25f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(Modifier.size(10.dp).background(c.accent, CircleShape))
+            }
             Column(Modifier.weight(1f)) {
-                Text(session.title, style = MaterialTheme.typography.titleSmall, maxLines = 1)
+                Text(session.title, style = MaterialTheme.typography.titleMedium, maxLines = 1)
                 Text(
                     when {
                         pause?.isPaused == true -> "${TrainText.clock(elapsed)} · Paused"
                         resting -> "${TrainText.clock(elapsed)} · Rest ${TimerService.format(timer.remainingSeconds)}"
                         else -> TrainText.clock(elapsed)
                     },
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium.tabular(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Spacer(Modifier.width(4.dp))
-            Text("Resume", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            // The small ink "Resume" pill; the whole bar is the touch target.
+            Surface(
+                color = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = CircleShape,
+            ) {
+                Text(
+                    "Resume",
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+                )
+            }
         }
     }
 }

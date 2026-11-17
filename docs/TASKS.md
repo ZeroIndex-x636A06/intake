@@ -8,6 +8,8 @@ with its merge commit. Read `CLAUDE.md` before you claim anything.
 
 ## In progress
 
+**Design v6, Phase 1: theme, tokens, core components** (`agent/design-v6-core`, brief `docs/briefs/DESIGN-V6.md`): Ink and Lime theme, `Tokens.kt` (`IntakeColors`, `MaterialTheme.intake`), `IntakeIcons.kt`, bundled Inter and Space Grotesk, restyled `ui/components`, allergen chips and banners, flat dock chrome, `DockBar` and `DockFab` for Phase 1b. Compiles, unit tests and lint pass; not rendered on the emulator or a device. Phase 1b (static five-slot dock, Quick log sheet, renamed tabs, Food segments) and the Phase 2 groups follow.
+
 **QA pass 6 and training merge** (`claude/optimistic-noether-fullk5`): the Pass 6 fixes (Q6-1, 2, 4, 5, 6, 7, 8, the "almo" ranking) and training WP-1 (effort), WP-4 (rest and clock polish), WP-6 (records, 1RM formula, calculators) and WP-16 (history editing, calendar) of `docs/briefs/TRAINING-GAP-OPENGYM.md` are landed. They have unit tests only and have not been seen on the emulator or a device. Settings numbers 130 to 136 are unique now (see `docs/SETTINGS-INVENTORY.md`). `agent/design-v6` (docs and images only) is merged too. Q6-3 (search ANR) is still open on `agent/qa6-perf`.
 
 **Round 5 merge done** on `claude/optimistic-noether-fullk5` (all seven round-5 branches merged, schema v6). The entries below say "not pushed"; they are merged now. Phone testing still to do.

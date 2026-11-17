@@ -1,9 +1,6 @@
 package com.zeroindex.intake.ui.navigation
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
@@ -12,20 +9,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.systemGestures
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -34,12 +23,9 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
@@ -50,37 +36,26 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.onClick
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.zeroindex.intake.ui.motion.LocalReduceMotion
-import com.zeroindex.intake.ui.motion.Motion
-import kotlin.math.roundToInt
-import kotlinx.coroutines.launch
+import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
 
 /**
- * The floating navigation pill (SPEC-v3): a dark, fully rounded bar above the content with an icon
- * over a label per tab, and a lighter inner pill under the selected one that springs between tabs.
- * With [vertical] it is the tablet rail, the same pill stood on end.
+ * The floating navigation bar, in the flat "dock" look (DESIGN-V6 a.5, b.4): a pill in the solid `dock` colour with an icon
+ * over a label per tab and the active tab in lime. No blur, no glass and no moving highlight. With [vertical] it is the tablet
+ * rail, the same pill stood on end.
  *
- * Touch is handled once for the whole pill rather than per item, so a finger can go down on one
- * tab and slide across the others: the highlight follows it, each new tab crossed gives a light
- * haptic tick, and lifting commits the tab under the finger. A tap is the same gesture without
- * the slide. The slide is an enhancement only: each item also exposes a click action to
- * accessibility services, so TalkBack's double-tap and switch access select tabs normally.
+ * Touch is still handled once for the whole bar rather than per item, so a finger can go down on one tab and slide across the
+ * others: the tab under the finger turns lime, each new tab crossed gives a light haptic tick, and lifting commits the tab under
+ * the finger. A tap is the same gesture without the slide. The slide is an enhancement only: each item also exposes a click
+ * action to accessibility services, so TalkBack's double-tap and switch access select tabs normally. (Phase 1b replaces this
+ * with the static five-slot [DockBar]; the gesture stays here until then.)
  *
- * A touch that starts inside the system back-gesture strip at a screen edge never slides (the
- * system owns it); it can still be a tap.
+ * A touch that starts inside the system back-gesture strip at a screen edge never slides (the system owns it); it can still be
+ * a tap.
  *
- * [onSelect] is called with the item index, including for the already-selected item, which the
- * caller turns into "pop to this tab's root".
+ * [onSelect] is called with the item index, including for the already-selected item, which the caller turns into "pop to this
+ * tab's root". [backdrop] is accepted for source compatibility and ignored: the dock is a solid fill now.
  */
 @Composable
 fun FloatingPillBar(
@@ -89,73 +64,30 @@ fun FloatingPillBar(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
     vertical: Boolean = false,
-    /** The content region's recording, for a frosted-glass background (API 31+); null keeps the plain fill. */
     backdrop: PillBackdrop? = null,
 ) {
-    val reduce = LocalReduceMotion.current
     val haptics = LocalHapticFeedback.current
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     val view = LocalView.current
     val gestureInsets = WindowInsets.systemGestures
-    val blurOn = backdrop != null && PillBackdrop.supported
-    val colors = pillColors(frosted = blurOn)
-    val blurLayer = androidx.compose.ui.graphics.rememberGraphicsLayer()
+    val colors = dockColors()
     val count = destinations.size
     val currentOnSelect by rememberUpdatedState(onSelect)
 
-    // Item rectangles and the touch surface's origin, both in root coordinates; the gesture and
-    // the indicator subtract one from the other, so padding and rounding never matter.
+    // Item rectangles and the touch surface's origin, both in root coordinates; the gesture subtracts one from the other,
+    // so padding and rounding never matter.
     val itemRects = remember(count) { mutableStateListOf<Rect>().apply { repeat(count) { add(Rect.Zero) } } }
     var origin by remember { mutableStateOf(Offset.Zero) }
     var hover by remember { mutableIntStateOf(PillSlideTracker.NONE) }
     val tracker = remember(density) { PillSlideTracker(hysteresisPx = with(density) { 6.dp.toPx() }) }
 
     val shownIndex = if (hover != PillSlideTracker.NONE) hover else selectedIndex
-    val target = itemRects.getOrNull(shownIndex)?.takeIf { it.width > 0f }
-    val targetStart = target?.let { (if (vertical) it.top - origin.y else it.left - origin.x) } ?: 0f
-    val targetLength = target?.let { if (vertical) it.height else it.width } ?: 0f
-    val crossStart = target?.let { if (vertical) it.left - origin.x else it.top - origin.y } ?: 0f
-    val crossLength = target?.let { if (vertical) it.width else it.height } ?: 0f
-
-    val start = remember { Animatable(0f) }
-    val length = remember { Animatable(0f) }
-    var placed by remember { mutableStateOf(false) }
-    LaunchedEffect(targetStart, targetLength, reduce) {
-        if (!placed || reduce) {
-            start.snapTo(targetStart)
-            length.snapTo(targetLength)
-            placed = targetLength > 0f
-        } else {
-            launch { start.animateTo(targetStart, Motion.pillSpring(reduce)) }
-            launch { length.animateTo(targetLength, Motion.pillSpring(reduce)) }
-        }
-    }
 
     Box(
         modifier = modifier
-            .shadow(
-                elevation = 12.dp,
-                shape = CircleShape,
-                ambientColor = Color.Black.copy(alpha = 0.30f),
-                spotColor = Color.Black.copy(alpha = 0.30f),
-            )
-            .then(
-                if (blurOn && backdrop != null) {
-                    // The blurred backdrop first, the translucent tint over it.
-                    Modifier.pillBlurBehind(
-                        backdrop = backdrop,
-                        blurLayer = blurLayer,
-                        shape = CircleShape,
-                        radiusPx = with(density) { 20.dp.toPx() },
-                        pillOrigin = { origin },
-                    )
-                } else {
-                    Modifier
-                },
-            )
-            .background(colors.container, CircleShape)
-            .border(1.dp, colors.border, CircleShape)
+            .dockShadow()
+            .background(colors.container, IntakeShape.Pill)
             .onGloballyPositioned { origin = it.positionInRoot() }
             .pointerInput(count, vertical, tracker) {
                 awaitEachGesture {
@@ -194,32 +126,18 @@ fun FloatingPillBar(
                             }
                         }
                     } finally {
-                        // Also runs when the system takes the gesture over (a back swipe): nothing
-                        // is committed and the highlight returns to the selected tab.
+                        // Also runs when the system takes the gesture over (a back swipe): nothing is committed and the
+                        // lime returns to the selected tab.
                         tracker.cancel()
                         hover = PillSlideTracker.NONE
                     }
                 }
             },
     ) {
-        // The sliding highlight sits behind the items.
-        if (placed && length.value > 0f) {
-            Box(
-                Modifier
-                    .offset {
-                        if (vertical) IntOffset(crossStart.roundToInt(), start.value.roundToInt())
-                        else IntOffset(start.value.roundToInt(), crossStart.roundToInt())
-                    }
-                    .size(
-                        width = with(density) { (if (vertical) crossLength else length.value).toDp() },
-                        height = with(density) { (if (vertical) length.value else crossLength).toDp() },
-                    )
-                    .background(colors.indicator, CircleShape),
-            )
-        }
         val item: @Composable (Int, TopLevelDestination, Modifier) -> Unit = { index, destination, base ->
-            PillItem(
-                destination = destination,
+            DockItem(
+                label = stringResource(destination.labelRes),
+                icon = destination.icon,
                 selected = index == selectedIndex,
                 highlighted = index == shownIndex,
                 colors = colors,
@@ -236,7 +154,7 @@ fun FloatingPillBar(
         }
         if (vertical) {
             Column(
-                Modifier.padding(6.dp).selectableGroup(),
+                Modifier.padding(horizontal = 6.dp, vertical = 10.dp).selectableGroup(),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -246,105 +164,14 @@ fun FloatingPillBar(
                 }
             }
         } else {
-            Row(Modifier.padding(6.dp).selectableGroup()) {
+            Row(
+                Modifier.heightIn(min = IntakeSpacing.DockHeight).padding(horizontal = 10.dp).selectableGroup(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 destinations.forEachIndexed { index, destination ->
                     item(index, destination, Modifier.weight(1f))
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun PillItem(
-    destination: TopLevelDestination,
-    selected: Boolean,
-    highlighted: Boolean,
-    colors: PillColors,
-    onClick: () -> Unit,
-    modifier: Modifier,
-) {
-    val reduce = LocalReduceMotion.current
-    val density = LocalDensity.current
-    val label = stringResource(destination.labelRes)
-    // The label starts at its normal size and steps down while it does not fit its item (a larger font scale), down to
-    // MinLabelSp. It is never cut mid-word; past the floor it ends with an ellipsis. Reset when the font scale changes.
-    var labelSize by remember(label, density.fontScale) { mutableFloatStateOf(LabelSp) }
-    val tint by animateColorAsState(
-        targetValue = if (highlighted) colors.selected else colors.unselected,
-        animationSpec = Motion.standardTween(reduce, Motion.DurationShort),
-        label = "pill-item-tint",
-    )
-    Column(
-        modifier = modifier
-            .heightIn(min = 56.dp)
-            // Touch is the pill's job; this only describes the item to accessibility services and
-            // gives them a click action, so TalkBack double-tap and switch access work.
-            .semantics(mergeDescendants = true) {
-                role = Role.Tab
-                this.selected = selected
-                contentDescription = label
-                onClick(label = label) {
-                    onClick()
-                    true
-                }
-            },
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Icon(imageVector = destination.icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
-        Text(
-            text = label,
-            color = tint,
-            fontSize = labelSize.sp,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Ellipsis,
-            onTextLayout = { if (it.hasVisualOverflow && labelSize > MinLabelSp) labelSize -= 0.5f },
-            style = MaterialTheme.typography.labelSmall,
-            modifier = Modifier.padding(top = 2.dp),
-        )
-    }
-}
-
-private const val LabelSp = 11f
-private const val MinLabelSp = 8f
-
-/** Colours for the pill, all taken from the active colour scheme. */
-internal class PillColors(
-    val container: Color,
-    val border: Color,
-    val indicator: Color,
-    val selected: Color,
-    val unselected: Color,
-)
-
-/**
- * Dark theme: the surface colour, a hairline to lift it off the background, the primary tint for
- * the selected tab. Light theme: the pill is dark (the inverse surface) with light content, which
- * is what the reference shows. The theme is judged from the surface's luminance so a forced theme
- * and wallpaper colours are both handled.
- */
-@Composable
-internal fun pillColors(frosted: Boolean = false): PillColors {
-    val scheme = MaterialTheme.colorScheme
-    // Frosted: enough tint to keep the icons legible over any content, thin enough for the blur to show.
-    val tint = if (frosted) 0.62f else 0.94f
-    return if (scheme.surface.luminance() < 0.5f) {
-        PillColors(
-            container = scheme.surface.copy(alpha = tint),
-            border = scheme.outlineVariant,
-            indicator = scheme.onSurface.copy(alpha = 0.14f),
-            selected = scheme.primary,
-            unselected = scheme.onSurfaceVariant,
-        )
-    } else {
-        PillColors(
-            container = scheme.inverseSurface.copy(alpha = tint),
-            border = Color.Transparent,
-            indicator = scheme.inverseOnSurface.copy(alpha = 0.18f),
-            selected = scheme.inversePrimary,
-            unselected = scheme.inverseOnSurface.copy(alpha = 0.66f),
-        )
     }
 }

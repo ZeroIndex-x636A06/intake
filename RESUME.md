@@ -3,6 +3,13 @@
 Read this first when picking the work back up. Latest work: branch
 `claude/optimistic-noether-fullk5` (not yet merged into `claude/app-build-k2ag1d`).
 
+## Design v6 Phase 1 (branch `agent/design-v6-core`, not merged)
+
+- Theme, tokens, shared components, allergen chips and the flat dock chrome now carry the "Ink and Lime" look (`docs/briefs/DESIGN-V6.md`). No screen file was edited except one added credits line in Settings. Fonts: Inter and Space Grotesk bundled in `res/font` (OFL files in `design/fonts`); Manrope and DM Sans removed, and the PDF report now uses the new faces.
+- Deviations from the brief: `tertiary` is the amber warning pair (screens already use it for "over", "record", "may contain"), not the AI pair; `MacroTiles` shows the macro colour as a dot and keeps the value in ink (carbs orange on `soft` is 2.6:1). Stock Material `Switch` is ink-track with a white knob; `IntakeSwitch` adds the lime knob and screens adopt it in Phase 2.
+- `FloatingPillBar` keeps its slide-to-select gesture and is flat; `PillBackdrop` is a no-op. `DockBar` and `DockFab` (centre +) exist but nothing uses them yet. Phase 1b wires them.
+- Verified: compile, unit tests (including `ThemeContrastTest`), lint 0 errors. Not seen on the emulator or a device: no screen was rendered, at any font scale, in either theme.
+
 ## QA pass 6 fixes and training WP-1, 4, 6, 16 merged (branch `claude/optimistic-noether-fullk5`)
 
 Merged in order: `agent/qa6-undo` (Q6-2, Q6-6), `agent/qa6-copy` (Q6-1, 4, 5, 7, 8, "almo" ranking), `docs/FEATURES.md`, the OpenGym gap brief, WP-16 (history editing, calendar, Still training?), WP-6 (records, 1RM formula, calculators), WP-1 and WP-4 (effort, rest and clock polish) and `design/mockup-v6` (docs and images). Training WP-1, 4, 6 and 16 are landed and **not yet seen on the emulator or a device** (unit tests only). QA-LOG items Q6-1, 2, 4, 5, 6, 7, 8, Q5a-9, Q5b-4 and the "almo" bullet say "Fixed in <hash>, needs retest". Settings registry: 132 controls, 115 stored; numbers 133 to 136 are effort, rest-end sound, rest-end flash and keep-awake; 132 is the 1RM formula. `finishSession` takes both `finishedAt` (forgotten workout) and `pausedMs` (clock pause). No schema change. Q6-3 (search ANR) is still open on `agent/qa6-perf`.
