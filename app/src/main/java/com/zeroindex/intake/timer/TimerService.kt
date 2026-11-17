@@ -7,6 +7,8 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.os.IBinder
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -14,6 +16,8 @@ import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
 import com.zeroindex.intake.MainActivity
 import com.zeroindex.intake.R
+import com.zeroindex.intake.domain.training.RestRules
+import com.zeroindex.intake.domain.training.RestSound
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -52,15 +56,17 @@ class TimerService : Service() {
                 val label = intent.getStringExtra(EXTRA_LABEL) ?: "Rest"
                 val vibrate = intent.getBooleanExtra(EXTRA_VIBRATE, true)
                 val total = intent.getIntExtra(EXTRA_TOTAL, seconds).coerceAtLeast(seconds)
-                if (seconds > 0) start(seconds, label, vibrate, total) else stopSelf()
+                val sound = RestSound.fromName(intent.getStringExtra(EXTRA_SOUND))
+                if (seconds > 0) start(seconds, label, vibrate, total, sound) else stopSelf()
             }
+            ACTION_PAUSE -> pauseTimer()
             ACTION_STOP -> stopTimer()
             else -> stopSelf()
         }
         return START_NOT_STICKY
     }
 
-    private fun start(seconds: Int, label: String, vibrate: Boolean, total: Int = seconds) {
+    private fun start(seconds: Int, label: String, vibrate: Boolean, total: Int = seconds, sound: RestSound = RestSound.OFF) {
         countdown?.cancel()
         _state.value = TimerState(label = label, remainingSeconds = seconds, running = true, totalSeconds = total)
         startForeground(NOTIFICATION_ID, buildNotification(label, seconds))
@@ -80,6 +86,7 @@ class TimerService : Service() {
             }
             if (isActive) {
                 if (vibrate) vibrate()
+                if (sound != RestSound.OFF) playTone(sound)
                 notificationManager().notify(NOTIFICATION_ID, buildDoneNotification(label))
                 _state.value = TimerState(label, 0, running = false, totalSeconds = total)
                 // Leave the "done" notification up but drop the foreground
@@ -88,6 +95,15 @@ class TimerService : Service() {
                 stopSelf()
             }
         }
+    }
+
+    /** Freezes the countdown where it is (the workout was paused). The notification stays and says so. */
+    private fun pauseTimer() {
+        val now = _state.value
+        if (!now.running) return
+        countdown?.cancel()
+        _state.value = now.copy(running = false, paused = true)
+        notificationManager().notify(NOTIFICATION_ID, buildNotification(now.label + " (paused)", now.remainingSeconds))
     }
 
     private fun stopTimer() {
@@ -165,42 +181,110 @@ class TimerService : Service() {
         vibrator.vibrate(VibrationEffect.createOneShot(600, VibrationEffect.DEFAULT_AMPLITUDE))
     }
 
+    /** One of the short built-in tones, on the notification volume. Nothing is downloaded or bundled. */
+    private fun playTone(sound: RestSound) {
+        scope.launch {
+            val generator = runCatching { ToneGenerator(AudioManager.STREAM_NOTIFICATION, 80) }.getOrNull() ?: return@launch
+            try {
+                when (sound) {
+                    RestSound.BEEP -> {
+                        generator.startTone(ToneGenerator.TONE_PROP_BEEP, 250)
+                        delay(400)
+                    }
+                    RestSound.DOUBLE -> {
+                        generator.startTone(ToneGenerator.TONE_PROP_BEEP, 180)
+                        delay(350)
+                        generator.startTone(ToneGenerator.TONE_PROP_BEEP, 180)
+                        delay(400)
+                    }
+                    RestSound.CHIME -> {
+                        generator.startTone(ToneGenerator.TONE_PROP_ACK, 400)
+                        delay(600)
+                    }
+                    RestSound.OFF -> Unit
+                }
+            } finally {
+                generator.release()
+            }
+        }
+    }
+
     companion object {
         private const val CHANNEL_ID = "timers"
         private const val NOTIFICATION_ID = 3001
         const val ACTION_START = "com.zeroindex.intake.timer.START"
         const val ACTION_STOP = "com.zeroindex.intake.timer.STOP"
+        const val ACTION_PAUSE = "com.zeroindex.intake.timer.PAUSE"
         const val EXTRA_SECONDS = "seconds"
         const val EXTRA_LABEL = "label"
         const val EXTRA_VIBRATE = "vibrate"
         const val EXTRA_TOTAL = "total"
+        const val EXTRA_SOUND = "sound"
+
+        /** The alert chosen when the rest last started, so a later +15 s, -15 s or resume keeps it. */
+        private var lastSound: RestSound = RestSound.OFF
+        private var lastVibrate: Boolean = true
 
         private val _state = MutableStateFlow(TimerState())
 
         /** Observed by the UI so the on-screen countdown matches the notification. */
         val state: StateFlow<TimerState> = _state.asStateFlow()
 
-        fun start(context: Context, seconds: Int, label: String, vibrate: Boolean) {
+        fun start(context: Context, seconds: Int, label: String, vibrate: Boolean, sound: RestSound = RestSound.OFF) {
+            lastSound = sound
+            lastVibrate = vibrate
             context.startService(
                 Intent(context, TimerService::class.java)
                     .setAction(ACTION_START)
                     .putExtra(EXTRA_SECONDS, seconds)
                     .putExtra(EXTRA_LABEL, label)
-                    .putExtra(EXTRA_VIBRATE, vibrate),
+                    .putExtra(EXTRA_VIBRATE, vibrate)
+                    .putExtra(EXTRA_SOUND, sound.name),
             )
         }
 
-        /** "+15 s" on the rest strip: the countdown carries on with [seconds] more, and the ring's total grows with it. */
+        /**
+         * "+15 s" or "-15 s" on the rest strip: the countdown carries on with [seconds] more or less. Adding grows the ring
+         * with it; taking away down to zero ends the rest (see [RestRules.adjust]).
+         */
         fun extend(context: Context, seconds: Int, vibrate: Boolean) {
             val now = _state.value
             if (!now.running && now.remainingSeconds <= 0) return
+            val adjusted = RestRules.adjust(now.remainingSeconds, now.totalSeconds, seconds)
+            if (adjusted == null) {
+                stop(context)
+                return
+            }
+            lastVibrate = vibrate
             context.startService(
                 Intent(context, TimerService::class.java)
                     .setAction(ACTION_START)
-                    .putExtra(EXTRA_SECONDS, now.remainingSeconds + seconds)
-                    .putExtra(EXTRA_TOTAL, now.totalSeconds + seconds)
+                    .putExtra(EXTRA_SECONDS, adjusted.remainingSeconds)
+                    .putExtra(EXTRA_TOTAL, adjusted.totalSeconds)
                     .putExtra(EXTRA_LABEL, now.label)
-                    .putExtra(EXTRA_VIBRATE, vibrate),
+                    .putExtra(EXTRA_VIBRATE, vibrate)
+                    .putExtra(EXTRA_SOUND, lastSound.name),
+            )
+        }
+
+        /** The workout was paused: freeze a running rest where it is. */
+        fun pause(context: Context) {
+            if (!_state.value.running) return
+            context.startService(Intent(context, TimerService::class.java).setAction(ACTION_PAUSE))
+        }
+
+        /** The workout carries on: a frozen rest counts down again from where it stopped. */
+        fun resume(context: Context) {
+            val now = _state.value
+            if (!now.paused || now.remainingSeconds <= 0) return
+            context.startService(
+                Intent(context, TimerService::class.java)
+                    .setAction(ACTION_START)
+                    .putExtra(EXTRA_SECONDS, now.remainingSeconds)
+                    .putExtra(EXTRA_TOTAL, now.totalSeconds)
+                    .putExtra(EXTRA_LABEL, now.label)
+                    .putExtra(EXTRA_VIBRATE, lastVibrate)
+                    .putExtra(EXTRA_SOUND, lastSound.name),
             )
         }
 
@@ -224,4 +308,6 @@ data class TimerState(
     val running: Boolean = false,
     /** The length of this rest, for the countdown ring. 0 when unknown. */
     val totalSeconds: Int = 0,
+    /** True while the workout is paused and the rest is frozen. */
+    val paused: Boolean = false,
 )

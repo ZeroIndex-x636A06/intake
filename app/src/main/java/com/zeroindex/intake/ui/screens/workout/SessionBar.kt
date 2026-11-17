@@ -29,6 +29,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.zeroindex.intake.data.repository.TrainingRepository
+import com.zeroindex.intake.data.training.WorkoutPauseStore
+import com.zeroindex.intake.domain.training.WorkoutClock
+import com.zeroindex.intake.domain.training.WorkoutPause
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.zeroindex.intake.domain.training.TrainText
 import com.zeroindex.intake.timer.TimerService
 import com.zeroindex.intake.ui.theme.IntakeShape
@@ -47,7 +51,13 @@ data class RunningSession(val id: String, val startedAt: Long, val title: String
 
 /** Feeds the minimised session bar: the unfinished session, if there is one. */
 @HiltViewModel
-class SessionBarViewModel @Inject constructor(private val repository: TrainingRepository) : ViewModel() {
+class SessionBarViewModel @Inject constructor(
+    private val repository: TrainingRepository,
+    pauseStore: WorkoutPauseStore,
+) : ViewModel() {
+    /** The pause state of the running workout, so the bar's clock stops with the workout's. */
+    val pause: StateFlow<WorkoutPause?> = pauseStore.state
+
     @OptIn(ExperimentalCoroutinesApi::class)
     val running: StateFlow<RunningSession?> = repository.observeInProgress()
         .flatMapLatest { s ->
@@ -68,9 +78,12 @@ val SessionBarHeight: Dp = 72.dp
 @Composable
 fun SessionBar(session: RunningSession, onResume: () -> Unit, modifier: Modifier = Modifier) {
     val timer by TimerService.state.collectAsStateWithLifecycle()
-    val elapsed by produceState(0L, session.startedAt) {
+    val pauseModel: SessionBarViewModel = hiltViewModel()
+    val pauseState by pauseModel.pause.collectAsStateWithLifecycle()
+    val pause = pauseState?.takeIf { it.sessionId == session.id }
+    val elapsed by produceState(0L, session.startedAt, pause) {
         while (true) {
-            value = System.currentTimeMillis() - session.startedAt
+            value = WorkoutClock.trainedMs(session.startedAt, pause, System.currentTimeMillis())
             delay(1_000)
         }
     }
@@ -94,7 +107,11 @@ fun SessionBar(session: RunningSession, onResume: () -> Unit, modifier: Modifier
             Column(Modifier.weight(1f)) {
                 Text(session.title, style = MaterialTheme.typography.titleSmall, maxLines = 1)
                 Text(
-                    if (resting) "${TrainText.clock(elapsed)} · Rest ${TimerService.format(timer.remainingSeconds)}" else TrainText.clock(elapsed),
+                    when {
+                        pause?.isPaused == true -> "${TrainText.clock(elapsed)} · Paused"
+                        resting -> "${TrainText.clock(elapsed)} · Rest ${TimerService.format(timer.remainingSeconds)}"
+                        else -> TrainText.clock(elapsed)
+                    },
                     style = MaterialTheme.typography.bodySmall,
                 )
             }

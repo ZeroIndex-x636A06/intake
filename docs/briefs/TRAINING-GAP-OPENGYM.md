@@ -77,13 +77,13 @@ exists but a visible part is missing; **missing** = nothing.
 | --- | --- | --- |
 | Set row with Previous column and one-tap copy | **has**: `ActiveSetRows.kt`, `PreviousSets` | none |
 | Rest strip: ring, +15 s, Skip, per-exercise rest, vibrate at end | **has**: `RestStrip` in `ActiveWorkoutScreen.kt`, `TimerService`, `restSec` | none |
-| Rest wheel up to 15 min, "no timer", -15 s, rest sound or flash, spoken cue | **missing** | |
-| Pause the whole workout | **missing** | |
+| Rest wheel up to 15 min, "no timer", -15 s, rest sound or flash, spoken cue | **has (WP-4, branch `agent/wp1-wp4-workout`)**: rest sheet with presets and a 15 s stepper up to 15:00 and "No timer", -15 s, built-in tone and screen flash (Settings > Training, off by default), "Up next" in the rest strip. Spoken cue **not built** (it was optional; if added it must be on-device TextToSpeech only, off by default) | spoken cue |
+| Pause the whole workout | **has (WP-4)**: pauses the clock and the rest timer; saved duration counts trained time only. Holds do not exist on the phone yet | |
 | Plate maths per set with a picture | **has**: `PlateCalculator`, `PlateChip`, `PlateVisual`, unit-aware `PlateDefaults` | none |
 | Bar types (EZ, trap, Smith, none), plate counts, per-gym profiles, machine stacks, dumbbell inventory | **missing**: one bar weight and one plate list in settings | |
 | Equipment you own drives swap and library | **has**: 40 items, `EquipmentRequirements`, `SwapRanking` | none |
 | Live PR trophy on the set | **partial**: `PrDetector` flags a new estimated max or a rep record at a weight | weight record, volume record |
-| RIR or RPE column | **missing on the phone**: logs `rpe = null` (`ActiveWorkoutScreen.kt:177`); watch has `RPE_CHOICES` | phone picker |
+| RIR or RPE column | **has (WP-1, branch `agent/wp1-wp4-workout`)**: an Effort cell per set row with a colour-coded picker, off by default (Settings > Training); the previous session's effort shows under Previous. Not yet in `WorkoutSummary`, `ExerciseDetailSheet` or any chart | summary and detail effort |
 | Swap exercise ranked by muscle then owned equipment, weight carried over | **has**: `SwapRanking`, `ActiveWorkoutScreen` ("Swap exercise") | none |
 | Add, move earlier/later, remove exercise mid-workout | **has** | none |
 | Swipe set (delete with Undo, copy) | **missing** (previous-copy tap exists) | |
@@ -177,10 +177,10 @@ line" marker unless a second tab opens them.
 
 | WP | Package | Size | Priority | Schema |
 |---|---|---|---|---|
-| 1 | Effort (RIR/RPE) on the phone | S | P1 | none |
+| 1 | Effort (RIR/RPE) on the phone **(built on `agent/wp1-wp4-workout`, phone set rows only)** | S | P1 | none |
 | 2 | Set kinds, warm-up rows, per-side, set tag and note | M | P1 | v7+ |
 | 3 | Supersets | M | P1 | v7+ |
-| 4 | Rest and clock polish (wheel, no timer, -15 s, alert, pause, keep awake) | S-M | P1 | none |
+| 4 | Rest and clock polish (wheel, no timer, -15 s, alert, pause, keep awake) **(built on `agent/wp1-wp4-workout`, no spoken cue)** | S-M | P1 | none |
 | 5 | Workout ergonomics (swipe, focus, chips, live volume, steppers) | M | P2 | none |
 | 6 | Records, 1RM formulas, calculators | M | P1 | none |
 | 7 | Per-gym equipment profiles and loading | L | P2 | v7+ |
@@ -200,6 +200,7 @@ line" marker unless a second tab opens them.
 | 21 | Motivation, sharing, integrations; trainers excluded | M | P4 | none |
 
 ### WP-1 Effort on the phone (P1, S, no schema)
+- **Built:** `domain/training/Effort.kt` (tested), the Effort cell in `ActiveSetRows.kt`, `TrainingRepository.setEffort`, setting `effortScale` (Off, RIR, RPE; default Off). Stored as RPE, same as the watch. Progression is unchanged: it already reads `SetResult.rpe`, so rated sets now reach the RPE-based rule. Not built: effort in `WorkoutSummary` and `ExerciseDetailSheet`.
 - **Behaviour:** log RIR or RPE per set with a colour-coded picker and one plain line per level; a setting picks RIR or RPE; the previous session's effort shows beside Previous.
 - **Domain:** `domain/training/Effort.kt`: scale conversion (RPE = 10 - RIR), colour band, label. Uses `SetResult.rpe` and the existing `set_log.rpe`.
 - **Screens:** `ActiveWorkout` (`ActiveSetRows.kt`, replacing `rpe = null`), `WorkoutSummary`, `ExerciseDetailSheet`.
@@ -220,6 +221,7 @@ line" marker unless a second tab opens them.
 - **Conflicts:** none.
 
 ### WP-4 Rest and clock polish (P1, S-M, no schema)
+- **Built:** `RestRules`, `RestSound`, `WorkoutPause`, `WorkoutClock`, `UpNext` (domain, tested); `TimerService` pause, resume, -15 s and the end tone; `WorkoutPauseStore` (preferences, not the database); four settings 130 to 133 in Settings > Training. The rest wheel is a preset list plus a 15 s stepper. Net duration is saved by moving the session's start later by the paused time (`WorkoutClock.netStart`), never past the first logged set. Not built: spoken cue, holds, a long-press repeat on the stepper.
 - **Behaviour:** -15 s beside the existing +15 s; a rest wheel up to 15 minutes and "no timer"; rest-end choices (vibrate, a tone from a short built-in list, screen flash, optional spoken cue); pause the workout (clock, rest, holds stop); keep the screen awake while training (setting, default on).
 - **Domain:** `WorkoutClock` (pause spans, trained time) and `RestTimerState`, pure. Saved duration counts trained time only.
 - **Screens:** `ActiveWorkout`, `timer/TimerService`, Settings > Training.

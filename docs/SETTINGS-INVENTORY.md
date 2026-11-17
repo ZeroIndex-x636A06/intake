@@ -6,8 +6,8 @@ Rules that apply to every row: use screens hold no configuration; one home per s
 
 ## Totals
 
-* **109 settings** (stored values) in **12 groups**, plus 16 action buttons (export, import, replay tour and so on) and 1 read-only line: **126 controls** in all.
-* 28 controls are **new** since v5 (15 from the v5 brief, plus Hide Shorts, number 114, and Food search language, number 115, both added after phone testing, plus the eight daily reminder controls, numbers 122 to 129, round 3 item D, plus Today card: Activity, number 116, and Older history, number 117, from the Health Connect round); 98 existed in the code before.
+* **113 settings** (stored values) in **12 groups**, plus 16 action buttons (export, import, replay tour and so on) and 1 read-only line: **130 controls** in all.
+* 32 controls are **new** since v5 (the four Training controls numbered 130 to 133 came with the effort and rest work, WP-1 and WP-4 of docs/briefs/TRAINING-GAP-OPENGYM.md; 15 from the v5 brief, plus Hide Shorts, number 114, and Food search language, number 115, both added after phone testing, plus the eight daily reminder controls, numbers 122 to 129, round 3 item D, plus Today card: Activity, number 116, and Older history, number 117, from the Health Connect round); 98 existed in the code before.
 * 25 controls sit in an **Advanced** disclosure on their page.
 
 | Group | Controls | Of which settings | Actions | New |
@@ -15,7 +15,7 @@ Rules that apply to every row: use screens hold no configuration; one home per s
 | Appearance and units | 12 | 12 | 0 | 6 |
 | Nutrition | 15 | 14 | 1 | 2 |
 | Water and drinks | 11 | 10 | 1 | 0 |
-| Training | 8 | 8 | 0 | 2 |
+| Training | 12 | 12 | 0 | 6 |
 | Health Connect | 17 | 16 | 1 | 1 |
 | Food database | 6 | 6 | 0 | 1 |
 | Videos | 4 | 4 | 0 | 4 |
@@ -24,7 +24,7 @@ Rules that apply to every row: use screens hold no configuration; one home per s
 | AI (optional) | 21 | 19 | 2 | 0 |
 | API keys | 3 | 3 | 0 | 1 |
 | About and help | 7 | 0 | 6 | 0 |
-| **Total** | **126** | **109** | **16** | **28** |
+| **Total** | **130** | **113** | **16** | **32** |
 
 Option C calls the Nutrition tab "Eat", so its settings group is "Eating targets"; the contents are identical.
 
@@ -101,6 +101,10 @@ Rest timer, bar and plates, equipment and volume targets.
 | 43 | My equipment: items | `equipment` (UserProfile.equipmentItems, a JSON set of item ids in the existing profile value, plus UserProfile.dumbbellMaxKg; UserProfile.equipment still holds the five old kinds, kept in step) | Training | grouped checklist (40 items in four groups, heaviest dumbbell) | Profile "Training you can do" | Training |
 | 44 | Show jump tests in Progress **(new)** | `jumpTests` (new) | Training | switch | none (v4 default) | Training |
 | 45 | Weekly sets target per muscle region **(new)** | `weeklySets` (new) | Training | number field, Advanced | none (planned) | Training |
+| 130 | Rate effort on each set **(new)** | `effortScale` (SettingsRepository effort_scale, portable) | Training | chips: Off, RIR, RPE (default Off) | none | Training |
+| 131 | Sound when rest ends **(new)** | `restEndSound` (SettingsRepository rest_end_sound, portable) | Training | chips: Off, Beep, Double beep, Chime (default Off) | none | Training |
+| 132 | Flash the screen when rest ends **(new)** | `restEndFlash` (SettingsRepository rest_end_flash, portable) | Training | switch (default off) | none | Training |
+| 133 | Keep the screen on during a workout **(new)** | `keepAwake` (SettingsRepository keep_screen_awake, portable) | Training | switch (default on) | none | Training |
 
 ## E. Health Connect
 
@@ -265,7 +269,7 @@ Remote backup destination (protocol, host, port, user, password, private key), b
 
 ## Build status (Option A part 1)
 
-All 126 controls are built (`domain/settings/SettingsRegistry.kt`, drawn by `ui/screens/settings/SettingsControls.kt`). Per item marked "new":
+All 130 controls are built (`domain/settings/SettingsRegistry.kt`, drawn by `ui/screens/settings/SettingsControls.kt`). Per item marked "new":
 
 | Item | Built now | Consumer |
 | --- | --- | --- |

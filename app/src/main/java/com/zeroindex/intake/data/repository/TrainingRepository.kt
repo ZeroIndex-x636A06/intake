@@ -787,8 +787,20 @@ class TrainingRepository @Inject constructor(
         return session
     }
 
-    suspend fun finishSession(sessionId: String) {
-        workoutDao.finishSession(sessionId, clock.nowMillis())
+    /**
+     * Ends the session. [pausedMs] is the time the person paused the workout clock (kept in memory on the phone, not in the
+     * database): the saved start moves later by it, so the duration everywhere counts trained time only.
+     */
+    suspend fun finishSession(sessionId: String, pausedMs: Long = 0L) {
+        val finishedAt = clock.nowMillis()
+        workoutDao.finishSession(sessionId, finishedAt)
+        if (pausedMs > 0L) {
+            workoutDao.findSession(sessionId)?.let { s ->
+                val earliest = workoutDao.setsOf(sessionId).minOfOrNull { it.completedAt }
+                val net = com.zeroindex.intake.domain.training.WorkoutClock.netStart(s.startedAt, pausedMs, earliest, finishedAt)
+                if (net != s.startedAt) workoutDao.updateSessionStart(sessionId, net, finishedAt)
+            }
+        }
         // Advance the program's position so the next session offers the next day.
         val session = workoutDao.findSession(sessionId) ?: return
         val dayId = session.programDayId ?: return
@@ -882,6 +894,9 @@ class TrainingRepository @Inject constructor(
         )
         return true
     }
+
+    /** Sets or clears the effort (stored as RPE, 10 minus reps in reserve) of a logged set. */
+    suspend fun setEffort(id: String, rpe: Double?) = workoutDao.updateSetRpe(id, rpe, clock.nowMillis())
 
     suspend fun deleteSet(id: String) = workoutDao.softDeleteSet(id, clock.nowMillis())
 

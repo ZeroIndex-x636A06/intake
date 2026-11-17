@@ -10,6 +10,12 @@ import com.zeroindex.intake.data.db.entity.WorkoutSessionEntity
 import com.zeroindex.intake.data.repository.ExercisePrescription
 import com.zeroindex.intake.data.repository.TrainingRepository
 import com.zeroindex.intake.data.settings.AppSettings
+import com.zeroindex.intake.data.training.WorkoutPauseStore
+import com.zeroindex.intake.domain.training.RepTarget
+import com.zeroindex.intake.domain.training.UpNext
+import com.zeroindex.intake.domain.training.UpNextExercise
+import com.zeroindex.intake.domain.training.UpNextSet
+import com.zeroindex.intake.domain.training.WorkoutPause
 import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.training.PlateCalculator
 import com.zeroindex.intake.domain.training.PlateLoad
@@ -48,6 +54,10 @@ data class ActiveWorkoutUiState(
     val records: Map<String, PrKind> = emptyMap(),
     /** "+ Add set" taps per exercise this session. */
     val extraRows: Map<String, Int> = emptyMap(),
+    /** Rest length per exercise chosen in this session only (0 is no timer); the program is not changed. */
+    val restOverrides: Map<String, Int> = emptyMap(),
+    /** Pause state of this workout's clock, or null when it was never paused. */
+    val pause: WorkoutPause? = null,
     /** The exercise the person picked from Up next, or null to follow the first one with sets left. */
     val picked: Int? = null,
     val loading: Boolean = true,
@@ -74,6 +84,29 @@ data class ActiveWorkoutUiState(
 
     val current: ExercisePrescription? get() = prescriptions.getOrNull(currentIndex)
 
+    /** Seconds of rest after a set of [p]: this session's choice, else the program's, else the exercise's own. */
+    fun restSecFor(p: ExercisePrescription): Int =
+        restOverrides[p.exercise.id] ?: p.programExercise?.restSec ?: p.exercise.defaultRestSec
+
+    /** The next set still to do, with the plan's target numbers: what the rest strip shows as Up next. */
+    val upNext: UpNextSet?
+        get() = UpNext.find(
+            prescriptions.map { p ->
+                val pr = p.prescription
+                val amrap = pr != null && RepTarget.isAmrap(pr.repsMin, pr.repsMax)
+                val last = p.lastSession.maxByOrNull { it.weightKg }
+                UpNextExercise(
+                    name = p.exercise.name,
+                    loggedSetIndexes = setsFor(p.exercise.id).filter { !it.isWarmup }.map { it.setIndex }.toSet(),
+                    plannedSets = (pr?.sets ?: 0) + (extraRows[p.exercise.id] ?: 0),
+                    weightKg = pr?.weightKg?.takeIf { it > 0 } ?: last?.weightKg ?: 0.0,
+                    reps = if (amrap) null else pr?.repsMin ?: last?.reps,
+                    bodyweight = p.exercise.isBodyweight,
+                )
+            },
+            currentIndex,
+        )
+
     fun setsFor(exerciseId: String): List<SetLogEntity> =
         loggedSets.filter { it.exerciseId == exerciseId }.sortedBy { it.setIndex }
 
@@ -95,6 +128,7 @@ data class ActiveWorkoutUiState(
 class ActiveWorkoutViewModel @Inject constructor(
     private val repository: TrainingRepository,
     private val settingsRepository: SettingsRepository,
+    private val pauseStore: WorkoutPauseStore,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -105,16 +139,17 @@ class ActiveWorkoutViewModel @Inject constructor(
     private val history = MutableStateFlow<Map<String, List<SetResult>>>(emptyMap())
     private val extraRows = MutableStateFlow<Map<String, Int>>(emptyMap())
     private val picked = MutableStateFlow<Int?>(null)
+    private val restOverrides = MutableStateFlow<Map<String, Int>>(emptyMap())
     private val meta = MutableStateFlow(Triple<WorkoutSessionEntity?, String, Boolean>(null, "Workout", false))
     private val loading = MutableStateFlow(true)
 
     val uiState: StateFlow<ActiveWorkoutUiState> = combine(
-        repository.observeSets(sessionId),
-        settingsRepository.settings,
+        combine(repository.observeSets(sessionId), settingsRepository.settings) { sets, settings -> sets to settings },
         prescriptions,
         combine(history, extraRows, picked) { h, e, p -> Triple(h, e, p) },
         combine(meta, loading) { m, l -> m to l },
-    ) { sets, settings, list, (hist, extra, pick), (m, isLoading) ->
+        combine(restOverrides, pauseStore.state) { r, p -> r to p },
+    ) { (sets, settings), list, (hist, extra, pick), (m, isLoading), (rests, pauseState) ->
         ActiveWorkoutUiState(
             sessionId = sessionId,
             session = m.first,
@@ -125,6 +160,8 @@ class ActiveWorkoutViewModel @Inject constructor(
             history = hist,
             records = records(sets, hist),
             extraRows = extra,
+            restOverrides = rests,
+            pause = pauseState?.takeIf { it.sessionId == sessionId },
             picked = pick,
             loading = isLoading,
             isFreestyle = m.third,
@@ -281,15 +318,30 @@ class ActiveWorkoutViewModel @Inject constructor(
 
     fun deleteSet(id: String) = viewModelScope.launch { repository.deleteSet(id) }
 
+    /** Rates (or clears) the effort of a logged set. [rpe] is the stored value, 10 minus reps in reserve. */
+    fun setEffort(setId: String, rpe: Double?) = viewModelScope.launch { repository.setEffort(setId, rpe) }
+
+    /** Rest length for one exercise for the rest of this session. 0 is no timer. */
+    fun setRest(exerciseId: String, seconds: Int) {
+        restOverrides.value = restOverrides.value + (exerciseId to seconds.coerceAtLeast(0))
+    }
+
+    /** Pauses the workout clock, or carries on. The rest timer follows (the screen tells the timer service). */
+    fun setPaused(paused: Boolean) {
+        val now = System.currentTimeMillis()
+        if (paused) pauseStore.pause(sessionId, now) else pauseStore.resume(sessionId, now)
+    }
+
     /** Finishes the session, then reports its id so the screen can open the summary. */
     fun finish(onFinished: (sessionId: String) -> Unit) = viewModelScope.launch {
-        repository.finishSession(sessionId)
+        repository.finishSession(sessionId, pausedMs = pauseStore.finish(sessionId, System.currentTimeMillis()))
         onFinished(sessionId)
     }
 
     /** "Discard": the session and its sets are hidden (a soft delete). */
     fun discard(onDone: () -> Unit) = viewModelScope.launch {
         repository.discardSession(sessionId)
+        pauseStore.clear(sessionId)
         onDone()
     }
 

@@ -197,6 +197,10 @@ class SettingsViewModel @Inject constructor(
     // ---- Training ----
     fun setRestSeconds(seconds: Int) = launchSetting { setDefaultRestSec(seconds) }
     fun setRestVibrate(enabled: Boolean) = launchSetting { setRestVibrate(enabled) }
+    fun setRestEndSound(sound: com.zeroindex.intake.domain.training.RestSound) = launchSetting { setRestEndSound(sound) }
+    fun setRestEndFlash(enabled: Boolean) = launchSetting { setRestEndFlash(enabled) }
+    fun setKeepScreenAwake(enabled: Boolean) = launchSetting { setKeepScreenAwake(enabled) }
+    fun setEffortScale(scale: com.zeroindex.intake.domain.training.EffortScale) = launchSetting { setEffortScale(scale) }
     fun setBarWeightKg(kg: Double) = launchSetting { setBarWeightKg(kg) }
     fun setPlates(csv: String) = launchSetting { setAvailablePlates(csv) }
     fun setJumpTests(on: Boolean) = launchSetting { setJumpTests(on) }

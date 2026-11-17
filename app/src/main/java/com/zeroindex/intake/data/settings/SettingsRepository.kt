@@ -48,6 +48,14 @@ data class AppSettings(
     val dynamicColor: Boolean = false,
     val defaultRestSec: Int = 120,
     val restTimerVibrate: Boolean = true,
+    /** A short tone when rest ends; off by default. */
+    val restEndSound: com.zeroindex.intake.domain.training.RestSound = com.zeroindex.intake.domain.training.RestSound.OFF,
+    /** A brief screen flash when rest ends while the workout is open; off by default. */
+    val restEndFlash: Boolean = false,
+    /** The screen stays on during an active workout. On by default. */
+    val keepScreenAwake: Boolean = true,
+    /** How set effort is rated: off by default, or RIR, or RPE. */
+    val effortScale: com.zeroindex.intake.domain.training.EffortScale = com.zeroindex.intake.domain.training.EffortScale.OFF,
     val barWeightKg: Double = 20.0,
     /** Comma-joined plate weights in kg, one side. */
     val availablePlatesKg: String = "25,20,15,10,5,2.5,1.25",
@@ -211,6 +219,10 @@ class SettingsRepository @Inject constructor(
         val dynamicColor = booleanPreferencesKey("dynamic_color")
         val defaultRestSec = intPreferencesKey("default_rest_sec")
         val restVibrate = booleanPreferencesKey("rest_vibrate")
+        val restEndSound = stringPreferencesKey("rest_end_sound")
+        val restEndFlash = booleanPreferencesKey("rest_end_flash")
+        val keepScreenAwake = booleanPreferencesKey("keep_screen_awake")
+        val effortScale = stringPreferencesKey("effort_scale")
         val barWeight = doublePreferencesKey("bar_weight_kg")
         val plates = stringPreferencesKey("available_plates_kg")
         val goalWeight = doublePreferencesKey("goal_weight_kg")
@@ -301,6 +313,10 @@ class SettingsRepository @Inject constructor(
             dynamicColor = p[Keys.dynamicColor] ?: false,
             defaultRestSec = p[Keys.defaultRestSec] ?: 120,
             restTimerVibrate = p[Keys.restVibrate] ?: true,
+            restEndSound = com.zeroindex.intake.domain.training.RestSound.fromName(p[Keys.restEndSound]),
+            restEndFlash = p[Keys.restEndFlash] ?: false,
+            keepScreenAwake = p[Keys.keepScreenAwake] ?: true,
+            effortScale = com.zeroindex.intake.domain.training.EffortScale.fromName(p[Keys.effortScale]),
             // Until the person sets their own, the bar and plates are the ones a gym in their unit has.
             barWeightKg = com.zeroindex.intake.domain.training.PlateDefaults.effectiveBarKg(p[Keys.barWeight], weightUnit),
             availablePlatesKg = com.zeroindex.intake.domain.training.PlateDefaults.effectivePlatesCsvKg(p[Keys.plates], weightUnit),
@@ -396,6 +412,10 @@ class SettingsRepository @Inject constructor(
     suspend fun setDynamicColor(enabled: Boolean) = put { it[Keys.dynamicColor] = enabled }
     suspend fun setDefaultRestSec(seconds: Int) = put { it[Keys.defaultRestSec] = seconds }
     suspend fun setRestVibrate(enabled: Boolean) = put { it[Keys.restVibrate] = enabled }
+    suspend fun setRestEndSound(sound: com.zeroindex.intake.domain.training.RestSound) = put { it[Keys.restEndSound] = sound.name }
+    suspend fun setRestEndFlash(enabled: Boolean) = put { it[Keys.restEndFlash] = enabled }
+    suspend fun setKeepScreenAwake(enabled: Boolean) = put { it[Keys.keepScreenAwake] = enabled }
+    suspend fun setEffortScale(scale: com.zeroindex.intake.domain.training.EffortScale) = put { it[Keys.effortScale] = scale.name }
     suspend fun setBarWeightKg(kg: Double) = put { it[Keys.barWeight] = kg }
     suspend fun setAvailablePlates(csv: String) = put { it[Keys.plates] = csv }
     suspend fun setGoalWeightKg(kg: Double?) = put {

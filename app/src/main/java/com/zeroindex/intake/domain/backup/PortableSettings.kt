@@ -36,6 +36,7 @@ object PortableSettings {
     private val exact: Set<String> = setOf(
         "weight_unit", "length_unit", "theme_mode", "dynamic_color", "reduce_motion",
         "default_rest_sec", "rest_vibrate", "bar_weight_kg", "available_plates_kg",
+        "rest_end_sound", "rest_end_flash", "keep_screen_awake", "effort_scale",
         "goal_weight_kg", "goal_rate_kg_per_week", "protein_g_per_kg", "fat_g_per_kg",
         "auto_targets", "add_active_kcal", "current_plan_week",
         "volume_unit",
@@ -190,6 +191,7 @@ object PortableSettings {
             "nutrition settings" to setOf("show_sodium", "eat_out_radius_mi", "eat_out_minutes", "eat_out_travel"),
             "workout timer and plates" to setOf(
                 "default_rest_sec", "rest_vibrate", "bar_weight_kg", "available_plates_kg", "jump_tests", "weekly_sets_csv",
+                "rest_end_sound", "rest_end_flash", "keep_screen_awake", "effort_scale",
             ),
             "targets" to setOf(
                 "goal_weight_kg", "goal_rate_kg_per_week", "protein_g_per_kg", "fat_g_per_kg", "auto_targets",
