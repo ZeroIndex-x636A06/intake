@@ -141,7 +141,7 @@ private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, sta
                     actionLabel = message.actionLabel,
                     duration = SnackbarDuration.Long,
                 )
-                if (result == SnackbarResult.ActionPerformed) message.onAction?.invoke()
+                if (result == SnackbarResult.ActionPerformed) messages.perform(message)
             }
         }
     }
