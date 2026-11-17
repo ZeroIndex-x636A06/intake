@@ -6,8 +6,8 @@ Rules that apply to every row: use screens hold no configuration; one home per s
 
 ## Totals
 
-* **114 settings** (stored values) in **12 groups**, plus 16 action buttons (export, import, replay tour and so on) and 1 read-only line: **131 controls** in all.
-* 33 controls are **new** since v5 (the four Training controls numbered 133 to 136 came with the effort and rest work, WP-1 and WP-4 of docs/briefs/TRAINING-GAP-OPENGYM.md; the estimated 1RM formula, number 132, WP-6 of the training brief, among them; 15 from the v5 brief, plus Hide Shorts, number 114, and Food search language, number 115, both added after phone testing, plus the eight daily reminder controls, numbers 122 to 129, round 3 item D, plus Today card: Activity, number 116, and Older history, number 117, from the Health Connect round); 98 existed in the code before.
+* **115 settings** (stored values) in **12 groups**, plus 16 action buttons (export, import, replay tour and so on) and 1 read-only line: **132 controls** in all.
+* 34 controls are **new** since v5 (the four Training controls numbered 133 to 136 came with the effort and rest work, WP-1 and WP-4 of docs/briefs/TRAINING-GAP-OPENGYM.md; the estimated 1RM formula, number 132, WP-6 of the training brief, among them; 15 from the v5 brief, plus Hide Shorts, number 114, and Food search language, number 115, both added after phone testing, plus the eight daily reminder controls, numbers 122 to 129, round 3 item D, plus Today card: Activity, number 116, and Older history, number 117, from the Health Connect round); 98 existed in the code before.
 * 25 controls sit in an **Advanced** disclosure on their page.
 
 | Group | Controls | Of which settings | Actions | New |
@@ -15,7 +15,7 @@ Rules that apply to every row: use screens hold no configuration; one home per s
 | Appearance and units | 12 | 12 | 0 | 6 |
 | Nutrition | 15 | 14 | 1 | 2 |
 | Water and drinks | 11 | 10 | 1 | 0 |
-| Training | 13 | 13 | 0 | 7 |
+| Training | 14 | 14 | 0 | 8 |
 | Health Connect | 17 | 16 | 1 | 1 |
 | Food database | 6 | 6 | 0 | 1 |
 | Videos | 4 | 4 | 0 | 4 |
@@ -24,7 +24,7 @@ Rules that apply to every row: use screens hold no configuration; one home per s
 | AI (optional) | 21 | 19 | 2 | 0 |
 | API keys | 3 | 3 | 0 | 1 |
 | About and help | 7 | 0 | 6 | 0 |
-| **Total** | **131** | **114** | **16** | **33** |
+| **Total** | **132** | **115** | **16** | **34** |
 
 Option C calls the Nutrition tab "Eat", so its settings group is "Eating targets"; the contents are identical.
 
@@ -271,7 +271,7 @@ Remote backup destination (protocol, host, port, user, password, private key), b
 
 ## Build status (Option A part 1)
 
-All 131 controls are built (`domain/settings/SettingsRegistry.kt`, drawn by `ui/screens/settings/SettingsControls.kt`). Per item marked "new":
+All 132 controls are built (`domain/settings/SettingsRegistry.kt`, drawn by `ui/screens/settings/SettingsControls.kt`). Per item marked "new":
 
 | Item | Built now | Consumer |
 | --- | --- | --- |

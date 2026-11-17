@@ -47,7 +47,7 @@ data class SettingSpec(
 }
 
 /**
- * The settings registry: all 131 controls of the inventory (114 stored settings, 16 actions, 1 read-only line), each
+ * The settings registry: all 132 controls of the inventory (115 stored settings, 16 actions, 1 read-only line), each
  * with its group. A test checks it against the inventory file and that the UI renders every id.
  */
 object SettingsRegistry {
