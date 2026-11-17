@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ListAlt
+import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -70,6 +71,7 @@ import com.zeroindex.intake.ui.screens.train.ProgramBuilderScreen
 import com.zeroindex.intake.ui.screens.train.ProgramGeneratorScreen
 import com.zeroindex.intake.ui.screens.train.ProgramTemplatesScreen
 import com.zeroindex.intake.ui.screens.train.WorkoutHistoryScreen
+import com.zeroindex.intake.ui.screens.train.CalculatorsScreen
 import com.zeroindex.intake.ui.screens.train.ProgramsScreen
 import com.zeroindex.intake.ui.screens.train.TrainActions
 import com.zeroindex.intake.ui.screens.train.TrainRootScreen
@@ -335,6 +337,9 @@ fun IntakeNavHost(
                     "Train",
                     goToToday,
                     actions = {
+                        IconButton(onClick = { navController.navigate(Route.TrainTools) }) {
+                            Icon(Icons.Filled.Calculate, contentDescription = "Calculators")
+                        }
                         IconButton(onClick = { navController.navigate(Route.Programs) }) {
                             Icon(Icons.AutoMirrored.Filled.ListAlt, contentDescription = "Programs")
                         }
@@ -422,7 +427,11 @@ fun IntakeNavHost(
             }
             composable<Route.TrainingStats> {
                 PushedScreen("Training stats", back) { pad ->
-                    TrainingStatsScreen(pad, onOpenLog = { navController.navigate(Route.WorkoutHistory) })
+                    TrainingStatsScreen(
+                        pad,
+                        onOpenLog = { navController.navigate(Route.WorkoutHistory) },
+                        onOpenCalculators = { navController.navigate(Route.TrainTools) },
+                    )
                 }
             }
             // Add new Progress routes above this line.
@@ -580,6 +589,9 @@ fun IntakeNavHost(
                     onReopened = { id -> navController.navigate(Route.ActiveWorkout(id)) { popUpTo<Route.WorkoutSummary> { inclusive = true } } },
                 )
             }
+        }
+        composable<Route.TrainTools> {
+            PushedScreen("Calculators", back) { pad -> CalculatorsScreen(pad) }
         }
         composable<Route.WorkoutHistory> {
             PushedScreen("Training log", back) { pad ->

@@ -11,6 +11,8 @@ import com.zeroindex.intake.work.SyncScheduler
 import com.zeroindex.intake.work.TdeeWorker
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 @HiltAndroidApp
 class IntakeApplication : Application(), Configuration.Provider {
@@ -21,6 +23,7 @@ class IntakeApplication : Application(), Configuration.Provider {
     @Inject lateinit var credentials: com.zeroindex.intake.data.backup.remote.BackupCredentialStore
     @Inject lateinit var syncScheduler: SyncScheduler
     @Inject lateinit var wearBridge: WearBridge
+    @Inject lateinit var settingsRepository: com.zeroindex.intake.data.settings.SettingsRepository
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -29,6 +32,9 @@ class IntakeApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        // Every estimated 1RM follows the formula setting. Reading the settings once here puts it in place for code that
+        // never collects settings itself (workers, the coach); the settings flow keeps it current after that.
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch { settingsRepository.settings.first() }
         // Warm the exercise photo index in the background, so the first exercise list or sheet does not parse it on
         // the main thread.
         Thread({ com.zeroindex.intake.ui.components.ExerciseImages.index(this) }, "exercise-index").start()

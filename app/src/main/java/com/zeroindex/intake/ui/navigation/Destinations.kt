@@ -100,6 +100,8 @@ sealed interface Route {
     @Serializable data object WorkoutHistory : Route
     /** Progress > Training stats: estimated 1RM, recent records and this weeks sets. */
     @Serializable data object TrainingStats : Route
+    /** Calculators: estimated 1RM, percentage table and plate loader. Opened from Train and from Training stats, so it is a shared route. */
+    @Serializable data object TrainTools : Route
     /**
      * The one weekly check-in (summary, suggestions with Apply / Dismiss, week chips, Export / Print PDF). It
      * replaces the old WeeklyReport and CoachCheckIn routes.

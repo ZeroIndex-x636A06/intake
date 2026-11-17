@@ -238,6 +238,7 @@ line" marker unless a second tab opens them.
 - **Domain:** extend `PrKind` and `PrDetector`; `OneRepMaxFormula` registry replacing the fixed `OneRepMax.FORMULA`; `RpeTable`. Records stay computed, never stored.
 - **Screens:** `ActiveWorkout`, `WorkoutSummary`, `ExerciseDetailSheet`, `TrainingStats`, new `Route.TrainTools` in the Train graph.
 - **Schema:** none. **Conflicts:** formulas come from published sources.
+- **Status (branch `agent/wp6-records`):** done for records (heaviest weight, most reps at a weight, best estimated 1RM, best session volume; computed, never stored) in the exercise sheet, Training stats and the summary's record flags; the 1RM formula setting (Epley, Brzycki, Lombardi, average) in Settings > Training, used by every estimate; a Calculators screen with a 1RM calculator, a 50-100% table and a plate loader on `PlateDefaults`. Not built: the RPE load chart and pace (left for a later pass). Unit tests only; not seen on a device.
 
 ### WP-7 Per-gym equipment profiles and loading (P2, L, schema v7+)
 - **Behaviour:** one profile per place (Home, Big gym): plates with counts, dumbbell sizes, bars (barbell, EZ, trap, Smith, none), machine stack steps, bands. Steppers and plate maths follow the active profile, which the user picks; per-exercise bar choice; unloadable weights round to loadable ones and say so; optional gym-pinned exercise note. Builds on the existing ownership checklist (`EquipmentItems`) and `PlateDefaults`.

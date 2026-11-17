@@ -221,6 +221,14 @@ fun SettingControl(
                 "restVibrate" -> SwitchSetting("Vibrate when rest ends", null, s.restTimerVibrate, viewModel::setRestVibrate)
                 "barWeight" -> NumberSetting("Bar weight", "Used for the plate maths.", UnitConverter.round(s.weightUnit.fromKg(s.barWeightKg), 1), s.weightUnit.label, 0.0..60.0) { viewModel.setBarWeightKg(s.weightUnit.toKg(it)) }
                 "plates" -> PlatesRow(s.availablePlatesKg, s.weightUnit, viewModel::setPlates)
+                "oneRepMaxFormula" -> ChipSetting(
+                    "Estimated 1RM formula",
+                    "Every estimated max in Intake uses this one: the log, records, the calculators and the progression percentages. ${s.oneRepMaxFormula.description}.",
+                    com.zeroindex.intake.domain.training.OneRepMaxFormula.entries.toList(),
+                    s.oneRepMaxFormula,
+                    { it.label },
+                    viewModel::setOneRepMaxFormula,
+                )
                 "equipmentPreset" -> Column(Modifier.fillMaxWidth().padding(top = 6.dp)) {
                     Text("My equipment", style = MaterialTheme.typography.titleSmall)
                     Text(
