@@ -2,6 +2,7 @@
 
 package com.zeroindex.intake.ui.screens.photos
 
+import com.zeroindex.intake.domain.time.DateText
 import com.zeroindex.intake.domain.units.format
 import android.Manifest
 import android.content.pm.PackageManager
@@ -171,10 +172,8 @@ fun PhotoImage(file: File?, modifier: Modifier = Modifier, targetPx: Int = 720, 
     }
 }
 
-private val dayFormat = DateTimeFormatter.ofPattern("MMM d")
-private val dayFormatYear = DateTimeFormatter.ofPattern("MMM d, yyyy")
-internal fun dayLabel(epochDay: Long): String = LocalDate.ofEpochDay(epochDay).format(dayFormatYear)
-private fun shortLabel(epochDay: Long): String = LocalDate.ofEpochDay(epochDay).format(dayFormat)
+internal fun dayLabel(epochDay: Long): String = DateText.medium(LocalDate.ofEpochDay(epochDay))
+private fun shortLabel(epochDay: Long): String = DateText.medium(LocalDate.ofEpochDay(epochDay))
 
 /**
  * You > Progress photos: add a photo from the camera or the gallery for one angle and a date, then the timeline grid.
@@ -219,7 +218,7 @@ fun ProgressPhotosScreen(
                 Text("Every angle is optional.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 8.dp)) {
                     PhotoAngle.entries.forEach { a -> ChoiceChip(a.label, a == angle, { angle = a }) }
-                    ChoiceChip("Date: ${date.format(dayFormatYear)}", false, { pickingDate = true })
+                    ChoiceChip("Date: ${DateText.medium(date)}", false, { pickingDate = true })
                 }
                 Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(

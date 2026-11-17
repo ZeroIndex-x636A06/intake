@@ -41,4 +41,11 @@ class NameMatchRankTest {
     @Test fun `rank only reorders`() {
         assertThat(NameMatchRank.rank(listOf("Salmon", "Almond milk"), "almo", { it })).containsExactly("Almond milk", "Salmon").inOrder()
     }
+
+    @Test fun `a word start counts for the Drinks pointer and a mid-word match does not`() {
+        assertThat(NameMatchRank.startsAWord("Almond milk, unsweetened", "", "almo")).isTrue()
+        assertThat(NameMatchRank.startsAWord("Iced almond latte", "", "almo")).isTrue()
+        assertThat(NameMatchRank.startsAWord("Salmon", "", "almo")).isFalse()
+        assertThat(NameMatchRank.startsAWord("Oat milk", "", "almo")).isFalse()
+    }
 }

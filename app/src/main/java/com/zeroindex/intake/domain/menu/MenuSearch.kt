@@ -8,7 +8,8 @@ import com.zeroindex.intake.domain.model.FoodSource
  *
  * Every word typed must appear in the restaurant's name or the item's name (apostrophes and case ignored, so
  * "arbys beef" finds "Arby's" "Classic Roast Beef"). Items whose own name holds all the words come first, then the
- * ones that needed the restaurant name, and inside a group the name that starts with the first word comes first.
+ * ones that needed the restaurant name, and inside a group word-start matches ("almo" in "Almond latte") come before
+ * mid-word ones ("Salmon"), the name that starts with the first word first of all.
  */
 object MenuSearch {
 
@@ -27,7 +28,9 @@ object MenuSearch {
             val all = "$r $n"
             if (!words.all { it in all }) return@mapNotNull null
             val inName = words.all { it in n }
-            val rank = (if (inName) 0 else 2) + (if (n.startsWith(words.first())) 0 else 1)
+            // A word that starts a word of the name ("almo" in "Almond latte") beats one inside a word ("Salmon").
+            val wordStart = (if (inName) n else all).split(' ').let { tokens -> words.all { w -> tokens.any { it.startsWith(w) } } }
+            val rank = (if (inName) 0 else 4) + (if (!wordStart) 2 else if (n.startsWith(words.first())) 0 else 1)
             rank to item
         }.sortedBy { it.first }.map { it.second }.take(limit)
     }

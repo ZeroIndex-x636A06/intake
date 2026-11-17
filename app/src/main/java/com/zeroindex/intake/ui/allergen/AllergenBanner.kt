@@ -59,6 +59,17 @@ fun AllergenScanResult.chipDetail(): String? = when {
     else -> null
 }
 
+/**
+ * [chipDetail] for a saved recipe or template (Q6-8): the matched ingredient words, never the recipe's own title
+ * listed as if it were an ingredient. The verdict and tier are untouched.
+ */
+fun AllergenScanResult.recipeChipDetail(): String? = when {
+    contains.isNotEmpty() -> com.zeroindex.intake.domain.allergen.ChipWords.ingredientTerms(contains)
+    mayContain.isNotEmpty() -> com.zeroindex.intake.domain.allergen.ChipWords.allergenNames(mayContain)
+    checkLabel.isNotEmpty() -> com.zeroindex.intake.domain.allergen.ChipWords.ingredientTerms(checkLabel)
+    else -> null
+}
+
 /** The chip words for a hit that is only a label's trace line: "May contain milk (trace)". Null for anything else. */
 fun AllergenScanResult.traceChipLabel(): String? =
     if (containsOnlyTraces) "May contain ${contains.termsText()} (trace)" else null

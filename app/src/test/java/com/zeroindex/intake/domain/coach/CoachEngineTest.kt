@@ -57,6 +57,18 @@ class CoachEngineTest {
         assertThat(r.cal()).isNull() // never "eat more" from unlogged days
     }
 
+    @Test fun gapCardCountsTheSameDaysAsTheWindowItNamesAndSaysWhatAFullDayIs() {
+        // Q6-5: two partial days and six weigh-in days in the window; the card must not read "0 of 7 days".
+        val sparse = listOf(FoodDayIn(today, 200.0, 5.0, 1), FoodDayIn(today - 1, 220.0, 5.0, 1))
+        val weighIns = (0 until 6).map { WeightPoint(today - it, 80.0) } + WeightPoint(today - 8, 80.0)
+        val why = CoachEngine.review(inputs { it.copy(foodDays = sparse, weighIns = weighIns) })
+            .suggestions.first { it.kind == SuggestionKind.DATA_GAP }.why
+        assertThat(why).contains("logged food on 2 days, 0 of them full days (800 kcal or more)")
+        assertThat(why).contains("weighed in on 6 days") // the day outside the window is not counted
+        assertThat(why).contains("needs 5 full days and 3 weigh-ins")
+        assertThat(why).doesNotContain("0 of 7")
+    }
+
     @Test fun sparseWeekStillSaysNotEnoughDataWhenTheGapCardWasDismissedBefore() {
         val sparse = listOf(FoodDayIn(today, 300.0, 5.0, 1))
         val r = CoachEngine.review(inputs { it.copy(foodDays = sparse, suppressedKeys = setOf("gap")) })
@@ -230,7 +242,7 @@ class CoachEngineTest {
         val gap = r.suggestions.first()
         assertThat(gap.kind).isEqualTo(SuggestionKind.DATA_GAP)
         assertThat(gap.title).isEqualTo("Not enough data this week to adjust")
-        assertThat(gap.why).contains("4 of 7")
+        assertThat(gap.why).contains("4 of them full days")
         assertThat(gap.why).contains("Here's what to log")
         assertThat(gap.action).isInstanceOf(CoachAction.Acknowledge::class.java)
     }
@@ -240,7 +252,7 @@ class CoachEngineTest {
         val r = CoachEngine.review(inputs(pctPerWeek = -0.05) { it.copy(weighIns = few) })
         assertThat(r.cal()).isNull()
         assertThat(r.suggestions.first().kind).isEqualTo(SuggestionKind.DATA_GAP)
-        assertThat(r.suggestions.first().why).contains("weighed in on 2")
+        assertThat(r.suggestions.first().why).contains("weighed in on 2 days")
     }
 
     @Test fun theGateOutranksEverythingElse() {

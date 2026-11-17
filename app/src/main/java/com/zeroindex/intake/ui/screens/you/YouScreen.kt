@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.you
 
+import com.zeroindex.intake.domain.time.DateText
 import com.zeroindex.intake.domain.units.KcalFormat
 import com.zeroindex.intake.domain.units.format
 import androidx.compose.foundation.BorderStroke
@@ -188,7 +189,7 @@ fun YouScreen(
                             Box(Modifier.weight(1f).aspectRatio(0.72f)) {
                                 PhotoImage(d.cover?.let(viewModel::fileOf), Modifier.matchParentSize(), targetPx = 400)
                                 Text(
-                                    LocalDate.ofEpochDay(d.epochDay).format(DateTimeFormatter.ofPattern("MMM d")),
+                                    DateText.medium(LocalDate.ofEpochDay(d.epochDay)),
                                     style = MaterialTheme.typography.labelSmall, color = androidx.compose.ui.graphics.Color.White,
                                     modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
                                 )

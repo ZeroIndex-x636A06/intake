@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.checkin
 
+import com.zeroindex.intake.domain.time.DateText
 import com.zeroindex.intake.domain.units.KcalFormat
 import android.content.Context
 import android.os.Bundle
@@ -31,6 +32,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -43,7 +45,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.db.entity.CoachSuggestionEntity
+import com.zeroindex.intake.domain.coach.CheckInPeriod
 import com.zeroindex.intake.domain.coach.CoachAction
+import com.zeroindex.intake.domain.coach.CoachConfig
 import com.zeroindex.intake.domain.coach.SuggestionStatus
 import com.zeroindex.intake.domain.report.WeekLabel
 import com.zeroindex.intake.domain.report.WeeklyReport
@@ -90,6 +94,17 @@ fun WeeklyCheckInScreen(
     val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
         uri?.let(report::saveTo)
     }
+    // Q6-4: the suggestions describe the days their check-in looked at, so open on the calendar week that holds most of
+    // them (unless the person already picked a week), and the suggestions below say which days they are.
+    var pickedWeek by rememberSaveable { mutableStateOf(false) }
+    val coveredWeek = state.latest?.record?.day?.let { CheckInPeriod.weekCovering(it) }
+    LaunchedEffect(coveredWeek) {
+        if (!pickedWeek && coveredWeek != null && coveredWeek != reportState.weekStart &&
+            !coveredWeek.isAfter(report.thisWeek) && !coveredWeek.isBefore(report.thisWeek.minusWeeks(5))
+        ) {
+            report.jumpTo(coveredWeek)
+        }
+    }
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(
@@ -101,12 +116,15 @@ fun WeeklyCheckInScreen(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item(key = "weeks") {
+            val chipScroll = rememberScrollState()
+            // The newest chip is on the right; start there so the selected week is never half off screen.
+            LaunchedEffect(chipScroll.maxValue) { chipScroll.scrollTo(chipScroll.maxValue) }
             Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 4.dp),
+                Modifier.fillMaxWidth().horizontalScroll(chipScroll).padding(vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(5.dp),
             ) {
                 (5 downTo 0).map { report.thisWeek.minusWeeks(it.toLong()) }.forEach { week ->
-                    ChoiceChip(label = WeekLabel.forWeek(week), selected = week == reportState.weekStart, onClick = { report.jumpTo(week) })
+                    ChoiceChip(label = WeekLabel.forWeek(week), selected = week == reportState.weekStart, onClick = { pickedWeek = true; report.jumpTo(week) })
                 }
             }
         }
@@ -164,7 +182,14 @@ fun WeeklyCheckInScreen(
         } else {
             item(key = "latest-head") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Check-in of ${dayLabel(latest.record.day)}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    Column(Modifier.weight(1f)) {
+                        Text("Check-in of ${dayLabel(latest.record.day)}", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "Based on the ${CoachConfig().windowDays} days ${CheckInPeriod.label(latest.record.day)}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     val noRows = latest.rows.isEmpty()
                     val onTrack = noRows && latest.record.headline == CoachEngine.HEADLINE_ON_TRACK
                     StatusPill(
@@ -355,7 +380,7 @@ private fun Glance(r: WeeklyReport, unit: WeightUnit) {
 }
 
 private fun dayLabel(epochDay: Long): String =
-    LocalDate.ofEpochDay(epochDay).format(DateTimeFormatter.ofPattern("EEE d MMM", Locale.getDefault()))
+    DateText.mediumWithWeekday(LocalDate.ofEpochDay(epochDay))
 
 /** Hands the finished file to the system print dialog as-is. */
 private fun print(context: Context, file: File) {

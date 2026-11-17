@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.ai
 
+import com.zeroindex.intake.domain.time.DateText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -368,4 +369,4 @@ private fun trimUses(v: Double): String = when {
 private fun tokens(n: Int): String = if (n >= 1000) String.format(Locale.US, "%.1fk", n / 1000.0).replace(".0k", "k") else n.toString()
 
 private fun dayLabel(millis: Long): String =
-    DateTimeFormatter.ofPattern("MMM d").format(Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()))
+    DateText.medium(millis)

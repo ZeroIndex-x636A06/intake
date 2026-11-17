@@ -35,6 +35,9 @@ object NameMatchRank {
         }
     }
 
+    /** True when every typed word starts a word of the name or brand ("almo" and "Almond milk"), not just sits inside one ("Salmon"). */
+    fun startsAWord(name: String, brand: String, query: String): Boolean = tier(name, brand, query)?.let { it <= 2 } == true
+
     /** [items] that contain the query, best tier first and in their own order inside a tier. A blank query keeps everything as it is. */
     fun <T> filterAndRank(items: List<T>, query: String, name: (T) -> String, brand: (T) -> String = { "" }): List<T> {
         if (query.isBlank()) return items

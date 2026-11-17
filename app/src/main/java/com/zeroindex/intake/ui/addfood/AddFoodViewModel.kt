@@ -19,6 +19,7 @@ import com.zeroindex.intake.domain.units.PortionUnit
 import com.zeroindex.intake.ui.AppMessage
 import com.zeroindex.intake.ui.AppMessages
 import com.zeroindex.intake.ui.allergen.chipDetail
+import com.zeroindex.intake.ui.allergen.recipeChipDetail
 import com.zeroindex.intake.ui.allergen.traceChipLabel
 import com.zeroindex.intake.ui.allergen.verdict
 import com.zeroindex.intake.data.repository.BarcodeRepository
@@ -132,7 +133,7 @@ fun rowAllergenOf(food: FoodEntity, scan: AllergenScanResult): RowAllergen {
  * allergen tags. A clear verdict is green only when every line was read (`AllergenEvidence.recipeClearBasis`).
  */
 fun recipeRowAllergenOf(scan: AllergenScanResult, ingredientLineCount: Int, readLineCount: Int): RowAllergen =
-    recipeRowAllergenOf(scan.verdict(), scan.chipDetail(), scan.traceChipLabel(), ingredientLineCount, readLineCount)
+    recipeRowAllergenOf(scan.verdict(), scan.recipeChipDetail(), scan.traceChipLabel(), ingredientLineCount, readLineCount)
 
 /**
  * The same recipe chip from an already-decided verdict (the Swap sheet, Today's planned card and the plan screen carry a
@@ -352,11 +353,22 @@ class AddFoodViewModel @Inject constructor(
                 if (q.isBlank()) {
                     emit(RefAnswer())
                 } else {
+                    // The pointer to Drinks shows when a drink name starts with the words, or has a word that does
+                    // ("almo" finds Almond milk); a drink that only holds them inside a word does not count. The drinks
+                    // on this phone are checked first, because that is quick, so the pointer comes with the foods.
+                    val trimmed = q.trim()
+                    val localDrink = drinkRepository.searchDrinks(trimmed).first().any {
+                        com.zeroindex.intake.domain.food.NameMatchRank.startsAWord(it.name, it.brand.orEmpty(), trimmed)
+                    }
                     val foods = foodRefRepository.search(q, scope = SearchScope.FOODS)
-                    emit(RefAnswer(foods))
-                    val drinks = drinkRepository.searchDrinks(q).first().isNotEmpty() ||
-                        foodRefRepository.search(q, limit = 1, scope = SearchScope.DRINKS).isNotEmpty()
-                    if (drinks) emit(RefAnswer(foods, drinksExist = true))
+                    emit(RefAnswer(foods, drinksExist = localDrink))
+                    if (!localDrink) {
+                        val tokens = com.zeroindex.intake.data.foodref.FoodRefSearch.queryTokens(q)
+                        val refDrink = foodRefRepository.search(q, limit = 1, scope = SearchScope.DRINKS).firstOrNull()
+                        if (refDrink != null && com.zeroindex.intake.data.foodref.FoodRefSearch.tier(refDrink.name, tokens) < 3) {
+                            emit(RefAnswer(foods, drinksExist = true))
+                        }
+                    }
                 }
             }
         }

@@ -319,6 +319,7 @@ fun SettingRow(
     subtitle: String? = null,
     modifier: Modifier = Modifier,
     showDivider: Boolean = true,
+    note: (@Composable () -> Unit)? = null,
     control: @Composable () -> Unit,
 ) {
     Column(modifier) {
@@ -343,6 +344,8 @@ fun SettingRow(
             }
             control()
         }
+        // Q6-1: a long note (a warning, say) goes under the row at full width, never in the control slot.
+        if (note != null) Box(Modifier.fillMaxWidth().padding(bottom = 6.dp)) { note() }
         if (showDivider) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }

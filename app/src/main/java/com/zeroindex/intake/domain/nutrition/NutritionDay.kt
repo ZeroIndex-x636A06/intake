@@ -41,12 +41,11 @@ object NutritionDay {
     /** The picker's initial selection for [date]: that calendar date's UTC midnight. */
     fun toPickerMillis(date: LocalDate): Long = date.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
 
-    /** "Today", "Yesterday", "Tue, Nov 10", or with the year when it is not this year. */
+    /** "Today", "Yesterday", or the device's medium date with the weekday ("Tue, Nov 10, 2026"). */
     fun label(date: LocalDate, today: LocalDate): String = when {
         date == today -> "Today"
         date == today.minusDays(1) -> "Yesterday"
-        date.year == today.year -> date.format(DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault()))
-        else -> date.format(DateTimeFormatter.ofPattern("EEE, MMM d, yyyy", Locale.getDefault()))
+        else -> com.zeroindex.intake.domain.time.DateText.mediumWithWeekday(date)
     }
 
     /** When a meal is usually eaten: the time a past day's entry lands at when nobody entered one. */

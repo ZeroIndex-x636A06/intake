@@ -2,6 +2,7 @@
 
 package com.zeroindex.intake.ui.screens.templates
 
+import com.zeroindex.intake.domain.time.DateText
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
@@ -88,7 +89,6 @@ fun MealTemplatesScreen(
     val nfc = remember { NfcAdapter.getDefaultAdapter(context) }
     var logging by remember { mutableStateOf<TemplateSummary?>(null) }
     var deleting by remember { mutableStateOf<TemplateSummary?>(null) }
-    val dates = remember { DateTimeFormatter.ofPattern("d MMM") }
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
@@ -129,7 +129,7 @@ fun MealTemplatesScreen(
                 TemplateRow(
                     t = t,
                     allergen = verdicts[t.template.id],
-                    written = t.template.nfcWrittenAt?.let { dates.format(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault())) },
+                    written = t.template.nfcWrittenAt?.let { DateText.medium(it) },
                     canWrite = nfc != null,
                     onLog = { logging = t },
                     onWrite = { viewModel.startWrite(t) },

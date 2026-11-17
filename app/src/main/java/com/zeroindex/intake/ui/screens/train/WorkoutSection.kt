@@ -2,6 +2,7 @@
 
 package com.zeroindex.intake.ui.screens.train
 
+import com.zeroindex.intake.domain.time.DateText
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -511,7 +512,7 @@ private fun RegionRow(v: RegionVolume, expanded: Boolean, onClick: () -> Unit) {
 @Composable
 private fun RecentRow(s: SessionStat, unit: WeightUnit, onClick: () -> Unit) {
     val zone = ZoneId.systemDefault()
-    val date = DateTimeFormatter.ofPattern("EEE d MMM").format(Instant.ofEpochMilli(s.startedAt).atZone(zone))
+    val date = DateText.mediumWithWeekday(s.startedAt, zone)
     val minutes = s.finishedAt?.let { ((it - s.startedAt) / 60_000).coerceAtLeast(0) }
     Row(
         Modifier

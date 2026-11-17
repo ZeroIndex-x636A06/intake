@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.progress
 
+import com.zeroindex.intake.domain.time.DateText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
@@ -30,7 +31,6 @@ import com.zeroindex.intake.ui.theme.IntakeShape
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-private val DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM")
 
 /**
  * Estimated 1RM for the most-trained lifts, the latest records and this week's sets per body region: the same card on
@@ -45,7 +45,7 @@ fun TrainingStatsCard(
     val unit = state.settings.weightUnit
     val zone = ZoneId.systemDefault()
     fun w(kg: Double) = UnitConverter.round(unit.fromKg(kg), 1).toString()
-    fun day(at: Long) = ChartMath.localDate(at, zone).format(DATE)
+    fun day(at: Long) = DateText.medium(ChartMath.localDate(at, zone))
 
     SectionCard(title = "Training", caption = "estimated max, records, this week", modifier = modifier) {
         if (state.stats.isEmpty) {

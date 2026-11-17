@@ -2,6 +2,7 @@
 
 package com.zeroindex.intake.ui.screens.menu
 
+import com.zeroindex.intake.domain.time.DateText
 import com.zeroindex.intake.ui.components.scrollIntoViewOnFocus
 import androidx.compose.foundation.layout.imePadding
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -82,7 +83,6 @@ fun MenuSourcesScreen(
     val verdicts by viewModel.openVerdicts.collectAsStateWithLifecycle()
     val allergenOnly by viewModel.allergenOnlyIds.collectAsStateWithLifecycle()
     var adding by remember { mutableStateOf(false) }
-    val dates = remember { DateTimeFormatter.ofPattern("d MMM") }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         val refused = state.refusedSource
         if (uri != null && refused != null) viewModel.replaceWithPdf(refused, uri.toString())
@@ -291,7 +291,7 @@ fun MenuSourcesScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Text(
-                                    (source.lastRunAt?.let { dates.format(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault())) } ?: "Never imported") +
+                                    (source.lastRunAt?.let { DateText.medium(it) } ?: "Never imported") +
                                         " · ${source.itemCount} items",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
