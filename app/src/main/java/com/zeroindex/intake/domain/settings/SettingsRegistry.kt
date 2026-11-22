@@ -9,7 +9,7 @@ enum class TodayCard { NEXT, WATER, WEIGHT, MEALS, ACTIVITY }
 /** The twelve Settings pages, in the order the home lists them (docs/SETTINGS-INVENTORY.md). */
 enum class SettingsGroup(val id: String, val title: String, val blurb: String) {
     APPEARANCE("appearance", "Appearance and units", "How numbers and colours look. Nothing here changes your data."),
-    NUTRITION("nutrition", "Nutrition", "How your targets are worked out and what the dashboard shows. Your allergens are on the Allergens screen in Nutrition, because they are safety data."),
+    NUTRITION("nutrition", "Nutrition", "How your targets are worked out and what the dashboard shows. Your allergens are on the Allergens screen in Food, because they are safety data."),
     WATER("water", "Water and drinks", "The water target, how it adjusts, and which sizes you tap. Log a drink from the water card on Today or from Log food."),
     TRAINING("training", "Training", "Rest timer, bar and plates, equipment and volume targets."),
     HEALTH("health", "Health Connect", "Which records Intake may read from and write to Health Connect."),
@@ -96,7 +96,7 @@ object SettingsRegistry {
         SettingSpec(41, "plates", SettingsGroup.TRAINING, ControlKind.CHIPS, "Plates available per side", advanced = false, isNew = false),
         SettingSpec(42, "equipmentPreset", SettingsGroup.TRAINING, ControlKind.CHIPS, "My equipment: preset", advanced = false, isNew = false),
         SettingSpec(43, "equipment", SettingsGroup.TRAINING, ControlKind.CHIPS, "My equipment: items", advanced = false, isNew = false),
-        SettingSpec(44, "jumpTests", SettingsGroup.TRAINING, ControlKind.SWITCH, "Show jump tests in Progress", advanced = false, isNew = true),
+        SettingSpec(44, "jumpTests", SettingsGroup.TRAINING, ControlKind.SWITCH, "Show jump tests in Insights", advanced = false, isNew = true),
         SettingSpec(132, "oneRepMaxFormula", SettingsGroup.TRAINING, ControlKind.CHIPS, "Estimated 1RM formula", advanced = false, isNew = true),
         SettingSpec(45, "weeklySets", SettingsGroup.TRAINING, ControlKind.NUMBER, "Weekly sets target per muscle region", advanced = true, isNew = true),
         SettingSpec(131, "idleFinish", SettingsGroup.TRAINING, ControlKind.NUMBER, "Ask \"Still training?\" after", advanced = false, isNew = true),

@@ -178,7 +178,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.section(
             Text(
                 when (section.kind) {
                     SwapKind.PLAN_RECIPE -> "No other recipes yet. Recipes you save, and the week's variations, show up here."
-                    SwapKind.SAVED_MEAL -> "No meal templates yet. Make one in Nutrition, More, or save a meal you logged on Today, and it shows up here."
+                    SwapKind.SAVED_MEAL -> "No meal templates yet. Make one in Food, Library, or save a meal you logged on Today, and it shows up here."
                     else -> "Nothing here."
                 },
                 style = MaterialTheme.typography.bodySmall,

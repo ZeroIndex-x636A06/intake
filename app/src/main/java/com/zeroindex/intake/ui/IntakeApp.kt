@@ -62,21 +62,31 @@ import com.zeroindex.intake.ui.adaptive.isExpanded
 import com.zeroindex.intake.ui.adaptive.readableWidth
 import com.zeroindex.intake.ui.motion.LocalReduceMotion
 import com.zeroindex.intake.ui.motion.rememberSystemReduceMotion
-import com.zeroindex.intake.ui.navigation.FloatingPillBar
 import com.zeroindex.intake.ui.navigation.IntakeNavHost
 import com.zeroindex.intake.ui.navigation.Route
 import com.zeroindex.intake.ui.navigation.TabAction
 import com.zeroindex.intake.ui.navigation.TabPolicy
 import com.zeroindex.intake.ui.navigation.TopLevelDestination
-import com.zeroindex.intake.ui.navigation.pillBackdropSource
-import com.zeroindex.intake.ui.navigation.rememberPillBackdrop
 import com.zeroindex.intake.ui.navigation.tabOf
 import com.zeroindex.intake.ui.navigation.tabRootOf
 import com.zeroindex.intake.ui.navigation.ShellPolicy
 import com.zeroindex.intake.ui.navigation.ShellActions
 import com.zeroindex.intake.ui.navigation.LocalShellActions
 import com.zeroindex.intake.ui.navigation.LocalPillIsRail
-import com.zeroindex.intake.ui.navigation.PillHeight
+import com.zeroindex.intake.ui.navigation.AboveDock
+import com.zeroindex.intake.ui.navigation.DockBar
+import com.zeroindex.intake.ui.navigation.DockTab
+import com.zeroindex.intake.ui.quicklog.QuickLogSheet
+import com.zeroindex.intake.ui.quicklog.QuickTile
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
+import com.zeroindex.intake.R
 import com.zeroindex.intake.ui.navigation.LocalSessionBarSpace
 import com.zeroindex.intake.ui.screens.workout.SessionBar
 import com.zeroindex.intake.ui.screens.workout.SessionBarHeight
@@ -112,7 +122,6 @@ private fun PendingDestination.target(): Pair<TopLevelDestination, Route> = when
 @Composable
 private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, startOnboarding: Boolean) {
     val navController = rememberNavController()
-    val backdrop = rememberPillBackdrop()
     val tour = remember { TourState() }
     val prefs by flow.prefs.collectAsStateWithLifecycle()
     val avatarInitial by flow.avatarInitial.collectAsStateWithLifecycle()
@@ -148,7 +157,11 @@ private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, sta
 
     val destinations = TopLevelDestination.entries
     val selectedIndex = currentRoot?.let(destinations::indexOf) ?: tabOf(currentDestination)?.let(destinations::indexOf) ?: -1
+    var quickLogOpen by rememberSaveable { mutableStateOf(false) }
+    // The sheet only exists over a tab root; leaving the roots (a pushed screen) closes it.
+    if (!pillVisible && quickLogOpen) quickLogOpen = false
     val onSelectTab: (Int) -> Unit = { index ->
+        quickLogOpen = false
         selectTab(
             navController = navController,
             target = destinations[index],
@@ -201,6 +214,41 @@ private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, sta
     val runningSession by sessionBarModel.running.collectAsStateWithLifecycle()
     val sessionBarShown = pillVisible && runningSession != null
 
+    // Each Quick log tile opens an existing flow. Food tiles open Log food on the matching source.
+    val onQuickTile: (QuickTile) -> Unit = { tile ->
+        quickLogOpen = false
+        val logFood = { mode: String -> navController.navigate(Route.LogFood(mode = mode)) }
+        // A tab-graph screen is opened from its own tab, so back lands on that tab's root.
+        val inTab = { tab: TopLevelDestination, route: Route ->
+            navController.navigate(tab.graph) {
+                popUpTo<Route.Today> { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+            navController.navigate(route)
+        }
+        when (tile) {
+            QuickTile.FOOD -> logFood("SEARCH")
+            QuickTile.DRINK -> navController.navigate(Route.Drinks)
+            QuickTile.SCAN -> logFood("BARCODE")
+            QuickTile.PHOTO -> logFood("PHOTO")
+            QuickTile.QUICK_CALORIES -> logFood("QUICK_ADD")
+            QuickTile.MEAL_TEMPLATE, QuickTile.NFC_TAG -> inTab(TopLevelDestination.NUTRITION, Route.MealTemplates)
+            QuickTile.WEIGHT, QuickTile.MEASUREMENTS -> navController.navigate(Route.BodyMetrics)
+            QuickTile.PROGRESS_PHOTO -> navController.navigate(Route.ProgressPhotos)
+            QuickTile.START_WORKOUT -> {
+                val running = runningSession
+                if (running != null) navController.navigate(Route.ActiveWorkout(running.id))
+                else selectTab(navController, TopLevelDestination.TRAIN, currentRoot, atRoot = false)
+            }
+            QuickTile.JUMP_TEST -> navController.navigate(Route.Performance)
+        }
+    }
+    val compactDock = LocalConfiguration.current.screenHeightDp < 480
+    val dockTabs = destinations.map { DockTab(stringResource(it.labelRes), it.icon) }
+    val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val quickLogLabel = stringResource(if (quickLogOpen) R.string.nav_quick_log_close else R.string.nav_quick_log)
+
     CompositionLocalProvider(
         LocalTourState provides tour,
         LocalShellActions provides shellActions,
@@ -220,12 +268,14 @@ private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, sta
                             .padding(12.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        FloatingPillBar(
-                            destinations = destinations,
+                        DockBar(
+                            tabs = dockTabs,
                             selectedIndex = selectedIndex,
                             onSelect = onSelectTab,
+                            onFab = { quickLogOpen = !quickLogOpen },
+                            fabLabel = quickLogLabel,
+                            fabOpen = quickLogOpen,
                             vertical = true,
-                            backdrop = backdrop,
                             modifier = Modifier.tourTarget(TourIds.PILL),
                         )
                     }
@@ -242,12 +292,20 @@ private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, sta
                     contentPadding = PaddingValues(),
                     modifier = (if (capWidth) Modifier.readableWidth() else Modifier)
                         .weight(1f)
-                        .fillMaxHeight()
-                        .pillBackdropSource(backdrop),
+                        .fillMaxHeight(),
                     startOnboarding = startOnboarding,
                 )
             }
-            // The pill floats over the tab roots (they reserve room for it) and slides away on pushed screens.
+            // The Quick log sheet sits under the dock (the dock stays visible above the scrim) and over the screen.
+            if (pillVisible) {
+                QuickLogSheet(
+                    visible = quickLogOpen,
+                    onDismiss = { quickLogOpen = false },
+                    onTile = onQuickTile,
+                    dockClearance = if (showRail) 0.dp else navBottom + IntakeSpacing.DockBottom + IntakeSpacing.DockHeight,
+                )
+            }
+            // The dock floats over the tab roots (they reserve room for it) and slides away on pushed screens.
             if (!showRail) {
                 AnimatedVisibility(
                     visible = pillVisible,
@@ -262,15 +320,18 @@ private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, sta
                                 WindowInsets.systemBars.union(WindowInsets.displayCutout)
                                     .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
                             )
-                            .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 12.dp),
+                            .padding(start = IntakeSpacing.DockInset, end = IntakeSpacing.DockInset, bottom = IntakeSpacing.DockBottom),
                         contentAlignment = Alignment.Center,
                     ) {
-                        FloatingPillBar(
-                            destinations = destinations,
+                        DockBar(
+                            tabs = dockTabs,
                             selectedIndex = selectedIndex,
                             onSelect = onSelectTab,
+                            onFab = { quickLogOpen = !quickLogOpen },
+                            fabLabel = quickLogLabel,
+                            fabOpen = quickLogOpen,
+                            compact = compactDock,
                             modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth().tourTarget(TourIds.PILL),
-                            backdrop = backdrop,
                         )
                     }
                 }
@@ -287,7 +348,7 @@ private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, sta
                                 WindowInsets.systemBars.union(WindowInsets.displayCutout)
                                     .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
                             )
-                            .padding(start = 16.dp, end = 16.dp, bottom = if (showRail) 12.dp else PillHeight),
+                            .padding(start = 16.dp, end = 16.dp, bottom = if (showRail) 12.dp else AboveDock),
                         contentAlignment = Alignment.Center,
                     ) {
                         SessionBar(
@@ -303,7 +364,7 @@ private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, sta
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Bottom))
-                    .padding(bottom = (if (pillVisible && !showRail) PillHeight else 0.dp) + (if (sessionBarShown) SessionBarHeight else 0.dp)),
+                    .padding(bottom = (if (pillVisible && !showRail) AboveDock else 0.dp) + (if (sessionBarShown) SessionBarHeight else 0.dp)),
             )
             TourOverlay(tour)
         }

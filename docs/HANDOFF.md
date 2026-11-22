@@ -12,7 +12,7 @@ Last updated 2026-11-11 by the coordinating session. If you are a new agent, rea
 - `agent/nutrition-wip` and `agent/train-wip` are fully merged and can be deleted.
 
 **The app today**
-- Navigation: Option A shell, four tabs (Today · Nutrition · Train · Progress) and You behind the avatar.
+- Navigation (design v6, branch `agent/design-v6-nav`): a static five-slot dock, Today · Food · + · Train · Insights, with You behind the avatar. The + opens the Quick log sheet (`ui/quicklog`); Food has Diary / Plan / Recipes / Library segments (`ui/foodtab`). Routes keep their old names (`Nutrition`, `Progress`). The drag-select pill (`FloatingPillBar`, `PillGeometry`, `PillBackdrop`) is deleted.
 - Nutrition and Train are rebuilt to the Option A frames; Videos is in Train. What the briefs asked for and was left out is
   listed in `RESUME.md`.
 - The main flows have been walked on an emulator (list in `RESUME.md`). Nothing has been seen on a real phone yet.

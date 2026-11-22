@@ -142,7 +142,7 @@ fun PerformanceScreen(
         if (state.history.isEmpty()) {
             item(key = "empty") { EmptyState(title = "No jump tests yet", body = "Fill in the boxes above and tap Log jump test. The first one is your baseline.") }
         } else {
-            item(key = "history-head") { SectionLine("History", note = "Trend is on Progress") }
+            item(key = "history-head") { SectionLine("History", note = "Trend is on Insights") }
             items(state.history, key = { it.id }) { m ->
                 Row(
                     modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),

@@ -38,7 +38,7 @@ Conventions used below:
   - Done: "You're set", "Go to Today".
 - **Tour**: a spotlight overlay that dims the screen and cuts out targets. Buttons: Skip tour, Back, Next, Done.
   Replay from Settings > About and help > "Replay the tour".
-- **Tab tips**: one card per tab, shown once, with "Got it" and an action button (for example "Log food" on Nutrition).
+- **Tab tips**: one card per tab, shown once, with "Got it" and an action button (for example "Log food" on Food).
   Shown again with "Show screen tips again" [setting: `tips`].
 
 ### 1.2 Floating pill bar (the four tabs)
@@ -48,9 +48,9 @@ Floating pill at the bottom, shown on tab roots only. Four items, in this order:
 | Tab | Icon | Root screen |
 | --- | --- | --- |
 | Today | calendar-today | Today |
-| Nutrition | restaurant | Nutrition |
+| Food | fork and knife | Nutrition (route; label is Food since design v6) |
 | Train | fitness | Train |
-| Progress | line chart | Progress |
+| Insights | line chart | Progress (route; label is Insights since design v6) |
 
 - Tapping the current tab pops that tab to its root.
 - Each tab keeps its own back stack.
@@ -115,7 +115,7 @@ scrolling list, top to bottom. Cards shown only on the current day are marked.
    - Swipe an entry to copy it to another meal.
    - Long-press an entry: the entry actions sheet (edit grams, copy to another meal, move to another meal, delete this
      entry, cancel). Copy and move open the slot picker.
-   - **Save as meal template** on a slot: a name dialog ("Name", Save, Cancel). Saved templates are in Nutrition > Meal
+   - **Save as meal template** on a slot: a name dialog ("Name", Save, Cancel). Saved templates are in Food > Library > Meal
      templates.
    - Meal-slot rows show a "Contains your allergen" or "May contain" chip where it applies (section 8.1).
 
@@ -129,7 +129,9 @@ notification (Reminders).
 
 ---
 
-## 3. Nutrition (tab 2)
+## 3. Food (tab 2, route `Nutrition`)
+
+> Design v6: the tab is labelled **Food** and has segments **Diary / Plan / Recipes / Library**. Diary is the home below; Plan and Recipes host the screens in 3.3 and 3.4; Library lists Meal templates, Shopping list, Eating out, Restaurant menus, My foods and Drinks. The "More" list (3.2) is gone from the UI; the route stays registered. The centre + of the dock opens the Quick log sheet (see `docs/briefs/DESIGN-V6.md` d1).
 
 Route `Nutrition`. The tab is the food diary and dashboard. Plans, recipes, templates, shopping and eating out are
 behind one row, **More**.
@@ -473,7 +475,7 @@ Route `Performance`. "Explosive performance." Fields for standing reach and jump
 note (optional), **Log jump test**, "Test the same way each time" guidance. History list with "Trend is on Progress",
 **Delete this jump test**. Empty: "No jump tests yet."
 
-**Settings:** Show jump tests in Progress [setting: `jumpTests`, off by default]. When off, Progress does not show the card,
+**Settings:** Show jump tests in Insights [setting: `jumpTests`, off by default]. When off, Progress does not show the card,
 but this screen is still reachable from its route.
 
 ### 4.11 Videos segment
@@ -500,7 +502,7 @@ Covered in section 8.6 (cross-cutting) with the screens here:
 
 ---
 
-## 5. Progress (tab 4)
+## 5. Insights (tab 4, route `Progress`)
 
 Route `Progress`. Subtitle: "Patterns over time, without the noise." **Log weight** button. Tab tip once.
 
@@ -519,10 +521,10 @@ From top to bottom:
 9. **Averages** card: weekly averages. "Needs 14 days of weigh-ins and logs" until there is enough data.
 10. **Maintenance estimate** (TDEE) card: "Recalculate now"; a confidence line ("Treat that maintenance figure as
     provisional…"); "Recalculating…".
-11. **Jump tests** card (only when Show jump tests in Progress is on): "Log a jump test", trend or "Not enough jump tests to
+11. **Jump tests** card (only when Show jump tests in Insights is on): "Log a jump test", trend or "Not enough jump tests to
     show a trend yet."
 
-Settings that change Progress: Show jump tests in Progress; Health Connect record switches; units (Weight, Length); Work
+Settings that change Progress: Show jump tests in Insights; Health Connect record switches; units (Weight, Length); Work
 my targets out from my data.
 
 ### 5.1 Weekly check-in (pushed)
@@ -655,7 +657,7 @@ The full list, with defaults from the code:
 
 **Training** (8 controls)
 - Default rest [120 s]. Vibrate when rest ends [on]. Bar weight. Plates available per side (chips).
-- My equipment: preset and items (chips). Show jump tests in Progress [off, new].
+- My equipment: preset and items (chips). Show jump tests in Insights [off, new].
 - Advanced: Weekly sets target per muscle region.
 
 **Health Connect** (17 controls; 1 action; the per-type switches reflect the permission Android has granted)
@@ -870,7 +872,7 @@ Rule: no feature needs AI. Targets, allergens, plans, lookups and parsing never 
   tag.", "This tag is read-only…", "This tag does not support NDEF links…", "Start writing again".
 - Tapping a written tag opens Intake (it may be closed) at a dialog "Log <template name>?": meal chips (the slot defaults to
   the time of day), any allergen warning listed, and a **Log** button. If the template is gone: "Meal tag not found" with
-  "That tag's meal no longer exists. Write the tag again from Nutrition, Meal templates." A tag that is not an Intake tag is
+  "That tag's meal no longer exists. Write the tag again from Food, Library, Meal templates." A tag that is not an Intake tag is
   ignored, or reported as "This tag does not hold a meal Intake can read."
 - The tag holds only the template's link (intake://template/<id>), not the meal's data.
 - Rows show "No NFC tag" when no tag is written.
@@ -924,7 +926,7 @@ Local notifications only; nothing is sent to a server. Channels and their switch
 Counts are from `ui/navigation/Destinations.kt` (49 `Route` entries; 4 nested tab graphs), `IntakeNavHost.kt`, and the
 watch's `RemoteScreens.kt` and `MainActivity.kt`.
 
-- **Tab roots: 4** (Today, Nutrition, Train, Progress).
+- **Tab roots: 4** (Today, Food, Train, Insights; routes Today, Nutrition, Train, Progress), plus the centre + (Quick log sheet).
 - **Full screens and pushed screens: 43**, plus the Welcome flow (1) and the swap sheet (1, a dialog destination).
   Total route destinations: **49**.
 - **Settings pages: 1 home + 12 group pages** (one route with a group argument).
@@ -1012,7 +1014,7 @@ preview; watch NFC write sheet; script diagnostics sheet.
 
 ## 10. Items behind a setting or off by default (quick list)
 
-- Off by default: Show jump tests in Progress; Daily insight; Reword my check-in (AI); Refresh saved menus weekly; Suggest free
+- Off by default: Show jump tests in Insights; Daily insight; Reword my check-in (AI); Refresh saved menus weekly; Suggest free
   models; Use the offline download and direct playback option; Adjust water for weather; Add active calories to my target;
   Carb cycling and the other advanced nutrition options; Show salt or sodium (Off); Show products in other languages;
   Contribute to Open Food Facts; Include progress photos in the export; Workout reminder; Meal reminders; Water reminders;

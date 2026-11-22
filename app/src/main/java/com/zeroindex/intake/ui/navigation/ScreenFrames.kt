@@ -24,8 +24,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.ui.components.IntakeTopBar
 
-/** Height the floating dock takes at the bottom of a tab root: the dock (70 dp), its gap and its top margin. */
-val PillHeight: Dp = 92.dp
+/** Room a tab root keeps at its bottom for the dock: 70 dp dock + 20 dp above the inset + 16 dp (DESIGN-V6 a.3 tabRootBottom). */
+val PillHeight: Dp = 106.dp
+
+/** Distance from the bottom inset to the top of the dock plus 12 dp: where the live workout bar and the snackbar float. */
+val AboveDock: Dp = 102.dp
 
 /** True when the pill is drawn as a vertical rail at the start edge (wide screens): no bottom clearance then. */
 val LocalPillIsRail = compositionLocalOf { false }

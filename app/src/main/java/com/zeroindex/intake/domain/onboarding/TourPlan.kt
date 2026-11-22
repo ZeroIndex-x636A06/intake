@@ -19,7 +19,7 @@ object TourSteps {
         TourStep(TourIds.ADD_FOOD, "Tap here to log a meal. Search, scan a barcode, or pick something you ate before."),
         TourStep(TourIds.WATER, "Tap a drink size to log water. Tap the card for more."),
         TourStep(TourIds.WORKOUT, "Your baseline week or today's workout shows up here."),
-        TourStep(TourIds.PILL, "Today, Nutrition, Train, Progress. Tap one, or slide your finger along the bar. Your profile and Settings are behind the circle at the top right."),
+        TourStep(TourIds.PILL, "Today, Food, Train, Insights. Tap one. The + in the middle logs food, water, weight and more. Your profile and Settings are behind the circle at the top right."),
         TourStep(TourIds.COACH, "One thing to do today. A small suggestion that changes with your week."),
     )
 }

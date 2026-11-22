@@ -2,8 +2,45 @@
 <resources>
     <string name="app_name">Intake</string>
     <string name="nav_today">Today</string>
-    <string name="nav_nutrition">Nutrition</string>
+    <string name="nav_nutrition">Food</string>
     <string name="nav_train">Train</string>
-    <string name="nav_progress">Progress</string>
+    <string name="nav_progress">Insights</string>
+    <string name="nav_quick_log">Log something</string>
+    <string name="nav_quick_log_close">Close</string>
     <string name="credits_fonts">Fonts: Inter and Space Grotesk, bundled with the app under the SIL Open Font License 1.1. The licence texts are in design/fonts in the source.</string>
+
+    <!-- Quick log sheet (the centre + of the dock) -->
+    <string name="quick_log_title">Log something</string>
+    <string name="quick_log_water_heading">Water · one tap</string>
+    <string name="quick_log_ai">AI</string>
+    <string name="quick_tile_food">Food</string>
+    <string name="quick_tile_drink">Drink</string>
+    <string name="quick_tile_scan">Scan barcode</string>
+    <string name="quick_tile_photo">Photo estimate</string>
+    <string name="quick_tile_quick_calories">Quick calories</string>
+    <string name="quick_tile_meal_template">Meal template</string>
+    <string name="quick_tile_weight">Weight</string>
+    <string name="quick_tile_measurements">Measurements</string>
+    <string name="quick_tile_progress_photo">Progress photo</string>
+    <string name="quick_tile_start_workout">Start workout</string>
+    <string name="quick_tile_jump_test">Jump test</string>
+    <string name="quick_tile_nfc_tag">NFC tag</string>
+
+    <!-- Food tab segments and the Library hub -->
+    <string name="food_segment_diary">Diary</string>
+    <string name="food_segment_plan">Plan</string>
+    <string name="food_segment_recipes">Recipes</string>
+    <string name="food_segment_library">Library</string>
+    <string name="library_templates_title">Meal templates</string>
+    <string name="library_templates_sub">Saved meals you log in one tap. An NFC tag is optional.</string>
+    <string name="library_shopping_title">Shopping list</string>
+    <string name="library_shopping_sub">Pick recipes and meal templates and get one list with the amounts added up.</string>
+    <string name="library_eating_out_title">Eating out</string>
+    <string name="library_eating_out_sub">Saved places and healthier options nearby.</string>
+    <string name="library_menus_title">Restaurant menus</string>
+    <string name="library_menus_sub">Import a menu from a link or a photo and check it against your allergens.</string>
+    <string name="library_my_foods_title">My foods</string>
+    <string name="library_my_foods_sub">Foods you made, edited or saved.</string>
+    <string name="library_drinks_title">Drinks</string>
+    <string name="library_drinks_sub">Sizes, caffeine, sugar and your own drinks.</string>
 </resources>

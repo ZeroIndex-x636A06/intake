@@ -160,7 +160,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             val name = templates.nameOf(id)
             if (name == null) {
-                pendingTag = PendingTag(id, "", MealSlot.LUNCH, emptyList(), "That tag's meal no longer exists. Write the tag again from Nutrition, Meal templates.")
+                pendingTag = PendingTag(id, "", MealSlot.LUNCH, emptyList(), "That tag's meal no longer exists. Write the tag again from Food, Library, Meal templates.")
                 return@launch
             }
             val warn = templates.checkOf(id)?.foods.orEmpty()
@@ -187,7 +187,7 @@ class MainActivity : ComponentActivity() {
                     AppMessage("Not logged: ${result.foods.joinToString()} may contain something you avoid. Open Meal templates to review and log it."),
                 )
                 TemplateLogResult.NotFound -> messages.post(
-                    AppMessage("That tag's meal no longer exists. Write the tag again from Nutrition, Meal templates."),
+                    AppMessage("That tag's meal no longer exists. Write the tag again from Food, Library, Meal templates."),
                 )
             }
         }
