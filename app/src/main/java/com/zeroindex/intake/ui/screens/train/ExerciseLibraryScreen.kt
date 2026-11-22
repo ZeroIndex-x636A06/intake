@@ -3,7 +3,6 @@
 package com.zeroindex.intake.ui.screens.train
 
 import com.zeroindex.intake.ui.components.rememberSyncedText
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -19,27 +18,17 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -67,8 +56,18 @@ import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.ui.components.Glossary
 import com.zeroindex.intake.ui.components.InfoTip
 import com.zeroindex.intake.ui.components.SubHead
-import com.zeroindex.intake.ui.components.Tag
+import com.zeroindex.intake.ui.components.ChipTone
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.components.IntakeSwitch
+import com.zeroindex.intake.ui.components.LineButton
+import com.zeroindex.intake.ui.components.ListDivider
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CornerSize
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -93,21 +92,22 @@ fun ExercisesSection(
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
         contentPadding = contentPadding,
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(IntakeSpacing.GridGap3),
     ) {
         item(key = "search") {
             val search = rememberSyncedText(state.query, viewModel::setQuery)
             OutlinedTextField(
                 state = search.box,
                 placeholder = { Text("Search ${state.total} exercises") },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                leadingIcon = { Icon(IntakeIcons.Search, contentDescription = null, modifier = Modifier.size(IconSize.Default)) },
                 trailingIcon = {
                     if (search.box.text.isNotEmpty()) {
-                        IconButton(onClick = { search.edit("") }) { Icon(Icons.Filled.Close, contentDescription = "Clear the search") }
+                        IconButton(onClick = { search.edit("") }) { Icon(IntakeIcons.Close, contentDescription = "Clear the search", modifier = Modifier.size(IconSize.Default)) }
                     }
                 },
                 lineLimits = TextFieldLineLimits.SingleLine,
-                shape = RoundedCornerShape(18.dp),
+                shape = IntakeShape.Pill,
+                colors = searchFieldColors(),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -137,17 +137,14 @@ fun ExercisesSection(
                     modifier = Modifier.weight(1f),
                 )
                 Text("Show hidden", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Switch(checked = state.showHidden, onCheckedChange = viewModel::setShowHidden, modifier = Modifier.padding(start = 8.dp))
+                IntakeSwitch(checked = state.showHidden, onCheckedChange = viewModel::setShowHidden, modifier = Modifier.padding(start = 8.dp))
             }
         }
         item(key = "add") {
-            OutlinedButton(
-                onClick = { form = FormTarget.New },
-                shape = IntakeShape.Button,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = null)
-                Text("  Add your own exercise")
+            LineButton(onClick = { form = FormTarget.New }, modifier = Modifier.fillMaxWidth()) {
+                Icon(IntakeIcons.Plus, contentDescription = null, modifier = Modifier.size(IconSize.Small))
+                Spacer(Modifier.width(8.dp))
+                Text("Add your own exercise", style = MaterialTheme.typography.labelLarge)
             }
         }
         if (state.shown.isEmpty()) {
@@ -234,7 +231,7 @@ fun ExerciseFilterBar(state: ExerciseBrowseState, viewModel: ExerciseLibraryView
         if (showHiddenSwitch) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Text("Show hidden exercises", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                Switch(checked = state.showHidden, onCheckedChange = viewModel::setShowHidden)
+                IntakeSwitch(checked = state.showHidden, onCheckedChange = viewModel::setShowHidden)
             }
         }
     }
@@ -249,14 +246,19 @@ fun androidx.compose.foundation.lazy.LazyListScope.exerciseRows(
     row: @Composable (ExerciseEntity) -> Unit,
 ) {
     items(count = exercises.size, key = { "exercise-${exercises[it].id}" }) { i ->
-        val top = if (i == 0) 22.dp else 0.dp
-        val bottom = if (i == exercises.lastIndex) 22.dp else 0.dp
-        Surface(
-            color = MaterialTheme.colorScheme.surface,
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            modifier = Modifier.fillMaxWidth(),
-        ) { row(exercises[i]) }
+        val square = CornerSize(0.dp)
+        val shape = IntakeShape.Card.copy(
+            topStart = if (i == 0) IntakeShape.Card.topStart else square,
+            topEnd = if (i == 0) IntakeShape.Card.topEnd else square,
+            bottomStart = if (i == exercises.lastIndex) IntakeShape.Card.bottomStart else square,
+            bottomEnd = if (i == exercises.lastIndex) IntakeShape.Card.bottomEnd else square,
+        )
+        Surface(color = MaterialTheme.colorScheme.surface, shape = shape, modifier = Modifier.fillMaxWidth()) {
+            Column {
+                if (i > 0) ListDivider()
+                row(exercises[i])
+            }
+        }
     }
 }
 
@@ -267,27 +269,27 @@ fun ExerciseRow(exercise: ExerciseEntity, onClick: () -> Unit, trailing: String?
             .fillMaxWidth()
             .heightIn(min = 60.dp)
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            .padding(horizontal = IntakeSpacing.ListRowPadH, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         ExerciseThumb(exercise.id, exercise.photoPath)
         Column(Modifier.weight(1f)) {
-            Text(exercise.name, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+            Text(exercise.name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
             Text(
                 text = buildString {
                     append(Muscles.label(exercise.primaryMuscle))
                     Equipment.describe(exercise.equipment, exercise.isBodyweight).takeIf { it.isNotEmpty() }?.let { append(" · ").append(it) }
                 },
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        if (ExerciseFilter.isCustom(exercise)) Tag("Custom")
+        if (ExerciseFilter.isCustom(exercise)) IntakeChip("Custom", tone = ChipTone.Lime)
         if (trailing != null) Text(trailing, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (onInfo != null) {
             IconButton(onClick = onInfo, modifier = Modifier.size(48.dp)) {
-                Icon(Icons.Outlined.Info, contentDescription = "About ${exercise.name}: photos, muscles and how to")
+                Icon(IntakeIcons.Info, contentDescription = "About ${exercise.name}: photos, muscles and how to", modifier = Modifier.size(IconSize.Default))
             }
         }
     }

@@ -3,7 +3,6 @@
 package com.zeroindex.intake.ui.screens.train
 
 import com.zeroindex.intake.domain.time.DateText
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,25 +20,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.ListAlt
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Replay
-import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -51,10 +39,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.ui.navigation.LocalSessionBarSpace
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -69,24 +59,35 @@ import com.zeroindex.intake.domain.training.WeeklyVolume
 import com.zeroindex.intake.domain.training.WorkoutSchedule
 import com.zeroindex.intake.domain.training.muscles.BodyRegion
 import com.zeroindex.intake.domain.units.WeightUnit
+import com.zeroindex.intake.ui.components.AccentButton
+import com.zeroindex.intake.ui.components.AccentCard
+import com.zeroindex.intake.ui.components.ChipTone
 import com.zeroindex.intake.ui.components.ChoiceChip
 import com.zeroindex.intake.ui.components.Eyebrow
+import com.zeroindex.intake.ui.components.GhostButton
+import com.zeroindex.intake.ui.components.HeroCard
 import com.zeroindex.intake.ui.components.IntakeCard
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.components.LineButton
+import com.zeroindex.intake.ui.components.ListCard
+import com.zeroindex.intake.ui.components.ListDivider
 import com.zeroindex.intake.ui.components.RegionBodyMap
+import com.zeroindex.intake.ui.components.SectionLine
+import com.zeroindex.intake.ui.components.heroMuted
 import com.zeroindex.intake.ui.components.volumeColor
 import com.zeroindex.intake.ui.onboarding.TabTip
-import com.zeroindex.intake.ui.screens.hub.HubItem
-import com.zeroindex.intake.ui.screens.hub.HubList
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.theme.intake
 import com.zeroindex.intake.domain.onboarding.TipKey
-import java.time.Instant
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.delay
 
 /**
- * Train > Workout (the `a-train` frame): today's session with one Start, the other ways to start, this week's muscle volume
- * on a body map, and recent sessions. The program list and editor are one tap away in Programs, not here.
+ * Train > Workout (the `Train` mockup): today's session with one Start, the other ways to start as tiles, this week's
+ * coverage per muscle group on the body map, and recent sessions. The program list and editor are one tap away in Programs.
  */
 @Composable
 fun WorkoutSection(
@@ -107,7 +108,7 @@ fun WorkoutSection(
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
         contentPadding = contentPadding,
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
     ) {
         item(key = "tip") {
             TabTip(
@@ -139,46 +140,72 @@ fun WorkoutSection(
 
         // One session at a time: while one runs, the only start is resuming it.
         if (running == null) {
-            item(key = "other-head") { Eyebrow("Other ways to start", color = MaterialTheme.colorScheme.primary) }
+            item(key = "other-head") { SectionLine("Other ways to start") }
             item(key = "other") {
-                val items = buildList {
-                    add(HubItem("Empty workout", "Add exercises as you go", Icons.Filled.Add, { viewModel.start(null, actions.onOpenSession) }))
-                    add(
-                        HubItem(
+                val tiles = buildList<@Composable (Modifier) -> Unit> {
+                    add { m -> TrainTile(IntakeIcons.Plus, "Empty workout", "Add exercises as you go", { viewModel.start(null, actions.onOpenSession) }, m) }
+                    add { m ->
+                        TrainTile(
+                            IntakeIcons.CalendarPlain,
                             "From a program",
                             state.activeProgram?.let { "${it.name}. Pick any day." } ?: "Pick any day of any program",
-                            Icons.AutoMirrored.Filled.ListAlt,
                             { programSheet = true },
-                        ),
-                    )
-                    add(
-                        HubItem(
+                            m,
+                        )
+                    }
+                    add { m ->
+                        TrainTile(
+                            IntakeIcons.Bookmark,
                             "My workouts",
                             if (state.workouts.isEmpty()) "Saved routines you can start any time" else "${state.workouts.size} saved. Start any time.",
-                            Icons.Filled.FitnessCenter,
                             { workoutSheet = true },
-                        ),
-                    )
-                    add(HubItem("From a video", "Make a workout from a YouTube video", Icons.Filled.VideoLibrary, onFromVideo))
-                    state.repeatLast?.let { last ->
-                        add(HubItem("Repeat last", last.label, Icons.Filled.Replay, { viewModel.start(last.dayId, actions.onOpenSession) }))
+                            m,
+                        )
+                    }
+                    add { m -> TrainTile(IntakeIcons.Video, "From a video", "Make a workout from a YouTube video", onFromVideo, m) }
+                }
+                TileGrid(tiles)
+            }
+            state.repeatLast?.let { last ->
+                item(key = "repeat") {
+                    LineButton(onClick = { viewModel.start(last.dayId, actions.onOpenSession) }, modifier = Modifier.fillMaxWidth()) {
+                        Icon(IntakeIcons.History, contentDescription = null, modifier = Modifier.size(IconSize.Small))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Repeat last · ${last.label}", style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
-                HubList(items)
+            }
+            item(key = "generator") {
+                AccentCard(modifier = Modifier.clip(IntakeShape.Card).clickable(role = Role.Button, onClick = actions.onOpenGenerator)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(IntakeIcons.Sliders, contentDescription = null, modifier = Modifier.size(IconSize.Default))
+                        Spacer(Modifier.width(14.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("Make me a program", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                "A few questions, a plan that fits your days and gear",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
+                            )
+                        }
+                    }
+                }
             }
         }
 
         item(key = "week-head") {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Eyebrow("This week", color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
-                if (state.weekSessions > 0) {
-                    Text(
-                        "${state.weekSessions} ${if (state.weekSessions == 1) "session" else "sessions"} · ${TrainText.thousands(state.unit.fromKg(state.weekVolumeKg))} ${state.unit.label}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+            SectionLine(
+                "This week",
+                trailing = {
+                    if (state.weekSessions > 0) {
+                        Text(
+                            "${state.weekSessions} ${if (state.weekSessions == 1) "session" else "sessions"} · ${TrainText.thousands(state.unit.fromKg(state.weekVolumeKg))} ${state.unit.label}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                },
+            )
         }
         item(key = "week") {
             WeekVolumeCard(
@@ -194,10 +221,10 @@ fun WorkoutSection(
         }
 
         item(key = "recent-head") {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Eyebrow("Recent sessions", color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
-                TextButton(onClick = actions.onOpenHistory, modifier = Modifier.heightIn(min = 48.dp)) { Text("All sessions") }
-            }
+            SectionLine(
+                "Recent sessions",
+                trailing = { GhostButton(onClick = actions.onOpenHistory) { Text("All sessions", style = MaterialTheme.typography.titleSmall) } },
+            )
         }
         item(key = "recent") {
             if (state.recent.isEmpty()) {
@@ -207,33 +234,25 @@ fun WorkoutSection(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
-                Surface(
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = IntakeShape.Card,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column {
-                        state.recent.forEachIndexed { i, s ->
-                            RecentRow(s, state.unit, onClick = { actions.onOpenSummary(s.sessionId) })
-                            if (i != state.recent.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        }
+                ListCard {
+                    state.recent.forEachIndexed { i, s ->
+                        if (i > 0) ListDivider()
+                        RecentRow(s, state.unit, onClick = { actions.onOpenSummary(s.sessionId) })
                     }
                 }
             }
         }
 
         item(key = "programs") {
-            HubList(
-                listOf(
-                    HubItem(
-                        "Programs",
-                        "Your plan, My workouts, make or import one",
-                        Icons.AutoMirrored.Filled.ListAlt,
-                        actions.onOpenPrograms,
-                    ),
-                ),
-            )
+            ListCard {
+                TrainRow(
+                    title = "Programs",
+                    subtitle = "Your plan, My workouts, make or import one",
+                    icon = IntakeIcons.Notes,
+                    onClick = actions.onOpenPrograms,
+                    trailing = { RowChevronIcon() },
+                )
+            }
         }
     }
 
@@ -255,7 +274,7 @@ fun WorkoutSection(
     }
 }
 
-/** A session is running: say so, and one big button to go back into it. */
+/** A session is running: say so, and one big button to go back into it. The lime card: the one thing that needs attention. */
 @Composable
 private fun RunningCard(running: RunningWorkout, onResume: () -> Unit) {
     val elapsed by produceState(0L, running.startedAt) {
@@ -264,85 +283,109 @@ private fun RunningCard(running: RunningWorkout, onResume: () -> Unit) {
             delay(1_000)
         }
     }
-    IntakeCard(color = MaterialTheme.colorScheme.primaryContainer) {
+    AccentCard {
         Eyebrow("Workout in progress", color = MaterialTheme.colorScheme.onPrimaryContainer)
         Text(running.title, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
         Text(TrainText.clock(elapsed), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
         Spacer(Modifier.height(12.dp))
-        Button(onClick = onResume, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
-            Icon(Icons.Filled.PlayArrow, contentDescription = null)
-            Text("  Resume workout", style = MaterialTheme.typography.titleMedium)
+        Button(onClick = onResume, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget)) {
+            Icon(IntakeIcons.Play, contentDescription = null, modifier = Modifier.size(IconSize.Small))
+            Spacer(Modifier.width(8.dp))
+            Text("Resume workout", style = MaterialTheme.typography.labelLarge)
         }
     }
 }
+
+/** A secondary button on the dark hero card: translucent `onHero` fill (b.3). */
+@Composable
+private fun heroButtonColors() = ButtonDefaults.buttonColors(
+    containerColor = MaterialTheme.intake.onHero.copy(alpha = 0.12f),
+    contentColor = MaterialTheme.intake.onHero,
+)
 
 /** The hero: today's day with its exercises and Start; a rest day with "Train anyway"; or "No program yet". */
 @Composable
 private fun TodayCard(card: TodayCard, busy: Boolean, onStart: (dayId: String?) -> Unit, onOpenPrograms: () -> Unit) {
     var anyway by remember { mutableStateOf(false) }
-    IntakeCard(color = MaterialTheme.colorScheme.primaryContainer) {
-        val onCard = MaterialTheme.colorScheme.onPrimaryContainer
+    val onCard = MaterialTheme.intake.onHero
+    HeroCard {
         when (card) {
             TodayCard.Loading -> {
-                Eyebrow("Today", color = onCard)
+                Eyebrow("Today", color = heroMuted())
                 Spacer(Modifier.height(8.dp))
-                Box(Modifier.fillMaxWidth().height(96.dp).clip(RoundedCornerShape(14.dp)).background(onCard.copy(alpha = 0.08f)))
+                Box(Modifier.fillMaxWidth().height(96.dp).clip(IntakeShape.Tile).background(onCard.copy(alpha = 0.08f)))
             }
             TodayCard.NoProgram -> {
-                Eyebrow("Today", color = onCard)
-                Text("No program yet", style = MaterialTheme.typography.headlineMedium, color = onCard)
+                Eyebrow("Today", color = heroMuted())
+                Text("No program yet", style = MaterialTheme.typography.headlineSmall, color = onCard)
                 Text(
                     "You can still train: start an empty workout and add exercises as you go. Everything is saved to your history.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = onCard,
+                    color = heroMuted(),
                     modifier = Modifier.padding(top = 4.dp),
                 )
-                Spacer(Modifier.height(12.dp))
-                Button(onClick = { onStart(null) }, enabled = !busy, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
-                    Icon(Icons.Filled.Add, contentDescription = null)
-                    Text("  Empty workout", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(14.dp))
+                AccentButton(onClick = { onStart(null) }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+                    Icon(IntakeIcons.Plus, contentDescription = null, modifier = Modifier.size(IconSize.Small))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Empty workout", style = MaterialTheme.typography.labelLarge)
                 }
-                TextButton(onClick = onOpenPrograms, modifier = Modifier.heightIn(min = 48.dp)) { Text("Make a program in Programs") }
+                GhostButton(onClick = onOpenPrograms) { Text("Make a program in Programs", color = onCard) }
             }
             is TodayCard.Session -> {
-                Eyebrow("Today · ${TrainText.weekAndDay(card.week, card.dayNumber)}", color = onCard)
-                Text(card.dayName, style = MaterialTheme.typography.headlineMedium, color = onCard)
-                val sub = buildString {
-                    if (card.muscles.isNotEmpty()) append(card.muscles)
-                    if (card.minutes > 0) append(if (isEmpty()) "" else " · ").append("about ${card.minutes} min")
+                Row(verticalAlignment = Alignment.Top) {
+                    Column(Modifier.weight(1f)) {
+                        Eyebrow("Today · ${TrainText.weekAndDay(card.week, card.dayNumber)}", color = heroMuted())
+                        Text(card.dayName, style = MaterialTheme.typography.headlineSmall, color = onCard)
+                        if (card.muscles.isNotEmpty()) Text(card.muscles, style = MaterialTheme.typography.bodyMedium, color = heroMuted())
+                    }
+                    if (card.minutes > 0) {
+                        Spacer(Modifier.width(10.dp))
+                        Surface(color = onCard.copy(alpha = 0.12f), contentColor = onCard, shape = IntakeShape.Chip) {
+                            Text(
+                                "about ${card.minutes} min",
+                                style = MaterialTheme.typography.labelMedium,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            )
+                        }
+                    }
                 }
-                if (sub.isNotEmpty()) Text(sub, style = MaterialTheme.typography.bodyMedium, color = onCard.copy(alpha = 0.85f))
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(12.dp))
                 if (card.lines.isEmpty()) {
                     Text("No exercises in this day yet. Add some in Programs.", style = MaterialTheme.typography.bodyMedium, color = onCard)
                 } else {
-                    card.lines.forEach { line -> Text(line, style = MaterialTheme.typography.bodyLarge, color = onCard, modifier = Modifier.padding(vertical = 2.dp)) }
-                    if (card.moreCount > 0) Text("+ ${card.moreCount} more", style = MaterialTheme.typography.bodyMedium, color = onCard.copy(alpha = 0.75f), modifier = Modifier.padding(top = 2.dp))
+                    card.lines.forEach { line -> Text(line, style = MaterialTheme.typography.bodyLarge, color = onCard, modifier = Modifier.padding(vertical = 3.dp)) }
+                    if (card.moreCount > 0) Text("+ ${card.moreCount} more", style = MaterialTheme.typography.bodyMedium, color = heroMuted(), modifier = Modifier.padding(top = 2.dp))
                 }
-                Spacer(Modifier.height(14.dp))
-                Button(
+                Spacer(Modifier.height(16.dp))
+                AccentButton(
                     onClick = { onStart(card.dayId) },
                     enabled = !busy && card.lines.isNotEmpty(),
-                    shape = IntakeShape.Button,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Icon(Icons.Filled.PlayArrow, contentDescription = null)
-                    Text("  Start workout", style = MaterialTheme.typography.titleMedium)
+                    Icon(IntakeIcons.Play, contentDescription = null, modifier = Modifier.size(IconSize.Small))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Start workout", style = MaterialTheme.typography.labelLarge)
                 }
             }
             is TodayCard.Rest -> {
-                Eyebrow("Today · ${card.programName}", color = onCard)
-                Text("Rest day", style = MaterialTheme.typography.headlineMedium, color = onCard)
-                Text(card.line, style = MaterialTheme.typography.bodyMedium, color = onCard, modifier = Modifier.padding(top = 2.dp))
-                Spacer(Modifier.height(12.dp))
-                OutlinedButton(onClick = { anyway = !anyway }, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
-                    Text(if (anyway) "Hide days" else "Train anyway")
+                Eyebrow("Today · ${card.programName}", color = heroMuted())
+                Text("Rest day", style = MaterialTheme.typography.headlineSmall, color = onCard)
+                Text(card.line, style = MaterialTheme.typography.bodyMedium, color = heroMuted(), modifier = Modifier.padding(top = 2.dp))
+                Spacer(Modifier.height(14.dp))
+                Button(
+                    onClick = { anyway = !anyway },
+                    shape = IntakeShape.Button,
+                    colors = heroButtonColors(),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget),
+                ) {
+                    Text(if (anyway) "Hide days" else "Train anyway", style = MaterialTheme.typography.labelLarge)
                 }
                 if (anyway) {
                     Spacer(Modifier.height(8.dp))
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(IntakeSpacing.RowGap)) {
                         card.days.chunked(2).forEach { pair ->
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(IntakeSpacing.RowGap)) {
                                 pair.forEach { d -> ChoiceChip(d.name, selected = false, onClick = { onStart(d.dayId) }, modifier = Modifier.weight(1f)) }
                                 if (pair.size == 1) Spacer(Modifier.weight(1f))
                             }
@@ -398,9 +441,8 @@ private fun WeekVolumeCard(
             Text(it, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
         }
         Spacer(Modifier.height(8.dp))
-        volumes.forEachIndexed { i, v ->
+        volumes.forEach { v ->
             RegionRow(v, expanded = selected == v.region, onClick = { onSelect(v.region) })
-            if (i != volumes.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
         if (volumes.all { it.sets == 0.0 }) {
             Text(
@@ -419,13 +461,13 @@ private fun MuscleContributors(v: MuscleVolume) {
     Column(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+            .clip(IntakeShape.Tile)
+            .background(MaterialTheme.intake.soft)
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(12.dp).clip(RoundedCornerShape(4.dp)).background(volumeColor(v.status, v.sets > 0.0)))
+            Box(Modifier.size(12.dp).clip(IntakeShape.Heat).background(volumeColor(v.status, v.sets > 0.0)))
             Text("  ${v.region.label}", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
             Text(
                 "${v.summary()}, ${WeeklyVolume.words(v.status)}",
@@ -452,44 +494,48 @@ private fun MuscleContributors(v: MuscleVolume) {
 }
 
 @Composable
-private fun Legend(label: String, color: androidx.compose.ui.graphics.Color) {
+private fun Legend(label: String, color: Color) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(12.dp).clip(RoundedCornerShape(4.dp)).background(color))
+        Box(Modifier.size(12.dp).clip(IntakeShape.Heat).background(color))
         Text("  $label", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
+/** One muscle group as a coverage track (`.track`): label and sets, a 10 dp track with an ink fill, and the status as a chip. */
 @Composable
 private fun RegionRow(v: RegionVolume, expanded: Boolean, onClick: () -> Unit) {
     val full = maxOf(v.target.toDouble(), v.sets, 1.0)
     val progress = (v.sets / full).toFloat().coerceIn(0f, 1f)
     val words = WeeklyVolume.words(v.status)
+    val tone = if (v.status == VolumeStatus.IN_RANGE) ChipTone.Ok else ChipTone.Warn
     Column(
         Modifier
             .fillMaxWidth()
             .clickable(role = Role.Button, onClickLabel = if (expanded) "Hide what counted for ${v.region.label}" else "Show what counted for ${v.region.label}", onClick = onClick)
-            .padding(vertical = 8.dp)
+            .padding(vertical = 6.dp)
             .semantics { contentDescription = "${v.region.label}: ${v.summary()}, $words" },
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(v.region.label, style = MaterialTheme.typography.titleSmall, modifier = Modifier.width(92.dp))
-            Box(Modifier.weight(1f).height(10.dp).clip(RoundedCornerShape(5.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
-                Box(Modifier.fillMaxHeight().fillMaxWidth(progress).background(volumeColor(v.status, v.sets > 0.0)))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.width(88.dp)) {
+                Text(v.region.label, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+                Text(
+                    "${WeeklyVolume.formatSets(v.sets)} / ${v.target}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
-            Text(
-                "${WeeklyVolume.formatSets(v.sets)} / ${v.target}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.End,
-                modifier = Modifier.width(76.dp),
-            )
+            Box(Modifier.weight(1f).height(10.dp).clip(IntakeShape.Pill).background(MaterialTheme.intake.soft)) {
+                Box(
+                    Modifier
+                        .padding(2.dp)
+                        .fillMaxHeight()
+                        .fillMaxWidth(progress)
+                        .clip(IntakeShape.Pill)
+                        .background(MaterialTheme.colorScheme.onSurface),
+                )
+            }
+            IntakeChip(words.replaceFirstChar { it.uppercase() }, tone = tone)
         }
-        Text(
-            words.replaceFirstChar { it.uppercase() },
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 92.dp, top = 2.dp),
-        )
         if (expanded) {
             Column(Modifier.padding(top = 6.dp, start = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 if (v.contributors.isEmpty()) {
@@ -514,29 +560,20 @@ private fun RecentRow(s: SessionStat, unit: WeightUnit, onClick: () -> Unit) {
     val zone = ZoneId.systemDefault()
     val date = DateText.mediumWithWeekday(s.startedAt, zone)
     val minutes = s.finishedAt?.let { ((it - s.startedAt) / 60_000).coerceAtLeast(0) }
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .heightIn(min = 64.dp)
-            .clickable(role = Role.Button, onClickLabel = "Open the ${s.dayName ?: "workout"} summary", onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(s.dayName ?: "Workout", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-            Text(
-                buildString {
-                    append(date)
-                    if (minutes != null) append(" · ").append(minutes).append(" min")
-                    if (s.volumeKg > 0) append(" · ").append(TrainText.thousands(unit.fromKg(s.volumeKg))).append(' ').append(unit.label)
-                    append(" · ").append(s.workingSets).append(if (s.workingSets == 1) " set" else " sets")
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
+    TrainRow(
+        title = s.dayName ?: "Workout",
+        subtitle = buildString {
+            append(date)
+            if (minutes != null) append(" · ").append(minutes).append(" min")
+            if (s.volumeKg > 0) append(" · ").append(TrainText.thousands(unit.fromKg(s.volumeKg))).append(' ').append(unit.label)
+            append(" · ").append(s.workingSets).append(if (s.workingSets == 1) " set" else " sets")
+        },
+        onClick = onClick,
+        onClickLabel = "Open the ${s.dayName ?: "workout"} summary",
+        trailing = {
+            if (s.finishedAt == null) IntakeChip("Unfinished", tone = ChipTone.Warn) else RowChevronIcon()
+        },
+    )
 }
 
 /** "From a program": every program with its days, each a Start. */
@@ -550,14 +587,14 @@ private fun ProgramPickerSheet(
     var choices by remember { mutableStateOf<List<ProgramChoice>?>(null) }
     LaunchedEffect(Unit) { choices = load() }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = IntakeSpacing.ScreenGutter).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("Start from a program", style = MaterialTheme.typography.headlineSmall)
             val list = choices
             when {
                 list == null -> Text("Loading", style = MaterialTheme.typography.bodyMedium)
                 list.isEmpty() -> {
                     Text("You have no program with days yet.", style = MaterialTheme.typography.bodyMedium)
-                    TextButton(onClick = onOpenPrograms, modifier = Modifier.heightIn(min = 48.dp)) { Text("Open Programs") }
+                    GhostButton(onClick = onOpenPrograms) { Text("Open Programs") }
                 }
                 else -> LazyColumn(Modifier.heightIn(max = 480.dp)) {
                     list.forEach { choice ->
@@ -575,7 +612,7 @@ private fun ProgramPickerSheet(
                             ) {
                                 Text(d.name, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                                 d.weekday?.let { Text(WorkoutSchedule.weekdayName(it, short = true), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                                Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                Icon(IntakeIcons.Play, contentDescription = null, modifier = Modifier.size(IconSize.Small))
                             }
                         }
                     }
@@ -594,7 +631,7 @@ private fun WorkoutPickerSheet(
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = IntakeSpacing.ScreenGutter).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("My workouts", style = MaterialTheme.typography.headlineSmall)
             if (workouts.isEmpty()) {
                 Text(
@@ -602,7 +639,7 @@ private fun WorkoutPickerSheet(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                TextButton(onClick = onOpenPrograms, modifier = Modifier.heightIn(min = 48.dp)) { Text("Open Programs") }
+                GhostButton(onClick = onOpenPrograms) { Text("Open Programs") }
             } else {
                 LazyColumn(Modifier.heightIn(max = 480.dp)) {
                     items(workouts.size, key = { workouts[it].third }) { i ->
@@ -618,9 +655,9 @@ private fun WorkoutPickerSheet(
                                 Text(name, style = MaterialTheme.typography.titleSmall)
                                 Text("$count ${if (count == 1) "exercise" else "exercises"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Icon(IntakeIcons.Play, contentDescription = null, modifier = Modifier.size(IconSize.Small))
                         }
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        ListDivider()
                     }
                 }
             }

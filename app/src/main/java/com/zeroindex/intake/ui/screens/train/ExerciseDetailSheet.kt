@@ -9,17 +9,15 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -41,8 +39,6 @@ import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.data.training.ExerciseFilter
 import com.zeroindex.intake.data.training.ExerciseHistory
 import com.zeroindex.intake.data.training.ExerciseHistoryCalc
-import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.RoundedCornerShape
 import com.zeroindex.intake.domain.training.ExerciseGuideIndex
 import com.zeroindex.intake.domain.training.HistoryFormat
 import com.zeroindex.intake.domain.training.OneRepMax
@@ -62,7 +58,11 @@ import com.zeroindex.intake.ui.components.ExercisePhotoPair
 import com.zeroindex.intake.ui.components.Glossary
 import com.zeroindex.intake.ui.components.InfoTip
 import com.zeroindex.intake.ui.components.MuscleMapView
-import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.components.ListDivider
+import com.zeroindex.intake.ui.components.SoftButton
+import com.zeroindex.intake.ui.components.StatTile
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.theme.intake
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Instant
 import java.time.ZoneId
@@ -155,7 +155,7 @@ fun ExerciseDetailSheet(
         val history = state.history
 
         Column(
-            modifier = Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 24.dp),
+            modifier = Modifier.verticalScroll(rememberScrollState()).padding(horizontal = IntakeSpacing.ScreenGutter).padding(bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(exercise.name, style = MaterialTheme.typography.headlineSmall)
@@ -202,27 +202,27 @@ fun ExerciseDetailSheet(
 
             val howTo = if (custom) exercise.notes?.takeIf { it.isNotBlank() }?.let { listOf(it) }.orEmpty() else steps
             if (howTo.isNotEmpty()) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                ListDivider()
                 Eyebrow("How to")
                 howTo.forEachIndexed { i, step ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (howTo.size > 1) Text("${i + 1}.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                        if (howTo.size > 1) Text("${i + 1}.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(step, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            ListDivider()
             YourHistory(state.stats, unit)
 
             if ((onEdit != null && custom && !hidden) || onHideToggle != null) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
                     if (onEdit != null && custom && !hidden) {
-                        OutlinedButton(onClick = onEdit, shape = IntakeShape.Button, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) { Text("Edit") }
+                        SoftButton(onClick = onEdit, modifier = Modifier.weight(1f)) { Text("Edit", style = MaterialTheme.typography.labelLarge) }
                     }
                     if (onHideToggle != null) {
-                        OutlinedButton(onClick = onHideToggle, shape = IntakeShape.Button, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
-                            Text(if (hidden) "Show again" else "Hide")
+                        SoftButton(onClick = onHideToggle, modifier = Modifier.weight(1f)) {
+                            Text(if (hidden) "Show again" else "Hide", style = MaterialTheme.typography.labelLarge)
                         }
                     }
                 }
@@ -250,33 +250,28 @@ private fun YourHistory(stats: ExerciseStats, unit: WeightUnit) {
         return
     }
     fun w(kg: Double) = HistoryFormat.weight(unit.fromKg(kg), unit.label)
-    // Every label sits in a row of the same height, so the values of one grid row share a baseline.
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Column(Modifier.weight(1f)) {
-            Row(Modifier.height(24.dp), verticalAlignment = Alignment.CenterVertically) {
-                Eyebrow("Best set")
-                InfoTip(Glossary.ESTIMATED_MAX, modifier = Modifier.size(24.dp))
-            }
-            Text(stats.bestSet?.let { "${w(it.weightKg)} × ${it.reps}" } ?: "Reps only", style = MaterialTheme.typography.titleMedium)
-            stats.bestSet?.let { Text("est. max ${w(it.estimatedMaxKg)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        }
-        Column(Modifier.weight(1f)) {
-            Row(Modifier.height(24.dp), verticalAlignment = Alignment.CenterVertically) { Eyebrow("Heaviest") }
-            Text(stats.heaviestKg?.let { w(it) } ?: "No weight", style = MaterialTheme.typography.titleMedium)
-        }
+    // Four stat tiles (`.stat`): the value over its caption, two to a row so they hold at font scale 1.5.
+    Row(horizontalArrangement = Arrangement.spacedBy(IntakeSpacing.RowGap), modifier = Modifier.fillMaxWidth()) {
+        StatTile(
+            value = stats.bestSet?.let { "${w(it.weightKg)} × ${it.reps}" } ?: "Reps only",
+            caption = "Best set",
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+        )
+        StatTile(value = stats.heaviestKg?.let { w(it) } ?: "No weight", caption = "Heaviest", modifier = Modifier.weight(1f).fillMaxHeight())
     }
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Column(Modifier.weight(1f)) {
-            Row(Modifier.height(24.dp), verticalAlignment = Alignment.CenterVertically) { Eyebrow("Total volume") }
-            // A bodyweight lift has no load to total: show its reps rather than "0 lb" (Q5b-16).
-            Text(
-                if (stats.isBodyweightOnly) "${stats.totalReps} reps" else w(stats.totalVolumeKg),
-                style = MaterialTheme.typography.titleMedium,
-            )
-        }
-        Column(Modifier.weight(1f)) {
-            Row(Modifier.height(24.dp), verticalAlignment = Alignment.CenterVertically) { Eyebrow("Sessions") }
-            Text("${stats.sessionCount} · ${stats.totalSets} sets", style = MaterialTheme.typography.titleMedium)
+    Row(horizontalArrangement = Arrangement.spacedBy(IntakeSpacing.RowGap), modifier = Modifier.fillMaxWidth()) {
+        // A bodyweight lift has no load to total: show its reps rather than "0 lb" (Q5b-16).
+        StatTile(
+            value = if (stats.isBodyweightOnly) "${stats.totalReps} reps" else w(stats.totalVolumeKg),
+            caption = "Total volume",
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+        )
+        StatTile(value = "${stats.sessionCount} · ${stats.totalSets} sets", caption = "Sessions", modifier = Modifier.weight(1f).fillMaxHeight())
+    }
+    stats.bestSet?.let {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("est. max ${w(it.estimatedMaxKg)}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            InfoTip(Glossary.ESTIMATED_MAX, modifier = Modifier.size(24.dp))
         }
     }
     if (stats.estimatedMaxSeries.isNotEmpty()) {
@@ -323,7 +318,7 @@ private fun YourHistory(stats: ExerciseStats, unit: WeightUnit) {
                 Text(
                     "$label: ${if (set.weightKg > 0) "${w(set.weightKg)} × ${set.reps}" else "${set.reps} reps"}" + if (record) " (PR)" else "",
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (record) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (record) MaterialTheme.intake.ok else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
