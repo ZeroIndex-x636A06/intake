@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,7 +28,8 @@ import com.zeroindex.intake.ui.components.EmptyState
 import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.ui.components.SectionCard
 import com.zeroindex.intake.ui.screens.train.RecordsBlock
-import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.components.LineButton
+import com.zeroindex.intake.ui.theme.IntakeSpacing
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
@@ -123,10 +123,9 @@ fun TrainingStatsCard(
         }
         if (onOpenLog != null) {
             Spacer(Modifier.height(10.dp))
-            OutlinedButton(
+            LineButton(
                 onClick = onOpenLog,
-                shape = IntakeShape.Button,
-                modifier = Modifier.fillMaxWidth().height(50.dp),
+                modifier = Modifier.fillMaxWidth(),
             ) { Text("Open the training log") }
         }
     }
@@ -145,20 +144,19 @@ fun TrainingStatsScreen(
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(
-            start = 16.dp + contentPadding.calculateStartPadding(androidx.compose.ui.unit.LayoutDirection.Ltr),
-            end = 16.dp + contentPadding.calculateEndPadding(androidx.compose.ui.unit.LayoutDirection.Ltr),
+            start = IntakeSpacing.ScreenGutter + contentPadding.calculateStartPadding(androidx.compose.ui.unit.LayoutDirection.Ltr),
+            end = IntakeSpacing.ScreenGutter + contentPadding.calculateEndPadding(androidx.compose.ui.unit.LayoutDirection.Ltr),
             top = contentPadding.calculateTopPadding() + 12.dp,
             bottom = contentPadding.calculateBottomPadding() + 24.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
     ) {
         item { TrainingStatsCard(state, onOpenLog) }
         if (onOpenCalculators != null) {
             item {
-                OutlinedButton(
+                LineButton(
                     onClick = onOpenCalculators,
-                    shape = IntakeShape.Button,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    modifier = Modifier.fillMaxWidth(),
                 ) { Text("Calculators: 1RM, percentages, plates") }
             }
         }
