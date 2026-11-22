@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -24,17 +23,23 @@ import com.zeroindex.intake.data.profile.BaselineSnapshot
 import com.zeroindex.intake.domain.goals.BaselineReadiness
 import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.ui.components.InfoTip
+import com.zeroindex.intake.ui.components.AccentCard
 import com.zeroindex.intake.ui.components.IntakeCard
+import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.intake
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.draw.clip
 import com.zeroindex.intake.ui.components.PillTone
 import com.zeroindex.intake.ui.components.StatusPill
-import com.zeroindex.intake.ui.components.rememberSweepFraction
-import androidx.compose.runtime.getValue
 import com.zeroindex.intake.ui.motion.pressScale
 import com.zeroindex.intake.ui.screens.today.WorkoutCardState
 
 /**
- * "Baseline: day 3 of 7". Small on purpose: what is still missing and why it matters, one tap
- * to the profile. When the rule is met it says "Ready" whether or not a notification arrived.
+ * "Baseline: day 3 of 7" on the lime accent card (`.card.lime`): the eyebrow, the headline, seven segments for the days so
+ * far, what is still missing and why, and one button. When the rule is met it says "Ready" and offers Build my plan.
  */
 @Composable
 fun BaselineCard(
@@ -44,13 +49,13 @@ fun BaselineCard(
     modifier: Modifier = Modifier,
 ) {
     val p = snapshot.progress
-    IntakeCard(modifier) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+    val ink = MaterialTheme.intake.onAccent
+    AccentCard(modifier) {
+        Row(verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f)) {
-                Eyebrow("Baseline week")
-                Text(p.headline, style = MaterialTheme.typography.titleSmall)
+                Eyebrow(if (p.ready) "Baseline week · Ready" else "Baseline week · Collecting", color = ink)
+                Text(p.headline, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 2.dp))
             }
-            StatusPill(if (p.ready) "Ready" else "Collecting", tone = if (p.ready) PillTone.Ok else PillTone.Wait)
             InfoTip(
                 text = "For a week Intake watches your normal eating and weight so your plan comes from your own " +
                     "numbers, not a formula. Food on ${BaselineReadiness.MIN_LOGGED_DAYS}+ days and " +
@@ -58,34 +63,45 @@ fun BaselineCard(
                 label = "Baseline week",
             )
         }
-        val fraction = (p.dayNumber / BaselineReadiness.MIN_DAYS.toFloat()).coerceIn(0f, 1f)
-        val shownFraction by rememberSweepFraction(fraction)
-        LinearProgressIndicator(
-            progress = { shownFraction },
-            modifier = Modifier
+        val days = BaselineReadiness.MIN_DAYS
+        Row(
+            Modifier
                 .fillMaxWidth()
-                .padding(vertical = 8.dp)
-                .semantics { stateDescription = "Day ${p.dayNumber} of ${BaselineReadiness.MIN_DAYS}" },
-        )
+                .padding(vertical = 12.dp)
+                .semantics { stateDescription = "Day ${p.dayNumber} of $days" },
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            for (i in 1..days) {
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .height(6.dp)
+                        .clip(CircleShape)
+                        .background(if (i <= p.dayNumber) ink else ink.copy(alpha = 0.18f)),
+                )
+            }
+        }
         if (p.ready) {
-            Text(
-                "You have enough data to build your calories, macros, water and training.",
-                style = MaterialTheme.typography.bodySmall,
-            )
+            Text("You have enough data to build your calories, macros, water and training.", style = MaterialTheme.typography.bodySmall)
             Spacer(Modifier.height(8.dp))
-            Button(onClick = onBuildPlan, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).pressScale()) { Text("Build my plan") }
+            Button(onClick = onBuildPlan, shape = IntakeShape.Button, modifier = Modifier.heightIn(min = 44.dp).pressScale()) { Text("Build my plan") }
         } else {
             p.missing.take(2).forEach { m ->
                 Text("Still needed: ${m.what}", style = MaterialTheme.typography.labelMedium)
-                Text(m.why, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(m.why, style = MaterialTheme.typography.labelSmall, color = ink.copy(alpha = 0.72f))
                 Spacer(Modifier.height(4.dp))
             }
             BaselineReadiness.extensionExplanation(p)?.let {
-                Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(it, style = MaterialTheme.typography.labelSmall, color = ink.copy(alpha = 0.72f))
             }
-            OutlinedButton(onClick = onOpenProfile, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                Text("See my baseline")
-            }
+            Spacer(Modifier.height(8.dp))
+            // A translucent ink pill on the lime card, as the mockup draws it.
+            Button(
+                onClick = onOpenProfile,
+                shape = IntakeShape.Button,
+                colors = ButtonDefaults.buttonColors(containerColor = ink.copy(alpha = 0.10f), contentColor = ink),
+                modifier = Modifier.heightIn(min = 44.dp),
+            ) { Text("See my baseline") }
         }
     }
 }

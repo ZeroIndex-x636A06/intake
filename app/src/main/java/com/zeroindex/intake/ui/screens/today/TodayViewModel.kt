@@ -184,6 +184,9 @@ class TodayViewModel @Inject constructor(
         if (!next.isAfter(clock.today())) selectedDate.value = next
     }
     fun showToday() { selectedDate.value = clock.today() }
+    /** The week strip and the month calendar: any day up to today (a later one is ignored by clamping to today). */
+    fun showDay(date: LocalDate) { selectedDate.value = com.zeroindex.intake.domain.time.WeekStrip.clampToToday(clock.today(), date) }
+    fun today(): LocalDate = clock.today()
 
     /** Soft delete with an Undo that brings the entry back (and its drink row, if it has one). */
     fun deleteLog(log: FoodLogEntity) = viewModelScope.launch {
