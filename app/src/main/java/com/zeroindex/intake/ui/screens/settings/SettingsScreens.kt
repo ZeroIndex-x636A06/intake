@@ -2,7 +2,6 @@ package com.zeroindex.intake.ui.screens.settings
 
 import androidx.compose.foundation.layout.imePadding
 import com.zeroindex.intake.domain.units.format
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,28 +17,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.WaterDrop
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -51,6 +32,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -62,22 +48,43 @@ import com.zeroindex.intake.domain.settings.SettingVisibility
 import com.zeroindex.intake.domain.settings.SettingsGroup
 import com.zeroindex.intake.domain.settings.SettingsRegistry
 import com.zeroindex.intake.ui.navigation.PushedScreen
+import com.zeroindex.intake.ui.screens.ai.AiStatusHeader
 import com.zeroindex.intake.ui.screens.health.HealthStatusHeader
+import com.zeroindex.intake.domain.settings.SettingsSection
+import com.zeroindex.intake.ui.components.Eyebrow
+import com.zeroindex.intake.ui.components.ChipTone
+import com.zeroindex.intake.ui.components.IconTile
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.components.ListCard
+import com.zeroindex.intake.ui.components.ListDivider
+import com.zeroindex.intake.ui.components.RowChevron
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.theme.intake
 
 private fun SettingsGroup.icon(): ImageVector = when (this) {
-    SettingsGroup.APPEARANCE -> Icons.Filled.Palette
-    SettingsGroup.NUTRITION -> Icons.Filled.Restaurant
-    SettingsGroup.WATER -> Icons.Filled.WaterDrop
-    SettingsGroup.TRAINING -> Icons.Filled.FitnessCenter
-    SettingsGroup.HEALTH -> Icons.Filled.Favorite
-    SettingsGroup.FOOD_DB -> Icons.Filled.Storage
-    SettingsGroup.VIDEOS -> Icons.Filled.PlayCircle
-    SettingsGroup.REMINDERS -> Icons.Filled.Notifications
-    SettingsGroup.SYNC -> Icons.Filled.Cloud
-    SettingsGroup.AI -> Icons.Filled.AutoAwesome
-    SettingsGroup.KEYS -> Icons.Filled.Key
-    SettingsGroup.ABOUT -> Icons.Filled.Info
+    SettingsGroup.APPEARANCE -> IntakeIcons.Theme
+    SettingsGroup.NUTRITION -> IntakeIcons.ForkKnife
+    SettingsGroup.WATER -> IntakeIcons.Drop
+    SettingsGroup.TRAINING -> IntakeIcons.Dumbbell
+    SettingsGroup.HEALTH -> IntakeIcons.Heart
+    SettingsGroup.FOOD_DB -> IntakeIcons.Database
+    SettingsGroup.VIDEOS -> IntakeIcons.Video
+    SettingsGroup.REMINDERS -> IntakeIcons.Bell
+    SettingsGroup.SYNC -> IntakeIcons.Sync
+    SettingsGroup.AI -> IntakeIcons.Sparkle
+    SettingsGroup.KEYS -> IntakeIcons.Key
+    SettingsGroup.ABOUT -> IntakeIcons.Help
+}
+
+/** The small status chip at the right of a group row, where the live settings have one to show. */
+private fun groupChip(group: SettingsGroup, s: AppSettings, hasOpenRouter: Boolean, hasYoutube: Boolean, hasUsda: Boolean): String? = when (group) {
+    SettingsGroup.REMINDERS -> listOf(s.coachNotify, s.photoReminderWeeks > 0, s.workoutReminderOn, s.mealReminderOn, s.waterReminderOn)
+        .count { it }.takeIf { it > 0 }?.let { "$it on" }
+    SettingsGroup.AI -> if (s.aiEnabled) "On" else "Off"
+    SettingsGroup.KEYS -> "${listOf(hasOpenRouter, hasUsda, hasYoutube).count { it }} of 3"
+    else -> null
 }
 
 /** The one-line summary under a group's name on the Settings home, from the live settings. */
@@ -102,7 +109,7 @@ internal fun groupSummary(group: SettingsGroup, s: AppSettings, hasOpenRouter: B
     SettingsGroup.ABOUT -> "Tour, scripts help, privacy, credits"
 }
 
-/** Settings home: a search field and one row per group. It holds only settings. */
+/** Settings home: a search field, then the twelve groups under four section headings. It holds only settings. */
 @Composable
 fun SettingsHomeScreen(
     contentPadding: PaddingValues,
@@ -118,18 +125,24 @@ fun SettingsHomeScreen(
         contentPadding = PaddingValues(
             top = contentPadding.calculateTopPadding() + 4.dp,
             bottom = contentPadding.calculateBottomPadding() + 24.dp,
-            start = 16.dp, end = 16.dp,
+            start = IntakeSpacing.ScreenGutter, end = IntakeSpacing.ScreenGutter,
         ),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
     ) {
         item(key = "search") {
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
                 singleLine = true,
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                leadingIcon = { Icon(IntakeIcons.Search, contentDescription = null) },
                 placeholder = { Text("Search settings") },
-                shape = IntakeShape.Field,
+                shape = IntakeShape.Pill,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedBorderColor = MaterialTheme.colorScheme.onSurface,
+                ),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -137,55 +150,79 @@ fun SettingsHomeScreen(
             if (results.isEmpty()) {
                 item(key = "none") { Text("No setting matches \"$query\".", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
-            itemsIndexed(results, key = { _, r -> "r-" + r.id }) { _, spec ->
-                Surface(
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = IntakeShape.InnerCard,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    modifier = Modifier.fillMaxWidth().clickable(role = Role.Button) { onOpenGroup(spec.group.id, spec.id) },
-                ) {
-                    Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
-                        Text(spec.label, style = MaterialTheme.typography.titleSmall)
-                        Text(spec.group.title, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
-        } else {
-            item(key = "groups") {
-                Surface(
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = IntakeShape.Card,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
+            item(key = "results") {
+                if (results.isNotEmpty()) ListCard {
                     Column {
-                        SettingsGroup.entries.forEachIndexed { index, group ->
-                            Row(
-                                modifier = Modifier
+                        results.forEachIndexed { index, spec ->
+                            Column(
+                                Modifier
                                     .fillMaxWidth()
-                                    .heightIn(min = 72.dp)
-                                    .clickable(role = Role.Button) { onOpenGroup(group.id, null) }
-                                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
+                                    .heightIn(min = IntakeSpacing.ListRowMinHeight)
+                                    .clickable(role = Role.Button) { onOpenGroup(spec.group.id, spec.id) }
+                                    .padding(horizontal = IntakeSpacing.ListRowPadH, vertical = 10.dp),
+                                verticalArrangement = Arrangement.Center,
                             ) {
-                                Surface(color = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer, shape = IntakeShape.Tile, modifier = Modifier.size(44.dp)) {
-                                    Box(contentAlignment = Alignment.Center) { Icon(group.icon(), contentDescription = null, modifier = Modifier.size(22.dp)) }
-                                }
-                                Spacer(Modifier.width(14.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Text(group.title, style = MaterialTheme.typography.titleMedium)
-                                    Text(
-                                        groupSummary(group, state.settings, state.keys.hasOpenRouterKey, state.keys.hasYoutubeKey, state.keys.hasUsdaKey),
-                                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(spec.label, style = MaterialTheme.typography.titleSmall)
+                                Text(spec.group.title, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            if (index != SettingsGroup.entries.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(start = 72.dp))
+                            if (index != results.lastIndex) ListDivider()
                         }
                     }
                 }
             }
+        } else {
+            SettingsSection.entries.forEach { section ->
+                item(key = "head-" + section.name) {
+                    Eyebrow(section.title, modifier = Modifier.padding(start = IntakeSpacing.SectionSide, top = 6.dp))
+                }
+                item(key = "section-" + section.name) {
+                    ListCard {
+                        Column {
+                            section.groups.forEachIndexed { index, group ->
+                                GroupRow(
+                                    group = group,
+                                    summary = groupSummary(group, state.settings, state.keys.hasOpenRouterKey, state.keys.hasYoutubeKey, state.keys.hasUsdaKey),
+                                    chip = groupChip(group, state.settings, state.keys.hasOpenRouterKey, state.keys.hasYoutubeKey, state.keys.hasUsdaKey),
+                                    onClick = { onOpenGroup(group.id, null) },
+                                )
+                                if (index != section.groups.lastIndex) ListDivider()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GroupRow(group: SettingsGroup, summary: String, chip: String?, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = IntakeSpacing.ListRowMinHeight)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = IntakeSpacing.ListRowPadH, vertical = IntakeSpacing.ListRowPadV),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (group == SettingsGroup.AI) {
+            // Every AI label wears the ai colours.
+            Surface(color = MaterialTheme.intake.aiBg, contentColor = MaterialTheme.intake.ai, shape = IntakeShape.IconSmall, modifier = Modifier.size(32.dp)) {
+                Box(contentAlignment = Alignment.Center) { Icon(group.icon(), contentDescription = null, modifier = Modifier.size(18.dp)) }
+            }
+        } else {
+            IconTile(group.icon(), small = true)
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(group.title, style = MaterialTheme.typography.titleMedium)
+            Text(summary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (chip != null) {
+            Spacer(Modifier.width(8.dp))
+            IntakeChip(chip, tone = if (chip == "On" && group == SettingsGroup.AI) ChipTone.Ai else ChipTone.Neutral)
+        } else {
+            RowChevron()
         }
     }
 }
@@ -233,7 +270,8 @@ private fun GroupContent(group: SettingsGroup, focus: String?, nav: SettingsNav,
         val j = advanced.indexOfFirst { it.id == focus }
         val index = when {
             i >= 0 -> headerCount + i
-            j >= 0 -> headerCount + main.size + 1 + j
+            // After the main rows: a gap, the Advanced toggle, a gap (only drawn when it is open), then the advanced rows.
+            j >= 0 -> headerCount + main.size + 3 + j
             else -> null
         }
         if (index != null) listState.animateScrollToItem(index)
@@ -246,39 +284,72 @@ private fun GroupContent(group: SettingsGroup, focus: String?, nav: SettingsNav,
             bottom = pad.calculateBottomPadding() + 24.dp,
             start = 16.dp, end = 16.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
-        item(key = "blurb") {
-            Text(group.blurb, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 6.dp))
+        if (group == SettingsGroup.AI) item(key = "blurb") { AiStatusHeader(group.blurb) } else item(key = "blurb") {
+            Text(group.blurb, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = IntakeSpacing.StackGap))
         }
         if (group == SettingsGroup.HEALTH) item(key = "health-status") { HealthStatusHeader() }
-        itemsIndexed(main, key = { _, s -> "m-" + s.id }) { _, spec -> Control(spec, nav) }
+        itemsIndexed(main, key = { _, s -> "m-" + s.id }) { i, spec -> Control(spec, nav, rowShape(main, i)) }
         if (advanced.isNotEmpty()) {
+            item(key = "advanced-gap") { Spacer(Modifier.height(IntakeSpacing.StackGap)) }
             item(key = "advanced-toggle") {
-                Surface(
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = IntakeShape.Card,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    modifier = Modifier.fillMaxWidth().clickable(role = Role.Button) { showAdvanced = !showAdvanced },
-                ) {
-                    Row(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Advanced", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
+                ListCard(Modifier.clickable(role = Role.Button) { showAdvanced = !showAdvanced }) {
+                    Row(
+                        Modifier.heightIn(min = IntakeSpacing.ListRowMinHeight).padding(horizontal = IntakeSpacing.ListRowPadH),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("Advanced", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                         Text("${advanced.size}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Icon(if (showAdvanced) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, contentDescription = if (showAdvanced) "Collapse" else "Expand", tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(8.dp))
+                        Icon(
+                            if (showAdvanced) IntakeIcons.ChevronUp else IntakeIcons.ChevronDown,
+                            contentDescription = if (showAdvanced) "Collapse" else "Expand",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
             }
-            if (showAdvanced) itemsIndexed(advanced, key = { _, s -> "a-" + s.id }) { _, spec -> Control(spec, nav) }
+            if (showAdvanced) {
+                item(key = "advanced-gap-2") { Spacer(Modifier.height(IntakeSpacing.StackGap)) }
+                itemsIndexed(advanced, key = { _, s -> "a-" + s.id }) { i, spec -> Control(spec, nav, rowShape(advanced, i)) }
+            }
         }
     }
 }
 
+/** Controls that draw their own white card (the AI cards, the sync and export blocks, the OpenRouter key card). */
+private fun drawsOwnCard(spec: SettingSpec): Boolean =
+    spec.group == SettingsGroup.AI || spec.id == "syncServer" || spec.id == "exportPass" || spec.id == "key.openrouter"
+
+/**
+ * The plain rows of a page read as white list cards: round the top of the first row of a run and the bottom of its last.
+ * A control that draws its own card ends the run.
+ */
+private fun rowShape(rows: List<SettingSpec>, index: Int): Shape {
+    val square = CornerSize(0.dp)
+    val card = IntakeShape.Card
+    val top = index == 0 || drawsOwnCard(rows[index - 1])
+    val bottom = index == rows.lastIndex || drawsOwnCard(rows[index + 1])
+    return when {
+        top && bottom -> card
+        top -> card.copy(bottomStart = square, bottomEnd = square)
+        bottom -> card.copy(topStart = square, topEnd = square)
+        else -> RectangleShape
+    }
+}
+
 @Composable
-private fun Control(spec: SettingSpec, nav: SettingsNav) {
+private fun Control(spec: SettingSpec, nav: SettingsNav, shape: Shape) {
+    if (drawsOwnCard(spec)) {
+        Box(Modifier.fillMaxWidth().padding(vertical = 6.dp)) { SettingControl(spec, nav) }
+        return
+    }
     Surface(
-        color = MaterialTheme.colorScheme.background,
+        color = MaterialTheme.colorScheme.surface,
+        shape = shape,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        SettingControl(spec, nav)
+        Box(Modifier.padding(horizontal = IntakeSpacing.ListRowPadH)) { SettingControl(spec, nav) }
     }
 }

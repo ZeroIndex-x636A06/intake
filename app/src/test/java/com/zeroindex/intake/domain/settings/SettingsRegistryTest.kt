@@ -40,6 +40,18 @@ class SettingsRegistryTest {
     }
 
     @Test
+    fun `the Settings home has four sections that hold all 12 groups once, so all 132 controls stay reachable`() {
+        assertThat(SettingsSection.entries.map { it.title })
+            .containsExactly("Display and you", "Tracking", "Connections and data", "Help").inOrder()
+        val listed = SettingsSection.entries.flatMap { it.groups }
+        assertThat(listed).containsNoDuplicates()
+        assertThat(listed).containsExactlyElementsIn(SettingsGroup.entries)
+        val reachable = listed.flatMap { SettingsRegistry.inGroup(it) }
+        assertThat(reachable).hasSize(132)
+        SettingsGroup.entries.forEach { assertThat(SettingsSection.of(it).groups).contains(it) }
+    }
+
+    @Test
     fun `every inventory key is in the registry under the same group`() {
         rows.forEach { r ->
             val spec = SettingsRegistry.byId(r.key)

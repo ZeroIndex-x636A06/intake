@@ -18,7 +18,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Switch
+import com.zeroindex.intake.ui.components.IntakeSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -126,7 +126,7 @@ fun ExportSection(modifier: Modifier = Modifier, viewModel: ExportViewModel = hi
             title = "Include progress photos in the export",
             subtitle = "Off by default. The JSON file carries only each photo's date and angle. With this on you can also save " +
                 "the photo files as a zip. Photos are never synced or uploaded.",
-        ) { Switch(checked = includePhotos, onCheckedChange = viewModel::setIncludePhotos) }
+        ) { IntakeSwitch(checked = includePhotos, onCheckedChange = viewModel::setIncludePhotos) }
         if (includePhotos) {
             OutlinedButton(
                 onClick = { photoLauncher.launch("intake-progress-photos-$stamp.zip") },

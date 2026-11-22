@@ -26,7 +26,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
+import com.zeroindex.intake.ui.components.IntakeSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -334,7 +334,7 @@ fun SettingControl(
                 "exportReminder" -> SettingRow(
                     "Export reminder",
                     if (s.sync.paired) "Off while sync is on: the server keeps a copy." else "Monthly. Without sync this phone holds the only copy.",
-                ) { Switch(checked = s.exportReminder && !s.sync.paired, onCheckedChange = viewModel::setExportReminder, enabled = !s.sync.paired) }
+                ) { IntakeSwitch(checked = s.exportReminder && !s.sync.paired, onCheckedChange = viewModel::setExportReminder, enabled = !s.sync.paired) }
 
                 // ---- Sync and export ----
                 "syncServer" -> SyncSection()
@@ -427,7 +427,7 @@ private fun rememberNotificationPermissionAsk(): () -> Unit {
 
 @Composable
 private fun SwitchSetting(title: String, subtitle: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
-    SettingRow(title, subtitle) { Switch(checked = checked, onCheckedChange = onChange) }
+    SettingRow(title, subtitle) { IntakeSwitch(checked = checked, onCheckedChange = onChange) }
 }
 
 /** A numeric field that saves as typed, but only a value inside [range]; a half-typed number never overwrites. */
@@ -697,7 +697,7 @@ private fun KeyField(title: String, has: Boolean, hint: String, onSave: (String?
             if (has && onTest != null) OutlinedButton(onClick = onTest, shape = IntakeShape.Chip) { Text("Test") }
             if (has) TextButton(onClick = { onSave(null) }) { Text("Remove") }
         }
-        result?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary, modifier = Modifier.padding(top = 4.dp)) }
+        result?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp)) }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(top = 8.dp))
     }
 }
@@ -744,7 +744,7 @@ private fun DirectVideosSetting(checked: Boolean, onChange: (Boolean) -> Unit) {
         "Offline downloads and direct playback (uses yt-dlp, not an official YouTube feature)",
         "Plays videos without YouTube's ads and lets you download saved videos to this phone to watch offline. Off keeps YouTube's own player.",
     ) {
-        Switch(checked = checked, onCheckedChange = { if (it) warn = true else onChange(false) })
+        IntakeSwitch(checked = checked, onCheckedChange = { if (it) warn = true else onChange(false) })
     }
     if (warn) {
         androidx.compose.material3.AlertDialog(

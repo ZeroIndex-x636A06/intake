@@ -2,7 +2,6 @@
 
 package com.zeroindex.intake.ui.screens.profile
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -28,13 +27,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.ui.components.ChoiceChip
 import com.zeroindex.intake.ui.components.InfoTip
 import com.zeroindex.intake.ui.components.LabeledField
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
 
 /**
  * A big, readable choice with a title and a line of explanation, used for the build picker and
@@ -52,25 +51,25 @@ fun OptionTile(
 ) {
     val scheme = MaterialTheme.colorScheme
     Surface(
-        color = if (selected) scheme.primaryContainer else scheme.surface,
-        contentColor = if (selected) scheme.onPrimaryContainer else scheme.onSurface,
-        shape = IntakeShape.InnerCard,
-        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) scheme.primary else scheme.outlineVariant),
+        // The selection tile of the mockup: white card, and the ink tile when chosen (the word "Selected" is in the semantics).
+        color = if (selected) scheme.primary else scheme.surface,
+        contentColor = if (selected) scheme.onPrimary else scheme.onSurface,
+        shape = IntakeShape.TileLarge,
         modifier = modifier
             .heightIn(min = 72.dp)
             .semantics { this.selected = selected }
             .clickable(role = Role.RadioButton, onClickLabel = title, onClick = onClick),
     ) {
-        Column(Modifier.padding(13.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Column(Modifier.padding(IntakeSpacing.CardPadTile)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(3.dp))
-            Text(description, style = MaterialTheme.typography.bodySmall)
+            Text(description, style = MaterialTheme.typography.bodySmall, color = if (selected) scheme.onPrimary.copy(alpha = 0.72f) else scheme.onSurfaceVariant)
             if (secondary != null) {
                 Spacer(Modifier.height(6.dp))
                 Text(
                     secondary,
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (selected) scheme.onPrimaryContainer else scheme.onSurfaceVariant,
+                    color = if (selected) scheme.onPrimary.copy(alpha = 0.72f) else scheme.onSurfaceVariant,
                 )
             }
         }

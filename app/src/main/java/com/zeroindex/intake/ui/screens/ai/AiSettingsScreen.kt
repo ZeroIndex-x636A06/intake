@@ -5,8 +5,6 @@ package com.zeroindex.intake.ui.screens.ai
 import com.zeroindex.intake.ui.components.scrollIntoViewOnFocus
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.ui.semantics.contentDescription
@@ -40,7 +38,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -63,8 +60,58 @@ import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.SectionLine
 import com.zeroindex.intake.ui.components.SettingRow
 import com.zeroindex.intake.ui.components.SubHead
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Surface
+import com.zeroindex.intake.domain.ai.AiFeature
+import com.zeroindex.intake.ui.components.ChipTone
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.theme.intake
 import java.time.Duration
+
+/**
+ * The top of Settings > AI (optional): where the OpenRouter key stands and what AI does here, then the features that run
+ * only when you tap. Both parts are read from what exists (the key state, [AiFeature]); nothing is added.
+ */
+@Composable
+fun AiStatusHeader(blurb: String, modifier: Modifier = Modifier, viewModel: AiSettingsViewModel = hiltViewModel()) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val c = MaterialTheme.intake
+    val title = when {
+        state.keyCheck is KeyCheck.Failed -> "Not connected"
+        state.keyCheck is KeyCheck.Ok -> "Connected"
+        state.hasKey -> "Key saved · not tested"
+        else -> "No key · AI off"
+    }
+    Column(modifier.padding(bottom = IntakeSpacing.StackGap), verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap)) {
+        IntakeCard(color = c.aiBg, contentColor = c.ai) {
+            Row(verticalAlignment = Alignment.Top) {
+                Surface(color = MaterialTheme.colorScheme.surface, contentColor = c.ai, shape = IntakeShape.Tile, modifier = Modifier.size(40.dp)) {
+                    Box(contentAlignment = Alignment.Center) { Icon(IntakeIcons.Sparkle, contentDescription = null, modifier = Modifier.size(IconSize.Default)) }
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(title, style = MaterialTheme.typography.titleMedium, color = c.ai)
+                    Text(blurb, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                }
+            }
+        }
+        val onTap = AiFeature.entries.filter { it.inEstimate && !it.optInSwitch }
+        if (onTap.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Eyebrow("Runs only when you tap", modifier = Modifier.padding(start = IntakeSpacing.SectionSide))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    onTap.forEach { IntakeChip(it.label, tone = ChipTone.Ai) }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 internal fun KeyCard(state: AiSettingsUiState, onSave: (String?) -> Unit, onTest: () -> Unit) {
@@ -133,7 +180,7 @@ internal fun ModelRow(row: TaskRow, onChange: () -> Unit) {
             )
             if (!row.isOverride) {
                 row.suggestion.basis?.let {
-                    Text(it.explanation, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
+                    Text(it.explanation, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -232,7 +279,7 @@ internal fun ModelPickerSheet(row: TaskRow, onPick: (String?) -> Unit, onDismiss
         Column(Modifier.padding(horizontal = 16.dp).navigationBarsPadding()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Choose for ${row.task.label}", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-                IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, contentDescription = "Close") }
+                IconButton(onClick = onDismiss) { Icon(IntakeIcons.Close, contentDescription = "Close") }
             }
             Text(
                 "${requirements(row.task)} ${row.suggestion.candidates.size} match, most capable first, then cheapest.",

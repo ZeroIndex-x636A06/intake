@@ -8,7 +8,6 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -78,6 +77,7 @@ import com.zeroindex.intake.domain.onboarding.TourSteps
 import com.zeroindex.intake.ui.motion.LocalReduceMotion
 import com.zeroindex.intake.ui.motion.Motion
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.intake
 import kotlin.math.min
 
 /**
@@ -333,8 +333,8 @@ private fun Scrim(target: Rect?, reduce: Boolean) {
     val density = LocalDensity.current
     val pad = with(density) { 8.dp.toPx() }
     val maxCorner = with(density) { 22.dp.toPx() }
-    val scrim = Color.Black.copy(alpha = 0.62f)
-    val ring = MaterialTheme.colorScheme.primaryContainer
+    val scrim = MaterialTheme.intake.scrim
+    val ring = MaterialTheme.intake.accent
     val padded = target?.let { Rect(it.left - pad, it.top - pad, it.right + pad, it.bottom + pad) }
     val animated by animateRectAsState(
         targetValue = padded ?: Rect.Zero,
@@ -365,7 +365,7 @@ private fun Scrim(target: Rect?, reduce: Boolean) {
                 topLeft = Offset(animated.left, animated.top),
                 size = Size(animated.width, animated.height),
                 cornerRadius = corner,
-                style = Stroke(width = 2.dp.toPx()),
+                style = Stroke(width = 3.dp.toPx()),
             )
         }
     }
@@ -419,7 +419,6 @@ private fun BubbleCard(tour: TourState, ready: Boolean) {
         contentColor = MaterialTheme.colorScheme.onSurface,
         shape = IntakeShape.Card,
         shadowElevation = 8.dp,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         // Read the bubble first, before anything behind it (traversal order), without blocking focus.
         modifier = Modifier.semantics { isTraversalGroup = true; traversalIndex = -1f },
     ) {

@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
+import com.zeroindex.intake.ui.components.IntakeSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -148,7 +148,7 @@ fun WeatherSettingsSection(
                     ),
                     label = "How weather changes the target",
                 )
-                Switch(checked = settings.weatherEnabled, onCheckedChange = viewModel::setEnabled)
+                IntakeSwitch(checked = settings.weatherEnabled, onCheckedChange = viewModel::setEnabled)
             }
         }
         if (!settings.weatherEnabled) return@Column

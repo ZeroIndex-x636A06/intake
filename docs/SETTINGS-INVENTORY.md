@@ -26,6 +26,17 @@ Rules that apply to every row: use screens hold no configuration; one home per s
 | About and help | 7 | 0 | 6 | 0 |
 | **Total** | **132** | **115** | **16** | **34** |
 
+### Home sections (design v6)
+
+The Settings home lists the same twelve groups under four section headings (`SettingsSection` in `domain/settings/SettingsRegistry.kt`). No group, id, control or deep link changes, and search still lists any of the 132 controls and opens its group:
+
+| Section | Groups, in order |
+| --- | --- |
+| Display and you | Appearance and units, Reminders |
+| Tracking | Nutrition, Water and drinks, Training, Food database, Videos |
+| Connections and data | Health Connect, Sync and export, AI (optional), API keys |
+| Help | About and help |
+
 Option C calls the Nutrition tab "Eat", so its settings group is "Eating targets"; the contents are identical.
 
 ## A. Appearance and units
