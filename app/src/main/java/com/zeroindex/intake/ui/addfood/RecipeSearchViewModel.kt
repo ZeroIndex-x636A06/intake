@@ -2,6 +2,7 @@ package com.zeroindex.intake.ui.addfood
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zeroindex.intake.data.BackgroundDispatchers
 import com.zeroindex.intake.data.db.dao.FoodLogDao
 import com.zeroindex.intake.data.db.dao.RecipeDao
 import com.zeroindex.intake.data.db.entity.RecipeEntity
@@ -95,9 +96,9 @@ class RecipeSearchViewModel @Inject constructor(
         allergens.observeAliases(),
     ) { recipes, prepared, _, _ -> recipes to prepared }.mapLatest { (recipes, prepared) ->
         val logged = prepared.map { RecipeSearch.LoggedName(it.name, it.at) }
-        val candidates = RecipeSearch.withLastLogged(withContext(Dispatchers.Default) { recipes.map { candidateOf(it) } }, logged)
+        val candidates = RecipeSearch.withLastLogged(withContext(BackgroundDispatchers.recipes) { recipes.map { candidateOf(it) } }, logged)
         Prepared(candidates, logged, chipsFor(recipes))
-    }.flowOn(Dispatchers.Default)
+    }.flowOn(BackgroundDispatchers.recipes)
 
     @OptIn(FlowPreview::class)
     val state: StateFlow<RecipeSearchUi> = combine(query.debounce(300), prepared) { q, p ->
@@ -111,7 +112,7 @@ class RecipeSearchViewModel @Inject constructor(
     /** The engine's verdict per recipe, empty when the person avoids nothing. Text work, so off the main thread. */
     private suspend fun chipsFor(recipes: List<RecipeEntity>): Map<String, RowAllergen> {
         if (recipes.isEmpty() || allergens.avoidedAllergens().isEmpty()) return emptyMap()
-        return withContext(allergens.scanDispatcher) {
+        return withContext(BackgroundDispatchers.recipes) {
             recipes.associate { r ->
                 ensureActive()
                 r.id to logger.rowAllergen(r)

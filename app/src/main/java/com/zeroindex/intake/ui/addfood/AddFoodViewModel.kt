@@ -2,6 +2,7 @@ package com.zeroindex.intake.ui.addfood
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zeroindex.intake.data.BackgroundDispatchers
 import com.zeroindex.intake.data.db.entity.FoodEntity
 import com.zeroindex.intake.data.foodref.FoodRefRepository
 import com.zeroindex.intake.data.foodref.RefFood
@@ -52,6 +53,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -360,7 +362,7 @@ class AddFoodViewModel @Inject constructor(
                 }
             }
         }
-        .flowOn(Dispatchers.Default)
+        .flowOn(BackgroundDispatchers.lookup)
 
     /**
      * Open Food Facts runs on a longer debounce than the on-phone sources, so a word
@@ -406,7 +408,7 @@ class AddFoodViewModel @Inject constructor(
         foodDataPrefs.settings,
     ) { barcode, pending, ref, off, prefs ->
         Extras(barcode, pending, ref.foods, if (prefs.offSearch) off else OffUiState.Hidden, prefs.offSearch, ref.drinksExist)
-    }.shareIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), replay = 1)
+    }.flowOn(Dispatchers.Default).shareIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), replay = 1)
 
     private val lists = combine(
         foodRepository.observeRecents(),
@@ -416,53 +418,57 @@ class AddFoodViewModel @Inject constructor(
         allergenRepository.observeCheckLabelTerms(),
     ) { recents, favorites, safeIds, results, terms ->
         Lists(recents, favorites, safeIds, results, terms)
-    }.shareIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), replay = 1)
+        // The combine runs filters over up to 500 foods and the keyword table: not on the main thread (it was, as
+        // shareIn collects in viewModelScope).
+    }.flowOn(Dispatchers.Default).shareIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), replay = 1)
 
     private data class RowAllergens(val rows: Map<String, RowAllergen>, val refs: Map<Int, RowAllergen>, val avoids: Boolean)
+
+    /** Every food on this phone, read once for both the Mine tab and its scan. Kept five seconds after the last watcher. */
+    private val allFoods = foodRepository.observeAll()
+        .shareIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), replay = 1)
 
     /**
      * The local engine's verdict for every row on screen, so a result list shows "Contains milk" before anything is
      * tapped. One engine setup per list. Empty when the person avoids nothing (no chips then).
+     *
+     * The scan starts again only when the rows to scan change ([ScanTargets]) or what the person avoids changes. The
+     * lists, the search sources and the tab emit many times per keystroke (rows, drinks pointer, Open Food Facts,
+     * verdicts); each one used to cancel and restart the whole scan although the rows were the same (Q6-3).
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     private val rowAllergens = combine(
-        combine(lists, extras, searchState, tab) { l, e, s, t -> Triple(l, e, s) to t },
-        allergenRepository.observeAvoidedAllergens(),
+        combine(lists, extras, searchState, tab, allFoods) { l, e, s, t, mine ->
+            ScanTargets.of(l.recents, l.favorites, l.localResults, mine, t, e.off, s, e.refResults)
+        }.distinctUntilChanged(),
+        allergenRepository.observeAvoidedAllergens().distinctUntilChanged(),
         allergenRepository.observeAliases(),
-        foodRepository.observeAll(),
-    ) { t, _, _, mine -> t to mine }.transformLatest { (t, mine) ->
-        val (l, e, s) = t.first
+    ) { targets, _, _ -> targets }.transformLatest { targets ->
         if (allergenRepository.avoidedAllergens().isEmpty()) {
             emit(RowAllergens(emptyMap(), emptyMap(), avoids = false))
         } else {
             val scan = allergenRepository.foodScanner()
-            // Every row on screen, from every source: this phone, Open Food Facts, the USDA API. The phone's whole
-            // food list is only read for the Mine tab.
-            val foods = (
-                l.recents + l.favorites + l.localResults +
-                    (if (t.second == AddFoodTab.MY_FOODS) mine else emptyList()) +
-                    (e.off as? OffUiState.Results)?.foods.orEmpty() + (s as? SearchState.Remote)?.results.orEmpty()
-                ).distinctBy { it.id }
+            val foods = targets.foods
             val done = LinkedHashMap<String, RowAllergen>()
             // A row not scanned yet has no entry and shows "Checking...", never a clear (chipFor). The first rows are
-            // scanned and shown at once; the rest follow, on two threads, and stop as soon as the lists change.
-            withContext(allergenRepository.scanDispatcher) {
+            // scanned and shown at once; the rest follow, one background thread, and stop as soon as the rows change.
+            withContext(BackgroundDispatchers.scan) {
                 for (food in foods.take(FIRST_SCAN_ROWS)) {
                     ensureActive()
                     done[food.id] = rowAllergenOf(food, scan(food))
                 }
             }
-            if (foods.size > FIRST_SCAN_ROWS || e.refResults.isNotEmpty()) {
+            if (foods.size > FIRST_SCAN_ROWS || targets.refs.isNotEmpty()) {
                 emit(RowAllergens(LinkedHashMap(done), emptyMap(), avoids = true))
             }
             val refs = LinkedHashMap<Int, RowAllergen>()
-            withContext(allergenRepository.scanDispatcher) {
+            withContext(BackgroundDispatchers.scan) {
                 for (food in foods.drop(FIRST_SCAN_ROWS)) {
                     ensureActive()
                     done[food.id] = rowAllergenOf(food, scan(food))
                 }
                 // A bundled USDA row is scanned as the food it becomes when chosen (its name: it is a generic food).
-                for (ref in e.refResults) {
+                for (ref in targets.refs) {
                     ensureActive()
                     FoodRefRepository.toFoodEntity(ref).let { refs[ref.id] = rowAllergenOf(it, scan(it)) }
                 }
@@ -474,13 +480,13 @@ class AddFoodViewModel @Inject constructor(
     val uiState: StateFlow<AddFoodUiState> = combine(
         combine(tab, lists, searchState, extras) { a, c, d, f -> Quad(a, c, d, f) },
         rowAllergens,
-        settingsRepository.settings,
-        foodRepository.observeAll(),
+        settingsRepository.settings.map { it.portionUnit }.distinctUntilChanged(),
+        allFoods,
         menuRows,
-    ) { core, allergens, settings, everything, menu ->
+    ) { core, allergens, portionUnit, everything, menu ->
         val (tab, lists, search, extras) = core
         AddFoodUiState(
-            portionUnit = settings.portionUnit,
+            portionUnit = portionUnit,
             rowAllergens = allergens.rows,
             refAllergens = allergens.refs,
             tab = tab,
@@ -489,13 +495,20 @@ class AddFoodViewModel @Inject constructor(
             recents = lists.recents,
             localResults = lists.localResults,
             // Mine: every food on this phone (searched, scanned or made by hand) but the built-in drinks nobody touched.
-            myFoods = everything.filter { it.createdAt != com.zeroindex.intake.data.db.entity.SEED_TIMESTAMP },
+            // Only the Mine tab reads this list: the other tabs get an empty one, so a food written elsewhere does not
+            // make a new state (and a new composition) for a list nobody is looking at.
+            myFoods = if (tab == AddFoodTab.MY_FOODS) {
+                everything.filter { it.createdAt != com.zeroindex.intake.data.db.entity.SEED_TIMESTAMP }
+            } else {
+                emptyList()
+            },
             favorites = lists.favorites,
             safeFoodIds = lists.safeIds,
             searchState = search,
             barcodeState = extras.barcode,
             pendingLog = extras.pending,
-            hasUsdaKey = apiKeyStore.usdaKey() != null,
+            // The cached state, not a read of the encrypted store on every emission (it decrypts each time).
+            hasUsdaKey = apiKeyStore.state.value.hasUsdaKey,
             refResults = extras.refResults,
             offState = extras.off,
             offSearchEnabled = extras.offEnabled,
