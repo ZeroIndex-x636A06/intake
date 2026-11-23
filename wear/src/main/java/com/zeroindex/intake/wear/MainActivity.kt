@@ -32,7 +32,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -43,29 +42,12 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
-import androidx.wear.compose.material3.ColorScheme
 import androidx.wear.compose.material3.FilledTonalButton
 import androidx.wear.compose.material3.MaterialTheme
-import androidx.wear.compose.material3.Text
 import com.zeroindex.intake.wearprotocol.ActiveWorkout
 import com.zeroindex.intake.wearprotocol.RPE_CHOICES
 import com.zeroindex.intake.wearprotocol.formatWeight
 import kotlinx.coroutines.delay
-
-/** Mockup v2's watch colours: the phone's green on black, sand for the rest timer. */
-private val WatchColors = ColorScheme(
-    primary = Color(0xFF8FD6C4),
-    onPrimary = Color(0xFF00201A),
-    primaryContainer = Color(0xFF263D37),
-    onPrimaryContainer = Color(0xFF8FD6C4),
-    secondaryContainer = Color(0xFF363222),
-    onSecondaryContainer = Color(0xFFD9C78E),
-    errorContainer = Color(0xFF472B27),
-    onErrorContainer = Color(0xFFFFB5A0),
-    background = Color.Black,
-    onBackground = Color(0xFFF1F0F5),
-    onSurfaceVariant = Color(0xFFAAAAAA),
-)
 
 class MainActivity : ComponentActivity() {
     private lateinit var workout: WatchWorkout
@@ -75,7 +57,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         workout = WatchWorkout(applicationContext)
         remote = WatchRemote(applicationContext)
-        setContent { MaterialTheme(colorScheme = WatchColors) { WatchApp(workout, remote, ::buzz) } }
+        setContent { MaterialTheme(colorScheme = WatchColorScheme) { WatchApp(workout, remote, ::buzz) } }
         // Wear OS 4 and later: the "workout in progress" notification needs this. Asked once; a no is fine.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
@@ -172,36 +154,38 @@ private fun ActiveSet(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         if (set == null) {
-            Text("All sets done", fontWeight = FontWeight.Bold)
-            Text("Finish the session on your phone.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+            WText("All sets done", fontWeight = FontWeight.SemiBold)
+            WText("Finish the session on your phone.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
             return@Column
         }
-        Text(
+        WText(
             "${exercise.name.uppercase()} · SET ${set.setIndex + 1}/${exercise.sets.size}",
-            fontSize = 10.sp,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
-        Text("Prescribed", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-        Text(formatWeight(set.weightKg, workout.weightUnit), fontWeight = FontWeight.ExtraBold, fontSize = 26.sp, color = MaterialTheme.colorScheme.primary)
-        Text("× ${set.reps} reps", fontSize = 13.sp)
+        WText("Prescribed", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        WText(formatWeight(set.weightKg, workout.weightUnit), fontWeight = FontWeight.Bold, fontSize = 26.sp, numeric = true)
+        WText("× ${set.reps} reps", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(vertical = 8.dp)) {
             FilledTonalButton(onClick = { reps = (reps - 1).coerceAtLeast(0) }, modifier = Modifier.size(48.dp).semantics { contentDescription = "One rep fewer" }) {
-                Text("−", fontSize = 20.sp)
+                WText("−", fontSize = 20.sp)
             }
-            Text("$reps", fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, modifier = Modifier.semantics { contentDescription = "$reps reps" })
+            WText("$reps", fontWeight = FontWeight.Bold, fontSize = 26.sp, numeric = true, modifier = Modifier.semantics { contentDescription = "$reps reps" })
             FilledTonalButton(onClick = { reps += 1 }, modifier = Modifier.size(48.dp).semantics { contentDescription = "One rep more" }) {
-                Text("＋", fontSize = 20.sp)
+                WText("＋", fontSize = 20.sp)
             }
         }
 
+        // The lime primary: logs the set with the reps and RPE shown.
         Button(
             onClick = { onLog(index, reps, rpe) },
             shape = CircleShape,
             modifier = Modifier.size(64.dp).semantics { contentDescription = "Log set: $reps reps" + (rpe?.let { " at RPE $it" } ?: "") },
-        ) { Text("✓", fontSize = 26.sp, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center) }
-        Text("LOG SET", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+        ) { WText("✓", fontSize = 26.sp, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center) }
+        WText("LOG SET", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
 
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             RPE_CHOICES.forEach { value ->
@@ -210,10 +194,10 @@ private fun ActiveSet(
                     onClick = { rpe = if (selected) null else value },
                     colors = if (selected) ButtonDefaults.buttonColors() else ButtonDefaults.filledTonalButtonColors(),
                     modifier = Modifier.size(width = 44.dp, height = 40.dp).semantics { contentDescription = "RPE $value" + if (selected) ", selected" else "" },
-                ) { Text(if (value % 1.0 == 0.0) value.toInt().toString() else value.toString(), fontSize = 11.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center) }
+                ) { WText(if (value % 1.0 == 0.0) value.toInt().toString() else value.toString(), fontSize = 11.sp, numeric = true, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center) }
             }
         }
-        Text("RPE", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        WText("RPE", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         if (!connected || pending > 0) {
             Box(
@@ -222,7 +206,7 @@ private fun ActiveSet(
                     .background(MaterialTheme.colorScheme.errorContainer, MaterialTheme.shapes.medium)
                     .padding(10.dp),
             ) {
-                Text(
+                WText(
                     if (!connected) "Phone not connected · Sets are saved on the watch and sync when reconnected." else "$pending set${if (pending == 1) "" else "s"} waiting for the phone",
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onErrorContainer,
@@ -236,15 +220,16 @@ private fun ActiveSet(
 @Composable
 private fun Rest(seconds: Int, onAdd: () -> Unit, onSkip: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("RESTING", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(
+        WText("RESTING", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        WText(
             "%02d:%02d".format(seconds / 60, seconds % 60),
             fontSize = 40.sp,
-            fontWeight = FontWeight.ExtraBold,
-            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            fontWeight = FontWeight.Bold,
+            numeric = true,
+            color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.semantics { contentDescription = "Rest, ${seconds / 60} minutes ${seconds % 60} seconds left" },
         )
-        FilledTonalButton(onClick = onAdd) { Text("+30 s") }
-        FilledTonalButton(onClick = onSkip) { Text("Skip") }
+        FilledTonalButton(onClick = onAdd) { WText("+30 s", fontWeight = FontWeight.SemiBold) }
+        FilledTonalButton(onClick = onSkip) { WText("Skip", fontWeight = FontWeight.SemiBold) }
     }
 }
