@@ -18,16 +18,18 @@ import com.zeroindex.intake.domain.training.VolumeStatus
 import com.zeroindex.intake.domain.training.WeeklyVolume
 import com.zeroindex.intake.domain.training.muscles.MuscleMap
 import com.zeroindex.intake.domain.training.muscles.MuscleRegion
+import com.zeroindex.intake.ui.theme.intake
 
 /** The colour a region is drawn in for a status; the words ("under", "in range", "over") always travel with it. */
 @Composable
 fun volumeColor(status: VolumeStatus, hasSets: Boolean): Color {
     val scheme = MaterialTheme.colorScheme
+    val intake = MaterialTheme.intake
     return when {
         !hasSets -> scheme.onSurface.copy(alpha = 0.10f)
-        status == VolumeStatus.UNDER -> scheme.secondary.copy(alpha = 0.85f)
-        status == VolumeStatus.IN_RANGE -> scheme.primary
-        else -> scheme.tertiary
+        status == VolumeStatus.UNDER -> intake.warn.copy(alpha = 0.85f)
+        status == VolumeStatus.IN_RANGE -> intake.ok
+        else -> intake.carb
     }
 }
 

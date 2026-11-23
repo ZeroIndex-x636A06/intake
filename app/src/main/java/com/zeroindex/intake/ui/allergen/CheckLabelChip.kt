@@ -1,6 +1,5 @@
 package com.zeroindex.intake.ui.allergen
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
@@ -14,11 +13,11 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.CircleShape
 import com.zeroindex.intake.domain.allergen.CheckLabelTerm
 import com.zeroindex.intake.domain.allergen.HiddenCarriers
+import com.zeroindex.intake.ui.theme.intake
 
 /**
  * The terms a name is checked against for the soft "Check the label" tier (the
@@ -49,19 +48,18 @@ fun checkLabelReasonFor(name: String?): String? {
 fun CheckLabelChip(reason: String?, modifier: Modifier = Modifier, showReason: Boolean = true) {
     Column(modifier) {
         Surface(
-            color = androidx.compose.ui.graphics.Color.Transparent,
-            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MaterialTheme.intake.warnBg,
+            contentColor = MaterialTheme.intake.warn,
             shape = CircleShape,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
             modifier = Modifier.semantics {
                 contentDescription = "Check the label." + (reason?.let { " $it." }.orEmpty())
             },
         ) {
             Text(
                 text = "Check the label",
-                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
             )
         }
         if (showReason && !reason.isNullOrBlank()) {

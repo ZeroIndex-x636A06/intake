@@ -44,9 +44,9 @@ class PdfReportRenderer @Inject constructor(
     }
 
     private val heading: Typeface = Typeface.create(
-        ResourcesCompat.getFont(context, R.font.manrope_variable) ?: Typeface.SANS_SERIF, 800, false,
+        ResourcesCompat.getFont(context, R.font.space_grotesk_variable) ?: Typeface.SANS_SERIF, 700, false,
     )
-    private val body: Typeface = ResourcesCompat.getFont(context, R.font.dm_sans_variable) ?: Typeface.SANS_SERIF
+    private val body: Typeface = ResourcesCompat.getFont(context, R.font.inter_variable) ?: Typeface.SANS_SERIF
     private val bold: Typeface = Typeface.create(body, 700, false)
 
     private val black = 0xFF1C1D20.toInt()

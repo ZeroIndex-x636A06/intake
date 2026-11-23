@@ -1,47 +1,51 @@
 package com.zeroindex.intake.ui.allergen
 
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.domain.allergen.AllergenEvidence
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
 import com.zeroindex.intake.domain.swap.SwapAllergen
+import com.zeroindex.intake.ui.components.ChipTone
+import com.zeroindex.intake.ui.components.IntakeChip
 import com.zeroindex.intake.ui.theme.AllergenAmber
+import com.zeroindex.intake.ui.theme.AllergenAmberBg
 import com.zeroindex.intake.ui.theme.AllergenRed
+import com.zeroindex.intake.ui.theme.AllergenRedBg
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IntakeShape
 
 /**
- * One colour language for allergen status, used by Log food, Food detail, Photo estimate and Swap (round 3, R3-3):
- * solid red with white text for "contains", solid amber for "may contain", a quieter sand for "check the label", and a
- * calm green for clear. A model or an imported file can raise a status here but never lower it.
+ * One colour language for allergen status, used by Log food, Food detail, Photo estimate and Swap: red text on pale red for
+ * "contains" and blocked, amber on pale amber for "may contain" and "check the label", green with a check only for a result
+ * that read a label or panel. A model or an imported file can raise a status here but never lower it. The pairs are the
+ * theme's `bad` / `warn` / `ok` tokens, so they follow light and dark.
  */
 object AllergenColors {
-    val red: Color = AllergenRed
-    val amber: Color = AllergenAmber
-    val onSolid: Color = Color.White
+    val red: Color @Composable @ReadOnlyComposable get() = AllergenRed
+    val amber: Color @Composable @ReadOnlyComposable get() = AllergenAmber
+    val redBg: Color @Composable @ReadOnlyComposable get() = AllergenRedBg
+    val amberBg: Color @Composable @ReadOnlyComposable get() = AllergenAmberBg
+
+    /** Text on a solid red or amber fill (the theme's `onError`). */
+    val onSolid: Color @Composable @ReadOnlyComposable get() = MaterialTheme.colorScheme.onError
 }
 
 /** The verdict a scan gives, in the swap sheet's terms (worst wins). */
@@ -84,13 +88,13 @@ fun List<com.zeroindex.intake.domain.allergen.AllergenMatch>.termsText(): String
         }
     }
 
-/** The full-width block at the top of Food detail: red, amber or sand, or a small "no allergens" line. */
+/** The full-width block at the top of Food detail: red for contains, amber for may contain or check the label. */
 @Composable
 fun AllergenBanner(scan: AllergenScanResult, modifier: Modifier = Modifier) {
     when {
-        scan.contains.isNotEmpty() -> SolidBanner(
-            color = AllergenColors.red,
-            icon = Icons.Filled.Warning,
+        scan.contains.isNotEmpty() -> StatusBanner(
+            bg = AllergenColors.redBg,
+            fg = AllergenColors.red,
             title = if (scan.containsOnlyTraces) "May contain traces of ${scan.contains.termsText()}" else "Contains ${scan.contains.termsText()}",
             body = if (scan.containsOnlyTraces) {
                 "The label lists it as a possible trace, not an ingredient. On your list: logging needs you to confirm."
@@ -99,44 +103,42 @@ fun AllergenBanner(scan: AllergenScanResult, modifier: Modifier = Modifier) {
             },
             modifier = modifier,
         )
-        scan.mayContain.isNotEmpty() -> SolidBanner(
-            color = AllergenColors.amber,
-            icon = Icons.Filled.Warning,
+        scan.mayContain.isNotEmpty() -> StatusBanner(
+            bg = AllergenColors.amberBg,
+            fg = AllergenColors.amber,
             title = "May contain ${com.zeroindex.intake.domain.allergen.ChipWords.allergenNames(scan.mayContain)}",
             body = scan.mayContain.first().note,
             modifier = modifier,
         )
-        scan.checkLabel.isNotEmpty() -> Surface(
-            color = MaterialTheme.colorScheme.secondaryContainer,
-            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            shape = IntakeShape.Banner,
-            modifier = modifier.fillMaxWidth(),
-        ) {
-            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("Check the label", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold)
-                Text(scan.checkLabel.first().note, style = MaterialTheme.typography.bodySmall)
-            }
-        }
+        scan.checkLabel.isNotEmpty() -> StatusBanner(
+            bg = AllergenColors.amberBg,
+            fg = AllergenColors.amber,
+            title = "Check the label",
+            body = scan.checkLabel.first().note,
+            modifier = modifier,
+            icon = null,
+        )
         else -> Unit
     }
 }
 
 @Composable
-private fun SolidBanner(color: Color, icon: ImageVector, title: String, body: String, modifier: Modifier) {
-    Surface(color = color, contentColor = AllergenColors.onSolid, shape = IntakeShape.Banner, modifier = modifier.fillMaxWidth()) {
-        Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(26.dp))
+private fun StatusBanner(bg: Color, fg: Color, title: String, body: String, icon: ImageVector? = IntakeIcons.ShieldAlert, modifier: Modifier = Modifier) {
+    Surface(color = bg, contentColor = fg, shape = IntakeShape.Card, modifier = modifier.fillMaxWidth()) {
+        Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+            if (icon != null) Icon(icon, contentDescription = null, modifier = Modifier.size(IconSize.Large))
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
-                Text(body, style = MaterialTheme.typography.bodySmall)
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                Text(body, style = MaterialTheme.typography.bodyMedium)
             }
         }
     }
 }
 
 /**
- * A small status chip for one row (a search result, a drink, a swap option). Clear shows a quiet green "Fits your allergens" (only for a result that read a label; see [AllergenEvidence.ClearBasis]);
- * the others are solid.
+ * A small status chip for one row (a search result, a drink, a swap option). Clear shows the green "Fits your allergens" with a
+ * check (only for a result that read a label; see [AllergenEvidence.ClearBasis]); Check the label and May contain are amber,
+ * Contains is red. The words never change, and Contains is never softer than May contain.
  */
 @Composable
 fun AllergenChip(
@@ -147,29 +149,37 @@ fun AllergenChip(
     /** Replaces the chip's words, for a reason already written out ("May contain milk: ask"). */
     label: String? = null,
 ) {
-    val scheme = MaterialTheme.colorScheme
-    val (bg, fg, icon, defaultText) = when (verdict) {
+    val tone: ChipTone
+    val icon: ImageVector?
+    val defaultText: String
+    when (verdict) {
         SwapAllergen.CLEAR -> {
             if (!showClear) return
-            Quad(scheme.primaryContainer, scheme.onPrimaryContainer, Icons.Filled.Check, AllergenEvidence.ClearBasis.LABEL_READ.chipText)
+            tone = ChipTone.Ok
+            icon = IntakeIcons.Check
+            defaultText = AllergenEvidence.ClearBasis.LABEL_READ.chipText
         }
-        SwapAllergen.CHECK_LABEL -> Quad(scheme.secondaryContainer, scheme.onSecondaryContainer, null, detail?.let { "Check the label: $it" } ?: "Check the label")
-        SwapAllergen.MAY_CONTAIN -> Quad(AllergenColors.amber, AllergenColors.onSolid, Icons.Filled.Warning, detail?.let { "May contain $it" } ?: "May contain")
-        SwapAllergen.CONTAINS -> Quad(AllergenColors.red, AllergenColors.onSolid, Icons.Filled.Close, detail?.let { "Contains $it" } ?: "Contains your allergen")
+        SwapAllergen.CHECK_LABEL -> {
+            tone = ChipTone.Warn
+            icon = null
+            defaultText = detail?.let { "Check the label: $it" } ?: "Check the label"
+        }
+        SwapAllergen.MAY_CONTAIN -> {
+            tone = ChipTone.Warn
+            icon = null
+            defaultText = detail?.let { "May contain $it" } ?: "May contain"
+        }
+        SwapAllergen.CONTAINS -> {
+            tone = ChipTone.Bad
+            icon = null
+            defaultText = detail?.let { "Contains $it" } ?: "Contains your allergen"
+        }
     }
     val text = label ?: defaultText
-    Surface(
-        color = bg,
-        contentColor = fg,
-        shape = CircleShape,
-        border = if (verdict == SwapAllergen.CHECK_LABEL) BorderStroke(1.dp, scheme.outline) else null,
+    IntakeChip(
+        text = text,
+        tone = tone,
+        icon = icon,
         modifier = modifier.semantics { contentDescription = text },
-    ) {
-        Row(Modifier.padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            if (icon != null) Icon(icon, contentDescription = null, modifier = Modifier.size(14.dp))
-            Text(text, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-    }
+    )
 }
-
-private data class Quad(val bg: Color, val fg: Color, val icon: ImageVector?, val text: String)

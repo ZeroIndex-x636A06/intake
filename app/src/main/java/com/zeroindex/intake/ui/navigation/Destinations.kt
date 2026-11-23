@@ -1,12 +1,8 @@
 package com.zeroindex.intake.ui.navigation
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ShowChart
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.Today
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.zeroindex.intake.R
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import kotlinx.serialization.Serializable
 
 /**
@@ -155,8 +151,8 @@ enum class TopLevelDestination(
     val labelRes: Int,
     val icon: ImageVector,
 ) {
-    TODAY(Route.Today, TabGraph.Today, R.string.nav_today, Icons.Filled.Today),
-    NUTRITION(Route.Nutrition, TabGraph.Nutrition, R.string.nav_nutrition, Icons.Filled.Restaurant),
-    TRAIN(Route.Train, TabGraph.Train, R.string.nav_train, Icons.Filled.FitnessCenter),
-    PROGRESS(Route.Progress, TabGraph.Progress, R.string.nav_progress, Icons.AutoMirrored.Filled.ShowChart),
+    TODAY(Route.Today, TabGraph.Today, R.string.nav_today, IntakeIcons.Calendar),
+    NUTRITION(Route.Nutrition, TabGraph.Nutrition, R.string.nav_nutrition, IntakeIcons.ForkKnife),
+    TRAIN(Route.Train, TabGraph.Train, R.string.nav_train, IntakeIcons.Dumbbell),
+    PROGRESS(Route.Progress, TabGraph.Progress, R.string.nav_progress, IntakeIcons.LineChart),
 }

@@ -59,6 +59,7 @@ import com.zeroindex.intake.ui.motion.drawPathPartial
 import com.zeroindex.intake.ui.motion.rememberDrawIn
 import com.zeroindex.intake.ui.theme.HeatFull
 import com.zeroindex.intake.ui.theme.HeatPartial
+import com.zeroindex.intake.ui.theme.intake
 import com.zeroindex.intake.ui.theme.IntakeShape
 import kotlin.math.max
 import kotlin.math.min
@@ -301,7 +302,7 @@ fun TargetBarChart(
     description: String,
     modifier: Modifier = Modifier,
     barColor: Color = HeatFull,
-    overColor: Color = MaterialTheme.colorScheme.tertiary,
+    overColor: Color = MaterialTheme.intake.carb,
 ) {
     if (values.isEmpty()) {
         ChartPlaceholder("No days logged in this range", modifier)

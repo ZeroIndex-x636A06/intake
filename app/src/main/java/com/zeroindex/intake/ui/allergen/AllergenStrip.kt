@@ -1,8 +1,6 @@
 package com.zeroindex.intake.ui.allergen
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -11,12 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.AddModerator
-import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -27,7 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -35,8 +27,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.zeroindex.intake.data.repository.AllergenRepository
 import com.zeroindex.intake.domain.model.AllergenSeverity
-import com.zeroindex.intake.ui.theme.AllergenAmber
-import com.zeroindex.intake.ui.theme.AllergenRed
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
+import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.intake
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
@@ -65,9 +59,10 @@ class AllergenStripViewModel @Inject constructor(allergens: AllergenRepository) 
 }
 
 /**
- * The strip at the top of Nutrition (R3-3): the person's allergens as chips and a status line ("Milk · strict"), in the
- * red allergen colour. With nothing set it turns amber: "No allergens set. Add yours". Tapping either opens the one
- * Allergens screen. It only reports what the person set; the local engine does the checking.
+ * The strip at the top of Nutrition (R3-3): the person's allergens as chips and a status line ("Milk · strict"). It is the
+ * shield chip of the design: the `ok` pair with a shield when allergens are set, the `warn` pair when nothing is set ("No
+ * allergens set. Add yours"). Tapping either opens the one Allergens screen. It only reports what the person set; the local
+ * engine does the checking, and this chip never says a food is safe.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -75,60 +70,58 @@ fun AllergenStrip(onClick: () -> Unit, modifier: Modifier = Modifier, compact: B
     val state by viewModel.state.collectAsStateWithLifecycle()
     val s = state ?: return
     val empty = s.names.isEmpty()
-    val tone = if (empty) AllergenAmber else AllergenRed
+    val c = MaterialTheme.intake
+    val bg = if (empty) c.warnBg else c.okBg
+    val tone = if (empty) c.warn else c.ok
+    val icon = if (empty) IntakeIcons.ShieldAlert else IntakeIcons.Shield
     if (compact) {
         // "Avoiding: Milk and dairy ›": one line, the same destination and colours as the full strip.
         val label = if (empty) "No allergens set. Add yours" else "Avoiding: ${s.names.take(2).joinToString(" and ")}" + if (s.names.size > 2) " +${s.names.size - 2}" else ""
         Surface(
             onClick = onClick,
-            color = tone.copy(alpha = 0.14f),
-            shape = CircleShape,
-            border = BorderStroke(1.dp, tone.copy(alpha = 0.55f)),
-            modifier = modifier.heightIn(min = 48.dp).semantics {
+            color = bg,
+            contentColor = tone,
+            shape = IntakeShape.Pill,
+            modifier = modifier.heightIn(min = 44.dp).semantics {
                 contentDescription = if (empty) "No allergens set. Add yours" else "Allergens: ${s.title}. Open the allergens screen"
             },
         ) {
             Row(Modifier.padding(start = 12.dp, end = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Icon(if (empty) Icons.Filled.AddModerator else Icons.Filled.Security, contentDescription = null, tint = tone, modifier = Modifier.size(16.dp))
-                Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = tone, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = tone, modifier = Modifier.size(18.dp))
+                Icon(icon, contentDescription = null, tint = tone, modifier = Modifier.size(IconSize.Small))
+                Text(label, style = MaterialTheme.typography.labelMedium, color = tone, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                Icon(IntakeIcons.ChevronRight, contentDescription = null, tint = tone, modifier = Modifier.size(IconSize.Small))
             }
         }
         return
     }
     Surface(
         onClick = onClick,
-        color = tone.copy(alpha = 0.14f),
-        shape = RoundedCornerShape(22.dp),
-        border = BorderStroke(1.dp, tone.copy(alpha = 0.55f)),
+        color = bg,
+        contentColor = tone,
+        shape = IntakeShape.Card,
         modifier = modifier
             .fillMaxWidth()
             .semantics { contentDescription = if (empty) "No allergens set. Add yours" else "Allergens: ${s.title}. Open the allergens screen" },
     ) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Surface(color = tone, contentColor = AllergenColors.onSolid, shape = RoundedCornerShape(14.dp), modifier = Modifier.size(46.dp)) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(if (empty) Icons.Filled.AddModerator else Icons.Filled.Security, contentDescription = null, modifier = Modifier.size(24.dp))
+            Surface(color = tone, contentColor = bg, shape = IntakeShape.Tile, modifier = Modifier.size(44.dp)) {
+                androidx.compose.foundation.layout.Box(contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = null, modifier = Modifier.size(IconSize.Default))
                 }
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
                     if (empty) "No allergens set" else s.title,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.ExtraBold,
+                    color = tone,
                 )
                 if (empty) {
-                    Text("Add yours so every food is checked.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Add yours so every food is checked.", style = MaterialTheme.typography.bodySmall, color = tone)
                 } else {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        s.names.take(4).forEachIndexed { i, name ->
-                            Surface(
-                                color = if (i == 0) AllergenRed else tone.copy(alpha = 0.10f),
-                                contentColor = if (i == 0) AllergenColors.onSolid else MaterialTheme.colorScheme.onSurface,
-                                border = if (i == 0) null else BorderStroke(1.dp, tone.copy(alpha = 0.6f)),
-                                shape = CircleShape,
-                            ) {
-                                Text(name, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+                        s.names.take(4).forEach { name ->
+                            Surface(color = MaterialTheme.colorScheme.surface, contentColor = tone, shape = IntakeShape.Pill) {
+                                Text(name, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
                             }
                         }
                         if (s.names.size > 4) {
@@ -137,7 +130,7 @@ fun AllergenStrip(onClick: () -> Unit, modifier: Modifier = Modifier, compact: B
                     }
                 }
             }
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(IntakeIcons.ChevronRight, contentDescription = null, tint = tone, modifier = Modifier.size(IconSize.Default))
         }
     }
 }

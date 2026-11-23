@@ -5,4 +5,5 @@
     <string name="nav_nutrition">Nutrition</string>
     <string name="nav_train">Train</string>
     <string name="nav_progress">Progress</string>
+    <string name="credits_fonts">Fonts: Inter and Space Grotesk, bundled with the app under the SIL Open Font License 1.1. The licence texts are in design/fonts in the source.</string>
 </resources>

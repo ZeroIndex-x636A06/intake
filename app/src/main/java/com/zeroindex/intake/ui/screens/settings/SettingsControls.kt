@@ -725,6 +725,7 @@ private fun CreditsRow() {
                     Text(FoodRefInfo.OFF_CREDIT, style = MaterialTheme.typography.bodySmall)
                     Text(com.zeroindex.intake.domain.training.ExerciseGuideIndex.CREDIT, style = MaterialTheme.typography.bodySmall)
                     Text("Weather for the water target: data by Open-Meteo.com, licensed CC BY 4.0, only if you turn it on.", style = MaterialTheme.typography.bodySmall)
+                    Text(androidx.compose.ui.res.stringResource(com.zeroindex.intake.R.string.credits_fonts), style = MaterialTheme.typography.bodySmall)
                 }
             },
             confirmButton = { TextButton(onClick = { open = false }) { Text("Close") } },
