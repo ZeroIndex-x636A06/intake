@@ -16,7 +16,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
+import com.zeroindex.intake.ui.components.LineButton
+import com.zeroindex.intake.ui.theme.IntakeSpacing
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -47,7 +48,7 @@ fun ExercisePickerSheet(
     var info by remember { mutableStateOf<String?>(null) }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(
-            modifier = Modifier.fillMaxHeight(0.92f).padding(horizontal = 16.dp),
+            modifier = Modifier.fillMaxHeight(0.92f).padding(horizontal = IntakeSpacing.ScreenGutter),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(title, style = MaterialTheme.typography.headlineSmall)
@@ -66,9 +67,8 @@ fun ExercisePickerSheet(
                     exerciseRows(state.shown) { e -> ExerciseRow(e, onClick = { onPick(e.id) }, onInfo = { info = e.id }) }
                 }
                 item {
-                    OutlinedButton(
+                    LineButton(
                         onClick = { adding = true },
-                        shape = IntakeShape.Button,
                         modifier = Modifier.fillMaxWidth().padding(top = 10.dp).heightIn(min = 48.dp),
                     ) { Text("Add your own exercise") }
                 }

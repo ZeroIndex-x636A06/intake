@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import com.zeroindex.intake.ui.components.LineButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -123,9 +123,8 @@ fun TrainingStatsCard(
         }
         if (onOpenLog != null) {
             Spacer(Modifier.height(10.dp))
-            OutlinedButton(
+            LineButton(
                 onClick = onOpenLog,
-                shape = IntakeShape.Button,
                 modifier = Modifier.fillMaxWidth().height(50.dp),
             ) { Text("Open the training log") }
         }
@@ -155,9 +154,8 @@ fun TrainingStatsScreen(
         item { TrainingStatsCard(state, onOpenLog) }
         if (onOpenCalculators != null) {
             item {
-                OutlinedButton(
+                LineButton(
                     onClick = onOpenCalculators,
-                    shape = IntakeShape.Button,
                     modifier = Modifier.fillMaxWidth().height(50.dp),
                 ) { Text("Calculators: 1RM, percentages, plates") }
             }

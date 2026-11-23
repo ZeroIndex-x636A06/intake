@@ -1,6 +1,5 @@
 package com.zeroindex.intake.ui.screens.train
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -12,10 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,7 +30,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.domain.training.history.TrainingCalendar
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
@@ -66,13 +64,12 @@ fun TrainingCalendarView(
     Surface(
         color = MaterialTheme.colorScheme.surface,
         shape = IntakeShape.Card,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = modifier.fillMaxWidth(),
     ) {
-        Column(Modifier.padding(12.dp)) {
+        Column(Modifier.padding(IntakeSpacing.CardPadCompact)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { monthText = month.minusMonths(1).toString() }) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous month")
+                    Icon(IntakeIcons.ChevronLeft, contentDescription = "Previous month", modifier = Modifier.size(IconSize.Default))
                 }
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(monthLabel, style = MaterialTheme.typography.titleMedium)
@@ -83,7 +80,7 @@ fun TrainingCalendarView(
                     )
                 }
                 IconButton(onClick = { monthText = month.plusMonths(1).toString() }, enabled = month < YearMonth.from(today)) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next month")
+                    Icon(IntakeIcons.ChevronRight, contentDescription = "Next month", modifier = Modifier.size(IconSize.Default))
                 }
             }
             Row(Modifier.fillMaxWidth()) {
@@ -133,12 +130,12 @@ private fun DayCell(
         val primary = MaterialTheme.colorScheme.primary
         val mark = Modifier
             .size(38.dp)
-            .clip(CircleShape)
+            .clip(IntakeShape.Pill)
             .let { if (sessions > 0) it.background(primary) else it }
             .let {
                 when {
-                    isSelected -> it.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                    isToday -> it.border(1.5.dp, primary, CircleShape)
+                    isSelected -> it.border(2.dp, MaterialTheme.colorScheme.onSurface, IntakeShape.Pill)
+                    isToday -> it.border(1.5.dp, primary, IntakeShape.Pill)
                     else -> it
                 }
             }

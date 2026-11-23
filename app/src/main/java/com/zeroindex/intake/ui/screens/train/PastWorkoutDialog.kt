@@ -11,7 +11,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -25,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.domain.training.history.BackdatedLog
+import com.zeroindex.intake.ui.components.ChipTone
+import com.zeroindex.intake.ui.components.IntakeChip
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -64,9 +65,9 @@ fun PastWorkoutDialog(
                 WhenFields(date, { date = it }, timeState, minutesText, { minutesText = it }, today)
                 Text("Which workout", style = MaterialTheme.typography.labelMedium)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = dayId == null, onClick = { dayId = null }, label = { Text("Blank workout") })
+                    IntakeChip("Blank workout", tone = if (dayId == null) ChipTone.Ink else ChipTone.Neutral, onClick = { dayId = null })
                     days.forEach { d ->
-                        FilterChip(selected = dayId == d.id, onClick = { dayId = d.id }, label = { Text(d.name) })
+                        IntakeChip(d.name, tone = if (dayId == d.id) ChipTone.Ink else ChipTone.Neutral, onClick = { dayId = d.id })
                     }
                 }
                 problem?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }

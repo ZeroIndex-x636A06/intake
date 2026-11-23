@@ -8,14 +8,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.Icons
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.width
 import com.zeroindex.intake.domain.training.RepTarget
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -33,7 +29,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -66,7 +61,21 @@ import com.zeroindex.intake.ui.components.InfoTip
 import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.SandNote
 import com.zeroindex.intake.ui.components.SubHead
+import com.zeroindex.intake.ui.components.IntakeSwitch
+import com.zeroindex.intake.ui.components.ListDivider
+import com.zeroindex.intake.ui.components.SoftButton
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.components.SoftCard
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.theme.intake
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 
 private const val LAST_STEP = 6
 
@@ -85,13 +94,11 @@ fun ProgramGeneratorScreen(
     Column(modifier.fillMaxWidth()) {
     LazyColumn(
         modifier = Modifier.fillMaxWidth().weight(1f),
-        contentPadding = PaddingValues(
+        contentPadding = trainPadding(
             top = contentPadding.calculateTopPadding(),
             bottom = if (result != null) 16.dp else contentPadding.calculateBottomPadding() + 32.dp,
-            start = 16.dp,
-            end = 16.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
     ) {
         if (result != null) {
             previewItems(
@@ -104,23 +111,25 @@ fun ProgramGeneratorScreen(
             )
         } else {
             item(key = "heading") {
-                Text("Question ${state.step + 1} of ${LAST_STEP + 1}. Every question has a sensible default.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    StepBar(step = state.step, total = LAST_STEP + 1)
+                    Text("Question ${state.step + 1} of ${LAST_STEP + 1}. Every question has a sensible default.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
             item(key = "question-${state.step}") { Question(state, viewModel) }
             item(key = "nav") {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     if (state.step > 0) {
-                        OutlinedButton(
+                        SoftButton(
                             onClick = viewModel::back,
-                            shape = IntakeShape.Button,
-                            modifier = Modifier.weight(1f).heightIn(min = 52.dp),
+                            modifier = Modifier.heightIn(min = 56.dp),
                         ) { Text("Back") }
                     }
                     Button(
                         onClick = { if (state.step == LAST_STEP) viewModel.generate() else viewModel.next() },
                         enabled = true,
                         shape = IntakeShape.Button,
-                        modifier = Modifier.weight(1f).heightIn(min = 52.dp),
+                        modifier = Modifier.weight(1f).heightIn(min = 56.dp),
                     ) {
                         Text(
                             when {
@@ -143,7 +152,7 @@ fun ProgramGeneratorScreen(
                 shape = IntakeShape.Button,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = contentPadding.calculateBottomPadding() + 12.dp)
+                    .padding(start = IntakeSpacing.ScreenGutter, end = IntakeSpacing.ScreenGutter, top = 12.dp, bottom = contentPadding.calculateBottomPadding() + 12.dp)
                     .heightIn(min = 52.dp),
             ) { Text(if (state.saving) "Saving…" else "Save and make it my program") }
         }
@@ -154,7 +163,7 @@ fun ProgramGeneratorScreen(
 @Composable
 private fun Question(state: GeneratorUiState, vm: ProgramGeneratorViewModel) {
     val inputs = state.inputs
-    IntakeCard {
+    Column(verticalArrangement = Arrangement.spacedBy(IntakeSpacing.RowGap)) {
         when (state.step) {
             0 -> {
                 QuestionTitle("What is your main goal?")
@@ -168,7 +177,7 @@ private fun Question(state: GeneratorUiState, vm: ProgramGeneratorViewModel) {
                     OptionCard(e.label, e.blurb, e == inputs.experience) { vm.setExperience(e) }
                 }
                 if (inputs.experience != Experience.NEW) {
-                    Spacer(Modifier.height(8.dp))
+                    IntakeCard(Modifier.padding(top = 8.dp)) {
                     Text("Know your numbers? (optional)", style = MaterialTheme.typography.titleMedium)
                     Hint("A weight you can lift for a few good reps, not an all-out max. Your starting weights come from these; leave any blank and Intake starts light.")
                     com.zeroindex.intake.domain.training.KnownLifts.KEY_LIFTS.forEach { lift ->
@@ -197,21 +206,29 @@ private fun Question(state: GeneratorUiState, vm: ProgramGeneratorViewModel) {
                             )
                         }
                     }
+                    }
                 }
             }
             2 -> {
                 QuestionTitle("How many days a week can you train?")
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    (2..6).forEach { d -> TrainChip("$d days", d == inputs.daysPerWeek) { vm.setDays(d) } }
+                (2..6).toList().chunked(3).forEach { rowDays ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(IntakeSpacing.GridGap3)) {
+                        rowDays.forEach { d -> NumberTile("$d", "$d days", d == inputs.daysPerWeek, Modifier.weight(1f)) { vm.setDays(d) } }
+                        repeat(3 - rowDays.size) { Spacer(Modifier.weight(1f)) }
+                    }
                 }
                 Hint("Pick what you can keep up. Three good days beat five you skip.")
+                Answers(state)
             }
             3 -> {
                 QuestionTitle("How long is a session?")
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(30, 45, 60, 90).forEach { m -> TrainChip("$m min", m == inputs.sessionMinutes) { vm.setMinutes(m) } }
+                listOf(30, 45, 60, 90).chunked(2).forEach { rowMins ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(IntakeSpacing.GridGap3)) {
+                        rowMins.forEach { m -> NumberTile("$m", "$m min", m == inputs.sessionMinutes, Modifier.weight(1f)) { vm.setMinutes(m) } }
+                    }
                 }
                 Hint("Counting sets, reps and rest. Shorter sessions get fewer sets so they still fit.")
+                Answers(state)
             }
             4 -> {
                 QuestionTitle("What can you train with?")
@@ -225,14 +242,16 @@ private fun Question(state: GeneratorUiState, vm: ProgramGeneratorViewModel) {
                     advanced,
                 ) { advanced = !advanced }
                 if (advanced) {
-                    EquipmentChecklist(
-                        selected = inputs.equipmentItems ?: EquipmentItems.fromLegacy(inputs.equipment),
-                        onChange = vm::setEquipmentItems,
-                        dumbbellMaxKg = null,
-                        onDumbbellMax = { },
-                        unit = state.unit,
-                        showDumbbellMax = false,
-                    )
+                    IntakeCard {
+                        EquipmentChecklist(
+                            selected = inputs.equipmentItems ?: EquipmentItems.fromLegacy(inputs.equipment),
+                            onChange = vm::setEquipmentItems,
+                            dumbbellMaxKg = null,
+                            onDumbbellMax = { },
+                            unit = state.unit,
+                            showDumbbellMax = false,
+                        )
+                    }
                 }
             }
             5 -> {
@@ -248,7 +267,7 @@ private fun Question(state: GeneratorUiState, vm: ProgramGeneratorViewModel) {
                     BodyArea.entries.forEach { a -> TrainChip(a.label, a in inputs.avoid) { vm.toggleAvoid(a) } }
                 }
                 Hint("Exercises that load these areas are left out, for example a bad shoulder.")
-                AdvancedSection(state, vm)
+                IntakeCard(Modifier.padding(top = 8.dp)) { AdvancedSection(state, vm) }
             }
         }
     }
@@ -263,27 +282,86 @@ private fun equipmentBlurb(p: EquipmentPreset) = when (p) {
 
 @Composable
 private fun QuestionTitle(text: String) {
-    Text(text, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
-    Spacer(Modifier.height(10.dp))
+    Text(text, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
+    Spacer(Modifier.height(6.dp))
+}
+
+/** The segmented step bar: finished and current steps in ink, the current one in lime, the rest `line`. */
+@Composable
+private fun StepBar(step: Int, total: Int) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        repeat(total) { i ->
+            Box(
+                Modifier
+                    .weight(1f)
+                    .height(4.dp)
+                    .background(
+                        when {
+                            i < step -> MaterialTheme.colorScheme.primary
+                            i == step -> MaterialTheme.intake.accent
+                            else -> MaterialTheme.colorScheme.outlineVariant
+                        },
+                        IntakeShape.Pill,
+                    ),
+            )
+        }
+    }
+}
+
+/** A big number tile (`2`, `3`, `4`): white, ink when chosen. [label] is its spoken name. */
+@Composable
+private fun NumberTile(text: String, label: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Surface(
+        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+        contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+        shape = IntakeShape.TileLarge,
+        modifier = modifier
+            .heightIn(min = 72.dp)
+            .semantics { contentDescription = label }
+            .clickable(role = Role.RadioButton, onClick = onClick),
+    ) {
+        Box(Modifier.fillMaxWidth().heightIn(min = 72.dp), contentAlignment = Alignment.Center) {
+            Text(text, style = MaterialTheme.typography.headlineMedium)
+        }
+    }
+}
+
+/** `Your answers so far`: the choices made on earlier questions, as chips on a soft card. */
+@Composable
+private fun Answers(state: GeneratorUiState) {
+    val inputs = state.inputs
+    val answers = buildList {
+        add(inputs.goal.label)
+        add(inputs.experience.label)
+        if (state.step > 2) add("${inputs.daysPerWeek} days")
+        if (state.step > 3) add("${inputs.sessionMinutes} min")
+    }
+    SoftCard(Modifier.padding(top = 8.dp)) {
+        Eyebrow("Your answers so far")
+        Row(Modifier.horizontalScroll(rememberScrollState()).padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            answers.forEach { IntakeChip(it, tone = com.zeroindex.intake.ui.components.ChipTone.Outline) }
+        }
+    }
 }
 
 @Composable
 private fun Hint(text: String) {
-    Spacer(Modifier.height(8.dp))
-    Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Spacer(Modifier.height(4.dp))
+    Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @Composable
 private fun OptionCard(title: String, subtitle: String, selected: Boolean, onClick: () -> Unit) {
+    val fg = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
     Surface(
-        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-        shape = IntakeShape.Field,
-        border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).clickable(role = Role.RadioButton, onClick = onClick),
+        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+        contentColor = fg,
+        shape = IntakeShape.TileLarge,
+        modifier = Modifier.fillMaxWidth().clickable(role = Role.RadioButton, onClick = onClick),
     ) {
-        Column(Modifier.heightIn(min = 56.dp).padding(horizontal = 14.dp, vertical = 10.dp), verticalArrangement = Arrangement.Center) {
-            Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(Modifier.heightIn(min = 64.dp).padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.Center) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = fg.copy(alpha = 0.72f))
         }
     }
 }
@@ -296,7 +374,7 @@ private fun AdvancedSection(state: GeneratorUiState, vm: ProgramGeneratorViewMod
     Spacer(Modifier.height(10.dp))
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
         Text("Advanced", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-        Switch(checked = open, onCheckedChange = { open = it })
+        IntakeSwitch(checked = open, onCheckedChange = { open = it })
     }
     if (!open) return
 
@@ -419,10 +497,9 @@ private fun androidx.compose.foundation.lazy.LazyListScope.previewItems(
     }
     item(key = "p-actions") {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(
+            SoftButton(
                 onClick = { onSave(false) },
                 enabled = !saving,
-                shape = IntakeShape.Button,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
             ) { Text("Save, but keep my current program") }
             TextButton(onClick = onChange, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Change my answers") }
@@ -434,8 +511,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.previewItems(
 @Composable
 private fun PlanFact(value: String, label: String, modifier: Modifier = Modifier) {
     Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        shape = IntakeShape.Banner,
+        color = MaterialTheme.intake.soft,
+        shape = IntakeShape.TileLarge,
         modifier = modifier,
     ) {
         Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
@@ -465,9 +542,10 @@ private fun Expander(title: String, summary: String, content: @Composable androi
                 Text(summary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Icon(
-                if (open) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                if (open) IntakeIcons.ChevronUp else IntakeIcons.ChevronDown,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(IconSize.Default),
             )
         }
         androidx.compose.animation.AnimatedVisibility(visible = open) {
@@ -494,7 +572,7 @@ private fun DayPreview(day: GeneratedDay, unit: com.zeroindex.intake.domain.unit
         }
         day.exercises.forEachIndexed { index, e ->
             if (index == 0) Spacer(Modifier.height(8.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            ListDivider()
             ExercisePreviewRow(e, unit)
         }
     }
@@ -548,7 +626,7 @@ private fun ExercisePreviewRow(e: com.zeroindex.intake.domain.training.generator
                 e.startNote?.takeIf { it.isNotBlank() }?.let { note ->
                     Text(
                         com.zeroindex.intake.domain.units.WeightText.inUnit(note, unit),
-                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary,
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }

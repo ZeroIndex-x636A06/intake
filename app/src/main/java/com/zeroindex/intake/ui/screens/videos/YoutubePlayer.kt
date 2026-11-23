@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.videos
 
+import com.zeroindex.intake.ui.theme.IntakeShape
 import android.annotation.SuppressLint
 import android.graphics.Color as AndroidColor
 import android.webkit.WebResourceRequest
@@ -8,7 +9,6 @@ import android.webkit.WebViewClient
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
@@ -98,7 +98,7 @@ fun YoutubePlayer(videoId: String, startSec: Int, modifier: Modifier = Modifier,
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(16f / 9f)
-            .clip(RoundedCornerShape(16.dp))
+            .clip(IntakeShape.Thumb)
             .background(Color.Black),
         factory = { context ->
             WebView(context).apply {
