@@ -1,5 +1,9 @@
 package com.zeroindex.intake.ui.screens.videos
 
+import androidx.compose.foundation.layout.size
+import com.zeroindex.intake.ui.theme.IntakeIcons
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.components.IntakeSwitch
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,12 +19,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -30,7 +28,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -126,7 +123,7 @@ fun MakeWorkoutScreen(
             }
             item(key = "add") {
                 OutlinedButton(onClick = viewModel::addBlank, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                    Icon(Icons.Filled.Add, contentDescription = null)
+                    Icon(IntakeIcons.Plus, contentDescription = null, modifier = Modifier.size(IconSize.Default))
                     Text("  Add an exercise")
                 }
             }
@@ -186,7 +183,7 @@ fun MakeWorkoutScreen(
                             AiWaitCard(message = "Reading the video's text", startedAtMillis = state.aiStartedAt, onCancel = viewModel::cancelAi)
                         } else {
                             OutlinedButton(onClick = viewModel::improveWithAi, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                                Icon(Icons.Filled.AutoAwesome, contentDescription = null)
+                                Icon(IntakeIcons.Sparkle, contentDescription = null, modifier = Modifier.size(IconSize.Default))
                                 Text("  Improve with AI")
                             }
                         }
@@ -280,7 +277,7 @@ private fun DraftCard(
             Spacer(Modifier.weight(1f))
             Text(if (item.include) "Include" else "Left out", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.padding(start = 8.dp))
-            Switch(checked = item.include, onCheckedChange = { on -> onChange { it.copy(include = on) } })
+            IntakeSwitch(checked = item.include, onCheckedChange = { on -> onChange { it.copy(include = on) } })
         }
         if (item.kind == DraftKind.MATCHED) {
             Text(item.exerciseName, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 4.dp))
@@ -313,9 +310,9 @@ private fun DraftCard(
                 modifier = Modifier.heightIn(min = 48.dp),
             ) { Text(if (timed) "Count reps" else "Timed") }
             Spacer(Modifier.weight(1f))
-            IconButton(onClick = { onMove(-1) }, enabled = canUp) { Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Move up") }
-            IconButton(onClick = { onMove(1) }, enabled = canDown) { Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Move down") }
-            IconButton(onClick = onRemove) { Icon(Icons.Filled.Close, contentDescription = "Remove this row") }
+            IconButton(onClick = { onMove(-1) }, enabled = canUp) { Icon(IntakeIcons.ChevronUp, contentDescription = "Move up", modifier = Modifier.size(IconSize.Default)) }
+            IconButton(onClick = { onMove(1) }, enabled = canDown) { Icon(IntakeIcons.ChevronDown, contentDescription = "Move down", modifier = Modifier.size(IconSize.Default)) }
+            IconButton(onClick = onRemove) { Icon(IntakeIcons.Close, contentDescription = "Remove this row", modifier = Modifier.size(IconSize.Default)) }
         }
     }
 }

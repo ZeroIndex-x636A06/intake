@@ -9,9 +9,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -26,9 +23,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.domain.videos.YoutubeIds
+import com.zeroindex.intake.ui.theme.IntakeIcons
+import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.intake
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.Dispatchers
@@ -82,15 +82,15 @@ fun VideoThumbnail(
     url: String?,
     durationSec: Int,
     modifier: Modifier = Modifier,
-    corner: Dp = 16.dp,
+    shape: Shape = IntakeShape.Thumb,
     showPlay: Boolean = true,
 ) {
     val image by produceState<ImageBitmap?>(null, url) { value = url?.let { ThumbnailCache.load(it) } }
     Box(
         modifier = modifier
             .aspectRatio(16f / 9f)
-            .clip(RoundedCornerShape(corner))
-            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)),
+            .clip(shape)
+            .background(MaterialTheme.intake.hero),
     ) {
         image?.let {
             Image(bitmap = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
@@ -98,18 +98,18 @@ fun VideoThumbnail(
         if (showPlay) {
             Surface(
                 color = Color.Black.copy(alpha = 0.55f),
-                shape = RoundedCornerShape(50),
+                shape = IntakeShape.Pill,
                 modifier = Modifier.align(Alignment.Center).size(44.dp),
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(26.dp))
+                    Icon(IntakeIcons.Play, contentDescription = null, tint = Color.White, modifier = Modifier.size(26.dp))
                 }
             }
         }
         if (durationSec > 0) {
             Surface(
                 color = Color.Black.copy(alpha = 0.78f),
-                shape = RoundedCornerShape(8.dp),
+                shape = IntakeShape.Heat,
                 modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp),
             ) {
                 Text(

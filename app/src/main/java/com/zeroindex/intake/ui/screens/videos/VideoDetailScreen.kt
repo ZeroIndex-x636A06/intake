@@ -1,10 +1,12 @@
 package com.zeroindex.intake.ui.screens.videos
 
+import androidx.compose.foundation.layout.size
+import com.zeroindex.intake.ui.theme.IntakeIcons
+import com.zeroindex.intake.ui.theme.IconSize
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import com.zeroindex.intake.data.video.direct.DownloadState
 import com.zeroindex.intake.domain.videos.DirectPlayback
@@ -19,11 +21,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Column
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.BookmarkBorder
-import androidx.compose.material.icons.filled.OpenInNew
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -98,7 +95,7 @@ fun VideoDetailScreen(
                     kind = source.kind,
                     location = source.location,
                     startSec = startSec,
-                    modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(16.dp)),
+                    modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(IntakeShape.Thumb),
                     playing = startSec > 0,
                 )
             } else if (YoutubeEmbed.isValidId(state.videoId)) {
@@ -174,7 +171,7 @@ fun VideoDetailScreen(
                     shape = IntakeShape.Button,
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                 ) {
-                    Icon(if (state.saved) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder, contentDescription = null)
+                    Icon(IntakeIcons.Bookmark, contentDescription = null, modifier = Modifier.size(IconSize.Default))
                     Text(if (state.saved) "  Saved" else "  Save", maxLines = 1)
                 }
                 OutlinedButton(
@@ -186,7 +183,7 @@ fun VideoDetailScreen(
                     shape = IntakeShape.Button,
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                 ) {
-                    Icon(Icons.Filled.Share, contentDescription = null)
+                    Icon(IntakeIcons.Share, contentDescription = null, modifier = Modifier.size(IconSize.Default))
                     Text("  Share", maxLines = 1)
                 }
             }
@@ -207,7 +204,7 @@ fun VideoDetailScreen(
                 shape = IntakeShape.Button,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
             ) {
-                Icon(Icons.Filled.OpenInNew, contentDescription = null)
+                Icon(IntakeIcons.External, contentDescription = null, modifier = Modifier.size(IconSize.Default))
                 Text("  Open in YouTube", maxLines = 1)
             }
         }

@@ -4,7 +4,6 @@ import com.zeroindex.intake.ui.components.scrollIntoViewOnFocus
 import androidx.compose.foundation.layout.imePadding
 import com.zeroindex.intake.ui.components.rememberSyncedText
 import com.zeroindex.intake.domain.videos.YoutubeIds
-import androidx.compose.foundation.BorderStroke
 import androidx.activity.compose.BackHandler
 import com.zeroindex.intake.data.video.direct.DownloadState
 import com.zeroindex.intake.data.video.direct.DownloadedVideo
@@ -43,24 +42,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.KeyboardActionHandler
 import androidx.compose.foundation.text.input.TextFieldLineLimits
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -94,8 +85,20 @@ import com.zeroindex.intake.ui.components.ErrorState
 import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.LoadingState
 import com.zeroindex.intake.ui.components.SandNote
-import com.zeroindex.intake.ui.components.Tag
+import com.zeroindex.intake.ui.components.ChipTone
+import com.zeroindex.intake.ui.components.GhostButton
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.components.LineButton
+import com.zeroindex.intake.ui.components.ListCard
+import com.zeroindex.intake.ui.components.ListDivider
+import com.zeroindex.intake.ui.components.SectionLine
+import com.zeroindex.intake.ui.screens.train.RowChevronIcon
+import com.zeroindex.intake.ui.screens.train.TrainRow
+import com.zeroindex.intake.ui.screens.train.searchFieldColors
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
 
 /**
  * Train > Videos (the `a-videos` frame). Search with your own YouTube key, filter to workouts, browse Recommended, keep
@@ -172,7 +175,7 @@ fun VideosSection(
         state = listState,
         modifier = modifier.fillMaxWidth().imePadding(),
         contentPadding = contentPadding,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
     ) {
         if (showDownloads) {
             downloadedItems(
@@ -221,14 +224,15 @@ fun VideosSection(
                     OutlinedTextField(
                         state = search.box,
                         placeholder = { Text("Search workout videos") },
-                        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                        leadingIcon = { Icon(IntakeIcons.Search, contentDescription = null, modifier = Modifier.size(IconSize.Default)) },
                         trailingIcon = {
                             if (state.query.isNotEmpty() || state.searchedFor != null) {
-                                IconButton(onClick = { viewModel.clearSearch() }) { Icon(Icons.Filled.Close, contentDescription = "Clear the search") }
+                                IconButton(onClick = { viewModel.clearSearch() }) { Icon(IntakeIcons.Close, contentDescription = "Clear the search", modifier = Modifier.size(IconSize.Default)) }
                             }
                         },
                         lineLimits = TextFieldLineLimits.SingleLine,
-                        shape = RoundedCornerShape(18.dp),
+                        shape = IntakeShape.Pill,
+                        colors = searchFieldColors(),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         onKeyboardAction = KeyboardActionHandler { focus.clearFocus(); viewModel.search() },
                         modifier = Modifier.weight(1f),
@@ -275,16 +279,10 @@ fun VideosSection(
             state.results != null -> {
                 val results = state.results!!
                 item(key = "results-head") {
-                    Column {
-                        Text("Results for \"${state.searchedFor.orEmpty()}\"", style = MaterialTheme.typography.titleLarge)
-                        if (state.resultsFromCache) {
-                            Text(
-                                "Shown from this phone, so no search was used.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
+                    SectionLine(
+                        "Results for \"${state.searchedFor.orEmpty()}\"",
+                        note = if (state.resultsFromCache) "Shown from this phone, so no search was used." else null,
+                    )
                 }
                 results.shortsLine()?.let { line ->
                     item(key = "hidden-shorts") {
@@ -308,7 +306,7 @@ fun VideosSection(
                     }
                 } else {
                     items(results.shown, key = { "r-${it.video.id}" }) { scored ->
-                        VideoRow(scored, onClick = { openVideo(scored.video.id) })
+                        VideoRow(scored, onClick = { openVideo(scored.video.id) }, onMake = { onMakeWorkout(scored.video.id) })
                     }
                 }
                 item(key = "results-foot") {
@@ -334,7 +332,7 @@ fun VideosSection(
                 }
             }
 
-            else -> recommendedItems(state, viewModel, openVideo)
+            else -> recommendedItems(state, viewModel, openVideo, onMakeWorkout)
         }
     }
 }
@@ -344,7 +342,7 @@ fun VideosSection(
 private fun VideosOverflow(searchesLeft: Int, cleared: Boolean, onHow: () -> Unit, onClear: () -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
-        IconButton(onClick = { open = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More for Videos") }
+        IconButton(onClick = { open = true }) { Icon(IntakeIcons.More, contentDescription = "More for Videos", modifier = Modifier.size(IconSize.Default)) }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             DropdownMenuItem(text = { Text("About $searchesLeft searches left today") }, onClick = {}, enabled = false)
             DropdownMenuItem(text = { Text("How Videos works") }, onClick = { open = false; onHow() })
@@ -377,7 +375,7 @@ private fun FiltersSheet(
     var l by remember { mutableStateOf(length) }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(
-            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 24.dp),
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = IntakeSpacing.ScreenGutter).padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text("Filters", style = MaterialTheme.typography.titleLarge)
@@ -419,12 +417,11 @@ private fun SavedStrip(
     onRemove: (String) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("Saved · ${saved.size}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-            if (saved.isNotEmpty()) TextButton(onClick = onSeeAll, modifier = Modifier.heightIn(min = 48.dp)) { Text("See all") }
-        }
+        SectionLine("Saved · ${saved.size}", trailing = {
+            if (saved.isNotEmpty()) GhostButton(onClick = onSeeAll) { Text("See all") }
+        })
         if (saved.isEmpty()) {
-            EmptyState(title = "No saved videos yet", body = "Videos you save to watch later appear here.")
+            EmptyState(title = "No saved videos yet", body = "Videos you save to watch later appear here.", icon = IntakeIcons.Bookmark)
         }
         if (saved.isNotEmpty()) LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             items(saved.take(12), key = { it.id }) { v ->
@@ -441,7 +438,7 @@ private fun SavedStrip(
                             modifier = Modifier.weight(1f).padding(top = 6.dp),
                         )
                         Box {
-                            IconButton(onClick = { menu = true }, modifier = Modifier.size(40.dp)) { Icon(Icons.Filled.MoreVert, contentDescription = "More for ${v.title}") }
+                            IconButton(onClick = { menu = true }, modifier = Modifier.size(40.dp)) { Icon(IntakeIcons.More, contentDescription = "More for ${v.title}", modifier = Modifier.size(IconSize.Default)) }
                             SavedMenu(menu, { menu = false }, downloads, v, onOpen = { onOpen(v.id) }, onMake = { onMake(v.id) }, onMoreLikeThis = { onMoreLikeThis(v) }, onRemove = { onRemove(v.id) })
                         }
                     }
@@ -492,25 +489,17 @@ private fun androidx.compose.foundation.lazy.LazyListScope.savedAllItems(
     onRemove: (String) -> Unit,
 ) {
     item(key = "saved-all-head") {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("Saved · ${saved.size}", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-            TextButton(onClick = onBack, modifier = Modifier.heightIn(min = 48.dp)) { Text("Back") }
-        }
+        SectionLine("Saved · ${saved.size}", trailing = { GhostButton(onClick = onBack) { Text("Back") } })
     }
     if (saved.isEmpty()) {
         item(key = "saved-all-empty") { EmptyState(body = "Videos you save to watch later appear here.") }
     } else {
         item(key = "saved-all-list") {
-            Surface(
-                color = MaterialTheme.colorScheme.surface,
-                shape = IntakeShape.Card,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
+            ListCard {
                 Column {
                     saved.forEachIndexed { i, v ->
                         SavedRow(v, downloads, onOpen = { onOpen(v.id) }, onMake = { onMake(v.id) }, onMoreLikeThis = { onMoreLikeThis(v) }, onRemove = { onRemove(v.id) })
-                        if (i != saved.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        if (i != saved.lastIndex) ListDivider()
                     }
                 }
             }
@@ -522,6 +511,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.recommendedItems(
     state: VideosUiState,
     viewModel: VideosViewModel,
     onOpenVideo: (String) -> Unit,
+    onMakeWorkout: (String) -> Unit,
 ) {
     when (val rec = state.recommended) {
         RecommendedUi.Idle, RecommendedUi.Loading -> item(key = "rec-loading") { LoadingState(listOf("Finding videos for you")) }
@@ -534,14 +524,10 @@ private fun androidx.compose.foundation.lazy.LazyListScope.recommendedItems(
         }
         is RecommendedUi.Ready -> {
             item(key = "rec-head") {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
-                    Text("Recommended for you", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                    Text(
-                        if (rec.personalised) "from your muscle volume" else "popular picks",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                SectionLine(
+                    "Recommended for you",
+                    note = if (rec.personalised) "From your muscle volume" else "Popular picks",
+                )
             }
             if (rec.rows.isEmpty()) {
                 item(key = "rec-empty") {
@@ -560,7 +546,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.recommendedItems(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(row.reason, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         LazyRow(state = rowState, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            items(row.videos, key = { it.video.id }) { v -> VideoCard(v, onClick = { onOpenVideo(v.video.id) }) }
+                            items(row.videos, key = { it.video.id }) { v -> VideoCard(v, onClick = { onOpenVideo(v.video.id) }, onMake = { onMakeWorkout(v.video.id) }) }
                             if (row.loadingMore) {
                                 item(key = "more") {
                                     Box(Modifier.width(48.dp).height(135.dp), contentAlignment = Alignment.Center) {
@@ -578,21 +564,12 @@ private fun androidx.compose.foundation.lazy.LazyListScope.recommendedItems(
 
 @Composable
 private fun ToggleChip(label: String, selected: Boolean, onClick: () -> Unit, showCheck: Boolean = true) {
-    Surface(
-        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-        contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
-        shape = IntakeShape.Chip,
-        border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier.heightIn(min = 48.dp).clickable(role = if (showCheck) Role.Switch else Role.Button, onClickLabel = label, onClick = onClick),
-    ) {
-        Row(Modifier.padding(horizontal = 13.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (selected && showCheck) {
-                Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(6.dp))
-            }
-            Text(label, style = MaterialTheme.typography.labelMedium)
-        }
-    }
+    IntakeChip(
+        text = label,
+        tone = if (selected) ChipTone.Ink else ChipTone.Neutral,
+        icon = if (selected && showCheck) IntakeIcons.Check else null,
+        onClick = onClick,
+    )
 }
 
 /** The badge a card wears: Workout, Maybe, or how many chapters it has. */
@@ -601,33 +578,34 @@ private fun Badges(v: ScoredVideo) {
     val chapters = VideoBrowse.chapterCount(v.video)
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         when (v.verdict.label) {
-            VideoLabel.WORKOUT -> Tag("Workout")
-            VideoLabel.MAYBE -> Tag("Maybe")
-            VideoLabel.NOT_WORKOUT -> Tag("Not a workout")
+            VideoLabel.WORKOUT -> IntakeChip("Workout", tone = ChipTone.Ok, small = true)
+            VideoLabel.MAYBE -> IntakeChip("Maybe", tone = ChipTone.Warn, small = true)
+            VideoLabel.NOT_WORKOUT -> IntakeChip("Not a workout", small = true)
         }
-        if (chapters >= 2) Tag("$chapters chapters")
+        if (chapters >= 2) IntakeChip("$chapters chapters", small = true)
     }
 }
 
 @Composable
-private fun VideoRow(v: ScoredVideo, onClick: () -> Unit) {
+private fun VideoRow(v: ScoredVideo, onClick: () -> Unit, onMake: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(role = Role.Button, onClickLabel = "Open ${v.video.title}", onClick = onClick),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        VideoThumbnail(v.video.thumbnailUrl, v.video.durationSec, modifier = Modifier.width(156.dp), corner = 14.dp, showPlay = false)
+        VideoThumbnail(v.video.thumbnailUrl, v.video.durationSec, modifier = Modifier.width(156.dp), shape = IntakeShape.Tile, showPlay = false)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(v.video.title, style = MaterialTheme.typography.titleSmall, maxLines = 3, color = MaterialTheme.colorScheme.onSurface)
             Text(v.video.channelTitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
             Badges(v)
+            com.zeroindex.intake.ui.components.SoftButton(onClick = onMake, small = true) { Text("Make this a workout") }
         }
     }
 }
 
 @Composable
-private fun VideoCard(v: ScoredVideo, onClick: () -> Unit) {
+private fun VideoCard(v: ScoredVideo, onClick: () -> Unit, onMake: () -> Unit) {
     Column(
         modifier = Modifier
             .width(CARD_WIDTH)
@@ -639,6 +617,7 @@ private fun VideoCard(v: ScoredVideo, onClick: () -> Unit) {
         Text(v.video.title, style = MaterialTheme.typography.titleSmall, maxLines = 2, minLines = 2, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface)
         Text(v.video.channelTitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Badges(v)
+        com.zeroindex.intake.ui.components.SoftButton(onClick = onMake, small = true) { Text("Make this a workout") }
     }
 }
 
@@ -651,7 +630,7 @@ private fun SavedRow(v: VideoMeta, downloads: SavedDownloads, onOpen: () -> Unit
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.width(112.dp).clickable(role = Role.Button, onClickLabel = "Open ${v.title}", onClick = onOpen)) {
-            VideoThumbnail(v.thumbnailUrl ?: YoutubeIds.thumbnailUrl(v.id), v.durationSec, corner = 12.dp, showPlay = false)
+            VideoThumbnail(v.thumbnailUrl ?: YoutubeIds.thumbnailUrl(v.id), v.durationSec, shape = IntakeShape.ExtraSmall, showPlay = false)
         }
         Column(Modifier.weight(1f)) {
             Text(v.title, style = MaterialTheme.typography.titleSmall, maxLines = 2, color = MaterialTheme.colorScheme.onSurface)
@@ -665,7 +644,7 @@ private fun SavedRow(v: VideoMeta, downloads: SavedDownloads, onOpen: () -> Unit
             }
         }
         Column {
-            IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More for ${v.title}") }
+            IconButton(onClick = { menu = true }) { Icon(IntakeIcons.More, contentDescription = "More for ${v.title}", modifier = Modifier.size(IconSize.Default)) }
             SavedMenu(menu, { menu = false }, downloads, v, onOpen = onOpen, onMake = onMake, onMoreLikeThis = onMoreLikeThis, onRemove = onRemove)
         }
     }
@@ -721,10 +700,9 @@ private fun NoKeyCard(
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(8.dp))
-            OutlinedButton(
+            LineButton(
                 onClick = onOpenLink,
                 enabled = link.isNotBlank() && !linkBusy,
-                shape = IntakeShape.Button,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
             ) { Text(if (linkBusy) "Looking it up" else "Open this video") }
         }
@@ -752,15 +730,15 @@ fun KeySteps(modifier: Modifier = Modifier) {
 /** The way into Downloaded videos: its count, and how much is stored. Shown when the downloads setting is on or any exist. */
 @Composable
 private fun DownloadsEntry(count: Int, onClick: () -> Unit) {
-    IntakeCard(Modifier.clickable(role = Role.Button, onClickLabel = "Open downloaded videos", onClick = onClick)) {
-        Column {
-            Text("Downloaded videos", style = MaterialTheme.typography.titleSmall)
-            Text(
-                if (count == 0) "None yet. Offline downloads are on." else "$count on this phone, playable offline",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+    ListCard {
+        TrainRow(
+            title = "Downloaded videos",
+            subtitle = if (count == 0) "None yet. Offline downloads are on." else "$count on this phone, playable offline",
+            icon = IntakeIcons.Download,
+            onClick = onClick,
+            onClickLabel = "Open downloaded videos",
+            trailing = { RowChevronIcon() },
+        )
     }
 }
 
@@ -783,10 +761,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.downloadedItems(
 ) {
     item(key = "dl-head") {
         Column {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Downloaded · ${items.size}", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                TextButton(onClick = onBack, modifier = Modifier.heightIn(min = 48.dp)) { Text("Back") }
-            }
+            SectionLine("Downloaded · ${items.size}", trailing = { GhostButton(onClick = onBack) { Text("Back") } })
             Text(
                 "${DirectPlayback.size(usedBytes)} used on this phone. These files are in Intake's private storage, play offline, and are never uploaded or backed up.",
                 style = MaterialTheme.typography.bodySmall,
@@ -804,7 +779,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.downloadedItems(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            VideoThumbnail(d.thumbnailUrl ?: YoutubeIds.thumbnailUrl(d.videoId), d.durationSec ?: 0, modifier = Modifier.width(120.dp), corner = 12.dp, showPlay = false)
+            VideoThumbnail(d.thumbnailUrl ?: YoutubeIds.thumbnailUrl(d.videoId), d.durationSec ?: 0, modifier = Modifier.width(120.dp), shape = IntakeShape.ExtraSmall, showPlay = false)
             Column(Modifier.weight(1f)) {
                 Text(d.title, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(DirectPlayback.size(d.sizeBytes), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

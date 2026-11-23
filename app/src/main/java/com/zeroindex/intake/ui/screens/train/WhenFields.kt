@@ -10,7 +10,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.OutlinedButton
+import com.zeroindex.intake.ui.components.LineButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
@@ -48,9 +48,8 @@ fun WhenFields(
 ) {
     var pickingDate by remember { mutableStateOf(false) }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedButton(
+        LineButton(
             onClick = { pickingDate = true },
-            shape = IntakeShape.Button,
             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
         ) { Text("Date: " + DateTimeFormatter.ofPattern("EEE d MMM yyyy").format(date)) }
         Text("Start time", style = androidx.compose.material3.MaterialTheme.typography.labelMedium)

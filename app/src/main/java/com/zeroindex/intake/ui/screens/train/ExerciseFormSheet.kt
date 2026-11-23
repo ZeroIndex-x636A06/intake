@@ -23,9 +23,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
+import com.zeroindex.intake.ui.components.LineButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
+import com.zeroindex.intake.ui.components.IntakeSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -45,6 +45,7 @@ import androidx.core.content.FileProvider
 import com.zeroindex.intake.data.db.entity.ExerciseEntity
 import com.zeroindex.intake.domain.training.generator.Equipment
 import com.zeroindex.intake.ui.components.ChoiceChip
+import com.zeroindex.intake.ui.theme.IntakeSpacing
 import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.ui.components.ExercisePhotoPair
 import com.zeroindex.intake.ui.components.MainAndAlsoMusclePicker
@@ -114,7 +115,7 @@ fun ExerciseFormSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(
-            modifier = Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 24.dp),
+            modifier = Modifier.verticalScroll(rememberScrollState()).padding(horizontal = IntakeSpacing.ScreenGutter).padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(if (existing == null) "Add your own exercise" else "Edit exercise", style = MaterialTheme.typography.headlineSmall)
@@ -126,7 +127,7 @@ fun ExerciseFormSheet(
             Eyebrow("Photo (optional)")
             if (photo != null) ExercisePhotoPair(existing?.id ?: "new-exercise", photo, sideBySide = false)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                OutlinedButton(
+                LineButton(
                     onClick = {
                         if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
                             takePhoto()
@@ -134,12 +135,10 @@ fun ExerciseFormSheet(
                             cameraPermission.launch(Manifest.permission.CAMERA)
                         }
                     },
-                    shape = IntakeShape.Button,
                     modifier = Modifier.heightIn(min = 48.dp),
                 ) { Text("Take a photo") }
-                OutlinedButton(
+                LineButton(
                     onClick = { gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                    shape = IntakeShape.Button,
                     modifier = Modifier.heightIn(min = 48.dp),
                 ) { Text("Choose from gallery") }
                 if (photo != null) TextButton(onClick = { photo = null }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Remove photo") }
@@ -171,7 +170,7 @@ fun ExerciseFormSheet(
             }
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Text("Bodyweight exercise", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                Switch(checked = bodyweight, onCheckedChange = { bodyweight = it })
+                IntakeSwitch(checked = bodyweight, onCheckedChange = { bodyweight = it })
             }
             OutlinedTextField(
                 value = rest,

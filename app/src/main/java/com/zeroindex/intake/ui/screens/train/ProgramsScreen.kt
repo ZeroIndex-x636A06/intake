@@ -2,7 +2,8 @@ package com.zeroindex.intake.ui.screens.train
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,21 +14,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FileOpen
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -46,19 +42,32 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.db.entity.ProgramEntity
 import com.zeroindex.intake.data.repository.ProgramImportPreview
 import com.zeroindex.intake.domain.training.WorkoutSchedule
-import com.zeroindex.intake.ui.components.Eyebrow
+import com.zeroindex.intake.ui.components.AccentButton
+import com.zeroindex.intake.ui.components.ChipTone
+import com.zeroindex.intake.ui.components.GhostButton
+import com.zeroindex.intake.ui.components.HeroCard
+import com.zeroindex.intake.ui.components.IconTileStyle
 import com.zeroindex.intake.ui.components.IntakeCard
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.components.ListCard
+import com.zeroindex.intake.ui.components.ListDivider
 import com.zeroindex.intake.ui.components.SandNote
-import com.zeroindex.intake.ui.screens.hub.HubItem
-import com.zeroindex.intake.ui.screens.hub.HubList
+import com.zeroindex.intake.ui.components.SectionLine
+import com.zeroindex.intake.ui.components.SoftButton
+import com.zeroindex.intake.ui.components.heroMuted
 import com.zeroindex.intake.ui.screens.plan.readPlanFile
 import com.zeroindex.intake.ui.screens.script.ScriptDiagnosticsSheet
 import com.zeroindex.intake.ui.screens.script.ScriptMimeTypes
 import com.zeroindex.intake.ui.screens.script.writeText
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.theme.intake
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
 
 /**
  * Programs (IA v5 6d), one tap inside Train. The active program with its days, the others, new programs (build, generate,
@@ -120,20 +129,23 @@ fun ProgramsScreen(
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(
+        contentPadding = trainPadding(
             top = contentPadding.calculateTopPadding() + 4.dp,
             bottom = contentPadding.calculateBottomPadding() + 24.dp,
-            start = 16.dp,
-            end = 16.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
     ) {
         notice?.let { n ->
             item(key = "notice") {
                 Column {
                     SandNote(n)
-                    TextButton(onClick = viewModel::clearNotice, modifier = Modifier.heightIn(min = 48.dp)) { Text("Dismiss") }
+                    GhostButton(onClick = viewModel::clearNotice) { Text("Dismiss") }
                 }
+            }
+        }
+        item(key = "script-help") {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                GhostButton(onClick = { onOpenScriptReference("program", null) }) { Text("Script help") }
             }
         }
 
@@ -161,15 +173,32 @@ fun ProgramsScreen(
             }
         }
 
+        item(key = "new-head") { SectionLine("New program") }
+        item(key = "new") {
+            TileGrid(
+                listOf(
+                    { m -> TrainTile(IntakeIcons.Sliders, "Make me one", "Fits your days, time and gear", onOpenGenerator, m, IconTileStyle.Lime) },
+                    { m -> TrainTile(IntakeIcons.Pencil, "Build from scratch", "Days, exercises, sets, progression", { onOpenBuilder(null) }, m) },
+                    { m -> TrainTile(IntakeIcons.Grid, "From a template", "Copy one, change anything", onOpenTemplates, m) },
+                    { m -> TrainTile(IntakeIcons.Code, "Import a script", "A program saved as text", { importPicker.launch(ScriptMimeTypes) }, m) },
+                ),
+            )
+        }
+
+        if (state.otherPrograms.isNotEmpty() || state.archived.isNotEmpty()) {
+            item(key = "others-head") {
+                SectionLine("Your other programs", trailing = {
+                    if (state.archived.isNotEmpty()) {
+                        GhostButton(onClick = { showArchived = !showArchived }) {
+                            Text("${if (showArchived) "Hide" else "Show"} archived (${state.archived.size})")
+                        }
+                    }
+                })
+            }
+        }
         if (state.otherPrograms.isNotEmpty()) {
-            item(key = "others-head") { Eyebrow("Your other programs") }
             item(key = "others") {
-                Surface(
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = IntakeShape.Card,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
+                ListCard {
                     Column {
                         state.otherPrograms.forEachIndexed { i, p ->
                             OtherProgramRow(
@@ -180,60 +209,33 @@ fun ProgramsScreen(
                                 onArchive = { confirmArchive = p },
                                 onExport = { export(p) },
                             )
-                            if (i != state.otherPrograms.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            if (i != state.otherPrograms.lastIndex) ListDivider()
                         }
                     }
                 }
             }
         }
-
-        item(key = "new-head") { Eyebrow("New program") }
-        item(key = "new") {
-            HubList(
-                listOf(
-                    HubItem("Make me one", "Answer a few questions and get a plan that fits your days, time and equipment.", Icons.Filled.AutoAwesome, onOpenGenerator),
-                    HubItem("Build from scratch", "Name it, add days, pick exercises, set sets, reps and progression.", Icons.Filled.Edit, { onOpenBuilder(null) }),
-                    HubItem("From a template", "Start from a well known plan and change anything.", Icons.Filled.ContentCopy, onOpenTemplates),
-                    HubItem("Import a script", "Open a program saved as text, here or from a friend.", Icons.Filled.FileOpen, { importPicker.launch(ScriptMimeTypes) }),
-                ),
-            )
-        }
-        item(key = "script-help") {
-            TextButton(onClick = { onOpenScriptReference("program", null) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Script help") }
+        if (showArchived && state.archived.isNotEmpty()) {
+            item(key = "archived") {
+                ListCard {
+                    Column {
+                        state.archived.forEachIndexed { i, p ->
+                            TrainRow(
+                                title = p.name,
+                                trailing = { SoftButton(onClick = { viewModel.restore(p.id) }, small = true) { Text("Restore") } },
+                            )
+                            if (i != state.archived.lastIndex) ListDivider()
+                        }
+                    }
+                }
+            }
         }
 
         item(key = "workouts") {
             MyWorkoutsSection(onOpenSession = onOpenSession, onEditWorkout = { onOpenBuilder(it) }, onOpenVideo = onOpenVideo)
         }
-
-        if (state.archived.isNotEmpty()) {
-            item(key = "archived") {
-                Column {
-                    TextButton(onClick = { showArchived = !showArchived }, modifier = Modifier.heightIn(min = 48.dp)) {
-                        Text("${if (showArchived) "Hide" else "Show"} archived programs (${state.archived.size})")
-                    }
-                    if (showArchived) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.surface,
-                            shape = IntakeShape.Card,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Column {
-                                state.archived.forEachIndexed { i, p ->
-                                    Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        Text(p.name, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                                        TextButton(onClick = { viewModel.restore(p.id) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Restore") }
-                                    }
-                                    if (i != state.archived.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
+
 
     confirmArchive?.let { p ->
         androidx.compose.material3.AlertDialog(
@@ -271,17 +273,35 @@ private fun ActiveProgramCard(
     onExport: () -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
-    IntakeCard(color = MaterialTheme.colorScheme.primaryContainer) {
+    val onHero = MaterialTheme.intake.onHero
+    HeroCard {
         Row(verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f)) {
-                Eyebrow("Active program · week ${program.currentWeek}", color = MaterialTheme.colorScheme.onPrimaryContainer)
-                Text(program.name, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                IntakeChip("Active", tone = ChipTone.Lime)
+                Text(
+                    program.name,
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+                Text(
+                    buildString {
+                        append("Week ${program.currentWeek}")
+                        if (dayLines.isNotEmpty()) append(" · ${dayLines.size} ${if (dayLines.size == 1) "day" else "days"}")
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = heroMuted(),
+                )
                 if (program.description.isNotBlank()) {
-                    Text(program.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text(program.description, style = MaterialTheme.typography.bodyMedium, color = heroMuted())
                 }
             }
             Box {
-                IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More for ${program.name}", tint = MaterialTheme.colorScheme.onPrimaryContainer) }
+                IconButton(
+                    onClick = { menu = true },
+                    modifier = Modifier.size(IntakeSpacing.TouchTarget).background(onHero.copy(alpha = 0.14f), IntakeShape.Pill),
+                ) {
+                    Icon(IntakeIcons.More, contentDescription = "More for ${program.name}", tint = onHero, modifier = Modifier.size(IconSize.Default))
+                }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(text = { Text("Duplicate") }, onClick = { menu = false; onDuplicate() })
                     DropdownMenuItem(text = { Text("Export as a script") }, onClick = { menu = false; onExport() })
@@ -289,19 +309,32 @@ private fun ActiveProgramCard(
                 }
             }
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
         if (dayLines.isEmpty()) {
-            Text("No days yet. Edit the program to add some.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+            Text("No days yet. Edit the program to add some.", style = MaterialTheme.typography.bodyMedium, color = heroMuted())
         } else {
-            dayLines.forEach { (name, weekday) ->
-                Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
-                    Text(name, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.weight(1f))
-                    weekday?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer) }
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                dayLines.forEach { (name, weekday) ->
+                    Surface(color = onHero.copy(alpha = 0.14f), contentColor = onHero, shape = IntakeShape.Chip) {
+                        Text(
+                            if (weekday != null) "$name · $weekday" else name,
+                            style = MaterialTheme.typography.labelLarge,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        )
+                    }
                 }
             }
         }
-        Spacer(Modifier.height(12.dp))
-        Button(onClick = onEdit, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("Edit program") }
+        Spacer(Modifier.height(16.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            AccentButton(onClick = onEdit, modifier = Modifier.weight(1f)) { Text("Edit program") }
+            Button(
+                onClick = onExport,
+                shape = IntakeShape.Button,
+                colors = ButtonDefaults.buttonColors(containerColor = onHero.copy(alpha = 0.14f), contentColor = onHero),
+                modifier = Modifier.weight(1f).heightIn(min = IntakeSpacing.TouchTarget),
+            ) { Text("Export as script") }
+        }
     }
 }
 
@@ -315,25 +348,24 @@ private fun OtherProgramRow(
     onExport: () -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
-    Row(
-        modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(program.name, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
-            if (program.description.isNotBlank()) {
-                Text(program.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+    TrainRow(
+        title = program.name,
+        subtitle = program.description.takeIf { it.isNotBlank() },
+        trailing = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SoftButton(onClick = onMakeActive, small = true) { Text("Make active") }
+                Box {
+                    IconButton(onClick = { menu = true }) {
+                        Icon(IntakeIcons.More, contentDescription = "More for ${program.name}", modifier = Modifier.size(IconSize.Default))
+                    }
+                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                        DropdownMenuItem(text = { Text("Edit") }, onClick = { menu = false; onEdit() })
+                        DropdownMenuItem(text = { Text("Duplicate") }, onClick = { menu = false; onDuplicate() })
+                        DropdownMenuItem(text = { Text("Export as a script") }, onClick = { menu = false; onExport() })
+                        DropdownMenuItem(text = { Text("Archive") }, onClick = { menu = false; onArchive() })
+                    }
+                }
             }
-        }
-        OutlinedButton(onClick = onMakeActive, shape = IntakeShape.Chip, modifier = Modifier.heightIn(min = 48.dp)) { Text("Make active") }
-        Box {
-            IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More for ${program.name}") }
-            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                DropdownMenuItem(text = { Text("Edit") }, onClick = { menu = false; onEdit() })
-                DropdownMenuItem(text = { Text("Duplicate") }, onClick = { menu = false; onDuplicate() })
-                DropdownMenuItem(text = { Text("Export as a script") }, onClick = { menu = false; onExport() })
-                DropdownMenuItem(text = { Text("Archive") }, onClick = { menu = false; onArchive() })
-            }
-        }
-    }
+        },
+    )
 }

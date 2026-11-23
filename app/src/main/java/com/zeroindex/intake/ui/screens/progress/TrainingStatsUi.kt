@@ -125,7 +125,7 @@ fun TrainingStatsCard(
             Spacer(Modifier.height(10.dp))
             LineButton(
                 onClick = onOpenLog,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(50.dp),
             ) { Text("Open the training log") }
         }
     }
@@ -156,7 +156,7 @@ fun TrainingStatsScreen(
             item {
                 LineButton(
                     onClick = onOpenCalculators,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
                 ) { Text("Calculators: 1RM, percentages, plates") }
             }
         }

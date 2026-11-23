@@ -1,6 +1,7 @@
 package com.zeroindex.intake.ui.screens.train
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.calculateEndPadding
@@ -29,7 +30,9 @@ import com.zeroindex.intake.domain.training.TrainingCalculators
 import com.zeroindex.intake.domain.units.WeightText
 import com.zeroindex.intake.domain.units.WeightUnit
 import com.zeroindex.intake.ui.components.LabeledField
+import com.zeroindex.intake.ui.components.ListDivider
 import com.zeroindex.intake.ui.components.SectionCard
+import com.zeroindex.intake.ui.theme.IntakeSpacing
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
@@ -55,12 +58,12 @@ fun CalculatorsScreen(
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(
-            start = 16.dp + contentPadding.calculateStartPadding(LayoutDirection.Ltr),
-            end = 16.dp + contentPadding.calculateEndPadding(LayoutDirection.Ltr),
+            start = IntakeSpacing.ScreenGutter + contentPadding.calculateStartPadding(LayoutDirection.Ltr),
+            end = IntakeSpacing.ScreenGutter + contentPadding.calculateEndPadding(LayoutDirection.Ltr),
             top = contentPadding.calculateTopPadding() + 12.dp,
             bottom = contentPadding.calculateBottomPadding() + 24.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
     ) {
         item { OneRepMaxAndPercentages(s, unit) }
         item { PlateLoader(s, unit) }
@@ -80,6 +83,7 @@ private fun OneRepMaxAndPercentages(s: AppSettings, unit: WeightUnit) {
     val knownKg = parse(known)?.takeIf { it > 0 }?.let(unit::toKg)
     val baseKg = knownKg ?: estimateKg
 
+    Column(verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap)) {
     SectionCard(title = "Estimated 1RM", caption = "weight x reps") {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
             LabeledField("Weight lifted (${unit.label})", weight, { weight = it.filter { c -> c.isDigit() || c == '.' || c == ',' } }, Modifier.weight(1f), keyboardType = KeyboardType.Decimal)
@@ -111,7 +115,7 @@ private fun OneRepMaxAndPercentages(s: AppSettings, unit: WeightUnit) {
         )
     }
 
-    SectionCard(title = "Percentages of your max", caption = "50% to 100%", modifier = Modifier.padding(top = 16.dp)) {
+    SectionCard(title = "Percentages of your max", caption = "50% to 100%") {
         LabeledField(
             "Your 1RM (${unit.label}), optional", known, { known = it.filter { c -> c.isDigit() || c == '.' || c == ',' } },
             keyboardType = KeyboardType.Decimal,
@@ -126,13 +130,15 @@ private fun OneRepMaxAndPercentages(s: AppSettings, unit: WeightUnit) {
                 modifier = Modifier.padding(top = 6.dp),
             )
         } else {
-            rows.forEach { row ->
-                Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+            rows.forEachIndexed { i, row ->
+                if (i > 0) ListDivider()
+                Row(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
                     Text("${row.percent}%", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                     Text(WeightText.format(row.weightKg, unit), style = MaterialTheme.typography.titleSmall)
                 }
             }
         }
+    }
     }
 }
 
