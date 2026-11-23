@@ -378,7 +378,7 @@ class RecipeHunter @Inject constructor(
         val claims = c?.takeIf { it.possibleAllergens.isNotEmpty() }
             ?.let { listOf(ModelAllergenClaim(recipe.title, it.possibleAllergens, it.allergenNote)) }
             .orEmpty()
-        val scan = ModelAllergenPolicy.merge(local = listOf(local), claims = claims, avoided = avoided, source = "Recipe Hunter").scan
+        val scan = ModelAllergenPolicy.merge(local = listOf(local), claims = claims, avoided = avoided, source = "Recipe Hunter", aliases = allergens.engineAliases()).scan
         val candidate = RecipeCandidate(
             title = recipe.title,
             sourceUrl = recipe.sourceUrl,
@@ -411,6 +411,7 @@ class RecipeHunter @Inject constructor(
                 )
                 val merged = ModelAllergenPolicy.merge(
                     local = listOf(rescan), claims = claims, avoided = avoided, source = "Recipe Hunter",
+                    aliases = allergens.engineAliases(),
                 ).scan
                 if (merged.blocks) {
                     val terms = merged.contains.map { it.matchedTerm }.distinct().joinToString(", ")

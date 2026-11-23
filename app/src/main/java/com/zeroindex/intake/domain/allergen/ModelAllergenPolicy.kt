@@ -34,7 +34,15 @@ object ModelAllergenPolicy {
         avoided: Set<String>,
         extraLocal: List<AllergenScanResult> = emptyList(),
         source: String = "The model",
+        /**
+         * The keyword table the claimed terms are resolved against: pass the user's full table (built-in
+         * plus custom keywords) from the repository. Defaults to the built-in catalogue.
+         */
+        aliases: List<AllergenAlias> = AllergenCatalog.aliases(),
     ): Verdict {
+        val avoidedKeys = avoided.map { it.trim().lowercase() }.toSet()
+        val knownKeys = aliases.map { it.allergen.trim().lowercase() }.toSet() +
+            AllergenCatalog.ALL.map { it.key } + avoidedKeys
         val matches = mutableListOf<AllergenMatch>()
         val perItem = mutableMapOf<Int, AllergenMatchKind>()
         fun flag(index: Int, kind: AllergenMatchKind) {
@@ -62,21 +70,37 @@ object ModelAllergenPolicy {
             val alreadyLocal = local.getOrNull(index)?.matches.orEmpty()
                 // A "check the label" hint is not an answer: the model's claim still raises a review.
                 .filter { it.kind != AllergenMatchKind.CHECK_LABEL && it.kind != AllergenMatchKind.MENTIONED_AVOIDED }.map { it.allergen.lowercase() }.toSet()
-            claim.allergens
-                .map { it.trim().lowercase() }
-                .mapNotNull { claimed -> avoided.firstOrNull { a -> claimed.contains(a) || a.contains(claimed) } }
-                .distinct()
-                .filter { it !in alreadyLocal }
-                .forEach { allergen ->
+            // allergen label -> the model's raw term when it could not be placed in any category
+            val raised = LinkedHashMap<String, String?>()
+            if (avoidedKeys.isNotEmpty()) {
+                claim.allergens.map { it.trim() }.filter { it.isNotEmpty() }.forEach { term ->
+                    val categories = resolve(term, aliases, knownKeys)
+                    if (categories.isEmpty()) {
+                        // Never silently dropped: a term we cannot place is still a review.
+                        raised["model flag: $term"] = term
+                    } else {
+                        // A known category the person does not avoid stays silent.
+                        categories.filter { it in avoidedKeys }.forEach { raised[it] = null }
+                    }
+                }
+            }
+            raised.entries
+                .filter { it.key !in alreadyLocal }
+                .forEach { (allergen, rawTerm) ->
                     flag(index, AllergenMatchKind.MAY_CONTAIN)
+                    val why = claim.reasoning.takeIf { it.isNotBlank() }?.let { ": $it" }.orEmpty()
                     matches += AllergenMatch(
                         allergen = allergen,
                         matchedTerm = claim.itemName,
                         field = MatchField.NAME,
                         kind = AllergenMatchKind.MAY_CONTAIN,
-                        note = "$source thinks \"${claim.itemName}\" may contain $allergen" +
-                            claim.reasoning.takeIf { it.isNotBlank() }?.let { ": $it" }.orEmpty() +
-                            ". It cannot see the ingredients, so check before eating.",
+                        note = if (rawTerm == null) {
+                            "$source thinks \"${claim.itemName}\" may contain $allergen$why. " +
+                                "It cannot see the ingredients, so check before eating."
+                        } else {
+                            "$source flagged \"$rawTerm\" for \"${claim.itemName}\"$why. " +
+                                "It cannot see the ingredients, so check before eating."
+                        },
                     )
                 }
         }
@@ -85,5 +109,22 @@ object ModelAllergenPolicy {
             scan = AllergenScanResult(matches.distinctBy { Triple(it.allergen, it.matchedTerm, it.kind) }),
             perItem = perItem,
         )
+    }
+
+    /**
+     * Maps one claimed term to allergen categories, deterministically and locally: an exact category key or
+     * display name, else the keyword engine (whole words and phrases, plurals, US/UK spellings, the user's
+     * custom keywords). Empty when the term is not recognised.
+     */
+    internal fun resolve(term: String, aliases: List<AllergenAlias>, knownKeys: Set<String>): Set<String> {
+        val t = term.trim().lowercase()
+        if (t in knownKeys) return setOf(t)
+        AllergenCatalog.ALL.firstOrNull { it.displayName.lowercase() == t }?.let { return setOf(it.key) }
+        return AllergenMatcher.scan(
+            aliases = aliases,
+            avoidedAllergens = knownKeys,
+            name = t,
+            checkLabelTerms = emptyList(),
+        ).matches.map { it.allergen.trim().lowercase() }.toSet()
     }
 }

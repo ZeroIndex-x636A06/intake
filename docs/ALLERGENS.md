@@ -65,6 +65,21 @@ Negation and "-free" wording apply only to text a person wrote: free-text names,
 
 "Contains: milk" or "may contain milk" on a panel stays a hard warning. A "may contain / traces of / made in a facility" statement on a panel is marked `trace` (`TraceText`): it is worded as a possible trace ("May contain milk (trace)", the sheet says "a possible trace, not an ingredient") but keeps its tier and still blocks behind the confirmation sheet; a real ingredient hit for the same word is never worded as a trace. The matcher takes `freeText = false` by default, so every caller that has not opted in is unchanged; only the meal-plan scanner (`MealPlanRepository.scanner`: plan import, script import and plan screens) sets it. A model can raise a warning but never clear one: a model claim still raises an amber review on an item that only has CHECK_LABEL or MENTIONED_AVOIDED local hits.
 
+## Model-claimed terms
+
+When a model names allergens for an item (Vision, Menu import, Recipe Hunter, Plan B), `ModelAllergenPolicy.merge` resolves each term to a category locally, with no model and no network:
+
+1. an exact category key or display name ("dairy", "Tree nuts");
+2. otherwise the keyword engine over the user's full table (built-in plus custom keywords and aliases): case-insensitive, whole words and phrases, plurals, US/UK spellings. "milk", "butter", "whey", "shrimp", "almonds", "sulfites" and "mollusks" resolve; "eggplant", "nutmeg" and "butternut squash" do not match egg, tree nuts or dairy. There is no substring matching.
+
+Outcomes:
+
+- The term resolves to a category the person avoids: amber MAY_CONTAIN review for that category (unless a local CONTAINS or MAY_CONTAIN match already covers it).
+- The term resolves only to categories the person does not avoid: silent.
+- **The term resolves to no category at all: never silently dropped.** It raises an amber MAY_CONTAIN review whose allergen label is `model flag: <term>` and whose note reads `The model flagged "<term>" for "<item>". It cannot see the ingredients, so check before eating.` The warning sheet shows it as the item name and that label. (Skipped only when the person avoids nothing, because then no check runs at all.)
+
+A model claim can only add a review; it never removes or downgrades a local match.
+
 ## Never-clear rule
 
 CHECK_LABEL can only add a nudge. For an allergen that already has a CONTAINS or MAY_CONTAIN hit (any field, any source) no CHECK_LABEL match is produced, and merging scans takes the worse verdict. Open Food Facts tags that say "milk" are CONTAINS as before; a product whose tags show no milk can still get CHECK_LABEL from its name. A shorter hit inside a longer one is dropped only when that does not weaken the verdict (a softened wrapper such as "almond cream cheese" does cover the "cream" and "cheese" inside it).
