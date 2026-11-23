@@ -1,5 +1,6 @@
 package com.zeroindex.intake
 
+import com.zeroindex.intake.ui.components.ChoiceChip
 import android.content.Intent
 import android.nfc.NfcAdapter
 import android.os.Bundle
@@ -13,7 +14,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -114,11 +114,7 @@ class MainActivity : ComponentActivity() {
                     // A FlowRow wraps the chips onto a second line rather than cutting the last one off at the edge.
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         listOf(MealSlot.BREAKFAST, MealSlot.LUNCH, MealSlot.DINNER, MealSlot.SNACK).forEach { slot ->
-                            FilterChip(
-                                selected = tag.slot == slot,
-                                onClick = { pendingTag = tag.copy(slot = slot) },
-                                label = { Text(TemplateLogMessage.slotLabel(slot)) },
-                            )
+                            ChoiceChip(TemplateLogMessage.slotLabel(slot), tag.slot == slot, { pendingTag = tag.copy(slot = slot) })
                         }
                     }
                     if (tag.warn.isNotEmpty()) {

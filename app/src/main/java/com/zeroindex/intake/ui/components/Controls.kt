@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -177,6 +178,9 @@ fun ChoiceChip(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    /** [Role.Checkbox] for a chip that toggles one of several; the default is one-of-many. */
+    role: Role = Role.RadioButton,
 ) {
     Surface(
         color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.intake.soft,
@@ -186,7 +190,9 @@ fun ChoiceChip(
             .heightIn(min = IntakeSpacing.TouchTarget)
             // Clip before the click so the press ripple follows the chip's shape.
             .clip(IntakeShape.Chip)
-            .clickable(role = Role.RadioButton, onClick = onClick),
+            .alpha(if (enabled) 1f else 0.5f)
+            .clickable(enabled = enabled, role = role, onClick = onClick)
+            .semantics { this.selected = selected },
     ) {
         Box(
             modifier = Modifier.padding(horizontal = 16.dp),

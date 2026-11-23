@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -219,7 +218,7 @@ fun HydrationAdvanced(
             subtitle = "Replaces the light, moderate and hard defaults when a workout adds sweat water",
             showDivider = false,
         ) {
-            Switch(checked = edits.useMeasured && working != null, onCheckedChange = { edits.useMeasured = it }, enabled = working != null)
+            com.zeroindex.intake.ui.components.IntakeSwitch(checked = edits.useMeasured && working != null, onCheckedChange = { edits.useMeasured = it }, enabled = working != null)
         }
     }
 }

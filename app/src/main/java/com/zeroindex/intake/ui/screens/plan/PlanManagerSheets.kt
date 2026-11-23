@@ -2,6 +2,7 @@
 
 package com.zeroindex.intake.ui.screens.plan
 
+import com.zeroindex.intake.ui.components.ChoiceChip
 import com.zeroindex.intake.ui.components.IntakeChip
 import com.zeroindex.intake.ui.components.ChipTone
 import com.zeroindex.intake.ui.components.LineButton
@@ -21,7 +22,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -137,9 +137,9 @@ fun PlanFormDialog(
                 }
                 Text("When it ends", style = MaterialTheme.typography.labelLarge)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    FilterChip(mode == PlanLoopMode.NONE, { mode = PlanLoopMode.NONE }, label = { Text("Stop") })
-                    FilterChip(mode == PlanLoopMode.REPEAT, { mode = PlanLoopMode.REPEAT }, label = { Text("Repeat") })
-                    FilterChip(mode == PlanLoopMode.REPEAT_N, { mode = PlanLoopMode.REPEAT_N }, label = { Text("Repeat N times") })
+                    ChoiceChip("Stop", mode == PlanLoopMode.NONE, { mode = PlanLoopMode.NONE })
+                    ChoiceChip("Repeat", mode == PlanLoopMode.REPEAT, { mode = PlanLoopMode.REPEAT })
+                    ChoiceChip("Repeat N times", mode == PlanLoopMode.REPEAT_N, { mode = PlanLoopMode.REPEAT_N })
                 }
                 if (mode == PlanLoopMode.REPEAT_N) {
                     OutlinedTextField(

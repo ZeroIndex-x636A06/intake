@@ -301,11 +301,10 @@ fun IntakeNavHost(
                 }
             }
             composable<Route.CookMode> { entry ->
-                // Cook mode is full screen with its own chrome: oversized targets, no top bar.
-                // Always dark, whatever the theme setting says (the mockup draws it dark): the dark theme and light system-bar icons.
+                // Full screen, always dark (mockup): the dark theme, then light bar icons.
                 com.zeroindex.intake.ui.theme.IntakeTheme(themeMode = com.zeroindex.intake.data.settings.ThemeMode.DARK) {
-                    com.zeroindex.intake.ui.screens.plan.CookModeLightIconsOnDark()
                     FullScreenTask {
+                        com.zeroindex.intake.ui.screens.plan.CookModeLightIconsOnDark()
                         CookModeScreen(
                             recipeId = entry.toRoute<Route.CookMode>().recipeId,
                             contentPadding = it,
