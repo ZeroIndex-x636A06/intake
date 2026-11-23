@@ -415,7 +415,7 @@ Round 2 fixes merged (3fb7f70, bc0c873, eb928a4, 6976495, 795a8d4). Every status
 - Verified fixed in Pass 5a (4321255): picker rows show 'Fits your allergens', 'Only the name was checked', 'Contains ...' and 'May contain milk (trace)'. Was: Fixed in b73f977, needs retest: the template editor's food picker rows have no allergen chip (chips added).
 - Verified fixed in Pass 5a (4321255): Butter, Cheddar cheese and Milk carry red 'Contains ...' marks. Was: Fixed in b73f977, needs retest: shopping list dairy items have no allergen marker for a dairy-avoiding user.
 - Cannot verify on emulator in Pass 6 (9a42584): no saved shopping rows from an older build in the seed. Was: Cannot verify on emulator in Pass 5a (4321255): the seed has no saved shopping rows from an older build. Was: Fixed in b73f977, needs retest: old saved shopping rows keep their old aisles (aisle repair).
-- Fixed in b738d31, needs retest (ranking only; the fast-typing ANR is Q6-3). Was: Still failing in Pass 6: 'almo' typed key by key (1 per s) still lists Salmon fillet, baked first under My foods, no Drinks pointer for 'almo'; 'almond' gives the Almond rows first (design/qa/pass6/q6-almo.png). Was: Still failing in Pass 5b: 'almo' typed key by key lists Salmon fillet, baked first under My foods and Salmon, sweet potato and broccoli under Recipes, and no Almond food row appeared (Q5b-1). Was: Still failing in Pass 5a (4321255): 'almo' still lists Salmon fillet, baked first under My foods (see Q2-16, Q5a-3). Was: Fixed in b73f977, needs retest: the substring "almo" ranks Salmon first under My foods (word-start ranking).
+- Partly verified in Pass 7 (b702563): 'almo' lists Salmon fillet, baked (the only food with that substring) and a 'Drinks: almo' pointer row; no Almond food exists to rank against. Was: Fixed in b738d31, needs retest (ranking only; the fast-typing ANR is Q6-3). Was: Still failing in Pass 6: 'almo' typed key by key (1 per s) still lists Salmon fillet, baked first under My foods, no Drinks pointer for 'almo'; 'almond' gives the Almond rows first (design/qa/pass6/q6-almo.png). Was: Still failing in Pass 5b: 'almo' typed key by key lists Salmon fillet, baked first under My foods and Salmon, sweet potato and broccoli under Recipes, and no Almond food row appeared (Q5b-1). Was: Still failing in Pass 5a (4321255): 'almo' still lists Salmon fillet, baked first under My foods (see Q2-16, Q5a-3). Was: Fixed in b73f977, needs retest: the substring "almo" ranks Salmon first under My foods (word-start ranking).
 - Still open: Q2-7 zip lookup is not verified on a real network.
 - Still open: Q1-14 (Dark chocolate "may contain milk" shown as a hard red warning) is waiting for the owner's decision.
 
@@ -829,7 +829,7 @@ Screenshot: design/qa/pass5a/q5a-8-landscape-today.png, design/qa/pass5a/q5a-8b-
 Suspect: the content insets in ui/navigation (rail layout) ignore the end navigation-bar inset
 
 ### Q5a-9 · S3 · Nutrition C.42 · Logging a meal template gives no Undo, leaves an inline message that never goes away, and says "to snack"
-Status: Fixed in 01f950c, needs retest. Was: Still failing in Pass 6: a snackbar 'Logged Post-workout shake to Snacks. Almond milk, unsweetened: check the label for dairy' with Undo now appears, but Undo removed nothing (Q6-2). The log dialog still offers a Drinks slot for a food template. Was: Fixed in 504dae6, needs retest. Was: Still failing in Pass 5b: logging Post-workout shake to Snacks gave no message and no Undo at 1, 3, 4 and 12 s; the entry was logged. Logged as Q5b-4. Was: Verified fixed in Pass 5b (5822073) for (a), (b), (c), (f): (d), (e), (g) were not rechecked; weight chart has date labels and four y labels, measurement charts read 'in inches. Latest 36.7 in', Settings home lists the portion unit, the profile title is 'Profile & goals' and height reads 72.0. Was: Fixed in ae7e373, needs retest.
+Status: Not retested in Pass 7 (b702563): meal template log not run. Was: Fixed in 01f950c, needs retest. Was: Still failing in Pass 6: a snackbar 'Logged Post-workout shake to Snacks. Almond milk, unsweetened: check the label for dairy' with Undo now appears, but Undo removed nothing (Q6-2). The log dialog still offers a Drinks slot for a food template. Was: Fixed in 504dae6, needs retest. Was: Still failing in Pass 5b: logging Post-workout shake to Snacks gave no message and no Undo at 1, 3, 4 and 12 s; the entry was logged. Logged as Q5b-4. Was: Verified fixed in Pass 5b (5822073) for (a), (b), (c), (f): (d), (e), (g) were not rechecked; weight chart has date labels and four y labels, measurement charts read 'in inches. Latest 36.7 in', Settings home lists the portion unit, the profile title is 'Profile & goals' and height reads 72.0. Was: Fixed in ae7e373, needs retest.
 Steps: 1. Nutrition > More > Meal templates > ... on Post-workout shake > Log now > Snacks. 2. Look at the screen for 10 s and later.
 Expected: a snackbar with Undo as every other log path now has (food, recipe, drink); one-line message.
 Actual: a text line "Logged Post-workout shake to snack. Almond milk, unsweetened: check the label for dairy" appears above Saved and pushes the list down by about 200 px; it stays, with no Undo and no dismiss. "snack" is lowercase and singular where the slot is "Snacks". The recipe path says "Logged Baked mac and cheese, 1 serving, to snack" too.
@@ -994,7 +994,7 @@ Screenshot: design/qa/pass5b/q5b-3-plates-metric.png
 Suspect: data/settings plate default (not unit-aware)
 
 ### Q5b-4 · S3 · Nutrition C.42 · Logging a meal template still gives no confirmation and no Undo
-Status: Fixed in 01f950c, needs retest. Was: Still failing in Pass 6: the confirmation and an Undo button now appear (design/qa/pass6/q6-template-log-1s.png), but Undo did not remove the entries in 4 tries, 1.5 to 4 s after the log (Today went 1 to 8 shakes); logged as Q6-2. Was: Fixed in 504dae6, needs retest
+Status: Not retested in Pass 7 (b702563): meal template log not run. Was: Fixed in 01f950c, needs retest. Was: Still failing in Pass 6: the confirmation and an Undo button now appear (design/qa/pass6/q6-template-log-1s.png), but Undo did not remove the entries in 4 tries, 1.5 to 4 s after the log (Today went 1 to 8 shakes); logged as Q6-2. Was: Fixed in 504dae6, needs retest
 Steps: 1. Nutrition > More > Meal templates > "..." on Post-workout shake > Log now > Snacks. 2. Look at the screen at 1, 3, 4 and 12 s. 3. Open Today.
 Expected: a snackbar "Logged ... " with Undo, as the recipe and food paths give (Q5a-9).
 Actual: nothing appears, not even the old inline line; the sheet closes and the list is unchanged. Today's Snacks shows +338 kcal, so the entry was logged. The dialog also offers a Drinks slot for a food template.
@@ -1130,7 +1130,7 @@ Method notes: the emulator needs 5 to 30 s per action; tap coordinates come from
 Seen on emulator only (Android 11, software rendering, no KVM, 3-button navigation). Not seen on a device: typing speed, IME behaviour, performance, haptics, notifications, Health Connect, camera, the NFC read itself (the dialog was opened with an NDEF intent), the timing of snackbars on a fast phone.
 
 ### Q6-1 · S2 · Settings / You G Nutrition, F.8 · The low-calorie floor warning breaks the Nutrition settings layout
-Status: Fixed in b738d31, needs retest. Was: open
+Status: Not retested in Pass 7 (b702563): ran out of emulator time (3 to 5 s frames). Was: Fixed in b738d31, needs retest. Was: open
 Steps: 1. Seeded install. 2. You > Settings > Nutrition. 3. Calories by hand: clear, type 1000, tap Save. 4. Leave the keyboard (Back).
 Expected: a warning under the field, with the label, field and Save button where they were.
 Actual: the warning appears (amber box: "1000 kcal is below the usual floor of 2024 kcal (1.1 x your calories at rest). It is saved as you typed it. Eating this low for long costs muscle, energy and mood; consider a higher number.") but it sits in the same row as the field and Save, which are pushed to the left edge; the "Calories by hand" label and its help line are squeezed into a column one letter wide, running down the page for several screens. Typing 2260 and saving again restores the layout. The Save button is grey while the warning shows, and the text says the value "is saved".
@@ -1138,7 +1138,7 @@ Screenshot: design/qa/pass6/q6-1-floor-row-collapsed.png, design/qa/pass6/q6-1-f
 Suspect: ui/screens/settings Nutrition calories-by-hand row (the warning composable placed inside the Row)
 
 ### Q6-2 · S2 · Nutrition / Progress C.42, E.10, J.14 · Undo on the "Logged Post-workout shake" and "Jump test deleted" snackbars did not undo
-Status: Fixed in 01f950c, needs retest. Was: open (emulator timing may play a part: see Steps)
+Status: Not retested in Pass 7 (b702563): ran out of emulator time (3 to 5 s frames). Was: Fixed in 01f950c, needs retest. Was: open (emulator timing may play a part: see Steps)
 Steps: 1. Nutrition > More > Meal templates > "..." on Post-workout shake > Log now > Snacks. 2. The snackbar "Logged Post-workout shake to Snacks. Almond milk, unsweetened: check the label for dairy" shows with Undo (confirmed in a screenshot). 3. Tap Undo (1.5 s, 4 s and about 10 s after the log, 4 tries in all). 4. Today. Also Progress > Log a jump test (20 and 90) > Delete this jump test > "Jump test deleted · Undo" > tap Undo (3 tries at 1.5 and 3 s).
 Expected: the entries (three foods, 338 kcal) are removed again; the jump test comes back.
 Actual: the snackbar goes away after the tap, but Today's total only grew (1 shake to 8 shakes, 2,600 kcal) and the jump test stayed deleted ("No jump tests yet"). A control (Today entry Delete, then Undo) could not be timed on this emulator, so the snackbar action may be missed because the app takes seconds to react; but Undo was visible and tapped within the snackbar's life in the template case.
@@ -1146,7 +1146,7 @@ Screenshot: design/qa/pass6/q6-2-template-undo-gone.png, design/qa/pass6/q6-2-ju
 Suspect: the template log and jump test Undo callbacks (ui/screens/nutrition meal templates, ui/screens/progress jump tests)
 
 ### Q6-3 · S2 · Nutrition C.10, J.17 · Log food search: `input text` still gives an ANR on the preview build, and the screen needs about a minute of CPU to open
-Status: open
+Status: Still open in Pass 7 (b702563): "almo" typed 1 key per 3 s into Log food search kept all 4 characters and gave no ANR; fast `input text` was not retried. Was: open
 Steps: 1. Fresh process, seeded data (speed-compiled). 2. Today > Log food, wait until the CPU is quiet (about 62 s, 114 CPU s). 3. Tap Search foods, `adb shell input text "almond%smilk"`.
 Expected: no ANR; a human typing pace is kept (it is), and the screen is usable soon after it opens.
 Actual: ANR twice in two runs (numbers in the pass header); the key events took 4 to 8 s each; the field text is lost with the killed app. Typed one key per second, all 11 characters are kept and no ANR. "almo" still ranks Salmon fillet first. The same text into Quick add took 15.7 s without ANR and kept 7 characters, so part of the loss is the emulator's input. The ANR trace shows the main thread in Compose layout (RenderNode creation) for the whole of it.
@@ -1154,7 +1154,7 @@ Screenshot: design/qa/pass6/q6-3-search-anr-launcher.png (after the ANR the laun
 Suspect: ui/addfood/LogFoodScreen.kt (rows composed and laid out on the main thread while the allergen scan runs; the scan finishing is what the 55 s of CPU is)
 
 ### Q6-4 · S3 · Progress E.11 · Weekly check-in: the week card and the suggestions describe different weeks
-Status: Fixed in b738d31, needs retest. Was: open
+Status: Not retested in Pass 7 (b702563): ran out of emulator time (3 to 5 s frames). Was: Fixed in b738d31, needs retest. Was: open
 Steps: 1. Seeded install, Mon 16 Nov, 650 kcal logged today. 2. Progress > Weekly check-in.
 Expected: the card and the suggestions refer to the same days, or the suggestions say which days they use.
 Actual: the card is "Week of Nov 16-22", "AVG INTAKE 650 kcal · 1 DAY LOGGED", "Protein target hit 0 of 1 logged day · 0%", and says logged days "average far below your target"; the suggestion below it, headed "Check-in of Mon 16 Nov", says "You averaged 135 g of protein on the 6 days you logged; the target is 170 g (79%)". Today's partial day is the only "logged day" of the week card. The week chips open scrolled so the selected week (Nov 16-22) is the last chip and partly off screen.
@@ -1162,7 +1162,7 @@ Screenshot: design/qa/pass6/q6-4-checkin-week-card.png, design/qa/pass6/q6-4-che
 Suspect: ui/screens/checkin/WeeklyCheckInScreen.kt (selected week versus the coach's trailing 7 days)
 
 ### Q6-5 · S3 · Progress E.11 · Sparse week: the LOG MORE card counts 0 days and 6 weigh-ins while the card above says 2 days and 5
-Status: Fixed in b738d31, needs retest. Was: open
+Status: Not retested in Pass 7 (b702563): ran out of emulator time (3 to 5 s frames). Was: Fixed in b738d31, needs retest. Was: open
 Steps: 1. Second seed (two days of about 200 kcal in the last week). 2. Progress > Weekly check-in > chip Nov 9-15.
 Expected: one set of counts.
 Actual: the week card says "AVG INTAKE 210 kcal · 2 DAYS LOGGED", "Days logged 2 of 7", "Weigh-ins 5"; the LOG MORE card says "You logged food on 0 of 7 days and weighed in on 6 (need 5 and 3)". The "0 of 7" is days of 800 kcal or more and the "6" a different window, but neither is said. (The verdict itself is right: "Not enough data this week to adjust", no "All on track", the Suggestions header is whole, and a dismissed card stays on the screen tagged Dismissed.)
@@ -1170,7 +1170,7 @@ Screenshot: design/qa/pass6/q6-5-checkin-sparse-logmore.png (also q6-checkin-spa
 Suspect: domain/coach/CoachEngine.kt data-gap card text
 
 ### Q6-6 · S3 · Nutrition C.45 · Shopping list "Clear" empties the list and the picks at once, with no confirmation and no Undo
-Status: Fixed in 01f950c, needs retest. Was: open
+Status: Not retested in Pass 7 (b702563): ran out of emulator time (3 to 5 s frames). Was: Fixed in 01f950c, needs retest. Was: open
 Steps: 1. Nutrition > More > Shopping list. 2. Tick Baked mac and cheese and Chicken fajita bowls ("9 items · 0 ticked"). 3. Tap Clear.
 Expected: a confirmation or an Undo.
 Actual: the nine items and both picks vanish with no message.
@@ -1178,7 +1178,7 @@ Screenshot: design/qa/pass6/q6-6-shopping-clear.png
 Suspect: ui/screens/shopping
 
 ### Q6-7 · S4 · Progress / Nutrition J.20 · Date and nutrient wording differs between screens for a lb and fl oz user
-Status: Fixed in b738d31, needs retest. Was: open
+Status: Still failing in Pass 7 (b702563): Food > Diary still reads "Fibre" and "Sat fat" for a lb / fl oz user; date style on Today (Mon, Nov 23, 2026) and Training log (Mon, Nov 23, 2026) now agree; Insights chart and plan form not re-read. See Q7-3. Was: Fixed in b738d31, needs retest. Was: open
 Steps: 1. Progress (chart ends): "Sun 18 Oct 2026", "Mon 16 Nov 2026". 2. Today: "Mon, Nov 16". 3. Meal plan > Make a plan: "First day of week 1 (yyyy-mm-dd)". 4. Nutrition: "Fibre" and "Sat fat" while Settings > Nutrition uses US units.
 Expected: one date style and one spelling for a user on lb, in and fl oz.
 Actual: day-month on Progress, month-day on Today, ISO in the plan form; "Fibre" next to imperial units. Chart text alternatives read "target 2260 kcal" where the screen says "2,260 kcal".
@@ -1186,7 +1186,7 @@ Screenshot: design/qa/pass6/q6-progress-4.png
 Suspect: date formatters in ui/screens/progress, ui/screens/mealplan; strings
 
 ### Q6-8 · S4 · Recipes C.36, I.4 · The dairy chip lists the recipe's own name as a matched term
-Status: Fixed in b738d31, needs retest. Was: open
+Status: Partly fixed in Pass 7 (b702563): recipe cards and the recipe page chip now list butter, cheddar, cheese, cream, milk; the Swap sheet still reads "Contains mac and cheese, butter, cheddar, ..." (Q7-14). Was: Fixed in b738d31, needs retest. Was: open
 Steps: 1. Nutrition > More > Recipes (or the plan picker, or Swap).
 Expected: matched ingredient words only, for example butter, cheddar, cheese, cream, milk.
 Actual: "Contains mac and cheese, butter, cheddar, cheese, cream, milk and whole milk": the first term is the recipe name.
@@ -1194,3 +1194,228 @@ Screenshot: design/qa/pass6/q6-recipes-8s.png
 Suspect: recipe verdict match list includes the name match
 
 Summary for Pass 6: 8 new findings. S1: 0. S2: 3 (Q6-1, Q6-2, Q6-3). S3: 3 (Q6-4, 5, 6). S4: 2 (Q6-7, 8). Retests: 29 items (Pass 1 to 5b statuses with "needs retest" or "Partly fixed", Q5b-17, and three round 2 bullets): 17 verified fixed, 8 still failing (Q1-3, Q5a-3, Q5a-4, Q5b-1, Q5a-9, Q5b-4, Q5b-9, and the "almo" ranking bullet), 3 cannot verify on the emulator (Q5b-15 and two round 2 bullets with no seed rows), 1 not retested (Q1-14, owner decision). The allergen block was re-run on Log food (Recent, almond results), the recipe list, plan picker, Swap, templates, the planned card, shopping and the NFC dialog: nothing with dairy in its name or ingredients showed as clear; Almond butter, creamy shows "May contain dairy" with its reason. A new pass is needed after fixes; the stop condition is not met. Nothing here was seen on a device.
+
+---
+
+## Pass 7 — Design v6 and training features
+Date: 2026-11-23 (device zone America/Los_Angeles, device clock 10:51 to 13:25, far from midnight) · Build: the prebuilt release/intake-preview.apk (com.zeroindex.intake.preview, 189 MB), repo head b702563 · AVD: phone30 · Seed: a temporary copy of tools/qa/seed.sh pointed at the preview package (data dated 2026-11-23). The seed script itself got stuck at "Import a backup" (Settings is regrouped; the Import button is below the fold), so the import was finished by hand through the picker.
+Covered: screenshot comparison with design/mockup-v6 for Today, QuickLog, FoodDiary, FoodPlan, Recipes, FoodLibrary, LogFood, Drinks, RecipeDetail, CookMode, Train, ActiveWorkout, WorkoutSummary, Programs, Insights, You, Settings (side by side in design/qa/pass7/compare/, app shots at half size in design/qa/pass7/). Dark: Today, Food Diary, Log food, Settings, ActiveWorkout. Font 1.5: Today, Food Diary, Settings, ActiveWorkout (Log food landed on the Scan source and the camera prompt, not a clean shot). Landscape: Today (rail) and ActiveWorkout. Functional: all five dock tabs, Quick log sheet and water 8 fl oz with Undo (49.4 to 57.4 and back), Food segments Diary / Plan / Recipes / Library, Library to Meal templates, Shopping list, Eating out, Restaurant menus, My foods, Drinks; Today strip paging back a week and the date heading opening the month calendar; Log food source filter (Mine and Search chips; no ANR typing "almo" at 3 s per key); recipe Log a serving gate and "Find a safer swap" (opens Swap, logs nothing); Cook mode; Help rows Script docs, What leaves this phone, Credits and licences (Replay the tour: see Q7-17); Settings > Training. Training: full workout (Upper B) with rest bar, -15 s and +15 s taps, Skip, rest preset sheet (30 s), pause and resume, Finish, summary, change date/time/length with the future-end check, add and delete a set, Reopen, Repeat, Discard; a second workout (Lower B) with RIR on, a new record on the summary; Training stats; Calculators with Epley (233.5 lb for 200 x 5) then Brzycki (225 lb), Training log List and Calendar (7 training days), Log a past workout dialog.
+Not covered: onboarding and its "Set up" buttons (the seed skips the welcome; a fresh onboarding was not run); the Quick log tiles other than the water pills (only the sheet and water were tapped; the other tiles were not each opened); Log food source chips beyond Mine and Search; allergen tiers "Checking...", "May contain" and "Fits" on every screen (seen: Fits your allergens, Only the name was checked, Contains, Check the label; "May contain" not seen); Logging a past workout to completion and seeing it in the calendar (the dialog opened; the AM/PM change and Log it were not completed because the app was killed, Q7-16); the "Still training?" prompt (3 h idle, not triggered); effort in RPE mode; keep-awake on the workout screen (setting is on; the screen timeout was not observed); Dark and 1.5 and landscape for Food Diary, Log food and Settings in landscape; the Q6-1, 2, 4, 5, 6 retests.
+Logcat: no FATAL EXCEPTION for com.zeroindex.* and an empty crash buffer. Two ANRs for com.zeroindex.intake.preview (input dispatch, 12:30:14 and 12:33:53). The 12:30 trace has the main thread composing TrainingCalendarView.DayCell (TrainingCalendarView.kt:226) with 1,116 CPU seconds on that thread since start; the 12:33 trace has an idle main thread (emulator stall). Two earlier ANRs at 11:05 and 11:08 came while my own uiautomator dumps and the seed script ran together (my error, not logged). The one FATAL EXCEPTION line seen is the uiautomator tool ("UiAutomationService already registered"), not the app. No key was typed into the app.
+Seen on emulator only (Android 11, software rendering, no KVM, 3 to 5 s frames, 3-button navigation). Not seen on a device: touch feel, haptics, the rest sound, keep-awake, real timing of the rest bar and snackbars, performance. The -15 s and +15 s taps were accepted (the countdown kept running) but the exact effect on the countdown could not be measured with 10 to 30 s between tap and picture.
+Match summary per screen (mockup left, app right):
+- Today: close. Header, 7-day strip, dark hero ring and macro bars, Next up card, water card, dock all match; baseline and export cards absent (seed state).
+- QuickLog: close, 9 of 11 tiles (hidden ones follow owner decision 1); lime Food and ink Start workout tiles, water pills 8, 16.9, 24 fl oz (mockup 8, 12, 16, 24). "Measurements" breaks mid-word (Q7-2).
+- FoodDiary: close. Order is Protein, Carbs, Fat (mockup Protein, Fat, Carbs); "Avoiding: Milk and dairy" chip is under the date, not in the header; the tip card is absent.
+- FoodPlan: empty state only (no plan in the seed), no mockup match possible; "No plan yet" appears twice.
+- Recipes: close. Recipe cards truncate the allergen chip (Q7-12).
+- FoodLibrary: close in structure (six rows); the mockup is a grid of cards, the app a single list.
+- LogFood: close (source chips, Favourites, chips on rows). Chips row cuts "Photo" at the edge.
+- Drinks: close.
+- RecipeDetail: does not match: "Ingredients" heading is vertical (Q7-13).
+- CookMode: dark as drawn, but step text invisible (Q7-15).
+- Train: close. ActiveWorkout: close, with the extra RIR column when effort is on. WorkoutSummary: close; the edit card and records card are new.
+- Programs, Insights, You, Settings: close.
+Retests ("needs retest" items, 11): 1 partly verified (almo ranking), 1 partly fixed (Q6-8), 1 still failing (Q6-7), 1 still open (Q6-3, not reproduced at 3 s per key), 7 not retested (Q5a-9, Q5b-4, Q6-1, Q6-2, Q6-4, Q6-5, Q6-6).
+
+### Q7-1 · S3 · Settings / Sync and export · "Export everything" and "Import a backup" labels clipped
+Status: open
+Steps: 1. You > Settings > Sync and export, scroll to the bottom.
+Expected: two buttons whose two-line labels fit.
+Actual: the labels wrap to two lines inside a one-line-high pill; "everything" and "backup" lose their descenders.
+Screenshot: design/qa/pass7/q7-1-sync-buttons-clipped.png
+Suspect: ui/screens/settings Sync and export button row (fixed height)
+
+### Q7-2 · S3 · Quick log · "Measurements" breaks mid-word ("Measureme / nts")
+Status: open
+Steps: 1. Tap the centre +.
+Expected: the label fits or wraps at a word break.
+Actual: the Measurements tile reads "Measureme" and "nts".
+Screenshot: design/qa/pass7/q7-2-quicklog-measurements-wrap.png
+Suspect: ui/components Quick log tile text size or tile width
+
+### Q7-3 · S3 · Food Diary · "Fibre" and "Sat fat" for an imperial user (Q6-7), and the carbs target has no unit
+Status: open
+Steps: 1. Food > Diary.
+Expected: one spelling for a lb user; "/245 g" like protein ("/170 g") and fat ("/70 g").
+Actual: "Fibre" and "Sat fat"; Carbs reads "101 /245" with no "g"; at font scale 1.5 it reads "101 /" and the target is cut off.
+Screenshot: design/qa/pass7/q7-3-diary-fibre-carbs.png
+Suspect: Diary macro tiles (width), nutrient label strings
+
+### Q7-4 · S3 · ActiveWorkout · Rest sheet: the Done button sits under the system navigation bar
+Status: open
+Steps: 1. Start a workout. 2. Tap "Rest 2:00".
+Expected: Done fully visible.
+Actual: the sheet's bottom is behind the 3-button bar; "Done" is half hidden (the sheet has no bottom inset).
+Screenshot: design/qa/pass7/q7-4-rest-sheet-done-clipped.png
+Suspect: rest sheet ModalBottomSheet insets
+
+### Q7-5 · S3 · Workout summary · The "would end in the future" error is clipped
+Status: open
+Steps: 1. Summary > Change date, time and length. 2. Set the length to 45 with start 11:40 AM at 11:51 AM.
+Expected: the full message and a disabled Save.
+Actual: Save is disabled, but the message "That workout would end in the future. Pick an earlier start or a shorter length." is cut after the first line.
+Screenshot: design/qa/pass7/q7-5-edit-time-error-clipped.png
+Suspect: the edit dialog's fixed content height
+
+### Q7-6 · S3 · Workout summary · The "Set removed from this workout / Undo" snackbar is under the system navigation bar
+Status: open
+Steps: 1. Summary > tap a set > Delete this set.
+Expected: the snackbar above the nav bar, readable, with Undo.
+Actual: the snackbar sits at the very bottom behind the nav buttons, text and Undo are washed out and overlapped by the back and home icons. Undo is easy to miss. (Add a set shows no snackbar and no Undo at all.)
+Screenshot: design/qa/pass7/q7-6-undo-snackbar-under-navbar.png
+Suspect: the summary screen's SnackbarHost has no navigation-bar inset
+
+### Q7-7 · S3 · ActiveWorkout · "PREVIOUS" header breaks to "PREVIOU / S" when effort is on
+Status: open
+Steps: 1. Train > Settings > Training > Rate effort: RIR. 2. Start Lower B.
+Expected: header on one line.
+Actual: "PREVIOU" over "S"; the previous cell also wraps ("140.0 x" / "10").
+Screenshot: design/qa/pass7/q7-7-active-previous-header-wrap.png
+Suspect: set table column weights
+
+### Q7-8 · S3 · ActiveWorkout · The rest bar covers the set row being edited
+Status: open
+Steps: 1. Log set 1 (rest bar appears). 2. Tap the weight of set 3 (keyboard opens).
+Expected: the focused row stays visible.
+Actual: the rest bar floats over the list and half hides set 3 while it is focused.
+Screenshot: design/qa/pass7/q7-8-rest-bar-covers-set-row.png
+Suspect: rest bar placement above the keyboard
+
+### Q7-9 · S2 · Workout summary / history · Reopen then Finish turns a 7 minute workout into 78 minutes
+Status: open
+Steps: 1. Finish Upper B (7 min). 2. Summary > Change date, time and length: start 10:40 AM, length 45, Save. 3. Reopen this workout (timer shows 1:17:31). 4. Finish.
+Expected: the length stays what it was (or the user's 45), or the app asks.
+Actual: Training log and Train show "Upper B ... 78 min · 800 lb · 2 sets"; the edit is lost and the idle time is counted. This also raised the water target (Q7-24).
+Screenshot: design/qa/pass7/q7-9-reopen-length-78min.png
+Suspect: reopen clears endedAt and Finish recomputes from startedAt to now
+
+### Q7-10 · S3 · Training stats and Calculators · The same 1RM is shown with two values
+Status: open
+Steps: 1. Formula Brzycki. 2. Train > Training stats.
+Expected: one figure per set.
+Actual: "ESTIMATED 1RM: Romanian Deadlift 186.7 lb from 140.0 x 10" and "Best estimated 1RM 186.5 lb from 140 lb x 10" on the same screen (140 x 36 / 27 = 186.67). Calculators with Epley and 200 x 5 shows 233.5 lb while the formula printed under it gives 233.3. Changing the formula does change the figures (233.5 to 225, Brzycki 200 x 36 / 32 = 225 correct).
+Screenshot: design/qa/pass7/q7-10-1rm-186-5-vs-186-7.png (also design/qa/pass7/calc-epley-200x5.png)
+Suspect: rounding to 0.5 in one place only
+
+### Q7-11 · S3 · ActiveWorkout · Landscape: Finish and the "..." button are under the right-hand navigation bar
+Status: open
+Steps: 1. Start a workout. 2. Rotate to landscape.
+Expected: top bar inside the safe area.
+Actual: "Finish" reads "Finis h" (cut by the bar) and the "..." is half hidden.
+Screenshot: design/qa/pass7/q7-11-landscape-finish-under-navbar.png
+Suspect: no horizontal system-bar inset on the workout screen
+
+### Q7-12 · S3 · Recipes / Allergens · Allergen chips are truncated on recipe cards and the recipe page
+Status: open
+Steps: 1. Food > Recipes. 2. Open Baked mac and cheese.
+Expected: chip wording in full ("Only the name was checked", "Contains butter, cheddar, ...").
+Actual: cards read "Contains butter, ..." and "Only the name w..."; the recipe page chip "Contains butter, cheddar, cheese, cream, milk and ..."; the Swap sheet "Contains mac and cheese, butter, cheddar, che...". The safety wording is cut.
+Screenshot: design/qa/pass7/q7-12-recipe-chip-truncated.png
+Suspect: chip maxLines = 1 with ellipsis
+
+### Q7-13 · S2 · Recipe page · "Ingredients" heading drawn one letter per line
+Status: open
+Steps: 1. Food > Recipes > Baked mac and cheese, scroll to Ingredients.
+Expected: heading and chip on one row.
+Actual: the heading column is squeezed to a few dp by the chip; "I n g r e d i e n t s" fills about 350 dp vertically. Same row at font scale 1.0.
+Screenshot: design/qa/pass7/q7-13-ingredients-heading-vertical.png
+Suspect: Row with the heading and the verdict chip (no weight on the chip)
+
+### Q7-14 · S3 · Swap · The matched-term list still starts with the recipe's own name (Q6-8)
+Status: open
+Steps: 1. Recipe Log a serving > Lunch > Find a safer swap.
+Expected: ingredient words only.
+Actual: "Contains mac and cheese, butter, cheddar, cheese, milk, cream and whole milk". (The food safety sheet lists "mac and cheese" as "found in the name", which is accurate there.) "Find a safer swap" opened Swap and logged nothing.
+Screenshot: design/qa/pass7/q7-14-swap-name-term.png
+Suspect: Swap row chip text
+
+### Q7-15 · S2 · Cook mode · Step text is near-black on the dark background
+Status: open
+Steps: 1. Food > Recipes > Baked mac and cheese > Cook.
+Expected: readable step text on the dark Cook screen.
+Actual: "Boil the pasta, make the cheese sauce with milk and butter, bake until bubbling." is drawn in a near-black colour on #0C0F0E and cannot be read; the ingredient panel and the lime Done cooking button are fine. "INGREDIE NTS" also breaks mid-word. The rest is dark as the owner asked, and "Screen stays awake" is shown.
+Screenshot: design/qa/pass7/q7-15-cookmode-step-invisible.png
+Suspect: ui/screens/cook text colour uses the light theme's ink
+
+### Q7-16 · S2 · Training log · ANR with the main thread in TrainingCalendarView.DayCell
+Status: open (emulator load may play a part)
+Steps: 1. Train > All sessions > Calendar > Log a past workout. 2. Tap AM, press Back to hide the keyboard.
+Expected: no ANR.
+Actual: input dispatch ANR at 12:30:14; the app was killed and the launcher came up. The main thread was in androidx.compose ComposedModifier materialize under TrainingCalendarView.DayCell (TrainingCalendarView.kt:226), and the process had 1,116 CPU seconds on its main thread. Logging a past workout was therefore not completed. The default start time in that dialog was 06:00 PM on today's date, 5 hours after the device time, so Log it needed a change first.
+Screenshot: none (reason: the ANR killed the screen; trace in the device's /data/anr, not committed)
+Suspect: ui/screens/train/TrainingCalendarView.kt DayCell (composed modifier per cell, recomposed under the dialog)
+
+### Q7-17 · S3 · You · "Replay the tour" shows no tour
+Status: open (needs a second look)
+Steps: 1. You > Replay the tour.
+Expected: the Today tour starts.
+Actual: Today opens; no tour card appeared in 55 s on the emulator.
+Screenshot: none
+Suspect: unknown
+
+### Q7-18 · S3 · Workout summary · Add a set gives no confirmation or Undo
+Status: open
+Steps: 1. Summary > Add a set > Add.
+Expected: a message with Undo (Delete this set has one, see Q7-6).
+Actual: a third set appears; no snackbar.
+Screenshot: none (the set list is the only change)
+Suspect: ui/screens/train workout summary
+
+### Q7-19 · S4 · Workout summary · Small number and unit mismatches
+Status: open
+Steps: 1. Finish a 2-set workout (7:32 elapsed).
+Expected: consistent units and rounding.
+Actual: the summary says "8 minutes", the edit dialog "7"; the exercise header reads "2 x 8 @ 50" with no unit while the sets read "50 lb x 8"; the active workout reads "50.0 lb" on one run and "50 lb" on the repeated one, and a typed "150" stays "150" next to "140.0".
+Screenshot: none (numbers in the summary, edit dialog and active workout; see q7-5 for the dialog)
+Suspect: number formatting helpers
+
+### Q7-20 · S3 · You · "GOALS AND PLAN" header is squeezed into a narrow column on a fresh install
+Status: open
+Steps: 1. Fresh install, skip onboarding. 2. Avatar.
+Expected: the eyebrow on one line beside or above the pill.
+Actual: "GOALS / AND / PLAN / waiting / for your / details" wraps in a 60 dp column beside the lime "Phase and pace: choose in your profile" pill.
+Screenshot: none (reason: seen on the fresh install before the seed import; not saved)
+Suspect: You goals card header row
+
+### Q7-21 · S4 · Shell · Content shows through the 3-button navigation bar
+Status: open
+Steps: 1. Open Today or Food and scroll.
+Expected: a solid or scrimmed system bar area.
+Actual: card text ("Water 25.4 of 103.1 fl oz", "Breakfast 596 kcal") is visible behind the back/home/recents icons. The disabled "Compare" button on You is very pale.
+Screenshot: design/qa/pass7/Today.png
+Suspect: edge-to-edge without a navigation scrim on 3-button navigation
+
+### Q7-22 · S3 · ActiveWorkout · Dark theme: the pause button is barely visible
+Status: open
+Steps: 1. Dark theme. 2. Start a workout.
+Expected: the pause icon in the text colour.
+Actual: pause is drawn in a dim grey on the dark background.
+Screenshot: design/qa/pass7/dark-ActiveWorkout.png
+Suspect: icon tint
+
+### Q7-23 · S3 · Font scale 1.5 · Clipping on several screens
+Status: open
+Steps: 1. font_scale 1.5.
+Expected: no clipping.
+Actual: Food segmented control shows "Library" cut at the right edge (not scrollable by sight); Today "Open check-in" is fine but the Camera-permission card on Log food > Scan clips its "Open app settings" button; the ActiveWorkout set rows go to two lines and the RIR column header disappears (a bare "-" is left), and the top bar title wraps "0:46 . set 1 of / 15".
+Screenshot: design/qa/pass7/f15-ActiveWorkout.png, design/qa/pass7/f15-Today.png, design/qa/pass7/f15-FoodDiary.png
+Suspect: segmented control, camera card, set row layout
+
+### Q7-24 · S4 · Water target · The target jumps after a short workout with no explanation
+Status: open
+Steps: 1. Seeded Today shows "49.4 of 103.1 fl oz". 2. Finish a 7 minute workout, then a 9 minute one.
+Expected: a small change at most, or a reason.
+Actual: Today then reads "of 138.6 fl oz" and You reads "145.4 fl oz . adjusts for the day"; previous days still show 103.1.
+Screenshot: none (numbers on Today and You)
+Suspect: water target workout adjustment (also fed by Q7-9's 78 minutes)
+
+### Q7-25 · S4 · Context and copy · Leftovers from the redesign
+Status: open
+Steps: 1. Settings. 2. Food > Plan and Shopping list. 3. Today date picker.
+Expected: no stale names or doubled titles.
+Actual: the Settings row is still "Nutrition" (tab is Food); "Shopping list" appears twice (bar and heading); the Plan empty state says "No plan yet" and "No meal plan yet"; Library's My foods opens the Log food screen, not a list of foods; the Today date picker starts weeks on Sunday while the Training calendar starts on Monday; the segmented controls do not fill the track (empty space on the right).
+Screenshot: design/qa/pass7/FoodPlan.png
+Suspect: strings, Library routes
+
+Summary for Pass 7: 25 new findings. S1: 0. S2: 4 (Q7-9, 13, 15, 16). S3: 17 (Q7-1 to 8, 10 to 12, 14, 17, 18, 20, 22, 23). S4: 4 (Q7-19, 21, 24, 25). Worked as designed: dock and Quick log, water one-tap with Undo, Food segments and Library entries, 7-day strip paging and the calendar, Find a safer swap, rest bar with -15 s, +15 s, Skip, rest presets, pause and resume, RIR column and menu, records on the summary, Training stats, Calculators and the 1RM formula setting, history edit with the future check, delete a set with Undo, Reopen, Repeat, Discard, Training log List and Calendar. Not tested: see Not covered. A retest is needed after fixes.
