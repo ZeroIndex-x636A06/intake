@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.hub
 
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -8,10 +9,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -296,7 +296,7 @@ fun rememberHealthierBlock(
                         onClick = viewModel::open,
                         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                     ) {
-                        Icon(Icons.Filled.LocationOn, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                        Icon(com.zeroindex.intake.ui.theme.IntakeIcons.MapPin, contentDescription = null, modifier = Modifier.padding(end = 8.dp).size(20.dp))
                         Text("Find healthier options nearby")
                     }
                     Text(

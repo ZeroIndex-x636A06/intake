@@ -1,5 +1,15 @@
 package com.zeroindex.intake.ui.screens.shopping
 
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import androidx.compose.material3.Surface
+import com.zeroindex.intake.ui.theme.intake
+import com.zeroindex.intake.ui.components.IconCircleButton
+import com.zeroindex.intake.ui.components.ListCard
+import com.zeroindex.intake.ui.components.ListDivider
+import com.zeroindex.intake.ui.theme.IntakeIcons
+import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.NumberSmall
+import com.zeroindex.intake.ui.components.LineButton
 import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
@@ -15,9 +25,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -46,7 +54,6 @@ import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.ui.components.SandNote
 import com.zeroindex.intake.ui.components.SectionLine
 import com.zeroindex.intake.ui.components.SubHead
-import com.zeroindex.intake.ui.theme.IntakeShape
 
 /**
  * A shopping list with no meal plan behind it (feedback round 4, item 11). Pick recipes and meal templates, say how
@@ -81,10 +88,10 @@ fun ShoppingListScreen(
         contentPadding = PaddingValues(
             top = contentPadding.calculateTopPadding(),
             bottom = contentPadding.calculateBottomPadding() + 24.dp,
-            start = 16.dp,
-            end = 16.dp,
+            start = IntakeSpacing.ScreenGutter,
+            end = IntakeSpacing.ScreenGutter,
         ),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
     ) {
         item(key = "head") {
             SubHead("Shopping list", "Pick what you are making. The amounts are added up across everything you pick. No meal plan needed.")
@@ -101,32 +108,40 @@ fun ShoppingListScreen(
 
         if (recipes.isNotEmpty()) {
             item(key = "h-recipes") { SectionLine("Recipes", note = "${recipePicks.size} picked") }
-            items(items = recipes, key = { "rcp-${it.id}" }) { r ->
-                PickRow(
-                    name = r.name,
-                    detail = "${r.servings} servings",
-                    batches = recipePicks[r.id],
-                    onToggle = { recipePicks = if (r.id in recipePicks) recipePicks - r.id else recipePicks + (r.id to 1) },
-                    onBatches = { recipePicks = recipePicks + (r.id to it) },
-                )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            item(key = "recipes-list") {
+                ListCard {
+                    recipes.forEachIndexed { i, r ->
+                        if (i != 0) ListDivider()
+                        PickRow(
+                            name = r.name,
+                            detail = "${r.servings} servings",
+                            batches = recipePicks[r.id],
+                            onToggle = { recipePicks = if (r.id in recipePicks) recipePicks - r.id else recipePicks + (r.id to 1) },
+                            onBatches = { recipePicks = recipePicks + (r.id to it) },
+                        )
+                    }
+                }
             }
         }
 
         if (templates.isNotEmpty()) {
             item(key = "h-templates") { SectionLine("Meal templates", note = "${templatePicks.size} picked") }
-            items(items = templates, key = { "tpl-${it.template.id}" }) { t ->
-                PickRow(
-                    name = t.template.name,
-                    detail = "${t.items.size} ${if (t.items.size == 1) "item" else "items"}",
-                    batches = templatePicks[t.template.id],
-                    onToggle = {
-                        val id = t.template.id
-                        templatePicks = if (id in templatePicks) templatePicks - id else templatePicks + (id to 1)
-                    },
-                    onBatches = { templatePicks = templatePicks + (t.template.id to it) },
-                )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            item(key = "templates-list") {
+                ListCard {
+                    templates.forEachIndexed { i, t ->
+                        if (i != 0) ListDivider()
+                        PickRow(
+                            name = t.template.name,
+                            detail = "${t.items.size} ${if (t.items.size == 1) "item" else "items"}",
+                            batches = templatePicks[t.template.id],
+                            onToggle = {
+                                val id = t.template.id
+                                templatePicks = if (id in templatePicks) templatePicks - id else templatePicks + (id to 1)
+                            },
+                            onBatches = { templatePicks = templatePicks + (t.template.id to it) },
+                        )
+                    }
+                }
             }
         }
 
@@ -139,12 +154,11 @@ fun ShoppingListScreen(
             }
             item(key = "actions") {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
+                    LineButton(
                         onClick = { shareList(context, StandaloneShopping.shareText("Shopping list", list, ticked, unit)) },
-                        shape = IntakeShape.Button,
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                     ) { Text("Share") }
-                    OutlinedButton(
+                    LineButton(
                         onClick = {
                             val oldRecipes = recipePicks
                             val oldTemplates = templatePicks
@@ -152,7 +166,6 @@ fun ShoppingListScreen(
                             recipePicks = emptyMap(); templatePicks = emptyMap(); ticked = emptySet()
                             viewModel.cleared { recipePicks = oldRecipes; templatePicks = oldTemplates; ticked = oldTicked }
                         },
-                        shape = IntakeShape.Button,
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                     ) { Text("Clear") }
                 }
@@ -162,14 +175,24 @@ fun ShoppingListScreen(
             }
             list.sections.forEach { (category, lines) ->
                 item(key = "cat-$category") { Eyebrow(ShoppingListBuilder.sectionTitle(category), Modifier.padding(top = 4.dp)) }
-                items(items = lines, key = { "l-${it.key}" }) { line ->
-                    ListRow(line, unit, marks[line.key], line.key in ticked) { ticked = if (line.key in ticked) ticked - line.key else ticked + line.key }
+                item(key = "l-$category") {
+                    ListCard {
+                        lines.forEachIndexed { i, line ->
+                            if (i != 0) ListDivider()
+                            ListRow(line, unit, marks[line.key], line.key in ticked) { ticked = if (line.key in ticked) ticked - line.key else ticked + line.key }
+                        }
+                    }
                 }
             }
             if (list.pantry.isNotEmpty()) {
                 item(key = "cat-pantry") { Eyebrow("Pantry staples", Modifier.padding(top = 4.dp)) }
-                items(items = list.pantry, key = { "p-${it.key}" }) { line ->
-                    ListRow(line, unit, marks[line.key], line.key in ticked) { ticked = if (line.key in ticked) ticked - line.key else ticked + line.key }
+                item(key = "pantry-list") {
+                    ListCard {
+                        list.pantry.forEachIndexed { i, line ->
+                            if (i != 0) ListDivider()
+                            ListRow(line, unit, marks[line.key], line.key in ticked) { ticked = if (line.key in ticked) ticked - line.key else ticked + line.key }
+                        }
+                    }
                 }
             }
         } else if (recipePicks.isNotEmpty() || templatePicks.isNotEmpty()) {
@@ -183,7 +206,7 @@ fun ShoppingListScreen(
 @Composable
 private fun PickRow(name: String, detail: String, batches: Int?, onToggle: () -> Unit, onBatches: (Int) -> Unit) {
     val picked = batches != null
-    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(start = IntakeSpacing.ListRowPadH - 8.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(
             Modifier.weight(1f).heightIn(min = 56.dp).toggleable(value = picked, role = Role.Checkbox, onValueChange = { onToggle() }),
             verticalAlignment = Alignment.CenterVertically,
@@ -195,19 +218,21 @@ private fun PickRow(name: String, detail: String, batches: Int?, onToggle: () ->
             }
         }
         if (batches != null) {
-            TextButton(
-                onClick = { onBatches((batches - 1).coerceAtLeast(1)) },
-                enabled = batches > 1,
-                modifier = Modifier.size(48.dp).semantics { contentDescription = "Make $name fewer times" },
-                contentPadding = PaddingValues(0.dp),
-            ) { Text("−") }
-            Text("×$batches", style = MaterialTheme.typography.titleSmall)
-            TextButton(
-                onClick = { onBatches((batches + 1).coerceAtMost(StandaloneShopping.MAX_BATCHES)) },
-                enabled = batches < StandaloneShopping.MAX_BATCHES,
-                modifier = Modifier.size(48.dp).semantics { contentDescription = "Make $name more times" },
-                contentPadding = PaddingValues(0.dp),
-            ) { Text("+") }
+            // `.stepper`: a soft pill with a round minus and plus around the count.
+            Surface(color = MaterialTheme.intake.soft, shape = IntakeShape.Pill) {
+                Row(Modifier.padding(3.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IconCircleButton(
+                        IntakeIcons.Minus, "Make $name fewer times",
+                        onClick = { onBatches((batches - 1).coerceAtLeast(1)) }, enabled = batches > 1,
+                    )
+                    Text("×$batches", style = NumberSmall, modifier = Modifier.padding(horizontal = 6.dp))
+                    IconCircleButton(
+                        IntakeIcons.Plus, "Make $name more times",
+                        onClick = { onBatches((batches + 1).coerceAtMost(StandaloneShopping.MAX_BATCHES)) },
+                        enabled = batches < StandaloneShopping.MAX_BATCHES,
+                    )
+                }
+            }
         }
     }
 }
@@ -216,7 +241,8 @@ private fun PickRow(name: String, detail: String, batches: Int?, onToggle: () ->
 private fun ListRow(line: GeneratedShoppingLine, unit: WeightUnit, allergen: com.zeroindex.intake.ui.addfood.RowAllergen?, done: Boolean, onToggle: () -> Unit) {
     val qty = ShoppingListBuilder.displayQuantity(line.quantity, unit)
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(value = done, role = Role.Checkbox, onValueChange = { onToggle() }),
+        Modifier.fillMaxWidth().heightIn(min = 56.dp).toggleable(value = done, role = Role.Checkbox, onValueChange = { onToggle() })
+            .padding(horizontal = IntakeSpacing.ListRowPadH - 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Checkbox(checked = done, onCheckedChange = null, modifier = Modifier.padding(end = 8.dp).semantics { contentDescription = line.name })

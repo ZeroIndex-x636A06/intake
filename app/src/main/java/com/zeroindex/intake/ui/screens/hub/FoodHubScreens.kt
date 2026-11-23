@@ -2,6 +2,30 @@ package com.zeroindex.intake.ui.screens.hub
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import com.zeroindex.intake.ui.components.ChipTone
+import com.zeroindex.intake.ui.components.DangerButton
+import com.zeroindex.intake.ui.components.GhostButton
+import com.zeroindex.intake.ui.components.HeroCard
+import com.zeroindex.intake.ui.components.IconCircleButton
+import com.zeroindex.intake.ui.components.IconCircleStyle
+import com.zeroindex.intake.ui.components.IconTile
+import com.zeroindex.intake.ui.components.IconTileStyle
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.components.SubCopy
+import com.zeroindex.intake.ui.components.heroMuted
+import com.zeroindex.intake.ui.motion.pressScale
+import com.zeroindex.intake.ui.screens.plan.RecipeCard
+import com.zeroindex.intake.ui.theme.IntakeIcons
+import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -9,19 +33,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,7 +44,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -87,55 +101,93 @@ fun RecipesScreen(
     val avoids by viewModel.avoidsAnything.collectAsStateWithLifecycle()
     val estimatedKcal by viewModel.estimatedKcal.collectAsStateWithLifecycle()
     val gate = rememberStaggerGate()
-    HubScreen(
-        subtitle = "Saved recipes log a serving in one tap.",
-        contentPadding = contentPadding,
-        modifier = modifier,
-        items = listOf(
-            HubItem(
-                title = "Add a recipe",
-                description = "Type in the name, ingredients and steps. Macros add up as you go",
-                icon = Icons.Filled.Edit,
-                onClick = onOpenNew,
-            ),
-            HubItem(
-                title = "Import from a link",
-                description = "Paste a recipe link. Intake reads the recipe data on that page, with no AI",
-                icon = Icons.Filled.Link,
-                onClick = onOpenImport,
-            ),
-            HubItem(
-                title = "Recipe Hunter",
-                description = "Finds recipes that fit your macros and checks them for your allergens",
-                icon = Icons.Filled.AutoAwesome,
-                onClick = onOpenHunter,
-                tag = "Optional AI",
-            ),
-        ),
-        after = {
-            item(key = "mine-head") { SectionLine("My recipes", note = if (loadedRecipes == null) "" else "${recipes.size} saved") }
-            if (loadedRecipes != null && recipes.isEmpty()) {
-                item(key = "no-recipes") {
-                    EmptyState(
-                        title = "No recipes yet",
-                        body = "Add one by hand or import one from a link. Saved recipes log a serving in one tap.",
-                        action = {
-                            Button(onClick = onOpenNew, modifier = Modifier.heightIn(min = 48.dp)) { Text("Add a recipe") }
-                        },
-                    )
+    // Two cards a row; one column when the text is large (font scale 1.5).
+    val columns = if (LocalDensity.current.fontScale >= 1.3f) 1 else 2
+    LazyColumn(
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = hubPadding(contentPadding),
+        verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
+    ) {
+        item(key = "heading") { SubCopy("Saved recipes log a serving in one tap.") }
+        // Recipe Hunter is the one dark card: the optional AI finder, labelled as AI.
+        item(key = "hunter") {
+            HeroCard(
+                modifier = Modifier.clickable(role = Role.Button, onClickLabel = "Open Recipe Hunter", onClick = onOpenHunter),
+                contentPadding = PaddingValues(IntakeSpacing.CardPadHero),
+            ) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    IconTile(IntakeIcons.SearchPlus, style = IconTileStyle.Lime)
+                    Spacer(Modifier.weight(1f))
+                    IntakeChip("Optional AI", tone = ChipTone.Ai, icon = IntakeIcons.Sparkle, small = true)
                 }
-            }
-            itemsIndexed(recipes, key = { _, r -> r.id }) { index, recipe ->
-                RecipeRow(
-                    recipe,
-                    onClick = { onOpenRecipe(recipe.id) },
-                    modifier = Modifier.staggerIn(gate, recipe.id, index),
-                    allergen = verdicts[recipe.id] ?: com.zeroindex.intake.ui.addfood.RowAllergen.Checking.takeIf { avoids },
-                    estimatedKcal = estimatedKcal[recipe.id],
+                Spacer(Modifier.height(10.dp))
+                Text("Recipe Hunter", style = MaterialTheme.typography.titleLarge)
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Finds recipes that fit your macros and checks them for your allergens",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = heroMuted(),
                 )
             }
-        },
-    )
+        }
+        item(key = "add-import") {
+            Row(horizontalArrangement = Arrangement.spacedBy(IntakeSpacing.GridGap2), modifier = Modifier.height(IntrinsicSize.Max)) {
+                RecipeActionTile(
+                    "Add a recipe", "Type in the name, ingredients and steps. Macros add up as you go",
+                    IntakeIcons.Pencil, onOpenNew, Modifier.weight(1f).fillMaxHeight(),
+                )
+                RecipeActionTile(
+                    "Import from a link", "Paste a recipe link. Intake reads the recipe data on that page, with no AI",
+                    IntakeIcons.Link, onOpenImport, Modifier.weight(1f).fillMaxHeight(),
+                )
+            }
+        }
+        item(key = "mine-head") { SectionLine("My recipes", note = if (loadedRecipes == null) "" else "${recipes.size} saved") }
+        if (loadedRecipes != null && recipes.isEmpty()) {
+            item(key = "no-recipes") {
+                EmptyState(
+                    title = "No recipes yet",
+                    body = "Add one by hand or import one from a link. Saved recipes log a serving in one tap.",
+                    icon = IntakeIcons.Book,
+                    action = {
+                        Button(onClick = onOpenNew) { Text("Add a recipe") }
+                    },
+                )
+            }
+        }
+        itemsIndexed(recipes.chunked(columns), key = { _, row -> row.first().id }) { index, row ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(IntakeSpacing.GridGap2),
+                modifier = Modifier.height(IntrinsicSize.Max).staggerIn(gate, row.first().id, index),
+            ) {
+                row.forEach { recipe ->
+                    RecipeCard(
+                        recipe,
+                        onClick = { onOpenRecipe(recipe.id) },
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        allergen = verdicts[recipe.id] ?: com.zeroindex.intake.ui.addfood.RowAllergen.Checking.takeIf { avoids },
+                        estimatedKcal = estimatedKcal[recipe.id],
+                    )
+                }
+                if (row.size < columns) Spacer(Modifier.weight((columns - row.size).toFloat()))
+            }
+        }
+    }
+}
+
+/** `.card` tile with an icon, a title and one line: the Add / Import pair above My recipes. */
+@Composable
+private fun RecipeActionTile(title: String, body: String, icon: ImageVector, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    IntakeCard(
+        modifier = modifier.pressScale().clickable(role = Role.Button, onClick = onClick),
+        shape = IntakeShape.TileLarge,
+        contentPadding = PaddingValues(IntakeSpacing.CardPadTile),
+    ) {
+        IconTile(icon)
+        Spacer(Modifier.height(8.dp))
+        Text(title, style = MaterialTheme.typography.titleSmall)
+        Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
 }
 
 /** Saved eat-out options with today's allergen verdict on each, read once per change. */
@@ -210,7 +262,7 @@ fun EatingOutScreen(
             HubItem(
                 title = "Menu import",
                 description = "Bring in restaurant menus, checked against your allergens",
-                icon = Icons.Filled.Storefront,
+                icon = IntakeIcons.MapPin,
                 onClick = onOpenMenuImport,
             ),
         ),
@@ -232,7 +284,7 @@ fun EatingOutScreen(
                     IntakeCard(Modifier.clickable(onClickLabel = "Log ${e.option.title}") { choosing = e }) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                Text(src?.option?.venueName ?: e.option.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
+                                Text(src?.option?.venueName ?: e.option.title, style = MaterialTheme.typography.titleMedium)
                                 Text(e.option.title, style = MaterialTheme.typography.bodyMedium)
                                 Text(
                                     "${e.option.macros.kcal.roundToInt()} kcal · P ${e.option.macros.protein.roundToInt()} · C ${e.option.macros.carbs.roundToInt()} · F ${e.option.macros.fat.roundToInt()} · estimate",
@@ -243,7 +295,7 @@ fun EatingOutScreen(
                                     Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
-                            IconButton(onClick = { removing = e }) { Icon(Icons.Filled.Delete, contentDescription = "Remove ${e.option.title}") }
+                            IconCircleButton(IntakeIcons.Trash, "Remove ${e.option.title}", onClick = { removing = e }, style = IconCircleStyle.Soft)
                         }
                         Column(Modifier.padding(top = 6.dp)) {
                             AllergenChip(e.option.allergen, label = if (e.option.allergen == com.zeroindex.intake.domain.swap.SwapAllergen.CLEAR) "Fits your allergens" else e.option.allergenReason)
@@ -274,8 +326,8 @@ fun EatingOutScreen(
             onDismissRequest = { removing = null },
             title = { Text("Remove this saved option?") },
             text = { Text("${src?.option?.venueName ?: ""}: ${e.option.title}. It is hidden from Swap and this list. Nothing is deleted from your history.") },
-            confirmButton = { Button(onClick = { removing = null; src?.option?.id?.let(viewModel::remove) }) { Text("Remove") } },
-            dismissButton = { TextButton(onClick = { removing = null }) { Text("Cancel") } },
+            confirmButton = { DangerButton(onClick = { removing = null; src?.option?.id?.let(viewModel::remove) }) { Text("Remove") } },
+            dismissButton = { GhostButton(onClick = { removing = null }) { Text("Cancel") } },
         )
     }
 }

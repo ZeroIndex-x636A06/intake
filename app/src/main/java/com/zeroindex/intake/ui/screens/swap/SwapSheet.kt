@@ -1,12 +1,23 @@
 package com.zeroindex.intake.ui.screens.swap
 
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.components.ChipTone
+import com.zeroindex.intake.ui.components.DangerButton
+import com.zeroindex.intake.ui.components.IconCircleButton
+import com.zeroindex.intake.ui.components.IconCircleStyle
+import com.zeroindex.intake.ui.components.IconTile
+import com.zeroindex.intake.ui.components.IconTileStyle
+import com.zeroindex.intake.ui.components.IntakeSwitch
+import com.zeroindex.intake.ui.theme.IntakeIcons
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.theme.intake
+import com.zeroindex.intake.ui.components.LineButton
 import android.Manifest
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -19,17 +30,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -60,7 +65,6 @@ import com.zeroindex.intake.domain.swap.SwapSection
 import com.zeroindex.intake.domain.swap.SwapSections
 import com.zeroindex.intake.ui.addfood.slotWord
 import com.zeroindex.intake.ui.allergen.AllergenChip
-import com.zeroindex.intake.ui.allergen.AllergenColors
 import com.zeroindex.intake.ui.components.EmptyState
 import com.zeroindex.intake.ui.components.ErrorState
 import com.zeroindex.intake.ui.components.LabeledField
@@ -111,13 +115,13 @@ fun SwapSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         LazyColumn(
             modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(start = IntakeSpacing.ScreenGutter, end = IntakeSpacing.ScreenGutter, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
         ) {
             item(key = "title") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Swap ${slotWord(state.slot).lowercase()}", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-                    IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, contentDescription = "Close") }
+                    IconCircleButton(IntakeIcons.Close, "Close", onClick = onDismiss, style = IconCircleStyle.Soft)
                 }
             }
             item(key = "planned") { if (!state.loading) PlannedCard(state.planned, slotWord(state.slot)) }
@@ -223,17 +227,16 @@ private fun SectionTitle(text: String, tag: String? = null) {
     Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(text, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
         if (tag != null) {
-            Surface(color = MaterialTheme.colorScheme.tertiaryContainer, contentColor = MaterialTheme.colorScheme.onTertiaryContainer, shape = IntakeShape.Chip) {
-                Text(tag, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
-            }
+            // Every AI label is the violet chip with its sparkle.
+            IntakeChip(tag, tone = ChipTone.Ai, icon = IntakeIcons.Sparkle, small = true)
         }
     }
 }
 
 @Composable
 private fun PlannedCard(planned: PlannedMeal?, slotLabel: String) {
-    Surface(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f), shape = IntakeShape.Card, modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Surface(color = MaterialTheme.intake.soft, shape = IntakeShape.Card, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(IntakeSpacing.CardPad), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             if (planned == null) {
                 Text("NOTHING PLANNED FOR ${slotLabel.uppercase()}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(
@@ -253,7 +256,7 @@ private fun PlannedCard(planned: PlannedMeal?, slotLabel: String) {
                 } else {
                     AllergenChip(planned.allergen, label = planned.allergenReason)
                 }
-                Text(planned.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+                Text(planned.title, style = MaterialTheme.typography.titleLarge)
                 Text(macroLine(planned.macros, false), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -285,33 +288,30 @@ internal fun OptionCard(
     val blocked = !SwapSections.canChoose(o)
     val scheme = MaterialTheme.colorScheme
     Surface(
-        color = if (blocked) AllergenColors.red.copy(alpha = 0.12f) else scheme.surface,
-        shape = IntakeShape.Card,
-        border = BorderStroke(1.dp, if (blocked) AllergenColors.red.copy(alpha = 0.6f) else scheme.outlineVariant),
+        // A blocked option is the pale-red `badBg` card; the red is never the only signal, the chip and the words say it too.
+        color = if (blocked) MaterialTheme.intake.badBg else scheme.surface,
+        shape = IntakeShape.TileLarge,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.padding(IntakeSpacing.CardPadTile + 2.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Column(Modifier.weight(1f).alpha(if (blocked) 0.75f else 1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text(o.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
+                    Text(o.title, style = MaterialTheme.typography.titleMedium)
                     o.subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant) }
                     Text(macroLine(o.macros, o.estimate, o.macrosPublished), style = MaterialTheme.typography.bodySmall)
                     o.reason?.let { Text(it, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = scheme.primary) }
                 }
                 if (blocked) {
-                    OutlinedButton(
+                    // The destructive-but-allowed choice is the danger-soft pill, never an ink primary.
+                    DangerButton(
                         onClick = onOverride,
                         enabled = !choosing,
-                        shape = IntakeShape.Button,
-                        border = BorderStroke(1.dp, AllergenColors.red),
-                        colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = AllergenColors.red),
                         modifier = Modifier.heightIn(min = 48.dp),
                     ) { Text("Choose anyway") }
                 } else {
                     Button(
                         onClick = onChoose,
                         enabled = !choosing,
-                        shape = IntakeShape.Button,
                         modifier = Modifier.heightIn(min = 48.dp),
                     ) { Text(chooseLabel) }
                 }
@@ -320,14 +320,10 @@ internal fun OptionCard(
                 val chips = SwapMath.chips(SwapMath.delta(o.macros, planned))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                     chips.forEach { c ->
-                        Surface(color = scheme.surfaceVariant, shape = IntakeShape.Chip) {
-                            Text(c, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp))
-                        }
+                        IntakeChip(c)
                     }
                     if (o.estimate) {
-                        Surface(color = scheme.surfaceVariant, shape = IntakeShape.Chip) {
-                            Text("Estimate", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp))
-                        }
+                        IntakeChip("Estimate")
                     }
                 }
             }
@@ -381,16 +377,12 @@ internal fun NearbyCard(
     val context = LocalContext.current
     val pipeline = nearby.pipeline
     val working = pipeline.running
-    Surface(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), shape = IntakeShape.Card, modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Surface(color = MaterialTheme.intake.soft, shape = IntakeShape.Card, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(IntakeSpacing.CardPad), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
-                Surface(color = MaterialTheme.colorScheme.tertiaryContainer, shape = IntakeShape.Tile, modifier = Modifier.size(46.dp)) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                        Icon(Icons.Filled.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.onTertiaryContainer, modifier = Modifier.padding(top = 11.dp))
-                    }
-                }
+                IconTile(IntakeIcons.MapPin, style = IconTileStyle.Lime)
                 Column(Modifier.weight(1f)) {
-                    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
+                    Text(title, style = MaterialTheme.typography.titleMedium)
                     Text(
                         "Restaurants within a ${nearby.budget.label} of you, from OpenStreetMap (free, no key). Each one's menu is found for you: " +
                             "your saved menu, then the chain's own page, then its website, one at a time, nearest first. " +
@@ -403,7 +395,7 @@ internal fun NearbyCard(
             if (!working && nearby.searching.not()) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Column(Modifier.weight(1f)) {
-                        Text("Use AI to find menus I can't", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                        Text("Use AI to find menus I can't", style = MaterialTheme.typography.titleSmall)
                         Text(
                             if (nearby.hasKey) {
                                 "Off by default. Only for places where the steps above found nothing, nearest first, up to ${com.zeroindex.intake.domain.nearby.NearbyAiBatch.BATCH_SIZE} places to a call and at most ${NearbyPipeline.MAX_AI_LOOKUPS} calls a search, on your own key " +
@@ -415,13 +407,13 @@ internal fun NearbyCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    androidx.compose.material3.Switch(checked = nearby.useAi && nearby.hasKey, onCheckedChange = onToggleAi, enabled = nearby.hasKey)
+                    IntakeSwitch(checked = nearby.useAi && nearby.hasKey, onCheckedChange = onToggleAi, enabled = nearby.hasKey)
                 }
             }
             when {
                 working -> {
                     LoadingState(listOf(NearbyPipeline.summary(pipeline)))
-                    OutlinedButton(onClick = onStop, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Stop searching") }
+                    LineButton(onClick = onStop, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Stop searching") }
                 }
                 nearby.searching -> LoadingState(listOfNotNull(nearby.status, "Checking allergens on this phone"))
                 else -> {
@@ -434,11 +426,11 @@ internal fun NearbyCard(
                                     "Location is off for Intake. Allow it in Android settings to search near you."
                                 },
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error,
+                                color = MaterialTheme.intake.bad,
                             )
                         }
-                        Button(onClick = onUseLocation, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
-                            Icon(Icons.Filled.SwapHoriz, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Button(onClick = onUseLocation, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+                            Icon(IntakeIcons.Search, contentDescription = null, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.size(8.dp))
                             Text(
                                 when {
@@ -466,7 +458,6 @@ internal fun NearbyCard(
                             Button(
                                 onClick = { onPostalCode(zip) },
                                 enabled = zip.trim().length >= 3,
-                                shape = IntakeShape.Button,
                                 modifier = Modifier.heightIn(min = 56.dp),
                             ) { Text("Search") }
                         }
@@ -488,7 +479,7 @@ internal fun NearbyCard(
                     pipeline.rows.forEach { r ->
                         Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
                             Column(Modifier.weight(1f)) {
-                                Text(r.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                Text(r.name, style = MaterialTheme.typography.titleSmall)
                                 Text(
                                     "%.1f mi".format(java.util.Locale.US, com.zeroindex.intake.domain.nearby.TravelRadius.metersToMiles(r.distanceM)) +
                                         (r.origin?.let { " · from ${it.label}" } ?: ""),
@@ -506,7 +497,7 @@ internal fun NearbyCard(
                 }
             }
             if (!working && !nearby.searching && nearby.hasKey && nearby.aiPending > 0) {
-                Button(onClick = onLookUpRest, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Look up the rest with AI") }
+                Button(onClick = onLookUpRest, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Look up the rest with AI") }
                 Text(
                     com.zeroindex.intake.domain.nearby.NearbyAiBatch.costNote(nearby.aiPending) + " Runs only because you tapped it.",
                     style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -524,7 +515,7 @@ internal fun NearbyCard(
             nearby.error?.let {
                 ErrorState(title = "Search did not finish", body = "$it Saved options still work.") {
                     if (nearby.offerAiFallback) {
-                        Button(onClick = onSearchWithAi, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Search with AI instead") }
+                        Button(onClick = onSearchWithAi, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Search with AI instead") }
                         Text("Runs only because you tapped it, on your own key (a cent or so).", style = MaterialTheme.typography.labelMedium)
                     }
                     if (!nearby.hasKey) TextButton(onClick = onOpenAiSettings) { Text("Open AI settings") }

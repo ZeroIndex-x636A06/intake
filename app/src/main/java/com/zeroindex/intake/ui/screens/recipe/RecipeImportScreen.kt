@@ -1,5 +1,7 @@
 package com.zeroindex.intake.ui.screens.recipe
 
+import com.zeroindex.intake.ui.components.LineButton
+import com.zeroindex.intake.ui.theme.IntakeSpacing
 import com.zeroindex.intake.ui.components.scrollIntoViewOnFocus
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Arrangement
@@ -17,7 +19,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import com.zeroindex.intake.ui.motion.SkeletonLine
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -221,7 +222,7 @@ fun RecipeImportScreen(
     LaunchedEffect(stage) { (stage as? ImportStage.Saved)?.let { onSaved(it.recipeId) } }
 
     Column(
-        modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(contentPadding).padding(horizontal = 16.dp),
+        modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(contentPadding).padding(horizontal = IntakeSpacing.ScreenGutter),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         SubHead("Recipe link", "Paste a recipe link. Intake reads the recipe data on that page, with no AI.")
@@ -231,8 +232,7 @@ fun RecipeImportScreen(
             modifier = Modifier.fillMaxWidth().scrollIntoViewOnFocus(),
         )
         Button(
-            onClick = viewModel::import, enabled = url.isNotBlank() && stage != ImportStage.Fetching,
-            shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+            onClick = viewModel::import, enabled = url.isNotBlank() && stage != ImportStage.Fetching, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
         ) { Text("Read this page") }
         Text(
             "Tapping this fetches the page straight from that site, so the site can see your phone's IP address. Nothing is sent anywhere else.",
@@ -254,8 +254,8 @@ fun RecipeImportScreen(
                 SandNote("This page has no recipe data we can read.", title = "No recipe found")
                 s.message?.let { SandNote(it) }
                 if (s.aiAvailable) {
-                    OutlinedButton(
-                        onClick = viewModel::tryWithAi, shape = IntakeShape.Button,
+                    LineButton(
+                        onClick = viewModel::tryWithAi,
                         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                     ) { Text("Try with AI") }
                     Text(
@@ -340,7 +340,7 @@ private fun Preview(s: ImportStage.Preview, vm: RecipeImportViewModel) {
         Text("Source: ${f.sourceUrl}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
     Button(
-        onClick = vm::save, enabled = f.name.isNotBlank(), shape = IntakeShape.Button,
+        onClick = vm::save, enabled = f.name.isNotBlank(),
         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
     ) { Text("Save recipe") }
 }

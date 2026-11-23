@@ -16,7 +16,6 @@ import com.zeroindex.intake.domain.ai.SavedHuntQuery
 import com.zeroindex.intake.ui.components.SwitchRow
 import java.text.DateFormat
 import java.util.Date
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
@@ -24,6 +23,7 @@ import com.zeroindex.intake.domain.ai.HuntKeys
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -34,7 +34,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.semantics.contentDescription
@@ -45,10 +44,8 @@ import com.zeroindex.intake.ui.components.FormRow
 import com.zeroindex.intake.ui.components.LabeledField
 import com.zeroindex.intake.ui.components.LoadingState
 import com.zeroindex.intake.ui.components.LockChip
-import com.zeroindex.intake.ui.components.PillTone
 import com.zeroindex.intake.ui.components.PrivacyTag
 import com.zeroindex.intake.ui.components.ResultCard
-import com.zeroindex.intake.ui.components.StatusPill
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -73,7 +70,13 @@ import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.SectionLine
 import com.zeroindex.intake.ui.screens.ai.usd
+import com.zeroindex.intake.ui.components.ChipTone
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.components.LineButton
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.theme.intake
 import kotlin.math.roundToInt
 
 /** "Any" first: it means no preference and clears the others; picking a specific cuisine clears it. */
@@ -104,18 +107,18 @@ fun RecipeHunterScreen(
     val pad = PaddingValues(
         top = contentPadding.calculateTopPadding(),
         bottom = contentPadding.calculateBottomPadding() + 24.dp,
-        start = 16.dp,
-        end = 16.dp,
+        start = IntakeSpacing.ScreenGutter,
+        end = IntakeSpacing.ScreenGutter,
     )
 
     when (val stage = state.stage) {
         HuntStage.NeedsKey -> Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(pad)) {
             HuntSubtitle("Searches the web with AI, so it needs “Use AI features” on and an OpenRouter key (Settings → AI).")
-            OutlinedButton(onClick = onOpenImport, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+            LineButton(onClick = onOpenImport, modifier = Modifier.fillMaxWidth()) {
                 Text("Have a link? Import it with no AI")
             }
             Spacer(Modifier.height(8.dp))
-            Button(onClick = onOpenAiSettings, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+            Button(onClick = onOpenAiSettings, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
                 Text("Set up AI tools")
             }
             RecentSearches(state.recent, canRunAgain = false, onOpen = viewModel::openRecent, onRunAgain = {}, onDelete = viewModel::deleteRecent)
@@ -123,14 +126,14 @@ fun RecipeHunterScreen(
 
         HuntStage.Form -> Column(
             modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(pad),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
         ) {
             val q = state.query
             HuntSubtitle(
                 if (q.avoidedAllergens.isEmpty()) "Find recipes that fit your macros." else
                     "Find recipes that fit your macros and your ${q.avoidedAllergens.joinToString(" and ")} allergy.",
             )
-            OutlinedButton(onClick = onOpenImport, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+            LineButton(onClick = onOpenImport, modifier = Modifier.fillMaxWidth()) {
                 Text("Have a link? Import it with no AI")
             }
             IntakeCard {
@@ -196,8 +199,7 @@ fun RecipeHunterScreen(
                 )
                 Button(
                     onClick = viewModel::hunt,
-                    shape = IntakeShape.Button,
-                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(52.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp).heightIn(min = 52.dp),
                 ) { Text("Search recipes") }
                 Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     PrivacyTag(if (q.aiReadPages) "Sends goals and some page text to OpenRouter" else "Sends goals to OpenRouter")
@@ -214,7 +216,7 @@ fun RecipeHunterScreen(
             RecentSearches(state.recent, canRunAgain = true, onOpen = viewModel::openRecent, onRunAgain = viewModel::runAgain, onDelete = viewModel::deleteRecent)
         }
 
-        is HuntStage.Running -> Column(modifier.padding(pad), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        is HuntStage.Running -> Column(modifier.padding(pad), verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap)) {
             HuntSubtitle("Working - this can take a minute or two.")
             val policy = HuntPolicy()
             val last = stage.steps.lastOrNull()
@@ -232,12 +234,12 @@ fun RecipeHunterScreen(
                 title = "The search did not finish",
                 body = stage.message,
             )
-            OutlinedButton(onClick = viewModel::backToForm, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(50.dp)) {
+            LineButton(onClick = viewModel::backToForm, modifier = Modifier.fillMaxWidth()) {
                 Text("Back to the search")
             }
         }
 
-        is HuntStage.Done -> LazyColumn(modifier.fillMaxWidth(), contentPadding = pad, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        is HuntStage.Done -> LazyColumn(modifier.fillMaxWidth(), contentPadding = pad, verticalArrangement = Arrangement.spacedBy(6.dp)) {
             val result = stage.result
             val onCard: (HuntedRecipe) -> Unit = { open = it }
             fun isSaved(h: HuntedRecipe) = HuntKeys.urlKey(h.recipe.sourceUrl) in stage.saved
@@ -321,7 +323,7 @@ fun RecipeHunterScreen(
             }
             item(key = "more") {
                 Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    stage.error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+                    stage.error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.intake.bad) }
                     val working = stage.working
                     if (working != null) {
                         Text(
@@ -331,8 +333,7 @@ fun RecipeHunterScreen(
                     } else {
                         Button(
                             onClick = viewModel::findMore,
-                            shape = IntakeShape.Button,
-                            modifier = Modifier.fillMaxWidth().height(52.dp),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                         ) { Text("Find more") }
                         Text(
                             "Keeps the same search and skips what you have seen. Up to ${usd(result.policy.capUsd)} more, " +
@@ -341,10 +342,9 @@ fun RecipeHunterScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    OutlinedButton(
+                    LineButton(
                         onClick = viewModel::backToForm,
-                        shape = IntakeShape.Button,
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        modifier = Modifier.fillMaxWidth(),
                     ) { Text("Change the search") }
                 }
             }
@@ -475,7 +475,7 @@ private fun HuntedCard(hunted: HuntedRecipe, saved: Boolean, onClick: () -> Unit
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     onError = { imageFailed = true },
-                    modifier = Modifier.padding(end = 10.dp).size(76.dp).clip(RoundedCornerShape(12.dp)),
+                    modifier = Modifier.padding(end = 10.dp).size(76.dp).clip(IntakeShape.Thumb),
                 )
             }
             Column(Modifier.weight(1f)) {
@@ -485,18 +485,18 @@ private fun HuntedCard(hunted: HuntedRecipe, saved: Boolean, onClick: () -> Unit
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    if (saved) StatusPill("\u2713 Saved")
-                    if (r.aiRead) StatusPill("Read by AI", tone = PillTone.Wait)
+                    if (saved) IntakeChip("\u2713 Saved", tone = ChipTone.Ok)
+                    if (r.aiRead) IntakeChip("Read by AI", tone = ChipTone.Ai, icon = IntakeIcons.Sparkle)
                     when (val v = hunted.verdict) {
                         RecipeVerdict.Passed ->
                             if (hunted.scan.hasCheckLabel) CheckLabelChip(hunted.scan.checkLabel.first().note, showReason = false)
-                            else StatusPill(com.zeroindex.intake.domain.allergen.AllergenEvidence.ClearBasis.LABEL_READ.chipText)
-                        is RecipeVerdict.NeedsReview -> StatusPill("Check allergens", tone = PillTone.Wait)
+                            else IntakeChip(com.zeroindex.intake.domain.allergen.AllergenEvidence.ClearBasis.LABEL_READ.chipText, tone = ChipTone.Ok, icon = IntakeIcons.Check)
+                        is RecipeVerdict.NeedsReview -> IntakeChip("Check allergens", tone = ChipTone.Warn)
                         // Short chips only, one per count against the recipe; the full reasons are in the text below.
                         is RecipeVerdict.Rejected -> hunted.reasonChips.forEach { chip ->
-                            StatusPill(if (adaptable != null) "Original: ${chip.replaceFirstChar(Char::lowercase)}" else chip, tone = PillTone.Bad)
+                            IntakeChip(if (adaptable != null) "Original: ${chip.replaceFirstChar(Char::lowercase)}" else chip, tone = ChipTone.Bad)
                         }
-                        is RecipeVerdict.Unverified -> StatusPill("Not checked", tone = PillTone.Wait)
+                        is RecipeVerdict.Unverified -> IntakeChip("Not checked", tone = ChipTone.Warn)
                     }
                 }
             }
@@ -564,7 +564,7 @@ private fun HuntedDetailSheet(hunted: HuntedRecipe, saved: Boolean, onSave: () -
     val r = hunted.recipe
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(
-            Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).navigationBarsPadding(),
+            Modifier.verticalScroll(rememberScrollState()).padding(horizontal = IntakeSpacing.ScreenGutter).navigationBarsPadding(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(r.title, style = MaterialTheme.typography.headlineSmall)
@@ -580,28 +580,28 @@ private fun HuntedDetailSheet(hunted: HuntedRecipe, saved: Boolean, onSave: () -
                     body = "The original recipe says: ${(hunted.verdict as RecipeVerdict.Rejected).reason}. It keeps that warning. " +
                         "Saving makes a separate copy with these swaps, checked again on this phone:\n" +
                         adaptable.swaps.joinToString("\n") { "\u2022 ${it.summary}" + (it.note?.let { n -> " ($n)" } ?: "") },
-                    container = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    container = MaterialTheme.intake.soft,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
                 )
             }
             when (val v = hunted.verdict) {
                 is RecipeVerdict.Rejected -> if (adaptable == null) AccentNote(
                     lead = "Removed by your checks", body = v.reason,
-                    container = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                    container = MaterialTheme.intake.badBg,
+                    contentColor = MaterialTheme.intake.bad,
                 )
                 is RecipeVerdict.NeedsReview -> AccentNote(
                     lead = "Check before cooking", body = v.reason,
-                    container = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    container = MaterialTheme.intake.warnBg,
+                    contentColor = MaterialTheme.intake.warn,
                 )
                 is RecipeVerdict.Unverified, RecipeVerdict.Passed -> Unit
             }
             if (hunted.isClose) {
                 AccentNote(
                     lead = "Close match", body = hunted.fitReason.orEmpty(),
-                    container = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    container = MaterialTheme.intake.soft,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
                 )
             }
             SectionLine("Per serving")
@@ -625,7 +625,7 @@ private fun HuntedDetailSheet(hunted: HuntedRecipe, saved: Boolean, onSave: () -
             r.steps.forEachIndexed { i, s -> Text("${i + 1}. $s", style = MaterialTheme.typography.bodySmall) }
             Spacer(Modifier.height(6.dp))
             if (hunted.isSavable) {
-                Button(onClick = onSave, enabled = !saved, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+                Button(onClick = onSave, enabled = !saved, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
                     Text(
                         when {
                             saved -> "\u2713 Saved to My recipes"
@@ -635,10 +635,9 @@ private fun HuntedDetailSheet(hunted: HuntedRecipe, saved: Boolean, onSave: () -
                     )
                 }
             }
-            OutlinedButton(
+            LineButton(
                 onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(r.sourceUrl))) } },
-                shape = IntakeShape.Button,
-                modifier = Modifier.fillMaxWidth().height(50.dp),
+                modifier = Modifier.fillMaxWidth(),
             ) { Text("Open the original page") }
             Spacer(Modifier.height(16.dp))
         }
