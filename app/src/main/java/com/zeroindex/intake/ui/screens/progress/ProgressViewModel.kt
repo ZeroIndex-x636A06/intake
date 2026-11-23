@@ -7,6 +7,7 @@ import com.zeroindex.intake.data.db.entity.BodyMetricEntity
 import com.zeroindex.intake.data.health.toDailyHealth
 import com.zeroindex.intake.domain.health.DailyHealth
 import com.zeroindex.intake.data.db.entity.TdeeEstimateEntity
+import com.zeroindex.intake.data.photos.ProgressPhotoRepository
 import com.zeroindex.intake.data.repository.BodyRepository
 import com.zeroindex.intake.data.repository.FoodLogRepository
 import com.zeroindex.intake.data.repository.PerformanceRepository
@@ -66,6 +67,9 @@ data class ProgressUiState(
     val loaded: Boolean = false,
     /** Health Connect days in the range, oldest first. Empty without data or permission; nothing is filled in. */
     val health: List<DailyHealth> = emptyList(),
+    /** Progress photos (the dated timeline kept on this phone): how many, and when the newest was taken. */
+    val photoCount: Int = 0,
+    val photoNewestAt: Long? = null,
 ) {
     val latestWeightKg: Double? get() = metrics.maxByOrNull { it.measuredAt }?.weightKg
     val trendWeightKg: Double? get() = trend.lastOrNull()?.trendKg
@@ -99,6 +103,7 @@ class ProgressViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val performanceRepository: PerformanceRepository,
     private val healthDao: HealthSummaryDao,
+    private val photoRepository: ProgressPhotoRepository,
     private val clock: Clock,
 ) : ViewModel() {
 
@@ -126,13 +131,14 @@ class ProgressViewModel @Inject constructor(
                     tdeeRepository.observeLatest(),
                     settingsRepository.settings,
                     bodyRepository.observeWithPhotos(),
+                    photoRepository.observe(),
                     combine(
                         recalculating,
                         performanceRepository.observeOverlay(from, today),
                         healthDao.observeInRange(clock.rangeFor(from).startInclusive, clock.rangeFor(today).endExclusive),
                     ) { busy, weeks, health -> Triple(busy, weeks, health.map { it.toDailyHealth() }) },
-                ) { tdee, settings, photos, busyWeeksHealth ->
-                    Extras(tdee, settings, photos, busyWeeksHealth.first, busyWeeksHealth.second, busyWeeksHealth.third)
+                ) { tdee, settings, photos, timeline, busyWeeksHealth ->
+                    Extras(tdee, settings, photos, busyWeeksHealth.first, busyWeeksHealth.second, busyWeeksHealth.third, timeline.size, timeline.maxOfOrNull { it.takenAt })
                 },
             ) { metrics, trend, intake, target, extras ->
                 val byDay = intake
@@ -162,6 +168,8 @@ class ProgressViewModel @Inject constructor(
                     isRecalculating = extras.busy,
                     performance = extras.performance,
                     health = extras.health,
+                    photoCount = extras.photoCount,
+                    photoNewestAt = extras.photoNewestAt,
                     loaded = true,
                 )
             }
@@ -179,6 +187,8 @@ class ProgressViewModel @Inject constructor(
         val busy: Boolean,
         val performance: List<OverlayWeek>,
         val health: List<DailyHealth>,
+        val photoCount: Int,
+        val photoNewestAt: Long?,
     )
 
     fun selectRange(next: ProgressRange) {
