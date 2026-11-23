@@ -65,6 +65,19 @@ import com.zeroindex.intake.ui.theme.intake
  * SPEC §7.3 keeps the two severities visibly apart - a declared "contains" is red, a "may contain" amber - and each carries
  * words as well as colour, since colour is never the only signal (SPEC §3.7).
  */
+/**
+ * Opens the Swap sheet for a meal slot (null: the slot for the time of day). Provided once by the nav host. It is null where
+ * there is no host, and then "Find a safer swap" is not shown. Opening it never logs anything.
+ */
+val LocalFindSwap = androidx.compose.runtime.staticCompositionLocalOf<((String?) -> Unit)?> { null }
+
+/** The `onFindSwap` argument for an [AllergenWarningSheet] call site: null when nothing can open the Swap sheet. */
+@Composable
+fun rememberFindSwap(slot: String? = null): (() -> Unit)? {
+    val open = LocalFindSwap.current ?: return null
+    return { open(slot) }
+}
+
 @Composable
 fun AllergenWarningSheet(
     foodName: String,

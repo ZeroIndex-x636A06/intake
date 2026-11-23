@@ -57,6 +57,7 @@ fun FoodTabHost(
             options = FoodSegment.entries.map { stringResource(it.labelRes) },
             selectedIndex = segment.ordinal,
             onSelect = { selected = it },
+            role = androidx.compose.ui.semantics.Role.Tab,
             modifier = Modifier.fillMaxWidth().padding(horizontal = IntakeSpacing.ScreenGutter, vertical = 4.dp),
         )
         Box(Modifier.weight(1f).fillMaxWidth()) {

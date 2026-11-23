@@ -240,6 +240,7 @@ fun CookModeScreen(
     }
     pending?.let { p ->
         AllergenWarningSheet(
+            onFindSwap = com.zeroindex.intake.ui.allergen.rememberFindSwap(),
             foodName = p.name,
             scan = p.scan,
             ingredientText = p.ingredientText,
@@ -513,5 +514,24 @@ private fun BigButton(
         AccentButton(onClick = onClick, modifier = m) { Text(label, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
     } else {
         SoftButton(onClick = onClick, modifier = m) { Text(label, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
+    }
+}
+
+
+/** Cook mode is always dark, so the status and navigation bar icons must be light for as long as it shows; restored on leaving. */
+@Composable
+fun CookModeLightIconsOnDark() {
+    val view = LocalView.current
+    DisposableEffect(view) {
+        val window = (view.context as? android.app.Activity)?.window
+        val controller = window?.let { androidx.core.view.WindowCompat.getInsetsController(it, view) }
+        val wasStatus = controller?.isAppearanceLightStatusBars
+        val wasNav = controller?.isAppearanceLightNavigationBars
+        controller?.isAppearanceLightStatusBars = false
+        controller?.isAppearanceLightNavigationBars = false
+        onDispose {
+            if (wasStatus != null) controller.isAppearanceLightStatusBars = wasStatus
+            if (wasNav != null) controller.isAppearanceLightNavigationBars = wasNav
+        }
     }
 }

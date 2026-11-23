@@ -345,6 +345,7 @@ fun RecipeDetailScreen(
 
     pendingServing?.let { p ->
         com.zeroindex.intake.ui.allergen.AllergenWarningSheet(
+            onFindSwap = com.zeroindex.intake.ui.allergen.rememberFindSwap(),
             foodName = p.pending.name,
             scan = p.pending.scan,
             ingredientText = p.pending.ingredientText,

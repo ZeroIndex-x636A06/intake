@@ -3,7 +3,6 @@ package com.zeroindex.intake.ui.navigation
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
@@ -115,6 +114,9 @@ fun IntakeNavHost(
 ) {
     val reduce = LocalReduceMotion.current
     val start: Any = if (startOnboarding) Route.Onboarding else TabGraph.Today
+    androidx.compose.runtime.CompositionLocalProvider(
+        com.zeroindex.intake.ui.allergen.LocalFindSwap provides { slot: String? -> navController.navigate(Route.SwapSheet(slot)) },
+    ) {
     NavHost(
         navController = navController,
         startDestination = start,
@@ -162,6 +164,7 @@ fun IntakeNavHost(
                             navController.navigate(TabGraph.Today) { popUpTo<Route.Onboarding> { inclusive = true } }
                         }
                     },
+                    onSetUp = { group -> openSettings(group, null) },
                 )
             }
         }
@@ -299,12 +302,16 @@ fun IntakeNavHost(
             }
             composable<Route.CookMode> { entry ->
                 // Cook mode is full screen with its own chrome: oversized targets, no top bar.
-                FullScreenTask {
-                    CookModeScreen(
-                        recipeId = entry.toRoute<Route.CookMode>().recipeId,
-                        contentPadding = it,
-                        onClose = { navController.popBackStack() },
-                    )
+                // Always dark, whatever the theme setting says (the mockup draws it dark): the dark theme and light system-bar icons.
+                com.zeroindex.intake.ui.theme.IntakeTheme(themeMode = com.zeroindex.intake.data.settings.ThemeMode.DARK) {
+                    com.zeroindex.intake.ui.screens.plan.CookModeLightIconsOnDark()
+                    FullScreenTask {
+                        CookModeScreen(
+                            recipeId = entry.toRoute<Route.CookMode>().recipeId,
+                            contentPadding = it,
+                            onClose = { navController.popBackStack() },
+                        )
+                    }
                 }
             }
             composable<Route.EatingOut> {
@@ -364,7 +371,7 @@ fun IntakeNavHost(
                             Icon(Icons.Filled.Calculate, contentDescription = "Calculators")
                         }
                         IconButton(onClick = { navController.navigate(Route.Programs) }) {
-                            Icon(Icons.AutoMirrored.Filled.ListAlt, contentDescription = "Programs")
+                            Icon(com.zeroindex.intake.ui.theme.IntakeIcons.ListBullets, contentDescription = "Programs")
                         }
                     },
                 ) { pad ->
@@ -384,7 +391,16 @@ fun IntakeNavHost(
                 }
             }
             composable<Route.Programs> {
-                PushedScreen("Programs", back) { pad ->
+                PushedScreen(
+                    "Programs",
+                    back,
+                    // Script help lives in the top bar (v6), not as a row above the active program.
+                    actions = {
+                        IconButton(onClick = { openScriptReference("program", null) }) {
+                            Icon(com.zeroindex.intake.ui.theme.IntakeIcons.Help, contentDescription = "Script help")
+                        }
+                    },
+                ) { pad ->
                     ProgramsScreen(
                         contentPadding = pad,
                         onOpenSession = { id -> navController.navigate(Route.ActiveWorkout(id)) },
@@ -445,6 +461,7 @@ fun IntakeNavHost(
                         onAddJumpTest = { navController.navigate(Route.Performance) },
                         onOpenTrainingStats = { navController.navigate(Route.TrainingStats) },
                         onOpenCheckIn = { navController.navigate(Route.WeeklyCheckIn) },
+                        onOpenPhotos = { navController.navigate(Route.ProgressPhotos) },
                     )
                 }
             }
@@ -467,7 +484,7 @@ fun IntakeNavHost(
                 back,
                 actions = {
                     IconButton(onClick = { navController.navigate(Route.Settings) }) {
-                        Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                        Icon(com.zeroindex.intake.ui.theme.IntakeIcons.Settings, contentDescription = "Settings")
                     }
                 },
             ) { pad ->
@@ -478,7 +495,9 @@ fun IntakeNavHost(
                     onChangeSetting = { group, focus -> openSettings(group, focus) },
                     onOpenPhotos = { navController.navigate(Route.ProgressPhotos) },
                     onOpenCompare = { navController.navigate(Route.PhotoCompare) },
-                    onOpenHelp = { openSettings("about", null) },
+                    onReplayTour = goToToday,
+                    onOpenScriptDocs = { openScriptReference("README", null) },
+                    onOpenPrivacy = { navController.navigate(Route.Privacy) },
                 )
             }
         }
@@ -646,5 +665,6 @@ fun IntakeNavHost(
             PushedScreen("Weekly check-in", back) { pad -> WeeklyCheckInScreen(contentPadding = pad) }
         }
         // Add new shared routes above this line.
+    }
     }
 }

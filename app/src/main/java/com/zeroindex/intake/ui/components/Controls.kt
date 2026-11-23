@@ -31,6 +31,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.ui.theme.IconSize
@@ -126,6 +128,8 @@ fun Segmented(
     selectedIndex: Int,
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    /** [Role.Tab] when the control switches a screen's pages (Train); [Role.RadioButton] for a setting. */
+    role: Role = Role.RadioButton,
 ) {
     Surface(
         color = MaterialTheme.intake.soft,
@@ -148,10 +152,11 @@ fun Segmented(
                         // Clip before the click so the press ripple takes the pill's round corners.
                         .clip(IntakeShape.Pill)
                         .clickable(
-                            role = Role.RadioButton,
+                            role = role,
                             onClickLabel = option,
                             onClick = { onSelect(index) },
-                        ),
+                        )
+                        .semantics { this.selected = selected },
                 ) {
                     Box(
                         modifier = Modifier.padding(horizontal = 14.dp),

@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
@@ -197,7 +196,7 @@ private fun ItemRow(
             modifier = Modifier.width(104.dp),
         )
         IconButton(onClick = { viewModel.remove(item.key) }, modifier = Modifier.size(48.dp)) {
-            Icon(Icons.Filled.Close, contentDescription = "Remove ${item.name}")
+            Icon(com.zeroindex.intake.ui.theme.IntakeIcons.Close, contentDescription = "Remove ${item.name}")
         }
     }
 }

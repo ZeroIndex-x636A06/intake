@@ -222,6 +222,7 @@ fun CustomDrinkScreen(
 
     state.pending?.let { p ->
         AllergenWarningSheet(
+            onFindSwap = com.zeroindex.intake.ui.allergen.rememberFindSwap(),
             foodName = p.food.name,
             scan = p.scan,
             ingredientText = p.food.allergenTags.takeIf { it.isNotBlank() },

@@ -715,22 +715,26 @@ private fun CreditsRow() {
     SettingRow("Credits and licences", "Where the food, exercise and weather data come from.") {
         OutlinedButton(onClick = { open = true }, shape = IntakeShape.Chip) { Text("Read") }
     }
-    if (open) {
-        AlertDialog(
-            onDismissRequest = { open = false },
-            title = { Text("Credits and licences") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Generic foods: ${FoodRefInfo.USDA_CREDIT}", style = MaterialTheme.typography.bodySmall)
-                    Text(FoodRefInfo.OFF_CREDIT, style = MaterialTheme.typography.bodySmall)
-                    Text(com.zeroindex.intake.domain.training.ExerciseGuideIndex.CREDIT, style = MaterialTheme.typography.bodySmall)
-                    Text("Weather for the water target: data by Open-Meteo.com, licensed CC BY 4.0, only if you turn it on.", style = MaterialTheme.typography.bodySmall)
-                    Text(androidx.compose.ui.res.stringResource(com.zeroindex.intake.R.string.credits_fonts), style = MaterialTheme.typography.bodySmall)
-                }
-            },
-            confirmButton = { TextButton(onClick = { open = false }) { Text("Close") } },
-        )
-    }
+    if (open) CreditsDialog(onDismiss = { open = false })
+}
+
+/** The credits and licences dialog, shared by Settings > About and You > Help. */
+@Composable
+fun CreditsDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Credits and licences") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Generic foods: ${FoodRefInfo.USDA_CREDIT}", style = MaterialTheme.typography.bodySmall)
+                Text(FoodRefInfo.OFF_CREDIT, style = MaterialTheme.typography.bodySmall)
+                Text(com.zeroindex.intake.domain.training.ExerciseGuideIndex.CREDIT, style = MaterialTheme.typography.bodySmall)
+                Text("Weather for the water target: data by Open-Meteo.com, licensed CC BY 4.0, only if you turn it on.", style = MaterialTheme.typography.bodySmall)
+                Text(androidx.compose.ui.res.stringResource(com.zeroindex.intake.R.string.credits_fonts), style = MaterialTheme.typography.bodySmall)
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+    )
 }
 
 /**

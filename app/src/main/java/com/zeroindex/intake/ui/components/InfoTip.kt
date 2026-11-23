@@ -3,7 +3,6 @@ package com.zeroindex.intake.ui.components
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
@@ -32,7 +31,7 @@ fun InfoTip(
     var open by remember { mutableStateOf(false) }
     IconButton(onClick = { open = true }, modifier = modifier.size(48.dp)) {
         Icon(
-            imageVector = Icons.Outlined.Info,
+            imageVector = com.zeroindex.intake.ui.theme.IntakeIcons.Info,
             contentDescription = "$label: $text",
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(18.dp),

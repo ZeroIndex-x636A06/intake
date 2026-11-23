@@ -25,6 +25,9 @@ import com.zeroindex.intake.ui.motion.pressScale
 import com.zeroindex.intake.ui.screens.plan.RecipeCard
 import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IconSize
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.size
 import com.zeroindex.intake.ui.theme.IntakeSpacing
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -103,6 +106,11 @@ fun RecipesScreen(
     val gate = rememberStaggerGate()
     // Two cards a row; one column when the text is large (font scale 1.5).
     val columns = if (LocalDensity.current.fontScale >= 1.3f) 1 else 2
+    // The drawn search field: a client-side name filter over My recipes, word starts first (the same rank Log food uses).
+    var recipeFilter by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf("") }
+    val shown = androidx.compose.runtime.remember(loadedRecipes, recipeFilter) {
+        com.zeroindex.intake.domain.food.NameMatchRank.filterAndRank(recipes, recipeFilter.trim(), { it.name })
+    }
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
         contentPadding = hubPadding(contentPadding),
@@ -143,6 +151,22 @@ fun RecipesScreen(
             }
         }
         item(key = "mine-head") { SectionLine("My recipes", note = if (loadedRecipes == null) "" else "${recipes.size} saved") }
+        if (recipes.isNotEmpty()) {
+            item(key = "recipe-search") {
+                androidx.compose.material3.OutlinedTextField(
+                    value = recipeFilter,
+                    onValueChange = { recipeFilter = it },
+                    placeholder = { Text("Search your recipes") },
+                    leadingIcon = { Icon(IntakeIcons.Search, contentDescription = null, modifier = Modifier.size(IconSize.Default)) },
+                    singleLine = true,
+                    shape = IntakeShape.Pill,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            if (shown.isEmpty()) {
+                item(key = "recipe-no-match") { SubCopy("No saved recipe matches \"${recipeFilter.trim()}\".") }
+            }
+        }
         if (loadedRecipes != null && recipes.isEmpty()) {
             item(key = "no-recipes") {
                 EmptyState(
@@ -155,7 +179,7 @@ fun RecipesScreen(
                 )
             }
         }
-        itemsIndexed(recipes.chunked(columns), key = { _, row -> row.first().id }) { index, row ->
+        itemsIndexed(shown.chunked(columns), key = { _, row -> row.first().id }) { index, row ->
             Row(
                 horizontalArrangement = Arrangement.spacedBy(IntakeSpacing.GridGap2),
                 modifier = Modifier.height(IntrinsicSize.Max).staggerIn(gate, row.first().id, index),
@@ -316,6 +340,7 @@ fun EatingOutScreen(
     val pendingWarning by viewModel.pending.collectAsStateWithLifecycle()
     pendingWarning?.let { (p, _) ->
         com.zeroindex.intake.ui.allergen.AllergenWarningSheet(
+            onFindSwap = com.zeroindex.intake.ui.allergen.rememberFindSwap(),
             foodName = p.title, scan = p.scan,
             onDismiss = viewModel::dismissPending, onLogAnyway = { viewModel.confirmPending(options.orEmpty()) },
         )

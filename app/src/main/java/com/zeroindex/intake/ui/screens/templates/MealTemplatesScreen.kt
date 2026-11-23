@@ -151,6 +151,7 @@ fun MealTemplatesScreen(
     }
     state.pending?.let { p ->
         com.zeroindex.intake.ui.allergen.AllergenWarningSheet(
+            onFindSwap = com.zeroindex.intake.ui.allergen.rememberFindSwap(),
             foodName = p.summary.template.name,
             scan = p.check.scan,
             ingredientText = p.check.allFoods.joinToString(", "),

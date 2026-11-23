@@ -363,6 +363,7 @@ fun FoodDetailScreen(
 
     if (state.needsConfirm) {
         AllergenWarningSheet(
+            onFindSwap = com.zeroindex.intake.ui.allergen.rememberFindSwap(),
             foodName = food.name,
             scan = state.scan,
             ingredientText = food.allergenTags.takeIf { it.isNotBlank() },

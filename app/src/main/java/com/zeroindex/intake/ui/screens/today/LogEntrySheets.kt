@@ -119,7 +119,7 @@ fun LogEntryActionsSheet(
                 headlineContent = { Text("Delete this entry") },
                 leadingContent = {
                     Icon(
-                        Icons.Filled.Delete,
+                        com.zeroindex.intake.ui.theme.IntakeIcons.Trash,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.error,
                     )

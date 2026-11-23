@@ -23,6 +23,7 @@ data class PendingPlanAllergen(
 @Composable
 fun PlanAllergenSheet(pending: PendingPlanAllergen, onDismiss: () -> Unit, onLogAnyway: () -> Unit) {
     AllergenWarningSheet(
+        onFindSwap = com.zeroindex.intake.ui.allergen.rememberFindSwap(),
         foodName = pending.content.recipe.name,
         scan = pending.scan,
         ingredientText = pending.content.ingredientLines.joinToString(", ").takeIf { it.isNotBlank() },

@@ -13,18 +13,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BakeryDining
 import androidx.compose.material.icons.filled.Cookie
 import androidx.compose.material.icons.filled.Egg
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.EmojiFoodBeverage
-import androidx.compose.material.icons.filled.LocalBar
-import androidx.compose.material.icons.filled.LocalCafe
-import androidx.compose.material.icons.filled.SportsBar
-import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material.icons.filled.Grass
 import androidx.compose.material.icons.filled.Icecream
-import androidx.compose.material.icons.filled.LocalDrink
 import androidx.compose.material.icons.filled.OutdoorGrill
-import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.SetMeal
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.Icon
@@ -234,12 +226,12 @@ fun ThumbTile(
 
 /** The icon of a saved drink, by its category: a tea cup for tea, a coffee cup for coffee, and so on. */
 internal fun drinkIcon(category: DrinkCategory): ImageVector = when (category) {
-    DrinkCategory.WATER -> Icons.Filled.WaterDrop
-    DrinkCategory.COFFEE -> Icons.Filled.LocalCafe
-    DrinkCategory.TEA -> Icons.Filled.EmojiFoodBeverage
-    DrinkCategory.ALCOHOL -> Icons.Filled.LocalBar
-    DrinkCategory.SPORTS_ENERGY -> Icons.Filled.SportsBar
-    DrinkCategory.SODA, DrinkCategory.JUICE, DrinkCategory.MILK, DrinkCategory.OTHER -> Icons.Filled.LocalDrink
+    DrinkCategory.WATER -> com.zeroindex.intake.ui.theme.IntakeIcons.Drop
+    DrinkCategory.COFFEE -> com.zeroindex.intake.ui.theme.IntakeIcons.Mug
+    DrinkCategory.TEA -> com.zeroindex.intake.ui.theme.IntakeIcons.Mug
+    DrinkCategory.ALCOHOL -> com.zeroindex.intake.ui.theme.IntakeIcons.Cup
+    DrinkCategory.SPORTS_ENERGY -> com.zeroindex.intake.ui.theme.IntakeIcons.Cup
+    DrinkCategory.SODA, DrinkCategory.JUICE, DrinkCategory.MILK, DrinkCategory.OTHER -> com.zeroindex.intake.ui.theme.IntakeIcons.Drop
 }
 
 internal fun categoryIcon(category: FoodCategory): ImageVector = when (category) {
@@ -251,8 +243,8 @@ internal fun categoryIcon(category: FoodCategory): ImageVector = when (category)
     FoodCategory.VEGETABLE -> Icons.Filled.Grass
     FoodCategory.GRAIN -> Icons.Filled.BakeryDining
     FoodCategory.SWEET -> Icons.Filled.Cookie
-    FoodCategory.DRINK -> Icons.Filled.LocalDrink
+    FoodCategory.DRINK -> com.zeroindex.intake.ui.theme.IntakeIcons.Drop
     FoodCategory.NUT -> Icons.Filled.Spa
-    FoodCategory.SUPPLEMENT -> Icons.Filled.FitnessCenter
-    FoodCategory.OTHER -> Icons.Filled.Restaurant
+    FoodCategory.SUPPLEMENT -> com.zeroindex.intake.ui.theme.IntakeIcons.Dumbbell
+    FoodCategory.OTHER -> com.zeroindex.intake.ui.theme.IntakeIcons.ForkKnife
 }

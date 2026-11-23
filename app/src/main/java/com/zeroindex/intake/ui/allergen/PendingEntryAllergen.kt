@@ -26,6 +26,7 @@ data class PendingEntryAllergen(
 @Composable
 fun PendingEntryAllergenSheet(pending: PendingEntryAllergen, onDismiss: () -> Unit, onLogAnyway: () -> Unit) {
     AllergenWarningSheet(
+        onFindSwap = com.zeroindex.intake.ui.allergen.rememberFindSwap(),
         foodName = pending.name,
         scan = pending.scan,
         onDismiss = onDismiss,

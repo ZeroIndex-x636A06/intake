@@ -481,7 +481,7 @@ internal fun NearbyCard(
                             Column(Modifier.weight(1f)) {
                                 Text(r.name, style = MaterialTheme.typography.titleSmall)
                                 Text(
-                                    "%.1f mi".format(java.util.Locale.US, com.zeroindex.intake.domain.nearby.TravelRadius.metersToMiles(r.distanceM)) +
+                                    com.zeroindex.intake.domain.units.DistanceText.format(r.distanceM / 1000.0, lengthUnit, 1) +
                                         (r.origin?.let { " · from ${it.label}" } ?: ""),
                                     style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )

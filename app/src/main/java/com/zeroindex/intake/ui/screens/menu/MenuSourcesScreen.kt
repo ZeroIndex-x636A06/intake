@@ -16,6 +16,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -84,6 +85,7 @@ fun MenuSourcesScreen(
     val verdicts by viewModel.openVerdicts.collectAsStateWithLifecycle()
     val allergenOnly by viewModel.allergenOnlyIds.collectAsStateWithLifecycle()
     var adding by remember { mutableStateOf(false) }
+    var addKind by remember { mutableStateOf(MenuSourceKind.URL) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         val refused = state.refusedSource
         if (uri != null && refused != null) viewModel.replaceWithPdf(refused, uri.toString())
@@ -249,11 +251,20 @@ fun MenuSourcesScreen(
                 }
             }
         }
-        item(key = "sources-head") {
-            SectionLine("Saved sources") {
-                TextButton(onClick = { adding = true }) { Text("＋ Add source") }
+        // Three source cards, as drawn: a link, a PDF or pasted text. Each opens the Add source sheet on that kind.
+        item(key = "add-head") { SectionLine("Add a menu") }
+        item(key = "add-cards") {
+            Row(Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(IntakeSpacing.GridGap2)) {
+                listOf(
+                    Triple("Paste link", com.zeroindex.intake.ui.theme.IntakeIcons.Link, MenuSourceKind.URL),
+                    Triple("Choose PDF", com.zeroindex.intake.ui.theme.IntakeIcons.FileText, MenuSourceKind.PDF),
+                    Triple("Paste text", com.zeroindex.intake.ui.theme.IntakeIcons.Notes, MenuSourceKind.TEXT),
+                ).forEach { (label, icon, kind) ->
+                    com.zeroindex.intake.ui.components.ActionTile(label, icon, { addKind = kind; adding = true }, Modifier.weight(1f).fillMaxHeight())
+                }
             }
         }
+        item(key = "sources-head") { SectionLine("Saved sources") }
         if (sources.isEmpty()) {
             item(key = "empty") {
                 EmptyState(
@@ -323,7 +334,7 @@ fun MenuSourcesScreen(
         }
     }
 
-    if (adding) AddSourceSheet(hasKey = state.hasKey, onDismiss = { adding = false }, onAdd = { n, k, l, p -> viewModel.add(n, k, l, p); adding = false })
+    if (adding) AddSourceSheet(initialKind = addKind, hasKey = state.hasKey, onDismiss = { adding = false }, onAdd = { n, k, l, p -> viewModel.add(n, k, l, p); adding = false })
     state.review?.let { ReviewSheet(it, onToggle = viewModel::toggle, onSave = viewModel::commit, onClose = viewModel::closeReview, onDiscard = { viewModel.askDiscard(it.source) }) }
     state.confirmDiscard?.let { src ->
         androidx.compose.material3.AlertDialog(
@@ -351,9 +362,9 @@ fun MenuSourcesScreen(
 }
 
 @Composable
-private fun AddSourceSheet(hasKey: Boolean, onDismiss: () -> Unit, onAdd: (String, MenuSourceKind, String, String?) -> Unit) {
+private fun AddSourceSheet(initialKind: MenuSourceKind, hasKey: Boolean, onDismiss: () -> Unit, onAdd: (String, MenuSourceKind, String, String?) -> Unit) {
     var name by remember { mutableStateOf("") }
-    var kind by remember { mutableStateOf(MenuSourceKind.URL) }
+    var kind by remember { mutableStateOf(initialKind) }
     var url by remember { mutableStateOf("") }
     var pdf by remember { mutableStateOf<String?>(null) }
     var text by remember { mutableStateOf("") }

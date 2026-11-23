@@ -182,6 +182,7 @@ fun PhotoEstimateFlow(
     (state.stage as? PhotoStage.Review)?.confirmingAllergens?.let { scan ->
         val review = state.stage as PhotoStage.Review
         AllergenWarningSheet(
+            onFindSwap = com.zeroindex.intake.ui.allergen.rememberFindSwap(),
             foodName = review.shown.joinToString(", ") { it.line.name },
             scan = scan,
             onDismiss = viewModel::cancelAllergenConfirm,

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -111,7 +112,8 @@ internal fun SetRowsBlock(
     fun valuesOf(index: Int): Pair<String, String> = edits[index] ?: defaults(index)
 
     Column(Modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        // The column headers belong to the one-line grid; the two-line rows at large text carry labels on their fields instead.
+        if (androidx.compose.ui.platform.LocalDensity.current.fontScale < 1.5f) Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             HeaderCell(Modifier.width(32.dp), "Set")
             HeaderCell(Modifier.weight(if (effortScale == EffortScale.OFF) 1.1f else 0.95f), "Previous")
             HeaderCell(Modifier.weight(1f), if (bodyweight) "+${unit.label}" else unit.label)
@@ -248,18 +250,15 @@ private fun SetLine(
 ) {
     val haptics = LocalHapticFeedback.current
     val done = existing != null
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 56.dp)
-            .clip(IntakeShape.SetRow)
-            .background(if (done) MaterialTheme.intake.okBg else Color.Transparent)
-            .flashOn(flash, MaterialTheme.intake.accent),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    // At large text (font scale 1.5 and up) the row is two lines so nothing is cut: the set, the previous numbers and the tick
+    // on the first, the weight, reps and effort fields on the second.
+    val twoLine = androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.5f
+    val numberBox: @Composable RowScope.() -> Unit = {
         Box(Modifier.width(32.dp), contentAlignment = Alignment.Center) {
             Text("$number", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
         }
+    }
+    val previousBox: @Composable RowScope.() -> Unit = {
         Box(
             Modifier
                 .weight(if (effortScale == EffortScale.OFF) 1.1f else 0.95f)
@@ -283,16 +282,20 @@ private fun SetLine(
                 }
             }
         }
+    }
+    val inputs: @Composable RowScope.() -> Unit = {
         if (done && existing != null) {
             ShownCell(Modifier.weight(1f), displayWeight(existing.weightKg))
             ShownCell(Modifier.weight(0.9f), "${existing.reps}", trophy = record)
         } else {
-            NumberCell(Modifier.weight(1f), weight, onWeightChange, "Set $number weight in $unitLabel", weightPlaceholder)
-            NumberCell(Modifier.weight(0.9f), reps, onRepsChange, "Set $number reps")
+            NumberCell(Modifier.weight(1f), weight, onWeightChange, "Set $number weight in $unitLabel", weightPlaceholder, caption = if (twoLine) unitLabel else null)
+            NumberCell(Modifier.weight(0.9f), reps, onRepsChange, "Set $number reps", caption = if (twoLine) "Reps" else null)
         }
         if (effortScale != EffortScale.OFF) {
             EffortCell(Modifier.weight(0.8f), number, effortScale, effort, onEffortChange)
         }
+    }
+    val tick: @Composable RowScope.() -> Unit = {
         val enabled = done || canLog
         Box(
             modifier = Modifier
@@ -324,6 +327,20 @@ private fun SetLine(
             )
         }
     }
+    val frame = Modifier
+        .fillMaxWidth()
+        .heightIn(min = 56.dp)
+        .clip(IntakeShape.SetRow)
+        .background(if (done) MaterialTheme.intake.okBg else Color.Transparent)
+        .flashOn(flash, MaterialTheme.intake.accent)
+    if (twoLine) {
+        Column(frame.padding(vertical = 4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) { numberBox(); previousBox(); tick() }
+            Row(Modifier.padding(start = 32.dp), verticalAlignment = Alignment.CenterVertically) { inputs() }
+        }
+    } else {
+        Row(frame, verticalAlignment = Alignment.CenterVertically) { numberBox(); previousBox(); inputs(); tick() }
+    }
 }
 
 @Composable
@@ -353,13 +370,17 @@ private fun NumberCell(
     onValueChange: (String) -> Unit,
     label: String,
     placeholder: String? = null,
+    /** A visible label above the field, for the two-line rows at large text (the one-line grid has column headers). */
+    caption: String? = null,
 ) {
     var focused by remember { mutableStateOf(false) }
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+    if (caption != null) Eyebrow(caption)
     Surface(
         color = MaterialTheme.intake.soft,
         shape = IntakeShape.ExtraSmall,
         border = if (focused) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
-        modifier = modifier.padding(horizontal = 3.dp).height(48.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 3.dp).height(48.dp),
     ) {
         Box(contentAlignment = Alignment.Center) {
             if (value.isEmpty() && placeholder != null) {
@@ -384,6 +405,7 @@ private fun NumberCell(
                     .semantics { contentDescription = label },
             )
         }
+    }
     }
 }
 

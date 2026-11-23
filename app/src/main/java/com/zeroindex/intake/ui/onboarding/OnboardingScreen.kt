@@ -124,6 +124,8 @@ fun OnboardingScreen(
     contentPadding: PaddingValues,
     onFinished: () -> Unit,
     modifier: Modifier = Modifier,
+    /** The Optional extras "Set up" buttons: finishes the welcome flow, then opens that Settings group (health, sync, ai). */
+    onSetUp: (group: String) -> Unit = {},
     viewModel: OnboardingViewModel = hiltViewModel(),
     profileViewModel: ProfileViewModel = hiltViewModel(),
 ) {
@@ -201,7 +203,7 @@ fun OnboardingScreen(
                     OnboardingStep.ALLERGENS -> AllergensStep()
                     OnboardingStep.HOW_TO_START -> HowToStartStep(viewModel) { viewModel.goTo(OnboardingStep.ABOUT_YOU) }
                     OnboardingStep.PLANS -> PlansStep(viewModel)
-                    OnboardingStep.EXTRAS -> ExtrasStep()
+                    OnboardingStep.EXTRAS -> ExtrasStep(onSetUp = { group -> viewModel.finish { onFinished(); onSetUp(group) } })
                     OnboardingStep.DONE -> DoneStep(prefs.pending, prefs.replay)
                 }
             }
@@ -773,14 +775,14 @@ private fun PlansStep(viewModel: OnboardingViewModel) {
 // --------------------------------------------------------------------------------------- 8 Extras
 
 @Composable
-private fun ExtrasStep() {
+private fun ExtrasStep(onSetUp: (String) -> Unit) {
     StepHeading("Optional extras", "None of these are needed. Intake works fully without them.")
     ListCard {
-        ExtraRow(IntakeIcons.Heart, "Health Connect", "Steps, sleep and weight from your watch or scale.")
+        ExtraRow(IntakeIcons.Heart, "Health Connect", "Steps, sleep and weight from your watch or scale.", onSetUp = { onSetUp("health") })
         ListDivider()
-        ExtraRow(IntakeIcons.Download, "Backups", "A copy of your data in a file, or on a server you run yourself.")
+        ExtraRow(IntakeIcons.Download, "Backups", "A copy of your data in a file, or on a server you run yourself.", onSetUp = { onSetUp("sync") })
         ListDivider()
-        ExtraRow(IntakeIcons.Sparkle, "AI shortcuts", "Photo estimates and recipe ideas. Off until you add your own key.", ai = true)
+        ExtraRow(IntakeIcons.Sparkle, "AI shortcuts", "Photo estimates and recipe ideas. Off until you add your own key.", ai = true, onSetUp = { onSetUp("ai") })
     }
     Text(
         "You can set these up later on You, the circle at the top right.",
@@ -790,10 +792,10 @@ private fun ExtrasStep() {
 }
 
 @Composable
-private fun ExtraRow(icon: ImageVector, title: String, description: String, ai: Boolean = false) {
+private fun ExtraRow(icon: ImageVector, title: String, description: String, ai: Boolean = false, onSetUp: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = IntakeSpacing.ListRowPadH, vertical = IntakeSpacing.ListRowPadV),
-        verticalAlignment = Alignment.Top,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         if (ai) {
             Surface(color = MaterialTheme.intake.aiBg, contentColor = MaterialTheme.intake.ai, shape = IntakeShape.Tile, modifier = Modifier.size(40.dp)) {
@@ -803,10 +805,16 @@ private fun ExtraRow(icon: ImageVector, title: String, description: String, ai: 
             IconTile(icon)
         }
         Spacer(Modifier.width(14.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium)
             Text(description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        Spacer(Modifier.width(8.dp))
+        androidx.compose.material3.OutlinedButton(
+            onClick = onSetUp,
+            shape = IntakeShape.Chip,
+            modifier = Modifier.semantics { contentDescription = "Set up $title" },
+        ) { Text("Set up") }
     }
 }
 

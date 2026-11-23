@@ -50,6 +50,7 @@ fun TrainRootScreen(
             options = TrainSection.entries.map { it.label },
             selectedIndex = section,
             onSelect = { section = it },
+            role = androidx.compose.ui.semantics.Role.Tab,
             modifier = Modifier.fillMaxWidth().padding(horizontal = IntakeSpacing.ScreenGutter, vertical = 8.dp),
         )
         Box(Modifier.weight(1f).fillMaxWidth()) {

@@ -143,11 +143,6 @@ fun ProgramsScreen(
                 }
             }
         }
-        item(key = "script-help") {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                GhostButton(onClick = { onOpenScriptReference("program", null) }) { Text("Script help") }
-            }
-        }
 
         val active = state.activeProgram
         item(key = "active") {

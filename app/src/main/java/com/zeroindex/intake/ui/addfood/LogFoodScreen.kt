@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import com.zeroindex.intake.ui.components.ChoiceChip
 import androidx.compose.foundation.text.KeyboardOptions
 import com.zeroindex.intake.ui.components.rememberSyncedText
 import androidx.compose.foundation.verticalScroll
@@ -268,6 +269,7 @@ fun LogFoodScreen(
     // A recipe serving that matches the allergen profile waits here, exactly as a food does.
     pendingRecipe?.let { pending ->
         AllergenWarningSheet(
+            onFindSwap = com.zeroindex.intake.ui.allergen.rememberFindSwap(mealSlot.name),
             foodName = pending.name,
             scan = pending.scan,
             ingredientText = pending.ingredientText,
@@ -279,6 +281,7 @@ fun LogFoodScreen(
     // SPEC §7.2: nothing is written until this is answered.
     state.pendingLog?.let { pending ->
         AllergenWarningSheet(
+            onFindSwap = com.zeroindex.intake.ui.allergen.rememberFindSwap(mealSlot.name),
             foodName = pending.name,
             scan = pending.scan,
             ingredientText = pending.food?.allergenTags?.takeIf { it.isNotBlank() },
@@ -463,6 +466,8 @@ private fun SearchTab(
     onCreate: (String, String?, Double, String, Double, Double, Double, Double) -> Unit,
 ) {
     var creating by remember { mutableStateOf(false) }
+    // The source filter over the result sections below (client side; the searches themselves are unchanged).
+    var sourceFilter by rememberSaveable { mutableStateOf(SourceFilter.All) }
     if (creating) {
         CreateFoodForm(
             heading = "Create a food",
@@ -505,6 +510,16 @@ private fun SearchTab(
             ),
             modifier = Modifier.fillMaxWidth().padding(horizontal = IntakeSpacing.ScreenGutter, vertical = 10.dp),
         )
+
+        if (query.isNotBlank()) {
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = IntakeSpacing.ScreenGutter),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                SourceFilter.entries.forEach { f -> ChoiceChip(f.label, sourceFilter == f, { sourceFilter = f }) }
+            }
+        }
 
         if (query.isBlank()) {
             if (!state.loaded || !recipes.loaded) {
@@ -562,6 +577,10 @@ private fun SearchTab(
             // A forced remeasure of the whole list: skipped when it is already at the top.
             if (resultsState.firstVisibleItemIndex != 0 || resultsState.firstVisibleItemScrollOffset != 0) resultsState.scrollToItem(0)
         }
+        val showMine = sourceFilter == SourceFilter.All || sourceFilter == SourceFilter.Mine
+        val showRecipes = sourceFilter == SourceFilter.All || sourceFilter == SourceFilter.Recipes
+        val showUsda = sourceFilter == SourceFilter.All || sourceFilter == SourceFilter.Usda
+        val showOff = sourceFilter == SourceFilter.All || sourceFilter == SourceFilter.Off
         // Sources in order: this phone, the offline USDA database, Open Food Facts, the USDA API.
         LazyColumn(state = resultsState, modifier = Modifier.fillMaxSize()) {
             // The same words also find drinks (almond milk is a drink here, not a food): a row at the top, before the
@@ -571,7 +590,7 @@ private fun SearchTab(
                     DrinksRow("Drinks matching \"${query.trim()}\" are logged from Drinks", title = "Drinks: ${query.trim()}") { onOpenDrinks(query.trim()) }
                 }
             }
-            if (state.localResults.isNotEmpty()) {
+            if (showMine && state.localResults.isNotEmpty()) {
                 item(key = "h-local") { SourceHeader("My foods and recents") }
                 itemsIndexed(items = state.localResults, key = { _, it -> "l-${it.id}" }) { i, food ->
                     FoodRow(food, food.id in state.safeFoodIds, state.chipFor(food.id), onOpen, onQuickAdd, index = i, count = state.localResults.size)
@@ -579,27 +598,27 @@ private fun SearchTab(
             }
 
             // Saved recipes: on this phone, one serving through the recipe logging path.
-            if (recipes.results.isNotEmpty()) {
+            if (showRecipes && recipes.results.isNotEmpty()) {
                 item(key = "h-recipes") { RecipeSourceHeader("Recipes (saved on this phone)") }
                 itemsIndexed(items = recipes.results, key = { _, it -> "rcp-${it.recipe.id}" }) { i, row -> RecipeLogRow(row, onLogRecipe, i, recipes.results.size) }
             }
 
             // Imported restaurant menus: on this phone, logged per serving with the item's own numbers.
-            if (state.menuRows.isNotEmpty()) {
+            if (showMine && state.menuRows.isNotEmpty()) {
                 item(key = "h-menu") { SourceHeader("Restaurant menus (imported, works offline)") }
                 itemsIndexed(items = state.menuRows, key = { _, it -> "m-${it.hit.item.id}" }) { i, row ->
                     MenuItemRow(row, onLogMenu, i, state.menuRows.size)
                 }
             }
 
-            if (state.refResults.isNotEmpty()) {
+            if (showUsda && state.refResults.isNotEmpty()) {
                 item(key = "h-ref") { SourceHeader("Food database (USDA, works offline)") }
                 itemsIndexed(items = state.refResults, key = { _, it -> "r-${it.id}" }) { i, ref ->
                     RefFoodRow(ref, state.refChipFor(ref.id), state.portionUnit, onChooseRef, i, state.refResults.size)
                 }
             }
 
-            when (state.offState) {
+            when (if (showOff) state.offState else OffUiState.Hidden) {
                 OffUiState.Hidden -> Unit
                 OffUiState.Loading -> item(key = "off-loading") {
                     Column {
@@ -630,7 +649,7 @@ private fun SearchTab(
             }
 
             // The USDA API is an extra for people who have set a key; it is never required.
-            if (state.hasUsdaKey) {
+            if (showUsda && state.hasUsdaKey) {
                 item(key = "usda-api") {
                     when (val search = state.searchState) {
                         SearchState.Idle -> LineButton(
@@ -657,6 +676,20 @@ private fun SearchTab(
             }
 
             val typed = query.trim()
+            val shownCount = (if (showMine) state.localResults.size + state.menuRows.size else 0) +
+                (if (showRecipes) recipes.results.size else 0) +
+                (if (showUsda) state.refResults.size + usdaApiResults.size else 0) +
+                (if (showOff) offResults.size else 0)
+            if (sourceFilter != SourceFilter.All && shownCount == 0 && !nothingYet && !(showOff && offLoading)) {
+                item(key = "filter-empty") {
+                    Text(
+                        "Nothing matches \"$typed\" in this source. Choose All sources to see every match.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(IntakeSpacing.ScreenGutter),
+                    )
+                }
+            }
             if (nothingYet && !offLoading && state.queryMatchesDrinks) {
                 // The words only find drinks. Foods and drinks are separate searches, so say where they went.
                 item(key = "drinks-only") {
@@ -696,6 +729,11 @@ private fun SearchTab(
             }
         }
     }
+}
+
+/** The Log food source filter row (mockup v6): a client-side filter over the result sections. */
+private enum class SourceFilter(val label: String) {
+    All("All sources"), Mine("Mine"), Recipes("Recipes"), Usda("USDA"), Off("OFF"),
 }
 
 /** "Log a drink", at the foot of Search (the frame's last row): the way across to the Drinks page and its search. */

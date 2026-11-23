@@ -27,6 +27,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.zeroindex.intake.ui.components.ListDivider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -125,7 +129,9 @@ fun YouScreen(
     onChangeSetting: (group: String, focus: String?) -> Unit,
     onOpenPhotos: () -> Unit,
     onOpenCompare: () -> Unit,
-    onOpenHelp: () -> Unit,
+    onReplayTour: () -> Unit,
+    onOpenScriptDocs: () -> Unit,
+    onOpenPrivacy: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: YouViewModel = hiltViewModel(),
 ) {
@@ -282,25 +288,39 @@ fun YouScreen(
         }
 
         item(key = "help") {
+            val helpFlow: com.zeroindex.intake.ui.onboarding.HelpFlowViewModel = hiltViewModel()
+            var credits by remember { mutableStateOf(false) }
             ListCard {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = IntakeSpacing.ListRowMinHeight)
-                        .clickable(role = Role.Button, onClick = onOpenHelp)
-                        .padding(horizontal = IntakeSpacing.ListRowPadH, vertical = IntakeSpacing.ListRowPadV),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconTile(IntakeIcons.Help, small = true)
-                    Spacer(Modifier.width(14.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("Tour, scripts help and about", style = MaterialTheme.typography.titleMedium)
-                        Text("Replay the tour, read the script docs, privacy and credits.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    RowChevron()
-                }
+                HelpRow(IntakeIcons.Help, "Replay the tour", "A quick look around Today. Nothing is changed or deleted.") { helpFlow.replayTour(then = onReplayTour) }
+                ListDivider()
+                HelpRow(IntakeIcons.Code, "Script docs", "Meal plan and program scripts, with the full reference. Works offline.", onOpenScriptDocs)
+                ListDivider()
+                HelpRow(IntakeIcons.ShieldCheck, "What leaves this phone", "Exactly what is sent, to whom, and when.", onOpenPrivacy)
+                ListDivider()
+                HelpRow(IntakeIcons.Book, "Credits and licences", "Where the food, exercise and weather data come from.") { credits = true }
             }
+            if (credits) com.zeroindex.intake.ui.screens.settings.CreditsDialog(onDismiss = { credits = false })
         }
+    }
+}
+
+@Composable
+private fun HelpRow(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, subtitle: String, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = IntakeSpacing.ListRowMinHeight)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = IntakeSpacing.ListRowPadH, vertical = IntakeSpacing.ListRowPadV),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconTile(icon, small = true)
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        RowChevron()
     }
 }
 

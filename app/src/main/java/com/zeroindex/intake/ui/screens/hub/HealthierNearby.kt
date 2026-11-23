@@ -282,6 +282,7 @@ fun rememberHealthierBlock(
     }
     state.pendingWarning?.let { p ->
         com.zeroindex.intake.ui.allergen.AllergenWarningSheet(
+            onFindSwap = com.zeroindex.intake.ui.allergen.rememberFindSwap(),
             foodName = p.title, scan = p.scan,
             onDismiss = viewModel::cancelOverride, onLogAnyway = viewModel::confirmOverride,
         )
