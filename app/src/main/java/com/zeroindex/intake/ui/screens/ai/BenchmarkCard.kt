@@ -140,7 +140,7 @@ internal fun BenchmarkRunCard(
             is BenchmarkPhase.Running -> {
                 LoadingState(progressLines(phase.progress))
                 phase.progress?.note?.let {
-                    Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
+                    Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 OutlinedButton(
                     onClick = onCancel,

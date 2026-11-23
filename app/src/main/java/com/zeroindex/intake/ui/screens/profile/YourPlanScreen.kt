@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.AlertDialog
@@ -43,7 +44,10 @@ import com.zeroindex.intake.ui.components.PillTone
 import com.zeroindex.intake.ui.components.SandNote
 import com.zeroindex.intake.ui.components.StatusPill
 import com.zeroindex.intake.ui.components.SubCopy
-import com.zeroindex.intake.ui.components.SwitchRow
+import com.zeroindex.intake.ui.components.IntakeSwitch
+import com.zeroindex.intake.ui.components.SettingRow
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.theme.intake
 import java.util.Locale
 
 private val WEEKDAYS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
@@ -68,10 +72,10 @@ fun YourPlanScreen(
         contentPadding = PaddingValues(
             top = contentPadding.calculateTopPadding(),
             bottom = contentPadding.calculateBottomPadding() + 32.dp,
-            start = 16.dp,
-            end = 16.dp,
+            start = IntakeSpacing.ScreenGutter,
+            end = IntakeSpacing.ScreenGutter,
         ),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
     ) {
         item(key = "head") { SubCopy("Every number says why. Change any of them before you apply.") }
 
@@ -86,7 +90,7 @@ fun YourPlanScreen(
                         lead = "Not quite enough to build a plan",
                         body = state.cannotBuildBecause ?: "Fill in Profile & goals first.",
                     )
-                    Button(onClick = onOpenProfile, modifier = Modifier.fillMaxWidth().padding(top = 10.dp).height(52.dp)) {
+                    Button(onClick = onOpenProfile, modifier = Modifier.fillMaxWidth().padding(top = 10.dp).heightIn(min = 52.dp)) {
                         Text("Open Profile & goals")
                     }
                 }
@@ -99,8 +103,8 @@ fun YourPlanScreen(
                             AccentNote(
                                 lead = "Heads up",
                                 body = w.text,
-                                container = MaterialTheme.colorScheme.tertiaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                                container = MaterialTheme.intake.warnBg,
+                                contentColor = MaterialTheme.intake.warn,
                             )
                         } else {
                             SandNote(w.text)
@@ -137,9 +141,9 @@ fun YourPlanScreen(
                         headline = {
                             MacroTiles(
                                 listOf(
-                                    Triple("${plan.macros.proteinG} g", "Protein", MaterialTheme.colorScheme.primary),
-                                    Triple("${plan.macros.carbsG} g", "Carbs", MaterialTheme.colorScheme.secondary),
-                                    Triple("${plan.macros.fatG} g", "Fat", MaterialTheme.colorScheme.tertiary),
+                                    Triple("${plan.macros.proteinG} g", "Protein", MaterialTheme.intake.protein),
+                                    Triple("${plan.macros.carbsG} g", "Carbs", MaterialTheme.intake.carb),
+                                    Triple("${plan.macros.fatG} g", "Fat", MaterialTheme.intake.fat),
                                 ),
                             )
                         },
@@ -168,7 +172,7 @@ fun YourPlanScreen(
                     val training = state.training
                     IntakeCard {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Training", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                            Text("Training", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
                             TextButton(onClick = onOpenProfile) { Text("Edit") }
                         }
                         if (training != null) {
@@ -178,17 +182,14 @@ fun YourPlanScreen(
                                 Text(it, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 3.dp))
                             }
                             Spacer(Modifier.height(8.dp))
-                            OutlinedButton(onClick = onOpenGenerator, modifier = Modifier.fillMaxWidth().height(48.dp)) {
+                            OutlinedButton(onClick = onOpenGenerator, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                                 Text("See the full program")
                             }
-                            SwitchRow(
+                            SettingRow(
                                 title = "Create this program when I apply",
                                 subtitle = if (state.hasActiveProgram) "It will become your active program. Your current one is kept." else null,
-                                on = state.includeProgram,
-                                onToggle = { viewModel.setIncludeProgram(!state.includeProgram) },
-                                onLabel = "Yes",
-                                offLabel = "No",
-                            )
+                                showDivider = false,
+                            ) { IntakeSwitch(checked = state.includeProgram, onCheckedChange = { viewModel.setIncludeProgram(it) }) }
                         }
                     }
                 }
@@ -210,7 +211,7 @@ fun YourPlanScreen(
                                     " Past days keep the targets they had.",
                             )
                             state.appliedProgramId?.let {
-                                OutlinedButton(onClick = { onOpenProgram(it) }, modifier = Modifier.fillMaxWidth().height(48.dp)) {
+                                OutlinedButton(onClick = { onOpenProgram(it) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                                     Text("Open my program")
                                 }
                             }
@@ -218,7 +219,7 @@ fun YourPlanScreen(
                             Button(
                                 onClick = viewModel::apply,
                                 enabled = !state.applying,
-                                modifier = Modifier.fillMaxWidth().height(52.dp),
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                             ) { Text(if (state.applying) "Applying..." else "Apply this plan") }
                             Text(
                                 "Nothing is saved until you apply. The calculation uses only the numbers on this phone, with no AI.",
@@ -263,7 +264,7 @@ private fun PlanCardView(
 ) {
     IntakeCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(card.title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f, fill = false))
+            Text(card.title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f, fill = false))
             InfoTip(text = card.detail, label = card.title)
             Spacer(Modifier.weight(1f))
         }

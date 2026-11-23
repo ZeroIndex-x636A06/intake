@@ -15,7 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Switch
+import com.zeroindex.intake.ui.components.IntakeSwitch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -80,28 +80,28 @@ fun AiSettingControl(id: String, modifier: Modifier = Modifier, viewModel: AiSet
                     title = "Suggest free models",
                     subtitle = "Free models are often paid for with your data. Off keeps them out of suggestions.",
                     showDivider = false,
-                ) { Switch(checked = settings.aiAllowRetainingModels, onCheckedChange = viewModel::setAllowRetaining) }
+                ) { IntakeSwitch(checked = settings.aiAllowRetainingModels, onCheckedChange = viewModel::setAllowRetaining) }
             }
             id == "dailyInsight" -> IntakeCard {
                 SettingRow(
                     title = "Daily insight",
                     subtitle = "One suggestion a day on Today. Sends a summary of the last two weeks of food, training and body data to the chosen model.",
                     showDivider = false,
-                ) { Switch(checked = settings.dailyInsightEnabled, onCheckedChange = viewModel::setDailyInsight, enabled = settings.aiEnabled) }
+                ) { IntakeSwitch(checked = settings.dailyInsightEnabled, onCheckedChange = viewModel::setDailyInsight, enabled = settings.aiEnabled) }
             }
             id == "coachAiReword" -> IntakeCard {
                 SettingRow(
                     title = "Reword my check-in",
                     subtitle = "Rewrites the weekly check-in's wording. Only the suggestion texts go out; the numbers and actions never change.",
                     showDivider = false,
-                ) { Switch(checked = settings.coachAiReword, onCheckedChange = viewModel::setCoachReword, enabled = settings.aiEnabled) }
+                ) { IntakeSwitch(checked = settings.coachAiReword, onCheckedChange = viewModel::setCoachReword, enabled = settings.aiEnabled) }
             }
             id == "menuAutoRefresh" -> IntakeCard {
                 SettingRow(
                     title = "Refresh saved menus weekly",
                     subtitle = "Re-reads your saved menu sources once a week. Pages with structured menu data need no AI; only the rest use the model.",
                     showDivider = false,
-                ) { Switch(checked = settings.menuAutoRefresh, onCheckedChange = viewModel::setMenuAutoRefresh, enabled = settings.aiEnabled) }
+                ) { IntakeSwitch(checked = settings.menuAutoRefresh, onCheckedChange = viewModel::setMenuAutoRefresh, enabled = settings.aiEnabled) }
             }
             id.startsWith("aiModel.") -> {
                 val row = state.rows.firstOrNull { aiIdSuffix(it.task.label) == id.removePrefix("aiModel.") }

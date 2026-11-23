@@ -131,7 +131,7 @@ fun HealthStatusHeader(modifier: Modifier = Modifier, viewModel: HealthConnectVi
                     )
                     if (bits.isNotEmpty()) {
                         Spacer(Modifier.height(6.dp))
-                        Text("Today so far: ${bits.joinToString(" · ")}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+                        Text("Today so far: ${bits.joinToString(" · ")}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 Spacer(Modifier.height(8.dp))

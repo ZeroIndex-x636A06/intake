@@ -27,6 +27,28 @@ enum class SettingsGroup(val id: String, val title: String, val blurb: String) {
     }
 }
 
+/**
+ * The four sections of the Settings home (design v6, owner decision 6). Each of the twelve [SettingsGroup] pages sits in
+ * exactly one section; the group ids, titles and controls do not change, so deep links and search still work.
+ */
+enum class SettingsSection(val title: String, val groups: List<SettingsGroup>) {
+    DISPLAY("Display and you", listOf(SettingsGroup.APPEARANCE, SettingsGroup.REMINDERS)),
+    TRACKING(
+        "Tracking",
+        listOf(SettingsGroup.NUTRITION, SettingsGroup.WATER, SettingsGroup.TRAINING, SettingsGroup.FOOD_DB, SettingsGroup.VIDEOS),
+    ),
+    CONNECTIONS(
+        "Connections and data",
+        listOf(SettingsGroup.HEALTH, SettingsGroup.SYNC, SettingsGroup.AI, SettingsGroup.KEYS),
+    ),
+    HELP("Help", listOf(SettingsGroup.ABOUT)),
+    ;
+
+    companion object {
+        fun of(group: SettingsGroup): SettingsSection = entries.first { group in it.groups }
+    }
+}
+
 /** What kind of control a setting is drawn with. */
 enum class ControlKind { SWITCH, SEGMENTED, RADIO, NUMBER, TEXT, SECRET, CHIPS, PICKER, TABLE, ACTION, READ_ONLY }
 
