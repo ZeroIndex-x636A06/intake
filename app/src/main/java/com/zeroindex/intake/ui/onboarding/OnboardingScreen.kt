@@ -96,6 +96,7 @@ import com.zeroindex.intake.ui.screens.profile.CommitField
 import com.zeroindex.intake.ui.screens.profile.OptionTile
 import com.zeroindex.intake.ui.components.AccentButton
 import com.zeroindex.intake.ui.components.Eyebrow
+import com.zeroindex.intake.ui.components.IconCircleButton
 import com.zeroindex.intake.ui.components.HeroCard
 import com.zeroindex.intake.ui.components.IconTile
 import com.zeroindex.intake.ui.components.ListCard
@@ -160,6 +161,10 @@ fun OnboardingScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             val (position, total) = OnboardingFlow.position(step)
+            if (OnboardingFlow.canGoBack(step)) {
+                IconCircleButton(IntakeIcons.ChevronLeft, "Back", onClick = { viewModel.back(step) })
+                Spacer(Modifier.width(12.dp))
+            }
             Eyebrow("Step $position of $total", modifier = Modifier.weight(1f).clearAndSetSemantics { })
             // Always visible: nobody is ever stuck in the flow.
             TextButton(
@@ -257,9 +262,6 @@ private fun BottomBar(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (OnboardingFlow.canGoBack(step)) {
-            TextButton(onClick = onBack, modifier = Modifier.heightIn(min = 52.dp)) { Text("Back") }
-        }
         if (OnboardingFlow.canSkip(step)) {
             TextButton(onClick = onSkip, modifier = Modifier.heightIn(min = 52.dp)) { Text("Skip") }
         }

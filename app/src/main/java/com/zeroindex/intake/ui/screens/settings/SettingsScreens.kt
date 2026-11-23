@@ -242,17 +242,21 @@ fun SettingsGroupScreen(
     onOpenWelcome: () -> Unit,
     onGoToToday: () -> Unit,
 ) {
-    val group = SettingsGroup.byId(groupId) ?: SettingsGroup.APPEARANCE
+    val opened = SettingsGroup.byId(groupId) ?: SettingsGroup.APPEARANCE
+    // A link inside a page to another group (AI > API keys) swaps the page in place; Back returns to the page it came from.
+    var shown by remember(groupId) { mutableStateOf<SettingsGroup?>(null) }
+    val group = shown ?: opened
+    androidx.activity.compose.BackHandler(enabled = shown != null) { shown = null }
     val nav = remember(onOpenScriptReference, onOpenPrivacy, onOpenWelcome, onGoToToday) {
         SettingsNav(onOpenScriptReference, onOpenPrivacy, onOpenWelcome, onGoToToday)
     }
-    PushedScreen(group.title, onBack) { pad ->
-        GroupContent(group, focus, nav, pad)
+    PushedScreen(group.title, { if (shown != null) shown = null else onBack() }) { pad ->
+        GroupContent(group, if (shown == null) focus else null, nav, pad, onOpenGroup = { shown = it })
     }
 }
 
 @Composable
-private fun GroupContent(group: SettingsGroup, focus: String?, nav: SettingsNav, pad: PaddingValues) {
+private fun GroupContent(group: SettingsGroup, focus: String?, nav: SettingsNav, pad: PaddingValues, onOpenGroup: (SettingsGroup) -> Unit) {
     // Only the rows this profile draws: the Advanced count must match what opens (a Cut has no contest or reverse row).
     val profile = hiltViewModel<SettingsViewModel>().uiState.collectAsStateWithLifecycle().value.settings.profile
     val shownRows = remember(group, profile.phase, profile.carbCycling) {
@@ -286,7 +290,7 @@ private fun GroupContent(group: SettingsGroup, focus: String?, nav: SettingsNav,
         ),
         verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
-        if (group == SettingsGroup.AI) item(key = "blurb") { AiStatusHeader(group.blurb) } else item(key = "blurb") {
+        if (group == SettingsGroup.AI) item(key = "blurb") { AiStatusHeader(group.blurb, onAddKey = { onOpenGroup(SettingsGroup.KEYS) }) } else item(key = "blurb") {
             Text(group.blurb, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = IntakeSpacing.StackGap))
         }
         if (group == SettingsGroup.HEALTH) item(key = "health-status") { HealthStatusHeader() }

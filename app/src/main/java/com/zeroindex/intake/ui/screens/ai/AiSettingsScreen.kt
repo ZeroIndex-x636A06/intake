@@ -79,7 +79,7 @@ import java.time.Duration
  * only when you tap. Both parts are read from what exists (the key state, [AiFeature]); nothing is added.
  */
 @Composable
-fun AiStatusHeader(blurb: String, modifier: Modifier = Modifier, viewModel: AiSettingsViewModel = hiltViewModel()) {
+fun AiStatusHeader(blurb: String, onAddKey: () -> Unit, modifier: Modifier = Modifier, viewModel: AiSettingsViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val c = MaterialTheme.intake
     val title = when {
@@ -100,17 +100,33 @@ fun AiStatusHeader(blurb: String, modifier: Modifier = Modifier, viewModel: AiSe
                     Text(blurb, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                 }
             }
+            if (!state.hasKey) {
+                Spacer(Modifier.height(12.dp))
+                Button(onClick = onAddKey, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    Text("Add an OpenRouter key")
+                }
+            }
         }
-        val onTap = AiFeature.entries.filter { it.inEstimate && !it.optInSwitch }
+        // Every on-tap feature the app has, read from AiFeature so the list cannot drift: the benchmark and the opt-in
+        // scheduled helpers (daily insight, coach reword) have their own rows or are not features you tap.
+        val onTap = AiFeature.entries.filter { it.inEstimate && !it.optInSwitch }.map { onTapName(it) }
         if (onTap.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Eyebrow("Runs only when you tap", modifier = Modifier.padding(start = IntakeSpacing.SectionSide))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    onTap.forEach { IntakeChip(it.label, tone = ChipTone.Ai) }
+                    onTap.forEach { IntakeChip(it, tone = ChipTone.Ai) }
                 }
             }
         }
     }
+}
+
+/** The mockup's wording for an on-tap feature where it maps cleanly; every other feature shows its own label. */
+private fun onTapName(f: AiFeature): String = when (f) {
+    AiFeature.PLAN_B -> "Plan B / Nearby menus"
+    AiFeature.RECIPE_TRY_AI -> "Recipe import fallback"
+    AiFeature.RECIPE_HUNTER -> "Recipe Hunter pages"
+    else -> f.label
 }
 
 @Composable
