@@ -106,7 +106,7 @@ class NutritionActions(
  * The Nutrition tab root (round 3, "Nutrition tab v3"): the compact allergen chip; the overview card (calorie ring with a
  * hold-to-split button, macro cards, fibre, saturated fat, sugar and salt or sodium, and "More nutrients"), where a value
  * no logged food listed reads "not listed" and never 0; the Meals card (Breakfast, Lunch, Dinner and Snacks, each
- * with a "+" that opens Log food with Search, Scan and Photo); and a row to the pushed More list. The content clears the
+ * with a "+" that opens Log food with Search, Scan and Photo); (the old More row is gone: Plan, Recipes and Library are segments of the Food tab). The content clears the
  * status bar and the pill through [contentPadding].
  */
 @Composable
@@ -180,26 +180,6 @@ fun NutritionHomeScreen(
                 onOpenMeal = { actions.onOpenMeal(it.name, state.date.toEpochDay()) },
                 onAddFood = { actions.onLogFood("SEARCH", it.name, viewModel.loggingMillis(it)) },
             )
-        }
-
-        item(key = "more") {
-            Surface(
-                onClick = actions.onOpenMore,
-                color = MaterialTheme.colorScheme.surface,
-                shape = CircleShape,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-            ) {
-                Row(Modifier.padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "More: plan, recipes, templates, shopping, eating out",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.ExtraBold,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
         }
     }
 }

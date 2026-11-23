@@ -8,7 +8,7 @@ enum class RootBackAction { GO_TO_TODAY, EXIT }
  * unit tested: which screens show the pill and the avatar, where the avatar goes, what back does on a root.
  */
 object ShellPolicy {
-    /** The four tab roots: Today, Nutrition, Train, Progress. */
+    /** The four tab roots: Today, Food, Train, Insights (internal names Nutrition and Progress). */
     fun isTabRoot(route: Route?): Boolean = route != null && TopLevelDestination.entries.any { it.route == route }
 
     /** The pill is shown on tab roots only. Pushed screens, sheets and full-screen tasks hide it. */
@@ -30,4 +30,10 @@ object ShellPolicy {
 
     /** Tab roots reserve room for the pill (pill height + gap + gesture inset); pushed screens do not. */
     fun reservesPillSpace(route: Route?): Boolean = pillVisible(route)
+
+    /** The centre + of the dock, and the Quick log sheet it opens, are on tab roots only (the dock is). */
+    fun quickLogAvailable(route: Route?): Boolean = pillVisible(route)
+
+    /** The dock's slots left to right: the four tabs with the + after the second. */
+    const val FAB_SLOT = 2
 }

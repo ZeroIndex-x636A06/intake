@@ -7,7 +7,7 @@ import kotlinx.serialization.Serializable
 
 /**
  * Type-safe routes (Navigation Compose reads these through kotlinx.serialization).
- * IA v5 (Option A "Familiar"): the pill is Today, Nutrition, Train, Progress. There is no More tab: the
+ * IA v6: the dock is Today, Food (route Nutrition), a centre + (Quick log), Train, Insights (route Progress). There is no More tab: the
  * avatar in every tab root's top bar opens [You], and Settings is the gear on You.
  *
  * Feature agents: a screen only one tab uses goes in that tab's graph, above its "add ... above this line"
@@ -18,7 +18,7 @@ import kotlinx.serialization.Serializable
 sealed interface Route {
     // Tab roots.
     @Serializable data object Today : Route
-    /** The Nutrition tab root (was Food). Temporary contents until the Nutrition rebuild. */
+    /** The Food tab root (labelled Food since v6, internal name Nutrition): Diary / Plan / Recipes / Library segments. */
     @Serializable data object Nutrition : Route
     @Serializable data object Train : Route
     @Serializable data object Progress : Route
@@ -49,7 +49,7 @@ sealed interface Route {
      * more. [slot] is a `MealSlot` name, [epochDay] the local calendar day (`LocalDate.toEpochDay`, never later than today).
      */
     @Serializable data class NutritionMeal(val slot: String, val epochDay: Long) : Route
-    /** The pushed list behind the Nutrition tab's "More" row: Plan, Recipes, Meals, Eating out and Drinks. */
+    /** The old "More" list. Kept registered but unreachable since v6: the Library segment replaces it. */
     @Serializable data object NutritionMore : Route
     /**
      * Log food: a full-screen task with Search, Scan, Photo, Mine and Quick add. Shared (Today and Nutrition open it),

@@ -40,4 +40,19 @@ class ShellPolicyTest {
             assertThat(ShellPolicy.backFromRoot(it)).isEqualTo(RootBackAction.GO_TO_TODAY)
         }
     }
+
+    @Test
+    fun `the dock has the four tabs in order with the plus after the second`() {
+        assertThat(TopLevelDestination.entries.map { it.route }).containsExactly(Route.Today, Route.Nutrition, Route.Train, Route.Progress).inOrder()
+        assertThat(ShellPolicy.FAB_SLOT).isEqualTo(TopLevelDestination.entries.size / 2)
+    }
+
+    @Test
+    fun `the quick log plus is on tab roots only, like the dock`() {
+        TopLevelDestination.entries.forEach { assertThat(ShellPolicy.quickLogAvailable(it.route)).isTrue() }
+        listOf(Route.You, Route.LogFood(), Route.ActiveWorkout("s1"), Route.Drinks, Route.MealTemplates).forEach {
+            assertThat(ShellPolicy.quickLogAvailable(it)).isFalse()
+        }
+        assertThat(ShellPolicy.quickLogAvailable(null)).isFalse()
+    }
 }

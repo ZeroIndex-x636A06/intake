@@ -39,7 +39,9 @@ import com.zeroindex.intake.ui.screens.hub.defaultMealSlot
 import com.zeroindex.intake.ui.screens.nutrition.NutritionActions
 import com.zeroindex.intake.ui.screens.nutrition.NutritionMealScreen
 import com.zeroindex.intake.ui.screens.nutrition.NutritionMoreScreen
-import com.zeroindex.intake.ui.screens.nutrition.NutritionHomeScreen
+import com.zeroindex.intake.ui.foodtab.FoodTabActions
+import com.zeroindex.intake.ui.foodtab.FoodTabHost
+import com.zeroindex.intake.ui.foodtab.LibraryActions
 import com.zeroindex.intake.ui.screens.hub.RecipesScreen
 import com.zeroindex.intake.ui.screens.menu.MenuSourcesScreen
 import com.zeroindex.intake.ui.screens.more.ScriptReferenceScreen
@@ -187,7 +189,7 @@ fun IntakeNavHost(
             // Today has no pushed screens of its own: add new Today routes above this line.
         }
 
-        // ---- Nutrition ----
+        // ---- Nutrition (shown as "Food") ----
         navigation<TabGraph.Nutrition>(startDestination = Route.Nutrition) {
             val nutritionActions = NutritionActions(
                 onOpenAllergens = { navController.navigate(Route.Allergens) },
@@ -202,8 +204,29 @@ fun IntakeNavHost(
                 onOpenMore = { navController.navigate(Route.NutritionMore) },
             )
             composable<Route.Nutrition> {
-                TabRootScreen(TopLevelDestination.NUTRITION, "Nutrition", goToToday) { pad ->
-                    NutritionHomeScreen(contentPadding = pad, actions = nutritionActions)
+                // The Food tab: Diary / Plan / Recipes / Library segments (the old "More" list is gone; Library replaces it).
+                TabRootScreen(TopLevelDestination.NUTRITION, "Food", goToToday) { pad ->
+                    FoodTabHost(
+                        contentPadding = pad,
+                        actions = FoodTabActions(
+                            diary = nutritionActions,
+                            library = LibraryActions(
+                                onOpenTemplates = { navController.navigate(Route.MealTemplates) },
+                                onOpenShopping = { navController.navigate(Route.ShoppingList) },
+                                onOpenEatingOut = { navController.navigate(Route.EatingOut) },
+                                onOpenMenus = { navController.navigate(Route.MenuSources) },
+                                onOpenMyFoods = { navController.navigate(Route.LogFood(mode = "MY_FOODS")) },
+                                onOpenDrinks = { navController.navigate(Route.Drinks) },
+                            ),
+                            onOpenSwap = { navController.navigate(Route.SwapSheet(null)) },
+                            onOpenCook = { id -> navController.navigate(Route.CookMode(id)) },
+                            onOpenScriptReference = openScriptReference,
+                            onOpenRecipe = { id -> navController.navigate(Route.RecipeDetail(id)) },
+                            onOpenHunter = { navController.navigate(Route.RecipeHunter) },
+                            onOpenImport = { navController.navigate(Route.RecipeImport) },
+                            onOpenNewRecipe = { navController.navigate(Route.RecipeEditor()) },
+                        ),
+                    )
                 }
             }
             composable<Route.NutritionMore> {
@@ -412,10 +435,10 @@ fun IntakeNavHost(
             // Add new Train routes above this line.
         }
 
-        // ---- Progress ----
+        // ---- Progress (shown as "Insights") ----
         navigation<TabGraph.Progress>(startDestination = Route.Progress) {
             composable<Route.Progress> {
-                TabRootScreen(TopLevelDestination.PROGRESS, "Progress", goToToday) { pad ->
+                TabRootScreen(TopLevelDestination.PROGRESS, "Insights", goToToday) { pad ->
                     ProgressScreen(
                         contentPadding = pad,
                         onAddMeasurement = { navController.navigate(Route.BodyMetrics) },

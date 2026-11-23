@@ -210,7 +210,7 @@ class HelpFlowViewModel @Inject constructor(
     }
 }
 
-/** First-visit tips on Food, Train, Progress and More. */
+/** First-visit tips on Food, Train, Insights and More. */
 @HiltViewModel
 class TipsViewModel @Inject constructor(
     private val repository: OnboardingRepository,

@@ -1,5 +1,7 @@
 # Intake v5: use screens and settings, kept apart
 
+> **Superseded in part by design v6 (`docs/briefs/DESIGN-V6.md`):** the tab labels are now Today, Food, Train, Insights; the pill is a static five-slot dock with a centre + that opens a Quick log sheet; the Food tab has Diary / Plan / Recipes / Library segments and the "More" list is gone. Routes and back-stack rules below still hold.
+
 Design only. No app code changes. This is the buildable spec. It applies the user's round-2 decisions
 (`docs/FEEDBACK-R2.md`) on top of `docs/IA-v4.md`. Where this file and v4 disagree, **this file wins**; where it
 disagrees with `FEEDBACK-R2.md`, that file wins. The clickable mockup is `design/intake-mockup-v4.html`. Nothing here is

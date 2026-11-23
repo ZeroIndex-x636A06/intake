@@ -169,7 +169,7 @@ fun SettingControl(
                     "Off by default. Only the burn inside workouts your watch or phone recorded is added, with resting burn taken out. Wearable estimates are often high, and counting them twice stalls a cut.",
                     s.addActiveCaloriesToTarget, viewModel::setAddActiveCalories,
                 )
-                "showSodium" -> SettingRow("Show salt or sodium on the dashboard", "Adds one nutrient tile in Nutrition.") {
+                "showSodium" -> SettingRow("Show salt or sodium on the dashboard", "Adds one nutrient tile in Food.") {
                     Segmented(SodiumDisplay.entries.map { it.label }, SodiumDisplay.entries.indexOf(s.showSodium), { viewModel.setShowSodium(SodiumDisplay.entries[it]) })
                 }
                 "eatOutRadius" -> {
@@ -259,7 +259,7 @@ fun SettingControl(
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
-                "jumpTests" -> SwitchSetting("Show jump tests in Progress", "Hidden until you switch it on.", s.jumpTests, viewModel::setJumpTests)
+                "jumpTests" -> SwitchSetting("Show jump tests in Insights", "Hidden until you switch it on.", s.jumpTests, viewModel::setJumpTests)
                 "idleFinish" -> NumberSetting(
                     "Ask \"Still training?\" after", "Hours with no set logged before a running workout offers to finish at the last set.",
                     s.idleFinishHours.toDouble(), "hours", 1.0..12.0,
@@ -377,7 +377,7 @@ fun SettingControl(
                 // ---- About and help ----
                 "tour" -> AboutAction("Replay the tour", "A quick look around Today, one step at a time. Nothing is changed or deleted.", "Replay") { flow -> flow.replayTour(then = nav.goToToday) }
                 "welcome" -> AboutAction("Show the welcome again", "Run the setup questions again. Your answers are filled in and nothing is deleted.", "Show") { flow -> flow.showWelcomeAgain(then = nav.openWelcome) }
-                "tips" -> AboutAction("Show screen tips again", "Bring back the short tip at the top of Nutrition, Train and Progress.", "Show") { flow -> flow.showTipsAgain(then = {}) }
+                "tips" -> AboutAction("Show screen tips again", "Bring back the short tip at the top of Food, Train and Insights.", "Show") { flow -> flow.showTipsAgain(then = {}) }
                 "scripts" -> SettingRow("Script language help", "Meal plan and program scripts, with the full reference. Works offline.") {
                     OutlinedButton(onClick = { nav.openScriptReference("README", null) }, shape = IntakeShape.Chip) { Text("Open") }
                 }
