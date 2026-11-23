@@ -22,23 +22,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.RemoveCircleOutline
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -58,6 +52,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.db.entity.FoodEntity
@@ -73,7 +68,26 @@ import com.zeroindex.intake.ui.components.EmptyState
 import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.SectionLine
 import com.zeroindex.intake.ui.screens.today.components.icon
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.fillMaxHeight
+import com.zeroindex.intake.ui.addfood.GroupDivider
+import com.zeroindex.intake.ui.addfood.groupRow
+import com.zeroindex.intake.ui.components.AccentButton
+import com.zeroindex.intake.ui.components.Eyebrow
+import com.zeroindex.intake.ui.components.HeroCard
+import com.zeroindex.intake.ui.components.IconCircleButton
+import com.zeroindex.intake.ui.components.IconCircleStyle
+import com.zeroindex.intake.ui.components.IconTile
+import com.zeroindex.intake.ui.components.LineButton
+import com.zeroindex.intake.ui.components.heroMuted
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.theme.NumberSmall
+import com.zeroindex.intake.ui.theme.intake
 import com.zeroindex.intake.ui.theme.WaterAccent
 import java.time.Instant
 import java.time.ZoneId
@@ -127,22 +141,32 @@ fun DrinksScreen(
         contentPadding = PaddingValues(
             top = contentPadding.calculateTopPadding() + 4.dp,
             bottom = contentPadding.calculateBottomPadding() + 24.dp,
-            start = 16.dp,
-            end = 16.dp,
+            start = IntakeSpacing.ScreenGutter,
+            end = IntakeSpacing.ScreenGutter,
         ),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
     ) {
         item(key = "summary") { SummaryStrip(state, unit) }
 
         item(key = "search") {
-            OutlinedTextField(
+            TextField(
                 value = query,
                 onValueChange = { query = it },
-                placeholder = { Text("Search drinks") },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Icons.Filled.Close, contentDescription = "Clear the search") } },
+                placeholder = { Text("Search drinks", style = MaterialTheme.typography.bodyLarge) },
+                leadingIcon = { Icon(IntakeIcons.Search, contentDescription = null, modifier = Modifier.size(IconSize.Default)) },
+                trailingIcon = { if (query.isNotEmpty()) IconCircleButton(IntakeIcons.Close, "Clear the search", { query = "" }, style = IconCircleStyle.Clear) },
                 singleLine = true,
-                shape = IntakeShape.Field,
+                textStyle = MaterialTheme.typography.bodyLarge,
+                shape = IntakeShape.Pill,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent,
+                    focusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -176,13 +200,15 @@ fun DrinksScreen(
                     )
                 }
             } else {
-                items(state.drinks, key = { "cat-${it.food.id}" }) { row ->
+                itemsIndexed(state.drinks, key = { _, it -> "cat-${it.food.id}" }) { i, row ->
                     DrinkRow(
                         food = row.food,
                         allergen = row.allergen,
                         selected = row.food.id == selected?.id,
                         onSelect = { viewModel.select(row.food.id) },
                         onInfo = { onOpenFood(row.food.id) },
+                        index = i,
+                        count = state.drinks.size,
                     )
                 }
             }
@@ -192,8 +218,10 @@ fun DrinksScreen(
             val section: androidx.compose.foundation.lazy.LazyListScope.(String, List<DrinkSearchRow>) -> Unit = { title, rows ->
                 if (rows.isNotEmpty()) {
                     item(key = "h-$title") { SectionLine(title) }
-                    items(rows, key = { it.key }) { row ->
+                    itemsIndexed(rows, key = { _, it -> it.key }) { i, row ->
                         DrinkRow(
+                            index = i,
+                            count = rows.size,
                             food = row.food,
                             allergen = row.allergen,
                             selected = isChosen(row),
@@ -222,7 +250,7 @@ fun DrinksScreen(
             if (search.hasUsdaKey) {
                 item(key = "usda-online") {
                     when (val s = search.onlineStatus) {
-                        OnlineDrinksStatus.Idle -> OutlinedButton(onClick = viewModel::searchUsdaOnline, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Also search USDA online (your key)") }
+                        OnlineDrinksStatus.Idle -> LineButton(onClick = viewModel::searchUsdaOnline, modifier = Modifier.fillMaxWidth()) { Text("Also search USDA online (your key)") }
                         OnlineDrinksStatus.Loading -> Text("Searching USDA…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         OnlineDrinksStatus.Done -> Unit
                         OnlineDrinksStatus.Nothing -> Text("USDA online had no drinks for that.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -248,13 +276,14 @@ fun DrinksScreen(
         } else if (state.entries.isEmpty()) {
             item(key = "today-none") { Text("Nothing logged yet today.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         } else {
-            items(state.entries, key = { it.log.id }) { e ->
-                IntakeCard {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(e.log.drinkType.icon(), contentDescription = null, tint = WaterAccent, modifier = Modifier.size(24.dp))
+            itemsIndexed(state.entries, key = { _, it -> it.log.id }) { i, e ->
+                Column(Modifier.groupRow(i, state.entries.size, gutter = false)) {
+                    GroupDivider(i)
+                    Row(Modifier.padding(start = IntakeSpacing.ListRowPadH, end = 4.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(e.log.drinkType.icon(), contentDescription = null, tint = MaterialTheme.intake.water, modifier = Modifier.size(24.dp))
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(e.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text(e.name, style = MaterialTheme.typography.titleMedium)
                             Text(
                                 buildString {
                                     append(unit.format(e.log.volumeMl))
@@ -262,13 +291,11 @@ fun DrinksScreen(
                                     e.kcal?.let { append(" · ${it.roundToInt()} kcal") }
                                     if (e.log.caffeineMg >= 1) append(" · ${e.log.caffeineMg.roundToInt()} mg caffeine")
                                 },
-                                style = MaterialTheme.typography.labelMedium,
+                                style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        IconButton(onClick = { viewModel.remove(e.log.id) }, modifier = Modifier.size(48.dp)) {
-                            Icon(Icons.Filled.RemoveCircleOutline, contentDescription = "Remove ${e.name}, ${unit.format(e.log.volumeMl)}")
-                        }
+                        IconCircleButton(IntakeIcons.Close, "Remove ${e.name}, ${unit.format(e.log.volumeMl)}", { viewModel.remove(e.log.id) }, style = IconCircleStyle.Soft)
                     }
                 }
             }
@@ -310,30 +337,39 @@ private fun kcalOf(food: FoodEntity, ml: Double): Int = (food.kcalPer100g * ml /
 @Composable
 private fun SummaryStrip(state: DrinksUiState, unit: VolumeUnit) {
     val day = state.day
-    IntakeCard {
+    HeroCard {
         if (day == null) {
             Text("Reading today's drinks…", style = MaterialTheme.typography.titleMedium)
         } else {
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(unit.formatNumber(day.consumedMl), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
-                Text(" of ${unit.format(day.target.totalMl)}", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(bottom = 2.dp).weight(1f))
-                Text("${(day.progress * 100).roundToInt().coerceAtLeast(0)}%", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+            Eyebrow("Logged today", color = heroMuted())
+            Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.Bottom) {
+                HeroStat(unit.formatNumber(day.consumedMl), "of ${unit.format(day.target.totalMl)}", Modifier.weight(1.4f))
+                HeroStat("${day.totals.caffeineMg.roundToInt()} mg", "caffeine", Modifier.weight(1f))
+                HeroStat("${state.sugarG.roundToInt()} g", "sugar", Modifier.weight(1f))
             }
             LinearProgressIndicator(
                 progress = { day.progress.coerceIn(0f, 1f) },
-                color = WaterAccent,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp).heightIn(min = 6.dp),
+                color = MaterialTheme.intake.water,
+                trackColor = MaterialTheme.intake.onHero.copy(alpha = 0.14f),
+                modifier = Modifier.fillMaxWidth().padding(top = 14.dp).heightIn(min = 8.dp),
             )
             Text(
-                "${day.totals.caffeineMg.roundToInt()} mg caffeine · ${state.sugarG.roundToInt()} g sugar · ${state.kcal.roundToInt()} kcal · " +
+                "${(day.progress * 100).roundToInt().coerceAtLeast(0)}% · ${state.kcal.roundToInt()} kcal · " +
                     "%.1f".format(java.util.Locale.US, day.totals.standardDrinks).removeSuffix(".0") + " std alcohol",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 6.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                color = heroMuted(),
+                modifier = Modifier.padding(top = 8.dp),
             )
-            day.notes.forEach { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp)) }
+            day.notes.forEach { Text(it, style = MaterialTheme.typography.labelSmall, color = heroMuted(), modifier = Modifier.padding(top = 2.dp)) }
         }
+    }
+}
+
+@Composable
+private fun HeroStat(value: String, label: String, modifier: Modifier = Modifier) {
+    Column(modifier) {
+        Text(value, style = NumberSmall.copy(fontSize = 22.sp, color = MaterialTheme.intake.onHero), maxLines = 1)
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = heroMuted(), maxLines = 1)
     }
 }
 
@@ -349,8 +385,8 @@ private fun QuickRow(
     onLog: (FoodEntity, Double) -> Unit,
     onOptions: (String) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = IntakeSpacing.SectionSide))
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items.forEach { QuickCard(it, unit, onLog = { onLog(it.food, it.ml) }, onOptions = { onOptions(it.food.id) }) }
         }
@@ -364,17 +400,17 @@ private fun QuickCard(item: QuickItem, unit: VolumeUnit, onLog: () -> Unit, onOp
     Surface(
         color = scheme.surface,
         shape = IntakeShape.Card,
-        border = BorderStroke(1.dp, scheme.outlineVariant),
         modifier = Modifier
             .widthIn(min = 156.dp, max = 240.dp)
             .heightIn(min = 64.dp)
             .combinedClickable(onClick = onLog, onLongClick = onOptions, onClickLabel = "Log ${unit.format(item.ml)} of ${item.food.name}", onLongClickLabel = "Options"),
     ) {
-        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.Center) {
-            Text(item.food.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Column(Modifier.padding(IntakeSpacing.CardPadTile), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            IconTile(if (item.food.drinkCategory == DrinkCategory.WATER.name) IntakeIcons.Drop else IntakeIcons.Mug, Modifier.padding(bottom = 8.dp), small = true)
+            Text(item.food.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(
                 "${unit.format(item.ml)} · ${kcalOf(item.food, item.ml)} kcal",
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.bodyMedium,
                 color = scheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -386,34 +422,35 @@ private fun QuickCard(item: QuickItem, unit: VolumeUnit, onLog: () -> Unit, onOp
 
 /** One drink, from the list or the search. Drinks are liquids: its numbers read per 100 ml, whatever the source. */
 @Composable
-private fun DrinkRow(food: FoodEntity, allergen: RowAllergen?, selected: Boolean, onSelect: () -> Unit, onInfo: (() -> Unit)?) {
+private fun DrinkRow(food: FoodEntity, allergen: RowAllergen?, selected: Boolean, onSelect: () -> Unit, onInfo: (() -> Unit)?, index: Int = 0, count: Int = 1) {
     val f = food
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .heightIn(min = 60.dp)
-            .selectable(selected = selected, role = Role.Button, onClick = onSelect)
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f).padding(horizontal = 4.dp)) {
-            Text(f.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
-            Text(
-                buildString {
-                    f.brand?.takeIf { it.isNotBlank() }?.let { append("$it · ") }
-                    append("${f.kcalPer100g.roundToInt()} kcal / 100 ml")
-                    if ((f.caffeineMgPer100ml ?: 0.0) > 0) append(" · ${f.caffeineMgPer100ml!!.roundToInt()} mg caffeine")
-                    if (f.sugarPer100g >= 0.5) append(" · ${f.sugarPer100g.roundToInt()} g sugar")
-                    if ((f.abvPercent ?: 0.0) > 0) append(" · ${f.abvPercent!!.roundToInt()}% alcohol")
-                },
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            allergen?.let { a -> Box(Modifier.padding(top = 4.dp)) { RowAllergenChip(a) } }
-        }
-        if (onInfo != null) {
-            IconButton(onClick = onInfo, modifier = Modifier.size(48.dp)) {
-                Icon(Icons.Filled.Info, contentDescription = "Nutrition label for ${f.name}", modifier = Modifier.size(20.dp))
+    Column(Modifier.groupRow(index, count, gutter = false)) {
+        GroupDivider(index)
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = IntakeSpacing.ListRowMinHeight)
+                .selectable(selected = selected, role = Role.Button, onClick = onSelect)
+                .padding(start = IntakeSpacing.ListRowPadH, end = 4.dp, top = 10.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(f.name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                Text(
+                    buildString {
+                        f.brand?.takeIf { it.isNotBlank() }?.let { append("$it · ") }
+                        append("${f.kcalPer100g.roundToInt()} kcal / 100 ml")
+                        if ((f.caffeineMgPer100ml ?: 0.0) > 0) append(" · ${f.caffeineMgPer100ml!!.roundToInt()} mg caffeine")
+                        if (f.sugarPer100g >= 0.5) append(" · ${f.sugarPer100g.roundToInt()} g sugar")
+                        if ((f.abvPercent ?: 0.0) > 0) append(" · ${f.abvPercent!!.roundToInt()}% alcohol")
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                allergen?.let { a -> Box(Modifier.padding(top = 4.dp)) { RowAllergenChip(a) } }
+            }
+            if (onInfo != null) {
+                IconCircleButton(IntakeIcons.Info, "Nutrition label for ${f.name}", onInfo, style = IconCircleStyle.Clear)
             }
         }
     }
@@ -443,10 +480,10 @@ private fun DrinkSheet(
     val saved = drink.customDrink != null
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
-            Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp).padding(bottom = 16.dp),
+            Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = IntakeSpacing.ScreenGutter).padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(drink.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(drink.name, style = MaterialTheme.typography.headlineSmall)
             allergen?.let { RowAllergenChip(it) }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 sizes.forEach { s -> ChoiceChip(s.label, !custom && abs(ml - s.ml) < 1.0, { custom = false; ml = s.ml }) }
@@ -477,11 +514,11 @@ private fun DrinkSheet(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(onClick = { onCustomise(drink.id) }, modifier = Modifier.weight(1f).heightIn(min = 52.dp)) { Text(if (saved) "Edit" else "Customise") }
-                Button(onClick = { onLog(ml) }, enabled = ml > 0, modifier = Modifier.weight(1f).heightIn(min = 52.dp)) { Text("Log") }
+                com.zeroindex.intake.ui.components.SoftButton(onClick = { onCustomise(drink.id) }, modifier = Modifier.weight(1f)) { Text(if (saved) "Edit" else "Customise") }
+                Button(onClick = { onLog(ml) }, enabled = ml > 0, modifier = Modifier.weight(1f).heightIn(min = IntakeSpacing.TouchTarget)) { Text("Log") }
             }
             if (saved) {
-                TextButton(onClick = onDelete, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Delete this drink") }
+                com.zeroindex.intake.ui.components.GhostButton(onClick = onDelete, modifier = Modifier.fillMaxWidth()) { Text("Delete this drink", color = MaterialTheme.intake.bad) }
             }
         }
     }

@@ -7,10 +7,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
+import com.zeroindex.intake.ui.theme.IntakeSpacing
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -26,21 +26,22 @@ import com.zeroindex.intake.ui.components.Eyebrow
  * figure shows "+" greyed, and says why when tapped.
  */
 @Composable
-internal fun RecipeLogRow(row: RecipeRowUi, onLog: (RecipeRowUi) -> Unit) {
+internal fun RecipeLogRow(row: RecipeRowUi, onLog: (RecipeRowUi) -> Unit, index: Int = 0, count: Int = 1) {
     val r = row.recipe
-    Column {
+    Column(Modifier.groupRow(index, count)) {
+        GroupDivider(index)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 65.dp)
-                .padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
+                .heightIn(min = IntakeSpacing.ListRowMinHeight)
+                .padding(start = IntakeSpacing.ListRowPadH, end = 4.dp, top = 10.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
-                Text(r.name, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface, maxLines = 2)
+                Text(r.name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 2)
                 Text(
                     "Recipe · per serving · ${r.summary}",
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
                 )
@@ -55,17 +56,17 @@ internal fun RecipeLogRow(row: RecipeRowUi, onLog: (RecipeRowUi) -> Unit) {
             }
             IconButton(onClick = { onLog(row) }, modifier = Modifier.size(48.dp)) {
                 Icon(
-                    Icons.Filled.Add,
+                    IntakeIcons.Plus,
                     contentDescription = if (r.loggable) "Log one serving of ${r.name}" else "${r.name} has no calories listed",
+                    modifier = Modifier.size(IconSize.Default),
                     tint = if (r.loggable) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
                 )
             }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
 
 @Composable
 internal fun RecipeSourceHeader(text: String) {
-    Eyebrow(text = text, modifier = Modifier.padding(start = 16.dp, top = 10.dp, bottom = 4.dp))
+    Eyebrow(text = text, modifier = Modifier.padding(start = IntakeSpacing.ScreenGutter + 4.dp, top = 16.dp, bottom = 8.dp))
 }

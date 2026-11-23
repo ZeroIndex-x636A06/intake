@@ -3,7 +3,6 @@
 package com.zeroindex.intake.ui.screens.nutrition
 
 import com.zeroindex.intake.domain.units.KcalFormat
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -20,16 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -37,9 +27,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
@@ -74,10 +62,18 @@ import com.zeroindex.intake.domain.nutrition.MealTotals
 import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.MacroSplitBar
 import com.zeroindex.intake.ui.screens.today.LogEntryActionsSheet
-import com.zeroindex.intake.ui.theme.CarbAccent
-import com.zeroindex.intake.ui.theme.FatAccent
+import com.zeroindex.intake.ui.components.Eyebrow
+import com.zeroindex.intake.ui.components.GhostButton
+import com.zeroindex.intake.ui.components.IconCircleButton
+import com.zeroindex.intake.ui.components.IconCircleStyle
+import com.zeroindex.intake.ui.components.LineButton
+import com.zeroindex.intake.ui.components.ListDivider
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IntakeShape
-import com.zeroindex.intake.ui.theme.ProteinAccent
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.theme.NumberSmall
+import com.zeroindex.intake.ui.theme.intake
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -114,10 +110,10 @@ fun NutritionMealScreen(
         contentPadding = PaddingValues(
             top = contentPadding.calculateTopPadding() + 4.dp,
             bottom = contentPadding.calculateBottomPadding() + 24.dp,
-            start = 16.dp,
-            end = 16.dp,
+            start = IntakeSpacing.ScreenGutter,
+            end = IntakeSpacing.ScreenGutter,
         ),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
     ) {
         item(key = "header") {
             MealHeader(
@@ -135,7 +131,7 @@ fun NutritionMealScreen(
         item(key = "totals") { TotalsCard(state.totals) }
         item(key = "foods") {
             IntakeCard {
-                Text("Foods", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
+                Text("Foods", style = MaterialTheme.typography.titleLarge)
                 if (state.ready && state.items.isEmpty()) {
                     Text(
                         "Nothing logged in ${NutritionMealViewModel.slotName(state.slot).lowercase()} yet.",
@@ -162,23 +158,22 @@ fun NutritionMealScreen(
                 Button(
                     onClick = { onAddFood(state.slot.name, viewModel.loggingMillis()) },
                     shape = IntakeShape.Button,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget),
                 ) {
-                    Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Icon(IntakeIcons.Plus, contentDescription = null, modifier = Modifier.size(IconSize.Small))
                     Spacer(Modifier.width(8.dp))
-                    Text("Add food", fontWeight = FontWeight.ExtraBold)
+                    Text("Add food")
                 }
-                OutlinedButton(onClick = { quickAdd = true }, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                LineButton(onClick = { quickAdd = true }, modifier = Modifier.fillMaxWidth()) {
                     Text("Quick add calories")
                 }
-                OutlinedButton(
+                LineButton(
                     onClick = { naming = true },
                     enabled = state.items.isNotEmpty(),
-                    shape = IntakeShape.Button,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    modifier = Modifier.fillMaxWidth(),
                 ) { Text("Save as meal template") }
-                TextButton(onClick = onDone, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                    Text("Done", fontWeight = FontWeight.ExtraBold)
+                GhostButton(onClick = onDone, modifier = Modifier.fillMaxWidth()) {
+                    Text("Done")
                 }
             }
         }
@@ -247,13 +242,13 @@ private fun MealHeader(
                         .semantics { contentDescription = "${NutritionMealViewModel.slotName(slot)}. Choose the meal" },
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(NutritionMealViewModel.slotName(slot), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
-                    Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
+                    Text(NutritionMealViewModel.slotName(slot), style = MaterialTheme.typography.headlineSmall)
+                    Icon(IntakeIcons.ChevronDown, contentDescription = null, modifier = Modifier.padding(start = 6.dp).size(IconSize.Small))
                 }
                 DropdownMenu(expanded = slotMenu, onDismissRequest = { slotMenu = false }) {
                     MealSlot.entries.forEach { s ->
                         DropdownMenuItem(
-                            text = { Text(NutritionMealViewModel.slotName(s), fontWeight = if (s == slot) FontWeight.ExtraBold else FontWeight.Normal) },
+                            text = { Text(NutritionMealViewModel.slotName(s), fontWeight = if (s == slot) FontWeight.SemiBold else FontWeight.Normal) },
                             onClick = { onSlot(s); slotMenu = false },
                         )
                     }
@@ -262,13 +257,11 @@ private fun MealHeader(
             Text(dateLabel, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Box {
-            IconButton(onClick = { overflow = true }, modifier = Modifier.size(48.dp)) {
-                Icon(Icons.Filled.MoreVert, contentDescription = "More for this meal")
-            }
+            IconCircleButton(IntakeIcons.More, "More for this meal", { overflow = true })
             DropdownMenu(expanded = overflow, onDismissRequest = { overflow = false }) {
                 DropdownMenuItem(
                     text = { Text("Clear meal") },
-                    leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) },
+                    leadingIcon = { Icon(IntakeIcons.Trash, contentDescription = null, modifier = Modifier.size(IconSize.Small)) },
                     enabled = hasItems,
                     onClick = { overflow = false; onClear() },
                 )
@@ -289,13 +282,12 @@ private fun TimePill(time: LocalTime, entered: Boolean, onClick: () -> Unit, onR
         Surface(
             onClick = onClick,
             color = MaterialTheme.colorScheme.surface,
-            shape = CircleShape,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = "Time for new entries, $text. Change it" },
+            shape = IntakeShape.Pill,
+            modifier = Modifier.heightIn(min = IntakeSpacing.TouchTarget).semantics { contentDescription = "Time for new entries, $text. Change it" },
         ) {
             Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Icons.Filled.Schedule, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
-                Text(text, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold)
+                Icon(IntakeIcons.Clock, contentDescription = null, modifier = Modifier.size(IconSize.Small))
+                Text(text, style = MaterialTheme.typography.titleSmall)
             }
         }
         Text("Time for new entries", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
@@ -306,13 +298,13 @@ private fun TimePill(time: LocalTime, entered: Boolean, onClick: () -> Unit, onR
 @Composable
 private fun TotalsCard(t: MealTotals) {
     IntakeCard {
-        Text("Total calories", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text("${KcalFormat.format(t.kcal)} kcal", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
+        Eyebrow("Total calories")
+        Text("${KcalFormat.format(t.kcal)} kcal", style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.size(8.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MacroTile("Protein", t.protein.text, ProteinAccent, Modifier.weight(1f))
-            MacroTile("Carbs", t.carbs.text, CarbAccent, Modifier.weight(1f))
-            MacroTile("Fat", t.fat.text, FatAccent, Modifier.weight(1f))
+            MacroTile("Protein", t.protein.text, MaterialTheme.intake.protein, Modifier.weight(1f))
+            MacroTile("Carbs", t.carbs.text, MaterialTheme.intake.carb, Modifier.weight(1f))
+            MacroTile("Fat", t.fat.text, MaterialTheme.intake.fat, Modifier.weight(1f))
         }
         Spacer(Modifier.size(10.dp))
         MacroSplitBar(t.splitProtein, t.splitCarbs, t.splitFat, Modifier.fillMaxWidth())
@@ -321,10 +313,10 @@ private fun TotalsCard(t: MealTotals) {
 
 @Composable
 private fun MacroTile(label: String, value: String, accent: androidx.compose.ui.graphics.Color, modifier: Modifier = Modifier) {
-    Surface(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f), shape = IntakeShape.Tile, modifier = modifier) {
-        Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
-            Text(label, style = MaterialTheme.typography.labelMedium, color = accent, fontWeight = FontWeight.ExtraBold)
-            Text(value, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold)
+    Surface(color = MaterialTheme.intake.soft, shape = IntakeShape.InnerCard, modifier = modifier) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+            Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(value, style = NumberSmall.copy(color = accent))
         }
     }
 }
@@ -357,7 +349,7 @@ private fun MealItemRow(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.End,
             ) {
-                Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.onErrorContainer)
+                Icon(IntakeIcons.Trash, contentDescription = null, tint = MaterialTheme.colorScheme.onErrorContainer)
             }
         },
     ) {
@@ -377,39 +369,22 @@ private fun MealItemRow(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text(item.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        Text("${KcalFormat.format(item.kcal)} kcal · ${item.portion}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(item.name, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text("${KcalFormat.format(item.kcal)} kcal · ${item.portion}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if (onDetails != null) {
-                        IconButton(onClick = onDetails, modifier = Modifier.size(48.dp)) {
-                            Icon(Icons.Filled.Info, contentDescription = "Food details for ${item.name}", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+                        IconCircleButton(IntakeIcons.Info, "Food details for ${item.name}", onDetails, style = IconCircleStyle.Clear)
                     }
                     if (item.canStep) {
-                        StepButton(Icons.Filled.Remove, "Less ${item.name}") { onStep(false) }
-                        StepButton(Icons.Filled.Add, "More ${item.name}") { onStep(true) }
+                        IconCircleButton(IntakeIcons.Minus, "Less ${item.name}", { onStep(false) }, style = IconCircleStyle.Soft)
+                        Spacer(Modifier.width(4.dp))
+                        IconCircleButton(IntakeIcons.Plus, "More ${item.name}", { onStep(true) }, style = IconCircleStyle.Soft)
                     }
                 }
                 item.allergen?.let { verdict ->
                     Box(Modifier.padding(top = 4.dp)) { com.zeroindex.intake.ui.addfood.RowAllergenChip(com.zeroindex.intake.ui.addfood.RowAllergen(verdict, item.allergenDetail, traceLabel = item.allergenTrace)) }
                 }
-                HorizontalDivider(Modifier.padding(top = 8.dp), color = MaterialTheme.colorScheme.outlineVariant)
-            }
-        }
-    }
-}
-
-@Composable
-private fun StepButton(icon: androidx.compose.ui.graphics.vector.ImageVector, description: String, onClick: () -> Unit) {
-    IconButton(onClick = onClick, modifier = Modifier.size(48.dp)) {
-        Surface(
-            color = androidx.compose.ui.graphics.Color.Transparent,
-            shape = CircleShape,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            modifier = Modifier.size(34.dp).semantics { contentDescription = description },
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                ListDivider(Modifier.padding(top = 8.dp))
             }
         }
     }

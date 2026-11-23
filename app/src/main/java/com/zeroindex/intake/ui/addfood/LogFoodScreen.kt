@@ -16,31 +16,21 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import com.zeroindex.intake.ui.components.rememberSyncedText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.QrCodeScanner
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -76,8 +66,27 @@ import com.zeroindex.intake.ui.allergen.CheckLabelChip
 import com.zeroindex.intake.ui.allergen.ProvideCheckLabelTerms
 import com.zeroindex.intake.ui.allergen.checkLabelReasonFor
 import com.zeroindex.intake.ui.barcode.BarcodeScannerView
-import com.zeroindex.intake.ui.components.ActionTile
-import com.zeroindex.intake.ui.components.ChoiceChip
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.unit.sp
+import com.zeroindex.intake.ui.components.ChipTone
+import com.zeroindex.intake.ui.components.IconCircleButton
+import com.zeroindex.intake.ui.components.IconCircleStyle
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.components.LineButton
+import com.zeroindex.intake.ui.components.ListDivider
+import com.zeroindex.intake.ui.components.RowChevron
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.theme.intake
 import com.zeroindex.intake.ui.components.EmptyState
 import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.ui.images.FoodThumb
@@ -152,25 +161,27 @@ fun LogFoodScreen(
                 .fillMaxSize()
                 .padding(top = contentPadding.calculateTopPadding(), bottom = contentPadding.calculateBottomPadding()),
         ) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ActionTile("Search", Icons.Filled.Search, { viewModel.selectTab(AddFoodTab.SEARCH) }, Modifier.weight(1f), selected = state.tab == AddFoodTab.SEARCH)
-                ActionTile("Scan", Icons.Filled.QrCodeScanner, { viewModel.selectTab(AddFoodTab.BARCODE) }, Modifier.weight(1f), selected = state.tab == AddFoodTab.BARCODE)
-                ActionTile("Photo", Icons.Filled.CameraAlt, { viewModel.selectTab(AddFoodTab.PHOTO) }, Modifier.weight(1f), selected = state.tab == AddFoodTab.PHOTO)
-            }
-            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            // One scrolling row of pills (b.4): the meal, then Search, Scan, Photo (AI), Mine, Quick add and Drinks.
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = IntakeSpacing.ScreenGutter, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Box {
-                    ChoiceChip("${slotWord(mealSlot)}  ▾", false, { slotMenu = true })
+                    SourcePill(slotWord(mealSlot), null, false, { slotMenu = true }, trailing = IntakeIcons.ChevronDown, soft = true)
                     DropdownMenu(expanded = slotMenu, onDismissRequest = { slotMenu = false }) {
                         MealSlot.MEALS.forEach { s ->
                             DropdownMenuItem(text = { Text(slotWord(s)) }, onClick = { mealSlot = s; slotMenu = false })
                         }
                     }
                 }
-                ChoiceChip("Mine", state.tab == AddFoodTab.MY_FOODS, { viewModel.selectTab(AddFoodTab.MY_FOODS) })
-                ChoiceChip("Quick add", state.tab == AddFoodTab.QUICK_ADD, { viewModel.selectTab(AddFoodTab.QUICK_ADD) })
-                ChoiceChip("Drinks", false, { onOpenDrinks("") })
+                SourcePill("Search", IntakeIcons.Search, state.tab == AddFoodTab.SEARCH, { viewModel.selectTab(AddFoodTab.SEARCH) })
+                SourcePill("Scan", IntakeIcons.Scan, state.tab == AddFoodTab.BARCODE, { viewModel.selectTab(AddFoodTab.BARCODE) })
+                SourcePill("Photo", IntakeIcons.Camera, state.tab == AddFoodTab.PHOTO, { viewModel.selectTab(AddFoodTab.PHOTO) }, ai = true)
+                SourcePill("Mine", null, state.tab == AddFoodTab.MY_FOODS, { viewModel.selectTab(AddFoodTab.MY_FOODS) })
+                SourcePill("Quick add", null, state.tab == AddFoodTab.QUICK_ADD, { viewModel.selectTab(AddFoodTab.QUICK_ADD) })
+                SourcePill("Drinks", null, false, { onOpenDrinks("") })
             }
-            HorizontalDivider(Modifier.padding(top = 10.dp), color = MaterialTheme.colorScheme.outlineVariant)
 
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when (state.tab) {
@@ -249,7 +260,7 @@ fun LogFoodScreen(
                 "Allergen check runs before saving.",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                modifier = Modifier.padding(horizontal = IntakeSpacing.ScreenGutter, vertical = 6.dp),
             )
         }
     }
@@ -305,25 +316,47 @@ internal fun RowAllergenChip(allergen: RowAllergen) {
 
 @Composable
 private fun CheckingChip() {
-    androidx.compose.material3.Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        shape = androidx.compose.foundation.shape.CircleShape,
-        modifier = Modifier.semantics { contentDescription = "Checking allergens" },
-    ) {
-        Text(
-            "Checking\u2026",
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold,
-            maxLines = 1,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-        )
+    // Neutral and worded: "Checking…" is never blank and never green.
+    IntakeChip("Checking\u2026", modifier = Modifier.semantics { contentDescription = "Checking allergens" })
+}
+
+// ---- Grouped result rows (DESIGN-V6 b.8): one card per source, built from light rows ----
+
+private val GroupTopShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+private val GroupBottomShape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+
+/**
+ * Draws a lazy row as one slice of its source's card: gutter on both sides, `card` fill, the group's first row rounded on top
+ * and its last at the bottom. Rows stay separate lazy items (so the list stays lazy) and cost one background each.
+ */
+@Composable
+internal fun Modifier.groupRow(index: Int, count: Int, gutter: Boolean = true): Modifier {
+    val shape = when {
+        count <= 1 -> IntakeShape.Card
+        index == 0 -> GroupTopShape
+        index == count - 1 -> GroupBottomShape
+        else -> RectangleShape
     }
+    val base = if (gutter) this.padding(horizontal = IntakeSpacing.ScreenGutter) else this
+    return (if (shape === RectangleShape) base else base.clip(shape)).background(MaterialTheme.colorScheme.surface)
+}
+
+/** The divider above every row but the first of a group. */
+@Composable
+internal fun GroupDivider(index: Int) {
+    if (index > 0) ListDivider()
+}
+
+/** The row's "+" (44 dp hit area, one icon, no surface). */
+@Composable
+private fun RowPlus(description: String, onClick: () -> Unit) {
+    IconCircleButton(IntakeIcons.Plus, description, onClick, style = IconCircleStyle.Clear)
 }
 
 /**
- * Result rows. The tile, the name over its portion, the energy, the allergen chip (when the person avoids anything) and
- * a "+" that logs one serving. Tapping the row opens Food detail.
+ * Result rows. The name over its portion and energy, the allergen chip (when the person avoids anything) and a "+" that logs
+ * one serving. Tapping the row opens Food detail. Light on purpose: a photo tile only when the food has a picture, no
+ * surface or icon otherwise.
  */
 @Composable
 private fun FoodRow(
@@ -333,25 +366,30 @@ private fun FoodRow(
     onOpen: (FoodEntity) -> Unit,
     onQuickAdd: ((FoodEntity) -> Unit)?,
     onToggleFavorite: ((FoodEntity) -> Unit)? = null,
+    index: Int = 0,
+    count: Int = 1,
 ) {
     val perServing = food.servingSizeGrams / 100.0
     val isDrink = food.drinkCategory != null
-    Column {
+    Column(Modifier.groupRow(index, count)) {
+        GroupDivider(index)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 65.dp)
+                .heightIn(min = IntakeSpacing.ListRowMinHeight)
                 .clickable(onClickLabel = "Open ${food.name}") { onOpen(food) }
-                .padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
+                .padding(start = IntakeSpacing.ListRowPadH, end = 4.dp, top = 10.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            FoodThumb(food)
-            Spacer(Modifier.size(11.dp))
+            if (food.imageUrl != null) {
+                FoodThumb(food)
+                Spacer(Modifier.size(12.dp))
+            }
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = food.name,
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 2,
                         modifier = Modifier.weight(1f, fill = false),
@@ -362,10 +400,10 @@ private fun FoodRow(
                     if (isSafe && chipAllowsTick) {
                         Spacer(Modifier.size(5.dp))
                         Icon(
-                            imageVector = Icons.Filled.CheckCircle,
+                            imageVector = IntakeIcons.Check,
                             contentDescription = "Logged before with no allergen flag",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.intake.ok,
+                            modifier = Modifier.size(IconSize.ExtraSmall),
                         )
                     }
                 }
@@ -375,9 +413,9 @@ private fun FoodRow(
                         append(food.servingLabel)
                         append(" · ${(food.kcalPer100g * perServing).roundToInt()} kcal")
                     },
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
+                    maxLines = 2,
                 )
                 if (allergen != null) {
                     Spacer(Modifier.size(4.dp))
@@ -400,12 +438,9 @@ private fun FoodRow(
                 }
             }
             if (onQuickAdd != null) {
-                IconButton(onClick = { onQuickAdd(food) }, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.Filled.Add, contentDescription = if (isDrink) "Add one ${food.servingLabel} of ${food.name}" else "Log one serving of ${food.name}")
-                }
+                RowPlus(if (isDrink) "Add one ${food.servingLabel} of ${food.name}" else "Log one serving of ${food.name}") { onQuickAdd(food) }
             }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
 
@@ -449,23 +484,26 @@ private fun SearchTab(
     Column(Modifier.fillMaxSize()) {
         TextField(
             state = field,
-            placeholder = { Text("Search foods", style = MaterialTheme.typography.bodyMedium) },
-            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, modifier = Modifier.size(19.dp)) },
+            placeholder = { Text("Search foods", style = MaterialTheme.typography.bodyLarge) },
+            leadingIcon = { Icon(IntakeIcons.Search, contentDescription = null, modifier = Modifier.size(IconSize.Default)) },
             trailingIcon = {
                 if (hasText) {
-                    IconButton(onClick = onClear) { Icon(Icons.Filled.Close, contentDescription = "Clear the search") }
+                    IconCircleButton(IntakeIcons.Close, "Clear the search", onClear, style = IconCircleStyle.Clear)
                 }
             },
             lineLimits = androidx.compose.foundation.text.input.TextFieldLineLimits.SingleLine,
-            shape = IntakeShape.Field,
+            textStyle = MaterialTheme.typography.bodyLarge,
+            shape = IntakeShape.Pill,
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
                 disabledIndicatorColor = Color.Transparent,
+                focusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
             ),
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = IntakeSpacing.ScreenGutter, vertical = 10.dp),
         )
 
         if (query.isBlank()) {
@@ -480,7 +518,7 @@ private fun SearchTab(
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 if (state.recents.isEmpty() && recipes.recents.isEmpty() && otherRecipes.isEmpty()) {
                     item(key = "no-recents") {
-                        Column(Modifier.padding(horizontal = 16.dp)) {
+                        Column(Modifier.padding(horizontal = IntakeSpacing.ScreenGutter)) {
                             EmptyState(
                                 title = "Nothing logged yet",
                                 body = "Search your foods and the offline USDA database. Both work with no internet and no key. Foods you log often land here.",
@@ -490,17 +528,17 @@ private fun SearchTab(
                 }
                 if (state.recents.isNotEmpty()) {
                     item(key = "h-recent") { SourceHeader("Recent") }
-                    items(items = state.recents, key = { "recent-${it.id}" }) { food ->
-                        FoodRow(food, food.id in state.safeFoodIds, state.chipFor(food.id), onOpen, onQuickAdd)
+                    itemsIndexed(items = state.recents, key = { _, it -> "recent-${it.id}" }) { i, food ->
+                        FoodRow(food, food.id in state.safeFoodIds, state.chipFor(food.id), onOpen, onQuickAdd, index = i, count = state.recents.size)
                     }
                 }
                 if (recipes.recents.isNotEmpty()) {
                     item(key = "h-recent-recipes") { RecipeSourceHeader("Recent recipes") }
-                    items(items = recipes.recents, key = { "recent-recipe-${it.recipe.id}" }) { row -> RecipeLogRow(row, onLogRecipe) }
+                    itemsIndexed(items = recipes.recents, key = { _, it -> "recent-recipe-${it.recipe.id}" }) { i, row -> RecipeLogRow(row, onLogRecipe, i, recipes.recents.size) }
                 }
                 if (otherRecipes.isNotEmpty()) {
                     item(key = "h-saved-recipes") { RecipeSourceHeader(if (recipes.recents.isEmpty()) "Saved recipes" else "Other saved recipes") }
-                    items(items = otherRecipes, key = { "saved-recipe-${it.recipe.id}" }) { row -> RecipeLogRow(row, onLogRecipe) }
+                    itemsIndexed(items = otherRecipes, key = { _, it -> "saved-recipe-${it.recipe.id}" }) { i, row -> RecipeLogRow(row, onLogRecipe, i, otherRecipes.size) }
                 }
                 item(key = "drinks-row") { DrinksRow("Categories, a drinks search and size buttons") { onOpenDrinks("") } }
             }
@@ -535,29 +573,29 @@ private fun SearchTab(
             }
             if (state.localResults.isNotEmpty()) {
                 item(key = "h-local") { SourceHeader("My foods and recents") }
-                items(items = state.localResults, key = { "l-${it.id}" }) { food ->
-                    FoodRow(food, food.id in state.safeFoodIds, state.chipFor(food.id), onOpen, onQuickAdd)
+                itemsIndexed(items = state.localResults, key = { _, it -> "l-${it.id}" }) { i, food ->
+                    FoodRow(food, food.id in state.safeFoodIds, state.chipFor(food.id), onOpen, onQuickAdd, index = i, count = state.localResults.size)
                 }
             }
 
             // Saved recipes: on this phone, one serving through the recipe logging path.
             if (recipes.results.isNotEmpty()) {
                 item(key = "h-recipes") { RecipeSourceHeader("Recipes (saved on this phone)") }
-                items(items = recipes.results, key = { "rcp-${it.recipe.id}" }) { row -> RecipeLogRow(row, onLogRecipe) }
+                itemsIndexed(items = recipes.results, key = { _, it -> "rcp-${it.recipe.id}" }) { i, row -> RecipeLogRow(row, onLogRecipe, i, recipes.results.size) }
             }
 
             // Imported restaurant menus: on this phone, logged per serving with the item's own numbers.
             if (state.menuRows.isNotEmpty()) {
                 item(key = "h-menu") { SourceHeader("Restaurant menus (imported, works offline)") }
-                items(items = state.menuRows, key = { "m-${it.hit.item.id}" }) { row ->
-                    MenuItemRow(row, onLogMenu)
+                itemsIndexed(items = state.menuRows, key = { _, it -> "m-${it.hit.item.id}" }) { i, row ->
+                    MenuItemRow(row, onLogMenu, i, state.menuRows.size)
                 }
             }
 
             if (state.refResults.isNotEmpty()) {
                 item(key = "h-ref") { SourceHeader("Food database (USDA, works offline)") }
-                items(items = state.refResults, key = { "r-${it.id}" }) { ref ->
-                    RefFoodRow(ref, state.refChipFor(ref.id), state.portionUnit, onChooseRef)
+                itemsIndexed(items = state.refResults, key = { _, it -> "r-${it.id}" }) { i, ref ->
+                    RefFoodRow(ref, state.refChipFor(ref.id), state.portionUnit, onChooseRef, i, state.refResults.size)
                 }
             }
 
@@ -569,15 +607,15 @@ private fun SearchTab(
                         Text(
                             "Searching Open Food Facts...",
                             style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                            modifier = Modifier.padding(horizontal = IntakeSpacing.ScreenGutter, vertical = 4.dp),
                         )
-                        SkeletonList(modifier = Modifier.padding(horizontal = 16.dp), rows = 3, rowHeight = 52.dp, label = "Searching Open Food Facts")
+                        SkeletonList(modifier = Modifier.padding(horizontal = IntakeSpacing.ScreenGutter), rows = 3, rowHeight = 52.dp, label = "Searching Open Food Facts")
                     }
                 }
                 is OffUiState.Results -> if (offResults.isNotEmpty()) {
                     item(key = "h-off") { SourceHeader("Packaged foods (Open Food Facts)") }
-                    items(items = offResults, key = { "o-${it.id}" }) { food ->
-                        FoodRow(food, false, state.chipFor(food.id), onChooseOff, null)
+                    itemsIndexed(items = offResults, key = { _, it -> "o-${it.id}" }) { i, food ->
+                        FoodRow(food, false, state.chipFor(food.id), onChooseOff, null, index = i, count = offResults.size)
                     }
                 }
                 OffUiState.Failed -> item(key = "off-failed") {
@@ -595,9 +633,9 @@ private fun SearchTab(
             if (state.hasUsdaKey) {
                 item(key = "usda-api") {
                     when (val search = state.searchState) {
-                        SearchState.Idle -> OutlinedButton(
+                        SearchState.Idle -> LineButton(
                             onClick = onSearchRemote,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).height(52.dp),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = IntakeSpacing.ScreenGutter, vertical = 8.dp).heightIn(min = IntakeSpacing.TouchTarget),
                         ) { Text("Also search USDA online (your key)") }
                         SearchState.Loading -> Column(Modifier.fillMaxWidth().padding(16.dp)) {
                             Text("Searching USDA...", style = MaterialTheme.typography.bodyMedium)
@@ -612,8 +650,8 @@ private fun SearchTab(
                 }
                 if (usdaApiResults.isNotEmpty()) {
                     item(key = "h-usda") { SourceHeader("USDA online (your key), saved to this phone") }
-                    items(items = usdaApiResults, key = { "u-${it.id}" }) { food ->
-                        FoodRow(food, false, state.chipFor(food.id), onOpen, onQuickAdd)
+                    itemsIndexed(items = usdaApiResults, key = { _, it -> "u-${it.id}" }) { i, food ->
+                        FoodRow(food, false, state.chipFor(food.id), onOpen, onQuickAdd, index = i, count = usdaApiResults.size)
                     }
                 }
             }
@@ -622,7 +660,7 @@ private fun SearchTab(
             if (nothingYet && !offLoading && state.queryMatchesDrinks) {
                 // The words only find drinks. Foods and drinks are separate searches, so say where they went.
                 item(key = "drinks-only") {
-                    Column(Modifier.padding(16.dp)) {
+                    Column(Modifier.padding(IntakeSpacing.ScreenGutter)) {
                         Text("Drinks are logged from Drinks", style = MaterialTheme.typography.titleMedium)
                         Text(
                             "\"$typed\" matches drinks, not foods. Drinks count toward water as well as calories, so they have their own page.",
@@ -630,27 +668,27 @@ private fun SearchTab(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 4.dp),
                         )
-                        Button(onClick = { onOpenDrinks(typed) }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp).height(52.dp)) { Text("Search Drinks for \"$typed\"") }
-                        OutlinedButton(onClick = { creating = true }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp).height(48.dp)) { Text("It is a food: create \"$typed\"") }
+                        Button(onClick = { onOpenDrinks(typed) }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp).heightIn(min = IntakeSpacing.TouchTarget)) { Text("Search Drinks for \"$typed\"") }
+                        LineButton(onClick = { creating = true }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp).heightIn(min = IntakeSpacing.TouchTarget)) { Text("It is a food: create \"$typed\"") }
                     }
                 }
             } else if (nothingYet && !offLoading) {
                 item(key = "create") {
-                    Column(Modifier.padding(16.dp)) {
+                    Column(Modifier.padding(IntakeSpacing.ScreenGutter)) {
                         Text(
                             "Nothing matches \"$typed\".",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Button(onClick = { creating = true }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp).height(52.dp)) { Text("Create a food") }
+                        Button(onClick = { creating = true }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp).heightIn(min = IntakeSpacing.TouchTarget)) { Text("Create a food") }
                     }
                 }
                 item(key = "drinks-row") { DrinksRow("Looking for a drink? Search Drinks for \"$typed\"") { onOpenDrinks(typed) } }
             } else if (!nothingYet) {
                 item(key = "create-small") {
-                    OutlinedButton(
+                    LineButton(
                         onClick = { creating = true },
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).height(48.dp),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = IntakeSpacing.ScreenGutter, vertical = 8.dp).heightIn(min = IntakeSpacing.TouchTarget),
                     ) { Text("Not here? Create \"$typed\"") }
                 }
                 // Drinks are never listed here, so the way across stays at the foot of every result list.
@@ -665,20 +703,18 @@ private fun SearchTab(
 private fun DrinksRow(note: String, title: String = "Log a drink", onOpenDrinks: () -> Unit) {
     Surface(
         onClick = onOpenDrinks,
-        color = MaterialTheme.colorScheme.surface,
+        color = Color.Transparent,
         shape = IntakeShape.Card,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = IntakeSpacing.ScreenGutter, vertical = 8.dp),
     ) {
-        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = IntakeShape.Tile, modifier = Modifier.size(46.dp)) {
-                Box(contentAlignment = Alignment.Center) { Icon(Icons.Filled.WaterDrop, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer) }
-            }
+        Row(Modifier.padding(horizontal = IntakeSpacing.ScreenGutter, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Icon(IntakeIcons.Cup, contentDescription = null, modifier = Modifier.size(IconSize.Default))
             Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(title, style = MaterialTheme.typography.titleSmall)
+                Text(note, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            RowChevron()
         }
     }
 }
@@ -730,7 +766,7 @@ private fun MyFoodsTab(
     }
     LazyColumn(Modifier.fillMaxSize()) {
         item(key = "add") {
-            Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.padding(horizontal = IntakeSpacing.ScreenGutter, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = filter,
                     onValueChange = { filter = it },
@@ -738,12 +774,12 @@ private fun MyFoodsTab(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedButton(onClick = { creating = true }, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Add a food by hand") }
+                LineButton(onClick = { creating = true }, modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget)) { Text("Add a food by hand") }
             }
         }
         if (state.loaded && recipesLoaded && favorites.isEmpty() && mine.isEmpty() && myRecipes.isEmpty()) {
             item(key = "empty") {
-                Column(Modifier.padding(horizontal = 16.dp)) {
+                Column(Modifier.padding(horizontal = IntakeSpacing.ScreenGutter)) {
                     EmptyState(
                         title = if (needle.isEmpty()) "Nothing here yet" else "No match",
                         body = if (needle.isEmpty()) {
@@ -757,26 +793,26 @@ private fun MyFoodsTab(
         }
         if (favorites.isNotEmpty()) {
             item(key = "fav-header") { SourceHeader("Favourites") }
-            items(items = favorites, key = { "fav-${it.id}" }) { food ->
-                FoodRow(food, food.id in state.safeFoodIds, state.chipFor(food.id), onOpen, onQuickAdd, onToggleFavorite)
+            itemsIndexed(items = favorites, key = { _, it -> "fav-${it.id}" }) { i, food ->
+                FoodRow(food, food.id in state.safeFoodIds, state.chipFor(food.id), onOpen, onQuickAdd, onToggleFavorite, index = i, count = favorites.size)
             }
         }
         if (mine.isNotEmpty()) {
             item(key = "mine-header") { SourceHeader("Saved on this phone") }
-            items(items = mine, key = { "mine-${it.id}" }) { food ->
-                FoodRow(food, food.id in state.safeFoodIds, state.chipFor(food.id), onOpen, onQuickAdd, onToggleFavorite)
+            itemsIndexed(items = mine, key = { _, it -> "mine-${it.id}" }) { i, food ->
+                FoodRow(food, food.id in state.safeFoodIds, state.chipFor(food.id), onOpen, onQuickAdd, onToggleFavorite, index = i, count = mine.size)
             }
         }
         if (myRecipes.isNotEmpty()) {
             item(key = "recipes-header") { RecipeSourceHeader("Recipes") }
-            items(items = myRecipes, key = { "mine-recipe-${it.recipe.id}" }) { row -> RecipeLogRow(row, onLogRecipe) }
+            itemsIndexed(items = myRecipes, key = { _, it -> "mine-recipe-${it.recipe.id}" }) { i, row -> RecipeLogRow(row, onLogRecipe, i, myRecipes.size) }
         }
     }
 }
 
 @Composable
 private fun SourceHeader(text: String) {
-    Eyebrow(text = text, modifier = Modifier.padding(start = 16.dp, top = 10.dp, bottom = 4.dp))
+    Eyebrow(text = text, modifier = Modifier.padding(start = IntakeSpacing.ScreenGutter + 4.dp, top = 16.dp, bottom = 8.dp))
 }
 
 /**
@@ -785,18 +821,19 @@ private fun SourceHeader(text: String) {
  * information says so instead of "No allergens".
  */
 @Composable
-private fun MenuItemRow(row: MenuRow, onLog: (MenuRow) -> Unit) {
+private fun MenuItemRow(row: MenuRow, onLog: (MenuRow) -> Unit, index: Int = 0, count: Int = 1) {
     val item = row.hit.item
-    Column {
+    Column(Modifier.groupRow(index, count)) {
+        GroupDivider(index)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 65.dp)
-                .padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
+                .heightIn(min = IntakeSpacing.ListRowMinHeight)
+                .padding(start = IntakeSpacing.ListRowPadH, end = 4.dp, top = 10.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
-                Text(item.name, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface, maxLines = 2)
+                Text(item.name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 2)
                 Text(
                     text = buildString {
                         append(item.restaurantName)
@@ -804,7 +841,7 @@ private fun MenuItemRow(row: MenuRow, onLog: (MenuRow) -> Unit) {
                         item.kcal?.let { append(" · ${it.roundToInt()} kcal") }
                         item.proteinG?.let { append(" · ${it.roundToInt()} g protein") }
                     },
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
                 )
@@ -813,39 +850,35 @@ private fun MenuItemRow(row: MenuRow, onLog: (MenuRow) -> Unit) {
                     RowAllergenChip(it)
                 }
             }
-            IconButton(onClick = { onLog(row) }, modifier = Modifier.size(48.dp)) {
-                Icon(Icons.Filled.Add, contentDescription = "Log one serving of ${item.name} from ${item.restaurantName}")
-            }
+            RowPlus("Log one serving of ${item.name} from ${item.restaurantName}") { onLog(row) }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
 
 /** A bundled USDA food: name, category, and the numbers for its first listed portion. */
 @Composable
-private fun RefFoodRow(ref: RefFood, allergen: RowAllergen?, unit: PortionUnit, onChoose: (RefFood) -> Unit) {
+private fun RefFoodRow(ref: RefFood, allergen: RowAllergen?, unit: PortionUnit, onChoose: (RefFood) -> Unit, index: Int = 0, count: Int = 1) {
     val portion = ref.defaultPortion
-    Column {
+    Column(Modifier.groupRow(index, count)) {
+        GroupDivider(index)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 65.dp)
+                .heightIn(min = IntakeSpacing.ListRowMinHeight)
                 .clickable(onClickLabel = "Choose a portion of ${ref.name}") { onChoose(ref) }
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = IntakeSpacing.ListRowPadH, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // USDA foods have no photo: a generic icon for the kind of food.
-            ThumbTile(name = ref.name, imageUrl = null, category = ref.category)
-            Spacer(Modifier.size(11.dp))
+            // USDA foods have no photo, so no tile: the row stays light.
             Column(Modifier.weight(1f)) {
-                Text(ref.name, style = MaterialTheme.typography.titleSmall, maxLines = 2)
+                Text(ref.name, style = MaterialTheme.typography.titleMedium, maxLines = 2)
                 Spacer(Modifier.size(2.dp))
                 Text(
                     text = "${portion.label} (${unit.format(portion.grams)})" +
                         if (ref.category.isNotBlank()) " · ${ref.category}" else "",
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
+                    maxLines = 2,
                 )
                 if (allergen != null) {
                     Spacer(Modifier.size(4.dp))
@@ -859,7 +892,7 @@ private fun RefFoodRow(ref: RefFood, allergen: RowAllergen?, unit: PortionUnit, 
             }
             Spacer(Modifier.size(8.dp))
             Column(horizontalAlignment = Alignment.End) {
-                Text("${ref.kcalFor(portion.grams).roundToInt()}", style = MaterialTheme.typography.titleSmall)
+                Text("${ref.kcalFor(portion.grams).roundToInt()}", style = MaterialTheme.typography.titleMedium)
                 Text(
                     text = "kcal · ${ref.proteinFor(portion.grams).roundToInt()}g P",
                     style = MaterialTheme.typography.labelSmall,
@@ -867,7 +900,6 @@ private fun RefFoodRow(ref: RefFood, allergen: RowAllergen?, unit: PortionUnit, 
                 )
             }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
 
@@ -922,7 +954,7 @@ private fun BarcodeTab(
             SkeletonList(rows = 2, rowHeight = 56.dp, label = "Looking that barcode up")
         }
 
-        is BarcodeState.Found -> Column(Modifier.padding(20.dp)) {
+        is BarcodeState.Found -> Column(Modifier.padding(IntakeSpacing.ScreenGutter)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 FoodThumb(barcode.food, size = 64.dp)
                 Spacer(Modifier.size(14.dp))
@@ -957,15 +989,15 @@ private fun BarcodeTab(
             Spacer(Modifier.height(16.dp))
             Button(
                 onClick = { onPick(barcode.food) },
-                modifier = Modifier.fillMaxWidth().height(52.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget),
             ) { Text("Choose a portion") }
-            OutlinedButton(
+            LineButton(
                 onClick = onRescan,
-                modifier = Modifier.fillMaxWidth().height(52.dp).padding(top = 8.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget).padding(top = 8.dp),
             ) { Text("Scan another") }
         }
 
-        is BarcodeState.Unknown -> Column(Modifier.padding(20.dp)) {
+        is BarcodeState.Unknown -> Column(Modifier.padding(IntakeSpacing.ScreenGutter)) {
             Text("Not found in Open Food Facts", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(6.dp))
             Text(
@@ -978,15 +1010,15 @@ private fun BarcodeTab(
             Spacer(Modifier.height(16.dp))
             Button(
                 onClick = { manualFor = barcode.barcode },
-                modifier = Modifier.fillMaxWidth().height(52.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget),
             ) { Text("Add this product") }
-            OutlinedButton(
+            LineButton(
                 onClick = onRescan,
-                modifier = Modifier.fillMaxWidth().height(52.dp).padding(top = 8.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget).padding(top = 8.dp),
             ) { Text("Scan again") }
         }
 
-        is BarcodeState.LookupFailed -> Column(Modifier.padding(20.dp)) {
+        is BarcodeState.LookupFailed -> Column(Modifier.padding(IntakeSpacing.ScreenGutter)) {
             Text("Could not look that up", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(6.dp))
             Text(
@@ -997,15 +1029,15 @@ private fun BarcodeTab(
             Spacer(Modifier.height(16.dp))
             Button(
                 onClick = { onRetry(barcode.barcode) },
-                modifier = Modifier.fillMaxWidth().height(52.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget),
             ) { Text("Try again") }
-            OutlinedButton(
+            LineButton(
                 onClick = { manualFor = barcode.barcode },
-                modifier = Modifier.fillMaxWidth().height(52.dp).padding(top = 8.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget).padding(top = 8.dp),
             ) { Text("Add this product") }
-            OutlinedButton(
+            LineButton(
                 onClick = onRescan,
-                modifier = Modifier.fillMaxWidth().height(52.dp).padding(top = 8.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget).padding(top = 8.dp),
             ) { Text("Scan again") }
         }
     }
@@ -1037,7 +1069,7 @@ private fun QuickAddTab(onQuickAdd: (String, Double, Double, Double, Double) -> 
     val anyError = listOf(kcalError, proteinError, carbsError, fatError).any { it != null }
 
     Column(
-        modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState()),
+        modifier = Modifier.padding(IntakeSpacing.ScreenGutter).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(
@@ -1071,7 +1103,7 @@ private fun QuickAddTab(onQuickAdd: (String, Double, Double, Double, Double) -> 
                 )
             },
             enabled = !anyError && kcal.toDoubleOrNull()?.let { it > 0 } == true,
-            modifier = Modifier.fillMaxWidth().height(52.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget),
         ) { Text("Log it") }
         Spacer(Modifier.height(8.dp))
     }
@@ -1100,7 +1132,7 @@ private fun CreateFoodForm(
     val valid = name.isNotBlank() && grams != null && grams > 0 && kcal.toDoubleOrNull() != null
 
     Column(
-        modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState()),
+        modifier = Modifier.padding(IntakeSpacing.ScreenGutter).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(heading, style = MaterialTheme.typography.titleMedium)
@@ -1145,7 +1177,7 @@ private fun CreateFoodForm(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("Cancel") }
+            LineButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("Cancel") }
             Button(
                 onClick = {
                     onCreate(
@@ -1189,4 +1221,45 @@ private fun NumberField(
         },
         modifier = modifier,
     )
+}
+
+/**
+ * One of the pills in the top row (`.pill`): `card` fill, ink when selected, 44 dp tall. [soft] is the meal picker, [ai] adds the
+ * AI chip (Photo estimates by AI, so it carries the label), [trailing] a small chevron.
+ */
+@Composable
+private fun SourcePill(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector?,
+    selected: Boolean,
+    onClick: () -> Unit,
+    trailing: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    soft: Boolean = false,
+    ai: Boolean = false,
+) {
+    Surface(
+        color = when {
+            selected -> MaterialTheme.colorScheme.primary
+            soft -> MaterialTheme.intake.soft
+            else -> MaterialTheme.colorScheme.surface
+        },
+        contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+        shape = IntakeShape.Pill,
+        modifier = Modifier
+            .heightIn(min = IntakeSpacing.TouchTarget)
+            .clip(IntakeShape.Pill)
+            .clickable(onClick = onClick)
+            .semantics { role = Role.RadioButton; this.selected = selected },
+    ) {
+        Row(
+            Modifier.padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (icon != null) Icon(icon, contentDescription = null, modifier = Modifier.size(IconSize.Small))
+            Text(label, style = MaterialTheme.typography.titleSmall, maxLines = 1)
+            if (ai) IntakeChip("AI", tone = ChipTone.Ai, small = true)
+            if (trailing != null) Icon(trailing, contentDescription = null, modifier = Modifier.size(IconSize.Small))
+        }
+    }
 }

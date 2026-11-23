@@ -1,7 +1,6 @@
 package com.zeroindex.intake.ui.screens.nutrition
 
 import com.zeroindex.intake.domain.units.KcalFormat
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -15,19 +14,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.PieChart
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -53,6 +46,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.db.entity.AllergenStatus
@@ -68,17 +62,26 @@ import com.zeroindex.intake.domain.swap.SwapAllergen
 import com.zeroindex.intake.ui.screens.plan.PlanAllergenSheet
 import com.zeroindex.intake.ui.allergen.AllergenStrip
 import com.zeroindex.intake.ui.components.AnimatedBar
+import com.zeroindex.intake.ui.components.ChipTone
+import com.zeroindex.intake.ui.components.GhostButton
+import com.zeroindex.intake.ui.components.IconCircleButton
+import com.zeroindex.intake.ui.components.IconCircleStyle
 import com.zeroindex.intake.ui.components.IntakeCard
-import com.zeroindex.intake.ui.components.MacroSplitBar
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.components.ListCard
+import com.zeroindex.intake.ui.components.ListDivider
+import com.zeroindex.intake.ui.components.SectionLine
+import com.zeroindex.intake.ui.components.SoftButton
 import com.zeroindex.intake.ui.components.rememberSweepFraction
 import com.zeroindex.intake.ui.motion.MoreDetail
 import com.zeroindex.intake.ui.onboarding.TabTip
 import com.zeroindex.intake.ui.onboarding.TabTipCopy
 import com.zeroindex.intake.ui.screens.today.NextMealUi
-import com.zeroindex.intake.ui.theme.CarbAccent
-import com.zeroindex.intake.ui.theme.FatAccent
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IntakeShape
-import com.zeroindex.intake.ui.theme.ProteinAccent
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.theme.NumberSmall
+import com.zeroindex.intake.ui.theme.intake
 import kotlin.math.roundToInt
 
 /** Where each control on the Nutrition tab leads. Each is a different screen; nothing here configures anything. */
@@ -137,10 +140,10 @@ fun NutritionHomeScreen(
         contentPadding = PaddingValues(
             top = contentPadding.calculateTopPadding() + 4.dp,
             bottom = contentPadding.calculateBottomPadding() + 16.dp,
-            start = 16.dp,
-            end = 16.dp,
+            start = IntakeSpacing.ScreenGutter,
+            end = IntakeSpacing.ScreenGutter,
         ),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
     ) {
         item(key = "day") {
             DaySwitcher(
@@ -160,6 +163,8 @@ fun NutritionHomeScreen(
             Box(Modifier.fillMaxWidth().heightIn(min = 48.dp)) { AllergenStrip(onClick = actions.onOpenAllergens, compact = true) }
         }
 
+        item(key = "overview") { OverviewCard(state.dashboard, state.ready, state.hydration, state.settings.volumeUnit, state.isToday) }
+
         item(key = "tip") {
             TabTip(
                 key = TipKey.FOOD,
@@ -169,8 +174,6 @@ fun NutritionHomeScreen(
                 hasHistory = hasHistory,
             )
         }
-
-        item(key = "overview") { OverviewCard(state.dashboard, state.ready, state.hydration, state.settings.volumeUnit, state.isToday) }
 
         item(key = "meals") {
             MealsCard(
@@ -186,14 +189,14 @@ fun NutritionHomeScreen(
 
 // ---- Overview card ----
 
-/** Room kept for the overview card while its day is read: the ring box plus the macro cards under it. */
-private val OverviewPlaceholderHeight = 420.dp
-private val RingSize = 124.dp
-private val RingStroke = 12.dp
+/** Room kept for the overview card while its day is read: the ring box plus the macro tiles under it. */
+private val OverviewPlaceholderHeight = 360.dp
+private val RingSize = 88.dp
+private val RingStroke = 10.dp
 /** The ring's gap to its percentage labels, and the room the box keeps for them on each side (a "100%" label, the gap, a margin). */
 private val RingLabelGap = 6.dp
-private val RingLabelRoomX = 40.dp
-private val RingLabelRoomY = 26.dp
+private val RingLabelRoomX = 34.dp
+private val RingLabelRoomY = 24.dp
 /** The ring plus the room its percentage labels need outside it, so they never reach the text beside it. */
 private val RingBoxWidth = RingSize + RingLabelRoomX * 2
 private val RingBoxHeight = RingSize + RingLabelRoomY * 2
@@ -208,7 +211,7 @@ private fun OverviewCard(
 ) {
     IntakeCard {
         if (model == null || !ready) {
-            // About as tall as the loaded card (ring, macro cards), so the cards below do not jump when it fills.
+            // About as tall as the loaded card (ring, macro tiles), so the cards below do not jump when it fills.
             Box(Modifier.fillMaxWidth().height(OverviewPlaceholderHeight)) {
                 Text(if (isToday) "Reading today…" else "Reading that day…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -223,24 +226,22 @@ private fun OverviewCard(
         // Holding with nothing eaten shows nothing extra.
         val showSplit = held && shares != null
 
-        Box(Modifier.fillMaxWidth()) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                CalorieRingView(model, showSplit, protein, carbs, fat)
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    model.calories.target?.let {
-                        Text("of ${KcalFormat.format(it)} kcal", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Text("${KcalFormat.format(model.calories.eaten)} eaten", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            CalorieRingView(model, showSplit, protein, carbs, fat)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("${KcalFormat.format(model.calories.eaten)} eaten", style = MaterialTheme.typography.titleLarge)
+                model.calories.target?.let {
+                    Text("of ${KcalFormat.format(it)} kcal", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                SplitButton(held = held, onHeld = { held = it }, modifier = Modifier.padding(top = 6.dp))
             }
-            SplitButton(held = held, onHeld = { held = it }, modifier = Modifier.align(Alignment.TopEnd).offset(x = 8.dp, y = (-8).dp))
         }
 
         MacroCards(model, showSplit, shares)
 
-        Spacer(Modifier.height(10.dp))
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(4.dp))
+        ListDivider()
+        Spacer(Modifier.height(2.dp))
         // Fibre, saturated fat, sugar and salt or sodium: reference limits where a limit exists, "not listed" when unknown.
         model.others.chunked(2).forEach { pair ->
             Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -273,16 +274,18 @@ private fun OverviewCard(
 }
 
 /**
- * The round pie button in the card's corner. Pressed and held it reports `true` through [onHeld]; released it reports
- * `false`. A screen reader's activation toggles it instead, since it cannot hold.
+ * The "Hold to show macro split" pill under the eaten figure. Pressed and held it reports `true` through [onHeld]; released
+ * it reports `false`. A screen reader's activation toggles it instead, since it cannot hold.
  */
 @Composable
 private fun SplitButton(held: Boolean, onHeld: (Boolean) -> Unit, modifier: Modifier = Modifier) {
     val haptics = LocalHapticFeedback.current
-    val ring = MaterialTheme.colorScheme.primary
-    Box(
-        modifier
-            .size(48.dp)
+    Surface(
+        color = if (held) MaterialTheme.colorScheme.primary else MaterialTheme.intake.soft,
+        contentColor = if (held) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+        shape = IntakeShape.Pill,
+        modifier = modifier
+            .heightIn(min = IntakeSpacing.TouchTarget)
             .semantics {
                 contentDescription = "Hold to show macro split"
                 onClick(label = if (held) "Hide macro split" else "Show macro split") { onHeld(!held); true }
@@ -298,17 +301,9 @@ private fun SplitButton(held: Boolean, onHeld: (Boolean) -> Unit, modifier: Modi
                     }
                 })
             },
-        contentAlignment = Alignment.Center,
     ) {
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            shape = CircleShape,
-            border = BorderStroke(if (held) 2.dp else 1.dp, if (held) ring else MaterialTheme.colorScheme.outlineVariant),
-            modifier = Modifier.size(34.dp),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.PieChart, contentDescription = null, tint = if (held) ring else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
-            }
+        Box(Modifier.padding(horizontal = 14.dp, vertical = 6.dp), contentAlignment = Alignment.Center) {
+            Text("Hold to show macro split", style = MaterialTheme.typography.labelMedium, maxLines = 2)
         }
     }
 }
@@ -317,8 +312,9 @@ private fun SplitButton(held: Boolean, onHeld: (Boolean) -> Unit, modifier: Modi
 private fun CalorieRingView(model: DashboardModel, showSplit: Boolean, protein: Double, carbs: Double, fat: Double) {
     val c = model.calories
     val sweep by rememberSweepFraction(c.fraction)
-    val track = MaterialTheme.colorScheme.surfaceVariant
-    val color = if (c.over) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+    val track = MaterialTheme.intake.soft
+    // Over target the progress turns orange rather than red (b.7).
+    val color = if (c.over) MaterialTheme.intake.carb else MaterialTheme.colorScheme.primary
     val big = when {
         c.left == null -> KcalFormat.format(c.eaten)
         c.over -> KcalFormat.format(-c.left)
@@ -330,7 +326,7 @@ private fun CalorieRingView(model: DashboardModel, showSplit: Boolean, protein: 
         else -> "kcal left"
     }
     val segments = if (showSplit) MacroRingSplit.segments(protein, carbs, fat, sweep) else emptyList()
-    val colors = mapOf(MacroRingSplit.Macro.PROTEIN to ProteinAccent, MacroRingSplit.Macro.CARBS to CarbAccent, MacroRingSplit.Macro.FAT to FatAccent)
+    val colors = mapOf(MacroRingSplit.Macro.PROTEIN to MaterialTheme.intake.protein, MacroRingSplit.Macro.CARBS to MaterialTheme.intake.carb, MacroRingSplit.Macro.FAT to MaterialTheme.intake.fat)
     Box(
         Modifier.size(RingBoxWidth, RingBoxHeight).semantics { contentDescription = "$big $small" + (c.target?.let { ", of ${KcalFormat.format(it)}, ${KcalFormat.format(c.eaten)} eaten" } ?: "") },
         contentAlignment = Alignment.Center,
@@ -354,7 +350,7 @@ private fun CalorieRingView(model: DashboardModel, showSplit: Boolean, protein: 
         if (segments.isNotEmpty()) {
             val measurer = rememberTextMeasurer()
             val density = LocalDensity.current
-            val style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.ExtraBold)
+            val style = MaterialTheme.typography.labelMedium
             val texts = segments.map { "${it.pct}%" }
             val sizes = texts.map {
                 val px = measurer.measure(it, style, maxLines = 1, softWrap = false).size
@@ -372,33 +368,36 @@ private fun CalorieRingView(model: DashboardModel, showSplit: Boolean, protein: 
                 )
             }
         }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(big, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
-            Text(small, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(RingSize - RingStroke * 2)) {
+            Text(big, style = NumberSmall, maxLines = 1, softWrap = false)
+            Text(small, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
         }
     }
 }
 
 @Composable
 private fun MacroCards(model: DashboardModel, showSplit: Boolean, shares: MacroShares.Shares?) {
-    val colors = listOf(ProteinAccent, CarbAccent, FatAccent)
+    val c = MaterialTheme.intake
+    val colors = listOf(c.protein, c.carb, c.fat)
     val g = model.macros.map { it.value ?: 0.0 }
     val kcal = MacroRingSplit.kcal(g[0], g[1], g[2])
     val kcals = listOf(kcal.protein, kcal.carbs, kcal.fat)
     val pcts = shares?.let { listOf(it.proteinPct, it.carbPct, it.fatPct) }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         model.macros.forEachIndexed { i, row ->
-            Surface(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f), shape = IntakeShape.Tile, modifier = Modifier.weight(1f)) {
-                Column(Modifier.padding(horizontal = 10.dp, vertical = 9.dp)) {
-                    Text(row.label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("${row.value?.roundToInt() ?: 0}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
-                    Text("/ ${row.target?.roundToInt() ?: "—"} g", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.height(5.dp))
-                    AnimatedBar(row.fraction, colors[i], MaterialTheme.colorScheme.surfaceVariant, height = 3.dp)
+            Surface(color = c.soft, shape = IntakeShape.InnerCard, modifier = Modifier.weight(1f)) {
+                Column(Modifier.padding(horizontal = 12.dp, vertical = 12.dp)) {
+                    Text(row.label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text("${row.value?.roundToInt() ?: 0}", style = NumberSmall.copy(fontSize = 20.sp))
+                        Text(" /${row.target?.roundToInt() ?: "—"} g", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    AnimatedBar(row.fraction, colors[i], MaterialTheme.colorScheme.surface, height = 8.dp)
                     Spacer(Modifier.height(5.dp))
                     Text("${KcalFormat.format(kcals[i])} kcal", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (showSplit && pcts != null) {
-                        Text("${pcts[i]}% of kcal", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, color = colors[i])
+                        Text("${pcts[i]}% of kcal", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = colors[i])
                     }
                 }
             }
@@ -408,32 +407,32 @@ private fun MacroCards(model: DashboardModel, showSplit: Boolean, shares: MacroS
 
 @Composable
 private fun ValueLine(label: String, value: String) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
     }
 }
 
 @Composable
 private fun SmallBar(row: DashRow) {
+    val c = MaterialTheme.intake
     val barColor = when (row.id) {
-        "fiber", "fibre" -> ProteinAccent
-        "sugar" -> FatAccent
-        else -> CarbAccent
+        "fiber", "fibre" -> c.protein
+        "sugar" -> c.fat
+        else -> c.carb
     }
     Column(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.Bottom) {
-            Text(row.label, style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+            Text(row.label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
             val listed = row.listed
             Text(
                 NutritionDashboard.valueText(row),
                 style = if (listed) MaterialTheme.typography.labelLarge else MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
                 color = if (listed) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         Spacer(Modifier.height(4.dp))
-        AnimatedBar(row.fraction, barColor, MaterialTheme.colorScheme.surfaceVariant, height = 3.dp)
+        AnimatedBar(row.fraction, barColor, c.soft, height = 6.dp)
     }
 }
 
@@ -447,32 +446,33 @@ private fun MealsCard(
     onOpenMeal: (MealSlot) -> Unit,
     onAddFood: (MealSlot) -> Unit,
 ) {
-    IntakeCard {
-        state.slots.forEach { row ->
-            val planned = state.next?.takeIf { it.slot == row.slot && !row.logged }
-            MealRow(
-                emoji = slotEmoji(row.slot),
-                name = slotLabel(row.slot),
-                // The row opens the per-meal screen; the "+" goes straight to Log food for that meal and day.
-                onClick = { onOpenMeal(row.slot) },
-                onAdd = { onAddFood(row.slot) },
-                addDescription = "Log food for ${slotLabel(row.slot).lowercase()}",
-            ) {
-                when {
-                    row.logged -> {
-                        Row {
-                            Text(foodsLine(row.foods), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                            Text(" · ${KcalFormat.format(row.kcal)} kcal", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
+    Column {
+        SectionLine("Meals")
+        ListCard {
+            Column {
+                state.slots.forEachIndexed { index, row ->
+                    val planned = state.next?.takeIf { it.slot == row.slot && !row.logged }
+                    if (index > 0) ListDivider()
+                    MealRow(
+                        name = slotLabel(row.slot),
+                        kcal = if (row.logged) "${KcalFormat.format(row.kcal)} kcal" else null,
+                        planned = planned != null,
+                        // The row opens the per-meal screen; the "+" goes straight to Log food for that meal and day.
+                        onClick = { onOpenMeal(row.slot) },
+                        onAdd = { onAddFood(row.slot) },
+                        showAdd = true,
+                        addDescription = "Log food for ${slotLabel(row.slot).lowercase()}",
+                    ) {
+                        when {
+                            row.logged -> Text(foodsLine(row.foods), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            planned != null -> PlannedLine(planned, actions, onLogIt)
+                            // Before the first read every row would say "Nothing yet": show nothing instead (Q1-7, Q5a-6).
+                            !state.ready -> Unit
+                            else -> Text("Nothing yet", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        MacroSplitBar(row.protein, row.carbs, row.fat, Modifier.fillMaxWidth(0.7f).padding(top = 5.dp), showLabels = false, barHeight = 5.dp)
                     }
-                    planned != null -> PlannedLine(planned, actions, onLogIt)
-                    // Before the first read every row would say "Nothing yet": show nothing instead (Q1-7, Q5a-6).
-                    !state.ready -> Unit
-                    else -> Text("Nothing yet", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
     }
 }
@@ -480,19 +480,29 @@ private fun MealsCard(
 @Composable
 private fun PlannedLine(next: NextMealUi, actions: NutritionActions, onLogIt: (NextMealUi) -> Unit) {
     val complete = next.content.macros.isComplete
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            "Planned: ${next.content.recipe.name}",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f, fill = false),
-        )
-        Text(" · ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        TextAction(if (complete) "Log it" else "Open plan") { if (complete) onLogIt(next) else actions.onOpenMealPlans() }
-        Spacer(Modifier.size(12.dp))
-        TextAction("Swap") { actions.onSwap(next.slot.name) }
+    Text(
+        "Planned: ${next.content.recipe.name}",
+        style = MaterialTheme.typography.bodyMedium,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 6.dp)) {
+        if (complete) {
+            // Log it is the ink primary button.
+            Button(
+                onClick = { onLogIt(next) },
+                contentPadding = SmallButtonPadding,
+                modifier = Modifier.heightIn(min = IntakeSpacing.TouchTarget),
+            ) { Text("Log it", style = MaterialTheme.typography.labelMedium) }
+            SoftButton(onClick = actions.onOpenMealPlans, small = true) { Text("Open plan", style = MaterialTheme.typography.labelMedium) }
+        } else {
+            Button(
+                onClick = actions.onOpenMealPlans,
+                contentPadding = SmallButtonPadding,
+                modifier = Modifier.heightIn(min = IntakeSpacing.TouchTarget),
+            ) { Text("Open plan", style = MaterialTheme.typography.labelMedium) }
+        }
+        GhostButton(onClick = { actions.onSwap(next.slot.name) }) { Text("Swap", style = MaterialTheme.typography.labelMedium) }
     }
     val verdict = when (next.content.allergenStatus) {
         AllergenStatus.CONTAINS -> SwapAllergen.CONTAINS
@@ -501,54 +511,45 @@ private fun PlannedLine(next: NextMealUi, actions: NutritionActions, onLogIt: (N
         else -> SwapAllergen.CLEAR
     }
     if (verdict != SwapAllergen.CLEAR) {
-        Box(Modifier.padding(top = 4.dp)) { com.zeroindex.intake.ui.addfood.RowAllergenChip(com.zeroindex.intake.ui.addfood.RowAllergen(verdict, next.content.allergenTerms.distinct().joinToString(", ").ifBlank { null })) }
+        Box(Modifier.padding(top = 6.dp)) { com.zeroindex.intake.ui.addfood.RowAllergenChip(com.zeroindex.intake.ui.addfood.RowAllergen(verdict, next.content.allergenTerms.distinct().joinToString(", ").ifBlank { null })) }
     }
 }
 
-@Composable
-private fun TextAction(text: String, onClick: () -> Unit) {
-    Text(
-        text,
-        style = MaterialTheme.typography.labelLarge,
-        fontWeight = FontWeight.ExtraBold,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.clickable(onClick = onClick).heightIn(min = 36.dp).padding(horizontal = 2.dp, vertical = 8.dp),
-    )
-}
+private val SmallButtonPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
 
+/**
+ * `.li` meal row: name and kcal on one line, the entries (or the planned dish and its actions) below, a 44 dp soft "+" at the
+ * right when the slot is empty.
+ */
 @Composable
 private fun MealRow(
-    emoji: String,
     name: String,
+    kcal: String?,
+    planned: Boolean,
     onClick: () -> Unit,
     onAdd: () -> Unit,
+    showAdd: Boolean,
     addDescription: String,
-    subtitle: @Composable () -> Unit,
+    detail: @Composable () -> Unit,
 ) {
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 10.dp),
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = IntakeSpacing.ListRowMinHeight)
+            .clickable(onClick = onClick)
+            .padding(horizontal = IntakeSpacing.ListRowPadH, vertical = IntakeSpacing.ListRowPadV),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(IntakeSpacing.IconGap),
     ) {
-        Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = IntakeShape.Tile, modifier = Modifier.size(44.dp)) {
-            Box(contentAlignment = Alignment.Center) { Text(emoji, style = MaterialTheme.typography.titleMedium) }
-        }
-        Column(Modifier.weight(1f)) {
-            Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
-            subtitle()
-        }
-        IconButton(onClick = onAdd, modifier = Modifier.size(48.dp)) {
-            Surface(
-                color = Color.Transparent,
-                shape = CircleShape,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                modifier = Modifier.size(34.dp).semantics { contentDescription = addDescription },
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.Add, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f, fill = false))
+                if (planned) IntakeChip("Planned", tone = ChipTone.Lime)
             }
+            detail()
         }
+        if (kcal != null) Text(kcal, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
+        if (showAdd) IconCircleButton(IntakeIcons.Plus, addDescription, onAdd, style = IconCircleStyle.Soft)
     }
 }
 
@@ -558,14 +559,6 @@ private fun slotLabel(slot: MealSlot): String = when (slot) {
     MealSlot.DINNER -> "Dinner"
     MealSlot.SNACK -> "Snacks"
     MealSlot.DRINKS -> "Drinks"
-}
-
-private fun slotEmoji(slot: MealSlot): String = when (slot) {
-    MealSlot.BREAKFAST -> "\uD83C\uDF05"
-    MealSlot.LUNCH -> "\u2600\uFE0F"
-    MealSlot.DINNER -> "\uD83C\uDF19"
-    MealSlot.SNACK -> "\uD83C\uDF4E"
-    MealSlot.DRINKS -> "\uD83E\uDD64"
 }
 
 /** "Oatmeal, banana" for the first two foods, then "+N" for the rest; the Text ellipsises anything still too long. */

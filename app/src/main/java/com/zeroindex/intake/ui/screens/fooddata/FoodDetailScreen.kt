@@ -14,19 +14,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.MoreHoriz
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -39,6 +32,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -66,18 +63,30 @@ import com.zeroindex.intake.ui.allergen.AllergenBanner
 import com.zeroindex.intake.ui.allergen.AllergenWarningSheet
 import com.zeroindex.intake.ui.components.ChoiceChip
 import com.zeroindex.intake.ui.components.LabeledField
-import com.zeroindex.intake.ui.components.MacroSplitBar
-import com.zeroindex.intake.ui.components.MacroTiles
 import com.zeroindex.intake.ui.components.NutritionFactsLabel
 import com.zeroindex.intake.ui.components.SandNote
 import com.zeroindex.intake.ui.components.Segmented
 import com.zeroindex.intake.ui.components.SectionCard
 import com.zeroindex.intake.ui.components.SubHead
 import com.zeroindex.intake.ui.images.FoodThumb
-import com.zeroindex.intake.ui.theme.CarbAccent
-import com.zeroindex.intake.ui.theme.FatAccent
+import com.zeroindex.intake.ui.components.ChipTone
+import com.zeroindex.intake.ui.components.Eyebrow
+import com.zeroindex.intake.ui.components.DangerButton
+import com.zeroindex.intake.ui.components.GhostButton
+import com.zeroindex.intake.ui.components.ChoiceChip
+import com.zeroindex.intake.ui.components.IconCircleButton
+import com.zeroindex.intake.ui.components.IconCircleStyle
+import com.zeroindex.intake.ui.components.IntakeCard
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.components.LineButton
+import com.zeroindex.intake.ui.components.ListCard
+import com.zeroindex.intake.ui.components.ListDivider
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IntakeShape
-import com.zeroindex.intake.ui.theme.ProteinAccent
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.theme.NumberSmall
+import com.zeroindex.intake.ui.theme.intake
 import java.text.DateFormat
 import java.util.Date
 import kotlin.math.roundToInt
@@ -128,9 +137,9 @@ fun FoodDetailScreen(
         return
     }
     if (food == null) {
-        Column(modifier.padding(contentPadding).padding(16.dp)) {
+        Column(modifier.padding(contentPadding).padding(IntakeSpacing.ScreenGutter)) {
             Text("This food is not on this phone.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            OutlinedButton(onClick = onBack) { Text("Back") }
+            LineButton(onClick = onBack) { Text("Back") }
         }
         return
     }
@@ -187,25 +196,18 @@ fun FoodDetailScreen(
                 .padding(
                     top = contentPadding.calculateTopPadding() + 4.dp,
                     bottom = contentPadding.calculateBottomPadding() + 110.dp,
-                    start = 16.dp,
-                    end = 16.dp,
+                    start = IntakeSpacing.ScreenGutter,
+                    end = IntakeSpacing.ScreenGutter,
                 ),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                FoodThumb(food, size = 72.dp)
-                Column(Modifier.weight(1f)) {
-                    Text(food.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
-                    Text(
-                        listOfNotNull(food.brand, sourceLabel(food), DrinkCategory.fromStored(food.drinkCategory)?.label).joinToString(" · "),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+            // The picture (when the food has one) sits on a `soft` block with the menu at the corner.
+            Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.weight(1f)) {
+                    if (food.imageUrl != null) FoodThumb(food, size = 72.dp)
                 }
                 Box {
-                    IconButton(onClick = { menu = true }, modifier = Modifier.size(48.dp)) {
-                        Icon(Icons.Filled.MoreHoriz, contentDescription = "More: edit, contribute, remove")
-                    }
+                    IconCircleButton(IntakeIcons.More, "More: edit, contribute, remove", { menu = true })
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                         DropdownMenuItem(text = { Text("Edit") }, onClick = { menu = false; editing = true })
                         if (OffContributionForm.isEligible(food)) {
@@ -217,13 +219,28 @@ fun FoodDetailScreen(
             }
             state.message?.let {
                 SandNote(it)
-                TextButton(onClick = viewModel::dismissMessage) { Text("Dismiss") }
+                GhostButton(onClick = viewModel::dismissMessage) { Text("Dismiss") }
             }
 
-            AllergenBanner(state.scan)
-
-            Surface(color = MaterialTheme.colorScheme.surface, shape = IntakeShape.Card, border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            IntakeCard {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        IntakeChip(sourceLabel(food))
+                        DrinkCategory.fromStored(food.drinkCategory)?.label?.let { IntakeChip(it) }
+                    }
+                    Text(food.name, style = MaterialTheme.typography.headlineMedium)
+                    food.brand?.let {
+                        Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    // The kcal figure is the exact one an entry logs (the same as the list row), not the printed label's rounding (QA Q5a-22).
+                    fun grams(v: Double) = "${LabelFormat.grams(v)} g"
+                    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                        // "logged" says this is the exact figure an entry takes; the printed label below rounds it (Q5b-13).
+                        MacroNumber(KcalFormat.format(food.kcalPer100g * f), "kcal logged", MaterialTheme.colorScheme.onSurface)
+                        MacroNumber(grams(food.proteinPer100g * f), "protein", MaterialTheme.intake.protein)
+                        MacroNumber(grams(food.carbsPer100g * f), "carbs", MaterialTheme.intake.carb)
+                        MacroNumber(grams(food.fatPer100g * f), "fat", MaterialTheme.intake.fat)
+                    }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(
@@ -234,15 +251,15 @@ fun FoodDetailScreen(
                                     ServingText.of(food.servingLabel, food.servingSizeGrams, servings).count
                                 },
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
                             )
-                            Text(amountShown, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(amountShown, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        IconButton(onClick = { setAmount(amount - food.servingSizeGrams.coerceAtLeast(1.0) / 2.0) }, modifier = Modifier.size(48.dp)) {
-                            Icon(Icons.Filled.Remove, contentDescription = "Half a serving less")
-                        }
-                        IconButton(onClick = { setAmount(amount + food.servingSizeGrams.coerceAtLeast(1.0) / 2.0) }, modifier = Modifier.size(48.dp)) {
-                            Icon(Icons.Filled.Add, contentDescription = "Half a serving more")
+                        // `.stepper`: a soft pill holding two round buttons.
+                        Surface(color = MaterialTheme.intake.soft, shape = IntakeShape.Pill) {
+                            Row(Modifier.padding(3.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                IconCircleButton(IntakeIcons.Minus, "Half a serving less", { setAmount(amount - food.servingSizeGrams.coerceAtLeast(1.0) / 2.0) })
+                                IconCircleButton(IntakeIcons.Plus, "Half a serving more", { setAmount(amount + food.servingSizeGrams.coerceAtLeast(1.0) / 2.0) })
+                            }
                         }
                     }
                     LabeledField(
@@ -262,28 +279,22 @@ fun FoodDetailScreen(
                             DrinkSizes.defaults(volumeUnit).forEach { s -> ChoiceChip(s.label, kotlin.math.abs(amount - s.ml) < 1.0, { setAmount(s.ml) }) }
                         }
                     }
-                    // The kcal tile shows the exact figure the entry logs (the same as the list row), not the printed label's rounding (QA Q5a-22).
-                    fun grams(v: Double) = "${LabelFormat.grams(v)} g"
-                    MacroTiles(
-                        listOf(
-                            Triple(grams(food.proteinPer100g * f), "protein", ProteinAccent),
-                            Triple(grams(food.carbsPer100g * f), "carbs", CarbAccent),
-                            Triple(grams(food.fatPer100g * f), "fat", FatAccent),
-                            // "logged" says this is the exact figure an entry takes; the printed label below rounds it (Q5b-13).
-                            Triple(KcalFormat.format(food.kcalPer100g * f), "kcal logged", MaterialTheme.colorScheme.onSurface),
-                        ),
-                    )
-                    MacroSplitBar(food.proteinPer100g * f, food.carbsPer100g * f, food.fatPer100g * f)
                 }
             }
 
-            Segmented(LabelMode.entries.map { if (it == LabelMode.PER_100) (if (isDrink) "Per 100 ml" else it.label) else it.label }, LabelMode.entries.indexOf(mode), { mode = LabelMode.entries[it] })
-            NutritionFactsLabel(label)
-            Text(
-                "The label rounds the way a printed Nutrition Facts panel does: calories to the nearest 5 (10 above 50), grams to the nearest half under 5.",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            AllergenBanner(state.scan)
+
+            IntakeCard {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Segmented(LabelMode.entries.map { if (it == LabelMode.PER_100) (if (isDrink) "Per 100 ml" else it.label) else it.label }, LabelMode.entries.indexOf(mode), { mode = LabelMode.entries[it] })
+                    NutritionFactsLabel(label)
+                    Text(
+                        "The label rounds the way a printed Nutrition Facts panel does: calories to the nearest 5 (10 above 50), grams to the nearest half under 5.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
 
             val ingredients = FoodIngredients.text(food.allergenTags)
             if (ingredients.isNotBlank()) {
@@ -299,10 +310,10 @@ fun FoodDetailScreen(
             }
             if (OffContributionForm.isEligible(food)) {
                 food.offContributedAt?.let {
-                    Text("Sent to Open Food Facts on ${DateFormat.getDateInstance().format(Date(it))}.", style = MaterialTheme.typography.bodySmall)
+                    Text("Sent to Open Food Facts on ${DateFormat.getDateInstance().format(Date(it))}.", style = MaterialTheme.typography.bodyMedium)
                 }
                 if (!state.contributeEnabled || !state.hasCredentials) {
-                    OutlinedButton(onClick = onOpenFoodData, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(48.dp)) {
+                    LineButton(onClick = onOpenFoodData, modifier = Modifier.fillMaxWidth()) {
                         Text("Set up contributing to Open Food Facts")
                     }
                 }
@@ -312,13 +323,15 @@ fun FoodDetailScreen(
         // The sticky bottom bar: the meal it goes to, then Log, then Swap for another.
         Surface(
             color = MaterialTheme.colorScheme.background,
-            tonalElevation = 3.dp,
             modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
         ) {
-            Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = contentPadding.calculateBottomPadding() + 10.dp)) {
+            Column(Modifier.padding(start = IntakeSpacing.ScreenGutter, end = IntakeSpacing.ScreenGutter, top = 8.dp, bottom = contentPadding.calculateBottomPadding() + 10.dp)) {
                 if (!isDrink) {
                     Box {
-                        TextButton(onClick = { slotMenu = true }) { Text("To: ${slotLabel(slotChoice)}  ▾") }
+                        GhostButton(onClick = { slotMenu = true }) {
+                            Text("To: ${slotLabel(slotChoice)}")
+                            Icon(IntakeIcons.ChevronDown, contentDescription = null, modifier = Modifier.padding(start = 6.dp).size(IconSize.Small))
+                        }
                         DropdownMenu(expanded = slotMenu, onDismissRequest = { slotMenu = false }) {
                             (if (isDrink) MealSlot.entries else MealSlot.MEALS).forEach { s -> DropdownMenuItem(text = { Text(slotLabel(s)) }, onClick = { slotChoice = s; slotMenu = false }) }
                         }
@@ -326,22 +339,21 @@ fun FoodDetailScreen(
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     val risky = state.scan.hasAnything
-                    OutlinedButton(
+                    LineButton(
                         onClick = onBack,
-                        shape = IntakeShape.Button,
-                        modifier = Modifier.weight(1f).height(52.dp),
+                        modifier = Modifier.weight(1f),
                     ) { Text("Swap for another") }
                     if (risky) {
-                        OutlinedButton(
+                        // Logging a flagged food stays the quiet, danger-soft path behind the warning sheet.
+                        DangerButton(
                             onClick = { viewModel.log(food, amount, slotChoice.name, atMillis, confirmed = false, onLogged = onLogged) },
-                            shape = IntakeShape.Button,
-                            modifier = Modifier.weight(1f).height(52.dp),
+                            modifier = Modifier.weight(1f),
                         ) { Text(if (isDrink) "Log anyway…" else "Log anyway…") }
                     } else {
                         Button(
                             onClick = { viewModel.log(food, amount, slotChoice.name, atMillis, confirmed = false, onLogged = onLogged) },
                             shape = IntakeShape.Button,
-                            modifier = Modifier.weight(1f).height(52.dp),
+                            modifier = Modifier.weight(1f).heightIn(min = IntakeSpacing.TouchTarget),
                         ) { Text("Log") }
                     }
                 }
@@ -460,13 +472,13 @@ private fun FoodEditor(
         modifier = modifier
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
-            .padding(top = contentPadding.calculateTopPadding() + 12.dp, bottom = contentPadding.calculateBottomPadding() + 32.dp, start = 16.dp, end = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(top = contentPadding.calculateTopPadding() + 12.dp, bottom = contentPadding.calculateBottomPadding() + 32.dp, start = IntakeSpacing.ScreenGutter, end = IntakeSpacing.ScreenGutter),
+        verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
     ) {
         SubHead("Edit ${food.name}", sourceLabel(food))
         state.message?.let {
             SandNote(it)
-            TextButton(onClick = viewModel::dismissMessage) { Text("Dismiss") }
+            GhostButton(onClick = viewModel::dismissMessage) { Text("Dismiss") }
         }
         SectionCard("Details") {
             LabeledField("Name", name, { name = it })
@@ -530,13 +542,22 @@ private fun FoodEditor(
             },
             enabled = canSave && dirty,
             shape = IntakeShape.Button,
-            modifier = Modifier.fillMaxWidth().height(52.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget),
         ) { Text("Save changes") }
-        OutlinedButton(onClick = onDone, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(50.dp)) { Text("Back to the food") }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        LineButton(onClick = onDone, modifier = Modifier.fillMaxWidth()) { Text("Back to the food") }
+        ListDivider()
         if (OffContributionForm.isEligible(food) && (!state.contributeEnabled || !state.hasCredentials)) {
-            OutlinedButton(onClick = onOpenFoodData, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("Food database settings") }
+            LineButton(onClick = onOpenFoodData, modifier = Modifier.fillMaxWidth()) { Text("Food database settings") }
         }
         Spacer(Modifier.height(4.dp))
+    }
+}
+
+/** One of the four numbers under the title: a coloured figure over a muted label (the mockup draws them bare, no tile). */
+@Composable
+private fun MacroNumber(value: String, label: String, color: androidx.compose.ui.graphics.Color) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, style = NumberSmall.copy(color = color), maxLines = 1)
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
     }
 }

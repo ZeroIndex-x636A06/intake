@@ -17,13 +17,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.input.TextFieldLineLimits
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -49,7 +45,16 @@ import com.zeroindex.intake.ui.components.ChoiceChip
 import com.zeroindex.intake.ui.components.EmptyState
 import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.SectionLine
+import com.zeroindex.intake.ui.components.Eyebrow
+import com.zeroindex.intake.ui.components.GhostButton
+import com.zeroindex.intake.ui.components.IconCircleButton
+import com.zeroindex.intake.ui.components.IconCircleStyle
+import com.zeroindex.intake.ui.components.LineButton
+import com.zeroindex.intake.ui.components.ListDivider
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.theme.intake
 import kotlin.math.roundToInt
 
 /**
@@ -73,7 +78,7 @@ fun CustomDrinkScreen(
     var confirmDelete by remember { mutableStateOf(false) }
 
     if (state.loaded && (state.missing || base == null)) {
-        Column(modifier.padding(contentPadding).padding(16.dp)) {
+        Column(modifier.padding(contentPadding).padding(IntakeSpacing.ScreenGutter)) {
             EmptyState(title = "That drink is not available", body = "It, or the drink it was made from, was removed.")
         }
         return
@@ -88,15 +93,15 @@ fun CustomDrinkScreen(
         contentPadding = PaddingValues(
             top = contentPadding.calculateTopPadding() + 4.dp,
             bottom = contentPadding.calculateBottomPadding() + 24.dp,
-            start = 16.dp,
-            end = 16.dp,
+            start = IntakeSpacing.ScreenGutter,
+            end = IntakeSpacing.ScreenGutter,
         ),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
     ) {
         item(key = "base") {
             IntakeCard {
-                Text(if (state.editingId != null) "Editing a saved drink" else "Customise", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(base.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Eyebrow(if (state.editingId != null) "Editing a saved drink" else "Customise")
+                Text(base.name, style = MaterialTheme.typography.titleLarge)
                 Spacer(Modifier.size(8.dp))
                 OutlinedTextField(
                     value = volumeText,
@@ -113,7 +118,7 @@ fun CustomDrinkScreen(
                 if (state.baseReplaced) {
                     Text(
                         "The numbers saved for ${base.name} are too high for plain brewed tea or coffee, so the USDA brewed values are used here.",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 6.dp),
                     )
@@ -175,7 +180,7 @@ fun CustomDrinkScreen(
                 )
                 if (result != null) {
                     Spacer(Modifier.size(8.dp))
-                    Text(unit.format(result.totalVolumeMl), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text(unit.format(result.totalVolumeMl), style = MaterialTheme.typography.titleMedium)
                     Text(
                         "${result.total.kcal.roundToInt()} kcal · ${result.total.sugar.roundToInt()} g sugar · ${result.total.protein.roundToInt()} g protein · " +
                             "${result.total.carbs.roundToInt()} g carbs · ${result.total.fat.roundToInt()} g fat",
@@ -194,12 +199,12 @@ fun CustomDrinkScreen(
         }
         item(key = "actions") {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { viewModel.logOnce(onDone) }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("Log it once") }
-                OutlinedButton(onClick = { viewModel.save(onDone) }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+                Button(onClick = { viewModel.logOnce(onDone) }, modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget)) { Text("Log it once") }
+                LineButton(onClick = { viewModel.save(onDone) }, modifier = Modifier.fillMaxWidth()) {
                     Text(if (state.editingId != null) "Save changes" else "Save as My drink")
                 }
                 if (state.editingId != null) {
-                    TextButton(onClick = { confirmDelete = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Delete this drink") }
+                    GhostButton(onClick = { confirmDelete = true }, modifier = Modifier.fillMaxWidth()) { Text("Delete this drink", color = MaterialTheme.intake.bad) }
                 }
             }
         }
@@ -235,15 +240,15 @@ private fun AddInRow(addIn: AddIn, onAmount: (Double, AddInUnit?) -> Unit, onRem
     IntakeCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(addIn.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(addIn.name, style = MaterialTheme.typography.titleMedium)
                 val n = addIn.nutrition()
                 Text(
                     "${n.kcal.roundToInt()} kcal · ${"%.1f".format(java.util.Locale.US, n.sugar).removeSuffix(".0")} g sugar",
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            IconButton(onClick = onRemove, modifier = Modifier.size(48.dp)) { Icon(Icons.Filled.Close, contentDescription = "Remove ${addIn.name}") }
+            IconCircleButton(IntakeIcons.Close, "Remove ${addIn.name}", onRemove, style = IconCircleStyle.Soft)
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(
