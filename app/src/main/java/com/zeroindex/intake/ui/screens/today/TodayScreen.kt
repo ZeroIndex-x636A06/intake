@@ -1,6 +1,5 @@
 package com.zeroindex.intake.ui.screens.today
 
-import com.zeroindex.intake.domain.time.DateText
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,18 +12,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -43,8 +36,6 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -58,7 +49,6 @@ import com.zeroindex.intake.domain.settings.ExportReminderRule
 import com.zeroindex.intake.ui.screens.plan.PlanAllergenSheet
 import com.zeroindex.intake.ui.adaptive.LocalWindowSizeClass
 import com.zeroindex.intake.ui.adaptive.isExpanded
-import com.zeroindex.intake.ui.components.SandNote
 import com.zeroindex.intake.ui.components.SectionLine
 import com.zeroindex.intake.ui.motion.StaggerGate
 import com.zeroindex.intake.ui.motion.rememberStaggerGate
@@ -76,6 +66,18 @@ import com.zeroindex.intake.ui.screens.today.components.MealSlotCard
 import com.zeroindex.intake.ui.screens.today.components.NextUpCard
 import com.zeroindex.intake.ui.screens.today.components.CalorieCardSkeleton
 import com.zeroindex.intake.ui.screens.today.components.WeightTile
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.ButtonDefaults
+import com.zeroindex.intake.ui.components.SoftCard
+import com.zeroindex.intake.ui.screens.today.components.ActivityCard
+import com.zeroindex.intake.ui.screens.today.components.DayCalendarDialog
+import com.zeroindex.intake.ui.screens.today.components.DayHeading
+import com.zeroindex.intake.ui.screens.today.components.DayStrip
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
+import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -139,6 +141,7 @@ fun TodayScreen(
     val scope = rememberCoroutineScope()
     var actionsFor by remember { mutableStateOf<FoodLogEntity?>(null) }
     var copyTarget by remember { mutableStateOf<FoodLogEntity?>(null) }
+    var showCalendar by remember { mutableStateOf(false) }
 
     // Log food is a full-screen task (registered once at the nav root), opened for the day Today is showing.
     fun openAdd(slot: MealSlot, mode: String) = onLogFood(slot.name, viewModel.timestampForSelectedDay(), mode)
@@ -157,9 +160,9 @@ fun TodayScreen(
         tab = TopLevelDestination.TODAY,
         title = "Today",
         onGoToToday = onGoToToday,
-        centerTitle = true,
+        centerTitle = false,
         modifier = modifier,
-        titleContent = { DayTitle(state.date, state.isToday, viewModel::showPreviousDay, viewModel::showNextDay) },
+        titleContent = { DayHeading(state.date, state.isToday, onOpenCalendar = { showCalendar = true }) },
     ) { contentPadding ->
         TodayContent(
             state = state,
@@ -170,7 +173,8 @@ fun TodayScreen(
             contentPadding = contentPadding,
             onPreviousDay = viewModel::showPreviousDay,
             onNextDay = viewModel::showNextDay,
-            onShowToday = viewModel::showToday,
+            today = viewModel.today(),
+            onSelectDay = viewModel::showDay,
             onAddToSlot = { openAdd(it, "SEARCH") },
             onEntryLongPress = { actionsFor = it },
             onEntrySwipedToCopy = { copyTarget = it },
@@ -179,6 +183,10 @@ fun TodayScreen(
             onSaveTemplate = { templateFor = it },
             onDismissInsight = viewModel::dismissInsight,
         )
+    }
+
+    if (showCalendar) {
+        DayCalendarDialog(viewModel.today(), state.date, onPick = viewModel::showDay, onDismiss = { showCalendar = false })
     }
 
     templateFor?.let { slot ->
@@ -220,21 +228,6 @@ fun TodayScreen(
     }
 }
 
-/** The top bar's centre: the date between two arrows. */
-@Composable
-private fun DayTitle(date: LocalDate, isToday: Boolean, onPrevious: () -> Unit, onNext: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onPrevious) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous day") }
-        Text(
-            DateText.mediumWithWeekday(date),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.semantics { heading() },
-        )
-        // Today is the last day: Next is off there, as on Nutrition (QA Q1-10).
-        IconButton(onClick = onNext, enabled = !isToday) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next day") }
-    }
-}
-
 @Composable
 private fun TodayContent(
     state: TodayUiState,
@@ -245,7 +238,8 @@ private fun TodayContent(
     contentPadding: PaddingValues,
     onPreviousDay: () -> Unit,
     onNextDay: () -> Unit,
-    onShowToday: () -> Unit,
+    today: LocalDate,
+    onSelectDay: (LocalDate) -> Unit,
     onAddToSlot: (MealSlot) -> Unit,
     onEntryLongPress: (FoodLogEntity) -> Unit,
     onEntrySwipedToCopy: (FoodLogEntity) -> Unit,
@@ -288,7 +282,7 @@ private fun TodayContent(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             LazyColumn(Modifier.weight(1f).fillMaxHeight(), contentPadding = PaddingValues(top = top, bottom = bottom), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                mainItems(state, extras, actions, extrasViewModel, ringEvents, gate, onShowToday, onWaterMinus, onWaterPlus, onDismissInsight)
+                mainItems(state, extras, actions, extrasViewModel, ringEvents, gate, today, onSelectDay, onWaterMinus, onWaterPlus, onDismissInsight)
             }
             LazyColumn(Modifier.weight(1f).fillMaxHeight(), contentPadding = PaddingValues(top = top, bottom = bottom), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 mealItems(state, gate, onAddToSlot, onEntryLongPress, onEntrySwipedToCopy, onSaveTemplate, actions.onOpenDrinks)
@@ -303,7 +297,7 @@ private fun TodayContent(
             contentPadding = PaddingValues(top = top, bottom = bottom, start = 16.dp, end = 16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            mainItems(state, extras, actions, extrasViewModel, ringEvents, gate, onShowToday, onWaterMinus, onWaterPlus, onDismissInsight)
+            mainItems(state, extras, actions, extrasViewModel, ringEvents, gate, today, onSelectDay, onWaterMinus, onWaterPlus, onDismissInsight)
             mealItems(state, gate, onAddToSlot, onEntryLongPress, onEntrySwipedToCopy, onSaveTemplate, actions.onOpenDrinks)
         }
     }
@@ -317,16 +311,16 @@ private fun LazyListScope.mainItems(
     extrasViewModel: TodayExtrasViewModel,
     ringEvents: RingEvents,
     gate: StaggerGate,
-    onShowToday: () -> Unit,
+    today: LocalDate,
+    onSelectDay: (LocalDate) -> Unit,
     onWaterMinus: (com.zeroindex.intake.data.db.entity.HydrationLogEntity) -> Unit,
     onWaterPlus: (com.zeroindex.intake.data.db.entity.HydrationLogEntity) -> Unit,
     onDismissInsight: (AiInsightEntity) -> Unit,
 ) {
     val s = state.settings
     var order = 0
-    if (!state.isToday) {
-        item(key = "back-to-today") { AssistChip(onClick = onShowToday, label = { Text("Back to today") }) }
-    }
+    // The seven-day strip replaces the previous and next arrows and the "Back to today" chip.
+    item(key = "day-strip") { DayStrip(today, state.date, onSelectDay) }
     // The baseline week sits on top while it runs, so it is seen and then gone.
     if (state.isToday) {
         extras.baseline?.let { baseline ->
@@ -342,9 +336,22 @@ private fun LazyListScope.mainItems(
         }
         if (extras.exportDue) {
             item(key = "export-reminder") {
-                Column {
-                    SandNote(ExportReminderRule.message(extras.lastExportAt, System.currentTimeMillis()) + " Without sync, this phone holds the only copy.")
-                    TextButton(onClick = actions.onExport, modifier = Modifier.heightIn(min = 48.dp)) { Text("Export now") }
+                SoftCard(contentPadding = PaddingValues(start = 16.dp, top = 12.dp, end = 12.dp, bottom = 12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Icon(IntakeIcons.Download, contentDescription = null, modifier = Modifier.size(IconSize.Default))
+                        Text(
+                            ExportReminderRule.message(extras.lastExportAt, System.currentTimeMillis()) + " Without sync, this phone holds the only copy.",
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Button(
+                            onClick = actions.onExport,
+                            shape = IntakeShape.Button,
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surface, contentColor = MaterialTheme.colorScheme.onSurface),
+                            modifier = Modifier.heightIn(min = 44.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                        ) { Text("Export now") }
+                    }
                 }
             }
         }
@@ -415,14 +422,14 @@ private fun LazyListScope.mainItems(
             }
         }
     }
-    if (s.todayCardWeight && state.loaded) {
-        item(key = "weight") {
-            WeightTile(state.latestWeightKg, state.weightWeekDeltaKg, s.weightUnit, actions.onOpenBodyMetrics)
-        }
-    }
-    if (s.todayCardActivity && state.isToday) {
-        extras.activity?.let { activity ->
-            item(key = "activity") { com.zeroindex.intake.ui.screens.today.components.ActivityCard(activity) }
+    val showWeight = s.todayCardWeight && state.loaded
+    val activity = if (s.todayCardActivity && state.isToday) extras.activity else null
+    if (showWeight || activity != null) {
+        item(key = "weight-activity") {
+            Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(IntakeSpacing.GridGap2)) {
+                if (showWeight) WeightTile(state.latestWeightKg, state.weightWeekDeltaKg, s.weightUnit, actions.onOpenBodyMetrics, Modifier.weight(1f).fillMaxHeight())
+                if (activity != null) ActivityCard(activity, Modifier.weight(1f).fillMaxHeight())
+            }
         }
     }
     state.insight?.let { insight ->

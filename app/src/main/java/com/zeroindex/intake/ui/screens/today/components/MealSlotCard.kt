@@ -3,30 +3,26 @@ package com.zeroindex.intake.ui.screens.today.components
 import com.zeroindex.intake.domain.units.KcalFormat
 import com.zeroindex.intake.domain.nutrition.CoreMacro
 import com.zeroindex.intake.domain.nutrition.Unlisted
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -36,10 +32,18 @@ import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.data.db.entity.FoodLogEntity
 import com.zeroindex.intake.domain.model.MealSlot
 import com.zeroindex.intake.ui.components.MacroSplitBar
-import com.zeroindex.intake.ui.motion.pressScale
 import com.zeroindex.intake.ui.screens.today.MealSlotUi
 import com.zeroindex.intake.ui.screens.today.displayName
-import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.components.GhostButton
+import com.zeroindex.intake.ui.components.IconCircleButton
+import com.zeroindex.intake.ui.components.IconCircleStyle
+import com.zeroindex.intake.ui.components.IntakeCard
+import com.zeroindex.intake.ui.components.SoftButton
+import com.zeroindex.intake.ui.theme.IntakeIcons
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.theme.intake
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import kotlin.math.roundToInt
 
 /**
@@ -61,101 +65,59 @@ fun MealSlotCard(
     onSaveAsTemplate: (() -> Unit)? = null,
 ) {
     val slotName = slotUi.slot.displayName()
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        shape = IntakeShape.InnerCard,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+    val addLabel = if (slotUi.slot == MealSlot.DRINKS) "Log a drink" else "Log food"
+    val empty = slotUi.entries.isEmpty()
+    IntakeCard(modifier = modifier, contentPadding = PaddingValues(horizontal = IntakeSpacing.ListRowPadH, vertical = IntakeSpacing.ListRowPadV)) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = slotName,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).semantics { heading() },
                 )
                 Text(
-                    text = if (slotUi.entries.isEmpty()) {
-                        "Not logged"
-                    } else {
-                        "${KcalFormat.format(slotUi.kcal)} kcal"
-                    },
-                    style = MaterialTheme.typography.labelSmall,
+                    text = if (empty) "Not logged" else "${KcalFormat.format(slotUi.kcal)} kcal",
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                if (empty) {
+                    Spacer(Modifier.width(10.dp))
+                    // The empty slot's invitation: a 44 dp soft round plus.
+                    IconCircleButton(
+                        icon = IntakeIcons.Plus,
+                        contentDescription = if (slotUi.slot == MealSlot.DRINKS) "Log a drink" else "Log food in ${slotName.lowercase()}",
+                        onClick = onAdd,
+                        style = IconCircleStyle.Soft,
+                    )
+                }
             }
-            if (slotUi.entries.isNotEmpty()) {
+            if (!empty) {
                 MacroSplitBar(
                     proteinGrams = slotUi.entries.sumOf { it.protein },
                     carbGrams = slotUi.entries.sumOf { it.carbs },
                     fatGrams = slotUi.entries.sumOf { it.fat },
-                    modifier = Modifier.padding(bottom = 4.dp),
+                    modifier = Modifier.padding(bottom = 2.dp),
                 )
-            }
-
-            slotUi.entries.forEach { entry ->
-                SwipeableEntryRow(
-                    entry = entry,
-                    onLongPress = { onEntryLongPress(entry) },
-                    onSwipedToCopy = { onEntrySwipedToCopy(entry) },
-                )
-            }
-
-            AddFoodRow(
-                slotName = slotName,
-                addLabel = if (slotUi.slot == MealSlot.DRINKS) "Log a drink" else "Log food",
-                isEmpty = slotUi.entries.isEmpty(),
-                onAdd = onAdd,
-            )
-            if (onSaveAsTemplate != null && slotUi.entries.isNotEmpty()) {
-                TextButton(onClick = onSaveAsTemplate, modifier = Modifier.heightIn(min = 36.dp)) {
-                    Text("Save as meal template", style = MaterialTheme.typography.labelSmall)
+                slotUi.entries.forEach { entry ->
+                    SwipeableEntryRow(
+                        entry = entry,
+                        onLongPress = { onEntryLongPress(entry) },
+                        onSwipedToCopy = { onEntrySwipedToCopy(entry) },
+                    )
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    SoftButton(onClick = onAdd, small = true) { Text(addLabel) }
+                    Spacer(Modifier.weight(1f))
+                    if (onSaveAsTemplate != null) {
+                        GhostButton(onClick = onSaveAsTemplate) { Text("Save as meal template") }
+                    }
                 }
             }
         }
-    }
-}
-
-/**
- * The mockup's empty-slot row ("Ready when you are · ＋ Add food"), kept on
- * filled slots too so adding to a specific meal is always one tap.
- */
-@Composable
-private fun AddFoodRow(slotName: String, addLabel: String, isEmpty: Boolean, onAdd: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .pressScale()
-            .heightIn(min = 40.dp)
-            .clickable(onClickLabel = if (addLabel == "Log food") "Log food in ${slotName.lowercase()}" else addLabel, onClick = onAdd),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (isEmpty) {
-            Text(
-                text = "Ready when you are",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f),
-            )
-        } else {
-            Spacer(Modifier.weight(1f))
-        }
-        Icon(
-            imageVector = Icons.Filled.Add,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(16.dp),
-        )
-        Spacer(Modifier.width(5.dp))
-        Text(
-            text = addLabel,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.primary,
-        )
     }
 }
 
@@ -184,21 +146,21 @@ private fun SwipeableEntryRow(
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                    .background(MaterialTheme.intake.soft)
                     .padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
                     imageVector = Icons.Filled.ContentCopy,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(16.dp),
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
                     text = "Copy to another meal",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
             }
         },
@@ -208,15 +170,13 @@ private fun SwipeableEntryRow(
 
 @Composable
 private fun EntryRow(entry: FoodLogEntity, onLongPress: () -> Unit) {
-    // The mockup puts the portion beside the name and the energy opposite, so
-    // each food reads as one line rather than a stacked pair.
+    // The name with its portion, then the energy and protein in a small line below (the mockup's Meals rows).
     val name = buildString {
         append(entry.foodNameAtLog)
         entry.quantityGrams?.let { append(" · ${it.roundToInt()} g") }
         if (entry.wasEdited) append(" · edited")
     }
-
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
@@ -225,22 +185,16 @@ private fun EntryRow(entry: FoodLogEntity, onLongPress: () -> Unit) {
                 onLongClick = onLongPress,
                 onClickLabel = "Show actions for ${entry.foodNameAtLog}",
             )
-            .heightIn(min = 40.dp)
-            .padding(vertical = 0.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .heightIn(min = IntakeSpacing.TouchTarget)
+            .padding(vertical = 4.dp),
+        verticalArrangement = Arrangement.Center,
     ) {
-        Text(
-            text = name,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f).padding(end = 8.dp),
-        )
+        Text(text = name, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
         Text(
             text = "${KcalFormat.format(entry.kcal)} kcal · " +
                 if (CoreMacro.PROTEIN in Unlisted.decodeMacros(entry.unlistedNutrients)) "protein not listed" else "${entry.protein.roundToInt()} g protein",
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
-    Spacer(Modifier.height(1.dp))
 }
