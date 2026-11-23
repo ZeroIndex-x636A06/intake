@@ -2,7 +2,6 @@
 
 package com.zeroindex.intake.ui.screens.workout
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -23,28 +22,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -88,7 +75,24 @@ import com.zeroindex.intake.ui.motion.RestRing
 import com.zeroindex.intake.ui.screens.train.ExerciseDetailSheet
 import com.zeroindex.intake.ui.screens.train.ExercisePickerSheet
 import com.zeroindex.intake.domain.training.history.ForgottenWorkoutPolicy
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import com.zeroindex.intake.ui.components.AccentButton
+import com.zeroindex.intake.ui.components.IconCircleButton
+import com.zeroindex.intake.ui.components.IconCircleStyle
+import com.zeroindex.intake.ui.components.LineButton
+import com.zeroindex.intake.ui.components.ListCard
+import com.zeroindex.intake.ui.components.ListDivider
+import com.zeroindex.intake.ui.components.SoftButton
+import com.zeroindex.intake.ui.components.heroMuted
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.theme.SpaceGrotesk
+import com.zeroindex.intake.ui.theme.intake
 import kotlinx.coroutines.delay
 
 /**
@@ -199,12 +203,12 @@ fun ActiveWorkoutScreen(
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 contentPadding = PaddingValues(
-                    start = 16.dp,
-                    end = 16.dp,
+                    start = IntakeSpacing.ScreenGutter,
+                    end = IntakeSpacing.ScreenGutter,
                     top = 8.dp,
                     bottom = contentPadding.calculateBottomPadding() + 32.dp,
                 ),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
             ) {
                 val current = state.current
                 if (current == null) {
@@ -212,16 +216,16 @@ fun ActiveWorkoutScreen(
                         AccentNote(
                             lead = "Empty workout",
                             body = "Pick the exercises as you go and log your sets. Everything still counts towards your history and weekly volume.",
-                            container = MaterialTheme.colorScheme.surfaceVariant,
-                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            container = MaterialTheme.intake.soft,
+                            contentColor = MaterialTheme.colorScheme.onSurface,
                         )
                     }
                     item(key = "add-first") {
                         Button(
                             onClick = { picking = true },
                             shape = IntakeShape.Button,
-                            modifier = Modifier.fillMaxWidth().height(56.dp),
-                        ) { Text("Add an exercise") }
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                        ) { Text("Add an exercise", style = MaterialTheme.typography.labelLarge) }
                     }
                 } else {
                     item(key = "card-${current.exercise.id}") {
@@ -281,39 +285,26 @@ fun ActiveWorkoutScreen(
                             }
                         }
                         item(key = "next-list") {
-                            Surface(
-                                color = MaterialTheme.colorScheme.surface,
-                                shape = IntakeShape.Card,
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Column {
-                                    others.forEachIndexed { n, (index, p) ->
-                                        UpNextRow(p, state, onClick = { viewModel.pick(index) })
-                                        if (n != others.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(start = 76.dp))
-                                    }
+                            ListCard {
+                                others.forEachIndexed { n, (index, p) ->
+                                    if (n > 0) ListDivider()
+                                    UpNextRow(p, state, onClick = { viewModel.pick(index) })
                                 }
                             }
                         }
                     }
                     item(key = "add-more") {
-                        OutlinedButton(
-                            onClick = { picking = true },
-                            shape = IntakeShape.Button,
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-                        ) {
-                            Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        LineButton(onClick = { picking = true }, modifier = Modifier.fillMaxWidth()) {
+                            Icon(IntakeIcons.Plus, contentDescription = null, modifier = Modifier.size(IconSize.Small))
                             Spacer(Modifier.width(6.dp))
-                            Text("Add exercise")
+                            Text("Add exercise", style = MaterialTheme.typography.labelLarge)
                         }
                     }
                     if (state.totalSets > 0 && state.doneSets >= state.totalSets) {
                         item(key = "all-done") {
-                            Button(
-                                onClick = { confirmFinish = true },
-                                shape = IntakeShape.Button,
-                                modifier = Modifier.fillMaxWidth().height(56.dp),
-                            ) { Text("Finish workout") }
+                            AccentButton(onClick = { confirmFinish = true }, modifier = Modifier.fillMaxWidth()) {
+                                Text("Finish workout", style = MaterialTheme.typography.labelLarge)
+                            }
                         }
                     }
                 }
@@ -343,7 +334,7 @@ fun ActiveWorkoutScreen(
         }
     }
     if (pulseAlpha > 0f) {
-        Box(Modifier.fillMaxSize().alpha(pulseAlpha).background(MaterialTheme.colorScheme.primary))
+        Box(Modifier.fillMaxSize().alpha(pulseAlpha).background(MaterialTheme.intake.accent))
     }
     }
 
@@ -377,7 +368,7 @@ fun ActiveWorkoutScreen(
     plateSheetFor?.let { (kg, label) ->
         val load = state.plateLoad(kg)
         ModalBottomSheet(onDismissRequest = { plateSheetFor = null }, sheetState = rememberModalBottomSheetState()) {
-            Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp)) {
+            Column(Modifier.padding(horizontal = IntakeSpacing.ScreenGutter).padding(bottom = 28.dp)) {
                 PlateVisual(
                     title = "Plates · $label total",
                     perSide = load.perSide,
@@ -498,7 +489,7 @@ private fun FinishDialog(
     )
 }
 
-/** The mockup's `.workout-top`: minimise, the day and the clock, Finish. */
+/** The mockup's top bar: minimise, the day with the clock under it, pause, and a lime Finish pill. */
 @Composable
 private fun WorkoutHeader(
     title: String,
@@ -510,32 +501,38 @@ private fun WorkoutHeader(
     onFinish: () -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = IntakeSpacing.ScreenGutter, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        IconButton(onClick = onMinimise, modifier = Modifier.size(48.dp)) {
-            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Minimise the workout. It keeps running.")
-        }
-        Column(Modifier.weight(1f).padding(horizontal = 4.dp)) {
-            Text(title, style = MaterialTheme.typography.titleLarge, maxLines = 1, color = MaterialTheme.colorScheme.onBackground)
+        IconCircleButton(IntakeIcons.ChevronDown, "Minimise the workout. It keeps running.", onMinimise)
+        Column(Modifier.weight(1f).padding(horizontal = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onBackground)
             Text(
                 if (paused) "$clock · Paused · $progress" else "$clock · $progress",
-                style = MaterialTheme.typography.bodySmall,
-                color = if (paused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = SpaceGrotesk, fontFeatureSettings = "tnum"),
+                color = if (paused) MaterialTheme.intake.warn else MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
                 modifier = Modifier.semantics { contentDescription = (if (paused) "Paused at $clock" else "Elapsed $clock") + ", $progress" },
             )
         }
-        IconButton(onClick = onTogglePause, modifier = Modifier.size(48.dp)) {
-            Icon(
-                if (paused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
-                contentDescription = if (paused) "Resume the workout clock" else "Pause the workout clock and rest timer",
-            )
+        IconButton(
+            onClick = onTogglePause,
+            modifier = Modifier.size(IntakeSpacing.TouchTarget).semantics {
+                contentDescription = if (paused) "Resume the workout clock" else "Pause the workout clock and rest timer"
+            },
+        ) {
+            if (paused) Icon(IntakeIcons.Play, contentDescription = null, modifier = Modifier.size(IconSize.Default)) else PauseGlyph()
         }
-        Button(
-            onClick = onFinish,
-            shape = IntakeShape.Button,
-            modifier = Modifier.heightIn(min = 48.dp),
-        ) { Text("Finish") }
+        AccentButton(onClick = onFinish, small = true) { Text("Finish", style = MaterialTheme.typography.labelLarge) }
+    }
+}
+
+/** Two rounded bars: the pause glyph, which the icon set does not have. */
+@Composable
+private fun PauseGlyph() {
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        repeat(2) { Box(Modifier.size(width = 4.dp, height = 16.dp).clip(IntakeShape.Pill).background(LocalContentColor.current)) }
     }
 }
 
@@ -552,41 +549,56 @@ private fun RestStrip(
     onSkip: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val onHero = MaterialTheme.intake.onHero
     Surface(
-        color = MaterialTheme.colorScheme.primaryContainer,
-        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-        shape = IntakeShape.Banner,
-        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        color = MaterialTheme.intake.hero,
+        contentColor = onHero,
+        shape = IntakeShape.Card,
+        modifier = modifier.fillMaxWidth().padding(horizontal = IntakeSpacing.ScreenGutter, vertical = 4.dp),
     ) {
-        Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 RestRing(
                     remainingFraction = MotionRules.restRemainingFraction(remaining, total),
                     size = 48.dp,
                     stroke = 5.dp,
-                    color = MaterialTheme.colorScheme.primary,
-                    track = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                    color = MaterialTheme.intake.accent,
+                    track = onHero.copy(alpha = 0.14f),
                     description = "$label, ${TimerService.format(remaining)} left" + if (paused) ", paused" else "",
                 ) {}
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(TimerService.format(remaining), style = MaterialTheme.typography.headlineSmall)
-                    Text(if (paused) "Paused" else label, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                Column(Modifier.weight(1f).padding(start = 4.dp)) {
+                    Text(TimerService.format(remaining), style = MaterialTheme.typography.headlineSmall.copy(fontFeatureSettings = "tnum"), color = onHero)
+                    Text(if (paused) "Paused" else label, style = MaterialTheme.typography.labelSmall, color = heroMuted(), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                TextButton(onClick = onSubtract, modifier = Modifier.heightIn(min = 48.dp)) { Text("-15 s") }
-                TextButton(onClick = onAdd, modifier = Modifier.heightIn(min = 48.dp)) { Text("+15 s") }
-                TextButton(onClick = onSkip, modifier = Modifier.heightIn(min = 48.dp)) { Text("Skip") }
+                RestStepButton("-15 s", onSubtract)
+                RestStepButton("+15 s", onAdd)
+                AccentButton(onClick = onSkip, small = true) { Text("Skip", style = MaterialTheme.typography.labelLarge) }
             }
             if (upNext != null) {
                 Text(
                     "Up next: $upNext",
                     style = MaterialTheme.typography.bodySmall,
+                    color = heroMuted(),
                     maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 2.dp),
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 4.dp),
                 )
             }
         }
+    }
+}
+
+/** A 44 dp round `onHero` 14% button of the rest strip. */
+@Composable
+private fun RestStepButton(label: String, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        color = MaterialTheme.intake.onHero.copy(alpha = 0.14f),
+        contentColor = MaterialTheme.intake.onHero,
+        shape = IntakeShape.Pill,
+        modifier = Modifier.size(IntakeSpacing.TouchTarget),
+    ) {
+        Box(contentAlignment = Alignment.Center) { Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1) }
     }
 }
 
@@ -597,7 +609,7 @@ private fun RestStrip(
 @Composable
 private fun RestSheet(exerciseName: String, seconds: Int, onChange: (Int) -> Unit, onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = IntakeSpacing.ScreenGutter).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Rest after $exerciseName", style = MaterialTheme.typography.headlineSmall)
             Text(
                 "This workout only: your program keeps its own rest. It applies from the next set you log.",
@@ -605,31 +617,21 @@ private fun RestSheet(exerciseName: String, seconds: Int, onChange: (Int) -> Uni
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                OutlinedButton(
-                    onClick = { onChange(RestRules.step(seconds, -1)) },
-                    enabled = seconds > RestRules.NO_TIMER,
-                    shape = IntakeShape.Button,
-                    modifier = Modifier.heightIn(min = 48.dp),
-                ) { Text("-15 s") }
+                LineButton(onClick = { onChange(RestRules.step(seconds, -1)) }, enabled = seconds > RestRules.NO_TIMER) { Text("-15 s", style = MaterialTheme.typography.labelLarge) }
                 Text(
                     RestRules.label(seconds),
-                    style = MaterialTheme.typography.headlineMedium,
+                    style = MaterialTheme.typography.headlineMedium.copy(fontFeatureSettings = "tnum"),
                     modifier = Modifier.width(150.dp).padding(horizontal = 8.dp),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 )
-                OutlinedButton(
-                    onClick = { onChange(RestRules.step(seconds, 1)) },
-                    enabled = seconds < RestRules.MAX_SECONDS,
-                    shape = IntakeShape.Button,
-                    modifier = Modifier.heightIn(min = 48.dp),
-                ) { Text("+15 s") }
+                LineButton(onClick = { onChange(RestRules.step(seconds, 1)) }, enabled = seconds < RestRules.MAX_SECONDS) { Text("+15 s", style = MaterialTheme.typography.labelLarge) }
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 RestRules.presets.forEach { preset ->
                     ChoiceChip(RestRules.label(preset), seconds == preset, { onChange(preset) })
                 }
             }
-            Button(onClick = onDismiss, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("Done") }
+            Button(onClick = onDismiss, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget)) { Text("Done", style = MaterialTheme.typography.labelLarge) }
         }
     }
 }
@@ -644,7 +646,7 @@ private fun UpNextRow(p: ExercisePrescription, state: ActiveWorkoutUiState, onCl
             .fillMaxWidth()
             .heightIn(min = 72.dp)
             .clickable(role = Role.Button, onClickLabel = "Work on ${p.exercise.name}", onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .padding(horizontal = IntakeSpacing.ListRowPadH, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
@@ -662,9 +664,9 @@ private fun UpNextRow(p: ExercisePrescription, state: ActiveWorkoutUiState, onCl
             )
         }
         if (finished) {
-            Icon(Icons.Filled.Check, contentDescription = "Done", tint = MaterialTheme.colorScheme.primary)
+            Icon(IntakeIcons.Check, contentDescription = "Done", tint = MaterialTheme.intake.ok, modifier = Modifier.size(IconSize.Default))
         } else {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(IntakeIcons.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(IconSize.Default))
         }
     }
 }
@@ -685,7 +687,7 @@ private fun SwapSheet(
     var options by remember { mutableStateOf<List<RankedSwap>?>(null) }
     LaunchedEffect(Unit) { options = load() }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = IntakeSpacing.ScreenGutter).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("Swap $exerciseName", style = MaterialTheme.typography.headlineSmall)
             Text(
                 "Same muscles first, then what you own. This workout only: your program is not changed.",
@@ -713,7 +715,7 @@ private fun SwapSheet(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            Icon(Icons.Filled.SwapHoriz, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Icon(IntakeIcons.Swap, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(IconSize.Default))
                             Column(Modifier.weight(1f)) {
                                 Text(r.candidate.name, style = MaterialTheme.typography.titleSmall)
                                 Text(
@@ -727,7 +729,7 @@ private fun SwapSheet(
                             }
                             if (!r.ownsEquipment) Tag("Not in your equipment")
                         }
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        ListDivider()
                     }
                 }
             }
@@ -779,15 +781,13 @@ private fun ExerciseSetsCard(
                     )
                 }
             }
-            OutlinedButton(onClick = onOpenDetail, shape = IntakeShape.Button, modifier = Modifier.heightIn(min = 48.dp)) {
-                Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+            SoftButton(onClick = onOpenDetail, small = true) {
+                Icon(IntakeIcons.Play, contentDescription = null, modifier = Modifier.size(IconSize.Small))
                 Spacer(Modifier.width(4.dp))
-                Text("Form")
+                Text("Form", style = MaterialTheme.typography.labelMedium)
             }
             Box {
-                IconButton(onClick = { menu = true }, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.Filled.MoreVert, contentDescription = "More for ${item.exercise.name}")
-                }
+                IconCircleButton(IntakeIcons.More, "More for ${item.exercise.name}", { menu = true }, style = IconCircleStyle.Soft)
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(text = { Text("Swap exercise") }, onClick = { menu = false; onSwap() })
                     if (canMoveUp) DropdownMenuItem(text = { Text("Move earlier") }, onClick = { menu = false; onMove(-1) })
@@ -818,14 +818,15 @@ private fun ExerciseSetsCard(
                     if (amrap) append(" · ").append(RepTarget.AMRAP_LABEL)
                 },
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.onSurface,
             )
             Text(com.zeroindex.intake.domain.units.WeightText.inUnit(prescription.reason, unit), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        TextButton(onClick = onOpenRest, modifier = Modifier.heightIn(min = 48.dp)) {
-            Icon(Icons.Filled.Timer, contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.height(6.dp))
+        SoftButton(onClick = onOpenRest, small = true) {
+            Icon(IntakeIcons.Timer, contentDescription = null, modifier = Modifier.size(IconSize.Small))
             Spacer(Modifier.width(6.dp))
-            Text(if (restSec > 0) "Rest ${RestRules.label(restSec)}" else "No rest timer")
+            Text(if (restSec > 0) "Rest ${RestRules.label(restSec)}" else "No rest timer", style = MaterialTheme.typography.labelMedium)
         }
 
         Spacer(Modifier.height(12.dp))

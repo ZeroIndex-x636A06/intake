@@ -1,7 +1,6 @@
 package com.zeroindex.intake.ui.screens.workout
 
 import com.zeroindex.intake.domain.time.DateText
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.wrapContentHeight
@@ -39,15 +38,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -76,8 +70,21 @@ import com.zeroindex.intake.domain.units.WeightUnit
 import com.zeroindex.intake.ui.components.EmptyState
 import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.MuscleMapView
-import com.zeroindex.intake.ui.components.Tag
+import com.zeroindex.intake.ui.components.AccentCard
+import com.zeroindex.intake.ui.components.ChipTone
+import com.zeroindex.intake.ui.components.GhostButton
+import com.zeroindex.intake.ui.components.IconTile
+import com.zeroindex.intake.ui.components.IconTileStyle
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.components.LineButton
+import com.zeroindex.intake.ui.components.ListCard
+import com.zeroindex.intake.ui.components.ListDivider
+import com.zeroindex.intake.ui.components.SoftButton
+import com.zeroindex.intake.ui.components.SoftCard
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.theme.intake
 
 /**
  * The post-workout summary (the `a-summary` frame): new records, the four totals, muscles worked against this week's
@@ -108,7 +115,7 @@ fun WorkoutSummaryScreen(
     Column(modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
         when {
             state.loading -> Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-            state.summary == null -> Box(Modifier.fillMaxWidth().weight(1f).padding(16.dp)) {
+            state.summary == null -> Box(Modifier.fillMaxWidth().weight(1f).padding(IntakeSpacing.ScreenGutter)) {
                 EmptyState(
                     title = "This workout is not here any more",
                     body = "It may have been discarded. Your other sessions are in Train > Recent sessions.",
@@ -118,27 +125,28 @@ fun WorkoutSummaryScreen(
                 val summary = state.summary!!
                 LazyColumn(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    contentPadding = PaddingValues(start = IntakeSpacing.ScreenGutter, end = IntakeSpacing.ScreenGutter, top = 8.dp, bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
                 ) {
                     item(key = "head") {
-                        Column {
-                            Text(state.title, style = MaterialTheme.typography.headlineSmall)
+                        AccentCard(contentPadding = PaddingValues(IntakeSpacing.CardPadHero)) {
+                            Text(state.title, style = MaterialTheme.typography.headlineMedium)
                             val started = state.session?.startedAt
                             if (started != null) {
                                 Text(
                                     java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM, HH:mm")
                                         .format(java.time.Instant.ofEpochMilli(started).atZone(java.time.ZoneId.systemDefault())),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
                                 )
                             }
+                            Spacer(Modifier.height(14.dp))
+                            StatsRow(summary, state.unit)
                         }
                     }
                     if (summary.records.isNotEmpty()) {
                         item(key = "records") { RecordsCard(summary.records, state.unit) }
                     }
-                    item(key = "stats") { StatsRow(summary, state.unit) }
                     if (summary.regionSets.isNotEmpty()) {
                         item(key = "muscles") { MusclesCard(summary, state.week, state.hint) }
                     }
@@ -147,15 +155,11 @@ fun WorkoutSummaryScreen(
                         if (state.exercises.isEmpty()) {
                             EmptyState(body = "No working sets were logged in this workout.")
                         } else {
-                            Surface(
-                                color = MaterialTheme.colorScheme.surface,
-                                shape = IntakeShape.Card,
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
+                            ListCard {
                                 Column {
                                     state.exercises.forEachIndexed { i, e ->
-                                        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        if (i > 0) ListDivider()
+                                        Row(Modifier.fillMaxWidth().padding(horizontal = IntakeSpacing.ListRowPadH, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Column(Modifier.weight(1f)) {
                                                 Text(
                                                     e.name,
@@ -179,14 +183,13 @@ fun WorkoutSummaryScreen(
                                                     )
                                                 }
                                                 if (state.session?.finishedAt != null) {
-                                                    TextButton(onClick = { addingSetFor = e.exerciseId to e.name }, modifier = Modifier.heightIn(min = 48.dp)) {
-                                                        Text("Add a set")
+                                                    GhostButton(onClick = { addingSetFor = e.exerciseId to e.name }) {
+                                                        Text("Add a set", style = MaterialTheme.typography.titleSmall)
                                                     }
                                                 }
                                             }
-                                            if (e.records.isNotEmpty()) Tag("PR")
+                                            if (e.records.isNotEmpty()) IntakeChip("PR", tone = ChipTone.Ok)
                                         }
-                                        if (i != state.exercises.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                                     }
                                 }
                             }
@@ -204,28 +207,17 @@ fun WorkoutSummaryScreen(
                                 )
                                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     if (state.session?.finishedAt != null) {
-                                        OutlinedButton(
-                                            onClick = { editingTime = true },
-                                            shape = IntakeShape.Button,
-                                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                                        ) { Text("Change date, time and length") }
-                                        OutlinedButton(
-                                            onClick = { pickingExercise = true },
-                                            shape = IntakeShape.Button,
-                                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                                        ) { Text("Add an exercise") }
+                                        LineButton(onClick = { editingTime = true }, modifier = Modifier.fillMaxWidth()) { Text("Change date, time and length", style = MaterialTheme.typography.labelLarge) }
+                                        LineButton(onClick = { pickingExercise = true }, modifier = Modifier.fillMaxWidth()) { Text("Add an exercise", style = MaterialTheme.typography.labelLarge) }
                                     }
                                     if (state.reopen == ReopenOutcome.Allowed || state.reopen is ReopenOutcome.AnotherActive) {
-                                        OutlinedButton(
-                                            onClick = {
-                                                viewModel.reopen(false, onReopened) { reopenConflict = true }
-                                            },
-                                            shape = IntakeShape.Button,
-                                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                                        ) { Text("Reopen this workout") }
+                                        LineButton(
+                                            onClick = { viewModel.reopen(false, onReopened) { reopenConflict = true } },
+                                            modifier = Modifier.fillMaxWidth(),
+                                        ) { Text("Reopen this workout", style = MaterialTheme.typography.labelLarge) }
                                     }
                                     if (state.canRepeat) {
-                                        OutlinedButton(
+                                        LineButton(
                                             onClick = {
                                                 viewModel.repeat { id ->
                                                     if (id != null) onRepeat(id) else scope.launch {
@@ -233,9 +225,8 @@ fun WorkoutSummaryScreen(
                                                     }
                                                 }
                                             },
-                                            shape = IntakeShape.Button,
-                                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-                                        ) { Text("Repeat this workout") }
+                                            modifier = Modifier.fillMaxWidth(),
+                                        ) { Text("Repeat this workout", style = MaterialTheme.typography.labelLarge) }
                                     }
                                 }
                             }
@@ -263,25 +254,23 @@ fun WorkoutSummaryScreen(
                                 )
                                 Spacer(Modifier.height(10.dp))
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    OutlinedButton(
+                                    SoftButton(
                                         onClick = { viewModel.keepAsWorkout(keepName.trim()) },
                                         enabled = keepName.isNotBlank(),
-                                        shape = IntakeShape.Button,
-                                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                                    ) { Text("Save as workout") }
-                                    OutlinedButton(
+                                        modifier = Modifier.weight(1f),
+                                    ) { Text("Save as workout", style = MaterialTheme.typography.labelLarge) }
+                                    SoftButton(
                                         onClick = { viewModel.keepAsProgramDay(keepName.trim()) },
                                         enabled = keepName.isNotBlank(),
-                                        shape = IntakeShape.Button,
-                                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                                    ) { Text("Add to program") }
+                                        modifier = Modifier.weight(1f),
+                                    ) { Text("Add to program", style = MaterialTheme.typography.labelLarge) }
                                 }
                             }
                         }
                     }
                     state.kept?.let { message ->
                         item(key = "kept") {
-                            Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = IntakeShape.Banner, modifier = Modifier.fillMaxWidth()) {
+                            Surface(color = MaterialTheme.intake.soft, shape = IntakeShape.Banner, modifier = Modifier.fillMaxWidth()) {
                                 Text(message, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(14.dp))
                             }
                         }
@@ -300,16 +289,15 @@ fun WorkoutSummaryScreen(
         }
         Surface(color = MaterialTheme.colorScheme.background, tonalElevation = 0.dp, modifier = Modifier.fillMaxWidth()) {
             Column {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Button(
                     onClick = { viewModel.saveNotes(onDone) },
                     shape = IntakeShape.Button,
                     // The bar is the last thing on the page, so it keeps clear of the system navigation bar itself.
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 10.dp + contentPadding.calculateBottomPadding())
-                        .height(56.dp),
-                ) { Text("Done") }
+                        .padding(start = IntakeSpacing.ScreenGutter, end = IntakeSpacing.ScreenGutter, top = 10.dp, bottom = 10.dp + contentPadding.calculateBottomPadding())
+                        .heightIn(min = 52.dp),
+                ) { Text("Done", style = MaterialTheme.typography.labelLarge) }
             }
         }
         SnackbarHost(snackbar, modifier = Modifier.fillMaxWidth())
@@ -450,14 +438,15 @@ private fun EditSetDialog(
 
 @Composable
 private fun RecordsCard(records: List<RecordLine>, unit: WeightUnit) {
-    Surface(color = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer, shape = IntakeShape.Card, modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            Icon(Icons.Filled.EmojiEvents, contentDescription = null, modifier = Modifier.size(34.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(TrainText.recordsTitle(records.size), style = MaterialTheme.typography.titleLarge)
-                records.forEach { r ->
-                    Text(recordText(r, unit), style = MaterialTheme.typography.bodyMedium)
-                }
+    IntakeCard {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            IconTile(IntakeIcons.Trophy, style = IconTileStyle.Lime)
+            Text(TrainText.recordsTitle(records.size), style = MaterialTheme.typography.titleLarge)
+        }
+        Spacer(Modifier.height(10.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            records.forEach { r ->
+                Text(recordText(r, unit), style = MaterialTheme.typography.bodyMedium)
             }
         }
     }
@@ -486,28 +475,21 @@ internal fun recordText(r: RecordLine, unit: WeightUnit): String = when (r.kind)
     PrKind.NONE -> r.exerciseName
 }
 
+/** The three totals inside the lime hero: Space Grotesk numbers over their captions. */
 @Composable
 private fun StatsRow(summary: SessionSummary, unit: WeightUnit) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        StatTileBox(Modifier.weight(1f), "${summary.durationMin}", if (summary.durationMin == 1) "minute" else "minutes")
-        StatTileBox(Modifier.weight(1f), TrainText.thousands(unit.fromKg(summary.volumeKg)), "${unit.label} volume")
-        StatTileBox(Modifier.weight(1f), "${summary.workingSets}", if (summary.workingSets == 1) "set" else "sets")
-        StatTileBox(Modifier.weight(1f), "${summary.records.size}", if (summary.records.size == 1) "PR" else "PRs")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        StatBlock(Modifier.weight(1f), "${summary.durationMin}", if (summary.durationMin == 1) "minute" else "minutes")
+        StatBlock(Modifier.weight(1f), TrainText.thousands(unit.fromKg(summary.volumeKg)), "${unit.label} volume")
+        StatBlock(Modifier.weight(1f), "${summary.workingSets}", if (summary.workingSets == 1) "working set" else "working sets")
     }
 }
 
 @Composable
-private fun StatTileBox(modifier: Modifier, value: String, label: String) {
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        shape = IntakeShape.InnerCard,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = modifier.semantics { contentDescription = "$value $label" },
-    ) {
-        Column(Modifier.padding(vertical = 12.dp, horizontal = 4.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(value, style = MaterialTheme.typography.titleLarge, maxLines = 1)
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
-        }
+private fun StatBlock(modifier: Modifier, value: String, label: String) {
+    Column(modifier.semantics { contentDescription = "$value $label" }) {
+        Text(value, style = MaterialTheme.typography.headlineSmall.copy(fontFeatureSettings = "tnum"), maxLines = 1)
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f))
     }
 }
 
@@ -544,9 +526,9 @@ private fun RegionBar(v: RegionVolume, today: Double) {
     val text = "${v.region.label}: ${WeeklyVolume.formatSets(v.sets)} of ${v.target} sets this week, ${WeeklyVolume.formatSets(today)} today, ${WeeklyVolume.words(v.status)}"
     Row(Modifier.fillMaxWidth().semantics { contentDescription = text }, verticalAlignment = Alignment.CenterVertically) {
         Text(v.region.label, style = MaterialTheme.typography.titleSmall, modifier = Modifier.width(92.dp))
-        Box(Modifier.weight(1f).height(10.dp).clip(RoundedCornerShape(5.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
-            Box(Modifier.fillMaxHeight().fillMaxWidth(total).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)))
-            Box(Modifier.fillMaxHeight().fillMaxWidth(share).background(MaterialTheme.colorScheme.primary))
+        Box(Modifier.weight(1f).height(10.dp).clip(IntakeShape.Pill).background(MaterialTheme.intake.soft)) {
+            Box(Modifier.fillMaxHeight().fillMaxWidth(total).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)))
+            Box(Modifier.fillMaxHeight().fillMaxWidth(share).background(MaterialTheme.colorScheme.onSurface))
         }
         Text(
             "${WeeklyVolume.formatSets(v.sets)} / ${v.target}",
@@ -562,7 +544,7 @@ private fun RegionBar(v: RegionVolume, today: Double) {
 private fun NextTimeCard(changes: List<NextTimeChange>, unit: WeightUnit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Next time", style = MaterialTheme.typography.titleLarge)
-        IntakeCard {
+        SoftCard {
             changes.forEachIndexed { i, c ->
                 Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
                     Text(
@@ -571,7 +553,7 @@ private fun NextTimeCard(changes: List<NextTimeChange>, unit: WeightUnit) {
                     )
                     Text(com.zeroindex.intake.domain.units.WeightText.inUnit(c.reason, unit), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                if (i != changes.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                if (i != changes.lastIndex) ListDivider()
             }
         }
     }
