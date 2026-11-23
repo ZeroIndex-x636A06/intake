@@ -16,17 +16,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -63,7 +58,14 @@ import com.zeroindex.intake.domain.units.WeightText
 import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.ui.motion.AnimatedCheck
 import com.zeroindex.intake.ui.motion.flashOn
+import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
+import com.zeroindex.intake.ui.components.LineButton
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.theme.intake
 
 /**
  * The mockup's set grid: Set, Previous, weight, reps and a tick. Every planned set is visible and pre-filled from the
@@ -190,10 +192,10 @@ internal fun SetRowsBlock(
                 PlateChip(text, onClick = { onShowPlates(kg, "${WeightText.setRow(kg, unit)} ${unit.label}") })
             }
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = onAddSet, modifier = Modifier.heightIn(min = 48.dp)) {
-                Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+            LineButton(onClick = onAddSet, small = true) {
+                Icon(IntakeIcons.Plus, contentDescription = null, modifier = Modifier.size(IconSize.Small))
                 Spacer(Modifier.width(4.dp))
-                Text("Add set")
+                Text("Add set", style = MaterialTheme.typography.labelMedium)
             }
         }
     }
@@ -204,19 +206,19 @@ private fun HeaderCell(modifier: Modifier, text: String) {
     Box(modifier, contentAlignment = Alignment.Center) { Eyebrow(text) }
 }
 
-/** The mockup's amber plate pill: "Per side: 45 + 25 + 2.5". Tapping it opens the plate picture. */
+/** The mockup's plate pill (`soft`): "Per side: 45 + 25 + 2.5". Tapping it opens the plate picture. */
 @Composable
 private fun PlateChip(text: String, onClick: () -> Unit) {
     Surface(
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-        shape = IntakeShape.Banner,
-        modifier = Modifier.heightIn(min = 44.dp).clickable(role = Role.Button, onClickLabel = "Show the plates", onClick = onClick),
+        color = MaterialTheme.intake.soft,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = IntakeShape.Pill,
+        modifier = Modifier.heightIn(min = IntakeSpacing.TouchTarget).clip(IntakeShape.Pill).clickable(role = Role.Button, onClickLabel = "Show the plates", onClick = onClick),
     ) {
         Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.FitnessCenter, contentDescription = null, modifier = Modifier.size(18.dp))
+            Icon(IntakeIcons.Barbell, contentDescription = null, modifier = Modifier.size(IconSize.Small))
             Spacer(Modifier.width(8.dp))
-            Text(text, style = MaterialTheme.typography.labelLarge)
+            Text(text, style = MaterialTheme.typography.labelMedium)
         }
     }
 }
@@ -250,7 +252,9 @@ private fun SetLine(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)
-            .flashOn(flash, MaterialTheme.colorScheme.tertiaryContainer),
+            .clip(IntakeShape.SetRow)
+            .background(if (done) MaterialTheme.intake.okBg else Color.Transparent)
+            .flashOn(flash, MaterialTheme.intake.accent),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.width(32.dp), contentAlignment = Alignment.Center) {
@@ -275,7 +279,7 @@ private fun SetLine(
                     Text(previousEffort, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                 }
                 if (done && record != PrKind.NONE) {
-                    Text(record.label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    Text(record.label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.intake.ok, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 }
             }
         }
@@ -314,9 +318,9 @@ private fun SetLine(
             AnimatedCheck(
                 checked = done,
                 size = 32.dp,
-                fill = MaterialTheme.colorScheme.primary,
+                fill = MaterialTheme.intake.ok,
                 outline = MaterialTheme.colorScheme.onSurfaceVariant,
-                tick = MaterialTheme.colorScheme.onPrimary,
+                tick = MaterialTheme.colorScheme.background,
             )
         }
     }
@@ -326,13 +330,13 @@ private fun SetLine(
 private fun ShownCell(modifier: Modifier, text: String, trophy: PrKind = PrKind.NONE) {
     Box(modifier.padding(horizontal = 3.dp), contentAlignment = Alignment.Center) {
         Surface(
-            color = MaterialTheme.colorScheme.surfaceVariant,
+            color = Color.Transparent,
             shape = IntakeShape.ExtraSmall,
             modifier = Modifier.fillMaxWidth().height(44.dp),
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                 if (trophy != PrKind.NONE) {
-                    Icon(Icons.Filled.EmojiEvents, contentDescription = trophy.label, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(14.dp))
+                    Icon(IntakeIcons.Trophy, contentDescription = trophy.label, tint = MaterialTheme.intake.ok, modifier = Modifier.size(IconSize.ExtraSmall))
                     Spacer(Modifier.width(3.dp))
                 }
                 Text(text, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
@@ -352,9 +356,9 @@ private fun NumberCell(
 ) {
     var focused by remember { mutableStateOf(false) }
     Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = MaterialTheme.intake.soft,
         shape = IntakeShape.ExtraSmall,
-        border = BorderStroke(if (focused) 2.dp else 1.dp, if (focused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
+        border = if (focused) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
         modifier = modifier.padding(horizontal = 3.dp).height(48.dp),
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -386,11 +390,11 @@ private fun NumberCell(
 /** The colour of an effort band: easy sits quiet, near failure is loud. The cell always carries the number as well. */
 @Composable
 internal fun effortColor(band: EffortBand): Color = when (band) {
-    EffortBand.EASY -> MaterialTheme.colorScheme.surfaceVariant
-    EffortBand.MODERATE -> MaterialTheme.colorScheme.secondaryContainer
-    EffortBand.HARD -> MaterialTheme.colorScheme.primaryContainer
-    EffortBand.VERY_HARD -> MaterialTheme.colorScheme.tertiaryContainer
-    EffortBand.MAX -> MaterialTheme.colorScheme.errorContainer
+    EffortBand.EASY -> MaterialTheme.intake.soft
+    EffortBand.MODERATE -> MaterialTheme.intake.okBg
+    EffortBand.HARD -> MaterialTheme.intake.warnBg
+    EffortBand.VERY_HARD -> MaterialTheme.intake.carb.copy(alpha = 0.28f)
+    EffortBand.MAX -> MaterialTheme.intake.badBg
 }
 
 /**
@@ -407,9 +411,8 @@ private fun EffortCell(modifier: Modifier, setNumber: Int, scale: EffortScale, e
     }
     Box(modifier.padding(horizontal = 3.dp), contentAlignment = Alignment.Center) {
         Surface(
-            color = effort?.let { effortColor(Effort.band(it)) } ?: MaterialTheme.colorScheme.surface,
+            color = effort?.let { effortColor(Effort.band(it)) } ?: MaterialTheme.intake.soft,
             shape = IntakeShape.ExtraSmall,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(44.dp)
