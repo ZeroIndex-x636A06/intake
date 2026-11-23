@@ -2,6 +2,10 @@
 
 package com.zeroindex.intake.ui.screens.recipe
 
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.components.ChipTone
+import com.zeroindex.intake.ui.components.LineButton
+import com.zeroindex.intake.ui.theme.IntakeSpacing
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,7 +26,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Tab
 import androidx.compose.material3.AlertDialog
@@ -58,9 +61,7 @@ import com.zeroindex.intake.domain.recipe.PageNutrition
 import com.zeroindex.intake.domain.recipe.RecipeEditing
 import com.zeroindex.intake.ui.allergen.CheckLabelChip
 import com.zeroindex.intake.ui.components.IntakeCard
-import com.zeroindex.intake.ui.components.PillTone
 import com.zeroindex.intake.ui.components.SandNote
-import com.zeroindex.intake.ui.components.StatusPill
 import com.zeroindex.intake.ui.components.SubCopy
 import com.zeroindex.intake.ui.theme.IntakeShape
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -256,7 +257,7 @@ fun RecipeEditorScreen(
     val macros = RecipeEditing.macros(state.ingredients, servings)
 
     Column(
-        modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(contentPadding).padding(horizontal = 16.dp),
+        modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(contentPadding).padding(horizontal = IntakeSpacing.ScreenGutter),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         SubCopy("Add the ingredients and steps. Nothing is filled in for you.")
@@ -289,8 +290,8 @@ fun RecipeEditorScreen(
                 }
             }
             Spacer(Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = { adding = true }, shape = IntakeShape.Button,
+            LineButton(
+                onClick = { adding = true },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
             ) { Text("Add ingredients") }
         }
@@ -309,7 +310,7 @@ fun RecipeEditorScreen(
 
         state.error?.let { SandNote(it) }
         Button(
-            onClick = viewModel::save, shape = IntakeShape.Button,
+            onClick = viewModel::save,
             modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
         ) { Text(if (state.id == null) "Save recipe" else "Save changes") }
         Spacer(Modifier.height(24.dp))
@@ -392,15 +393,15 @@ internal fun MacroSummary(
 internal fun AllergenChips(scan: AllergenScanResult, ingredientLineCount: Int = 1, readLineCount: Int = 0) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         when {
-            scan.contains.isNotEmpty() -> StatusPill("Contains ${com.zeroindex.intake.domain.allergen.ChipWords.ingredientTerms(scan.contains)}", tone = PillTone.Bad)
-            scan.mayContain.isNotEmpty() -> StatusPill("May contain ${com.zeroindex.intake.domain.allergen.ChipWords.allergenNames(scan.mayContain)}", tone = PillTone.Wait)
+            scan.contains.isNotEmpty() -> IntakeChip("Contains ${com.zeroindex.intake.domain.allergen.ChipWords.ingredientTerms(scan.contains)}", tone = ChipTone.Bad)
+            scan.mayContain.isNotEmpty() -> IntakeChip("May contain ${com.zeroindex.intake.domain.allergen.ChipWords.allergenNames(scan.mayContain)}", tone = ChipTone.Warn)
             // Nothing with no ingredient data reads as passed: an empty recipe says only the name was checked.
             scan.checkLabel.isEmpty() -> {
                 val basis = com.zeroindex.intake.domain.allergen.AllergenEvidence.recipeClearBasis(ingredientLineCount, readLineCount)
                 if (basis.isCaution) {
                     com.zeroindex.intake.ui.allergen.AllergenChip(com.zeroindex.intake.domain.swap.SwapAllergen.CHECK_LABEL, label = basis.chipText)
                 } else {
-                    StatusPill(com.zeroindex.intake.domain.allergen.AllergenEvidence.ClearBasis.LABEL_READ.chipText)
+                    IntakeChip(com.zeroindex.intake.domain.allergen.AllergenEvidence.ClearBasis.LABEL_READ.chipText, tone = ChipTone.Ok, icon = com.zeroindex.intake.ui.theme.IntakeIcons.Check)
                 }
             }
         }
@@ -455,7 +456,7 @@ private fun IngredientSheet(
                     )
                     OutlinedTextField(text, { text = it }, minLines = 5, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
                     Button(
-                        onClick = { onPasteLines(text, groupOrNull) }, enabled = text.isNotBlank(), shape = IntakeShape.Button,
+                        onClick = { onPasteLines(text, groupOrNull) }, enabled = text.isNotBlank(),
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp).heightIn(min = 48.dp),
                     ) { Text("Add these") }
                 }
@@ -498,7 +499,7 @@ private fun PickFood(initial: IngredientDraft?, newKey: () -> String, search: su
                     ),
                 )
             },
-            enabled = (grams.toDoubleOrNull() ?: 0.0) > 0.0, shape = IntakeShape.Button,
+            enabled = (grams.toDoubleOrNull() ?: 0.0) > 0.0,
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp).heightIn(min = 48.dp),
         ) { Text("Add") }
     }
@@ -543,7 +544,6 @@ private fun TypedIngredient(initial: IngredientDraft?, newKey: () -> String, onS
         },
         enabled = name.isNotBlank() && (kcal.toDoubleOrNull() ?: 0.0) <= 900.0 &&
             ((protein.toDoubleOrNull() ?: 0.0) + (carbs.toDoubleOrNull() ?: 0.0) + (fat.toDoubleOrNull() ?: 0.0)) <= 100.5,
-        shape = IntakeShape.Button,
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp).heightIn(min = 48.dp),
     ) { Text(if (initial == null) "Add" else "Save") }
 }

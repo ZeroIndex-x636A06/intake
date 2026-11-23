@@ -17,17 +17,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -61,17 +55,23 @@ import com.zeroindex.intake.domain.recipe.ServingsStep
 import com.zeroindex.intake.ui.allergen.CheckLabelChip
 import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.MacroTiles
-import com.zeroindex.intake.ui.components.PillTone
 import com.zeroindex.intake.ui.components.SandNote
 import com.zeroindex.intake.ui.components.SectionLine
-import com.zeroindex.intake.ui.components.StatusPill
-import com.zeroindex.intake.ui.components.SubHead
 import com.zeroindex.intake.ui.images.RecipePhoto
 import com.zeroindex.intake.ui.screens.today.SlotPickerSheet
-import com.zeroindex.intake.ui.theme.CarbAccent
-import com.zeroindex.intake.ui.theme.FatAccent
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Surface
+import com.zeroindex.intake.ui.components.ChipTone
+import com.zeroindex.intake.ui.components.GhostButton
+import com.zeroindex.intake.ui.components.IconCircleButton
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.components.SoftButton
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IntakeShape
-import com.zeroindex.intake.ui.theme.ProteinAccent
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.theme.NumberSmall
+import com.zeroindex.intake.ui.theme.intake
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
@@ -114,25 +114,25 @@ fun RecipeDetailScreen(
     val flagged = ingredients.count { it.tag != null }
 
     Column(
-        modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(contentPadding).padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(contentPadding).padding(horizontal = IntakeSpacing.ScreenGutter),
+        verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
     ) {
         val source = recipe.sourceUrl?.let { runCatching { Uri.parse(it).host?.removePrefix("www.") }.getOrNull() }
         Row(verticalAlignment = Alignment.Bottom) {
-            Column(Modifier.weight(1f)) {
-                SubHead(
-                    recipe.name,
+            Column(Modifier.weight(1f).padding(top = 8.dp, bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(recipe.name, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
+                Text(
                     listOfNotNull(
                         source,
                         "${recipe.servings} servings",
                         RecipeTimes.label(recipe.prepMinutes, recipe.cookMinutes, recipe.totalTimeMinutes),
                     ).joinToString(" · "),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             Box {
-                IconButton(onClick = { menu = true }, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.Filled.MoreVert, contentDescription = "Recipe options")
-                }
+                IconCircleButton(IntakeIcons.More, "Recipe options", onClick = { menu = true })
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     recipe.sourceUrl?.let { url ->
                         DropdownMenuItem(
@@ -146,35 +146,71 @@ fun RecipeDetailScreen(
                     DropdownMenuItem(text = { Text("Add to this week") }, onClick = { menu = false; viewModel.addToThisWeek(recipe) })
                     DropdownMenuItem(text = { Text("Edit recipe") }, onClick = { menu = false; onEdit(recipe.id) })
                     DropdownMenuItem(
-                        text = { Text("Delete recipe", color = MaterialTheme.colorScheme.error) },
+                        text = { Text("Delete recipe", color = MaterialTheme.intake.bad) },
                         onClick = { menu = false; confirmDelete = true },
                     )
                 }
             }
         }
         RecipePhoto(recipe.imageUrl)
+        IntakeCard {
+            Column(verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap)) {
         if (nutrition.hasAnything) {
             MacroTiles(
                 listOf(
-                    Triple(ResolvedRecipeNutrition.text(nutrition.protein, "g"), "Protein", ProteinAccent),
-                    Triple(ResolvedRecipeNutrition.text(nutrition.carbs, "g"), "Carbs", CarbAccent),
-                    Triple(nutrition.kcal?.let { (if (it.estimated) "~" else "") + it.value.roundToInt() } ?: ResolvedRecipeNutrition.NOT_LISTED, "kcal", FatAccent),
+                    Triple(nutrition.kcal?.let { (if (it.estimated) "~" else "") + it.value.roundToInt() } ?: ResolvedRecipeNutrition.NOT_LISTED, "kcal", MaterialTheme.colorScheme.onSurface),
+                    Triple(ResolvedRecipeNutrition.text(nutrition.protein, "g"), "Protein", MaterialTheme.intake.protein),
+                    Triple(ResolvedRecipeNutrition.text(nutrition.carbs, "g"), "Carbs", MaterialTheme.intake.carb),
+                    Triple(ResolvedRecipeNutrition.text(nutrition.fat, "g"), "Fat", MaterialTheme.intake.fat),
                 ),
             )
             Text(
-                "Per serving · fat ${ResolvedRecipeNutrition.text(nutrition.fat, "g")}" + if (nutrition.anyEstimated) " · ~ is estimated from ingredients" else "",
-                style = MaterialTheme.typography.labelSmall,
+                "Per serving" + if (nutrition.anyEstimated) " · ~ is estimated from ingredients" else "",
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
             Text(
                 "Nutrition: not listed. The page gave none and the ingredients could not be matched.",
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        estimate?.takeIf { nutrition.anyEstimated }?.let { est ->
-            RecipeEstimateCard(est, nutrition, onPick = { i, f -> viewModel.pickFood(recipeId, i, f) })
+        // The stepper and "Log a serving" sit with the numbers they log, as in the mockup; "Cook" is the quieter partner below.
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(IntakeSpacing.RowGap), verticalAlignment = Alignment.CenterVertically) {
+            ServingsStepper(
+                servings = servings,
+                onChange = { up -> servings = ServingsStep.next(servings, up) },
+            )
+            Button(
+                onClick = { picking = true },
+                enabled = nutrition.kcal != null,
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(
+                    when {
+                        logged && servings == 1.0 -> "Logged · log another"
+                        logged -> "Logged · log ${ServingsStep.label(servings)}"
+                        servings == 1.0 -> "Log a serving"
+                        else -> "Log ${ServingsStep.label(servings)}"
+                    },
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
+            }
+        }
+        if (recipe.instructions.isNotBlank()) {
+            SoftButton(onClick = { onCook(recipe.id) }, small = true, modifier = Modifier.fillMaxWidth()) { Text("Cook") }
+        }
+        if (nutrition.kcal == null) {
+            // The button is off for a reason the person can fix: say what is missing and where to add it.
+            Text(
+                "Log a serving needs a calorie figure, and this recipe has none. Add the ingredients' nutrition in the recipe to turn it on.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            GhostButton(onClick = { onEdit(recipe.id) }) { Text("Edit recipe to add nutrition") }
+        }
+            }
         }
         val extras = RecipeNutritionLabels.extras(
             recipe.fiberPerServing, recipe.sugarPerServing, recipe.saturatedFatPerServing, recipe.sodiumMgPerServing,
@@ -214,11 +250,11 @@ fun RecipeDetailScreen(
                         com.zeroindex.intake.ui.addfood.RowAllergenChip(live)
                     } else {
                         when (recipe.allergenStatus) {
-                            AllergenStatus.MAY_CONTAIN -> StatusPill("Check allergens", tone = PillTone.Wait)
+                            AllergenStatus.MAY_CONTAIN -> IntakeChip("Check allergens", tone = ChipTone.Warn)
                             AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
-                            AllergenStatus.CONTAINS -> StatusPill("Contains an allergen", tone = PillTone.Bad)
-                            AllergenStatus.MENTIONED_AVOIDED -> StatusPill(MentionedAvoided.PILL)
-                            else -> StatusPill(com.zeroindex.intake.domain.allergen.AllergenEvidence.ClearBasis.NAME_ONLY.chipText, tone = PillTone.Wait)
+                            AllergenStatus.CONTAINS -> IntakeChip("Contains an allergen", tone = ChipTone.Bad)
+                            AllergenStatus.MENTIONED_AVOIDED -> IntakeChip(MentionedAvoided.PILL)
+                            else -> IntakeChip(com.zeroindex.intake.domain.allergen.AllergenEvidence.ClearBasis.NAME_ONLY.chipText)
                         }
                     }
                 }
@@ -266,63 +302,33 @@ fun RecipeDetailScreen(
                 }
             }
         }
-        recipe.notes?.takeIf { it.isNotBlank() }?.let { notes ->
-            SectionLine("Notes")
-            IntakeCard {
-                notes.lines().filter(String::isNotBlank).forEach {
-                    Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 3.dp))
-                }
-            }
-        }
         if (recipe.instructions.isNotBlank()) {
             SectionLine("Steps")
             IntakeCard {
                 recipe.instructions.lines().filter(String::isNotBlank).forEachIndexed { i, step ->
-                    Text(
-                        if (step.trimStart().firstOrNull()?.isDigit() == true) step else "${i + 1}. $step",
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(vertical = 3.dp),
-                    )
+                    // A step that already starts with its own number keeps it as text; the others get the numbered ink dot.
+                    val numbered = step.trimStart().firstOrNull()?.isDigit() == true
+                    Row(Modifier.padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (!numbered) {
+                            Surface(color = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary, shape = CircleShape, modifier = Modifier.size(26.dp)) {
+                                Box(contentAlignment = Alignment.Center) { Text("${i + 1}", style = MaterialTheme.typography.labelSmall) }
+                            }
+                        }
+                        Text(step, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                    }
                 }
             }
         }
-        Spacer(Modifier.height(6.dp))
-        ServingsStepper(
-            servings = servings,
-            onChange = { up -> servings = ServingsStep.next(servings, up) },
-        )
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (recipe.instructions.isNotBlank()) {
-                OutlinedButton(
-                    onClick = { onCook(recipe.id) },
-                    shape = IntakeShape.Button,
-                    modifier = Modifier.weight(1f).height(52.dp),
-                ) { Text("Cook") }
-            }
-            Button(
-                onClick = { picking = true },
-                enabled = nutrition.kcal != null,
-                shape = IntakeShape.Button,
-                modifier = Modifier.weight(if (recipe.instructions.isNotBlank()) 2f else 1f).height(52.dp),
-            ) {
-                Text(
-                    when {
-                        logged && servings == 1.0 -> "Logged · log another"
-                        logged -> "Logged · log ${ServingsStep.label(servings)}"
-                        servings == 1.0 -> "Log a serving"
-                        else -> "Log ${ServingsStep.label(servings)}"
-                    },
-                )
-            }
+        estimate?.takeIf { nutrition.anyEstimated }?.let { est ->
+            RecipeEstimateCard(est, nutrition, onPick = { i, f -> viewModel.pickFood(recipeId, i, f) })
         }
-        if (nutrition.kcal == null) {
-            // The button is off for a reason the person can fix: say what is missing and where to add it.
-            Text(
-                "Log a serving needs a calorie figure, and this recipe has none. Add the ingredients' nutrition in the recipe to turn it on.",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            TextButton(onClick = { onEdit(recipe.id) }) { Text("Edit recipe to add nutrition") }
+        recipe.notes?.takeIf { it.isNotBlank() }?.let { notes ->
+            SectionLine("Notes")
+            IntakeCard {
+                notes.lines().filter(String::isNotBlank).forEach {
+                    Text(it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 3.dp))
+                }
+            }
         }
         notice?.let { SandNote(it) }
         Spacer(Modifier.height(24.dp))
@@ -358,7 +364,7 @@ fun RecipeDetailScreen(
             },
             confirmButton = {
                 TextButton(onClick = { confirmDelete = false; viewModel.delete(recipe); onDeleted() }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text("Delete", color = MaterialTheme.intake.bad)
                 }
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Keep it") } },
@@ -366,29 +372,26 @@ fun RecipeDetailScreen(
     }
 }
 
-/** The servings to log, with − and + in half steps. Same look as the checklist's stepper in cook mode. */
+/**
+ * The servings to log, with minus and plus in half steps (`.stepper`: a `soft` pill with two round `card` buttons and the value
+ * between). Same look as the checklist's stepper in cook mode.
+ */
 @Composable
 private fun ServingsStepper(servings: Double, onChange: (up: Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text("Servings to log", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
-        OutlinedButton(
-            onClick = { onChange(false) },
-            enabled = servings > ServingsStep.MIN,
-            shape = IntakeShape.Button,
-            contentPadding = PaddingValues(0.dp),
-            modifier = Modifier.size(48.dp).semantics { contentDescription = "Fewer servings to log" },
-        ) { Text("−", style = MaterialTheme.typography.titleMedium) }
-        Text(
-            ServingsStep.label(servings),
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.padding(horizontal = 10.dp),
-        )
-        OutlinedButton(
-            onClick = { onChange(true) },
-            shape = IntakeShape.Button,
-            contentPadding = PaddingValues(0.dp),
-            modifier = Modifier.size(48.dp).semantics { contentDescription = "More servings to log" },
-        ) { Text("+", style = MaterialTheme.typography.titleMedium) }
+    Surface(color = MaterialTheme.intake.soft, shape = IntakeShape.Pill) {
+        Row(Modifier.padding(3.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconCircleButton(
+                IntakeIcons.Minus, "Fewer servings to log",
+                onClick = { onChange(false) }, enabled = servings > ServingsStep.MIN,
+            )
+            Text(
+                ServingsStep.label(servings),
+                style = NumberSmall,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.widthIn(min = 44.dp).padding(horizontal = 4.dp),
+            )
+            IconCircleButton(IntakeIcons.Plus, "More servings to log", onClick = { onChange(true) })
+        }
     }
 }
 
@@ -401,8 +404,8 @@ internal fun flaggedLinesDescription(count: Int): String =
 private fun IngredientLine(line: IngredientView, highlighted: Boolean, modifier: Modifier = Modifier) {
     val tag = line.tag
     val tagColor = when (tag?.severity) {
-        LineAllergenTag.Severity.CONTAINS -> MaterialTheme.colorScheme.error
-        LineAllergenTag.Severity.MAY_CONTAIN -> MaterialTheme.colorScheme.tertiary
+        LineAllergenTag.Severity.CONTAINS -> MaterialTheme.intake.bad
+        LineAllergenTag.Severity.MAY_CONTAIN -> MaterialTheme.intake.warn
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     val text = buildAnnotatedString {
@@ -419,7 +422,7 @@ private fun IngredientLine(line: IngredientView, highlighted: Boolean, modifier:
             .fillMaxWidth()
             .then(
                 if (highlighted) {
-                    Modifier.background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(6.dp)).padding(horizontal = 6.dp, vertical = 4.dp)
+                    Modifier.background(MaterialTheme.intake.warnBg, IntakeShape.IconSmall).padding(horizontal = 6.dp, vertical = 4.dp)
                 } else {
                     Modifier.padding(vertical = 2.dp)
                 },

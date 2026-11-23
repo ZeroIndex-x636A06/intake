@@ -1,5 +1,7 @@
 package com.zeroindex.intake.ui.screens.templates
 
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.components.LineButton
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,7 +23,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -103,10 +104,10 @@ fun MealTemplateEditorScreen(
         contentPadding = PaddingValues(
             top = contentPadding.calculateTopPadding(),
             bottom = contentPadding.calculateBottomPadding() + 24.dp,
-            start = 16.dp,
-            end = 16.dp,
+            start = IntakeSpacing.ScreenGutter,
+            end = IntakeSpacing.ScreenGutter,
         ),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
     ) {
         item(key = "head") {
             // The screen bar already says "Meal template", so the heading is the template's own name.
@@ -151,9 +152,8 @@ fun MealTemplateEditorScreen(
             }
         }
         item(key = "add") {
-            OutlinedButton(
+            LineButton(
                 onClick = { adding = true },
-                shape = IntakeShape.Button,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
             ) { Text("Add a food or recipe") }
         }
@@ -162,7 +162,6 @@ fun MealTemplateEditorScreen(
             Button(
                 onClick = { viewModel.save(onDone) },
                 enabled = !state.saving,
-                shape = IntakeShape.Button,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
             ) { Text(if (state.isNew) "Save template" else "Save changes") }
         }
@@ -220,8 +219,8 @@ private fun AddPicker(
         contentPadding = PaddingValues(
             top = contentPadding.calculateTopPadding(),
             bottom = contentPadding.calculateBottomPadding() + 24.dp,
-            start = 16.dp,
-            end = 16.dp,
+            start = IntakeSpacing.ScreenGutter,
+            end = IntakeSpacing.ScreenGutter,
         ),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
@@ -235,7 +234,7 @@ private fun AddPicker(
             )
         }
         item(key = "cancel") {
-            OutlinedButton(onClick = onCancel, shape = IntakeShape.Button, modifier = Modifier.heightIn(min = 48.dp)) { Text("Back to the template") }
+            LineButton(onClick = onCancel, modifier = Modifier.heightIn(min = 48.dp)) { Text("Back to the template") }
         }
         if (hits.lists.recent.isNotEmpty()) {
             item(key = "h-recent") { Eyebrow("Recent", Modifier.padding(top = 8.dp)) }

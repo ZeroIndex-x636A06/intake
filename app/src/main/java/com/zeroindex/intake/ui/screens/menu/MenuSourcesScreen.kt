@@ -2,6 +2,11 @@
 
 package com.zeroindex.intake.ui.screens.menu
 
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.components.ChipTone
+import com.zeroindex.intake.ui.components.LineButton
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.theme.intake
 import com.zeroindex.intake.domain.time.DateText
 import com.zeroindex.intake.ui.components.scrollIntoViewOnFocus
 import androidx.compose.foundation.layout.imePadding
@@ -29,21 +34,17 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.ui.text.input.KeyboardType
 import com.zeroindex.intake.ui.components.EmptyState
 import com.zeroindex.intake.ui.components.ErrorState
 import com.zeroindex.intake.ui.components.LabeledField
 import com.zeroindex.intake.ui.components.LoadingState
-import com.zeroindex.intake.ui.components.PillTone
 import com.zeroindex.intake.ui.components.ResultCard
-import com.zeroindex.intake.ui.components.StatusPill
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -98,8 +99,8 @@ fun MenuSourcesScreen(
         contentPadding = PaddingValues(
             top = contentPadding.calculateTopPadding(),
             bottom = contentPadding.calculateBottomPadding() + 24.dp,
-            start = 16.dp,
-            end = 16.dp,
+            start = IntakeSpacing.ScreenGutter,
+            end = IntakeSpacing.ScreenGutter,
         ),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -142,9 +143,8 @@ fun MenuSourcesScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 6.dp),
                     )
-                    OutlinedButton(
+                    LineButton(
                         onClick = viewModel::cancelImport,
-                        shape = IntakeShape.Button,
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(top = 8.dp),
                     ) { Text("Cancel") }
                 }
@@ -168,18 +168,15 @@ fun MenuSourcesScreen(
                         Button(
                             onClick = { viewModel.addNutritionLink(linkText); askingLink = false },
                             enabled = linkText.startsWith("http"),
-                            shape = IntakeShape.Button,
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(top = 8.dp),
                         ) { Text("Read the link") }
                     } else {
                         Button(
                             onClick = { nutritionPicker.launch(arrayOf("application/pdf")) },
-                            shape = IntakeShape.Button,
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(top = 8.dp),
                         ) { Text("Choose a PDF") }
-                        OutlinedButton(
+                        LineButton(
                             onClick = { askingLink = true },
-                            shape = IntakeShape.Button,
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(top = 6.dp),
                         ) { Text("Paste a link") }
                     }
@@ -202,7 +199,6 @@ fun MenuSourcesScreen(
                         Button(
                             onClick = viewModel::readNutritionWithAi,
                             enabled = state.hasKey,
-                            shape = IntakeShape.Button,
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(top = 8.dp),
                         ) { Text("Read it with AI") }
                         TextButton(onClick = viewModel::dismissNutritionAiOffer, modifier = Modifier.fillMaxWidth()) { Text("Not now") }
@@ -234,7 +230,6 @@ fun MenuSourcesScreen(
                     Button(
                         onClick = viewModel::readWithAi,
                         enabled = state.hasKey,
-                        shape = IntakeShape.Button,
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(top = 8.dp),
                     ) { Text("Read it with AI") }
                     TextButton(onClick = viewModel::dismissAiOffer, modifier = Modifier.fillMaxWidth()) { Text("Not now") }
@@ -247,7 +242,6 @@ fun MenuSourcesScreen(
                     state.refusedSource?.let { refused ->
                         Button(
                             onClick = { picker.launch(arrayOf("application/pdf")) },
-                            shape = IntakeShape.Button,
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         ) { Text("Choose a PDF") }
                     }
@@ -298,16 +292,16 @@ fun MenuSourcesScreen(
                                 )
                             }
                             when (source.lastStatus) {
-                                MenuRunStatus.OK -> StatusPill("OK")
-                                MenuRunStatus.FAILED -> StatusPill("Failed", tone = PillTone.Bad)
-                                MenuRunStatus.RUNNING -> StatusPill("Running", tone = PillTone.Wait)
-                                MenuRunStatus.NEVER_RUN -> StatusPill("Never run", tone = PillTone.Wait)
-                                MenuRunStatus.TO_REVIEW -> StatusPill("To review", tone = PillTone.Wait)
+                                MenuRunStatus.OK -> IntakeChip("OK", tone = ChipTone.Ok)
+                                MenuRunStatus.FAILED -> IntakeChip("Failed", tone = ChipTone.Bad)
+                                MenuRunStatus.RUNNING -> IntakeChip("Running", tone = ChipTone.Warn)
+                                MenuRunStatus.NEVER_RUN -> IntakeChip("Never run", tone = ChipTone.Warn)
+                                MenuRunStatus.TO_REVIEW -> IntakeChip("To review", tone = ChipTone.Warn)
                             }
                         }
                         if (source.lastStatus == MenuRunStatus.TO_REVIEW) {
                             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Button(onClick = { viewModel.reviewStaged(source) }, shape = IntakeShape.Button, modifier = Modifier.heightIn(min = 48.dp)) { Text("Review import") }
+                                Button(onClick = { viewModel.reviewStaged(source) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Review import") }
                                 TextButton(onClick = { viewModel.askDiscard(source) }) { Text("Discard import") }
                             }
                         }
@@ -366,7 +360,7 @@ private fun AddSourceSheet(hasKey: Boolean, onDismiss: () -> Unit, onAdd: (Strin
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> pdf = uri?.toString() }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(
-            Modifier.padding(horizontal = 16.dp).navigationBarsPadding().imePadding().verticalScroll(rememberScrollState()),
+            Modifier.padding(horizontal = IntakeSpacing.ScreenGutter).navigationBarsPadding().imePadding().verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text("Add source", style = MaterialTheme.typography.headlineSmall)
@@ -386,10 +380,9 @@ private fun AddSourceSheet(hasKey: Boolean, onDismiss: () -> Unit, onAdd: (Strin
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                MenuSourceKind.PDF -> OutlinedButton(
+                MenuSourceKind.PDF -> LineButton(
                     onClick = { picker.launch(arrayOf("application/pdf")) },
-                    shape = IntakeShape.Button,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
                 ) { Text(if (pdf == null) "Choose a PDF" else "PDF chosen · change") }
                 MenuSourceKind.TEXT -> {
                     OutlinedTextField(
@@ -421,8 +414,7 @@ private fun AddSourceSheet(hasKey: Boolean, onDismiss: () -> Unit, onAdd: (Strin
                     }
                 },
                 enabled = ready,
-                shape = IntakeShape.Button,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
             ) { Text("Import menu") }
             Spacer(Modifier.height(12.dp))
         }
@@ -435,20 +427,20 @@ private fun ReviewSheet(review: Review, onToggle: (Int) -> Unit, onSave: () -> U
     val flagged = review.items.count { it.entity.allergenStatus == AllergenStatus.CONTAINS || it.entity.allergenStatus == AllergenStatus.MAY_CONTAIN }
     val accepted = review.items.count { it.accepted }
     ModalBottomSheet(onDismissRequest = onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(Modifier.padding(horizontal = 16.dp).navigationBarsPadding()) {
+        Column(Modifier.padding(horizontal = IntakeSpacing.ScreenGutter).navigationBarsPadding()) {
             SubHead("Review imported menu", "Nothing is added to your menus until you accept. Close this and it waits on the source as \"To review\".")
             review.warnings.forEach { w ->
                 Text(
                     w,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
+                    color = MaterialTheme.intake.bad,
                     modifier = Modifier.padding(bottom = 6.dp),
                 )
             }
             Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant,
+                color = MaterialTheme.intake.soft,
                 contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                shape = RoundedCornerShape(17.dp),
+                shape = IntakeShape.InnerCard,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
@@ -471,11 +463,11 @@ private fun ReviewSheet(review: Review, onToggle: (Int) -> Unit, onSave: () -> U
                         Row(verticalAlignment = Alignment.Top) {
                             Text(item.name, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f).padding(end = 6.dp))
                             when (item.allergenStatus) {
-                                AllergenStatus.CONTAINS -> StatusPill("Allergen match · review", tone = PillTone.Bad)
-                                AllergenStatus.MAY_CONTAIN -> StatusPill("Possible match · review", tone = PillTone.Wait)
+                                AllergenStatus.CONTAINS -> IntakeChip("Allergen match · review", tone = ChipTone.Bad)
+                                AllergenStatus.MAY_CONTAIN -> IntakeChip("Possible match · review", tone = ChipTone.Warn)
                                 AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
-                                AllergenStatus.CLEAR, AllergenStatus.MENTIONED_AVOIDED -> StatusPill(AllergenEvidence.ClearBasis.LABEL_READ.chipText)
-                                AllergenStatus.UNKNOWN -> StatusPill("No ingredients listed", tone = PillTone.Wait)
+                                AllergenStatus.CLEAR, AllergenStatus.MENTIONED_AVOIDED -> IntakeChip(AllergenEvidence.ClearBasis.LABEL_READ.chipText, tone = ChipTone.Ok)
+                                AllergenStatus.UNKNOWN -> IntakeChip("No ingredients listed", tone = ChipTone.Warn)
                             }
                         }
                         Text(macroLine(item), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
@@ -510,8 +502,7 @@ private fun ReviewSheet(review: Review, onToggle: (Int) -> Unit, onSave: () -> U
             Button(
                 onClick = onSave,
                 enabled = accepted > 0,
-                shape = IntakeShape.Button,
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(52.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp).heightIn(min = 52.dp),
             ) { Text("Save $accepted accepted item${if (accepted == 1) "" else "s"}") }
             TextButton(onClick = onDiscard, modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 8.dp)) {
                 Text("Discard import")
@@ -537,10 +528,10 @@ private fun ItemsSheet(
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(Modifier.padding(horizontal = 16.dp).navigationBarsPadding()) {
+        Column(Modifier.padding(horizontal = IntakeSpacing.ScreenGutter).navigationBarsPadding()) {
             Text(source.restaurantName, style = MaterialTheme.typography.headlineSmall)
             Row(Modifier.padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = onRun, enabled = canRun, shape = IntakeShape.Chip) { Text("Refresh now") }
+                LineButton(onClick = onRun, enabled = canRun) { Text("Refresh now") }
                 TextButton(onClick = onRemove) { Text("Remove source") }
             }
             if (items.isEmpty()) EmptyState(body = "No items saved from this source yet.")
@@ -567,8 +558,8 @@ private fun ItemText(item: MenuItemEntity, allergen: com.zeroindex.intake.ui.add
         } else {
             // Nothing avoided (no scan): the stored verdict, as before.
             when (item.allergenStatus) {
-                AllergenStatus.CONTAINS -> StatusPill("Contains ${item.allergenMatches}", tone = PillTone.Bad)
-                AllergenStatus.MAY_CONTAIN -> StatusPill("Check: ${item.allergenMatches}", tone = PillTone.Wait)
+                AllergenStatus.CONTAINS -> IntakeChip("Contains ${item.allergenMatches}", tone = ChipTone.Bad)
+                AllergenStatus.MAY_CONTAIN -> IntakeChip("Check: ${item.allergenMatches}", tone = ChipTone.Warn)
                 AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
                 else -> Unit
             }

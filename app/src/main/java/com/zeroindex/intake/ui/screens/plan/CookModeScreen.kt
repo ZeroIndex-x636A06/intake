@@ -28,14 +28,10 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -81,7 +77,21 @@ import com.zeroindex.intake.timer.CookTimer
 import com.zeroindex.intake.timer.CookTimerService
 import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.ui.components.SandNote
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Surface
+import com.zeroindex.intake.ui.components.AccentButton
+import com.zeroindex.intake.ui.components.GhostButton
+import com.zeroindex.intake.ui.components.IconCircleButton
+import com.zeroindex.intake.ui.components.IntakeCard
+import com.zeroindex.intake.ui.components.SoftButton
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.theme.NumberSmall
+import com.zeroindex.intake.ui.theme.intake
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.delay
@@ -194,7 +204,7 @@ fun CookModeScreen(
     var pickedSlot by remember { mutableStateOf(MealSlot.DINNER) }
     Column(Modifier.fillMaxSize().padding(contentPadding)) {
         if (recipe == null || steps.isEmpty()) {
-            Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(Modifier.padding(IntakeSpacing.ScreenGutter), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(
                     if (!loaded) "Loading…" else "No steps to cook from",
                     style = MaterialTheme.typography.headlineMedium,
@@ -293,23 +303,45 @@ private fun CookPager(
         }
     }
 
-    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(Modifier.fillMaxSize().padding(horizontal = IntakeSpacing.ScreenGutter), verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            // Close icon at normal size inside a 72dp touch target (this screen's rule for every control).
+            // The 44 dp circle is what shows; the touch target around it stays 72 dp (this screen's rule for every control).
             IconButton(
                 onClick = onClose,
                 modifier = Modifier.size(72.dp).semantics { contentDescription = "Close cook mode" },
-            ) { Icon(Icons.Filled.Close, contentDescription = null) }
+            ) {
+                Surface(color = MaterialTheme.intake.soft, contentColor = MaterialTheme.colorScheme.onSurface, shape = CircleShape, modifier = Modifier.size(IntakeSpacing.TouchTarget)) {
+                    Box(contentAlignment = Alignment.Center) { Icon(IntakeIcons.Close, contentDescription = null, modifier = Modifier.size(IconSize.Default)) }
+                }
+            }
             Spacer(Modifier.weight(1f))
             Column(horizontalAlignment = Alignment.End) {
                 Eyebrow("Step ${pager.currentPage + 1} of ${steps.size}")
-                Text("◉ Screen stays awake", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Screen stays awake", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        LinearProgressIndicator(
-            progress = { (pager.currentPage + 1) / steps.size.toFloat() },
-            modifier = Modifier.fillMaxWidth().height(8.dp),
-        )
+        // One segment per step (a hairline progress), the steps done so far in ink and the rest in `line`.
+        if (steps.size <= 16) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                steps.indices.forEach { i ->
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .height(6.dp)
+                            .background(
+                                if (i <= pager.currentPage) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                CircleShape,
+                            ),
+                    )
+                }
+            }
+        } else {
+            LinearProgressIndicator(
+                progress = { (pager.currentPage + 1) / steps.size.toFloat() },
+                modifier = Modifier.fillMaxWidth().height(6.dp),
+                strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
+            )
+        }
         if (notificationsDenied) {
             SandNote("Notifications are off, so timers only show here and will not chime when you leave the app.")
         }
@@ -331,7 +363,7 @@ private fun CookPager(
             val durations = remember(text) { CookSteps.durations(text) }
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Eyebrow(recipe.name)
-                Text(text, fontSize = 30.sp, lineHeight = 40.sp, fontWeight = FontWeight.Medium)
+                Text(text, style = MaterialTheme.typography.headlineLarge.copy(lineHeight = 40.sp))
                 durations.forEachIndexed { i, d ->
                     val id = "${recipe.id}:$page:$i"
                     TimerChip(
@@ -384,30 +416,23 @@ private fun Checklist(
     open: Boolean,
     onOpen: (Boolean) -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    IntakeCard(modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Eyebrow("Ingredients · ${ticked.size} of ${ingredients.size} ready")
             }
-            OutlinedButton(
-                onClick = { onServings(servings - 1) },
-                shape = IntakeShape.Button,
-                modifier = Modifier.size(48.dp).semantics { contentDescription = "Fewer servings" },
-                contentPadding = PaddingValues(0.dp),
-            ) { Text("−", fontSize = 22.sp) }
-            Text(
-                "$servings ${if (servings == 1) "serving" else "servings"}",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 10.dp),
-            )
-            OutlinedButton(
-                onClick = { onServings(servings + 1) },
-                shape = IntakeShape.Button,
-                modifier = Modifier.size(48.dp).semantics { contentDescription = "More servings" },
-                contentPadding = PaddingValues(0.dp),
-            ) { Text("+", fontSize = 22.sp) }
-            TextButton(onClick = { onOpen(!open) }, modifier = Modifier.heightIn(min = 48.dp)) { Text(if (open) "Hide" else "Show") }
+            Surface(color = MaterialTheme.intake.soft, shape = IntakeShape.Pill) {
+                Row(Modifier.padding(3.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IconCircleButton(IntakeIcons.Minus, "Fewer servings", onClick = { onServings(servings - 1) })
+                    Text(
+                        "$servings ${if (servings == 1) "serving" else "servings"}",
+                        style = NumberSmall,
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                    )
+                    IconCircleButton(IntakeIcons.Plus, "More servings", onClick = { onServings(servings + 1) })
+                }
+            }
+            GhostButton(onClick = { onOpen(!open) }, modifier = Modifier.heightIn(min = 48.dp)) { Text(if (open) "Hide" else "Show") }
         }
         if (open) {
             val listScroll = rememberScrollState()
@@ -417,7 +442,7 @@ private fun Checklist(
                 // Group headers stay, so "butter" under the chicken and "butter" under the sauce are not confused.
                 IngredientSections.of(ingredients) { it.group }.forEach { section ->
                     section.label?.let {
-                        Text(it, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
+                        Text(it, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 6.dp))
                     }
                     section.items.forEach { line ->
                         val done = line.key in ticked
@@ -463,12 +488,13 @@ private fun TimerChip(step: StepTimer, timer: CookTimer?, done: Boolean, now: Lo
         else -> "⏱ Start ${CookSteps.formatShort(step.seconds)} timer"
     }
     val modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp)
+    // The running timer is the lime one; a timer yet to start is a quiet `soft` pill.
     if (running) {
-        OutlinedButton(onClick = onCancel, shape = IntakeShape.Button, modifier = modifier) {
+        AccentButton(onClick = onCancel, modifier = modifier) {
             Text(label, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         }
     } else {
-        Button(onClick = onStart, shape = IntakeShape.Button, modifier = modifier) {
+        SoftButton(onClick = onStart, modifier = modifier) {
             Text(label, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         }
     }
@@ -484,8 +510,8 @@ private fun BigButton(
 ) {
     val m = modifier.heightIn(min = 72.dp).let { if (description != null) it.semantics { contentDescription = description } else it }
     if (primary) {
-        Button(onClick = onClick, shape = IntakeShape.Button, modifier = m) { Text(label, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
+        AccentButton(onClick = onClick, modifier = m) { Text(label, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
     } else {
-        OutlinedButton(onClick = onClick, shape = IntakeShape.Button, modifier = m) { Text(label, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
+        SoftButton(onClick = onClick, modifier = m) { Text(label, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
     }
 }

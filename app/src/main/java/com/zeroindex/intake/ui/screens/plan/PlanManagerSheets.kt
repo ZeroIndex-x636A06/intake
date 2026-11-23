@@ -2,6 +2,9 @@
 
 package com.zeroindex.intake.ui.screens.plan
 
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.components.ChipTone
+import com.zeroindex.intake.ui.components.LineButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -22,7 +25,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -42,7 +44,6 @@ import com.zeroindex.intake.domain.model.PlanLoopMode
 import com.zeroindex.intake.domain.plan.PlanSchedule
 import com.zeroindex.intake.domain.plan.PlanWeekExtras
 import com.zeroindex.intake.domain.time.DateText
-import com.zeroindex.intake.ui.components.StatusPill
 import com.zeroindex.intake.ui.theme.IntakeShape
 import java.time.LocalDate
 
@@ -71,7 +72,7 @@ fun PlansSheet(
                                 style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        if (p.isActive) StatusPill("Active")
+                        if (p.isActive) IntakeChip("Active", tone = ChipTone.Ok)
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         if (!p.isActive) TextButton(onClick = { onSwitch(p) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Use this plan") }
@@ -85,7 +86,7 @@ fun PlansSheet(
                 Text("No plans yet. Make one, or import a plan file.", style = MaterialTheme.typography.bodyMedium)
             }
             Spacer(Modifier.height(12.dp))
-            Button(onClick = onNew, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("New plan") }
+            Button(onClick = onNew, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("New plan") }
             Spacer(Modifier.height(16.dp))
         }
     }
@@ -131,7 +132,7 @@ fun PlanFormDialog(
                     )
                 }
                 Text("First day of week 1", style = MaterialTheme.typography.labelLarge)
-                OutlinedButton(onClick = { pickingStart = true }, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                LineButton(onClick = { pickingStart = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                     Text(DateText.medium(startDate))
                 }
                 Text("When it ends", style = MaterialTheme.typography.labelLarge)
@@ -200,12 +201,11 @@ fun WeekEditSheet(
             OutlinedTextField(protein, { protein = it }, label = { Text("Protein (for example Chicken)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(variations, { variations = it }, label = { Text("Other ways to eat it, one per line") }, minLines = 3, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(note, { note = it }, label = { Text("Notes for this week") }, minLines = 2, modifier = Modifier.fillMaxWidth())
-            OutlinedButton(onClick = onChooseRecipe, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            LineButton(onClick = onChooseRecipe, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                 Text(if (hasRecipe) "Change the recipe" else "Use a saved recipe for the steps and macros")
             }
             Button(
-                onClick = { onSave(dish, protein, note, variations.lines()) },
-                shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                onClick = { onSave(dish, protein, note, variations.lines()) }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
             ) { Text("Save week") }
             Spacer(Modifier.height(16.dp))
         }

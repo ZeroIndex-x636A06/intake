@@ -2,6 +2,10 @@
 
 package com.zeroindex.intake.ui.screens.plan
 
+import com.zeroindex.intake.ui.theme.intake
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.components.ChipTone
+import com.zeroindex.intake.ui.components.LineButton
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,7 +26,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -50,9 +53,7 @@ import com.zeroindex.intake.data.repository.PlanImportPreview
 import com.zeroindex.intake.domain.nutrition.Macros
 import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.ui.components.OfflinePill
-import com.zeroindex.intake.ui.components.PillTone
 import com.zeroindex.intake.ui.components.SandNote
-import com.zeroindex.intake.ui.components.StatusPill
 import com.zeroindex.intake.ui.components.EmptyState
 import com.zeroindex.intake.ui.screens.script.ScriptWarnings
 import com.zeroindex.intake.ui.theme.IntakeShape
@@ -154,15 +155,13 @@ fun EatOutSheet(
             }
             rows.forEach { row -> EatOutCard(row, onLog = { onLog(row) }) }
             if (hiddenCount > 0 || showingAll) {
-                OutlinedButton(
+                LineButton(
                     onClick = onToggleAll,
-                    shape = IntakeShape.Button,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                 ) { Text(if (showingAll) "Show only this week's protein" else "Show all options ($hiddenCount more)") }
             }
-            OutlinedButton(
+            LineButton(
                 onClick = onOpenSwap,
-                shape = IntakeShape.Button,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
             ) { Text("Swap · find a place nearby") }
             Spacer(Modifier.height(16.dp))
@@ -175,21 +174,20 @@ private fun EatOutCard(row: EatOutRow, onLog: () -> Unit) {
     val o = row.option
     val blocked = row.status == AllergenStatus.CONTAINS
     androidx.compose.material3.Surface(
-        color = MaterialTheme.colorScheme.surface,
+        color = MaterialTheme.intake.soft,
         shape = IntakeShape.InnerCard,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(o.venueName, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 when (row.status) {
-                    AllergenStatus.CONTAINS -> StatusPill("Contains an allergen", tone = PillTone.Bad)
-                    AllergenStatus.MAY_CONTAIN -> StatusPill("Check: may contain", tone = PillTone.Wait)
+                    AllergenStatus.CONTAINS -> IntakeChip("Contains an allergen", tone = ChipTone.Bad)
+                    AllergenStatus.MAY_CONTAIN -> IntakeChip("Check: may contain", tone = ChipTone.Warn)
                     AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
-                    AllergenStatus.CLEAR -> StatusPill("No flagged terms")
-                    AllergenStatus.MENTIONED_AVOIDED -> StatusPill(MentionedAvoided.PILL)
-                    AllergenStatus.UNKNOWN -> StatusPill("Not checked", tone = PillTone.Wait)
+                    AllergenStatus.CLEAR -> IntakeChip("No flagged terms", tone = ChipTone.Ok)
+                    AllergenStatus.MENTIONED_AVOIDED -> IntakeChip(MentionedAvoided.PILL, tone = ChipTone.Ok)
+                    AllergenStatus.UNKNOWN -> IntakeChip("Not checked", tone = ChipTone.Warn)
                 }
             }
             Eyebrow("Say this when ordering")
@@ -207,7 +205,6 @@ private fun EatOutCard(row: EatOutRow, onLog: () -> Unit) {
             Button(
                 onClick = onLog,
                 enabled = !blocked,
-                shape = IntakeShape.Button,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
             ) {
                 Text(
@@ -356,14 +353,14 @@ fun ImportAllergenSection(b: PlanImportBatch) {
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-    FindingTier("Blocked", PillTone.Bad, b.blocked, startOpen = true)
-    FindingTier("May contain", PillTone.Wait, b.mayContain, startOpen = false)
-    FindingTier("Check the label", PillTone.Wait, b.checkLabel, startOpen = false)
-    FindingTier("Mentioned as avoided", PillTone.Ok, b.mentionedAvoided, startOpen = false)
+    FindingTier("Blocked", ChipTone.Bad, b.blocked, startOpen = true)
+    FindingTier("May contain", ChipTone.Warn, b.mayContain, startOpen = false)
+    FindingTier("Check the label", ChipTone.Warn, b.checkLabel, startOpen = false)
+    FindingTier("Mentioned as avoided", ChipTone.Ok, b.mentionedAvoided, startOpen = false)
 }
 
 @Composable
-private fun FindingTier(title: String, tone: PillTone, rows: List<ImportFinding>, startOpen: Boolean) {
+private fun FindingTier(title: String, tone: ChipTone, rows: List<ImportFinding>, startOpen: Boolean) {
     if (rows.isEmpty()) return
     var open by remember { mutableStateOf(startOpen) }
     Row(
@@ -374,7 +371,7 @@ private fun FindingTier(title: String, tone: PillTone, rows: List<ImportFinding>
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        StatusPill("$title (${rows.size})", tone = tone)
+        IntakeChip("$title (${rows.size})", tone = tone)
         Text(
             if (open) "Hide" else "Show",
             style = MaterialTheme.typography.labelMedium,
