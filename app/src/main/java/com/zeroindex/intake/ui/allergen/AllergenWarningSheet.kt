@@ -2,29 +2,27 @@
 
 package com.zeroindex.intake.ui.allergen
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Block
-import androidx.compose.material.icons.filled.PriorityHigh
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -37,32 +35,34 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.domain.allergen.AllergenMatch
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
 import com.zeroindex.intake.domain.allergen.MatchWording
+import com.zeroindex.intake.ui.components.ChipTone
+import com.zeroindex.intake.ui.components.DangerButton
 import com.zeroindex.intake.ui.components.Eyebrow
-import com.zeroindex.intake.ui.theme.AllergenAmber
-import com.zeroindex.intake.ui.theme.AllergenRed
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.components.SoftCard
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.intake
 
 /**
- * SPEC §7.2: a full-width red confirmation sheet naming the exact matched term
- * and where it was found, with an explicit "log it anyway" tap. Never a toast,
- * never a small banner.
+ * SPEC §7.2: a full-width confirmation sheet naming the exact matched term and where it was found, with an explicit
+ * "log it anyway" tap. Never a toast, never a small banner.
  *
- * Styled from design/intake-mockup.html, which makes one change worth calling
- * out: **"Don't log it" is the filled, primary button and "Log it anyway" is
- * the quiet outline.** The spec only requires the override to be explicit; the
- * mockup is right that the safe choice should also be the easy one.
+ * DESIGN-V6 food safety sheet: a red (Contains) or amber (May contain) shield and eyebrow, the headline, a soft card with
+ * the food and its status chip, then the actions stacked: "Don't log it" is the primary ink button and "Log it anyway" is
+ * the danger button. The safe choice stays the default. Order, labels and tiers are unchanged.
  *
- * SPEC §7.3 keeps the two severities visibly apart - a declared "contains" is
- * red, a "may contain" amber - and each carries words as well as colour, since
- * colour is never the only signal (SPEC §3.7).
+ * SPEC §7.3 keeps the two severities visibly apart - a declared "contains" is red, a "may contain" amber - and each carries
+ * words as well as colour, since colour is never the only signal (SPEC §3.7).
  */
 @Composable
 fun AllergenWarningSheet(
@@ -78,57 +78,39 @@ fun AllergenWarningSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val hardBlock = scan.blocks
-    val accent = if (hardBlock) AllergenRed else AllergenAmber
+    val tone = if (hardBlock) MaterialTheme.intake.bad else MaterialTheme.intake.warn
+    val toneBg = if (hardBlock) MaterialTheme.intake.badBg else MaterialTheme.intake.warnBg
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface,
+        shape = IntakeShape.Sheet,
+        dragHandle = { SheetGrabber() },
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 20.dp),
         ) {
-            Text(
-                text = if (hardBlock) "Food safety check" else "Check this item",
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(bottom = 12.dp).semantics { heading() },
-            )
-
-            // Full-width banner, not a small inline chip.
-            Surface(color = accent, contentColor = Color.White, shape = IntakeShape.Banner) {
-                Column(Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(
-                            color = Color.White.copy(alpha = 0.19f),
-                            shape = CircleShape,
-                            modifier = Modifier.size(32.dp),
-                        ) {
-                            Icon(
-                                imageVector = if (hardBlock) {
-                                    Icons.Filled.Warning
-                                } else {
-                                    Icons.Filled.PriorityHigh
-                                },
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.padding(7.dp),
-                            )
-                        }
-                        Spacer(Modifier.size(10.dp))
-                        Eyebrow(
-                            text = if (hardBlock) {
-                                "Save blocked · ${scan.contains.first().allergen} detected"
-                            } else {
-                                "May contain · soft match"
-                            },
-                            color = Color.White,
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Surface(color = toneBg, contentColor = tone, shape = IntakeShape.Tile, modifier = Modifier.size(48.dp)) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = IntakeIcons.ShieldAlert,
+                            contentDescription = null,
+                            modifier = Modifier.size(IconSize.Default),
                         )
                     }
-                    Spacer(Modifier.height(11.dp))
+                }
+                Column(Modifier.weight(1f)) {
+                    Eyebrow(
+                        text = if (hardBlock) "Food safety check" else "Check this item",
+                        color = tone,
+                        modifier = Modifier.semantics { heading() },
+                    )
                     Text(
                         text = if (hardBlock && scan.containsOnlyTraces) {
                             "The label lists a possible trace"
@@ -137,54 +119,55 @@ fun AllergenWarningSheet(
                         } else {
                             "Possible cross-contact"
                         },
-                        style = MaterialTheme.typography.titleLarge,
-                        color = Color.White,
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = if (hardBlock) {
-                            // Says where it matched (the name, the ingredient list, the tags), not always "an ingredient".
-                            MatchWording.blockedBody(scan.contains)
-                        } else {
-                            scan.mayContain.firstOrNull()?.note
-                                ?: "Not a declared ingredient, but worth a look at the panel."
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.White,
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(14.dp))
 
-            // The food itself, with an unmistakable "not saved" state.
-            Surface(
-                shape = IntakeShape.InnerCard,
-                color = MaterialTheme.colorScheme.surface,
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.outlineVariant,
-                ),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Row(
-                    modifier = Modifier.padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(foodName, style = MaterialTheme.typography.titleSmall)
-                        foodDetail?.let {
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = it,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                    Eyebrow(
+            // The food itself, with an unmistakable "not saved" state, and the reason beneath it.
+            SoftCard(contentPadding = PaddingValues(16.dp)) {
+                Eyebrow(
+                    text = if (hardBlock) {
+                        "Save blocked · ${scan.contains.first().allergen} detected"
+                    } else {
+                        "May contain · soft match"
+                    },
+                    color = tone,
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        foodName,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IntakeChip(
                         text = if (hardBlock) "not saved" else "review",
-                        color = accent,
+                        tone = if (hardBlock) ChipTone.Bad else ChipTone.Warn,
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = if (hardBlock) {
+                        // Says where it matched (the name, the ingredient list, the tags), not always "an ingredient".
+                        MatchWording.blockedBody(scan.contains)
+                    } else {
+                        scan.mayContain.firstOrNull()?.note
+                            ?: "Not a declared ingredient, but worth a look at the panel."
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                foodDetail?.let {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -192,8 +175,8 @@ fun AllergenWarningSheet(
             if (hardBlock) {
                 Spacer(Modifier.height(10.dp))
                 Surface(
-                    color = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                    color = MaterialTheme.intake.badBg,
+                    contentColor = MaterialTheme.intake.bad,
                     shape = IntakeShape.Tile,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -202,9 +185,9 @@ fun AllergenWarningSheet(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
-                            Icons.Filled.Block,
+                            IntakeIcons.ShieldAlert,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp),
+                            modifier = Modifier.size(IconSize.Small),
                         )
                         Spacer(Modifier.size(8.dp))
                         Text(
@@ -217,8 +200,8 @@ fun AllergenWarningSheet(
 
             Spacer(Modifier.height(10.dp))
 
-            scan.contains.forEach { match -> MatchDetail(match, AllergenRed, ingredientText) }
-            scan.mayContain.forEach { match -> MatchDetail(match, AllergenAmber, ingredientText) }
+            scan.contains.forEach { match -> MatchDetail(match, MaterialTheme.intake.bad, ingredientText) }
+            scan.mayContain.forEach { match -> MatchDetail(match, MaterialTheme.intake.warn, ingredientText) }
 
             if (!aiReasoning.isNullOrBlank()) {
                 // SPEC §7.4: verbatim, because a restaurant dish is a judgment
@@ -230,7 +213,7 @@ fun AllergenWarningSheet(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(Modifier.padding(14.dp)) {
-                        Eyebrow("What the estimate said")
+                        Eyebrow("What the estimate said", color = MaterialTheme.intake.ai)
                         Spacer(Modifier.height(6.dp))
                         Text(
                             text = aiReasoning,
@@ -241,31 +224,23 @@ fun AllergenWarningSheet(
                 }
             }
 
+            Spacer(Modifier.height(16.dp))
+
+            // The safe choice is the primary action, stacked above the danger action.
+            Button(
+                onClick = onDismiss,
+                shape = IntakeShape.Button,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+            ) { Text("Don't log it", style = MaterialTheme.typography.labelLarge) }
+
+            Spacer(Modifier.height(8.dp))
+
+            DangerButton(
+                onClick = onLogAnyway,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+            ) { Text("Log it anyway", style = MaterialTheme.typography.labelLarge) }
+
             Spacer(Modifier.height(14.dp))
-
-            // The safe choice is the primary action.
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Button(
-                    onClick = onDismiss,
-                    shape = IntakeShape.Field,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                    ),
-                    modifier = Modifier.weight(1f).height(54.dp),
-                ) { Text("Don't log it", style = MaterialTheme.typography.labelLarge) }
-
-                OutlinedButton(
-                    onClick = onLogAnyway,
-                    shape = IntakeShape.Field,
-                    modifier = Modifier.weight(1f).height(54.dp),
-                ) { Text("Log it anyway", style = MaterialTheme.typography.labelLarge) }
-            }
-
-            Spacer(Modifier.height(10.dp))
             Text(
                 text = if (hardBlock) {
                     "Only log it anyway if you have personally verified this food is safe for you."
@@ -277,8 +252,23 @@ fun AllergenWarningSheet(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
             )
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(24.dp))
         }
+    }
+}
+
+/** The 40 x 5 grabber of the mockup, in place of the stock drag handle. */
+@Composable
+private fun SheetGrabber() {
+    Box(
+        modifier = Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier
+                .size(width = 40.dp, height = 5.dp)
+                .background(MaterialTheme.colorScheme.outlineVariant, CircleShape),
+        )
     }
 }
 
