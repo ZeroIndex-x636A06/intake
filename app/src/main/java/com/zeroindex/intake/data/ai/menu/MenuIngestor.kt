@@ -282,6 +282,7 @@ class MenuIngestor @Inject constructor(
                 claims = listOf(ModelAllergenClaim(item.name, item.containsAllergens, item.allergenNotes)),
                 avoided = avoided,
                 source = "Menu import",
+                aliases = allergens.engineAliases(),
             ).scan
             StagedItem(
                 MenuItemEntity(

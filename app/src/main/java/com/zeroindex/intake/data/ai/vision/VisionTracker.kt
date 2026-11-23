@@ -119,6 +119,7 @@ class VisionTracker @Inject constructor(
             // Hidden fats and sauces are where dairy hides on a plate.
             extraLocal = estimate.hiddenCalorieSources.map { allergens.scan(name = null, ingredients = it.source) },
             source = "The photo model",
+            aliases = allergens.engineAliases(),
         )
         return verdict.scan to verdict.perItem
     }
@@ -139,6 +140,7 @@ class VisionTracker @Inject constructor(
             avoided = avoided,
             extraLocal = estimate.hiddenCalorieSources.map { allergens.scan(name = null, ingredients = it.source) },
             source = "The photo model",
+            aliases = allergens.engineAliases(),
         ).scan
     }
 

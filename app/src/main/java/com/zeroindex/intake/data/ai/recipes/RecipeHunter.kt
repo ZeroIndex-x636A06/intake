@@ -139,6 +139,7 @@ class RecipeHunter @Inject constructor(
             claims = listOf(ModelAllergenClaim(recipe.title, recipe.containsAllergens, recipe.allergenReasoning)),
             avoided = avoided,
             source = "Recipe Hunter",
+            aliases = allergens.engineAliases(),
         ).scan
         val verdict = RecipeFilter.evaluate(
             RecipeCandidate(

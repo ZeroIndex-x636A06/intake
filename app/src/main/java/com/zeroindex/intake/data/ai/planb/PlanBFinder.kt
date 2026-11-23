@@ -176,6 +176,7 @@ class PlanBFinder @Inject constructor(
             claims = listOfNotNull(claims),
             avoided = allergens.avoidedAllergens(),
             source = "Plan B",
+            aliases = allergens.engineAliases(),
         ).scan
         return PlanBOption(
             key = key, restaurant = restaurant, address = address, distanceMiles = distance, order = order,
