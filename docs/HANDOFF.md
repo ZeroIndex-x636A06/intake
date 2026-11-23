@@ -1,6 +1,6 @@
 # Handoff: where to pick up
 
-Last updated 2026-11-11 by the coordinating session. If you are a new agent, read this first, then `CLAUDE.md`.
+Last updated 2026-11-23 by the integration agent (design v6 merged). If you are a new agent, read this first, then `CLAUDE.md`.
 
 ## 1. Where things stand
 
@@ -12,6 +12,7 @@ Last updated 2026-11-11 by the coordinating session. If you are a new agent, rea
 - `agent/nutrition-wip` and `agent/train-wip` are fully merged and can be deleted.
 
 **The app today**
+- Design v6 ("Ink and Lime", `docs/briefs/DESIGN-V6.md`) is merged on `claude/optimistic-noether-fullk5` with all groups: theme and fonts (Inter, Space Grotesk), Today, Food, Train, Insights, You and Settings, allergens, the plan screens and the watch. Verified by compile, unit tests, lint and the sync server tests only. **Not seen on the emulator or a device.** The mockup deviations the groups reported are listed in `RESUME.md` (first section). Next step: an emulator pass over every screen (light and dark, font scale 1.5, landscape), then an owner phone test of the preview APKs.
 - Navigation (design v6, branch `agent/design-v6-nav`): a static five-slot dock, Today · Food · + · Train · Insights, with You behind the avatar. The + opens the Quick log sheet (`ui/quicklog`); Food has Diary / Plan / Recipes / Library segments (`ui/foodtab`). Routes keep their old names (`Nutrition`, `Progress`). The drag-select pill (`FloatingPillBar`, `PillGeometry`, `PillBackdrop`) is deleted.
 - Nutrition and Train are rebuilt to the Option A frames; Videos is in Train. What the briefs asked for and was left out is
   listed in `RESUME.md`.

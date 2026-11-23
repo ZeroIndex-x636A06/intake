@@ -3,6 +3,25 @@
 Read this first when picking the work back up. Latest work: branch
 `claude/optimistic-noether-fullk5` (not yet merged into `claude/app-build-k2ag1d`).
 
+## Design v6 landed (branch `claude/optimistic-noether-fullk5`)
+
+All twelve design-v6 branches and `agent/qa6-perf` are merged (qa6-perf, core, nav, today, insights, train, train2, food, plan, allergens, you, wear). One textual conflict (TrainingStatsUi.kt, train2: kept train2's 50 dp buttons, dropped a duplicate import). No schema change. Nav names are Today · Food · + · Train · Insights; routes keep `Nutrition` and `Progress`.
+
+Integration work on top of the merge: Insights Progress photos card wired; You has four Help rows (Replay the tour, Script docs, What leaves this phone, Credits and licences, the last a shared `CreditsDialog`); the onboarding extras have "Set up" buttons (finish the welcome flow, then open Settings health / sync / ai); `AllergenWarningSheet` "Find a safer swap" is wired at every call site through `LocalFindSwap` / `rememberFindSwap()` (it dismisses the sheet, logs nothing, and opens the Swap sheet; SwapSheet's own warning passes none, to avoid a loop); Log food has an All sources / Mine / Recipes / USDA / OFF filter row (client-side over the existing sections; Mine includes imported menu rows; USDA includes the offline database and the online results); Recipes has a name search (word-start ranking); Cook mode always uses the dark theme and light bar icons; Swap's nearby distances use the length unit; the Active workout set row is two lines at font scale 1.5 and up; Programs' Script help is in the top bar; Menu import has three source cards (Paste link, Choose PDF, Paste text); Train and Food segmented controls have `Role.Tab`; remaining Material icons with an `IntakeIcons` match were swapped; stock `FilterChip` and `Switch` in screens were replaced by `ChoiceChip` and `IntakeSwitch`. Only one allergen strip exists in Food (the Diary one); the "Avoiding n" header chip was never built, so nothing had to be removed.
+
+**Not seen on the emulator or a device:** every v6 screen, in both themes, at font scale 1.5 and in landscape; the dock, Quick log sheet, week strip and month calendar; the dark Cook mode and its status-bar icons; the two-line set row; the Menu import cards; Find a safer swap; onboarding Set up. Fonts are bundled but not seen rendered. Verified by compile, unit tests (including `ThemeContrastTest`, `NavGraphGuardTest`, `MigrationSchemaTest`), app and wear lint with 0 errors, and the sync server tests.
+
+**Known leftovers / deviations from the mockup (summary of what the groups reported):**
+- Core: `tertiary` is the amber warning pair; `MacroTiles` shows the macro colour as a dot with the value in ink (carbs orange on `soft` is 2.6:1); the Segmented control scrolls instead of truncating.
+- Nav: Weight and Measurements tiles both open Body metrics; the NFC tile is hidden without the hardware; `Route.NutritionMore` and `NutritionActions.onOpenMore` are dead (kept registered, unreachable).
+- Today: no allergen chips on logged entries and no "More detail" link (owner decision pending).
+- Train: dialogs are still stock `AlertDialog` (theme-styled); at font scale 1.5 the set grid header is hidden and the fields carry their own captions.
+- Plan: Recipe Hunter is the one dark card; Menu import is restyled only as source cards plus the existing sheets.
+- You/Settings: AI rows are only the features that exist; "Add an OpenRouter key" swaps in place instead of pushing a route; Weight and Measurements tiles on Insights both open Body metrics.
+- Wear: the watch has its own `WatchTheme` (hex values live there, not in `ui/theme`); the phone keeps the MAY_CONTAIN refusal.
+- Hard-coded colours that remain by design: `PdfReportRenderer` (a printed report, black on white) and `wear/.../WatchTheme.kt`.
+- Not done: Material icons with no `IntakeIcons` match stay (food and drink category glyphs, Star, Calculate, ContentCopy, DriveFileMove, Tune, MedicalServices and others). The AI prompts in Swap and Healthier nearby still describe the radius in miles internally.
+
 ## Design v6 Phase 1 (branch `agent/design-v6-core`, not merged)
 
 - Theme, tokens, shared components, allergen chips and the flat dock chrome now carry the "Ink and Lime" look (`docs/briefs/DESIGN-V6.md`). No screen file was edited except one added credits line in Settings. Fonts: Inter and Space Grotesk bundled in `res/font` (OFL files in `design/fonts`); Manrope and DM Sans removed, and the PDF report now uses the new faces.
