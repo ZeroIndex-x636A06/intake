@@ -8,14 +8,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -33,20 +31,33 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.db.entity.AllergenAliasEntity
 import com.zeroindex.intake.domain.model.KeywordLevel
+import com.zeroindex.intake.ui.components.ChipTone
 import com.zeroindex.intake.ui.components.ChoiceChip
 import com.zeroindex.intake.ui.components.IntakeCard
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.components.IntakeSwitch
 import com.zeroindex.intake.ui.components.LabeledField
+import com.zeroindex.intake.ui.components.ListCard
+import com.zeroindex.intake.ui.components.ListDivider
 import com.zeroindex.intake.ui.components.SandNote
 import com.zeroindex.intake.ui.components.ScreenHeading
 import com.zeroindex.intake.ui.components.SectionLine
 import com.zeroindex.intake.ui.components.SwitchRow
 import com.zeroindex.intake.ui.components.Tag
+import com.zeroindex.intake.ui.theme.intake
 import kotlinx.coroutines.delay
 
 private fun KeywordLevel.title() = when (this) {
     KeywordLevel.CONTAINS -> "Contains"
     KeywordLevel.MAY_CONTAIN -> "May contain"
     KeywordLevel.CHECK_LABEL -> "Check the label"
+}
+
+/** The level chip of a keyword row: Contains is red, May contain and Check the label are amber. */
+private fun KeywordLevel.tone() = when (this) {
+    KeywordLevel.CONTAINS -> ChipTone.Bad
+    KeywordLevel.MAY_CONTAIN -> ChipTone.Warn
+    KeywordLevel.CHECK_LABEL -> ChipTone.Warn
 }
 
 private fun KeywordLevel.explain() = when (this) {
@@ -149,12 +160,19 @@ fun AllergenKeywordsScreen(
                 item(key = "explain-$level") {
                     Text(level.explain(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                items(rows, key = { it.id }) { row ->
-                    KeywordRow(
-                        row = row,
-                        onToggle = { on -> if (on) viewModel.setKeywordEnabled(row.id, true) else turningOff = row },
-                        onRemove = { viewModel.removeKeyword(row.id) },
-                    )
+                if (rows.isNotEmpty()) {
+                    item(key = "rows-$level") {
+                        ListCard {
+                            rows.forEachIndexed { index, row ->
+                                if (index > 0) ListDivider()
+                                KeywordRow(
+                                    row = row,
+                                    onToggle = { on -> if (on) viewModel.setKeywordEnabled(row.id, true) else turningOff = row },
+                                    onRemove = { viewModel.removeKeyword(row.id) },
+                                )
+                            }
+                        }
+                    }
                 }
                 if (carriers.isNotEmpty()) {
                     item(key = "carriers") {
@@ -186,7 +204,11 @@ fun AllergenKeywordsScreen(
 
         if (state.isCustom && state.loaded) {
             item(key = "remove") {
-                OutlinedButton(onClick = { removingAllergen = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+                TextButton(
+                    onClick = { removingAllergen = true },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.intake.bad),
+                ) {
                     Text("Remove this allergen")
                 }
             }
@@ -241,7 +263,7 @@ fun AllergenKeywordsScreen(
 @Composable
 private fun KeywordRow(row: AllergenAliasEntity, onToggle: (Boolean) -> Unit, onRemove: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 18.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
@@ -256,10 +278,11 @@ private fun KeywordRow(row: AllergenAliasEntity, onToggle: (Boolean) -> Unit, on
                 if (!row.isEnabled) Tag("Off")
             }
         }
+        IntakeChip(text = row.level.title(), tone = row.level.tone(), modifier = Modifier.padding(start = 6.dp))
         if (row.isCustom) {
             TextButton(onClick = onRemove, modifier = Modifier.heightIn(min = 48.dp)) { Text("Remove") }
         }
-        Switch(checked = row.isEnabled, onCheckedChange = onToggle, modifier = Modifier.heightIn(min = 48.dp))
+        IntakeSwitch(checked = row.isEnabled, onCheckedChange = onToggle)
     }
 }
 
