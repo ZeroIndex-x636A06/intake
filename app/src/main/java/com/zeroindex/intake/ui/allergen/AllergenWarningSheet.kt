@@ -46,6 +46,7 @@ import com.zeroindex.intake.domain.allergen.MatchWording
 import com.zeroindex.intake.ui.components.ChipTone
 import com.zeroindex.intake.ui.components.DangerButton
 import com.zeroindex.intake.ui.components.Eyebrow
+import com.zeroindex.intake.ui.components.GhostButton
 import com.zeroindex.intake.ui.components.IntakeChip
 import com.zeroindex.intake.ui.components.SoftCard
 import com.zeroindex.intake.ui.theme.IconSize
@@ -75,6 +76,11 @@ fun AllergenWarningSheet(
     foodDetail: String? = null,
     /** SPEC §7.4: the model's own reasoning, shown verbatim for AI results. */
     aiReasoning: String? = null,
+    /**
+     * "Find a safer swap": shown only when the caller passes it. Tapping closes the sheet through [onDismiss] (nothing is
+     * logged) and then calls this to open the Swap sheet.
+     */
+    onFindSwap: (() -> Unit)? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val hardBlock = scan.blocks
@@ -239,6 +245,17 @@ fun AllergenWarningSheet(
                 onClick = onLogAnyway,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
             ) { Text("Log it anyway", style = MaterialTheme.typography.labelLarge) }
+
+            if (onFindSwap != null) {
+                GhostButton(
+                    onClick = {
+                        // Closing without logging first, then opening Swap. Nothing is written on this path.
+                        onDismiss()
+                        onFindSwap()
+                    },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                ) { Text("Find a safer swap", style = MaterialTheme.typography.labelLarge) }
+            }
 
             Spacer(Modifier.height(14.dp))
             Text(
