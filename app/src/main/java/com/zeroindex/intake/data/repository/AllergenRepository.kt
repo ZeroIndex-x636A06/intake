@@ -106,6 +106,10 @@ class AllergenRepository @Inject constructor(
     /** The keywords the engine uses, as engine types. */
     suspend fun aliases(): List<AllergenAliasEntity> = allergenDao.aliases()
 
+    /** The keyword table as engine aliases (built-in plus the user's own), for resolving a model's claimed terms. */
+    suspend fun engineAliases(): List<AllergenAlias> =
+        allergenDao.aliases().map { AllergenAlias(allergen = it.allergen, aliasTerm = it.aliasTerm, level = it.level) }
+
     suspend fun setProfile(avoided: Set<String>, severity: AllergenSeverity, notes: String) {
         val now = clock.nowMillis()
         val existing = allergenDao.profile()
