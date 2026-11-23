@@ -37,7 +37,6 @@ import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.FilledTonalButton
 import androidx.wear.compose.material3.MaterialTheme
-import androidx.wear.compose.material3.Text
 import com.zeroindex.intake.wearprotocol.PlannedMeal
 import com.zeroindex.intake.wearprotocol.RemoteProtocol
 import com.zeroindex.intake.wearprotocol.RemoteRequest
@@ -129,6 +128,7 @@ private fun foodRequest(food: WatchFood, slot: WatchSlot) = RemoteRequest(
 
 // ---- pieces --------------------------------------------------------------------------------------------------------
 
+/** A full-width pill. `tonal` is the neutral `#262C2A` button; otherwise the lime primary. */
 @Composable
 private fun Chip(label: String, secondary: String? = null, tonal: Boolean = true, enabled: Boolean = true, onClick: () -> Unit) {
     Button(
@@ -136,39 +136,40 @@ private fun Chip(label: String, secondary: String? = null, tonal: Boolean = true
         enabled = enabled,
         modifier = Modifier.fillMaxWidth(),
         colors = if (tonal) ButtonDefaults.filledTonalButtonColors() else ButtonDefaults.buttonColors(),
-        label = { Text(label, maxLines = 2, overflow = TextOverflow.Ellipsis) },
-        secondaryLabel = secondary?.let { { Text(it, maxLines = 2, overflow = TextOverflow.Ellipsis) } },
+        label = { WText(label, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+        secondaryLabel = secondary?.let { { WText(it, fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis) } },
     )
 }
 
+/** The eyebrow over each screen: small caps-style label in muted ink. */
 @Composable
 private fun Heading(text: String) {
-    Text(text, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, textAlign = TextAlign.Center)
+    WText(text, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
 }
 
 @Composable
 private fun Note(text: String, error: Boolean = false) {
     Box(
         Modifier.fillMaxWidth()
-            .background(if (error) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(14.dp))
+            .background(if (error) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(14.dp))
             .padding(10.dp),
     ) {
-        Text(
+        WText(
             text, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
-            color = if (error) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer,
+            color = if (error) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer,
         )
     }
 }
 
 @Composable
-private fun Meter(label: String, value: String, fraction: Float?) {
+private fun Meter(label: String, value: String, fraction: Float?, fill: androidx.compose.ui.graphics.Color) {
     Column(Modifier.fillMaxWidth().semantics { contentDescription = "$label $value" }) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(value, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            WText(label, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            WText(value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, numeric = true)
         }
-        Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(MaterialTheme.colorScheme.primaryContainer)) {
-            if (fraction != null) Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).height(4.dp).background(MaterialTheme.colorScheme.primary))
+        Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(MaterialTheme.colorScheme.secondaryContainer)) {
+            if (fraction != null) Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).height(4.dp).background(fill))
         }
     }
 }
@@ -212,25 +213,32 @@ private fun HomeScreen(
         item {
             Column(Modifier.fillMaxWidth().padding(horizontal = 6.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 if (fresh == null) {
-                    Text(
+                    WText(
                         if (connected) "Open Intake on your phone once to load today." else "Phone not connected. Numbers show when it is.",
                         fontSize = 11.sp, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth(),
                     )
                 } else {
-                    Meter("Eaten", number(fresh.kcal) + (fresh.kcalTarget?.let { " / ${number(it)}" } ?: "") + " kcal", fresh.kcalTarget?.let { fresh.kcal / it.toFloat() })
-                    Meter("Protein", "${fresh.proteinG}" + (fresh.proteinTargetG?.let { " / $it" } ?: "") + " g", fresh.proteinTargetG?.let { fresh.proteinG / it.toFloat() })
+                    Meter(
+                        "Eaten", number(fresh.kcal) + (fresh.kcalTarget?.let { " / ${number(it)}" } ?: "") + " kcal",
+                        fresh.kcalTarget?.let { fresh.kcal / it.toFloat() }, MaterialTheme.colorScheme.primary,
+                    )
+                    Meter(
+                        "Protein", "${fresh.proteinG}" + (fresh.proteinTargetG?.let { " / $it" } ?: "") + " g",
+                        fresh.proteinTargetG?.let { fresh.proteinG / it.toFloat() }, WatchTokens.Protein,
+                    )
                     Meter(
                         "Water",
                         RemoteProtocol.formatVolume(fresh.waterMl.toDouble(), fresh.volumeUnit) +
                             (fresh.waterTargetMl?.let { " / ${RemoteProtocol.formatVolume(it.toDouble(), fresh.volumeUnit)}" } ?: ""),
-                        fresh.waterTargetMl?.let { fresh.waterMl / it.toFloat() },
+                        fresh.waterTargetMl?.let { fresh.waterMl / it.toFloat() }, WatchTokens.Water,
                     )
                 }
             }
         }
         if (!connected) item { Note("Phone not connected. What you add is saved here and sent when it reconnects.", error = true) }
-        item { Chip("Add water", tonal = false, onClick = { onGo(Screen.WATER) }) }
-        item { Chip("Add food", onClick = { onGo(Screen.FOOD) }) }
+        // Mockup: "+ Food" is the lime action on the home face, "+ Water" the neutral one.
+        item { Chip("Add water", onClick = { onGo(Screen.WATER) }) }
+        item { Chip("Add food", tonal = false, onClick = { onGo(Screen.FOOD) }) }
         item {
             Chip(
                 if (workoutRunning) "Workout running" else "Start workout",
@@ -259,9 +267,12 @@ private fun WaterScreen(state: RemoteState?, onBack: () -> Unit, onAdd: (ml: Dou
         }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-                FilledTonalButton(onClick = { custom = (custom - step).coerceAtLeast(step) }, modifier = Modifier.size(44.dp).semantics { contentDescription = "Less water" }) { Text("−", fontSize = 18.sp) }
-                Text(RemoteProtocol.formatVolume(custom, unit), fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, modifier = Modifier.semantics { contentDescription = "Custom amount ${RemoteProtocol.formatVolume(custom, unit)}" })
-                FilledTonalButton(onClick = { custom = (custom + step).coerceAtMost(RemoteProtocol.MAX_WATER_ML) }, modifier = Modifier.size(44.dp).semantics { contentDescription = "More water" }) { Text("＋", fontSize = 18.sp) }
+                FilledTonalButton(onClick = { custom = (custom - step).coerceAtLeast(step) }, modifier = Modifier.size(44.dp).semantics { contentDescription = "Less water" }) { WText("−", fontSize = 18.sp) }
+                WText(
+                    RemoteProtocol.formatVolume(custom, unit), fontWeight = FontWeight.Bold, fontSize = 18.sp, numeric = true,
+                    modifier = Modifier.semantics { contentDescription = "Custom amount ${RemoteProtocol.formatVolume(custom, unit)}" },
+                )
+                FilledTonalButton(onClick = { custom = (custom + step).coerceAtMost(RemoteProtocol.MAX_WATER_ML) }, modifier = Modifier.size(44.dp).semantics { contentDescription = "More water" }) { WText("＋", fontSize = 18.sp) }
             }
         }
         item {
@@ -315,8 +326,8 @@ private fun PlannedChip(p: PlannedMeal, slot: WatchSlot, onPlanned: (PlannedMeal
 private fun FoodList(title: String, foods: List<WatchFood>, empty: String, slot: WatchSlot, onBack: () -> Unit, onPick: (WatchFood) -> Unit) {
     ScreenList {
         item { Heading(title.uppercase()) }
-        item { Text("To ${slot.label.lowercase()}", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        if (foods.isEmpty()) item { Text(empty, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(8.dp)) }
+        item { WText("To ${slot.label.lowercase()}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        if (foods.isEmpty()) item { WText(empty, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(8.dp)) }
         foods.forEach { f -> item { Chip(f.name, "${f.portionLabel} · ${f.kcal} kcal") { onPick(f) } } }
         backChip(onBack)
     }
@@ -327,8 +338,8 @@ private fun MealsScreen(state: RemoteState?, slot: WatchSlot, onBack: () -> Unit
     val templates = state?.templates.orEmpty()
     ScreenList {
         item { Heading("SAVED MEALS") }
-        item { Text("To ${slot.label.lowercase()}", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        if (templates.isEmpty()) item { Text("Save a meal on the phone to find it here.", fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(8.dp)) }
+        item { WText("To ${slot.label.lowercase()}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        if (templates.isEmpty()) item { WText("Save a meal on the phone to find it here.", fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(8.dp)) }
         templates.forEach { t -> item { Chip(t.name, "${t.kcal} kcal") { onPick(t) } } }
         backChip(onBack)
     }
@@ -340,17 +351,22 @@ private fun QuickAddScreen(slot: WatchSlot, onSlot: () -> Unit, onBack: () -> Un
     fun bump(by: Int) { kcal = (kcal + by).coerceIn(10, RemoteProtocol.MAX_QUICK_KCAL) }
     ScreenList {
         item { Heading("QUICK ADD") }
-        item { Text("$kcal kcal", fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { contentDescription = "$kcal calories" }) }
+        item {
+            WText(
+                "$kcal kcal", fontWeight = FontWeight.SemiBold, fontSize = 26.sp, numeric = true, color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.semantics { contentDescription = "$kcal calories" },
+            )
+        }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                FilledTonalButton(onClick = { bump(-100) }, modifier = Modifier.size(width = 56.dp, height = 40.dp).semantics { contentDescription = "100 fewer" }) { Text("−100", fontSize = 11.sp) }
-                FilledTonalButton(onClick = { bump(100) }, modifier = Modifier.size(width = 56.dp, height = 40.dp).semantics { contentDescription = "100 more" }) { Text("+100", fontSize = 11.sp) }
+                FilledTonalButton(onClick = { bump(-100) }, modifier = Modifier.size(width = 56.dp, height = 40.dp).semantics { contentDescription = "100 fewer" }) { WText("−100", fontSize = 11.sp) }
+                FilledTonalButton(onClick = { bump(100) }, modifier = Modifier.size(width = 56.dp, height = 40.dp).semantics { contentDescription = "100 more" }) { WText("+100", fontSize = 11.sp) }
             }
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                FilledTonalButton(onClick = { bump(-10) }, modifier = Modifier.size(width = 56.dp, height = 40.dp).semantics { contentDescription = "10 fewer" }) { Text("−10", fontSize = 11.sp) }
-                FilledTonalButton(onClick = { bump(10) }, modifier = Modifier.size(width = 56.dp, height = 40.dp).semantics { contentDescription = "10 more" }) { Text("+10", fontSize = 11.sp) }
+                FilledTonalButton(onClick = { bump(-10) }, modifier = Modifier.size(width = 56.dp, height = 40.dp).semantics { contentDescription = "10 fewer" }) { WText("−10", fontSize = 11.sp) }
+                FilledTonalButton(onClick = { bump(10) }, modifier = Modifier.size(width = 56.dp, height = 40.dp).semantics { contentDescription = "10 more" }) { WText("+10", fontSize = 11.sp) }
             }
         }
         item { Chip("Meal: ${slot.label}", "Tap to change", onClick = onSlot) }
@@ -368,7 +384,7 @@ private fun WorkoutStartScreen(state: RemoteState?, running: Boolean, onBack: ()
         } else {
             state?.todayWorkout?.let { day -> item { Chip(day.name, "Today's program day", tonal = false) { onStart(day.dayId, "Start ${day.name}") } } }
             item { Chip("Empty workout", "Add exercises on the phone") { onStart(null, "Start empty workout") } }
-            item { Text("The phone starts it and the watch shows it.", fontSize = 10.sp, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            item { WText("The phone starts it and the watch shows it.", fontSize = 11.sp, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
         backChip(onBack)
     }
