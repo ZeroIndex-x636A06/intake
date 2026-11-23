@@ -3,7 +3,6 @@
 package com.zeroindex.intake.ui.screens.nutrition
 
 import com.zeroindex.intake.domain.time.DateText
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,15 +10,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Surface
@@ -33,7 +27,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
+import com.zeroindex.intake.ui.components.GhostButton
+import com.zeroindex.intake.ui.components.IconCircleButton
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
+import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
 import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.domain.nutrition.NutritionDay
 import java.time.LocalDate
@@ -57,28 +58,31 @@ internal fun DaySwitcher(
 ) {
     val full = remember(date) { DateText.mediumWithWeekday(date) }
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        IconButton(onClick = onPrevious, modifier = Modifier.size(48.dp)) {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous day")
-        }
+        IconCircleButton(IntakeIcons.ChevronLeft, "Previous day", onPrevious)
         Surface(
             onClick = onPick,
-            color = MaterialTheme.colorScheme.surface,
-            shape = CircleShape,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            modifier = Modifier.weight(1f).heightIn(min = 48.dp).semantics { contentDescription = "$full. Choose a day" },
+            color = Color.Transparent,
+            shape = IntakeShape.Pill,
+            modifier = Modifier.weight(1f).heightIn(min = IntakeSpacing.TouchTarget).semantics { contentDescription = "$full. Choose a day" },
         ) {
-            Column(Modifier.padding(horizontal = 16.dp, vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                Text(label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, modifier = Modifier.semantics { heading() })
-                if (label == "Today" || label == "Yesterday") {
-                    Text(DateText.mediumWithWeekday(date), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(Modifier.padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                    Text(label, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center, modifier = Modifier.semantics { heading() })
+                    if (label == "Today" || label == "Yesterday") {
+                        Text(DateText.mediumWithWeekday(date), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
+                Icon(IntakeIcons.ChevronDown, contentDescription = null, modifier = Modifier.padding(start = 6.dp).size(IconSize.Small))
             }
         }
-        IconButton(onClick = onNext, enabled = canGoNext, modifier = Modifier.size(48.dp)) {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = if (canGoNext) "Next day" else "Next day, not available: today is the last day")
-        }
+        IconCircleButton(
+            IntakeIcons.ChevronRight,
+            if (canGoNext) "Next day" else "Next day, not available: today is the last day",
+            onNext,
+            enabled = canGoNext,
+        )
         if (!isToday) {
-            TextButton(onClick = onToday, modifier = Modifier.heightIn(min = 48.dp)) { Text("Today", fontWeight = FontWeight.ExtraBold) }
+            GhostButton(onClick = onToday) { Text("Today", style = MaterialTheme.typography.labelLarge) }
         }
     }
 }

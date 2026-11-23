@@ -1,5 +1,8 @@
 package com.zeroindex.intake.ui.photo
 
+import com.zeroindex.intake.ui.theme.IntakeIcons
+import androidx.compose.foundation.layout.heightIn
+import com.zeroindex.intake.ui.theme.IntakeSpacing
 import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -22,14 +25,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import com.zeroindex.intake.ui.components.LineButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -101,28 +101,26 @@ fun PhotoCaptureView(
                 )
                 Text(
                     text = error ?: "Pick a photo from your gallery instead - that needs no permission.",
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
                 )
-                Button(onClick = pickImage, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+                Button(onClick = pickImage, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget)) {
                     Text("Choose a photo")
                 }
                 if (hasCamera && hasPermission && error != null) {
-                    OutlinedButton(
+                    LineButton(
                         onClick = {
                             error = null
                             retry++
                         },
-                        shape = IntakeShape.Button,
-                        modifier = Modifier.fillMaxWidth().height(52.dp).padding(top = 8.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget).padding(top = 8.dp),
                     ) { Text("Try again") }
                 }
                 if (hasCamera && !hasPermission) {
-                    OutlinedButton(
+                    LineButton(
                         onClick = { permission.launch(Manifest.permission.CAMERA) },
-                        shape = IntakeShape.Button,
-                        modifier = Modifier.fillMaxWidth().height(52.dp).padding(top = 8.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget).padding(top = 8.dp),
                     ) { Text("Allow camera") }
                 }
             }
@@ -153,7 +151,7 @@ fun PhotoCaptureView(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             FilledIconButton(onClick = pickImage, modifier = Modifier.size(52.dp)) {
-                Icon(Icons.Filled.PhotoLibrary, contentDescription = "Choose from gallery")
+                Icon(IntakeIcons.Image, contentDescription = "Choose from gallery")
             }
             FilledIconButton(
                 onClick = {
@@ -175,7 +173,7 @@ fun PhotoCaptureView(
                 shape = CircleShape,
                 modifier = Modifier.size(72.dp),
             ) {
-                Icon(Icons.Filled.PhotoCamera, contentDescription = "Take photo", modifier = Modifier.size(32.dp))
+                Icon(IntakeIcons.Camera, contentDescription = "Take photo", modifier = Modifier.size(32.dp))
             }
             Box(Modifier.size(52.dp))
         }
