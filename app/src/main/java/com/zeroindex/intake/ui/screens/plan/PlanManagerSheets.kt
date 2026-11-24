@@ -158,7 +158,7 @@ fun PlanFormDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
     if (pickingStart) {
-        val picker = com.zeroindex.intake.ui.components.rememberMondayFirstDatePickerState(
+        val picker = com.zeroindex.intake.ui.components.rememberAppDatePickerState(
             // The date picker speaks UTC midnight of the calendar date.
             initialSelectedDateMillis = startDate.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli(),
         )

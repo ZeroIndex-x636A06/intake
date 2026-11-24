@@ -295,7 +295,7 @@ fun ProgressPhotosScreen(
     }
 
     if (pickingDate) {
-        val pickerState = com.zeroindex.intake.ui.components.rememberMondayFirstDatePickerState(initialSelectedDateMillis = date.atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli())
+        val pickerState = com.zeroindex.intake.ui.components.rememberAppDatePickerState(initialSelectedDateMillis = date.atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli())
         DatePickerDialog(
             onDismissRequest = { pickingDate = false },
             confirmButton = {

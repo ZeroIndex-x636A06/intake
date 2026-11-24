@@ -90,7 +90,7 @@ internal fun DaySwitcher(
 @Composable
 internal fun DayPickerDialog(date: LocalDate, today: LocalDate, onPick: (Long) -> Unit, onDismiss: () -> Unit) {
     val lastPickable = remember(today) { NutritionDay.toPickerMillis(today) }
-    val state = com.zeroindex.intake.ui.components.rememberMondayFirstDatePickerState(
+    val state = com.zeroindex.intake.ui.components.rememberAppDatePickerState(
         initialSelectedDateMillis = NutritionDay.toPickerMillis(date),
         selectableDates = object : SelectableDates {
             override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis <= lastPickable

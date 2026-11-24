@@ -136,7 +136,7 @@ private fun weekdayInitial(day: LocalDate): String = day.dayOfWeek.getDisplayNam
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DayCalendarDialog(today: LocalDate, selected: LocalDate, onPick: (LocalDate) -> Unit, onDismiss: () -> Unit) {
-    val state = com.zeroindex.intake.ui.components.rememberMondayFirstDatePickerState(
+    val state = com.zeroindex.intake.ui.components.rememberAppDatePickerState(
         initialSelectedDateMillis = selected.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
         selectableDates = remember(today) {
             object : SelectableDates {
