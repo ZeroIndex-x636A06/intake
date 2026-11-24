@@ -5,6 +5,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.foundation.layout.tappableElement
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -296,6 +301,7 @@ private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, sta
                     startOnboarding = startOnboarding,
                 )
             }
+            NavigationBarScrim()
             // The Quick log sheet sits under the dock (the dock stays visible above the scrim) and over the screen.
             if (pillVisible) {
                 QuickLogSheet(
@@ -390,4 +396,26 @@ private fun selectTab(
         TabAction.POP_TO_ROOT -> navController.popBackStack(target.route, inclusive = false)
         TabAction.NONE -> Unit
     }
+}
+
+/**
+ * With three-button navigation the bar is drawn over the app (edge to edge), so scrolled cards show through behind its icons
+ * (QA Q7-21). Paint the bar's area in the app background. The tappable-element inset is zero with gesture navigation, so the
+ * floating dock and the gesture pill are left alone. It draws only; it takes no touches.
+ */
+@Composable
+private fun NavigationBarScrim() {
+    val tappable = WindowInsets.tappableElement
+    val color = MaterialTheme.colorScheme.background
+    val direction = LocalLayoutDirection.current
+    Box(
+        Modifier.fillMaxSize().drawBehind {
+            val bottom = tappable.getBottom(this).toFloat()
+            val left = tappable.getLeft(this, direction).toFloat()
+            val right = tappable.getRight(this, direction).toFloat()
+            if (bottom > 0f) drawRect(color, topLeft = Offset(0f, size.height - bottom), size = Size(size.width, bottom))
+            if (left > 0f) drawRect(color, topLeft = Offset.Zero, size = Size(left, size.height))
+            if (right > 0f) drawRect(color, topLeft = Offset(size.width - right, 0f), size = Size(right, size.height))
+        },
+    )
 }

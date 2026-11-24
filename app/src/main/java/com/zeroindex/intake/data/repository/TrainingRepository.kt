@@ -1000,7 +1000,17 @@ class TrainingRepository @Inject constructor(
             return@withTransaction check
         }
         val session = workoutDao.findSession(sessionId) ?: return@withTransaction ReopenOutcome.NotFinished
-        workoutDao.reopenSession(sessionId, clock.nowMillis())
+        val now = clock.nowMillis()
+        val finished = session.finishedAt
+        if (finished != null) {
+            // The idle time since Finish is not workout time: resume at the length the workout had (see ReopenRules.resume).
+            val resumed = ReopenRules.resume(session.startedAt, finished, now)
+            if (resumed.setShiftMillis > 0L) {
+                workoutDao.updateSessionStart(sessionId, resumed.startedAt, now)
+                workoutDao.shiftSetTimes(sessionId, resumed.setShiftMillis, now)
+            }
+        }
+        workoutDao.reopenSession(sessionId, now)
         rewindRotation(session)
         ReopenOutcome.Allowed
     }

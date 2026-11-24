@@ -91,7 +91,7 @@ private fun OneRepMaxAndPercentages(s: AppSettings, unit: WeightUnit) {
         }
         if (estimateKg != null) {
             Text(
-                WeightText.format(estimateKg, unit),
+                WeightText.formatEstimate(estimateKg, unit),
                 style = MaterialTheme.typography.headlineMedium,
                 modifier = Modifier.padding(top = 8.dp),
             )

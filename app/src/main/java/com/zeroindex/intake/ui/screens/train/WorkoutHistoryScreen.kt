@@ -89,7 +89,7 @@ fun WorkoutHistoryScreen(
         if (calendar) {
             item(key = "calendar") {
                 TrainingCalendarView(
-                    sessionStarts = state.rows.map { it.startedAt },
+                    sessionStarts = remember(state.rows) { state.rows.map { it.startedAt } },
                     zone = zone,
                     today = viewModel.today(),
                     selected = selectedDay?.let { LocalDate.parse(it) },

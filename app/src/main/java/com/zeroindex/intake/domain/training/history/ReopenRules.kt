@@ -12,6 +12,9 @@ sealed interface ReopenOutcome {
 /** Where a program stands: the week and the index of the day offered next. */
 data class RotationPosition(val week: Int, val dayIndex: Int)
 
+/** A reopened session's times: the new start, and how far its sets move with it. */
+data class ResumedTimes(val startedAt: Long, val setShiftMillis: Long)
+
 /**
  * Undoing Finish: when a finished session may be reopened as the active one, and how the program's rotation is put back.
  * A session can be reopened for 24 hours after it ended.
@@ -24,6 +27,16 @@ object ReopenRules {
         if (now - finishedAt > WINDOW_MILLIS) return ReopenOutcome.WindowPassed
         if (activeSessionId != null && activeSessionId != thisSessionId) return ReopenOutcome.AnotherActive(activeSessionId)
         return ReopenOutcome.Allowed
+    }
+
+    /**
+     * The times of a session that is reopened at [now]. The time it sat finished is not workout time, so the start (and the
+     * sets with it, as in [SessionEditor.retime]) moves later by that gap: the clock resumes at the length the workout had,
+     * including a length the person edited, and Finish counts only the time trained since.
+     */
+    fun resume(startedAt: Long, finishedAt: Long, now: Long): ResumedTimes {
+        val gap = (now - finishedAt).coerceAtLeast(0L)
+        return ResumedTimes(startedAt + gap, gap)
     }
 
     /** What Finish did to a program's rotation: the next day, and a new week when it wrapped. */

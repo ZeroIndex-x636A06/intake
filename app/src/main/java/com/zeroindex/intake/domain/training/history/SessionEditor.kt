@@ -67,8 +67,11 @@ object SessionEditor {
         return TimeOutcome.Ok(TimeEdit(newStartedAt, newFinish, shift))
     }
 
-    /** The length of a session in whole minutes, never below 1 for a finished one. */
-    fun durationMin(startedAt: Long, finishedAt: Long): Int = ((finishedAt - startedAt) / MINUTE).toInt().coerceAtLeast(1)
+    /**
+     * The length of a session in whole minutes, never below 1 for a finished one. Rounded to the nearest minute, the same
+     * as the summary's total, so the summary and the edit dialog never disagree (7:32 is 8 in both, Q7-19).
+     */
+    fun durationMin(startedAt: Long, finishedAt: Long): Int = Math.round((finishedAt - startedAt) / MINUTE.toDouble()).toInt().coerceAtLeast(1)
 
     /**
      * When a set added afterwards counts as done: a minute after the latest set already in the session, kept inside the

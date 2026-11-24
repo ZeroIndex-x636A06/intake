@@ -208,6 +208,21 @@ class SweatLossTest {
     }
 
     @Test
+    fun `a short workout adds little and the amount grows smoothly with length`() {
+        // Q7-24: a 7 minute workout must not move the water target by a litre.
+        val seven = SweatLoss.totalMl(listOf(SessionLoad(7.0, null)), null)
+        assertThat(seven).isLessThan(60.0)
+        val nine = SweatLoss.totalMl(listOf(SessionLoad(9.0, null)), null)
+        assertThat(nine).isGreaterThan(seven)
+        assertThat(nine).isLessThan(100.0)
+        // No jump at the edges: just under and over 5 minutes, and into the full-weight range at 15.
+        assertThat(SweatLoss.totalMl(listOf(SessionLoad(5.01, null)), null)).isLessThan(1.0)
+        assertThat(SweatLoss.totalMl(listOf(SessionLoad(14.99, null)), null)).isWithin(1.0).of(SweatLoss.totalMl(listOf(SessionLoad(15.0, null)), null))
+        // A 78 minute figure (the reopen bug) is what made it a litre: that is 1.04 L, so the length itself has to be right.
+        assertThat(SweatLoss.totalMl(listOf(SessionLoad(78.0, null)), null)).isWithin(1e-9).of(1_040.0)
+    }
+
+    @Test
     fun `measuring a sweat rate`() {
         // 80.0 -> 79.2 kg, drank 0.5 L over 60 minutes: (0.8 + 0.5) / 1 h = 1.3 L/h.
         val m = SweatMeasurement(80.0, 79.2, 500.0, 60.0)

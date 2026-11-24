@@ -12,7 +12,7 @@ object RecordText {
     fun lines(r: ExerciseRecords, unit: WeightUnit): List<Line> = buildList {
         r.heaviest?.let { add(Line(PrKind.HEAVIEST_WEIGHT.label, WeightText.format(it.weightKg, unit), "x ${it.reps}")) }
         r.bestEstimatedMax?.let {
-            add(Line("Best estimated 1RM", WeightText.format(it.estimatedKg, unit), "from ${WeightText.format(it.weightKg, unit)} x ${it.reps}"))
+            add(Line("Best estimated 1RM", WeightText.formatEstimate(it.estimatedKg, unit), "from ${WeightText.format(it.weightKg, unit)} x ${it.reps}"))
         }
         r.bestVolume?.let { add(Line(PrKind.BEST_VOLUME.label, "${TrainText.thousands(unit.fromKg(it.volumeKg))} ${unit.label}", "${it.sets} sets")) }
         r.bodyweightReps?.let { add(Line("Most reps, no added weight", "$it reps")) }

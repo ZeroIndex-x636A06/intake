@@ -115,10 +115,10 @@ internal fun SetRowsBlock(
         // The column headers belong to the one-line grid; the two-line rows at large text carry labels on their fields instead.
         if (androidx.compose.ui.platform.LocalDensity.current.fontScale < 1.5f) Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             HeaderCell(Modifier.width(32.dp), "Set")
-            HeaderCell(Modifier.weight(if (effortScale == EffortScale.OFF) 1.1f else 0.95f), "Previous")
+            HeaderCell(Modifier.weight(previousWeight(effortScale)), "Previous")
             HeaderCell(Modifier.weight(1f), if (bodyweight) "+${unit.label}" else unit.label)
-            HeaderCell(Modifier.weight(0.9f), "Reps")
-            if (effortScale != EffortScale.OFF) HeaderCell(Modifier.weight(0.8f), effortScale.label)
+            HeaderCell(Modifier.weight(0.85f), "Reps")
+            if (effortScale != EffortScale.OFF) HeaderCell(Modifier.weight(0.75f), effortScale.label)
             Spacer(Modifier.width(52.dp))
         }
         rows.forEach { row ->
@@ -205,8 +205,20 @@ internal fun SetRowsBlock(
 
 @Composable
 private fun HeaderCell(modifier: Modifier, text: String) {
-    Box(modifier, contentAlignment = Alignment.Center) { Eyebrow(text) }
+    // One line always: a header that wraps ("PREVIOU / S") says the column is too narrow, not that it needs a second line (Q7-7).
+    Box(modifier, contentAlignment = Alignment.Center) {
+        Text(
+            text.uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            softWrap = false,
+        )
+    }
 }
+
+/** The Previous column is the widest (it holds "140.0 x 10"); with an effort column on, the others give a little. */
+private fun previousWeight(scale: EffortScale): Float = if (scale == EffortScale.OFF) 1.25f else 1.2f
 
 /** The mockup's plate pill (`soft`): "Per side: 45 + 25 + 2.5". Tapping it opens the plate picture. */
 @Composable
@@ -261,7 +273,7 @@ private fun SetLine(
     val previousBox: @Composable RowScope.() -> Unit = {
         Box(
             Modifier
-                .weight(if (effortScale == EffortScale.OFF) 1.1f else 0.95f)
+                .weight(previousWeight(effortScale))
                 .heightIn(min = 48.dp)
                 .then(if (onCopyPrevious != null && !done) Modifier.clickable(role = Role.Button, onClickLabel = "Use last time's numbers", onClick = onCopyPrevious) else Modifier),
             contentAlignment = Alignment.Center,
@@ -273,6 +285,8 @@ private fun SetLine(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    softWrap = false,
                 )
                 if (!done && previousEffort != null) {
                     Text(previousEffort, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
@@ -286,13 +300,13 @@ private fun SetLine(
     val inputs: @Composable RowScope.() -> Unit = {
         if (done && existing != null) {
             ShownCell(Modifier.weight(1f), displayWeight(existing.weightKg))
-            ShownCell(Modifier.weight(0.9f), "${existing.reps}", trophy = record)
+            ShownCell(Modifier.weight(0.85f), "${existing.reps}", trophy = record)
         } else {
             NumberCell(Modifier.weight(1f), weight, onWeightChange, "Set $number weight in $unitLabel", weightPlaceholder, caption = if (twoLine) unitLabel else null)
-            NumberCell(Modifier.weight(0.9f), reps, onRepsChange, "Set $number reps", caption = if (twoLine) "Reps" else null)
+            NumberCell(Modifier.weight(0.85f), reps, onRepsChange, "Set $number reps", caption = if (twoLine) "Reps" else null)
         }
         if (effortScale != EffortScale.OFF) {
-            EffortCell(Modifier.weight(0.8f), number, effortScale, effort, onEffortChange)
+            EffortCell(Modifier.weight(0.75f), number, effortScale, effort, onEffortChange)
         }
     }
     val tick: @Composable RowScope.() -> Unit = {

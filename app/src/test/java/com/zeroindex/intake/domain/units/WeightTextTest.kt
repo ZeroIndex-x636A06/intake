@@ -44,4 +44,21 @@ class WeightTextTest {
         assertThat(labels.summary(type, """{"incrementKg":2.5}""", WeightUnit.KILOGRAMS)).endsWith("(+2.5 kg)")
         assertThat(labels.summary(type, """{"incrementKg":5.0}""", WeightUnit.POUNDS)).endsWith("(+11 lb)")
     }
+
+    @Test fun anEstimateReadsOneWayEverywhere() {
+        // Q7-10: 140 lb x 10 by Brzycki is 186.67 lb. It must not be 186.7 in one place and 186.5 (snapped) in another.
+        val kg = 140.0 / 2.2046226218 * 36.0 / 27.0
+        assertThat(WeightText.estimate(kg, WeightUnit.POUNDS)).isEqualTo("186.7")
+        assertThat(WeightText.formatEstimate(kg, WeightUnit.POUNDS)).isEqualTo("186.7 lb")
+        val records = com.zeroindex.intake.domain.training.ExerciseRecords(
+            null, emptyList(), com.zeroindex.intake.domain.training.BestEstimate(kg, 140.0 / 2.2046226218, 10), null,
+        )
+        val line = com.zeroindex.intake.domain.training.RecordText.lines(records, WeightUnit.POUNDS).first { it.title == "Best estimated 1RM" }
+        assertThat(line.value).isEqualTo("186.7 lb")
+    }
+
+    @Test fun anEstimateKeepsItsDecimalAndDropsAWholeZero() {
+        assertThat(WeightText.estimate(100.0, WeightUnit.KILOGRAMS)).isEqualTo("100")
+        assertThat(WeightText.estimate(233.33 / 2.2046226218, WeightUnit.POUNDS)).isEqualTo("233.3")
+    }
 }

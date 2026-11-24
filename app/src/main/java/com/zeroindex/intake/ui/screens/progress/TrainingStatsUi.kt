@@ -22,6 +22,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.domain.charts.ChartMath
 import com.zeroindex.intake.domain.training.OneRepMax
+import com.zeroindex.intake.domain.units.WeightText
 import com.zeroindex.intake.domain.training.WeeklyVolume
 import com.zeroindex.intake.domain.units.UnitConverter
 import com.zeroindex.intake.ui.components.EmptyState
@@ -58,12 +59,12 @@ fun TrainingStatsCard(
                 Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(lift.name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                     Text(
-                        "${w(lift.estimatedMaxKg)} ${unit.label}",
+                        WeightText.formatEstimate(lift.estimatedMaxKg, unit),
                         style = MaterialTheme.typography.titleSmall,
                     )
                 }
                 Text(
-                    "from ${w(lift.weightKg)} x ${lift.reps}, ${day(lift.at)}",
+                    "from ${WeightText.format(lift.weightKg, unit)} x ${lift.reps}, ${day(lift.at)}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

@@ -287,6 +287,8 @@ fun WorkoutSummaryScreen(
                 }
             }
         }
+        // Above the Done bar, which carries the navigation bar inset, so the message and Undo are never under the system bar (Q7-6).
+        SnackbarHost(snackbar, modifier = Modifier.fillMaxWidth())
         Surface(color = MaterialTheme.colorScheme.background, tonalElevation = 0.dp, modifier = Modifier.fillMaxWidth()) {
             Column {
                 Button(
@@ -300,7 +302,6 @@ fun WorkoutSummaryScreen(
                 ) { Text("Done", style = MaterialTheme.typography.labelLarge) }
             }
         }
-        SnackbarHost(snackbar, modifier = Modifier.fillMaxWidth())
     }
 
     detailFor?.let { id -> ExerciseDetailSheet(exerciseId = id, onDismiss = { detailFor = null }) }
@@ -339,7 +340,17 @@ fun WorkoutSummaryScreen(
             unit = state.unit,
             initialWeightKg = last?.weightKg ?: 0.0,
             initialReps = last?.reps,
-            onSave = { weight, reps -> viewModel.addSet(exerciseId, weight, reps); addingSetFor = null },
+            onSave = { weight, reps ->
+                // Same as removing a set: a message with Undo, which takes the new set out again (a soft delete).
+                viewModel.addSet(exerciseId, weight, reps) { setId ->
+                    scope.launch {
+                        snackbar.currentSnackbarData?.dismiss()
+                        val result = snackbar.showSnackbar("Set added to this workout.", actionLabel = "Undo", duration = SnackbarDuration.Long)
+                        if (result == SnackbarResult.ActionPerformed) viewModel.removeSet(setId)
+                    }
+                }
+                addingSetFor = null
+            },
             onDismiss = { addingSetFor = null },
         )
     }
@@ -628,14 +639,17 @@ private fun EditTimeDialog(
         onDismissRequest = onDismiss,
         title = { Text("Change date, time and length") },
         text = {
-            Column(Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column {
+            Column(Modifier.weight(1f, fill = false).verticalScroll(androidx.compose.foundation.rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 com.zeroindex.intake.ui.screens.train.WhenFields(date, { date = it }, timeState, minutesText, { minutesText = it }, today)
                 Text(
                     "The sets move with the start time.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                problem?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+            }
+            // The message sits outside the scrolling part, so it is never cut off below the time picker (Q7-5).
+            problem?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp)) }
             }
         },
         confirmButton = {

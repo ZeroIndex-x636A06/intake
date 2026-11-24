@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -130,7 +132,13 @@ private fun InsetSides(inner: PaddingValues, content: @Composable () -> Unit) {
  */
 @Composable
 fun FullScreenTask(modifier: Modifier = Modifier, content: @Composable (PaddingValues) -> Unit) {
+    val direction = LocalLayoutDirection.current
+    val bars = WindowInsets.systemBars.union(WindowInsets.displayCutout).asPaddingValues()
     Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        content(WindowInsets.systemBars.asPaddingValues())
+        // The start and end insets (the navigation bar in landscape, a cutout) are applied here so the screen's own top bar
+        // sits inside them (QA Q7-11); top and bottom are handed to the content.
+        Box(Modifier.fillMaxSize().padding(start = bars.calculateLeftPadding(direction), end = bars.calculateRightPadding(direction))) {
+            content(WindowInsets.systemBars.asPaddingValues())
+        }
     }
 }

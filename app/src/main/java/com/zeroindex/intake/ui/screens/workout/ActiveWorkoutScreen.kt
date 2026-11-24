@@ -11,6 +11,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -311,7 +315,10 @@ fun ActiveWorkoutScreen(
             }
         }
         // The rest timer is pinned under the list, in one fixed place: starting it never moves a set row.
-        if (timer.running || timer.remainingSeconds > 0) {
+        // While the keyboard is open for a set row the strip steps aside: it would sit between the list and the keyboard and hide
+        // the row being edited (Q7-8). The timer keeps running (and its notification), and the strip returns with the keyboard gone.
+        val keyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+        if ((timer.running || timer.remainingSeconds > 0) && !keyboardOpen) {
             RestStrip(
                 remaining = timer.remainingSeconds,
                 total = timer.totalSeconds,
@@ -368,7 +375,7 @@ fun ActiveWorkoutScreen(
     plateSheetFor?.let { (kg, label) ->
         val load = state.plateLoad(kg)
         ModalBottomSheet(onDismissRequest = { plateSheetFor = null }, sheetState = rememberModalBottomSheetState()) {
-            Column(Modifier.padding(horizontal = IntakeSpacing.ScreenGutter).padding(bottom = 28.dp)) {
+            Column(Modifier.navigationBarsPadding().padding(horizontal = IntakeSpacing.ScreenGutter).padding(bottom = 28.dp)) {
                 PlateVisual(
                     title = "Plates · $label total",
                     perSide = load.perSide,
@@ -522,7 +529,7 @@ private fun WorkoutHeader(
                 contentDescription = if (paused) "Resume the workout clock" else "Pause the workout clock and rest timer"
             },
         ) {
-            if (paused) Icon(IntakeIcons.Play, contentDescription = null, modifier = Modifier.size(IconSize.Default)) else PauseGlyph()
+            if (paused) Icon(IntakeIcons.Play, contentDescription = null, tint = MaterialTheme.colorScheme.onBackground, modifier = Modifier.size(IconSize.Default)) else PauseGlyph()
         }
         AccentButton(onClick = onFinish, small = true) { Text("Finish", style = MaterialTheme.typography.labelLarge) }
     }
@@ -532,7 +539,7 @@ private fun WorkoutHeader(
 @Composable
 private fun PauseGlyph() {
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        repeat(2) { Box(Modifier.size(width = 4.dp, height = 16.dp).clip(IntakeShape.Pill).background(LocalContentColor.current)) }
+        repeat(2) { Box(Modifier.size(width = 4.dp, height = 16.dp).clip(IntakeShape.Pill).background(MaterialTheme.colorScheme.onBackground)) }
     }
 }
 
@@ -609,7 +616,7 @@ private fun RestStepButton(label: String, onClick: () -> Unit) {
 @Composable
 private fun RestSheet(exerciseName: String, seconds: Int, onChange: (Int) -> Unit, onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = IntakeSpacing.ScreenGutter).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = IntakeSpacing.ScreenGutter).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Rest after $exerciseName", style = MaterialTheme.typography.headlineSmall)
             Text(
                 "This workout only: your program keeps its own rest. It applies from the next set you log.",
@@ -687,7 +694,7 @@ private fun SwapSheet(
     var options by remember { mutableStateOf<List<RankedSwap>?>(null) }
     LaunchedEffect(Unit) { options = load() }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = IntakeSpacing.ScreenGutter).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = IntakeSpacing.ScreenGutter).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("Swap $exerciseName", style = MaterialTheme.typography.headlineSmall)
             Text(
                 "Same muscles first, then what you own. This workout only: your program is not changed.",

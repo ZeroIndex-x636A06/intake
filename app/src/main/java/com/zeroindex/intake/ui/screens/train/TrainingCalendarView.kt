@@ -19,6 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -54,12 +55,16 @@ fun TrainingCalendarView(
     onSelect: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val opening = TrainingCalendar.openingMonth(sessionStarts, zone, YearMonth.from(today))
+    // Grouping the sessions by day and building the grid is the only real work here: do it once per month or data change,
+    // not on every recomposition (a dialog opening over the screen recomposes it, and 42 cells hang off this).
+    val opening = remember(sessionStarts, zone, today) { TrainingCalendar.openingMonth(sessionStarts, zone, YearMonth.from(today)) }
     var monthText by rememberSaveable { mutableStateOf(opening.toString()) }
-    val month = runCatching { YearMonth.parse(monthText) }.getOrDefault(opening)
-    val weeks = TrainingCalendar.month(month, sessionStarts, zone)
-    val trained = weeks.flatten().count { it.inMonth && it.sessions > 0 }
-    val monthLabel = month.format(DateTimeFormatter.ofPattern("MMMM yyyy"))
+    val month = remember(monthText, opening) { runCatching { YearMonth.parse(monthText) }.getOrDefault(opening) }
+    val weeks = remember(month, sessionStarts, zone) { TrainingCalendar.month(month, sessionStarts, zone) }
+    val trained = remember(weeks) { weeks.flatten().count { it.inMonth && it.sessions > 0 } }
+    val monthLabel = remember(month) { month.format(MONTH_LABEL) }
+    val locale = LocalConfiguration.current.locales[0]
+    val dayInitials = remember(locale) { java.time.DayOfWeek.entries.map { it.getDisplayName(TextStyle.NARROW, locale) } }
 
     Surface(
         color = MaterialTheme.colorScheme.surface,
@@ -84,9 +89,9 @@ fun TrainingCalendarView(
                 }
             }
             Row(Modifier.fillMaxWidth()) {
-                java.time.DayOfWeek.entries.forEach { d ->
+                dayInitials.forEach { initial ->
                     Text(
-                        d.getDisplayName(TextStyle.NARROW, LocalConfiguration.current.locales[0]),
+                        initial,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
@@ -105,6 +110,9 @@ fun TrainingCalendarView(
     }
 }
 
+private val MONTH_LABEL: DateTimeFormatter = DateTimeFormatter.ofPattern("MMMM yyyy")
+private val SPOKEN_DAY: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE d MMMM")
+
 @Composable
 private fun DayCell(
     date: LocalDate,
@@ -115,30 +123,31 @@ private fun DayCell(
     onSelect: (LocalDate) -> Unit,
     modifier: Modifier,
 ) {
-    val spoken = DateTimeFormatter.ofPattern("EEEE d MMMM").format(date) + when (sessions) {
-        0 -> ", no training"
-        1 -> ", 1 session"
-        else -> ", $sessions sessions"
+    val primary = MaterialTheme.colorScheme.primary
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    // Cheap cell: the spoken text is built only when accessibility asks for it, and the mark is remembered per state.
+    val mark = remember(sessions > 0, isSelected, isToday, primary, onSurface) {
+        var m: Modifier = Modifier.size(38.dp).clip(IntakeShape.Pill)
+        if (sessions > 0) m = m.background(primary)
+        when {
+            isSelected -> m.border(2.dp, onSurface, IntakeShape.Pill)
+            isToday -> m.border(1.5.dp, primary, IntakeShape.Pill)
+            else -> m
+        }
     }
     Box(
         modifier
             .heightIn(min = 48.dp)
             .clickable(role = Role.Button, onClickLabel = "Show this day") { onSelect(date) }
-            .semantics(mergeDescendants = true) { contentDescription = spoken },
+            .semantics(mergeDescendants = true) {
+                contentDescription = SPOKEN_DAY.format(date) + when (sessions) {
+                    0 -> ", no training"
+                    1 -> ", 1 session"
+                    else -> ", $sessions sessions"
+                }
+            },
         contentAlignment = Alignment.Center,
     ) {
-        val primary = MaterialTheme.colorScheme.primary
-        val mark = Modifier
-            .size(38.dp)
-            .clip(IntakeShape.Pill)
-            .let { if (sessions > 0) it.background(primary) else it }
-            .let {
-                when {
-                    isSelected -> it.border(2.dp, MaterialTheme.colorScheme.onSurface, IntakeShape.Pill)
-                    isToday -> it.border(1.5.dp, primary, IntakeShape.Pill)
-                    else -> it
-                }
-            }
         Box(mark, contentAlignment = Alignment.Center) {
             Text(
                 date.dayOfMonth.toString(),
