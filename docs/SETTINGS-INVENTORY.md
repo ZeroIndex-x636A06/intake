@@ -13,7 +13,7 @@ Rules that apply to every row: use screens hold no configuration; one home per s
 | Group | Controls | Of which settings | Actions | New |
 | --- | ---: | ---: | ---: | ---: |
 | Appearance and units | 12 | 12 | 0 | 6 |
-| Nutrition | 15 | 14 | 1 | 2 |
+| Food | 15 | 14 | 1 | 2 |
 | Water and drinks | 11 | 10 | 1 | 0 |
 | Training | 14 | 14 | 0 | 8 |
 | Health Connect | 17 | 16 | 1 | 1 |
@@ -64,21 +64,21 @@ How your targets are worked out and what the dashboard shows. Your allergens are
 
 | # | Setting | Key (code) | Group | Control | Current home | New home |
 | ---: | --- | --- | --- | --- | --- | --- |
-| 12 | Work my targets out from my data | `autoTargets` (SettingsRepository auto_targets) | Nutrition | switch | Settings (autoTargets) | Nutrition |
-| 13 | Calories by hand | `manualCalories` (TargetRepository calorie target) | Nutrition | number field | Settings and Your plan (2 homes) | Nutrition |
-| 14 | Protein | `proteinPerKg` (SettingsRepository protein_g_per_kg) | Nutrition | number field | Settings, Profile Advanced, Your plan (3 homes) | Nutrition |
-| 15 | Fat | `fatPerKg` (SettingsRepository fat_g_per_kg) | Nutrition | number field | Settings, Profile Advanced, Your plan (3 homes) | Nutrition |
-| 16 | Add active calories to my target | `addActiveKcal` (SettingsRepository add_active_kcal) | Nutrition | switch | Settings advanced and Health Connect (2 homes) | Nutrition |
-| 17 | Show salt or sodium on the dashboard **(new)** | `showSodium` (new) | Nutrition | segmented (Off / Sodium / Salt) | none | Nutrition |
-| 18 | Eat out nearby: how far **(new)** | `eatOutRadius` (eat_out_minutes and eat_out_travel; the old eat_out_radius_mi is read once to migrate) | Nutrition | two segmented rows (10 min / 15 min; Walk / Drive, default 10 min Drive) | Nearby finder: Eating out and Swap | Nutrition |
-| 19 | Recalculate from my data | `recalc` | Nutrition | button (action, not stored) | Settings | Nutrition |
-| 20 | Allow calories below the floor | `allowBelowFloor` (UserProfile.allowBelowFloor) | Nutrition | switch, Advanced | Profile Advanced | Nutrition |
-| 21 | Carb cycling | `carbCycling` (UserProfile.carbCycling) | Nutrition | switch, Advanced | Profile Advanced | Nutrition |
-| 22 | Carb cycle shift | `carbCycleShiftPct` (UserProfile.carbCycleShiftPct) | Nutrition | number field, Advanced | Profile Advanced | Nutrition |
-| 23 | Refeed days per week | `refeedDaysPerWeek` (UserProfile.refeedDaysPerWeek) | Nutrition | number field, Advanced | Profile Advanced | Nutrition |
-| 24 | Diet break every | `dietBreakEveryWeeks` (UserProfile.dietBreakEveryWeeks) | Nutrition | number field, Advanced | Profile Advanced | Nutrition |
-| 25 | Contest prep: weekly loss | `contestWeeklyLossPct` (UserProfile.contestWeeklyLossPct) | Nutrition | number field, Advanced | Profile Advanced | Nutrition |
-| 26 | Reverse diet: calories added per week | `reverseStepKcal` (UserProfile.reverseStepKcal) | Nutrition | number field, Advanced | Profile Advanced | Nutrition |
+| 12 | Work my targets out from my data | `autoTargets` (SettingsRepository auto_targets) | Food | switch | Settings (autoTargets) | Nutrition |
+| 13 | Calories by hand | `manualCalories` (TargetRepository calorie target) | Food | number field | Settings and Your plan (2 homes) | Nutrition |
+| 14 | Protein | `proteinPerKg` (SettingsRepository protein_g_per_kg) | Food | number field | Settings, Profile Advanced, Your plan (3 homes) | Nutrition |
+| 15 | Fat | `fatPerKg` (SettingsRepository fat_g_per_kg) | Food | number field | Settings, Profile Advanced, Your plan (3 homes) | Nutrition |
+| 16 | Add active calories to my target | `addActiveKcal` (SettingsRepository add_active_kcal) | Food | switch | Settings advanced and Health Connect (2 homes) | Nutrition |
+| 17 | Show salt or sodium on the dashboard **(new)** | `showSodium` (new) | Food | segmented (Off / Sodium / Salt) | none | Nutrition |
+| 18 | Eat out nearby: how far **(new)** | `eatOutRadius` (eat_out_minutes and eat_out_travel; the old eat_out_radius_mi is read once to migrate) | Food | two segmented rows (10 min / 15 min; Walk / Drive, default 10 min Drive) | Nearby finder: Eating out and Swap | Nutrition |
+| 19 | Recalculate from my data | `recalc` | Food | button (action, not stored) | Settings | Nutrition |
+| 20 | Allow calories below the floor | `allowBelowFloor` (UserProfile.allowBelowFloor) | Food | switch, Advanced | Profile Advanced | Nutrition |
+| 21 | Carb cycling | `carbCycling` (UserProfile.carbCycling) | Food | switch, Advanced | Profile Advanced | Nutrition |
+| 22 | Carb cycle shift | `carbCycleShiftPct` (UserProfile.carbCycleShiftPct) | Food | number field, Advanced | Profile Advanced | Nutrition |
+| 23 | Refeed days per week | `refeedDaysPerWeek` (UserProfile.refeedDaysPerWeek) | Food | number field, Advanced | Profile Advanced | Nutrition |
+| 24 | Diet break every | `dietBreakEveryWeeks` (UserProfile.dietBreakEveryWeeks) | Food | number field, Advanced | Profile Advanced | Nutrition |
+| 25 | Contest prep: weekly loss | `contestWeeklyLossPct` (UserProfile.contestWeeklyLossPct) | Food | number field, Advanced | Profile Advanced | Nutrition |
+| 26 | Reverse diet: calories added per week | `reverseStepKcal` (UserProfile.reverseStepKcal) | Food | number field, Advanced | Profile Advanced | Nutrition |
 
 ## C. Water and drinks
 
@@ -136,7 +136,7 @@ Which records Intake may read from and write to Health Connect. Last synced: 14 
 | 55 | Body fat | `hc.read.Bodyfat` (HealthConnectManager.TYPES, read permission) | Health Connect | switch | Health Connect screen | Health Connect |
 | 56 | Lean body mass | `hc.read.Leanbodymass` (HealthConnectManager.TYPES, read permission) | Health Connect | switch | Health Connect screen | Health Connect |
 | 117 | Older history **(new, round 3)** | `hc.read.Olderhistory` (HealthConnectManager.TYPES, READ_HEALTH_DATA_HISTORY; shown only where Health Connect supports it) | Health Connect | switch | Health Connect screen | Health Connect |
-| 57 | Nutrition | `hc.write.Nutrition` (HealthConnectManager.TYPES, write permission) | Health Connect | switch | Health Connect screen | Health Connect |
+| 57 | Food | `hc.write.Nutrition` (HealthConnectManager.TYPES, write permission) | Health Connect | switch | Health Connect screen | Health Connect |
 | 58 | Weight | `hc.write.Weight` (HealthConnectManager.TYPES, write permission) | Health Connect | switch | Health Connect screen | Health Connect |
 | 59 | Hydration | `hc.write.Hydration` (HealthConnectManager.TYPES, write permission) | Health Connect | switch | Health Connect screen | Health Connect |
 | 60 | Workouts | `hc.write.Workouts` (HealthConnectManager.TYPES, write permission) | Health Connect | switch | Health Connect screen | Health Connect |

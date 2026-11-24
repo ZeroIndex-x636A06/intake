@@ -174,8 +174,10 @@ fun YouScreen(
         item(key = "goals") {
             val t = state.target
             HeroCard {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
+                // Stacked, not side by side: on a fresh install the plan chip is long and squeezed the eyebrow into a
+                // 60 dp column (QA Q7-20).
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column {
                         Eyebrow("Goals and plan", color = heroMuted())
                         Text(
                             when {
@@ -186,7 +188,6 @@ fun YouScreen(
                             style = MaterialTheme.typography.bodySmall, color = heroMuted(),
                         )
                     }
-                    Spacer(Modifier.width(8.dp))
                     PlanChip(
                         if (p.hasBasics) "${p.phase.label} · ${p.pace.label.lowercase()}" else "Phase and pace: choose in your profile",
                         onEditProfile,

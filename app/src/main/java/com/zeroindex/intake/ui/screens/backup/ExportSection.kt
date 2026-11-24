@@ -5,7 +5,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -26,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -94,17 +97,17 @@ fun ExportSection(modifier: Modifier = Modifier, viewModel: ExportViewModel = hi
                 placeholder = "Leave blank for plain JSON",
                 supporting = "Used for the next export only. It is never saved. Without it an encrypted file cannot be opened.",
             )
-            Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.padding(top = 6.dp).height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = { exportLauncher.launch("intake-export-$stamp" + if (passphrase.isEmpty()) ".json" else ".intake") },
                     shape = IntakeShape.Button,
-                    modifier = Modifier.weight(1f).height(52.dp),
-                ) { Text("Export everything (JSON)") }
+                    modifier = Modifier.weight(1f).fillMaxHeight().heightIn(min = 52.dp),
+                ) { Text("Export everything (JSON)", textAlign = TextAlign.Center) }
                 OutlinedButton(
                     onClick = { importLauncher.launch(arrayOf("application/json", "application/octet-stream", "*/*")) },
                     shape = IntakeShape.Button,
-                    modifier = Modifier.weight(1f).height(52.dp),
-                ) { Text("Import a backup") }
+                    modifier = Modifier.weight(1f).fillMaxHeight().heightIn(min = 52.dp),
+                ) { Text("Import a backup", textAlign = TextAlign.Center) }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 10.dp))
             Text("Export spreadsheets (CSV, not encrypted)", style = MaterialTheme.typography.titleSmall)

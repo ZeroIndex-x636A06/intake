@@ -22,7 +22,7 @@ class SettingsRegistryTest {
     }
 
     private val titleOf = mapOf(
-        "Appearance and units" to SettingsGroup.APPEARANCE, "Nutrition" to SettingsGroup.NUTRITION,
+        "Appearance and units" to SettingsGroup.APPEARANCE, "Food" to SettingsGroup.NUTRITION,
         "Water and drinks" to SettingsGroup.WATER, "Training" to SettingsGroup.TRAINING,
         "Health Connect" to SettingsGroup.HEALTH, "Food database" to SettingsGroup.FOOD_DB, "Videos" to SettingsGroup.VIDEOS,
         "Reminders" to SettingsGroup.REMINDERS, "Sync and export" to SettingsGroup.SYNC, "AI (optional)" to SettingsGroup.AI,

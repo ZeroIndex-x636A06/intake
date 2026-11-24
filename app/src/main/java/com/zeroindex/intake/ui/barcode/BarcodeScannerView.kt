@@ -159,13 +159,18 @@ fun BarcodeScannerView(
     // The camera lives in a bounded 4:3 card, clipped to it, so the preview can never grow over the sheet's own
     // tabs, Close button or the manual entry below. The controls sit above the preview in z-order (the
     // preview is a TextureView, which would otherwise draw over siblings that come earlier).
+    // A message card (no camera, no permission, an error) grows with its text and the system font size instead of keeping the
+    // preview's 4:3 shape, which clipped its buttons at font scale 1.5 (QA Q7-23).
+    val showsMessage = !hasCamera || !hasPermission || cameraError != null
     Column(modifier = modifier.fillMaxWidth()) {
         Box(
             modifier = Modifier
                 .padding(horizontal = IntakeSpacing.ScreenGutter, vertical = 8.dp)
                 .fillMaxWidth()
-                .heightIn(max = 340.dp)
-                .aspectRatio(4f / 3f)
+                .then(
+                    if (showsMessage) Modifier.heightIn(min = 180.dp)
+                    else Modifier.heightIn(max = 340.dp).aspectRatio(4f / 3f),
+                )
                 .clip(IntakeShape.Thumb)
                 .clipToBounds(),
         ) {
@@ -467,10 +472,9 @@ private fun FallbackMessage(
 ) {
     Column(
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
+            .heightIn(min = 180.dp)
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            // The card is short on a small phone; the message scrolls inside it instead of spilling out.
-            .verticalScroll(rememberScrollState())
             .padding(start = 64.dp, end = 24.dp, top = 12.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.Center,
     ) {

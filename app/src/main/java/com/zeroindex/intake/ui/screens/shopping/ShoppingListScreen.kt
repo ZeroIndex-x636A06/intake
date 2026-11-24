@@ -94,7 +94,8 @@ fun ShoppingListScreen(
         verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
     ) {
         item(key = "head") {
-            SubHead("Shopping list", "Pick what you are making. The amounts are added up across everything you pick. No meal plan needed.")
+            // The top bar already says "Shopping list" (QA Q7-25): the heading here says what to do.
+            SubHead("What are you making?", "Pick what you are making. The amounts are added up across everything you pick. No meal plan needed.")
         }
 
         if (recipes.isEmpty() && templates.isEmpty()) {
