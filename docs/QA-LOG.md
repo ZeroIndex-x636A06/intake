@@ -1560,3 +1560,15 @@ No FATAL EXCEPTION for com.zeroindex.* and an empty crash buffer. Two ANRs for c
 ### Summary for Pass 8
 Retests: 35 items (Q7-1 to 25 and 10 older). Verified 24: 19 from Pass 7 (Q7-1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 21, 22) and 5 older (Q5b-4, Q6-1, Q6-4, Q6-6, Q6-8); Still failing 1 (Q7-4); Partly 4 of Pass 7 (Q7-19, 23, 24, 25) and 4 older (Q5a-9, Q6-2, Q6-3, Q6-7); Not reached 2 (Q7-20, Q6-5). New: 10 findings, S1 0, S2 0, S3 3 (Q8-1, 7, 10), S4 7 (Q8-2, 3, 4, 5, 6, 8, 9).
 Not verifiable on an emulator: touch feel and haptics, the rest sound and vibration, keep-awake, real snackbar timing (Undo was tested only where a script could tap within 2 s), performance and ANR rates on a phone, gesture navigation, Health Connect, the camera and barcode paths, Android 15 behaviour.
+
+### Fixes after Pass 8 (merged from the three fix-pass8 branches)
+Every item below is **Fixed in 8607249, needs retest** (not yet seen on an emulator or a phone).
+- Q7-4 rest sheet Done under the nav bar: Fixed in 8607249, needs retest.
+- Q7-19 number and unit mismatches: Fixed in 8607249, needs retest.
+- Q7-23 font scale 1.5: Fixed in 8607249, needs retest.
+- Q7-24 water target jump: Fixed in 8607249, needs retest. The breakdown is now shown. A past workout with 0 sets still counts toward the sweat adjustment (owner decision).
+- Q7-25 leftovers: Fixed in 8607249, needs retest. The titles are fixed. The week start in the date pickers was reverted to the locale default (owner decision): a Monday-first region such as en-GB also changed the input format to dd/MM/yyyy and the headline to "Tue, 24 Nov", which is worse for a US user than a Sunday-first week. All pickers still use one shared helper.
+- Q5a-9 meal template log message: Fixed in 8607249, needs retest.
+- Q6-7 / Q7-3 wording (Saturated fat): Fixed in 8607249, needs retest.
+- Q8-1 to Q8-10: Fixed in 8607249, needs retest.
+- Q6-3 Log food search ranking: No code path found; NameMatchRank already ranks Almond first. Retest, and note which screen or search source shows Salmon first.
