@@ -25,6 +25,12 @@ object AllergenEvidence {
         /** Only the name was read (a generic food, a drink, a recipe with no lines): not a statement about the ingredients. */
         NAME_ONLY("Only the name was checked"),
 
+        /**
+         * A recipe with ingredient lines where at least one line has no label or tags behind it: the scan did read every
+         * line's own words (and the name), so "only the name" would be untrue, but a clear result still is not green.
+         */
+        LINES_BY_NAME("Ingredient names checked"),
+
         /** A packaged product with no ingredient list and no tags: nothing at all to read. */
         NO_LIST("No ingredient list: check the label"),
         ;
@@ -40,10 +46,14 @@ object AllergenEvidence {
      *
      * Green ([ClearBasis.LABEL_READ]) needs at least one ingredient line and every line read from a label or allergen
      * tags ([readLineCount] == [ingredientLineCount]). A recipe with no lines, or with any line that carries nothing
-     * but its own words, only had its name and line text checked: "Only the name was checked", never a pass.
+     * but its own words had its name and the words of its lines checked: "Ingredient names checked", never a pass. A recipe
+     * with no lines at all only had its name checked.
      */
-    fun recipeClearBasis(ingredientLineCount: Int, readLineCount: Int): ClearBasis =
-        if (ingredientLineCount > 0 && readLineCount >= ingredientLineCount) ClearBasis.LABEL_READ else ClearBasis.NAME_ONLY
+    fun recipeClearBasis(ingredientLineCount: Int, readLineCount: Int): ClearBasis = when {
+        ingredientLineCount > 0 && readLineCount >= ingredientLineCount -> ClearBasis.LABEL_READ
+        ingredientLineCount > 0 -> ClearBasis.LINES_BY_NAME
+        else -> ClearBasis.NAME_ONLY
+    }
 
     /** The basis of a clear scan of a food row, from what the row carries. */
     fun clearBasis(source: FoodSource, isVerified: Boolean, storedAllergenText: String): ClearBasis = when {

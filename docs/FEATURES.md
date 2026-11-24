@@ -780,6 +780,7 @@ Chips and labels, as the code shows them:
 | --- | --- |
 | **Fits your allergens** | Checked against the label or panel and nothing matched. Shown only for a result that was really read. |
 | **Only the name was checked** | Only the name was read (a generic food, a drink, a recipe with no ingredient lines). Not a statement about ingredients. Never shown as a pass. |
+| **Ingredient names checked** | A recipe with ingredient lines, at least one of which has no label or tags behind it. The scan read the name and every line's own words; the labels were not read. Never shown as a pass. |
 | **Checking…** / **Checking allergens** | The check is still running. Shown instead of a blank, never as a clear. |
 | **May contain** | A possible trace or a soft match. An amber review, not a block. "May contain · soft match", "Possible cross-contact". |
 | **Contains** / **Contains your allergen** | A matched ingredient you avoid. Blocks the item until you confirm. |

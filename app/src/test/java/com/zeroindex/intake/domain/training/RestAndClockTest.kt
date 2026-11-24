@@ -135,4 +135,23 @@ class RestAndClockTest {
         val shownStart = WorkoutClock.reanchoredStart(start, now)
         assertThat(WorkoutClock.trainedMs(shownStart, null, now + 70_000)).isEqualTo(70_000L)
     }
+
+    @Test
+    fun `a running reopened workout counts trained time, not the time since the edited start (Q10-5)`() {
+        val min = 60_000L
+        val now = 1_000_000_000L
+        val start = now - 90 * min // start edited to 90 minutes ago
+        val pause = WorkoutPause("s", reopenGapMs = 64 * min) // idle between Finish and Reopen
+        assertThat(WorkoutClock.loadMs(start, null, pause, now, 4 * 60 * min)).isEqualTo(26 * min)
+    }
+
+    @Test
+    fun `a paused running workout leaves the pause out and a finished one is finish minus start`() {
+        val min = 60_000L
+        val now = 500 * min
+        val paused = WorkoutPause("s", pausedMs = 10 * min, pausedSince = now - 5 * min)
+        assertThat(WorkoutClock.loadMs(now - 45 * min, null, paused, now, 240 * min)).isEqualTo(30 * min)
+        assertThat(WorkoutClock.loadMs(100 * min, 128 * min, null, now, 240 * min)).isEqualTo(28 * min)
+        assertThat(WorkoutClock.loadMs(0L, 1000 * min, null, now, 240 * min)).isEqualTo(240 * min)
+    }
 }

@@ -444,14 +444,15 @@ fun SettingRow(
     modifier: Modifier = Modifier,
     showDivider: Boolean = true,
     note: (@Composable () -> Unit)? = null,
+    stackOnLargeFont: Boolean = false,
     control: @Composable () -> Unit,
 ) {
+    // A wide control (a three-way Segmented) squeezes the label to a letter or two at a large font: drop it under the label.
+    val stack = stackOnLargeFont && androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.15f
     Column(modifier) {
-        Row(
-            modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.ListRowMinHeight).padding(vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f).padding(end = 10.dp)) {
+        val rowModifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.ListRowMinHeight).padding(vertical = 6.dp)
+        val labelBlock: @Composable (Modifier) -> Unit = { m ->
+            Column(m) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
@@ -466,7 +467,17 @@ fun SettingRow(
                     )
                 }
             }
-            control()
+        }
+        if (stack) {
+            Column(rowModifier) {
+                labelBlock(Modifier.fillMaxWidth().padding(bottom = 8.dp))
+                control()
+            }
+        } else {
+            Row(rowModifier, verticalAlignment = Alignment.CenterVertically) {
+                labelBlock(Modifier.weight(1f).padding(end = 10.dp))
+                control()
+            }
         }
         // A long note (a warning, say) goes under the row at full width, never in the control slot.
         if (note != null) Box(Modifier.fillMaxWidth().padding(bottom = 6.dp)) { note() }

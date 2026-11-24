@@ -24,4 +24,18 @@ object RecordText {
             val w = if (it.weightKg == 0.0) "Bodyweight" else WeightText.format(it.weightKg, unit)
             "$w x ${it.reps}"
         }
+
+    /**
+     * The chip beside an exercise on the summary. "PR" is for a better set (estimated max, heaviest weight, rep record). When the
+     * only record is the session's total volume (more sets than the best day, with every set equal to ones done before), the chip
+     * says so, so a repeated set is never read as a better lift (Q10-7). Null when there is no record.
+     */
+    fun chipLabel(kinds: List<PrKind>): String? {
+        val real = kinds.filter { it != PrKind.NONE }
+        return when {
+            real.isEmpty() -> null
+            real.all { it == PrKind.BEST_VOLUME } -> "Volume PR"
+            else -> "PR"
+        }
+    }
 }

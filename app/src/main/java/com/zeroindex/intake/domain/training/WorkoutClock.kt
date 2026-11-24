@@ -36,6 +36,15 @@ object WorkoutClock {
     fun trainedMs(startedAt: Long, pause: WorkoutPause?, now: Long): Long =
         (now - startedAt - (pause?.totalPausedMs(now) ?: 0L) - (pause?.reopenGapMs ?: 0L)).coerceAtLeast(0L)
 
+    /**
+     * The length of a workout for anything that works from minutes (the water target's sweat bonus): finish minus start for a
+     * finished one, the trained time (no pauses, no reopen gap, the same as the timer) for one still running. Never above [capMs].
+     */
+    fun loadMs(startedAt: Long, finishedAt: Long?, pause: WorkoutPause?, now: Long, capMs: Long): Long {
+        val raw = if (finishedAt != null) finishedAt - startedAt else trainedMs(startedAt, pause, now)
+        return raw.coerceIn(0L, capMs)
+    }
+
     /** How far a start may sit ahead of the clock before the phone's clock is taken to have been moved back. */
     const val FUTURE_TOLERANCE_MS = 60_000L
 

@@ -13,5 +13,11 @@ object ClockLabel {
         return String.format(Locale.US, "%d:%02d %s", h12, mm, if (h < 12) "AM" else "PM")
     }
 
+    /** The local time of day of an instant, written the same way. */
+    fun fromMillis(millis: Long, zone: java.time.ZoneId, is24Hour: Boolean): String {
+        val t = java.time.Instant.ofEpochMilli(millis).atZone(zone)
+        return fromMinute(t.hour * 60 + t.minute, is24Hour)
+    }
+
     fun fromHour(hour: Int, is24Hour: Boolean): String = fromMinute(hour * 60, is24Hour)
 }

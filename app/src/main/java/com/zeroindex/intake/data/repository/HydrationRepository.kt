@@ -27,7 +27,6 @@ import com.zeroindex.intake.domain.units.VolumeUnit
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.math.min
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -71,6 +70,7 @@ class HydrationRepository @Inject constructor(
     private val weatherRepository: WeatherRepository,
     private val drinks: DrinkRepository,
     private val clock: Clock,
+    private val workoutPauses: com.zeroindex.intake.data.training.WorkoutPauseStore,
 ) {
     fun observePresets(): Flow<List<HydrationPresetEntity>> = dao.observePresets()
 
@@ -79,13 +79,18 @@ class HydrationRepository @Inject constructor(
 
     fun observeDay(date: LocalDate): Flow<HydrationDay> {
         val range = clock.rangeFor(date)
-        val sessions = workoutDao.observeSessions().map { all ->
+        // Pausing, resuming and reopening change the running workout's trained time, so they re-run this too.
+        val sessions = combine(workoutDao.observeSessions(), workoutPauses.state) { all, _ -> all }.map { all ->
             all.filter { it.startedAt >= range.startInclusive && it.startedAt < range.endExclusive }
                 .map { s ->
-                    val end = s.finishedAt ?: min(clock.nowMillis(), s.startedAt + MAX_SESSION_MS)
+                    // The same length the timer and the summary show: a running workout counts trained time only, so a reopened
+                    // one (edited start, idle gap) or a paused one does not add the time it was not training.
+                    val lengthMs = com.zeroindex.intake.domain.training.WorkoutClock.loadMs(
+                        s.startedAt, s.finishedAt, workoutPauses.forSession(s.id), clock.nowMillis(), MAX_SESSION_MS,
+                    )
                     val rpes = workoutDao.setsOf(s.id).filter { !it.isWarmup }.mapNotNull { it.rpe }
                     SessionLoad(
-                        minutes = (min(end - s.startedAt, MAX_SESSION_MS) / 60_000.0).coerceAtLeast(0.0),
+                        minutes = lengthMs / 60_000.0,
                         avgRpe = rpes.takeIf { it.isNotEmpty() }?.average(),
                     )
                 }

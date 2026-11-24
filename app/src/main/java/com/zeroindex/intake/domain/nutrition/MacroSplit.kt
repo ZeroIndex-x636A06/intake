@@ -65,6 +65,30 @@ object MacroRingSplit {
     }
 
     /**
+     * Calories from each macro when the day's own total is known. The 4/4/9 figures drift from the foods' own kcal
+     * (fibre, alcohol, rounding in the source data), so the three tiles would not add up to the "eaten" figure.
+     * This shares [totalKcal] across the macros in proportion to their 4/4/9 calories, with largest remainders, so
+     * protein + carbs + fat equals [totalKcal] exactly. With no usable total, or no macro calories, it is [kcal].
+     */
+    fun kcalOfTotal(proteinGrams: Double, carbGrams: Double, fatGrams: Double, totalKcal: Double?): Kcal {
+        val plain = kcal(proteinGrams, carbGrams, fatGrams)
+        val sum = plain.protein + plain.carbs + plain.fat
+        if (totalKcal == null || !totalKcal.isFinite() || totalKcal <= 0.0 || sum <= 0) return plain
+        val total = Math.round(totalKcal).toInt()
+        val parts = doubleArrayOf(plain.protein.toDouble(), plain.carbs.toDouble(), plain.fat.toDouble())
+        val exact = parts.map { it / sum * total }
+        val out = IntArray(3) { floor(exact[it]).toInt() }
+        var missing = total - out.sum()
+        val order = (0..2).sortedWith(compareByDescending<Int> { exact[it] - floor(exact[it]) }.thenBy { it })
+        for (i in order) {
+            if (missing <= 0) break
+            out[i] += 1
+            missing--
+        }
+        return Kcal(out[0], out[1], out[2])
+    }
+
+    /**
      * The segments of an eaten arc that covers [arcFraction] (0..1) of the ring, in order protein, carbs, fat, with
      * zero-share macros left out. Empty when there are no calories to split or the arc is empty.
      */

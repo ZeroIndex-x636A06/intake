@@ -912,7 +912,7 @@ private fun RefFoodRow(ref: RefFood, allergen: RowAllergen?, unit: PortionUnit, 
                 Text(ref.name, style = MaterialTheme.typography.titleMedium, maxLines = 2)
                 Spacer(Modifier.size(2.dp))
                 Text(
-                    text = "${portion.label} (${unit.format(portion.grams)})" +
+                    text = com.zeroindex.intake.domain.nutrition.PortionText.withAmount(portion.label, unit.format(portion.grams)) +
                         if (ref.category.isNotBlank()) " · ${ref.category}" else "",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

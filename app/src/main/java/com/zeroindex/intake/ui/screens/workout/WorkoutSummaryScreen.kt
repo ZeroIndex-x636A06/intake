@@ -135,8 +135,12 @@ fun WorkoutSummaryScreen(
                             val started = state.session?.startedAt
                             if (started != null) {
                                 Text(
-                                    java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM, HH:mm")
-                                        .format(java.time.Instant.ofEpochMilli(started).atZone(java.time.ZoneId.systemDefault())),
+                                    java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM, ")
+                                        .format(java.time.Instant.ofEpochMilli(started).atZone(java.time.ZoneId.systemDefault())) +
+                                        com.zeroindex.intake.domain.time.ClockLabel.fromMillis(
+                                            started, java.time.ZoneId.systemDefault(),
+                                            android.text.format.DateFormat.is24HourFormat(androidx.compose.ui.platform.LocalContext.current),
+                                        ),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
                                 )
@@ -189,7 +193,7 @@ fun WorkoutSummaryScreen(
                                                     }
                                                 }
                                             }
-                                            if (e.records.isNotEmpty()) IntakeChip("PR", tone = ChipTone.Ok)
+                                            com.zeroindex.intake.domain.training.RecordText.chipLabel(e.records)?.let { IntakeChip(it, tone = ChipTone.Ok) }
                                         }
                                     }
                                 }

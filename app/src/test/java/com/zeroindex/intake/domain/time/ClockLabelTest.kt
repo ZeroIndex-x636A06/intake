@@ -17,4 +17,11 @@ class ClockLabelTest {
         assertThat(ClockLabel.fromMinute(18 * 60, false)).isEqualTo("6:00 PM")
         assertThat(ClockLabel.fromHour(22, false)).isEqualTo("10:00 PM")
     }
+
+    @Test fun `an instant is written in the zone and the phone's style`() {
+        val z = java.time.ZoneId.of("Europe/London")
+        val at = java.time.LocalDateTime.of(2026, 11, 24, 21, 10).atZone(z).toInstant().toEpochMilli()
+        assertThat(ClockLabel.fromMillis(at, z, false)).isEqualTo("9:10 PM")
+        assertThat(ClockLabel.fromMillis(at, z, true)).isEqualTo("21:10")
+    }
 }

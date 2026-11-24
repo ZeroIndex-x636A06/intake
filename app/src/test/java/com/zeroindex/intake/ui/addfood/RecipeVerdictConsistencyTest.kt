@@ -39,7 +39,7 @@ class RecipeVerdictConsistencyTest {
         val grandma = recipeRowAllergenOf(AllergenScanResult.CLEAN, ingredientLineCount = 6, readLineCount = 0)
         assertThat(grandma.verdict).isEqualTo(SwapAllergen.CLEAR)
         assertThat(grandma.cautionClear).isTrue()
-        assertThat(grandma.basis).isEqualTo(AllergenEvidence.ClearBasis.NAME_ONLY)
+        assertThat(grandma.basis).isEqualTo(AllergenEvidence.ClearBasis.LINES_BY_NAME)
         val empty = recipeRowAllergenOf(AllergenScanResult.CLEAN, 0, 0)
         assertThat(empty.cautionClear).isTrue()
     }
@@ -52,7 +52,7 @@ class RecipeVerdictConsistencyTest {
             assertThat(fromVerdict.basis).isEqualTo(fromScan.basis)
             assertThat(fromVerdict.cautionClear).isEqualTo(fromScan.cautionClear)
         }
-        // Chicken fajita bowls: no matched ingredients, so only the name was checked.
+        // Chicken fajita bowls: 5 ingredient lines, none backed by a label: their names were checked (Q10-7), it is not green.
         val option = com.zeroindex.intake.domain.swap.SwapOption(
             key = "recipe:fajita", title = "Chicken fajita bowls", subtitle = null,
             kind = com.zeroindex.intake.domain.swap.SwapKind.PLAN_RECIPE, macros = com.zeroindex.intake.domain.nutrition.Macros(), estimate = false,
@@ -60,7 +60,7 @@ class RecipeVerdictConsistencyTest {
             clearBasis = recipeRowAllergenOf(SwapAllergen.CLEAR, null, null, 5, 0).basis,
         )
         assertThat(option.cautionClear).isTrue()
-        assertThat(option.clearBasis.chipText).isEqualTo("Only the name was checked")
+        assertThat(option.clearBasis.chipText).isEqualTo("Ingredient names checked")
         val read = option.copy(clearBasis = recipeRowAllergenOf(SwapAllergen.CLEAR, null, null, 5, 5).basis)
         assertThat(read.cautionClear).isFalse()
         // A flag is never softened by the basis.

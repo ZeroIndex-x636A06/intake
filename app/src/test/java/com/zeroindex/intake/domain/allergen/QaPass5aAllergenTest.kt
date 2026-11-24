@@ -76,7 +76,7 @@ class QaPass5aAllergenTest {
     @Test fun `a recipe is green only when every line was read`() {
         val b = AllergenEvidence.ClearBasis.LABEL_READ
         assertThat(AllergenEvidence.recipeClearBasis(5, 5)).isEqualTo(b)
-        assertThat(AllergenEvidence.recipeClearBasis(5, 4)).isEqualTo(AllergenEvidence.ClearBasis.NAME_ONLY)
+        assertThat(AllergenEvidence.recipeClearBasis(5, 4)).isEqualTo(AllergenEvidence.ClearBasis.LINES_BY_NAME)
         assertThat(AllergenEvidence.recipeClearBasis(5, 0).isCaution).isTrue()
         assertThat(AllergenEvidence.recipeClearBasis(0, 0).isCaution).isTrue()
     }

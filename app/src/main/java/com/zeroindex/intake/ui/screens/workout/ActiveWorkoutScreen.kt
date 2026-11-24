@@ -453,8 +453,8 @@ private fun StillTrainingDialog(
     onKeepGoing: () -> Unit,
     onDiscard: () -> Unit,
 ) {
-    val time = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
-    fun clockOf(millis: Long) = time.format(java.time.Instant.ofEpochMilli(millis).atZone(java.time.ZoneId.systemDefault()))
+    val is24 = android.text.format.DateFormat.is24HourFormat(androidx.compose.ui.platform.LocalContext.current)
+    fun clockOf(millis: Long) = com.zeroindex.intake.domain.time.ClockLabel.fromMillis(millis, java.time.ZoneId.systemDefault(), is24)
     val hours = ((now - idleSince) / 3_600_000L).toInt().coerceAtLeast(1)
     AlertDialog(
         onDismissRequest = onKeepGoing,

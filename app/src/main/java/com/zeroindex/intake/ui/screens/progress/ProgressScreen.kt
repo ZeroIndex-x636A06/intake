@@ -220,6 +220,14 @@ private fun CheckInHero(onOpen: () -> Unit) {
 
 @Composable
 private fun LinkTiles(onTrainingStats: () -> Unit, onLogWeight: () -> Unit) {
+    // At a large font the half-width tiles break "measurements" inside the word, so they stack instead.
+    if (LocalDensity.current.fontScale > 1.15f) {
+        Column(verticalArrangement = Arrangement.spacedBy(IntakeSpacing.GridGap2)) {
+            LinkTile(IntakeIcons.Dumbbell, IconTileStyle.Soft, "Training stats", "Records, volume, est. max", onTrainingStats, Modifier.fillMaxWidth())
+            LinkTile(IntakeIcons.Plus, IconTileStyle.Ink, "Log weight", "and measurements", onLogWeight, Modifier.fillMaxWidth())
+        }
+        return
+    }
     Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(IntakeSpacing.GridGap2)) {
         LinkTile(IntakeIcons.Dumbbell, IconTileStyle.Soft, "Training stats", "Records, volume, est. max", onTrainingStats, Modifier.weight(1f).fillMaxHeight())
         LinkTile(IntakeIcons.Plus, IconTileStyle.Ink, "Log weight", "and measurements", onLogWeight, Modifier.weight(1f).fillMaxHeight())

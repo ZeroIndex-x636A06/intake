@@ -426,6 +426,7 @@ private fun Checklist(
     IntakeCard(modifier = Modifier.fillMaxWidth()) {
         // The eyebrow has its own line: sharing one with the stepper left it a few dp and broke "INGREDIENTS" mid-word.
         Eyebrow("Ingredients · ${ticked.size} of ${ingredients.size} ready")
+        Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Spacer(Modifier.weight(1f))
             Surface(color = MaterialTheme.intake.soft, shape = IntakeShape.Pill) {

@@ -198,7 +198,8 @@ fun YouScreen(
                     )
                 }
                 Spacer(Modifier.height(16.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap)) {
+                val largeFont = androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.15f
+                StatPair(largeFont, {
                     PlanStat(
                         "Calories", t?.let { "${KcalFormat.format(it.kcal)} kcal" } ?: "No target yet",
                         when {
@@ -206,27 +207,29 @@ fun YouScreen(
                             s.autoCalculateTargets -> missing ?: "not worked out yet"
                             else -> "set by hand"
                         },
-                        Modifier.weight(1f),
+                        it,
                     ) { onChangeSetting("nutrition", "manualCalories") }
+                }, {
                     PlanStat(
                         "Protein · fat · carbs", t?.let { "${it.proteinG} · ${it.fatG} · ${it.carbsG} g" } ?: "—",
                         if (t == null && missing != null) "needs the same details" else "${s.proteinGramsPerKg} and ${s.fatGramsPerKg} g per kg",
-                        Modifier.weight(1f),
+                        it,
                     ) { onChangeSetting("nutrition", "proteinPerKg") }
-                }
+                })
                 Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap)) {
+                StatPair(largeFont, {
                     PlanStat(
                         "Water", state.waterMl?.let { s.volumeUnit.format(it) } ?: "—",
                         if (s.hydrationDynamic) state.waterWhy ?: "adjusts for the day" else "fixed target",
-                        Modifier.weight(1f),
+                        it,
                     ) { onChangeSetting("water", "hydrationBase") }
+                }, {
                     PlanStat(
                         "Training", "${p.effectiveTrainingDays} days · ${p.sessionMinutes} min",
                         p.experience.label.lowercase() + " · " + p.effectiveTrainingGoal.label.lowercase(),
-                        Modifier.weight(1f),
+                        it,
                     ) { onChangeSetting("training", null) }
-                }
+                })
                 Text(
                     "How this was worked out",
                     style = MaterialTheme.typography.labelLarge,
@@ -356,5 +359,21 @@ private fun PlanStat(title: String, value: String, reason: String, modifier: Mod
         Text(value, style = MaterialTheme.typography.headlineSmall)
         Text(title, style = MaterialTheme.typography.titleSmall, color = heroMuted())
         Text(reason, style = MaterialTheme.typography.bodySmall, color = heroMuted())
+    }
+}
+
+/** Two plan figures side by side; at a large font size they stack, so a figure such as "170 · 70 · 245 g" is never squeezed into a half-width column. */
+@Composable
+private fun StatPair(stacked: Boolean, first: @Composable (Modifier) -> Unit, second: @Composable (Modifier) -> Unit) {
+    if (stacked) {
+        Column(verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap)) {
+            first(Modifier.fillMaxWidth())
+            second(Modifier.fillMaxWidth())
+        }
+    } else {
+        Row(horizontalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap)) {
+            first(Modifier.weight(1f))
+            second(Modifier.weight(1f))
+        }
     }
 }

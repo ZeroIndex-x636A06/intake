@@ -24,9 +24,9 @@ object MatchWording {
     fun blockedBody(contains: List<AllergenMatch>): String =
         if (contains.isNotEmpty() && contains.all { it.trace }) {
             "Your allergen profile matched ${where(contains)}, listed under \"may contain\" (a possible trace, not an ingredient). " +
-                "The food cannot be saved until you choose what to do."
+                "Nothing is logged until you choose what to do."
         } else {
-            "Your allergen profile matched ${where(contains)}. The food cannot be saved until you choose what to do."
+            "Your allergen profile matched ${where(contains)}. Nothing is logged until you choose what to do."
         }
 
     /** The eyebrow of one match card: "found in the name". */

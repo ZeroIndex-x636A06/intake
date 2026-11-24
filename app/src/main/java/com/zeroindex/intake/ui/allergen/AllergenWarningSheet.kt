@@ -146,11 +146,11 @@ fun AllergenWarningSheet(
 
             Spacer(Modifier.height(14.dp))
 
-            // The food itself, with an unmistakable "not saved" state, and the reason beneath it.
+            // The food itself, with an unmistakable "not logged" state, and the reason beneath it.
             SoftCard(contentPadding = PaddingValues(16.dp)) {
                 Eyebrow(
                     text = if (hardBlock) {
-                        "Save blocked · ${scan.contains.first().allergen} detected"
+                        "Logging blocked · ${scan.contains.first().allergen} detected"
                     } else {
                         "May contain · soft match"
                     },
@@ -165,7 +165,7 @@ fun AllergenWarningSheet(
                         modifier = Modifier.weight(1f),
                     )
                     IntakeChip(
-                        text = if (hardBlock) "not saved" else "review",
+                        text = if (hardBlock) "not logged" else "review",
                         tone = if (hardBlock) ChipTone.Bad else ChipTone.Warn,
                     )
                 }
@@ -210,7 +210,7 @@ fun AllergenWarningSheet(
                         )
                         Spacer(Modifier.size(8.dp))
                         Text(
-                            text = "Save is blocked until you make a choice",
+                            text = "Logging is blocked until you make a choice",
                             style = MaterialTheme.typography.labelMedium,
                         )
                     }

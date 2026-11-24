@@ -117,19 +117,19 @@ fun SettingControl(
             HEALTH_FAMILIES.any { id.startsWith(it) } -> HealthControl(id)
             else -> when (id) {
                 // ---- Appearance and units ----
-                "weightUnit" -> SettingRow("Weight", "Display unit. Stored in kg whatever you pick.") {
+                "weightUnit" -> SettingRow("Weight", "Display unit. Stored in kg whatever you pick.", stackOnLargeFont = true) {
                     Segmented(WeightUnit.entries.map { it.label }, WeightUnit.entries.indexOf(s.weightUnit), { viewModel.setWeightUnit(WeightUnit.entries[it]) })
                 }
-                "lengthUnit" -> SettingRow("Length", "Display unit. Stored in cm whatever you pick.") {
+                "lengthUnit" -> SettingRow("Length", "Display unit. Stored in cm whatever you pick.", stackOnLargeFont = true) {
                     Segmented(LengthUnit.entries.map { it.label }, LengthUnit.entries.indexOf(s.lengthUnit), { viewModel.setLengthUnit(LengthUnit.entries[it]) })
                 }
-                "volumeUnit" -> SettingRow("Drinks and water", "Display unit for drinks, water and quick sizes.") {
+                "volumeUnit" -> SettingRow("Drinks and water", "Display unit for drinks, water and quick sizes.", stackOnLargeFont = true) {
                     Segmented(VolumeUnit.entries.map { it.label }, VolumeUnit.entries.indexOf(s.volumeUnit), { viewModel.setVolumeUnit(VolumeUnit.entries[it]) })
                 }
-                "portionUnit" -> SettingRow("Food portions", "Used in the photo estimate and food detail.") {
+                "portionUnit" -> SettingRow("Food portions", "Used in the photo estimate and food detail.", stackOnLargeFont = true) {
                     Segmented(PortionUnit.entries.map { it.label }, PortionUnit.entries.indexOf(s.portionUnit), { viewModel.setPortionUnit(PortionUnit.entries[it]) })
                 }
-                "themeMode" -> SettingRow("Theme", "System follows your phone.") {
+                "themeMode" -> SettingRow("Theme", "System follows your phone.", stackOnLargeFont = true) {
                     Segmented(
                         ThemeMode.entries.map { it.name.lowercase().replaceFirstChar(Char::uppercase) },
                         ThemeMode.entries.indexOf(s.themeMode),

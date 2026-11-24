@@ -77,6 +77,24 @@ class MainActivity : ComponentActivity() {
         setContent {
             val settings by settingsRepository.settings.collectAsState(initial = AppSettings())
             val windowSize = calculateWindowSizeClass(this)
+            // The status and navigation bar icons follow the app's own theme, not the phone's: an app on Dark over a light
+            // phone would otherwise get dark icons on a dark bar and a light grey navigation bar (Q10-6).
+            val systemDark = androidx.compose.foundation.isSystemInDarkTheme()
+            val appDark = when (settings.themeMode) {
+                com.zeroindex.intake.data.settings.ThemeMode.SYSTEM -> systemDark
+                com.zeroindex.intake.data.settings.ThemeMode.LIGHT -> false
+                com.zeroindex.intake.data.settings.ThemeMode.DARK -> true
+            }
+            androidx.compose.runtime.LaunchedEffect(appDark) {
+                val transparent = android.graphics.Color.TRANSPARENT
+                enableEdgeToEdge(
+                    statusBarStyle = androidx.activity.SystemBarStyle.auto(transparent, transparent) { appDark },
+                    navigationBarStyle = androidx.activity.SystemBarStyle.auto(
+                        android.graphics.Color.argb(0xe6, 0xFF, 0xFF, 0xFF),
+                        android.graphics.Color.argb(0x80, 0x1b, 0x1b, 0x1b),
+                    ) { appDark },
+                )
+            }
             IntakeTheme(
                 themeMode = settings.themeMode,
                 dynamicColor = settings.dynamicColor,

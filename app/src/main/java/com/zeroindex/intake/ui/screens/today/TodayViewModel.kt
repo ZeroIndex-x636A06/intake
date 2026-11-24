@@ -253,7 +253,9 @@ class TodayViewModel @Inject constructor(
 
     fun deleteWater(log: HydrationLogEntity) = viewModelScope.launch {
         hydrationRepository.delete(log.id)
-        messages.post(AppMessage("Removed ${log.drinkType.label.lowercase()}", "Undo") { hydrationRepository.restore(log) })
+        // Says how much, in the person's unit: "Removed 8 fl oz water".
+        val amount = uiState.value.settings.volumeUnit.format(log.volumeMl)
+        messages.post(AppMessage("Removed $amount ${log.drinkType.label.lowercase()}", "Undo") { hydrationRepository.restore(log) })
     }
     fun restoreWater(log: HydrationLogEntity) = viewModelScope.launch { hydrationRepository.restore(log) }
 

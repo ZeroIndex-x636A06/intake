@@ -380,7 +380,7 @@ private fun MacroCards(model: DashboardModel, showSplit: Boolean, shares: MacroS
     val c = MaterialTheme.intake
     // The model is protein, carbs, fat (the ring split reads it that way); the cards show protein, fat, carbs as the mockup does.
     val g = model.macros.map { it.value ?: 0.0 }
-    val kcal = MacroRingSplit.kcal(g[0], g[1], g[2])
+    val kcal = MacroRingSplit.kcalOfTotal(g[0], g[1], g[2], model.calories.eaten.toDouble())
     val kcalById = mapOf("protein" to kcal.protein, "carbs" to kcal.carbs, "fat" to kcal.fat)
     val colorById = mapOf("protein" to c.protein, "carbs" to c.carb, "fat" to c.fat)
     val pctById = shares?.let { mapOf("protein" to it.proteinPct, "carbs" to it.carbPct, "fat" to it.fatPct) }
@@ -390,10 +390,9 @@ private fun MacroCards(model: DashboardModel, showSplit: Boolean, shares: MacroS
             Surface(color = c.soft, shape = IntakeShape.InnerCard, modifier = Modifier.weight(1f)) {
                 Column(Modifier.padding(horizontal = 12.dp, vertical = 12.dp)) {
                     Text(row.label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text("${row.value?.roundToInt() ?: 0}", style = NumberSmall.copy(fontSize = 20.sp))
-                        Text(" /${row.target?.roundToInt() ?: "—"} g", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
-                    }
+                    // The value and its target sit on two lines so neither is ever cut, at any width or font size.
+                    Text("${row.value?.roundToInt() ?: 0} g", style = NumberSmall.copy(fontSize = 20.sp), maxLines = 1, softWrap = false)
+                    Text("of ${row.target?.roundToInt() ?: "—"} g", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
                     Spacer(Modifier.height(6.dp))
                     AnimatedBar(row.fraction, colorById.getValue(row.id), MaterialTheme.colorScheme.surface, height = 8.dp)
                     Spacer(Modifier.height(5.dp))

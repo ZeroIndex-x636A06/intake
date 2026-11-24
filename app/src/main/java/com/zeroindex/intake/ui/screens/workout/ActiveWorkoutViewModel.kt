@@ -130,6 +130,7 @@ class ActiveWorkoutViewModel @Inject constructor(
     private val repository: TrainingRepository,
     private val settingsRepository: SettingsRepository,
     private val pauseStore: WorkoutPauseStore,
+    private val messages: com.zeroindex.intake.ui.AppMessages,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -249,6 +250,16 @@ class ActiveWorkoutViewModel @Inject constructor(
     /** "+ Add set": one more row for this exercise. */
     fun addSet(exerciseId: String) {
         extraRows.value = extraRows.value + (exerciseId to ((extraRows.value[exerciseId] ?: 0) + 1))
+        messages.post(com.zeroindex.intake.ui.AppMessage("Set added to this exercise.", "Undo") { undoAddSet(exerciseId) })
+    }
+
+    /** Undo for [addSet]: takes the extra row out again, unless a set has been logged into it since (nothing logged is ever hidden). */
+    private fun undoAddSet(exerciseId: String) {
+        val state = uiState.value
+        val planned = state.prescriptions.firstOrNull { it.exercise.id == exerciseId }?.prescription?.sets ?: 0
+        val extra = extraRows.value[exerciseId] ?: 0
+        val logged = state.setsFor(exerciseId).count { !it.isWarmup }
+        if (extra > 0 && planned + extra > logged) extraRows.value = extraRows.value + (exerciseId to extra - 1)
     }
 
     /** Move an exercise one place earlier or later (a rack might be taken). */

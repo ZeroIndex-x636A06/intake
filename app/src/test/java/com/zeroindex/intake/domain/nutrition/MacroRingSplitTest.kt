@@ -68,4 +68,18 @@ class MacroRingSplitTest {
     fun `the arc fraction is clamped`() {
         assertThat(MacroRingSplit.segments(10.0, 10.0, 10.0, 3f).sumOf { it.sweepDegrees.toDouble() }).isWithin(0.01).of(360.0)
     }
+
+    @Test
+    fun `tile kcal add up to the eaten total (Q10-7)`() {
+        // Pass 10: 272 + 306 + 659 = 1,237 on the tiles against 1,222 eaten.
+        val k = MacroRingSplit.kcalOfTotal(68.0, 164.7, 34.0, 1222.0)
+        assertThat(k.protein + k.carbs + k.fat).isEqualTo(1222)
+        assertThat(k.carbs).isGreaterThan(k.protein)
+    }
+
+    @Test
+    fun `without a total the plain 4, 4, 9 figures are kept`() {
+        assertThat(MacroRingSplit.kcalOfTotal(34.0, 84.0, 16.0, null)).isEqualTo(MacroRingSplit.kcal(34.0, 84.0, 16.0))
+        assertThat(MacroRingSplit.kcalOfTotal(0.0, 0.0, 0.0, 500.0)).isEqualTo(MacroRingSplit.Kcal(0, 0, 0))
+    }
 }
