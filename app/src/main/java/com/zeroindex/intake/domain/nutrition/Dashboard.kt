@@ -65,7 +65,7 @@ object NutritionDashboard {
         }
         val others = listOf(
             DashRow("fiber", "Fiber", day.fiber.value, "g", ReferenceLimits.FIBER_G, true, day.fiber.note),
-            DashRow("satfat", "Sat fat", day.saturatedFat.value, "g", ReferenceLimits.SATURATED_FAT_G, true, day.saturatedFat.note),
+            DashRow("satfat", "Saturated fat", day.saturatedFat.value, "g", ReferenceLimits.SATURATED_FAT_G, true, day.saturatedFat.note),
             DashRow("sugar", "Sugar", day.sugar.value, "g", null, false, day.sugar.note),
             sodiumRow,
         ).filter { showSodiumTile || (it.id != "sodium" && it.id != "salt") }

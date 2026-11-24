@@ -181,10 +181,13 @@ private fun SheetBody(
                 modifier = Modifier.padding(start = 12.dp),
             )
         }
+        // One label size for every tile (Q8-4): the size is the largest step at which the longest label fits on one line, and it
+        // is shared, so "Measurements" no longer sits smaller than its neighbours.
+        val labelScale = remember(tiles, columns) { androidx.compose.runtime.mutableFloatStateOf(1f) }
         Column(verticalArrangement = Arrangement.spacedBy(IntakeSpacing.GridGap3)) {
             tiles.chunked(columns).forEach { rowTiles ->
                 Row(horizontalArrangement = Arrangement.spacedBy(IntakeSpacing.GridGap3)) {
-                    rowTiles.forEach { tile -> QuickTileButton(tile, onClick = { onTile(tile) }, modifier = Modifier.weight(1f)) }
+                    rowTiles.forEach { tile -> QuickTileButton(tile, labelScale, onClick = { onTile(tile) }, modifier = Modifier.weight(1f)) }
                     // Keep the last row's tiles the same width as the rest.
                     repeat(columns - rowTiles.size) { Box(Modifier.weight(1f)) }
                 }
@@ -210,7 +213,7 @@ private fun SheetBody(
 }
 
 @Composable
-private fun QuickTileButton(tile: QuickTile, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun QuickTileButton(tile: QuickTile, labelScale: androidx.compose.runtime.MutableFloatState, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val c = MaterialTheme.intake
     val (bg, fg) = when (tile.look) {
         QuickTileLook.Soft -> c.soft to MaterialTheme.colorScheme.onSurface
@@ -229,16 +232,15 @@ private fun QuickTileButton(tile: QuickTile, onClick: () -> Unit, modifier: Modi
     ) {
         Icon(tile.icon(), contentDescription = null, tint = fg, modifier = Modifier.size(IconSize.Default))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            // A single long word ("Measurements") is shrunk a step at a time until it fits on one line, never broken mid-word.
-            var shrink by remember(label) { androidx.compose.runtime.mutableFloatStateOf(1f) }
+            // A single long word ("Measurements") shrinks the shared label size a step at a time until it fits on one line, never broken mid-word.
             val base = MaterialTheme.typography.titleSmall
             Text(
                 label,
                 color = fg,
-                style = base.copy(fontSize = base.fontSize * shrink),
+                style = base.copy(fontSize = base.fontSize * labelScale.floatValue),
                 fontWeight = FontWeight.SemiBold,
                 softWrap = !label.none { it == ' ' },
-                onTextLayout = { r -> if (r.didOverflowWidth && shrink > 0.7f) shrink -= 0.05f },
+                onTextLayout = { r -> if (r.didOverflowWidth && labelScale.floatValue > 0.7f) labelScale.floatValue -= 0.05f },
                 modifier = Modifier.weight(1f, fill = false),
             )
             if (QuickLogPolicy.showsAiChip(tile)) IntakeChip(text = stringResource(R.string.quick_log_ai), tone = ChipTone.Ai, small = true)

@@ -25,11 +25,16 @@ object ManualTargets {
         lastManual(history)?.takeIf { it != active }
 
     /**
-     * The macros to store for a typed calorie figure. Retyping the same calories as the last hand-set target keeps that
-     * target's own protein, carbs and fat; anything else is split from [computed] (body weight times the Settings g/kg).
+     * The macros to store for a typed calorie figure. Retyping the calories of the active target, or of the last hand-set target, keeps that
+     * target's own protein, carbs and fat (the active one first); anything else is split from [computed] (body weight times the Settings g/kg).
      */
-    fun forTypedKcal(kcal: Int, lastManual: MacroTarget?, computed: MacroTarget): MacroTarget =
-        if (lastManual != null && lastManual.kcal == kcal) lastManual else computed
+    fun forTypedKcal(kcal: Int, lastManual: MacroTarget?, computed: MacroTarget, active: MacroTarget? = null): MacroTarget =
+        when {
+            // Saving the figure that is already the target changes nothing (Q8-9: 170 / 245 g drifted to 166 / 242 g).
+            active != null && active.kcal == kcal -> active
+            lastManual != null && lastManual.kcal == kcal -> lastManual
+            else -> computed
+        }
 
     /** Calories at rest times [PhasePlanner.FLOOR_OF_BMR], rounded: the lowest target the app plans without an override. */
     fun floorKcal(bmrKcal: Double): Int = (bmrKcal * PhasePlanner.FLOOR_OF_BMR).roundToInt()

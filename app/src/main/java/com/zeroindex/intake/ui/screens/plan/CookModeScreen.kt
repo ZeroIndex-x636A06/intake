@@ -246,7 +246,7 @@ fun CookModeScreen(
     }
     pending?.let { p ->
         AllergenWarningSheet(
-            onFindSwap = com.zeroindex.intake.ui.allergen.rememberFindSwap(),
+            onFindSwap = com.zeroindex.intake.ui.allergen.rememberFindSwap(pickedSlot.name),
             foodName = p.name,
             scan = p.scan,
             ingredientText = p.ingredientText,

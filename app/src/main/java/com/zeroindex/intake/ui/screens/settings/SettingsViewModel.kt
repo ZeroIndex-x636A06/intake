@@ -157,7 +157,7 @@ class SettingsViewModel @Inject constructor(
         )
         val lastManual = com.zeroindex.intake.domain.goals.ManualTargets.lastManual(targetRepository.points())
         targetRepository.setTarget(
-            com.zeroindex.intake.domain.goals.ManualTargets.forTypedKcal(kcal, lastManual, computed),
+            com.zeroindex.intake.domain.goals.ManualTargets.forTypedKcal(kcal, lastManual, computed, active = targetRepository.points().maxByOrNull { it.effectiveFrom }?.target),
             isAutoCalculated = false,
         )
         settingsRepository.setAutoCalculateTargets(false)

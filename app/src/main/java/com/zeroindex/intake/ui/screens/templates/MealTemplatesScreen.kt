@@ -147,6 +147,8 @@ fun MealTemplatesScreen(
             title = "Log ${t.template.name} to",
             onDismiss = { logging = null },
             onPick = { slot -> viewModel.logNow(t, slot); logging = null },
+            // A template is food: Drinks is not a slot to log it to (Q5a-9).
+            slots = com.zeroindex.intake.domain.model.MealSlot.MEALS,
         )
     }
     state.pending?.let { p ->

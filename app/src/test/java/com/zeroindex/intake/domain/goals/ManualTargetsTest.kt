@@ -37,6 +37,15 @@ class ManualTargetsTest {
         assertThat(ManualTargets.forTypedKcal(2260, null, computed)).isEqualTo(computed)
     }
 
+    @Test fun `saving the calories of the active target keeps its macros`() {
+        val active = MacroTarget(2260, 170, 245, 70)
+        val computed = MacroTarget(2260, 166, 242, 70)
+        val lastManual = MacroTarget(1000, 100, 100, 30)
+        assertThat(ManualTargets.forTypedKcal(2260, lastManual, computed, active)).isEqualTo(active)
+        assertThat(ManualTargets.forTypedKcal(1000, lastManual, computed, active)).isEqualTo(lastManual)
+        assertThat(ManualTargets.forTypedKcal(2300, lastManual, computed, active)).isEqualTo(computed)
+    }
+
     @Test fun `a manual target below the floor warns, at or above does not`() {
         val floor = ManualTargets.floorKcal(bmrKcal = 1_800.0)
         assertThat(floor).isEqualTo(1980)

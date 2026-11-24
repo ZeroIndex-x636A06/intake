@@ -304,7 +304,10 @@ private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, sta
                     startOnboarding = startOnboarding,
                 )
             }
-            NavigationBarScrim()
+            NavigationBarScrim(
+                // Cook mode is always dark and draws its own ground (Q8-2): its bar area must match it, not the app background.
+                dark = currentDestination?.hasRoute(Route.CookMode::class) == true,
+            )
             // The Quick log sheet sits under the dock (the dock stays visible above the scrim) and over the screen.
             if (pillVisible) {
                 QuickLogSheet(
@@ -407,9 +410,9 @@ private fun selectTab(
  * floating dock and the gesture pill are left alone. It draws only; it takes no touches.
  */
 @Composable
-private fun NavigationBarScrim() {
+private fun NavigationBarScrim(dark: Boolean = false) {
     val tappable = WindowInsets.tappableElement
-    val color = MaterialTheme.colorScheme.background
+    val color = if (dark) com.zeroindex.intake.ui.theme.BgDark else MaterialTheme.colorScheme.background
     val direction = LocalLayoutDirection.current
     Box(
         Modifier.fillMaxSize().drawBehind {

@@ -263,7 +263,11 @@ fun IntakeChip(
         Row(
             modifier = Modifier
                 .heightIn(min = if (small) 20.dp else 28.dp)
-                .padding(horizontal = if (small) 6.dp else 10.dp, vertical = 2.dp),
+                .padding(
+                    horizontal = if (small) 6.dp else if (maxLines > 1) 12.dp else 10.dp,
+                    // A wrapping chip needs room above and below its first and last lines; the pill's full radius cut into them.
+                    vertical = if (maxLines > 1 && !small) 6.dp else 2.dp,
+                ),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
@@ -277,6 +281,8 @@ fun IntakeChip(
             )
         }
     }
+    // A fully round pill on several lines puts its curve through the text; wrapping chips use a 14 dp corner instead.
+    val chipShape = if (maxLines > 1 && !small) androidx.compose.foundation.shape.RoundedCornerShape(14.dp) else IntakeShape.Chip
     val outline = if (tone == ChipTone.Outline) {
         androidx.compose.foundation.BorderStroke(1.5.dp, scheme.outlineVariant)
     } else {
@@ -287,14 +293,14 @@ fun IntakeChip(
             onClick = onClick,
             color = bg,
             contentColor = fg,
-            shape = IntakeShape.Chip,
+            shape = chipShape,
             border = outline,
             // A 28 dp chip keeps a 44 dp hit area.
             modifier = modifier.minimumInteractiveComponentSize(),
             content = body,
         )
     } else {
-        Surface(color = bg, contentColor = fg, shape = IntakeShape.Chip, border = outline, modifier = modifier, content = body)
+        Surface(color = bg, contentColor = fg, shape = chipShape, border = outline, modifier = modifier, content = body)
     }
 }
 
