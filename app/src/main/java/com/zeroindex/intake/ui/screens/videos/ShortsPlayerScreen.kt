@@ -33,6 +33,11 @@ import com.zeroindex.intake.data.video.direct.ResolvedSource
 import com.zeroindex.intake.domain.videos.PlayerKind
 import com.zeroindex.intake.domain.videos.ShortsQueue
 import com.zeroindex.intake.domain.videos.VideoMeta
+import com.zeroindex.intake.domain.videos.YoutubeIds
+import com.zeroindex.intake.ui.screens.videos.player.IntakeVideoPlayer
+import com.zeroindex.intake.ui.screens.videos.player.PlayerSource
+import com.zeroindex.intake.ui.screens.videos.player.PlayerStyle
+import com.zeroindex.intake.ui.screens.videos.player.rememberPlayerSession
 import com.zeroindex.intake.ui.navigation.Route
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -102,15 +107,28 @@ fun ShortsPlayerScreen(contentPadding: PaddingValues, modifier: Modifier = Modif
         val current = pager.currentPage == index
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             val source = page?.source
-            when {
-                source == null -> CircularProgressIndicator(color = Color.White)
-                source.kind == PlayerKind.YOUTUBE && YoutubeEmbed.isValidId(id) ->
-                    if (current) YoutubePlayer(videoId = id, startSec = 0, thumbnailUrl = page.meta?.thumbnailUrl, durationSec = page.meta?.durationSec ?: 0)
-                    else CircularProgressIndicator(color = Color.White)
-                source.location != null -> DirectVideoPlayer(kind = source.kind, location = source.location, modifier = Modifier.fillMaxSize(), playing = current, loop = true)
+            val playerSource = when {
+                source == null -> null
+                source.kind == PlayerKind.YOUTUBE && YoutubeEmbed.isValidId(id) -> PlayerSource.Youtube(id)
+                source.kind != PlayerKind.YOUTUBE && source.location != null -> PlayerSource.Media(source.kind, source.location)
+                else -> null
+            }
+            // YouTube's player is built only for the page in view; a Media3 page is built for each page but plays only in view.
+            if (playerSource == null || (playerSource is PlayerSource.Youtube && !current)) {
+                CircularProgressIndicator(color = Color.White)
+            } else {
+                IntakeVideoPlayer(
+                    source = playerSource,
+                    session = rememberPlayerSession(startedInitially = true),
+                    style = PlayerStyle.Shorts,
+                    active = current,
+                    loopWhole = true,
+                    openInYoutubeUrl = if (YoutubeEmbed.isValidId(id)) YoutubeIds.watchUrl(id) else null,
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
             Column(
-                Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Color.Black.copy(alpha = 0.45f)).padding(horizontal = 16.dp, vertical = 12.dp),
+                Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(bottom = 24.dp).background(Color.Black.copy(alpha = 0.45f)).padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(page?.meta?.title ?: "YouTube Short", style = MaterialTheme.typography.titleSmall, color = Color.White, maxLines = 2)

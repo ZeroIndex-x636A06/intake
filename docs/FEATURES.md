@@ -489,7 +489,10 @@ Covered in section 8.6 (cross-cutting) with the screens here:
   search", "No videos to show", "No more pages: today's free searches are nearly used up." Overflow: "How Videos works",
   "Clear cached video information". Without a key: "Videos use YouTube and your own free key", "Add a key in Settings >
   API keys", "How do I get a key?".
-- **Video detail** (route `VideoDetail`): player (YouTube, or direct playback when on), chapters, "Hide description" /
+- **Video detail** (route `VideoDetail`): Intake's own player for both YouTube and direct playback (big play/pause,
+  double-tap left or right to jump 10 s, a scrubber with chapter ticks and the chapter name while dragging, elapsed and
+  remaining time, speed 0.5x to 2x, **Repeat this chapter**, **Fullscreen**; controls hide after 3 s; error state with
+  **Try again** and **Open in YouTube**), chapters (a tap seeks the playing video; the playing chapter is marked "Playing"), "Hide description" /
   "Show description", **Share link**, **Make this a workout**, "Download to this phone" (only when offline downloads are on),
   **Cancel download**, "Downloaded", **More like this**, Save to watch later and "Remove from saved". Message: "You already
   made a workout from this. Open it".
@@ -498,7 +501,7 @@ Covered in section 8.6 (cross-cutting) with the screens here:
   [AI, needs key], a draft list with **Include** / **Left out** per exercise, name, sets, seconds or reps, rest, "Use
   another", "Pick from library", count reps or timed, move, remove. **Save workout**, **Save and start**. "Turn on at least
   one exercise to save."
-- **Shorts player**: "YouTube Short", "Swipe up for the next Short."
+- **Shorts player**: "YouTube Short", "Swipe up for the next Short." Same player in a minimal form: tap to pause, a thin scrubber.
 
 ---
 
@@ -859,7 +862,7 @@ Rule: no feature needs AI. Targets, allergens, plans, lookups and parsing never 
   the key steps. Recommended videos come from this phone's own data (switch: personalise).
 - Filters: workouts only [on], hide Shorts [on], muscle group, style, duration. Badges: Workout, Maybe, Not a workout.
 - Saved videos to watch later; a saved strip on the Videos segment.
-- Video detail: player, chapters, share link, make this a workout.
+- Video detail: the in-app player (same controls for YouTube and direct playback), chapters that seek it, share link, make this a workout.
 - **Make this a workout** reads chapters and the description on the phone first; no AI unless you tap **Improve with AI**.
   The result is a My workout (Train).
 - Direct playback and offline downloads: [off by default; setting "Offline downloads and direct playback"]. Not an official

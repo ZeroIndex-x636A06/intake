@@ -21,6 +21,26 @@ class YoutubeEmbedTest {
     }
 
     @Test
+    fun `the api page turns youtube's controls off and keeps the nocookie host`() {
+        val html = YoutubeEmbed.apiHtml("dQw4w9WgXcQ", 95, autoplay = true)
+        assertThat(html).contains("controls:0")
+        assertThat(html).contains("modestbranding:1")
+        assertThat(html).contains("playsinline:1")
+        assertThat(html).contains("rel:0")
+        assertThat(html).contains("host:'https://www.youtube-nocookie.com'")
+        assertThat(html).contains("videoId:'dQw4w9WgXcQ'")
+        assertThat(html).contains("start:95")
+        assertThat(html).contains("autoplay:1")
+        assertThat(YoutubeEmbed.apiHtml("dQw4w9WgXcQ", -5, autoplay = false)).contains("start:0,autoplay:0")
+    }
+
+    @Test
+    fun `the api page refuses an id that is not a video id`() {
+        val r = runCatching { YoutubeEmbed.apiHtml("a'});alert(1)//", 0) }
+        assertThat(r.isFailure).isTrue()
+    }
+
+    @Test
     fun `only the embed host may load`() {
         assertThat(YoutubeEmbed.allowsHost("www.youtube-nocookie.com")).isTrue()
         assertThat(YoutubeEmbed.allowsHost("evil.example.com")).isFalse()

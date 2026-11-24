@@ -6,8 +6,6 @@ import com.zeroindex.intake.ui.theme.IconSize
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.ui.draw.clip
 import com.zeroindex.intake.data.video.direct.DownloadState
 import com.zeroindex.intake.domain.videos.DirectPlayback
 import com.zeroindex.intake.domain.videos.PlayerKind
@@ -31,7 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -47,6 +45,12 @@ import com.zeroindex.intake.domain.videos.YoutubeIds
 import com.zeroindex.intake.ui.components.ErrorState
 import com.zeroindex.intake.ui.components.Tag
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.tabular
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import com.zeroindex.intake.ui.screens.videos.player.IntakeVideoPlayer
+import com.zeroindex.intake.ui.screens.videos.player.PlayerSource
+import com.zeroindex.intake.ui.screens.videos.player.rememberPlayerSession
 
 /**
  * Video detail (IA v5 7b): the official player, the title and what the workout filter thinks in plain words, Make this a
@@ -62,7 +66,7 @@ fun VideoDetailScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    var startSec by remember { mutableIntStateOf(0) }
+    val session = rememberPlayerSession()
     var showDescription by remember { mutableStateOf(false) }
     val meta = state.meta
 
@@ -89,17 +93,21 @@ fun VideoDetailScreen(
     ) {
         item(key = "player") {
             val source = state.source
-            if (source != null && source.kind != PlayerKind.YOUTUBE && source.location != null) {
-                // Downloaded file or yt-dlp stream: the in-app player, landscape-capable, no ads.
-                DirectVideoPlayer(
-                    kind = source.kind,
-                    location = source.location,
-                    startSec = startSec,
-                    modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(IntakeShape.Thumb),
-                    playing = startSec > 0,
+            val playerSource = when {
+                source != null && source.kind != PlayerKind.YOUTUBE && source.location != null -> PlayerSource.Media(source.kind, source.location)
+                YoutubeEmbed.isValidId(state.videoId) -> PlayerSource.Youtube(state.videoId)
+                else -> null
+            }
+            if (playerSource != null) {
+                // One first-party player for both backends: YouTube's player or the in-app one, Intake's controls on top.
+                IntakeVideoPlayer(
+                    source = playerSource,
+                    session = session,
+                    chapters = state.chapters,
+                    thumbnailUrl = meta?.thumbnailUrl,
+                    durationHintSec = meta?.durationSec ?: 0,
+                    openInYoutubeUrl = if (YoutubeEmbed.isValidId(state.videoId)) YoutubeIds.watchUrl(state.videoId) else null,
                 )
-            } else if (YoutubeEmbed.isValidId(state.videoId)) {
-                YoutubePlayer(videoId = state.videoId, startSec = startSec, thumbnailUrl = meta?.thumbnailUrl, durationSec = meta?.durationSec ?: 0)
             } else {
                 ErrorState(title = "Not a YouTube video", body = "That link does not have a video id Intake can play.")
             }
@@ -211,19 +219,33 @@ fun VideoDetailScreen(
         if (state.chapters.isNotEmpty()) {
             item(key = "chapters-head") { Text("Chapters", style = MaterialTheme.typography.titleLarge) }
             item(key = "chapters") {
+                // The playing chapter is a derived value: this list redraws when the chapter changes, not on every clock tick.
+                val current by remember(state.chapters) { derivedStateOf { session.currentChapter(state.chapters) } }
                 Column {
                     state.chapters.forEachIndexed { i, c ->
+                        val isCurrent = i == current
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .heightIn(min = 48.dp)
-                                .clickable(role = Role.Button, onClickLabel = "Play from ${YoutubeIds.clock(c.startSec)}") { startSec = c.startSec }
+                                .clickable(role = Role.Button, onClickLabel = "Play from ${YoutubeIds.clock(c.startSec)}") { session.seekToSec(c.startSec) }
+                                .semantics { if (isCurrent) stateDescription = "Playing now" }
                                 .padding(vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(14.dp),
                         ) {
-                            Text(YoutubeIds.clock(c.startSec), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                            Text(c.title, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                            Text(
+                                YoutubeIds.clock(c.startSec),
+                                style = MaterialTheme.typography.labelLarge.tabular(),
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                            Text(
+                                c.title,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (isCurrent) androidx.compose.ui.text.font.FontWeight.SemiBold else null,
+                                modifier = Modifier.weight(1f),
+                            )
+                            if (isCurrent) Tag("Playing")
                         }
                         if (i != state.chapters.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
