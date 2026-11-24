@@ -29,6 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -228,7 +229,18 @@ private fun QuickTileButton(tile: QuickTile, onClick: () -> Unit, modifier: Modi
     ) {
         Icon(tile.icon(), contentDescription = null, tint = fg, modifier = Modifier.size(IconSize.Default))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(label, color = fg, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f, fill = false))
+            // A single long word ("Measurements") is shrunk a step at a time until it fits on one line, never broken mid-word.
+            var shrink by remember(label) { androidx.compose.runtime.mutableFloatStateOf(1f) }
+            val base = MaterialTheme.typography.titleSmall
+            Text(
+                label,
+                color = fg,
+                style = base.copy(fontSize = base.fontSize * shrink),
+                fontWeight = FontWeight.SemiBold,
+                softWrap = !label.none { it == ' ' },
+                onTextLayout = { r -> if (r.didOverflowWidth && shrink > 0.7f) shrink -= 0.05f },
+                modifier = Modifier.weight(1f, fill = false),
+            )
             if (QuickLogPolicy.showsAiChip(tile)) IntakeChip(text = stringResource(R.string.quick_log_ai), tone = ChipTone.Ai, small = true)
         }
     }

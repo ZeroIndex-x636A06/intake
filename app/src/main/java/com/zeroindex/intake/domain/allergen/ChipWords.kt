@@ -13,14 +13,25 @@ object ChipWords {
      * never its title. The warning itself is never dropped: [matches] decides the tier, this only words the chip.
      */
     fun ingredientTerms(matches: List<AllergenMatch>): String {
-        val fromIngredients = matches.filter { it.field != MatchField.NAME }
-        if (fromIngredients.isEmpty()) return allergenNames(matches)
-        val terms = fromIngredients.map { it.matchedTerm }.distinct()
+        val terms = ingredientTermList(matches)
         return when (terms.size) {
             0 -> ""
             1 -> terms[0]
             else -> terms.dropLast(1).joinToString(", ") + " and " + terms.last()
         }
+    }
+
+    /**
+     * The same terms as a list, for the Plan and Swap rows (Q7-14): the matched terms of the hits that are not in the item's own
+     * name (the title's "mac and cheese" is never listed as a matched term while an ingredient hit exists). With only name hits
+     * the list holds the allergen names. Empty only when there are no hits. This words the list; it never changes a verdict.
+     */
+    fun ingredientTermList(matches: List<AllergenMatch>): List<String> {
+        val fromIngredients = matches.filter { it.field != MatchField.NAME }
+        if (fromIngredients.isEmpty()) {
+            return matches.map { it.allergen.trim().lowercase() }.filter { it.isNotEmpty() }.distinct()
+        }
+        return fromIngredients.map { it.matchedTerm }.distinct()
     }
 
     /** "dairy", "dairy and egg", "dairy, egg and soy": the distinct allergens of [matches], in the order given. */

@@ -6,7 +6,7 @@ enum class QuickAddField(val label: String, val unit: String, val max: Double) {
     PROTEIN("Protein", "g", 500.0),
     CARBS("Carbs", "g", 500.0),
     FAT("Fat", "g", 500.0),
-    FIBRE("Fibre", "g", 300.0),
+    FIBRE("Fiber", "g", 300.0),
     SUGAR("Sugar", "g", 300.0),
     SODIUM("Sodium", "mg", 20000.0),
 }

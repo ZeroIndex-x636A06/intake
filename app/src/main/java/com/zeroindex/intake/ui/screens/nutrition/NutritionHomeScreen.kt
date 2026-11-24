@@ -242,7 +242,7 @@ private fun OverviewCard(
         Spacer(Modifier.height(4.dp))
         ListDivider()
         Spacer(Modifier.height(2.dp))
-        // Fibre, saturated fat, sugar and salt or sodium: reference limits where a limit exists, "not listed" when unknown.
+        // Fiber, saturated fat, sugar and salt or sodium: reference limits where a limit exists, "not listed" when unknown.
         model.others.chunked(2).forEach { pair ->
             Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 pair.forEach { row -> Box(Modifier.weight(1f)) { SmallBar(row) } }
@@ -264,7 +264,7 @@ private fun OverviewCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    "Fibre, saturated fat and salt are measured against common reference limits, not a personal target.",
+                    "Fiber, saturated fat and salt are measured against common reference limits, not a personal target.",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -378,26 +378,28 @@ private fun CalorieRingView(model: DashboardModel, showSplit: Boolean, protein: 
 @Composable
 private fun MacroCards(model: DashboardModel, showSplit: Boolean, shares: MacroShares.Shares?) {
     val c = MaterialTheme.intake
-    val colors = listOf(c.protein, c.carb, c.fat)
+    // The model is protein, carbs, fat (the ring split reads it that way); the cards show protein, fat, carbs as the mockup does.
     val g = model.macros.map { it.value ?: 0.0 }
     val kcal = MacroRingSplit.kcal(g[0], g[1], g[2])
-    val kcals = listOf(kcal.protein, kcal.carbs, kcal.fat)
-    val pcts = shares?.let { listOf(it.proteinPct, it.carbPct, it.fatPct) }
+    val kcalById = mapOf("protein" to kcal.protein, "carbs" to kcal.carbs, "fat" to kcal.fat)
+    val colorById = mapOf("protein" to c.protein, "carbs" to c.carb, "fat" to c.fat)
+    val pctById = shares?.let { mapOf("protein" to it.proteinPct, "carbs" to it.carbPct, "fat" to it.fatPct) }
+    val ordered = listOf("protein", "fat", "carbs").mapNotNull { id -> model.macros.firstOrNull { it.id == id } }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        model.macros.forEachIndexed { i, row ->
+        ordered.forEach { row ->
             Surface(color = c.soft, shape = IntakeShape.InnerCard, modifier = Modifier.weight(1f)) {
                 Column(Modifier.padding(horizontal = 12.dp, vertical = 12.dp)) {
                     Text(row.label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text("${row.value?.roundToInt() ?: 0}", style = NumberSmall.copy(fontSize = 20.sp))
-                        Text(" /${row.target?.roundToInt() ?: "—"} g", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                        Text(" /${row.target?.roundToInt() ?: "—"} g", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
                     }
                     Spacer(Modifier.height(6.dp))
-                    AnimatedBar(row.fraction, colors[i], MaterialTheme.colorScheme.surface, height = 8.dp)
+                    AnimatedBar(row.fraction, colorById.getValue(row.id), MaterialTheme.colorScheme.surface, height = 8.dp)
                     Spacer(Modifier.height(5.dp))
-                    Text("${KcalFormat.format(kcals[i])} kcal", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    if (showSplit && pcts != null) {
-                        Text("${pcts[i]}% of kcal", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = colors[i])
+                    Text("${KcalFormat.format(kcalById.getValue(row.id))} kcal", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (showSplit && pctById != null) {
+                        Text("${pctById.getValue(row.id)}% of kcal", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = colorById.getValue(row.id))
                     }
                 }
             }

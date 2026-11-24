@@ -443,7 +443,8 @@ class MealPlanRepository @Inject constructor(
             ingredientLines = lines,
             macros = macros,
             allergenStatus = status,
-            allergenTerms = scan.matches.map { it.matchedTerm }.distinct(),
+            // Ingredient words only: the recipe's own title is not a matched term (Q7-14). The verdict above still uses every hit.
+            allergenTerms = com.zeroindex.intake.domain.allergen.ChipWords.ingredientTermList(scan.matches),
             ingredientLineCount = foods.size + textLines.size,
             readLineCount = foods.count { (f, _) -> f.allergenTags.isNotBlank() },
         )

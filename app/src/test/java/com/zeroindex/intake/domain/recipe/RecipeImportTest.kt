@@ -251,7 +251,7 @@ class RecipeImportTest {
 
     @Test fun `nutrition extras list only what the page gave`() {
         assertThat(RecipeNutritionLabels.extras(2.0, 2.0, 37.0, 1179.0)).containsExactly(
-            "Fibre" to "2 g", "Sugar" to "2 g", "Saturated fat" to "37 g", "Sodium" to "1,179 mg",
+            "Fiber" to "2 g", "Sugar" to "2 g", "Saturated fat" to "37 g", "Sodium" to "1,179 mg",
         ).inOrder()
         assertThat(RecipeNutritionLabels.extras(null, 1.5, null, null)).containsExactly("Sugar" to "1.5 g")
         assertThat(RecipeNutritionLabels.extras(null, null, null, null)).isEmpty()

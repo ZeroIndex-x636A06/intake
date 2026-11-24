@@ -17,7 +17,7 @@ object RecipeTimes {
 object RecipeNutritionLabels {
     fun extras(fiberG: Double?, sugarG: Double?, saturatedFatG: Double?, sodiumMg: Double?): List<Pair<String, String>> =
         listOfNotNull(
-            fiberG?.let { "Fibre" to grams(it) },
+            fiberG?.let { "Fiber" to grams(it) },
             sugarG?.let { "Sugar" to grams(it) },
             saturatedFatG?.let { "Saturated fat" to grams(it) },
             sodiumMg?.let { "Sodium" to "${java.text.NumberFormat.getIntegerInstance(java.util.Locale.US).format(Math.round(it))} mg" },

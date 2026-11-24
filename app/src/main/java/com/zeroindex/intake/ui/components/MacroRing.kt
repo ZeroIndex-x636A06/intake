@@ -211,7 +211,7 @@ fun MacroRing(
             MacroBarRow("Fat", progress.consumed.fat, target?.fatG, progress.fatFraction, fatColor, track)
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth()) {
-                Text("Fibre", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                Text("Fiber", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
                 Text(
                     "${progress.consumed.fiber.roundToInt()} g",
                     style = MaterialTheme.typography.labelLarge,

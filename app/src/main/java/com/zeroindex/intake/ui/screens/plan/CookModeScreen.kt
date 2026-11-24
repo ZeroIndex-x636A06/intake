@@ -202,6 +202,11 @@ fun CookModeScreen(
     var finished by rememberSaveable { mutableStateOf(false) }
     var picking by remember { mutableStateOf(false) }
     var pickedSlot by remember { mutableStateOf(MealSlot.DINNER) }
+    // Cook mode is a dark surface drawn outside any Surface, so LocalContentColor would stay the default near-black: set it to the
+    // dark theme's on-surface so every Text without an explicit colour (the step text, "INGREDIENTS") reads on the dark ground.
+    androidx.compose.runtime.CompositionLocalProvider(
+        androidx.compose.material3.LocalContentColor provides MaterialTheme.colorScheme.onSurface,
+    ) {
     Column(Modifier.fillMaxSize().padding(contentPadding)) {
         if (recipe == null || steps.isEmpty()) {
             Column(Modifier.padding(IntakeSpacing.ScreenGutter), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -215,6 +220,7 @@ fun CookModeScreen(
         } else {
             CookPager(recipe!!, steps, ingredients, onClose, onFinished = { finished = true })
         }
+    }
     }
 
     if (finished && recipe != null) {
@@ -418,10 +424,10 @@ private fun Checklist(
     onOpen: (Boolean) -> Unit,
 ) {
     IntakeCard(modifier = Modifier.fillMaxWidth()) {
+        // The eyebrow has its own line: sharing one with the stepper left it a few dp and broke "INGREDIENTS" mid-word.
+        Eyebrow("Ingredients · ${ticked.size} of ${ingredients.size} ready")
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Eyebrow("Ingredients · ${ticked.size} of ${ingredients.size} ready")
-            }
+            Spacer(Modifier.weight(1f))
             Surface(color = MaterialTheme.intake.soft, shape = IntakeShape.Pill) {
                 Row(Modifier.padding(3.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconCircleButton(IntakeIcons.Minus, "Fewer servings", onClick = { onServings(servings - 1) })
