@@ -44,7 +44,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -296,7 +295,7 @@ fun ProgressPhotosScreen(
     }
 
     if (pickingDate) {
-        val pickerState = rememberDatePickerState(initialSelectedDateMillis = date.atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli())
+        val pickerState = com.zeroindex.intake.ui.components.rememberMondayFirstDatePickerState(initialSelectedDateMillis = date.atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli())
         DatePickerDialog(
             onDismissRequest = { pickingDate = false },
             confirmButton = {

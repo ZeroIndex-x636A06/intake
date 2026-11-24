@@ -28,6 +28,27 @@ dump() { timeout 150 $UI dump 2>/dev/null; }
 # wait_for "text" [tries]: poll the UI dump until a node's text contains $1 (case-insensitive)
 wait_for() { local i; for i in $(seq 1 ${2:-12}); do dump | grep -qi -- "$1" && return 0; sleep 5; done; say "timed out waiting for: $1"; return 1; }
 tap() { timeout 150 $UI tap "$1" ${2:-0} >/dev/null 2>&1; }
+# skip_tour: "Skip setup" ends the welcome and starts the 6-step Today tour (a "Skip tour" button over the screen); it appears
+# some seconds later on this emulator and covers the dock and top bar, so dismiss it before using either.
+skip_tour() {
+  local i
+  for i in $(seq 1 8); do
+    if dump | grep -q "Skip tour"; then tap "Skip tour"; sleep 6; return 0; fi
+    # No tour after a few looks and the top bar is usable: nothing to dismiss.
+    if [ $i -ge 3 ] && dump | grep -qi "You: profile and settings"; then return 0; fi
+    sleep 4
+  done
+  return 0
+}
+# scroll_to "text" [swipes]: swipe up until a node's text is in the dump (a lazy list only exposes visible rows).
+scroll_to() {
+  local i
+  for i in $(seq 0 ${2:-10}); do
+    dump | grep -qi -- "$1" && return 0
+    $UI swipe up; sleep 2
+  done
+  say "not found after scrolling: $1"; return 1
+}
 focus() { $ADB shell dumpsys window | grep mCurrentFocus | tail -1; }
 
 $ADB get-state >/dev/null 2>&1 || { echo "no emulator: run tools/cloud/start-emu.sh and emu-ready.sh first"; exit 1; }
@@ -55,20 +76,16 @@ $ADB logcat -c
 launch; say "launched; waiting for the welcome"
 wait_for "Skip setup" 30 || exit 1
 tap "Skip setup"
+skip_tour
 wait_for "You: profile and settings" 30 || exit 1
 tap "You: profile and settings"
 wait_for "Goals and plan" 20 || exit 1
 tap "Settings"
-wait_for "Sync and export" 20 || exit 1
+# Settings is a hub of grouped rows; "Sync and export" can be below the fold, so scroll to it, open it, then scroll to
+# "Import a backup" on that page.
+scroll_to "Sync and export" 8 || exit 1
 tap "Sync and export"
-# The regrouped Settings puts the Import button below the fold, and a lazy list only exposes visible rows to
-# uiautomator: scroll until the button is in the dump (up to 10 swipes), then tap it.
-found=0
-for i in $(seq 1 10); do
-  if dump | grep -qi "Import a backup"; then found=1; break; fi
-  $UI swipe up; sleep 2
-done
-[ $found = 1 ] || { say "Import a backup not found after scrolling"; exit 1; }
+scroll_to "Import a backup" 10 || exit 1
 tap "Import a backup"
 wait_for "Search" 20 || exit 1
 say "picker open; searching for the seed file"

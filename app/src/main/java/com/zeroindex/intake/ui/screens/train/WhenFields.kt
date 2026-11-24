@@ -17,7 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimeInput
 import androidx.compose.material3.TimePickerState
-import androidx.compose.material3.rememberDatePickerState
+import com.zeroindex.intake.ui.components.rememberMondayFirstDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -65,7 +65,7 @@ fun WhenFields(
     }
     if (pickingDate) {
         val utc = ZoneId.of("UTC")
-        val state = rememberDatePickerState(
+        val state = rememberMondayFirstDatePickerState(
             initialSelectedDateMillis = date.atStartOfDay(utc).toInstant().toEpochMilli(),
             selectableDates = object : SelectableDates {
                 override fun isSelectableDate(utcTimeMillis: Long): Boolean =

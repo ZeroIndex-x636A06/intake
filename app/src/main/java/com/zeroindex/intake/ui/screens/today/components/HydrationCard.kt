@@ -1,5 +1,7 @@
 package com.zeroindex.intake.ui.screens.today.components
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -27,6 +29,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.Role
+import com.zeroindex.intake.domain.hydration.TargetLine
+import com.zeroindex.intake.domain.hydration.summaryLine
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.SpanStyle
@@ -87,6 +96,7 @@ fun HydrationCard(
         Spacer(Modifier.height(12.dp))
         WaterWave(fraction = day.progress, water = MaterialTheme.intake.water, track = MaterialTheme.intake.soft, height = 14.dp)
         Spacer(Modifier.height(8.dp))
+        TargetWhy(day, unit)
         if (rows.isEmpty()) {
             Text(if (isToday) "Nothing logged yet today." else "Nothing logged that day.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 6.dp))
         }
@@ -104,6 +114,41 @@ fun HydrationCard(
         }
         Spacer(Modifier.height(4.dp))
         LineButton(onClick = onOpenDrinks, small = true) { Text("Log a different drink") }
+    }
+}
+
+/**
+ * Why today's target is what it is: one line ("Base 103.1 fl oz + workout +47.4 + heat +10.1") that opens to every part
+ * of it with its reason (QA Q7-24). Nothing shows when the target is just the base.
+ */
+@Composable
+private fun TargetWhy(day: HydrationDay, unit: VolumeUnit) {
+    val line = day.breakdown.summaryLine(unit::format, unit::formatNumber) ?: return
+    var open by rememberSaveable { mutableStateOf(false) }
+    Column(
+        Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget)
+            .clickable(role = Role.Button, onClickLabel = if (open) "Hide why" else "Show why") { open = !open },
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            "$line ${if (open) "▴" else "▾"}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (open) {
+            Spacer(Modifier.height(6.dp))
+            (listOf(day.breakdown.base) + day.breakdown.adjustments).forEach { l ->
+                Text(
+                    "${l.title}: ${if (l.id == TargetLine.Id.BASE) "" else "+"}${unit.format(l.ml)}",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                if (l.why.isNotBlank()) {
+                    Text(l.why, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Spacer(Modifier.height(6.dp))
+            }
+        }
     }
 }
 
