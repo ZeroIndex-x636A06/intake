@@ -270,7 +270,7 @@ private fun YourHistory(stats: ExerciseStats, unit: WeightUnit) {
     }
     stats.bestSet?.let {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("est. max ${w(it.estimatedMaxKg)}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("est. max ${com.zeroindex.intake.domain.units.WeightText.formatEstimate(it.estimatedMaxKg, unit)}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             InfoTip(Glossary.ESTIMATED_MAX, modifier = Modifier.size(24.dp))
         }
     }

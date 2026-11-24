@@ -31,6 +31,19 @@ object WeightText {
     }
 
     /**
+     * An estimated one-rep max: one decimal in the person's unit, never snapped to a loadable half pound. An estimate is
+     * a calculated figure, and every place that shows one (Training stats, records, calculators, exercise sheet) uses this
+     * one rounding, so the same set reads the same everywhere (QA Q7-10: 186.7 on one line and 186.5 on the next).
+     */
+    fun estimate(kg: Double, unit: WeightUnit): String {
+        val v = Math.round(unit.fromKg(kg) * 10) / 10.0
+        return if (abs(v - v.roundToLong()) < 1e-9) v.roundToLong().toString() else v.toString()
+    }
+
+    /** [estimate] with the unit label: "186.7 lb". */
+    fun formatEstimate(kg: Double, unit: WeightUnit): String = "${estimate(kg, unit)} ${unit.label}"
+
+    /**
      * A weight in a set row: always one decimal place ("50.0", "57.5"), so every row of a session reads the same way
      * whether the number was typed, prescribed or copied from last time. The value is snapped first, so a weight that
      * is 49.9999 after conversion still reads "50.0".

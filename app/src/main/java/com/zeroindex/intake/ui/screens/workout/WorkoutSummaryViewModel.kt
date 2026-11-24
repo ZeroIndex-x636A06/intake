@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.workout
 
+import com.zeroindex.intake.domain.units.WeightText
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -129,15 +130,15 @@ class WorkoutSummaryViewModel @Inject constructor(
             val sameWeight = list.map { Math.round(it.weightKg * 100) }.distinct().size == 1
             val top = list.maxBy { it.weightKg }
             val detail = when {
-                sameReps && sameWeight && top.weightKg > 0 -> "${list.size} × ${top.reps} @ ${fmt(unit.fromKg(top.weightKg))}"
+                sameReps && sameWeight && top.weightKg > 0 -> "${list.size} × ${top.reps} @ ${WeightText.format(top.weightKg, unit)}"
                 sameReps && sameWeight -> "${list.size} × ${top.reps}"
-                top.weightKg > 0 -> "${list.size} sets · best ${fmt(unit.fromKg(top.weightKg))} × ${top.reps}"
+                top.weightKg > 0 -> "${list.size} sets · best ${WeightText.format(top.weightKg, unit)} × ${top.reps}"
                 else -> "${list.size} sets · ${list.sumOf { it.reps }} reps"
             }
             val every = sets.filter { it.exerciseId == list.first().exerciseId }
             var n = 0
             val setRows = every.map { s ->
-                val weight = if (s.weightKg > 0) "${fmt(unit.fromKg(s.weightKg))} ${unit.label} × ${s.reps}" else "${s.reps} reps"
+                val weight = if (s.weightKg > 0) "${WeightText.format(s.weightKg, unit)} × ${s.reps}" else "${s.reps} reps"
                 val label = if (s.isWarmup) "Warm-up: $weight" else "Set ${++n}: $weight"
                 SummarySetRow(setIdByIndex[s]!!, label, s.weightKg, s.reps, s.isWarmup)
             }
@@ -212,10 +213,11 @@ class WorkoutSummaryViewModel @Inject constructor(
     }
 
     /** Adds a set (typed in the person's unit) to an exercise of this finished workout. */
-    fun addSet(exerciseId: String, weightText: String, repsText: String) = viewModelScope.launch {
+    fun addSet(exerciseId: String, weightText: String, repsText: String, onAdded: (setId: String) -> Unit = {}) = viewModelScope.launch {
         val values = SetEdit.parse(weightText, repsText, _state.value.unit) ?: return@launch
-        repository.addSetToSession(sessionId, exerciseId, values.weightKg, values.reps)
+        val added = repository.addSetToSession(sessionId, exerciseId, values.weightKg, values.reps)
         load()
+        if (added != null) onAdded(added.id)
     }
 
     /** Moves a logged set to another exercise. */

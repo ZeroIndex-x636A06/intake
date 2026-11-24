@@ -137,6 +137,34 @@ class HistoryDomainTest {
     }
 
     @Test
+    fun `reopening resumes at the length the workout had and Finish does not count the idle time`() {
+        // Q7-9: a 45 minute workout (edited), reopened 32 minutes after it ended.
+        val start = now - 77 * min
+        val end = start + 45 * min
+        val resumed = ReopenRules.resume(start, end, now)
+        assertThat(resumed.setShiftMillis).isEqualTo(now - end)
+        // Finishing right away: finish minus start is still the 45 minutes, not 77.
+        assertThat(now - resumed.startedAt).isEqualTo(45 * min)
+        // Trained 10 more minutes before Finish: 55 minutes.
+        assertThat(now + 10 * min - resumed.startedAt).isEqualTo(55 * min)
+    }
+
+    @Test
+    fun `the length in the edit dialog rounds like the summary`() {
+        // Q7-19: 7 minutes 32 seconds read "8 minutes" in the summary and "7" in the dialog.
+        assertThat(SessionEditor.durationMin(0L, 7 * min + 32_000)).isEqualTo(8)
+        assertThat(SessionEditor.durationMin(0L, 7 * min + 20_000)).isEqualTo(7)
+        assertThat(SessionEditor.durationMin(0L, 10_000L)).isEqualTo(1)
+    }
+
+    @Test
+    fun `reopening never moves the start backwards`() {
+        val resumed = ReopenRules.resume(now - 10 * min, now + min, now)
+        assertThat(resumed.startedAt).isEqualTo(now - 10 * min)
+        assertThat(resumed.setShiftMillis).isEqualTo(0L)
+    }
+
+    @Test
     fun `rewinding puts the rotation back only when nothing moved it since`() {
         // Day 1 of 3 was finished from week 2, day 0: the program now offers day 1 in week 2.
         assertThat(ReopenRules.rewind(RotationPosition(2, 1), 0, 3)).isEqualTo(RotationPosition(2, 0))

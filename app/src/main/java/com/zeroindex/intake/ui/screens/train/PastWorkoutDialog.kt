@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -56,7 +57,8 @@ fun PastWorkoutDialog(
         onDismissRequest = onDismiss,
         title = { Text("Log a past workout") },
         text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column {
+            Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
                     "For a workout you did but did not record. Pick when it was, then add its sets.",
                     style = MaterialTheme.typography.bodySmall,
@@ -70,7 +72,9 @@ fun PastWorkoutDialog(
                         IntakeChip(d.name, tone = if (dayId == d.id) ChipTone.Ink else ChipTone.Neutral, onClick = { dayId = d.id })
                     }
                 }
-                problem?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+            }
+            // The message sits outside the scrolling part, so it is never cut off below the time picker (Q7-5).
+            problem?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp)) }
             }
         },
         confirmButton = {
