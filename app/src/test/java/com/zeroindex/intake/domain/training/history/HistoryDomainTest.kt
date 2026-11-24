@@ -137,16 +137,48 @@ class HistoryDomainTest {
     }
 
     @Test
-    fun `reopening resumes at the length the workout had and Finish does not count the idle time`() {
-        // Q7-9: a 45 minute workout (edited), reopened 32 minutes after it ended.
+    fun `reopening keeps the edited start and Finish takes the idle gap off the end`() {
+        // Q8-6: a 45 minute workout (edited to start at 05:20), reopened 32 minutes after it ended.
         val start = now - 77 * min
         val end = start + 45 * min
-        val resumed = ReopenRules.resume(start, end, now)
-        assertThat(resumed.setShiftMillis).isEqualTo(now - end)
-        // Finishing right away: finish minus start is still the 45 minutes, not 77.
-        assertThat(now - resumed.startedAt).isEqualTo(45 * min)
-        // Trained 10 more minutes before Finish: 55 minutes.
-        assertThat(now + 10 * min - resumed.startedAt).isEqualTo(55 * min)
+        val gap = ReopenRules.idleGap(end, now)
+        assertThat(gap).isEqualTo(32 * min)
+        // The clock resumes at the 45 minutes the workout had, with the start untouched.
+        val pause = com.zeroindex.intake.domain.training.WorkoutPause("s", reopenGapMs = gap, reopenedAt = now)
+        assertThat(com.zeroindex.intake.domain.training.WorkoutClock.trainedMs(start, pause, now)).isEqualTo(45 * min)
+        // Ten more minutes trained, then Finish: the end is 55 minutes after the same start.
+        val finishAt = now + 10 * min
+        val newEnd = com.zeroindex.intake.domain.training.WorkoutClock.endWithoutGap(start, finishAt, gap)
+        assertThat(newEnd - start).isEqualTo(55 * min)
+        assertThat(com.zeroindex.intake.domain.training.WorkoutClock.trainedMs(start, pause, finishAt)).isEqualTo(55 * min)
+    }
+
+    @Test
+    fun `a gap never pushes the end before the start`() {
+        assertThat(com.zeroindex.intake.domain.training.WorkoutClock.endWithoutGap(1_000L, 2_000L, 5_000L)).isEqualTo(1_000L)
+        assertThat(com.zeroindex.intake.domain.training.WorkoutClock.endWithoutGap(1_000L, 9_000L, 0L)).isEqualTo(9_000L)
+    }
+
+    @Test
+    fun `an idle gap is never negative`() {
+        assertThat(ReopenRules.idleGap(now + min, now)).isEqualTo(0L)
+    }
+
+    @Test
+    fun `the past workout form opens with a start that is not in the future`() {
+        // Q8-7: it used to open at 18:00 whatever the hour. Now is 12:00 UTC.
+        val today = LocalDate.of(2026, 11, 16)
+        val start = BackdatedLog.defaultStart(today, now, utc)
+        assertThat(start).isEqualTo(LocalTime.of(11, 0))
+        assertThat(BackdatedLog.plan(today, start, BackdatedLog.DEFAULT_DURATION_MIN, now, utc)).isInstanceOf(BackdateOutcome.Ok::class.java)
+        // Early in the morning a start an hour back would be yesterday: midnight, and the person adjusts.
+        val early = at(2026, 11, 16, 0, 20)
+        assertThat(BackdatedLog.defaultStart(today, early, utc)).isEqualTo(LocalTime.MIDNIGHT)
+        // Minutes round down to five: 12:07 - 60 = 11:07 -> 11:05.
+        assertThat(BackdatedLog.defaultStart(today, at(2026, 11, 16, 12, 7), utc)).isEqualTo(LocalTime.of(11, 5))
+        // A past day gets an ordinary evening time, which is always in the past.
+        val past = LocalDate.of(2026, 11, 10)
+        assertThat(BackdatedLog.plan(past, BackdatedLog.defaultStart(past, now, utc), 60, now, utc)).isInstanceOf(BackdateOutcome.Ok::class.java)
     }
 
     @Test
@@ -155,13 +187,6 @@ class HistoryDomainTest {
         assertThat(SessionEditor.durationMin(0L, 7 * min + 32_000)).isEqualTo(8)
         assertThat(SessionEditor.durationMin(0L, 7 * min + 20_000)).isEqualTo(7)
         assertThat(SessionEditor.durationMin(0L, 10_000L)).isEqualTo(1)
-    }
-
-    @Test
-    fun `reopening never moves the start backwards`() {
-        val resumed = ReopenRules.resume(now - 10 * min, now + min, now)
-        assertThat(resumed.startedAt).isEqualTo(now - 10 * min)
-        assertThat(resumed.setShiftMillis).isEqualTo(0L)
     }
 
     @Test

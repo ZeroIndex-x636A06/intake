@@ -779,7 +779,7 @@ class TrainingRepository @Inject constructor(
 
     /** Captures bodyweight at session start, for bodyweight lift maths (SPEC §4). */
     suspend fun startSession(programDayId: String?): WorkoutSessionEntity {
-        workoutDao.inProgress()?.let { return it }
+        workoutDao.inProgress()?.let { return reanchorClock(it.id) ?: it }
         val now = clock.nowMillis()
         val session = WorkoutSessionEntity(
             id = newId(),
@@ -798,10 +798,25 @@ class TrainingRepository @Inject constructor(
      * person paused the workout clock (kept in memory on the phone, not in the database): the saved start moves later by it, so
      * the duration everywhere counts trained time only.
      */
-    suspend fun finishSession(sessionId: String, finishedAt: Long? = null, pausedMs: Long = 0L) {
+    suspend fun finishSession(
+        sessionId: String,
+        finishedAt: Long? = null,
+        pausedMs: Long = 0L,
+        reopenGapMs: Long = 0L,
+        reopenedAt: Long? = null,
+    ) {
         val now = clock.nowMillis()
-        val end = finishedAt ?: now
-        if (finishedAt == null) workoutDao.finishSession(sessionId, now) else workoutDao.finishSessionAt(sessionId, finishedAt, now)
+        var end = finishedAt ?: now
+        if (reopenGapMs > 0L) {
+            // A reopened workout: the idle time since the first Finish comes off the end (and the sets logged since), so the start
+            // the person set is kept and the length is only trained time (Q8-6).
+            val start = workoutDao.findSession(sessionId)?.startedAt
+            if (start != null) {
+                end = com.zeroindex.intake.domain.training.WorkoutClock.endWithoutGap(start, end, reopenGapMs)
+                if (reopenedAt != null) workoutDao.shiftSetTimesFrom(sessionId, reopenedAt, -reopenGapMs, now)
+            }
+        }
+        if (finishedAt == null && end == now) workoutDao.finishSession(sessionId, now) else workoutDao.finishSessionAt(sessionId, end, now)
         if (pausedMs > 0L) {
             workoutDao.findSession(sessionId)?.let { s ->
                 val earliest = workoutDao.setsOf(sessionId).minOfOrNull { it.completedAt }
@@ -988,6 +1003,21 @@ class TrainingRepository @Inject constructor(
     }
 
     /**
+     * Reanchors a running workout whose start lies in the future (the phone's clock was set back): the start and its sets move
+     * back to now so the timer counts again instead of sitting at 0:00 (Q8-10). Returns the session as it stands.
+     */
+    suspend fun reanchorClock(sessionId: String): WorkoutSessionEntity? {
+        val session = workoutDao.findSession(sessionId) ?: return null
+        if (session.finishedAt != null) return session
+        val now = clock.nowMillis()
+        val start = com.zeroindex.intake.domain.training.WorkoutClock.reanchoredStart(session.startedAt, now)
+        if (start == session.startedAt) return session
+        workoutDao.updateSessionStart(sessionId, start, now)
+        workoutDao.shiftSetTimes(sessionId, start - session.startedAt, now)
+        return workoutDao.findSession(sessionId)
+    }
+
+    /**
      * Undo Finish: the session becomes the active one again and a program's rotation is put back if nothing moved it since.
      * When another workout is running, [finishTheOther] decides: true ends it first (an empty one is discarded, one with sets
      * is finished normally); false leaves everything as it was and returns the conflict.
@@ -1001,15 +1031,6 @@ class TrainingRepository @Inject constructor(
         }
         val session = workoutDao.findSession(sessionId) ?: return@withTransaction ReopenOutcome.NotFinished
         val now = clock.nowMillis()
-        val finished = session.finishedAt
-        if (finished != null) {
-            // The idle time since Finish is not workout time: resume at the length the workout had (see ReopenRules.resume).
-            val resumed = ReopenRules.resume(session.startedAt, finished, now)
-            if (resumed.setShiftMillis > 0L) {
-                workoutDao.updateSessionStart(sessionId, resumed.startedAt, now)
-                workoutDao.shiftSetTimes(sessionId, resumed.setShiftMillis, now)
-            }
-        }
         workoutDao.reopenSession(sessionId, now)
         rewindRotation(session)
         ReopenOutcome.Allowed

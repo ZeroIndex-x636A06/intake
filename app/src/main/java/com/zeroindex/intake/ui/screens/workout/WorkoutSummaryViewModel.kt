@@ -82,6 +82,7 @@ class WorkoutSummaryViewModel @Inject constructor(
     private val repository: TrainingRepository,
     private val settingsRepository: SettingsRepository,
     private val clock: Clock,
+    private val pauseStore: com.zeroindex.intake.data.training.WorkoutPauseStore,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     private val sessionId: String = savedStateHandle.toRoute<Route.WorkoutSummary>().sessionId
@@ -231,8 +232,17 @@ class WorkoutSummaryViewModel @Inject constructor(
      * [finishTheOther] is false, nothing changes and [onConflict] is called so the person can choose.
      */
     fun reopen(finishTheOther: Boolean, onOpened: (String) -> Unit, onConflict: () -> Unit) = viewModelScope.launch {
+        val finishedAt = repository.session(sessionId)?.finishedAt
+        val now = clock.nowMillis()
         when (repository.reopenSession(sessionId, finishTheOther)) {
-            ReopenOutcome.Allowed -> onOpened(sessionId)
+            ReopenOutcome.Allowed -> {
+                // The idle time since Finish is not trained time: the clock and the next Finish leave it out, and the start the
+                // person set stays as it is (Q8-6).
+                if (finishedAt != null) {
+                    pauseStore.reopen(sessionId, com.zeroindex.intake.domain.training.history.ReopenRules.idleGap(finishedAt, now), now)
+                }
+                onOpened(sessionId)
+            }
             is ReopenOutcome.AnotherActive -> onConflict()
             else -> load()
         }

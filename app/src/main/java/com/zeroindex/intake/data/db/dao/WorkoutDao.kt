@@ -151,6 +151,10 @@ interface WorkoutDao {
     @Query("UPDATE set_log SET completedAt = completedAt + :delta, updatedAt = :now WHERE sessionId = :sessionId")
     suspend fun shiftSetTimes(sessionId: String, delta: Long, now: Long)
 
+    /** Moves the sets logged at or after [from] by [delta] millis (the idle gap of a reopened workout is taken off them). */
+    @Query("UPDATE set_log SET completedAt = completedAt + :delta, updatedAt = :now WHERE sessionId = :sessionId AND completedAt >= :from")
+    suspend fun shiftSetTimesFrom(sessionId: String, from: Long, delta: Long, now: Long)
+
     @Query("UPDATE set_log SET exerciseId = :exerciseId, updatedAt = :now WHERE id = :id AND deletedAt IS NULL")
     suspend fun updateSetExercise(id: String, exerciseId: String, now: Long)
 

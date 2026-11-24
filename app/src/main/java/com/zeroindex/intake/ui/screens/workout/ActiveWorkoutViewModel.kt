@@ -202,8 +202,14 @@ class ActiveWorkoutViewModel @Inject constructor(
         return out
     }
 
+    /** The phone's clock was set back past this workout's start: moves the start to now so the timer counts again (Q8-10). */
+    fun reanchorClock() = viewModelScope.launch {
+        val session = repository.reanchorClock(sessionId) ?: return@launch
+        meta.value = meta.value.copy(first = session)
+    }
+
     private fun load() = viewModelScope.launch {
-        val session = repository.session(sessionId)
+        val session = repository.reanchorClock(sessionId) ?: repository.session(sessionId)
         val dayId = session?.programDayId
         val title = dayId?.let { repository.dayName(it) } ?: "Workout"
         meta.value = Triple(session, title, dayId == null)
@@ -348,13 +354,15 @@ class ActiveWorkoutViewModel @Inject constructor(
 
     /** Finishes the session, then reports its id so the screen can open the summary. */
     fun finish(onFinished: (sessionId: String) -> Unit) = viewModelScope.launch {
-        repository.finishSession(sessionId, pausedMs = pauseStore.finish(sessionId, System.currentTimeMillis()))
+        val paused = pauseStore.finish(sessionId, System.currentTimeMillis())
+        repository.finishSession(sessionId, pausedMs = paused.pausedMs, reopenGapMs = paused.reopenGapMs, reopenedAt = paused.reopenedAt)
         onFinished(sessionId)
     }
 
     /** "Still training?" > "Finish it": ends the workout at [finishAt] (the last set and its rest), not now. */
     fun finishAt(finishAt: Long?, onFinished: (sessionId: String) -> Unit) = viewModelScope.launch {
-        repository.finishSession(sessionId, finishAt)
+        val reopen = pauseStore.forSession(sessionId)
+        repository.finishSession(sessionId, finishAt, reopenGapMs = reopen?.reopenGapMs ?: 0L, reopenedAt = reopen?.reopenedAt)
         onFinished(sessionId)
     }
 

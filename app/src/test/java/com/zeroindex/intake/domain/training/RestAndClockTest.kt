@@ -100,4 +100,23 @@ class RestAndClockTest {
         assertThat(UpNext.text(next.copy(reps = null), "BW")).isEqualTo("Bench press, set 3: BW")
         assertThat(UpNext.text(next.copy(reps = null), "")).isEqualTo("Bench press, set 3")
     }
+
+    @Test
+    fun `a start in the future after the clock was set back is re-anchored to now`() {
+        // Q8-10: the clock went back four hours, so the stored start was four hours ahead and the timer sat at 0:00.
+        val now = 10_000_000L
+        val start = now + 4 * 3_600_000L
+        assertThat(WorkoutClock.trainedMs(start, null, now)).isEqualTo(0L)
+        val anchored = WorkoutClock.reanchoredStart(start, now)
+        assertThat(anchored).isEqualTo(now)
+        // From the re-anchored start the clock counts up at once.
+        assertThat(WorkoutClock.trainedMs(anchored, null, now + 90_000)).isEqualTo(90_000L)
+    }
+
+    @Test
+    fun `a start a few seconds ahead of the clock is left alone`() {
+        val now = 10_000_000L
+        assertThat(WorkoutClock.reanchoredStart(now + 5_000, now)).isEqualTo(now + 5_000)
+        assertThat(WorkoutClock.reanchoredStart(now - 5_000, now)).isEqualTo(now - 5_000)
+    }
 }

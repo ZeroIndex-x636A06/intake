@@ -45,9 +45,11 @@ fun PastWorkoutDialog(
     var date by remember { mutableStateOf(today) }
     var minutesText by remember { mutableStateOf(BackdatedLog.DEFAULT_DURATION_MIN.toString()) }
     var dayId by remember { mutableStateOf<String?>(null) }
+    // A start that is already in the past, so Log it is not disabled the moment the form opens (Q8-7).
+    val initialStart = remember { BackdatedLog.defaultStart(today, System.currentTimeMillis(), java.time.ZoneId.systemDefault()) }
     val timeState = rememberTimePickerState(
-        initialHour = 18,
-        initialMinute = 0,
+        initialHour = initialStart.hour,
+        initialMinute = initialStart.minute,
         is24Hour = DateFormat.is24HourFormat(LocalContext.current),
     )
     val time = LocalTime.of(timeState.hour, timeState.minute)
