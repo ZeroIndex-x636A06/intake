@@ -203,7 +203,8 @@ fun OnboardingScreen(
                     OnboardingStep.ALLERGENS -> AllergensStep()
                     OnboardingStep.HOW_TO_START -> HowToStartStep(viewModel) { viewModel.goTo(OnboardingStep.ABOUT_YOU) }
                     OnboardingStep.PLANS -> PlansStep(viewModel)
-                    OnboardingStep.EXTRAS -> ExtrasStep(onSetUp = { group -> viewModel.finish { onFinished(); onSetUp(group) } })
+                    // The flow stays open (on this saved step) under the Settings page, so Back returns here (QA Q8-7).
+                    OnboardingStep.EXTRAS -> ExtrasStep(onSetUp = onSetUp)
                     OnboardingStep.DONE -> DoneStep(prefs.pending, prefs.replay)
                 }
             }

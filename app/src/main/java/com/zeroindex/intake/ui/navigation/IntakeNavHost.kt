@@ -554,8 +554,9 @@ fun IntakeNavHost(
             }
         }
         composable<Route.LogFood> { entry ->
-            PushedScreen("Log food", back) { pad ->
-                val args = entry.toRoute<Route.LogFood>()
+            val args = entry.toRoute<Route.LogFood>()
+            // Library > My foods opens this screen on the user's own foods (mode MY_FOODS): title it for what it shows.
+            PushedScreen(if (args.mode == "MY_FOODS") "My foods" else "Log food", back) { pad ->
                 val slot = args.slot?.let { n -> MealSlot.entries.firstOrNull { it.name == n } } ?: defaultMealSlot(java.time.LocalTime.now().hour)
                 // The time to log at: the one the caller passed (Today's selected day), else now, fixed for this visit.
                 val at = remember(entry) { if (args.atMillis > 0) args.atMillis else System.currentTimeMillis() }

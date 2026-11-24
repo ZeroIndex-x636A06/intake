@@ -19,7 +19,6 @@ import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -91,7 +90,7 @@ internal fun DaySwitcher(
 @Composable
 internal fun DayPickerDialog(date: LocalDate, today: LocalDate, onPick: (Long) -> Unit, onDismiss: () -> Unit) {
     val lastPickable = remember(today) { NutritionDay.toPickerMillis(today) }
-    val state = rememberDatePickerState(
+    val state = com.zeroindex.intake.ui.components.rememberMondayFirstDatePickerState(
         initialSelectedDateMillis = NutritionDay.toPickerMillis(date),
         selectableDates = object : SelectableDates {
             override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis <= lastPickable

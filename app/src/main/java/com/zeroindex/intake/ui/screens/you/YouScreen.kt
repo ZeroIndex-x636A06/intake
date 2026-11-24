@@ -44,6 +44,7 @@ import androidx.lifecycle.viewModelScope
 import com.zeroindex.intake.data.photos.ProgressPhotoRepository
 import com.zeroindex.intake.data.repository.BodyRepository
 import com.zeroindex.intake.data.repository.HydrationRepository
+import com.zeroindex.intake.domain.hydration.summaryLine
 import com.zeroindex.intake.data.repository.TargetRepository
 import com.zeroindex.intake.data.settings.AppSettings
 import com.zeroindex.intake.data.settings.SettingsRepository
@@ -86,6 +87,8 @@ data class YouUiState(
     val weightKg: Double? = null,
     val target: MacroTarget? = null,
     val waterMl: Double? = null,
+    /** "Base ... + workout +..." when the day adds to the base; null otherwise. */
+    val waterWhy: String? = null,
     val recentDays: List<PhotoDay> = emptyList(),
     val photoCount: Int = 0,
     val photoDue: Boolean = false,
@@ -108,6 +111,7 @@ class YouViewModel @Inject constructor(
         val days = PhotoTimeline.group(all, clock.zone())
         YouUiState(
             settings = s, weightKg = latest?.weightKg, target = target, waterMl = water.target.totalMl,
+            waterWhy = water.breakdown.summaryLine(s.volumeUnit::format, s.volumeUnit::formatNumber),
             recentDays = days.take(3).reversed(), photoCount = all.size,
             photoDue = PhotoReminderRule.isDue(s.photoReminderWeeks, all.maxOfOrNull { it.takenAt }, clock.nowMillis()),
             loaded = true,
@@ -214,7 +218,7 @@ fun YouScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap)) {
                     PlanStat(
                         "Water", state.waterMl?.let { s.volumeUnit.format(it) } ?: "—",
-                        if (s.hydrationDynamic) "adjusts for the day" else "fixed target",
+                        if (s.hydrationDynamic) state.waterWhy ?: "adjusts for the day" else "fixed target",
                         Modifier.weight(1f),
                     ) { onChangeSetting("water", "hydrationBase") }
                     PlanStat(

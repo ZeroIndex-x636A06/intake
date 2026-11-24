@@ -2,7 +2,8 @@ package com.zeroindex.intake.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,7 +16,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -31,11 +31,15 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.zeroindex.intake.ui.theme.IconSize
 import com.zeroindex.intake.ui.theme.IntakeElevation
 import com.zeroindex.intake.ui.theme.IntakeIcons
@@ -126,8 +130,11 @@ fun SectionLine(
 
 /**
  * `.seg`: the inline two- to four-way switch (units, theme, Diary / Plan / Recipes). A `soft` pill track with the selected item
- * lifted on a `surface` pill. It scrolls sideways instead of truncating when the options do not fit (font scale 1.5).
+ * lifted on a `surface` pill. Each segment gets at least the width of its label and the spare track width is shared out;
+ * when the labels do not fit (font scale 1.5) the segments shrink in proportion and the labels shrink with them, so no
+ * label is cut (QA Q7-23).
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun Segmented(
     options: List<String>,
@@ -137,42 +144,84 @@ fun Segmented(
     /** [Role.Tab] when the control switches a screen's pages (Train); [Role.RadioButton] for a setting. */
     role: Role = Role.RadioButton,
 ) {
-    Surface(
-        color = MaterialTheme.intake.soft,
-        shape = IntakeShape.Pill,
-        modifier = modifier,
+    val gap = with(LocalDensity.current) { 2.dp.roundToPx() }
+    // A Box (not a Surface) so a fillMaxWidth() from the caller reaches the Layout as a minimum width.
+    Box(
+        modifier = modifier.clip(IntakeShape.Pill).background(MaterialTheme.intake.soft),
+        propagateMinConstraints = true,
     ) {
-        Row(
-            Modifier.horizontalScroll(rememberScrollState()).padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            options.forEachIndexed { index, option ->
-                val selected = index == selectedIndex
-                Surface(
-                    color = if (selected) MaterialTheme.colorScheme.surface else Color.Transparent,
-                    contentColor = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                    shape = IntakeShape.Pill,
-                    shadowElevation = if (selected) IntakeElevation.SelectedSegment else 0.dp,
-                    modifier = Modifier
-                        .heightIn(min = 40.dp)
-                        // Clip before the click so the press ripple takes the pill's round corners.
-                        .clip(IntakeShape.Pill)
-                        .clickable(
-                            role = role,
-                            onClickLabel = option,
-                            onClick = { onSelect(index) },
-                        )
-                        .semantics { this.selected = selected },
-                ) {
-                    Box(
-                        modifier = Modifier.padding(horizontal = 14.dp),
-                        contentAlignment = Alignment.Center,
+        Layout(
+            modifier = Modifier.padding(4.dp),
+            content = {
+                options.forEachIndexed { index, option ->
+                    val selected = index == selectedIndex
+                    Surface(
+                        color = if (selected) MaterialTheme.colorScheme.surface else Color.Transparent,
+                        contentColor = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                        shape = IntakeShape.Pill,
+                        shadowElevation = if (selected) IntakeElevation.SelectedSegment else 0.dp,
+                        modifier = Modifier
+                            // Clip before the click so the press ripple takes the pill's round corners.
+                            .clip(IntakeShape.Pill)
+                            .clickable(
+                                role = role,
+                                onClickLabel = option,
+                                onClick = { onSelect(index) },
+                            )
+                            .semantics { this.selected = selected },
                     ) {
-                        Text(text = option, style = MaterialTheme.typography.titleSmall, maxLines = 1)
+                        Box(
+                            modifier = Modifier.heightIn(min = 40.dp).padding(horizontal = 12.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            val style = MaterialTheme.typography.titleSmall
+                            Text(
+                                text = option,
+                                style = style,
+                                maxLines = 1,
+                                softWrap = false,
+                                autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = style.fontSize, stepSize = 0.5.sp),
+                            )
+                        }
                     }
                 }
+            },
+        ) { measurables, constraints ->
+            val natural = measurables.map { it.maxIntrinsicWidth(Constraints.Infinity) }
+            val wanted = natural.sum() + gap * (natural.size - 1)
+            // Filling the track when the caller asked for it (minWidth > 0), else only as wide as the labels need.
+            val available = when {
+                !constraints.hasBoundedWidth -> wanted
+                constraints.minWidth > 0 -> constraints.maxWidth
+                else -> minOf(wanted, constraints.maxWidth)
+            }
+            val widths = segmentWidths(natural, gap, available)
+            val first = measurables.mapIndexed { i, m -> m.measure(Constraints(minWidth = widths[i], maxWidth = widths[i])) }
+            val height = first.maxOfOrNull { it.height } ?: 0
+            val placeables = measurables.mapIndexed { i, m ->
+                m.measure(Constraints(minWidth = widths[i], maxWidth = widths[i], minHeight = height, maxHeight = height))
+            }
+            layout(widths.sum() + gap * (widths.size - 1).coerceAtLeast(0), height) {
+                var x = 0
+                placeables.forEach { p -> p.placeRelative(x, 0); x += p.width + gap }
             }
         }
+    }
+}
+
+/**
+ * Widths for the segments of a [Segmented] track: each segment's natural width ([natural], padding included) and the
+ * spare room shared out equally when everything fits; shrunk in proportion to the natural width when it does not.
+ */
+internal fun segmentWidths(natural: List<Int>, gap: Int, available: Int): List<Int> {
+    if (natural.isEmpty()) return emptyList()
+    val room = (available - gap * (natural.size - 1)).coerceAtLeast(0)
+    val total = natural.sum()
+    return if (total <= room) {
+        val extra = (room - total) / natural.size
+        natural.map { it + extra }
+    } else {
+        natural.map { (it.toLong() * room / total).toInt() }
     }
 }
 

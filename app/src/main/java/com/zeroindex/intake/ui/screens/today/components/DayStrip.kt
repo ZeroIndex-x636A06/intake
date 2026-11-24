@@ -20,7 +20,6 @@ import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -136,8 +135,8 @@ private fun weekdayInitial(day: LocalDate): String = day.dayOfWeek.getDisplayNam
 /** The month calendar behind the date heading: any day up to today. Choosing a day selects it and closes the dialog. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DayCalendarDialog(today: LocalDate, selected: LocalDate, onPick: (LocalDate) -> Unit, onDismiss: () -> Unit) = com.zeroindex.intake.ui.components.MondayFirstWeek {
-    val state = rememberDatePickerState(
+fun DayCalendarDialog(today: LocalDate, selected: LocalDate, onPick: (LocalDate) -> Unit, onDismiss: () -> Unit) {
+    val state = com.zeroindex.intake.ui.components.rememberMondayFirstDatePickerState(
         initialSelectedDateMillis = selected.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
         selectableDates = remember(today) {
             object : SelectableDates {
