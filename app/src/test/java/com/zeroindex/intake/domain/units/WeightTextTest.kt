@@ -61,4 +61,12 @@ class WeightTextTest {
         assertThat(WeightText.estimate(100.0, WeightUnit.KILOGRAMS)).isEqualTo("100")
         assertThat(WeightText.estimate(233.33 / 2.2046226218, WeightUnit.POUNDS)).isEqualTo("233.3")
     }
+
+    @Test
+    fun `a saved 50 lb weight reads 50 lb, not 50 point 0`() {
+        // Q7-19: the active workout showed "50.0 lb" for a weight the summary showed as "50 lb".
+        val kg = 50 / 2.2046226218
+        assertThat(WeightText.format(kg, WeightUnit.POUNDS)).isEqualTo("50 lb")
+        assertThat(WeightText.format(kg + 0.0001, WeightUnit.POUNDS)).isEqualTo("50 lb")
+    }
 }

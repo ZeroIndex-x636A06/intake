@@ -15,6 +15,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -129,7 +131,10 @@ fun ActiveWorkoutScreen(
     val paused = pause?.isPaused == true
     val elapsed by produceState(0L, startedAt, pause) {
         while (startedAt != null) {
-            value = WorkoutClock.trainedMs(startedAt, pause, System.currentTimeMillis())
+            val now = System.currentTimeMillis()
+            // The clock was set back past the start: move the start to now rather than sit at 0:00 until it catches up (Q8-10).
+            if (WorkoutClock.reanchoredStart(startedAt, now) != startedAt) viewModel.reanchorClock()
+            value = WorkoutClock.trainedMs(startedAt, pause, now)
             delay(1_000)
         }
     }
@@ -374,8 +379,8 @@ fun ActiveWorkoutScreen(
     }
     plateSheetFor?.let { (kg, label) ->
         val load = state.plateLoad(kg)
-        ModalBottomSheet(onDismissRequest = { plateSheetFor = null }, sheetState = rememberModalBottomSheetState()) {
-            Column(Modifier.navigationBarsPadding().padding(horizontal = IntakeSpacing.ScreenGutter).padding(bottom = 28.dp)) {
+        ModalBottomSheet(onDismissRequest = { plateSheetFor = null }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+            Column(Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = IntakeSpacing.ScreenGutter).padding(bottom = 28.dp)) {
                 PlateVisual(
                     title = "Plates · $label total",
                     perSide = load.perSide,
@@ -517,7 +522,11 @@ private fun WorkoutHeader(
             Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onBackground)
             Text(
                 if (paused) "$clock · Paused · $progress" else "$clock · $progress",
-                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = SpaceGrotesk, fontFeatureSettings = "tnum"),
+                // One line at any font size (Q7-23): large text steps down a size, then ellipsis as the last resort.
+                style = (if (LocalDensity.current.fontScale > 1.25f) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium)
+                    .copy(fontFamily = SpaceGrotesk, fontFeatureSettings = "tnum"),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 color = if (paused) MaterialTheme.intake.warn else MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.semantics { contentDescription = (if (paused) "Paused at $clock" else "Elapsed $clock") + ", $progress" },
@@ -615,8 +624,10 @@ private fun RestStepButton(label: String, onClick: () -> Unit) {
  */
 @Composable
 private fun RestSheet(exerciseName: String, seconds: Int, onChange: (Int) -> Unit, onDismiss: () -> Unit) {
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
-        Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = IntakeSpacing.ScreenGutter).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    // Fully expanded from the start (Q7-4): the default opens a tall sheet at half the screen height, which cut off the bottom of
+    // this one (the Done button) whatever padding was added. The column scrolls when the content is taller than the screen.
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = IntakeSpacing.ScreenGutter).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Rest after $exerciseName", style = MaterialTheme.typography.headlineSmall)
             Text(
                 "This workout only: your program keeps its own rest. It applies from the next set you log.",
@@ -821,7 +832,7 @@ private fun ExerciseSetsCard(
             Text(
                 text = buildString {
                     append(TrainText.prescription(prescription.sets, prescription.repsMin, prescription.repsMax))
-                    if (prescription.weightKg > 0) append(" · ").append(fmt(unit.fromKg(prescription.weightKg))).append(' ').append(unit.label)
+                    if (prescription.weightKg > 0) append(" · ").append(com.zeroindex.intake.domain.units.WeightText.format(prescription.weightKg, unit))
                     if (amrap) append(" · ").append(RepTarget.AMRAP_LABEL)
                 },
                 style = MaterialTheme.typography.titleMedium,
@@ -847,5 +858,3 @@ private fun muscleLine(item: ExercisePrescription): String {
     return (listOf(main) + also).joinToString(", ")
 }
 
-internal fun fmt(value: Double): String =
-    if (value % 1.0 == 0.0) Math.round(value).toString() else (Math.round(value * 10) / 10.0).toString()

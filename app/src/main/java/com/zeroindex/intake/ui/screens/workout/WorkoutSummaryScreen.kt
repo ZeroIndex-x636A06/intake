@@ -66,6 +66,7 @@ import com.zeroindex.intake.domain.training.RegionVolume
 import com.zeroindex.intake.domain.training.SessionSummary
 import com.zeroindex.intake.domain.training.TrainText
 import com.zeroindex.intake.domain.training.WeeklyVolume
+import com.zeroindex.intake.domain.units.WeightText
 import com.zeroindex.intake.domain.units.WeightUnit
 import com.zeroindex.intake.ui.components.EmptyState
 import com.zeroindex.intake.ui.components.IntakeCard
@@ -466,13 +467,13 @@ private fun RecordsCard(records: List<RecordLine>, unit: WeightUnit) {
 /** "Bench press: estimated 1-rep max 104 lb, up 4 lb" and "Overhead press: 5 reps at 95 lb (was 4)". */
 internal fun recordText(r: RecordLine, unit: WeightUnit): String = when (r.kind) {
     PrKind.ESTIMATED_MAX -> {
-        val now = fmt(unit.fromKg(r.value))
-        val up = r.previous?.let { ", up ${fmt(unit.fromKg(r.value - it))} ${unit.label}" }.orEmpty()
+        val now = WeightText.estimate(r.value, unit)
+        val up = r.previous?.let { ", up ${WeightText.estimate(r.value - it, unit)} ${unit.label}" }.orEmpty()
         "${r.exerciseName}: estimated 1-rep max $now ${unit.label}$up"
     }
     PrKind.HEAVIEST_WEIGHT -> {
-        val up = r.previous?.let { " (was ${fmt(unit.fromKg(it))})" }.orEmpty()
-        "${r.exerciseName}: heaviest weight ${fmt(unit.fromKg(r.value))} ${unit.label}$up"
+        val up = r.previous?.let { " (was ${WeightText.number(it, unit)})" }.orEmpty()
+        "${r.exerciseName}: heaviest weight ${WeightText.number(r.value, unit)} ${unit.label}$up"
     }
     PrKind.BEST_VOLUME -> {
         val was = r.previous?.let { " (was ${TrainText.thousands(unit.fromKg(it))})" }.orEmpty()
@@ -480,7 +481,7 @@ internal fun recordText(r: RecordLine, unit: WeightUnit): String = when (r.kind)
     }
     PrKind.REP_RECORD -> {
         val was = r.previous?.let { " (was ${it.toInt()})" }.orEmpty()
-        val at = if (r.weightKg == 0.0) "" else " at ${fmt(unit.fromKg(r.weightKg))} ${unit.label}"
+        val at = if (r.weightKg == 0.0) "" else " at ${WeightText.number(r.weightKg, unit)} ${unit.label}"
         "${r.exerciseName}: ${r.value.toInt()} reps$at$was"
     }
     PrKind.NONE -> r.exerciseName
@@ -559,7 +560,7 @@ private fun NextTimeCard(changes: List<NextTimeChange>, unit: WeightUnit) {
             changes.forEachIndexed { i, c ->
                 Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
                     Text(
-                        "${c.exerciseName}: ${fmt(unit.fromKg(c.fromKg))} → ${fmt(unit.fromKg(c.toKg))} ${unit.label} × ${c.reps}",
+                        "${c.exerciseName}: ${WeightText.number(c.fromKg, unit)} → ${WeightText.number(c.toKg, unit)} ${unit.label} × ${c.reps}",
                         style = MaterialTheme.typography.titleSmall,
                     )
                     Text(com.zeroindex.intake.domain.units.WeightText.inUnit(c.reason, unit), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -642,14 +643,17 @@ private fun EditTimeDialog(
             Column {
             Column(Modifier.weight(1f, fill = false).verticalScroll(androidx.compose.foundation.rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 com.zeroindex.intake.ui.screens.train.WhenFields(date, { date = it }, timeState, minutesText, { minutesText = it }, today)
+            }
+            // The helper and the message sit outside the scrolling part, one under the other, so neither is cut off below the
+            // time picker (Q7-5) or drawn over the other (Q8-5).
+            Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
                     "The sets move with the start time.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                problem?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
             }
-            // The message sits outside the scrolling part, so it is never cut off below the time picker (Q7-5).
-            problem?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp)) }
             }
         },
         confirmButton = {

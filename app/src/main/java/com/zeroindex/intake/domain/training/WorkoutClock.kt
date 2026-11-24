@@ -4,7 +4,18 @@ package com.zeroindex.intake.domain.training
  * Pauses of one workout, kept outside the database (no schema change): the milliseconds already spent paused, and the
  * moment the current pause began, if one is running. Pure; the phone keeps one of these for the running session.
  */
-data class WorkoutPause(val sessionId: String, val pausedMs: Long = 0L, val pausedSince: Long? = null) {
+data class WorkoutPause(
+    val sessionId: String,
+    val pausedMs: Long = 0L,
+    val pausedSince: Long? = null,
+    /**
+     * Reopen: the idle time between Finish and Reopen. It is not trained time, but unlike a pause it must not move the start
+     * (the person may have edited it), so it is taken off the clock here and off the end when the workout is finished again.
+     */
+    val reopenGapMs: Long = 0L,
+    /** When the workout was reopened: sets logged from then on are the ones the gap is taken off. */
+    val reopenedAt: Long? = null,
+) {
     val isPaused: Boolean get() = pausedSince != null
 
     fun pause(now: Long): WorkoutPause = if (isPaused) this else copy(pausedSince = now)
@@ -23,7 +34,24 @@ object WorkoutClock {
 
     /** Trained time so far. With no pause on record it is plain elapsed time. */
     fun trainedMs(startedAt: Long, pause: WorkoutPause?, now: Long): Long =
-        (now - startedAt - (pause?.totalPausedMs(now) ?: 0L)).coerceAtLeast(0L)
+        (now - startedAt - (pause?.totalPausedMs(now) ?: 0L) - (pause?.reopenGapMs ?: 0L)).coerceAtLeast(0L)
+
+    /** How far a start may sit ahead of the clock before the phone's clock is taken to have been moved back. */
+    const val FUTURE_TOLERANCE_MS = 60_000L
+
+    /**
+     * The start to run the clock from. A start that lies in the future (the wall clock was set back, or the zone changed) would
+     * hold the timer at 0:00 until the clock caught up, so it is re-anchored to [now]. Returns [startedAt] when it is fine.
+     */
+    fun reanchoredStart(startedAt: Long, now: Long): Long =
+        if (startedAt - now > FUTURE_TOLERANCE_MS) now else startedAt
+
+    /**
+     * The end to save for a reopened workout that is finished again: [finishedAt] minus the idle [gapMs], never before the
+     * start. The start stays what the person set, and finish minus start is the trained time.
+     */
+    fun endWithoutGap(startedAt: Long, finishedAt: Long, gapMs: Long): Long =
+        if (gapMs <= 0L) finishedAt else maxOf(startedAt, finishedAt - gapMs)
 
     /**
      * The start time to save so that finish minus start is the trained time. The saved duration everywhere (summary,

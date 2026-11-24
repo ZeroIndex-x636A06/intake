@@ -15,6 +15,9 @@ import kotlinx.coroutines.flow.asStateFlow
  * different session replaces the old one. Only the net trained time is saved with a finished session
  * (TrainingRepository.finishSession).
  */
+/** The pause and reopen-gap totals handed to Finish. */
+data class FinishedPause(val pausedMs: Long, val reopenGapMs: Long, val reopenedAt: Long?)
+
 @Singleton
 class WorkoutPauseStore @Inject constructor(@ApplicationContext context: Context) {
 
@@ -36,11 +39,18 @@ class WorkoutPauseStore @Inject constructor(@ApplicationContext context: Context
         set(current.resume(now))
     }
 
-    /** Total paused time of [sessionId] up to [now], then forgets it (the workout is over). */
-    fun finish(sessionId: String, now: Long): Long {
-        val total = forSession(sessionId)?.totalPausedMs(now) ?: 0L
+    /** Reopen: remembers the idle time since Finish, which the clock and the next Finish leave out (see WorkoutPause.reopenGapMs). */
+    fun reopen(sessionId: String, gapMs: Long, now: Long) {
+        val current = forSession(sessionId) ?: WorkoutPause(sessionId)
+        set(current.copy(reopenGapMs = gapMs.coerceAtLeast(0L), reopenedAt = now))
+    }
+
+    /** What Finish needs to know about [sessionId] at [now], then forgets it (the workout is over). */
+    fun finish(sessionId: String, now: Long): FinishedPause {
+        val p = forSession(sessionId)
+        val out = FinishedPause(p?.totalPausedMs(now) ?: 0L, p?.reopenGapMs ?: 0L, p?.reopenedAt)
         clear(sessionId)
-        return total
+        return out
     }
 
     fun clear(sessionId: String) {
@@ -55,6 +65,8 @@ class WorkoutPauseStore @Inject constructor(@ApplicationContext context: Context
                     putString(KEY_SESSION, value.sessionId)
                     putLong(KEY_PAUSED_MS, value.pausedMs)
                     if (value.pausedSince != null) putLong(KEY_SINCE, value.pausedSince) else remove(KEY_SINCE)
+                    putLong(KEY_GAP, value.reopenGapMs)
+                    if (value.reopenedAt != null) putLong(KEY_REOPENED, value.reopenedAt) else remove(KEY_REOPENED)
                 }
             }?.apply()
         }
@@ -63,10 +75,13 @@ class WorkoutPauseStore @Inject constructor(@ApplicationContext context: Context
     private fun load(): WorkoutPause? = runCatching {
         val p = prefs ?: return@runCatching null
         val id = p.getString(KEY_SESSION, null) ?: return@runCatching null
-        WorkoutPause(id, p.getLong(KEY_PAUSED_MS, 0L), if (p.contains(KEY_SINCE)) p.getLong(KEY_SINCE, 0L) else null)
+        WorkoutPause(id, p.getLong(KEY_PAUSED_MS, 0L), if (p.contains(KEY_SINCE)) p.getLong(KEY_SINCE, 0L) else null,
+            p.getLong(KEY_GAP, 0L), if (p.contains(KEY_REOPENED)) p.getLong(KEY_REOPENED, 0L) else null)
     }.getOrNull()
 
     private companion object {
+        const val KEY_GAP = "reopen_gap"
+        const val KEY_REOPENED = "reopened_at"
         const val KEY_SESSION = "session"
         const val KEY_PAUSED_MS = "paused_ms"
         const val KEY_SINCE = "paused_since"

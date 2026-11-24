@@ -299,14 +299,14 @@ private fun SetLine(
     }
     val inputs: @Composable RowScope.() -> Unit = {
         if (done && existing != null) {
-            ShownCell(Modifier.weight(1f), displayWeight(existing.weightKg))
-            ShownCell(Modifier.weight(0.85f), "${existing.reps}", trophy = record)
+            ShownCell(Modifier.weight(1f), displayWeight(existing.weightKg), caption = if (twoLine) unitLabel else null)
+            ShownCell(Modifier.weight(0.85f), "${existing.reps}", trophy = record, caption = if (twoLine) "Reps" else null)
         } else {
             NumberCell(Modifier.weight(1f), weight, onWeightChange, "Set $number weight in $unitLabel", weightPlaceholder, caption = if (twoLine) unitLabel else null)
             NumberCell(Modifier.weight(0.85f), reps, onRepsChange, "Set $number reps", caption = if (twoLine) "Reps" else null)
         }
         if (effortScale != EffortScale.OFF) {
-            EffortCell(Modifier.weight(0.75f), number, effortScale, effort, onEffortChange)
+            EffortCell(Modifier.weight(0.75f), number, effortScale, effort, onEffortChange, caption = if (twoLine) effortScale.label else null)
         }
     }
     val tick: @Composable RowScope.() -> Unit = {
@@ -358,8 +358,10 @@ private fun SetLine(
 }
 
 @Composable
-private fun ShownCell(modifier: Modifier, text: String, trophy: PrKind = PrKind.NONE) {
-    Box(modifier.padding(horizontal = 3.dp), contentAlignment = Alignment.Center) {
+private fun ShownCell(modifier: Modifier, text: String, trophy: PrKind = PrKind.NONE, caption: String? = null) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+    if (caption != null) Eyebrow(caption)
+    Box(Modifier.fillMaxWidth().padding(horizontal = 3.dp), contentAlignment = Alignment.Center) {
         Surface(
             color = Color.Transparent,
             shape = IntakeShape.ExtraSmall,
@@ -373,6 +375,7 @@ private fun ShownCell(modifier: Modifier, text: String, trophy: PrKind = PrKind.
                 Text(text, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
             }
         }
+    }
     }
 }
 
@@ -438,14 +441,24 @@ internal fun effortColor(band: EffortBand): Color = when (band) {
  * of the five levels, each with a plain line such as "2 left in the tank". Tapping the chosen level again clears it.
  */
 @Composable
-private fun EffortCell(modifier: Modifier, setNumber: Int, scale: EffortScale, effort: Double?, onChange: (Double?) -> Unit) {
+private fun EffortCell(
+    modifier: Modifier,
+    setNumber: Int,
+    scale: EffortScale,
+    effort: Double?,
+    onChange: (Double?) -> Unit,
+    /** A visible label above the cell at large text, like the weight and reps fields (Q8-8). */
+    caption: String? = null,
+) {
     var open by remember { mutableStateOf(false) }
     val description = if (effort == null) {
         "Set $setNumber effort, not rated. Opens the ${scale.label} choices."
     } else {
         "Set $setNumber effort, ${Effort.shortFor(effort, scale)}, ${Effort.line(effort)}. Opens the ${scale.label} choices."
     }
-    Box(modifier.padding(horizontal = 3.dp), contentAlignment = Alignment.Center) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+    if (caption != null) Eyebrow(caption)
+    Box(Modifier.fillMaxWidth().padding(horizontal = 3.dp), contentAlignment = Alignment.Center) {
         Surface(
             color = effort?.let { effortColor(Effort.band(it)) } ?: MaterialTheme.intake.soft,
             shape = IntakeShape.ExtraSmall,
@@ -486,5 +499,6 @@ private fun EffortCell(modifier: Modifier, setNumber: Int, scale: EffortScale, e
                 DropdownMenuItem(text = { Text("Clear") }, onClick = { open = false; onChange(null) })
             }
         }
+    }
     }
 }
