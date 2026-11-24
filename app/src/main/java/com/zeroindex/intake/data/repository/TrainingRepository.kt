@@ -779,7 +779,7 @@ class TrainingRepository @Inject constructor(
 
     /** Captures bodyweight at session start, for bodyweight lift maths (SPEC §4). */
     suspend fun startSession(programDayId: String?): WorkoutSessionEntity {
-        workoutDao.inProgress()?.let { return reanchorClock(it.id) ?: it }
+        workoutDao.inProgress()?.let { return reanchorClock(it.id, System.currentTimeMillis()) ?: it }
         val now = clock.nowMillis()
         val session = WorkoutSessionEntity(
             id = newId(),
@@ -815,6 +815,10 @@ class TrainingRepository @Inject constructor(
                 end = com.zeroindex.intake.domain.training.WorkoutClock.endWithoutGap(start, end, reopenGapMs)
                 if (reopenedAt != null) workoutDao.shiftSetTimesFrom(sessionId, reopenedAt, -reopenGapMs, now)
             }
+        }
+        // A workout with sets never ends before its own start or its last set: that is a "0 min" entry holding sets (Q9-5).
+        workoutDao.findSession(sessionId)?.let { s ->
+            end = com.zeroindex.intake.domain.training.WorkoutClock.endNotBeforeSets(s.startedAt, end, workoutDao.setsOf(sessionId).maxOfOrNull { it.completedAt })
         }
         if (finishedAt == null && end == now) workoutDao.finishSession(sessionId, now) else workoutDao.finishSessionAt(sessionId, end, now)
         if (pausedMs > 0L) {
@@ -1006,12 +1010,14 @@ class TrainingRepository @Inject constructor(
      * Reanchors a running workout whose start lies in the future (the phone's clock was set back): the start and its sets move
      * back to now so the timer counts again instead of sitting at 0:00 (Q8-10). Returns the session as it stands.
      */
-    suspend fun reanchorClock(sessionId: String): WorkoutSessionEntity? {
+    suspend fun reanchorClock(sessionId: String, wallNow: Long): WorkoutSessionEntity? {
         val session = workoutDao.findSession(sessionId) ?: return null
         if (session.finishedAt != null) return session
-        val now = clock.nowMillis()
-        val start = com.zeroindex.intake.domain.training.WorkoutClock.reanchoredStart(session.startedAt, now)
+        // The wall clock, not the app's hybrid clock: that one never runs backwards, so after a clock change it still reads
+        // the old time and the start would never look like it was in the future (Q8-10).
+        val start = com.zeroindex.intake.domain.training.WorkoutClock.reanchoredStart(session.startedAt, wallNow)
         if (start == session.startedAt) return session
+        val now = clock.nowMillis()
         workoutDao.updateSessionStart(sessionId, start, now)
         workoutDao.shiftSetTimes(sessionId, start - session.startedAt, now)
         return workoutDao.findSession(sessionId)

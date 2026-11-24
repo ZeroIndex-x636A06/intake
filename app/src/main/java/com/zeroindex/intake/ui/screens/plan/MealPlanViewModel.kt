@@ -332,7 +332,7 @@ class MealPlanViewModel @Inject constructor(
                 "Not logged: ${r.terms.joinToString()} matches your allergen profile."
             is MealLogResult.Logged -> messages.post(
                 AppMessage(
-                    text = "Logged ${content.recipe.name} to ${slotNow().name.lowercase()}" +
+                    text = "Logged ${content.recipe.name} to ${slotNow().label}" +
                         if (r.status == AllergenStatus.MAY_CONTAIN) " · check the labels for allergens" else "",
                     actionLabel = "Undo",
                     onAction = { repo.undoLog(r.log) },
@@ -370,7 +370,7 @@ class MealPlanViewModel @Inject constructor(
         val log = repo.logEatOut(option, slotNow(), override, overrideNote)
         messages.post(
             AppMessage(
-                text = "Logged ${option.venueName} to ${slotNow().name.lowercase()}",
+                text = "Logged ${option.venueName} to ${slotNow().label}",
                 actionLabel = "Undo",
                 onAction = { repo.undoLog(log) },
             ),

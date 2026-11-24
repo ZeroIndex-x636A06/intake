@@ -132,7 +132,7 @@ class FoodDetailViewModel @Inject constructor(
                 if (overrideNote != null) foodLog.markOverridden(entry, overrideNote)
                 messages.post(
                     AppMessage(
-                        text = "Logged ${food.name} to ${slot.name.lowercase()}",
+                        text = "Logged ${food.name} to ${slot.label}",
                         actionLabel = "Undo",
                         onAction = { foodLog.softDelete(entry.id) },
                     ),

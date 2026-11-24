@@ -129,12 +129,24 @@ fun ActiveWorkoutScreen(
     val startedAt = state.session?.startedAt
     val pause = state.pause
     val paused = pause?.isPaused == true
-    val elapsed by produceState(0L, startedAt, pause) {
+    // Read only inside the header's clock lambda, so the one-second tick recomposes the header and not the whole screen: the
+    // list of exercises below (thumbnails, set rows) used to be redone every second (Q9-4).
+    val elapsedState = produceState(0L, startedAt, pause) {
+        // Wall clock readings only drive the display; the saved start is re-anchored once through the view model.
+        var reanchored = false
+        var shownStart = startedAt
         while (startedAt != null) {
             val now = System.currentTimeMillis()
-            // The clock was set back past the start: move the start to now rather than sit at 0:00 until it catches up (Q8-10).
-            if (WorkoutClock.reanchoredStart(startedAt, now) != startedAt) viewModel.reanchorClock()
-            value = WorkoutClock.trainedMs(startedAt, pause, now)
+            // The clock was set back past the start: count from now rather than sit at 0:00 until it catches up (Q8-10).
+            // The display moves at once; the saved start follows (once).
+            val anchor = WorkoutClock.reanchoredStart(startedAt, now)
+            if (anchor != startedAt) {
+                shownStart = anchor
+                if (!reanchored) { reanchored = true; viewModel.reanchorClock(now) }
+            }
+            val next = WorkoutClock.trainedMs(shownStart ?: startedAt, pause, now)
+            // Whole seconds only: a state write that changes nothing visible is skipped.
+            if (next / 1000 != value / 1000 || value == 0L) value = next
             delay(1_000)
         }
     }
@@ -199,7 +211,7 @@ fun ActiveWorkoutScreen(
     ) {
         WorkoutHeader(
             title = state.title,
-            clock = TrainText.clock(elapsed),
+            clock = { TrainText.clock(elapsedState.value) },
             progress = TrainText.setsProgress(state.doneSets, state.totalSets),
             paused = paused,
             onTogglePause = { setPaused(!paused) },
@@ -505,13 +517,14 @@ private fun FinishDialog(
 @Composable
 private fun WorkoutHeader(
     title: String,
-    clock: String,
+    clock: () -> String,
     progress: String,
     paused: Boolean,
     onTogglePause: () -> Unit,
     onMinimise: () -> Unit,
     onFinish: () -> Unit,
 ) {
+    val clock = clock()
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = IntakeSpacing.ScreenGutter, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -788,21 +801,33 @@ private fun ExerciseSetsCard(
             ) {
                 ExerciseThumb(item.exercise.id, item.exercise.photoPath, size = 56.dp)
                 Column(Modifier.weight(1f)) {
-                    Text(item.exercise.name, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+                    // Whole words (Q9-2): at large text the "Form" label gives up its words, so the name keeps a usable width,
+                    // and what still does not fit ends in an ellipsis rather than breaking a word in half.
+                    Text(
+                        item.exercise.name,
+                        style = MaterialTheme.typography.titleLarge.copy(hyphens = androidx.compose.ui.text.style.Hyphens.None),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                     Text(
                         buildString {
                             if (item.exercise.equipment.isNotBlank()) append(item.exercise.equipment.replaceFirstChar { it.uppercase() }).append(" · ")
                             append(muscleLine(item))
                         },
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
             SoftButton(onClick = onOpenDetail, small = true) {
-                Icon(IntakeIcons.Play, contentDescription = null, modifier = Modifier.size(IconSize.Small))
-                Spacer(Modifier.width(4.dp))
-                Text("Form", style = MaterialTheme.typography.labelMedium)
+                Icon(IntakeIcons.Play, contentDescription = if (LocalDensity.current.fontScale > 1.25f) "Show how to do ${item.exercise.name}" else null, modifier = Modifier.size(IconSize.Small))
+                if (LocalDensity.current.fontScale <= 1.25f) {
+                    Spacer(Modifier.width(4.dp))
+                    Text("Form", style = MaterialTheme.typography.labelMedium)
+                }
             }
             Box {
                 IconCircleButton(IntakeIcons.More, "More for ${item.exercise.name}", { menu = true }, style = IconCircleStyle.Soft)

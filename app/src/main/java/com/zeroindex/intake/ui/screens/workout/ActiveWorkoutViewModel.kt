@@ -203,13 +203,13 @@ class ActiveWorkoutViewModel @Inject constructor(
     }
 
     /** The phone's clock was set back past this workout's start: moves the start to now so the timer counts again (Q8-10). */
-    fun reanchorClock() = viewModelScope.launch {
-        val session = repository.reanchorClock(sessionId) ?: return@launch
+    fun reanchorClock(wallNow: Long = System.currentTimeMillis()) = viewModelScope.launch {
+        val session = repository.reanchorClock(sessionId, wallNow) ?: return@launch
         meta.value = meta.value.copy(first = session)
     }
 
     private fun load() = viewModelScope.launch {
-        val session = repository.reanchorClock(sessionId) ?: repository.session(sessionId)
+        val session = repository.reanchorClock(sessionId, System.currentTimeMillis()) ?: repository.session(sessionId)
         val dayId = session?.programDayId
         val title = dayId?.let { repository.dayName(it) } ?: "Workout"
         meta.value = Triple(session, title, dayId == null)

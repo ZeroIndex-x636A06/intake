@@ -150,7 +150,7 @@ class TodayExtrasViewModel @Inject constructor(
                 is MealLogResult.Blocked -> messages.post(AppMessage("Not logged: ${r.terms.joinToString()} matches your allergen profile."))
                 is MealLogResult.Logged -> messages.post(
                     AppMessage(
-                        text = "Logged ${next.content.recipe.name} to ${next.slot.name.lowercase()}",
+                        text = "Logged ${next.content.recipe.name} to ${next.slot.label}",
                         actionLabel = "Undo",
                         onAction = { plans.undoLog(r.log) },
                     ),

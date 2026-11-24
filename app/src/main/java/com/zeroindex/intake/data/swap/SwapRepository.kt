@@ -284,7 +284,7 @@ class SwapRepository @Inject constructor(
         val note = AllergenOverride.noteFor(scan)
         suspend fun logged(logs: List<FoodLogEntity>, undo: suspend () -> Unit): SwapLogResult {
             if (overriding) logs.forEach { finder.markOverridden(it, note) }
-            return SwapLogResult.Logged("Logged $title to ${slot.name.lowercase()}" + if (overriding) " (allergen warning kept)" else "", undo)
+            return SwapLogResult.Logged("Logged $title to ${slot.label}" + if (overriding) " (allergen warning kept)" else "", undo)
         }
         return when (val src = entry.source) {
             is SwapSource.Recipe -> when (val r = plans.logMeal(src.content, slot, allergenOverride = overriding)) {

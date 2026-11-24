@@ -68,13 +68,7 @@ data class MealSlotUi(
     val protein: Double get() = entries.sumOf { it.protein }
 }
 
-internal fun MealSlot.displayName(): String = when (this) {
-    MealSlot.BREAKFAST -> "Breakfast"
-    MealSlot.LUNCH -> "Lunch"
-    MealSlot.DINNER -> "Dinner"
-    MealSlot.SNACK -> "Snacks"
-    MealSlot.DRINKS -> "Drinks"
-}
+internal fun MealSlot.displayName(): String = label
 
 @HiltViewModel
 class TodayViewModel @Inject constructor(

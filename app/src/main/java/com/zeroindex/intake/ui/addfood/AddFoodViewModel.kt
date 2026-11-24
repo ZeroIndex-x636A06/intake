@@ -667,7 +667,7 @@ class AddFoodViewModel @Inject constructor(
             null -> messages.post(AppMessage("That menu item is no longer saved"))
             is MenuLogOutcome.NeedsConfirmation -> pendingLog.value = PendingLog(null, outcome.name, null, outcome.macros, outcome.scan)
             is MenuLogOutcome.Logged -> messages.post(
-                AppMessage("Logged ${row.hit.item.name} to ${slot.name.lowercase()}", "Undo") { foodLogRepository.softDelete(outcome.log.id) },
+                AppMessage("Logged ${row.hit.item.name} to ${slot.label}", "Undo") { foodLogRepository.softDelete(outcome.log.id) },
             )
         }
     }
@@ -699,7 +699,7 @@ class AddFoodViewModel @Inject constructor(
         } else {
             val entry = foodLogRepository.logFood(food, amount, slot, at)
             if (overrideNote != null) foodLogRepository.markOverridden(entry, overrideNote)
-            messages.post(AppMessage("Logged ${food.name} to ${slot.name.lowercase()}", "Undo") { foodLogRepository.softDelete(entry.id) })
+            messages.post(AppMessage("Logged ${food.name} to ${slot.label}", "Undo") { foodLogRepository.softDelete(entry.id) })
         }
     }
 

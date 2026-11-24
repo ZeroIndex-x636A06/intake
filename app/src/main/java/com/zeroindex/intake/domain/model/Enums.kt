@@ -20,6 +20,16 @@ enum class FoodSource { MANUAL, BARCODE, SEARCH, AI_PHOTO, RECIPE, DATABASE, OPE
 enum class MealSlot {
     BREAKFAST, LUNCH, DINNER, SNACK, DRINKS;
 
+    /** The name as the person reads it ("Lunch", "Snacks"); messages and labels use this, never the enum name. */
+    val label: String
+        get() = when (this) {
+            BREAKFAST -> "Breakfast"
+            LUNCH -> "Lunch"
+            DINNER -> "Dinner"
+            SNACK -> "Snacks"
+            DRINKS -> "Drinks"
+        }
+
     companion object {
         /** The four real meals, in day order: what a meal picker or the meal cards list. */
         val MEALS: List<MealSlot> = listOf(BREAKFAST, LUNCH, DINNER, SNACK)

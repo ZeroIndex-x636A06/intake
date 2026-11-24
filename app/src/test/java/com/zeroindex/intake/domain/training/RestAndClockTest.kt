@@ -119,4 +119,20 @@ class RestAndClockTest {
         assertThat(WorkoutClock.reanchoredStart(now + 5_000, now)).isEqualTo(now + 5_000)
         assertThat(WorkoutClock.reanchoredStart(now - 5_000, now)).isEqualTo(now - 5_000)
     }
+
+    @Test
+    fun `a finished workout never ends before its start or its last set`() {
+        assertThat(WorkoutClock.endNotBeforeSets(startedAt = 1_000, end = 500, lastSetAt = null)).isEqualTo(1_000L)
+        assertThat(WorkoutClock.endNotBeforeSets(startedAt = 1_000, end = 1_000, lastSetAt = 61_000)).isEqualTo(61_000L)
+        assertThat(WorkoutClock.endNotBeforeSets(startedAt = 1_000, end = 90_000, lastSetAt = 61_000)).isEqualTo(90_000L)
+    }
+
+    @Test
+    fun `after the clock is set back the display counts from now at once`() {
+        // What the ticker does: a start 2 h ahead of the wall clock shows 0:00 for no longer than one tick.
+        val now = 50_000_000L
+        val start = now + 2 * 3_600_000L
+        val shownStart = WorkoutClock.reanchoredStart(start, now)
+        assertThat(WorkoutClock.trainedMs(shownStart, null, now + 70_000)).isEqualTo(70_000L)
+    }
 }

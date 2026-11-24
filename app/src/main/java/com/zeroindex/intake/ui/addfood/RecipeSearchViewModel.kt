@@ -194,7 +194,7 @@ class RecipeSearchViewModel @Inject constructor(
     private suspend fun logNow(recipe: RecipeEntity, slot: MealSlot, at: Long, overrideNote: String? = null) {
         val logged = logger.logServings(recipe, slot, estimate = estimateTotalsFor(recipe), servings = 1.0, at = at) ?: return
         val entry = if (overrideNote != null) foodLog.markOverridden(logged, overrideNote) else logged
-        messages.post(AppMessage("Logged ${recipe.name} to ${slot.name.lowercase()}", "Undo") { foodLog.softDelete(entry.id) })
+        messages.post(AppMessage("Logged ${recipe.name} to ${slot.label}", "Undo") { foodLog.softDelete(entry.id) })
     }
 
     private companion object {

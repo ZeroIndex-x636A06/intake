@@ -54,6 +54,13 @@ object WorkoutClock {
         if (gapMs <= 0L) finishedAt else maxOf(startedAt, finishedAt - gapMs)
 
     /**
+     * The end to save when a workout is finished: never before its start, and never before its last logged set, so a workout
+     * that holds sets cannot be saved as a "0 min" entry (Q9-5). With no sets it is only kept at or after the start.
+     */
+    fun endNotBeforeSets(startedAt: Long, end: Long, lastSetAt: Long?): Long =
+        maxOf(end, startedAt, lastSetAt ?: Long.MIN_VALUE)
+
+    /**
      * The start time to save so that finish minus start is the trained time. The saved duration everywhere (summary,
      * history, Health Connect) is finish minus start, so shifting the start later by the paused time makes it count only
      * trained time without a new column. It never moves past the first logged set, so no set ends up before its own

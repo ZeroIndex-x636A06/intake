@@ -196,8 +196,8 @@ fun Segmented(
                 else -> minOf(wanted, constraints.maxWidth)
             }
             val widths = segmentWidths(natural, gap, available)
-            val first = measurables.mapIndexed { i, m -> m.measure(Constraints(minWidth = widths[i], maxWidth = widths[i])) }
-            val height = first.maxOfOrNull { it.height } ?: 0
+            // Intrinsics for the height: a Measurable may be measured only once per pass.
+            val height = measurables.mapIndexed { i, m -> m.maxIntrinsicHeight(widths[i]) }.maxOrNull() ?: 0
             val placeables = measurables.mapIndexed { i, m ->
                 m.measure(Constraints(minWidth = widths[i], maxWidth = widths[i], minHeight = height, maxHeight = height))
             }

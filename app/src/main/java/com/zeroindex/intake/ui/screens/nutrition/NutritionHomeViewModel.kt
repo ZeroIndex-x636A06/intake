@@ -248,7 +248,7 @@ class NutritionHomeViewModel @Inject constructor(
                 is MealLogResult.Blocked -> messages.post(AppMessage("Not logged: ${r.terms.joinToString()} matches your allergen profile."))
                 is MealLogResult.Logged -> messages.post(
                     AppMessage(
-                        text = "Logged ${next.content.recipe.name} to ${next.slot.name.lowercase()}" + if (selectedDate.value == clock.today()) "" else " on ${NutritionDay.label(selectedDate.value, clock.today())}",
+                        text = "Logged ${next.content.recipe.name} to ${next.slot.label}" + if (selectedDate.value == clock.today()) "" else " on ${NutritionDay.label(selectedDate.value, clock.today())}",
                         actionLabel = "Undo",
                         onAction = { plans.undoLog(r.log) },
                     ),

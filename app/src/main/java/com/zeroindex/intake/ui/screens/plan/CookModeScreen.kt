@@ -160,7 +160,7 @@ class CookModeViewModel @Inject constructor(
             messages.post(AppMessage("${recipe.name} has no calories listed, so a serving was not logged."))
             return false
         }
-        messages.post(AppMessage("Logged ${recipe.name} to ${slot.name.lowercase()}", "Undo") { foodLog.softDelete(entry.id) })
+        messages.post(AppMessage("Logged ${recipe.name} to ${slot.label}", "Undo") { foodLog.softDelete(entry.id) })
         return true
     }
 
