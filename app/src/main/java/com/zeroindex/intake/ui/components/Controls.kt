@@ -99,9 +99,11 @@ fun SectionLine(
             .fillMaxWidth()
             .padding(top = IntakeSpacing.SectionTop + 4.dp, bottom = 8.dp, start = IntakeSpacing.SectionSide, end = IntakeSpacing.SectionSide),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        // The title never shares a line with the caption, so it cannot be squeezed into breaking mid-word.
-        Column(Modifier.weight(1f)) {
+        // The title never shares a line with the caption, so it cannot be squeezed into breaking mid-word. With a trailing
+        // chip the title keeps the width of its own words (a long chip used to take the whole row and left it a few dp).
+        Column(if (trailing == null) Modifier.weight(1f) else Modifier.weight(1f, fill = false)) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleLarge,
@@ -115,7 +117,10 @@ fun SectionLine(
                 )
             }
         }
-        trailing?.invoke()
+        if (trailing != null) {
+            Spacer(Modifier.width(12.dp))
+            Box(Modifier.weight(1f, fill = false), contentAlignment = Alignment.CenterEnd) { trailing() }
+        }
     }
 }
 
@@ -238,6 +243,8 @@ fun IntakeChip(
     tone: ChipTone = ChipTone.Neutral,
     icon: ImageVector? = null,
     small: Boolean = false,
+    /** Safety wording (allergen chips) passes Int.MAX_VALUE so it wraps instead of being cut with an ellipsis. */
+    maxLines: Int = 1,
     onClick: (() -> Unit)? = null,
 ) {
     val c = MaterialTheme.intake
@@ -264,8 +271,9 @@ fun IntakeChip(
             Text(
                 text = text,
                 style = if (small) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
-                maxLines = 1,
+                maxLines = maxLines,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = if (maxLines > 1) Modifier.weight(1f, fill = false) else Modifier,
             )
         }
     }

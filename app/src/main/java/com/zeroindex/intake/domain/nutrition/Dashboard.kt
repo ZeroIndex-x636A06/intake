@@ -64,7 +64,7 @@ object NutritionDashboard {
             DashRow("sodium", "Sodium", day.sodium.value, "mg", ReferenceLimits.SODIUM_MG, true, day.sodium.note)
         }
         val others = listOf(
-            DashRow("fiber", "Fibre", day.fiber.value, "g", ReferenceLimits.FIBER_G, true, day.fiber.note),
+            DashRow("fiber", "Fiber", day.fiber.value, "g", ReferenceLimits.FIBER_G, true, day.fiber.note),
             DashRow("satfat", "Sat fat", day.saturatedFat.value, "g", ReferenceLimits.SATURATED_FAT_G, true, day.saturatedFat.note),
             DashRow("sugar", "Sugar", day.sugar.value, "g", null, false, day.sugar.note),
             sodiumRow,

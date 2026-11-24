@@ -509,7 +509,7 @@ private fun FoodEditor(
                 num("Fat g", fat, { fat = it }, Modifier.weight(1f))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                num("Fibre g", fiber, { fiber = it }, Modifier.weight(1f))
+                num("Fiber g", fiber, { fiber = it }, Modifier.weight(1f))
                 num("Sugar g", sugar, { sugar = it }, Modifier.weight(1f))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

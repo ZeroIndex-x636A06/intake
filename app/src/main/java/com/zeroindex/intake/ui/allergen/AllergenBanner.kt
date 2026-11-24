@@ -180,6 +180,7 @@ fun AllergenChip(
         text = text,
         tone = tone,
         icon = icon,
+        maxLines = Int.MAX_VALUE,
         modifier = modifier.semantics { contentDescription = text },
     )
 }

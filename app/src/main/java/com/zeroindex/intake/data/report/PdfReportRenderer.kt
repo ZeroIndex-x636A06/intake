@@ -233,7 +233,7 @@ class PdfReportRenderer @Inject constructor(
     }
 
     private fun macroTable(c: Canvas, top: Float, r: WeeklyReport) {
-        val cols = listOf("Day", "kcal", "Protein g", "Carbs g", "Fat g", "Fibre g", "Sugar g")
+        val cols = listOf("Day", "kcal", "Protein g", "Carbs g", "Fat g", "Fiber g", "Sugar g")
         val colW = CONTENT_W / cols.size
         var y = top + 10
         cols.forEachIndexed { i, h -> c.drawText(h, M + i * colW, y, paint(8.5f, bold)) }
