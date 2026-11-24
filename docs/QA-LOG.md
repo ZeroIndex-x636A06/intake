@@ -1419,3 +1419,144 @@ Screenshot: design/qa/pass7/FoodPlan.png
 Suspect: strings, Library routes
 
 Summary for Pass 7: 25 new findings. S1: 0. S2: 4 (Q7-9, 13, 15, 16). S3: 17 (Q7-1 to 8, 10 to 12, 14, 17, 18, 20, 22, 23). S4: 4 (Q7-19, 21, 24, 25). Worked as designed: dock and Quick log, water one-tap with Undo, Food segments and Library entries, 7-day strip paging and the calendar, Find a safer swap, rest bar with -15 s, +15 s, Skip, rest presets, pause and resume, RIR column and menu, records on the summary, Training stats, Calculators and the 1RM formula setting, history edit with the future check, delete a set with Undo, Reopen, Repeat, Discard, Training log List and Calendar. Not tested: see Not covered. A retest is needed after fixes.
+
+---
+## Pass 8 — Retest of Pass 7 fixes
+Date: 2026-11-24 (device zone set to Europe/London so the seed was not near midnight; the status bar showed a clock 4 hours ahead of `date`, an emulator zone quirk) · Build: the prebuilt release/intake-preview.apk (com.zeroindex.intake.preview, 0.1.0+2026-11-24, build 26112406), repo head 291cc06 · AVD: phone30 (Android 11, no KVM, software rendering, 3-button navigation) · Seed: a temporary copy of tools/qa/seed.sh pointed at the preview package (data dated 2026-11-23 and earlier; Today starts with nothing eaten). All findings are **emulator only**; nothing here was seen on a phone.
+Seed note: the script reached Settings but stopped, because "Skip setup" now starts the 6-step Today tour and Settings is a hub whose "Sync and export" page holds the Import button. The import was finished by hand through the picker (561 changes). tools/qa/seed.sh scrolls to "Import a backup" but not through the hub, so it may still stall on a fresh install.
+Screenshots: design/qa/pass8/ (half size or smaller, 4.2 MB, no personal photos).
+Method: one action at a time, no concurrent dumps and seed runs. Screenshots lag a screen change by 2 to 10 s on this emulator, so a screenshot taken straight after a tap can show the old screen; dumps were used to confirm.
+
+### Retest table
+| ID | Status | Evidence (emulator only) |
+| --- | --- | --- |
+| Q7-1 sync buttons clipped | Verified | q7-1-sync-buttons.png: "Export everything (JSON)" and "Import a backup" wrap to 3 and 2 lines inside taller pills, nothing cut |
+| Q7-2 "Measurements" mid-word | Verified | q7-2-quicklog-measurements.png: one line (the label is a smaller size than its neighbours, see Q8-4) |
+| Q7-3 Fibre, Sat fat, carbs unit | Verified | q7-3-diary-fiber-carbs-unit.png: "Fiber", Carbs "/245 g". "Sat fat" is still the label (see Q6-7). 1.5x not rechecked |
+| Q7-4 rest sheet Done under nav bar | **Still failing** | q7-4-rest-sheet-done-still-clipped.png: the sheet's "Done" button is still cut in half by the navigation bar (its centre is at y 2133, the bar starts about 2145) |
+| Q7-5 future-end error clipped | Verified | q7-5-future-error.png: the whole message shows on two lines and Save is disabled. The helper line "The sets move with the start time." is half covered by the error (Q8-5) |
+| Q7-6 delete-set snackbar under nav bar | Verified | q7-6-set-removed-snackbar.png: above the bar, readable, Undo visible |
+| Q7-7 "PREVIOUS" header | Verified (RPE mode) | q7-7-rpe-header.png: header on one line; the previous cell has two lines on purpose ("140.0 x 10" over "RPE 8"). RIR mode not run |
+| Q7-8 rest strip covers focused row | Verified | q7-8-keyboard-open-strip-hidden.png: with the keyboard open on set 3's weight the strip is gone and the row is visible. q7-8-strip-returns-after-keyboard.png: Back, and the strip (0:12 left, -15 s, +15 s, Skip) is back. A screenshot 8 s after the tap still showed the strip (q7-8-keyboard-just-opened-strip-still-shown.png), so the hide lags on this emulator |
+| Q7-9 reopen + finish keeps length | Verified | q7-9-summary-9min.png (9 min), then length set to 45 and start 05:20; Reopen showed the timer at 45:21 (was 1:17:31); Finish: q7-9-reopen-finish-46min.png "46 minutes". Train and Training log both read "46 min · 800 lb · 2 sets". Note: the start time moved from my edited 05:20 to 06:49 (finish time minus the length), so the edited start is not kept (Q8-6) |
+| Q7-10 two values for one 1RM | Verified | q7-10-training-stats-186-7.png: Romanian Deadlift 186.7 in both places; q7-10-calculator-epley-233-3.png: 200 x 5 Epley = 233.3 lb, same as the formula |
+| Q7-11 landscape Finish under nav bar | Verified | q7-11-landscape-finish-ok.png: Finish and "..." fully inside the safe area, right-hand bar solid |
+| Q7-12 allergen chips truncated | Verified | q7-12-recipe-cards-chips-wrap.png: card chips wrap to 4 lines and read in full; recipe page and Swap sheet in full. See Q8-3 for the chip drawing |
+| Q7-13 "Ingredients" heading vertical | Verified | q7-13-ingredients-heading.png: heading on one line, chip wraps on the right |
+| Q7-14 Swap matched terms start with the recipe name | Verified | q7-14-swap-no-name-term-but-breakfast.png: "Contains butter, cheddar, cheese, milk, cream and whole milk". But see Q8-1 |
+| Q7-15 Cook mode step text near-black | Verified | q7-15-cookmode-readable-grey-navbar.png: white step text, "INGREDIENTS · 0 OF 4 READY" on one line, Done cooking above the bar. The nav bar is a mid grey here (Q8-2) |
+| Q7-16 Log a past workout / ANR | Verified | Train log > Calendar > Log a past workout: default 06:00 PM shows the future error (Log it disabled); tapped AM, Back to close the keyboard, chose Lower B, Log it. No ANR from this flow. q7-16-past-workout-logged.png, q7-16-calendar-shows-logged-workout.png: Nov 24 lists "Upper B 46 min" and "Lower B 60 min · 0 sets". The calendar is Monday-first. The default start is still a future time (Q8-7) |
+| Q7-17 Replay the tour | Verified | q7-17-replay-tour.png: "Tour, 1 of 6" starts on Today in about 15 s |
+| Q7-18 Add a set: no Undo | Verified | q7-18-set-added-undo.png: "Set added to this workout. Undo" above the bar; Undo took the set count 4 back to 3 |
+| Q7-19 number and unit mismatches | Partly | Summary "9 minutes" and the edit dialog "9" now agree; the exercise header reads "2 x 8 @ 50 lb" with a unit. The active workout still reads "50.0 lb" while the summary reads "50 lb" |
+| Q7-20 You "GOALS AND PLAN" header | Not reached | needs a fresh install; the seeded You page (header over a lime pill, one column) is fine |
+| Q7-21 content through the nav bar | Verified | q7-21-light-today-navbar.png (solid light bar), q7-21-dark-today-navbar.png (solid black), landscape-*.png (solid right-hand bar). Cook mode is grey (Q8-2) |
+| Q7-22 dark pause button | Verified | q7-22-dark-pause-visible.png: pause drawn in white |
+| Q7-23 font scale 1.5 | Partly | q7-23-font15-food-library-clipped.png: Food segmented control still cuts "Library" at the right edge, and the dock label "Insights" touches its edge (**still failing**). q7-23-font15-activeworkout.png: set rows now stack (LB, REPS, effort under the previous value), but the top bar title still wraps ("0:00 . set 1 of / 15") and the effort field has no label (Q8-8). dark-font15-settings.png: Settings fine. Camera card on Log food > Scan not retested |
+| Q7-24 water target jump | Partly | Settings > Water and drinks now explains it ("Raises the target on hot days and after workouts", Training-day increase 16.9 fl oz). But after a 46 min workout and a 60 min empty one, Today and You read 150.5 fl oz (it was 103.1), with no breakdown on either screen |
+| Q7-25 leftovers | Partly | Verified: Settings group is "Food"; "Shopping list" now has the heading "What are you making?"; Plan empty state reads "Your plan / No meal plan yet" once; the segmented control fills the track; My foods opens the user's foods ("Filter your foods", Favourites) but the screen is titled "Log food". **Still failing: both date pickers (Today, Food Diary) start the week on Sunday** (q8-monday-first-todaypicker-sunday.png, q8-monday-first-foodpicker-sunday.png), while the Training calendar starts on Monday. Device locale is en-US, so a locale rule may be doing this; if Monday-first is the rule, the pickers do not follow it |
+
+Older items:
+| ID | Status | Evidence |
+| --- | --- | --- |
+| Q5a-9 meal template log message | Partly | q5a-9-template-log-snackbar.png: one snackbar "Logged Post-workout shake to Snacks. Almond milk, unsweetened: check the label for dairy" with Undo, no lingering inline line, "Snacks" capitalised. The slot list still offers "Drinks" for a food template |
+| Q5b-4 template log no confirmation | Verified | same screenshot |
+| Q6-1 floor warning layout | Verified | q6-1-floor-warning-layout.png: 1000 kcal shows the warning in its own box under the row; Save and the field stay in place. The label column beside the field is narrow ("Calories by / hand" with the help text wrapping to 6 lines), which is cramped but not collapsed. Restored 2260 afterwards (see Q8-9) |
+| Q6-2 Undo does nothing | Partly | Template: log then Undo took Today from 338 back to 0 eaten; a second log + Undo left 338 (so Undo works). Diary entry delete + Undo and the jump test Undo: not confirmed, because the model turn between tap and Undo is longer than the snackbar; Progress jump test not reached |
+| Q6-3 Log food search ANR | Not reproduced, ranking Still failing | "dark" and "almo" typed 2 to 3 s per key: no ANR, all characters kept. Fast `input text` not retried. "almo": first row in MY FOODS AND RECENTS is Salmon fillet; a "Drinks: almo" row sits above it |
+| Q6-4 check-in week vs suggestions | Verified | q6-4-checkin-window-stated.png: card is "Week of Nov 16-22", suggestions say "Check-in of Tue, Nov 24, 2026 · Based on the 7 days Nov 18-24". The windows still differ but are stated |
+| Q6-5 LOG MORE counts | Not reached | needs the sparse-week seed |
+| Q6-6 Shopping Clear | Verified | q6-6-shopping-clear-undo-snackbar.png: "Shopping list cleared. Undo"; Undo brought back the 9 items and both picks (the list then read "1 ticked", which I cannot explain: I had ticked nothing, so it may have been my tap) |
+| Q6-7 wording / dates | Partly | Insights date style "Mon, Oct 26, 2026" matches Today; Diary "Fiber" but "Sat fat"; plan form not checked |
+| Q6-8 recipe name in terms | Verified | cards, recipe page and Swap sheet list ingredient words only |
+
+Other coverage:
+- New behaviour: rest strip hides with the keyboard and returns after (Q7-8); "Set added" Undo (Q7-18); Settings group "Food" (Q7-25); Monday-first pickers fail (Q7-25).
+- "Still training?" prompt: set the device clock +4 h after one set; the prompt appeared ("Nothing has been logged for about 4 hours. Your last set was at 08:34"), "Finish at 08:34" gave a 2 minute workout. still-training-prompt.png. (The clock was set back afterwards, see Q8-10.)
+- RPE mode: effort cell opens RPE 10, 9, 8, 7, 6 with "2 left in the tank" wording; RPE 8 saved on set 1.
+- Quick log tiles: Quick calories (Log food in quick add), Meal template, Weight, Measurements (opens the same Log weight form with its measurement fields), Progress photo (Add a photo), Drink (LOGGED TODAY) all open. Scan barcode and the camera paths were not opened.
+- Chips: "Fits your allergens", "Only the name was checked", "Check the label: ...", "Contains ..." and "May contain milk (trace)" (may-contain-chip.png) seen. The "Checking..." chip was not caught (USDA rows briefly show no chip while the scan runs).
+- Onboarding (Settings > About and help > Show the welcome again): steps 1 to 10 walk with Skip and Continue above the nav bar (welcome-step1.png). Step 9 has three "Set up" buttons (Health Connect, Backups, AI shortcuts). "Set up Health Connect" opens the Health Connect screen ("not installed on this phone"). Backups and AI shortcuts were not reliably reached (Q8-7).
+- Landscape: Food Diary, Log food, Settings and Train/ActiveWorkout (rail on the left, solid bar on the right, nothing under the bar): landscape-*.png, q7-11-landscape-finish-ok.png. Log food shows about one row of the list in landscape.
+- Dark: Today, ActiveWorkout, Quick log, Settings (1.5x), Cook mode not rechecked in dark.
+
+### Q8-1 · S3 · Recipe > Log a serving > Find a safer swap · The swap always says "breakfast" and logs to breakfast
+Status: open
+Steps: 1. Food > Recipes > Baked mac and cheese > Log a serving. 2. Choose Lunch (or Dinner) in the slot list. 3. In the safety sheet tap "Find a safer swap". 4. On the Swap sheet tap Choose on Chicken fajita bowls.
+Expected: "Swap lunch" (the chosen slot) and the swapped recipe logged to that slot.
+Actual: the sheet reads "Swap breakfast / Nothing planned for breakfast ... Choosing one logs it to breakfast" for Lunch and for Dinner; Choose logged "Chicken fajita bowls to breakfast" (572 kcal under Breakfast in the Diary, which I then deleted). The first Undo tap came too late to test.
+Screenshot: design/qa/pass8/q7-14-swap-no-name-term-but-breakfast.png, design/qa/pass8/q8-1-swap-logged-to-breakfast.png
+Suspect: the slot is not passed from the Log a serving sheet to the Swap route (default Breakfast)
+
+### Q8-2 · S4 · Cook mode · Navigation bar is a mid-grey band under a near-black screen
+Status: open
+Steps: 1. Light theme. 2. Recipe > Cook.
+Expected: a bar colour that matches the dark screen (the Dark theme uses black, Light uses near white).
+Actual: the bar is a mid grey (about 60 percent lightness), a third colour not used elsewhere.
+Screenshot: design/qa/pass8/q7-15-cookmode-readable-grey-navbar.png
+Suspect: NavigationBarScrim uses the light-theme scrim on a screen with its own dark background
+
+### Q8-3 · S4 · Recipe page · The wrapped allergen chip draws its text outside its pill
+Status: open
+Steps: 1. Recipe > Baked mac and cheese, look at the chip beside "Ingredients".
+Expected: padding on all sides of the 5-line text.
+Actual: the first and last lines ("Contains butter," and "milk") touch or cross the pill's top and bottom edges; the pill is about as tall as the text.
+Screenshot: design/qa/pass8/q7-13-ingredients-heading.png
+Suspect: chip with fixed or minimum height and maxLines removed
+
+### Q8-4 · S4 · Quick log · The "Measurements" label is smaller than the other tile labels
+Status: open
+Steps: 1. Tap the centre +.
+Expected: the same label size on every tile.
+Actual: "Measurements" is about 20 percent smaller so it fits on one line.
+Screenshot: design/qa/pass8/q7-2-quicklog-measurements.png
+
+### Q8-5 · S4 · Workout summary edit dialog · The helper line is overlapped by the error
+Status: open
+Steps: 1. Change date, time and length, set a length that ends in the future.
+Expected: helper and error one under the other.
+Actual: "The sets move with the start time." is cut in half by the red message below it.
+Screenshot: design/qa/pass8/q7-5-future-error.png
+
+### Q8-6 · S4 · Workout summary · Reopen then Finish moves the start time and drops the edited start
+Status: open
+Steps: 1. Finish a workout, change its start to 05:20 and length to 45. 2. Reopen, Finish.
+Expected: the edited start, or a question.
+Actual: length kept (46 min) but the start became the finish time minus the length (06:49).
+Screenshot: design/qa/pass8/q7-9-reopen-finish-46min.png
+
+### Q8-7 · S3 · Onboarding / Past workout · Back from a "Set up" target drops the welcome flow; past workout default is in the future
+Status: open (partly unverified)
+Steps: 1. About and help > Show the welcome, go to step 9, tap "Set up Health Connect", press Back.
+Expected: return to step 9.
+Actual: the screen behind was About and help (where I started it), and the welcome flow was gone; a second run ended on You after tapping "Set up Backups", so I could not confirm those two buttons. On a fresh install the destination after Back is unknown. Also: "Log a past workout" opens with 06:00 PM today (a future time at most hours) and a red error, so the first thing the user must do is change AM or PM.
+Screenshot: none for the Back case (screen change not captured); past workout: design/qa/pass8/q7-16-past-workout-logged.png after the fix-up
+Suspect: welcome flow state not kept across navigation; default start time
+
+### Q8-8 · S4 · Font scale 1.5 · ActiveWorkout effort field has no label and the title wraps
+Status: open
+Steps: 1. font_scale 1.5. 2. Start a workout with RPE on.
+Expected: LB, REPS and RPE all labelled; the title on one line.
+Actual: LB and REPS have labels, the effort field is a bare "-"; "0:00 . set 1 of / 15" wraps.
+Screenshot: design/qa/pass8/q7-23-font15-activeworkout.png
+
+### Q8-9 · S4 · Settings > Food · Re-saving the same calories changes protein and carbs
+Status: open
+Steps: 1. Calories by hand 2260, Save (after 1000 and back to 2260). 2. You.
+Expected: protein 170 g, carbs 245 g unchanged (they were 170 / 70 / 245 before).
+Actual: You reads "166 . 70 . 242 g" (1.9 g per kg of 192 lb); the hand-set grams were recomputed from the per-kg values.
+Screenshot: none (numbers on You; the Today ring read 170 / 245 / 70 before)
+
+### Q8-10 · S3 · ActiveWorkout · Timer stays at 0:00 (probably my clock change)
+Status: open, needs a clean repro
+Steps: 1. Set the emulator clock forward 4 h (`date`), accept "Finish at ...", set it back 4 h. 2. Start Upper A.
+Expected: the timer counts up.
+Actual: "0:00 . set 1 of 15" for more than 5 minutes, on two workouts and after a force-stop. The first Pass 8 workouts, before the clock change, counted normally. This is very likely caused by moving the wall clock back, so it may not occur on a phone, but a clock set back by the user or a time-zone change could do the same.
+Screenshot: none (reason: a frozen number is not visible in one frame)
+
+### Logcat
+No FATAL EXCEPTION for com.zeroindex.* and an empty crash buffer. Two ANRs for com.zeroindex.intake.preview: 09:11:35 and 09:14:44 (device clock), both "Input dispatching timed out ... Waited 5005ms for FocusEvent(hasFocus=false)", both within seconds of dismissing the Today / Food date picker (Back) or switching night mode, and both with the main thread idle in the looper (epoll) and system_server at 48 percent CPU. I read them as emulator stalls, not an app hang (the app was at 236 CPU seconds, not the 1,116 of Pass 7), but the trigger was a dialog losing window focus, so a device check is worth it. The Q7-16 path (Log a past workout) produced no ANR. The app was killed by each ANR and relaunched by hand.
+
+### Summary for Pass 8
+Retests: 35 items (Q7-1 to 25 and 10 older). Verified 24: 19 from Pass 7 (Q7-1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 21, 22) and 5 older (Q5b-4, Q6-1, Q6-4, Q6-6, Q6-8); Still failing 1 (Q7-4); Partly 4 of Pass 7 (Q7-19, 23, 24, 25) and 4 older (Q5a-9, Q6-2, Q6-3, Q6-7); Not reached 2 (Q7-20, Q6-5). New: 10 findings, S1 0, S2 0, S3 3 (Q8-1, 7, 10), S4 7 (Q8-2, 3, 4, 5, 6, 8, 9).
+Not verifiable on an emulator: touch feel and haptics, the rest sound and vibration, keep-awake, real snackbar timing (Undo was tested only where a script could tap within 2 s), performance and ANR rates on a phone, gesture navigation, Health Connect, the camera and barcode paths, Android 15 behaviour.
