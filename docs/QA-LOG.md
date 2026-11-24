@@ -1205,7 +1205,7 @@ Logcat: no FATAL EXCEPTION for com.zeroindex.* and an empty crash buffer. Two AN
 Seen on emulator only (Android 11, software rendering, no KVM, 3 to 5 s frames, 3-button navigation). Not seen on a device: touch feel, haptics, the rest sound, keep-awake, real timing of the rest bar and snackbars, performance. The -15 s and +15 s taps were accepted (the countdown kept running) but the exact effect on the countdown could not be measured with 10 to 30 s between tap and picture.
 Match summary per screen (mockup left, app right):
 - Today: close. Header, 7-day strip, dark hero ring and macro bars, Next up card, water card, dock all match; baseline and export cards absent (seed state).
-- QuickLog: close, 9 of 11 tiles (hidden ones follow owner decision 1); lime Food and ink Start workout tiles, water pills 8, 16.9, 24 fl oz (mockup 8, 12, 16, 24). "Measurements" breaks mid-word (Q7-2).
+- QuickLog: close, 9 of 11 tiles (hidden ones follow owner decision 1); lime Food and ink Start workout tiles, water pills 8, 16.9, 24 fl oz (mockup 8, 12, 16, 24: owner decision). "Measurements" breaks mid-word (Q7-2).
 - FoodDiary: close. Order is Protein, Carbs, Fat (mockup Protein, Fat, Carbs); "Avoiding: Milk and dairy" chip is under the date, not in the header; the tip card is absent.
 - FoodPlan: empty state only (no plan in the seed), no mockup match possible; "No plan yet" appears twice.
 - Recipes: close. Recipe cards truncate the allergen chip (Q7-12).
@@ -1219,7 +1219,7 @@ Match summary per screen (mockup left, app right):
 Retests ("needs retest" items, 11): 1 partly verified (almo ranking), 1 partly fixed (Q6-8), 1 still failing (Q6-7), 1 still open (Q6-3, not reproduced at 3 s per key), 7 not retested (Q5a-9, Q5b-4, Q6-1, Q6-2, Q6-4, Q6-5, Q6-6).
 
 ### Q7-1 · S3 · Settings / Sync and export · "Export everything" and "Import a backup" labels clipped
-Status: open
+Status: Fixed in f85edd6, needs retest. Was: open
 Steps: 1. You > Settings > Sync and export, scroll to the bottom.
 Expected: two buttons whose two-line labels fit.
 Actual: the labels wrap to two lines inside a one-line-high pill; "everything" and "backup" lose their descenders.
@@ -1227,7 +1227,7 @@ Screenshot: design/qa/pass7/q7-1-sync-buttons-clipped.png
 Suspect: ui/screens/settings Sync and export button row (fixed height)
 
 ### Q7-2 · S3 · Quick log · "Measurements" breaks mid-word ("Measureme / nts")
-Status: open
+Status: Fixed in f85edd6, needs retest. Was: open
 Steps: 1. Tap the centre +.
 Expected: the label fits or wraps at a word break.
 Actual: the Measurements tile reads "Measureme" and "nts".
@@ -1235,7 +1235,7 @@ Screenshot: design/qa/pass7/q7-2-quicklog-measurements-wrap.png
 Suspect: ui/components Quick log tile text size or tile width
 
 ### Q7-3 · S3 · Food Diary · "Fibre" and "Sat fat" for an imperial user (Q6-7), and the carbs target has no unit
-Status: open
+Status: Fixed in f85edd6, needs retest. Was: open
 Steps: 1. Food > Diary.
 Expected: one spelling for a lb user; "/245 g" like protein ("/170 g") and fat ("/70 g").
 Actual: "Fibre" and "Sat fat"; Carbs reads "101 /245" with no "g"; at font scale 1.5 it reads "101 /" and the target is cut off.
@@ -1243,7 +1243,7 @@ Screenshot: design/qa/pass7/q7-3-diary-fibre-carbs.png
 Suspect: Diary macro tiles (width), nutrient label strings
 
 ### Q7-4 · S3 · ActiveWorkout · Rest sheet: the Done button sits under the system navigation bar
-Status: open
+Status: Fixed in f85edd6, needs retest. Was: open
 Steps: 1. Start a workout. 2. Tap "Rest 2:00".
 Expected: Done fully visible.
 Actual: the sheet's bottom is behind the 3-button bar; "Done" is half hidden (the sheet has no bottom inset).
@@ -1251,7 +1251,7 @@ Screenshot: design/qa/pass7/q7-4-rest-sheet-done-clipped.png
 Suspect: rest sheet ModalBottomSheet insets
 
 ### Q7-5 · S3 · Workout summary · The "would end in the future" error is clipped
-Status: open
+Status: Fixed in f85edd6, needs retest. Was: open
 Steps: 1. Summary > Change date, time and length. 2. Set the length to 45 with start 11:40 AM at 11:51 AM.
 Expected: the full message and a disabled Save.
 Actual: Save is disabled, but the message "That workout would end in the future. Pick an earlier start or a shorter length." is cut after the first line.
@@ -1259,7 +1259,7 @@ Screenshot: design/qa/pass7/q7-5-edit-time-error-clipped.png
 Suspect: the edit dialog's fixed content height
 
 ### Q7-6 · S3 · Workout summary · The "Set removed from this workout / Undo" snackbar is under the system navigation bar
-Status: open
+Status: Fixed in f85edd6, needs retest. Was: open
 Steps: 1. Summary > tap a set > Delete this set.
 Expected: the snackbar above the nav bar, readable, with Undo.
 Actual: the snackbar sits at the very bottom behind the nav buttons, text and Undo are washed out and overlapped by the back and home icons. Undo is easy to miss. (Add a set shows no snackbar and no Undo at all.)
@@ -1267,7 +1267,7 @@ Screenshot: design/qa/pass7/q7-6-undo-snackbar-under-navbar.png
 Suspect: the summary screen's SnackbarHost has no navigation-bar inset
 
 ### Q7-7 · S3 · ActiveWorkout · "PREVIOUS" header breaks to "PREVIOU / S" when effort is on
-Status: open
+Status: Fixed in f85edd6, needs retest. Was: open
 Steps: 1. Train > Settings > Training > Rate effort: RIR. 2. Start Lower B.
 Expected: header on one line.
 Actual: "PREVIOU" over "S"; the previous cell also wraps ("140.0 x" / "10").
@@ -1275,7 +1275,7 @@ Screenshot: design/qa/pass7/q7-7-active-previous-header-wrap.png
 Suspect: set table column weights
 
 ### Q7-8 · S3 · ActiveWorkout · The rest bar covers the set row being edited
-Status: open
+Status: Fixed in f85edd6, needs retest. Was: open
 Steps: 1. Log set 1 (rest bar appears). 2. Tap the weight of set 3 (keyboard opens).
 Expected: the focused row stays visible.
 Actual: the rest bar floats over the list and half hides set 3 while it is focused.
@@ -1283,7 +1283,7 @@ Screenshot: design/qa/pass7/q7-8-rest-bar-covers-set-row.png
 Suspect: rest bar placement above the keyboard
 
 ### Q7-9 · S2 · Workout summary / history · Reopen then Finish turns a 7 minute workout into 78 minutes
-Status: open
+Status: Fixed in f85edd6, needs retest. Was: open
 Steps: 1. Finish Upper B (7 min). 2. Summary > Change date, time and length: start 10:40 AM, length 45, Save. 3. Reopen this workout (timer shows 1:17:31). 4. Finish.
 Expected: the length stays what it was (or the user's 45), or the app asks.
 Actual: Training log and Train show "Upper B ... 78 min · 800 lb · 2 sets"; the edit is lost and the idle time is counted. This also raised the water target (Q7-24).
@@ -1291,7 +1291,7 @@ Screenshot: design/qa/pass7/q7-9-reopen-length-78min.png
 Suspect: reopen clears endedAt and Finish recomputes from startedAt to now
 
 ### Q7-10 · S3 · Training stats and Calculators · The same 1RM is shown with two values
-Status: open
+Status: Fixed in f85edd6, needs retest. Was: open
 Steps: 1. Formula Brzycki. 2. Train > Training stats.
 Expected: one figure per set.
 Actual: "ESTIMATED 1RM: Romanian Deadlift 186.7 lb from 140.0 x 10" and "Best estimated 1RM 186.5 lb from 140 lb x 10" on the same screen (140 x 36 / 27 = 186.67). Calculators with Epley and 200 x 5 shows 233.5 lb while the formula printed under it gives 233.3. Changing the formula does change the figures (233.5 to 225, Brzycki 200 x 36 / 32 = 225 correct).
@@ -1299,7 +1299,7 @@ Screenshot: design/qa/pass7/q7-10-1rm-186-5-vs-186-7.png (also design/qa/pass7/c
 Suspect: rounding to 0.5 in one place only
 
 ### Q7-11 · S3 · ActiveWorkout · Landscape: Finish and the "..." button are under the right-hand navigation bar
-Status: open
+Status: Fixed in f85edd6, needs retest. Was: open
 Steps: 1. Start a workout. 2. Rotate to landscape.
 Expected: top bar inside the safe area.
 Actual: "Finish" reads "Finis h" (cut by the bar) and the "..." is half hidden.
@@ -1307,7 +1307,7 @@ Screenshot: design/qa/pass7/q7-11-landscape-finish-under-navbar.png
 Suspect: no horizontal system-bar inset on the workout screen
 
 ### Q7-12 · S3 · Recipes / Allergens · Allergen chips are truncated on recipe cards and the recipe page
-Status: open
+Status: Fixed in f85edd6, needs retest. Was: open
 Steps: 1. Food > Recipes. 2. Open Baked mac and cheese.
 Expected: chip wording in full ("Only the name was checked", "Contains butter, cheddar, ...").
 Actual: cards read "Contains butter, ..." and "Only the name w..."; the recipe page chip "Contains butter, cheddar, cheese, cream, milk and ..."; the Swap sheet "Contains mac and cheese, butter, cheddar, che...". The safety wording is cut.
@@ -1315,7 +1315,7 @@ Screenshot: design/qa/pass7/q7-12-recipe-chip-truncated.png
 Suspect: chip maxLines = 1 with ellipsis
 
 ### Q7-13 · S2 · Recipe page · "Ingredients" heading drawn one letter per line
-Status: open
+Status: Fixed in f85edd6, needs retest. Was: open
 Steps: 1. Food > Recipes > Baked mac and cheese, scroll to Ingredients.
 Expected: heading and chip on one row.
 Actual: the heading column is squeezed to a few dp by the chip; "I n g r e d i e n t s" fills about 350 dp vertically. Same row at font scale 1.0.
@@ -1323,7 +1323,7 @@ Screenshot: design/qa/pass7/q7-13-ingredients-heading-vertical.png
 Suspect: Row with the heading and the verdict chip (no weight on the chip)
 
 ### Q7-14 · S3 · Swap · The matched-term list still starts with the recipe's own name (Q6-8)
-Status: open
+Status: Fixed in f85edd6, needs retest. Was: open
 Steps: 1. Recipe Log a serving > Lunch > Find a safer swap.
 Expected: ingredient words only.
 Actual: "Contains mac and cheese, butter, cheddar, cheese, milk, cream and whole milk". (The food safety sheet lists "mac and cheese" as "found in the name", which is accurate there.) "Find a safer swap" opened Swap and logged nothing.
@@ -1331,7 +1331,7 @@ Screenshot: design/qa/pass7/q7-14-swap-name-term.png
 Suspect: Swap row chip text
 
 ### Q7-15 · S2 · Cook mode · Step text is near-black on the dark background
-Status: open
+Status: Fixed in f85edd6, needs retest. Was: open
 Steps: 1. Food > Recipes > Baked mac and cheese > Cook.
 Expected: readable step text on the dark Cook screen.
 Actual: "Boil the pasta, make the cheese sauce with milk and butter, bake until bubbling." is drawn in a near-black colour on #0C0F0E and cannot be read; the ingredient panel and the lime Done cooking button are fine. "INGREDIE NTS" also breaks mid-word. The rest is dark as the owner asked, and "Screen stays awake" is shown.
@@ -1355,7 +1355,7 @@ Screenshot: none
 Suspect: unknown
 
 ### Q7-18 · S3 · Workout summary · Add a set gives no confirmation or Undo
-Status: open
+Status: Fixed in f85edd6, needs retest. Was: open
 Steps: 1. Summary > Add a set > Add.
 Expected: a message with Undo (Delete this set has one, see Q7-6).
 Actual: a third set appears; no snackbar.
@@ -1363,7 +1363,7 @@ Screenshot: none (the set list is the only change)
 Suspect: ui/screens/train workout summary
 
 ### Q7-19 · S4 · Workout summary · Small number and unit mismatches
-Status: open
+Status: Fixed in f85edd6, needs retest. Was: open
 Steps: 1. Finish a 2-set workout (7:32 elapsed).
 Expected: consistent units and rounding.
 Actual: the summary says "8 minutes", the edit dialog "7"; the exercise header reads "2 x 8 @ 50" with no unit while the sets read "50 lb x 8"; the active workout reads "50.0 lb" on one run and "50 lb" on the repeated one, and a typed "150" stays "150" next to "140.0".
@@ -1371,7 +1371,7 @@ Screenshot: none (numbers in the summary, edit dialog and active workout; see q7
 Suspect: number formatting helpers
 
 ### Q7-20 · S3 · You · "GOALS AND PLAN" header is squeezed into a narrow column on a fresh install
-Status: open
+Status: Fixed in f85edd6, needs retest. Was: open
 Steps: 1. Fresh install, skip onboarding. 2. Avatar.
 Expected: the eyebrow on one line beside or above the pill.
 Actual: "GOALS / AND / PLAN / waiting / for your / details" wraps in a 60 dp column beside the lime "Phase and pace: choose in your profile" pill.
@@ -1379,7 +1379,7 @@ Screenshot: none (reason: seen on the fresh install before the seed import; not 
 Suspect: You goals card header row
 
 ### Q7-21 · S4 · Shell · Content shows through the 3-button navigation bar
-Status: open
+Status: Fixed in f85edd6, needs retest. Was: open
 Steps: 1. Open Today or Food and scroll.
 Expected: a solid or scrimmed system bar area.
 Actual: card text ("Water 25.4 of 103.1 fl oz", "Breakfast 596 kcal") is visible behind the back/home/recents icons. The disabled "Compare" button on You is very pale.
@@ -1387,7 +1387,7 @@ Screenshot: design/qa/pass7/Today.png
 Suspect: edge-to-edge without a navigation scrim on 3-button navigation
 
 ### Q7-22 · S3 · ActiveWorkout · Dark theme: the pause button is barely visible
-Status: open
+Status: Fixed in f85edd6, needs retest. Was: open
 Steps: 1. Dark theme. 2. Start a workout.
 Expected: the pause icon in the text colour.
 Actual: pause is drawn in a dim grey on the dark background.
@@ -1395,7 +1395,7 @@ Screenshot: design/qa/pass7/dark-ActiveWorkout.png
 Suspect: icon tint
 
 ### Q7-23 · S3 · Font scale 1.5 · Clipping on several screens
-Status: open
+Status: Partly fixed in f85edd6, needs retest. Remaining: the Food segmented control and the carbs target at 1.5x. Was: open
 Steps: 1. font_scale 1.5.
 Expected: no clipping.
 Actual: Food segmented control shows "Library" cut at the right edge (not scrollable by sight); Today "Open check-in" is fine but the Camera-permission card on Log food > Scan clips its "Open app settings" button; the ActiveWorkout set rows go to two lines and the RIR column header disappears (a bare "-" is left), and the top bar title wraps "0:46 . set 1 of / 15".
@@ -1403,7 +1403,7 @@ Screenshot: design/qa/pass7/f15-ActiveWorkout.png, design/qa/pass7/f15-Today.png
 Suspect: segmented control, camera card, set row layout
 
 ### Q7-24 · S4 · Water target · The target jumps after a short workout with no explanation
-Status: open
+Status: Fixed in f85edd6, needs retest. Was: open
 Steps: 1. Seeded Today shows "49.4 of 103.1 fl oz". 2. Finish a 7 minute workout, then a 9 minute one.
 Expected: a small change at most, or a reason.
 Actual: Today then reads "of 138.6 fl oz" and You reads "145.4 fl oz . adjusts for the day"; previous days still show 103.1.
@@ -1411,7 +1411,7 @@ Screenshot: none (numbers on Today and You)
 Suspect: water target workout adjustment (also fed by Q7-9's 78 minutes)
 
 ### Q7-25 · S4 · Context and copy · Leftovers from the redesign
-Status: open
+Status: Fixed in f85edd6, needs retest. Was: open
 Steps: 1. Settings. 2. Food > Plan and Shopping list. 3. Today date picker.
 Expected: no stale names or doubled titles.
 Actual: the Settings row is still "Nutrition" (tab is Food); "Shopping list" appears twice (bar and heading); the Plan empty state says "No plan yet" and "No meal plan yet"; Library's My foods opens the Log food screen, not a list of foods; the Today date picker starts weeks on Sunday while the Training calendar starts on Monday; the segmented controls do not fill the track (empty space on the right).
