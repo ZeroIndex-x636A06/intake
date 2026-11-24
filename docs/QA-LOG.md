@@ -1572,3 +1572,108 @@ Every item below is **Fixed in 8607249, needs retest** (not yet seen on an emula
 - Q6-7 / Q7-3 wording (Saturated fat): Fixed in 8607249, needs retest.
 - Q8-1 to Q8-10: Fixed in 8607249, needs retest.
 - Q6-3 Log food search ranking: No code path found; NameMatchRank already ranks Almond first. Retest, and note which screen or search source shows Salmon first.
+
+
+## Pass 9 — Retest of Pass 8 fixes
+Date: 2026-11-24 (device zone Europe/London) · Build: release/intake-preview.apk (com.zeroindex.intake.preview, repo head 2894563, fixes from 8607249), **plus a one-line local patch to `Segmented` (see Q9-1)** · AVD: phone30 (Android 11, no KVM, software rendering, 3-button navigation) · Seed: tools/qa/seed.sh pointed at the preview package (temporary copy, not committed). **Emulator only**; nothing here was seen on a phone.
+Screenshots: design/qa/pass9/ (half size, 4.9 MB, no personal photos).
+
+**Read this first: the APK as shipped in release/ crashes on the Food tab and the Train tab (Q9-1, S1).** Every result below except the three crash reproductions was taken on the same commit rebuilt with a one-line fix to `Segmented` (installed over the preview APK; the source change was not committed, it is in Q9-1 below). Until that is fixed in the branch, none of Food, Train, Settings > Appearance and units, or anything else that draws a `Segmented` can be opened.
+
+### Seed script
+`tools/qa/seed.sh` (temporary copy with `PKG` and `APK` pointed at the preview build) **worked end to end on a clean install**: install, skip the welcome, skip the tour, You, Settings hub, Sync and export, Import a backup, picker, "Imported 567 changes", back to Today. About 13 minutes on this emulator, 3.5 of them the install. A second run with `--no-install` also worked (401 changes, a sparse seed). One caveat: its swipes are hard-coded to y 1800 to 600, so it stalls ("not found after scrolling: Import a backup") if the screen is smaller than 1080x2280. It failed once for exactly that reason after I had set `wm size 720x1520`; it passed after `wm size reset`. Not an app problem, but the script would be sturdier with swipes taken from `wm size`.
+
+### Retest table (items marked "Fixed in 8607249, needs retest")
+| ID | Status | Evidence (emulator only) |
+| --- | --- | --- |
+| Q7-4 rest sheet Done under nav bar | Verified | q7-4-rest-sheet-done-visible.png: "Done" is a whole pill above the navigation bar, nothing cut |
+| Q7-19 number and unit mismatches | Verified | q7-19-summary-units.png: summary "3 x 8 @ 50 lb", "Set 1: 50 lb x 8"; the active workout header reads "3 x 8-12 . 50 lb" (the set rows show "50.0" under an "LB" column header, which is a column unit, not a mismatch) |
+| Q7-23 font scale 1.5 | Verified | q7-23-font15-food-segmented.png (Diary, Plan, Recipes, "Library" all whole, text shrinks), q7-23-font15-train-segmented.png, dock "Insights" inside its pill; q8-8-font15-activeworkout-title.png: title "0:20 . set 1 of 15" on one line. See Q9-2 for a new 1.5x problem |
+| Q7-24 water target jump | Verified | q7-24-today-water-breakdown.png: the Today water card shows "Base 103.1 fl oz + workout +10.1" with a caret, tapping it expands "Base: 103.1 fl oz (35 ml per kg ...)" and "Workout sweat: +10.1 fl oz (21 min of training at a moderate (0.8 L/h) rate. Replaces the flat training-day amount)". q7-24-you-water-line.png: You reads "113.3 fl oz / Water / Base 103.1 fl oz + workout +10.1". The 0-set past workout rule was not rechecked |
+| Q7-25 leftovers | Verified, with a note | q7-25-myfoods-title.png: the screen is titled "My foods". q7-25-today-datepicker-sunday-first-enUS.png: the Today picker (device locale en-US) shows "Nov 24, 2026", Sunday-first, buttons "Today" and "Show this day". That is the locale default, as decided; not failed. The Food Diary picker and a Monday-first locale were not run |
+| Q5a-9 template log message | Verified | q5a-9-template-snackbar-snacks.png: one snackbar "Logged Post-workout shake to Snacks. Almond milk, unsweetened: check the label for dairy" with Undo. The slot list is Breakfast, Lunch, Dinner, Snacks, no "Drinks". See Q9-3 for a capitalisation difference elsewhere |
+| Q6-7 / Q7-3 Saturated fat | Verified | q6-7-diary-saturated-fat-food-segmented.png: Food Diary shows "Saturated fat 4.2 g" and "Fiber"; Carbs "/245 g". Plan form and 1.5x not checked |
+| Q8-1 swap goes to the picked slot | Verified | Recipe > Log a serving > Lunch > Find a safer swap: q8-1-swap-lunch-recipe.png "Swap lunch / Nothing planned for lunch"; q8-1-swap-logged-to-lunch.png "Logged Chicken fajita bowls to lunch". From Cook mode (Done cooking > Log a serving > Dinner): q8-1-swap-dinner-from-cook-mode.png "Swap dinner". The Food Diary afterwards listed one Chicken fajita bowls under Lunch and one under Dinner (none under Breakfast). My two Undo taps came after the snackbar had gone, so Undo is still untested (as in Pass 8) |
+| Q8-2 Cook mode nav bar | Verified | q8-2-cookmode-navbar-dark.png: the bar is black, the same as the screen |
+| Q8-3 wrapped allergen chip | Verified | q8-3-recipe-chip-padding.png: the 5-line "Contains butter, cheddar, cheese, cream, milk and whole milk" chip has padding on all four sides |
+| Q8-4 quick log labels | Verified | q8-4-quicklog-labels.png: "Measurements", "Quick calories", "Meal template", "Scan barcode" and the rest are one size, "Measurements" on one line; "Progress photo" wraps to two lines |
+| Q8-5 helper line vs error | Verified | q8-5-helper-and-error.png: "The sets move with the start time." and the red future-end message are stacked, nothing overlaps; Save is disabled |
+| Q8-6 Reopen then Finish | Verified | Finished a workout, set its start to 11:00 AM and length to 20, Reopen (timer read 20:25), Finish: q8-6-reopen-finish-keeps-start.png "Tuesday 24 November, 11:00", "21 minutes" (the 20 minutes plus the 25 s it was open). The edited start is kept and the length is kept |
+| Q8-7 Back from Set up, shortcuts, past workout | Verified | After Show the welcome again (and also on a fresh install after clearing data), step 9: tapped Set up Health Connect, Set up Backups (opens Sync and export) and Set up AI shortcuts, each time Back returned to "Step 9 of 10" (q8-7-back-returns-to-step9.png, q8-7-fresh-install-back-to-step9.png). Log a past workout opens at 12:30 PM with the clock at 1:32 PM, no error, "Blank workout" preselected and "Log it" enabled (q8-7-past-workout-default-start.png, q8-7-past-workout-log-it-enabled.png); Log it went straight to a 60-minute summary |
+| Q8-8 font 1.5 ActiveWorkout | Verified | q8-8-font15-activeworkout-rpe-label.png: with RPE on, LB, REPS and RPE are all labelled, title on one line. See Q9-2 |
+| Q8-9 same calories keep macros | Verified, with a note | Settings > Food: with 2260 unchanged the Save button is disabled (greyed), so the same value cannot be re-saved; You kept "170 . 70 . 245 g". Changing to 2270 and Save gave "166 . 70 . 244 g" (recomputed from 1.9 g per kg), which is the expected result of a real change |
+| Q8-10 timer after the clock goes back | **Still failing** | Started Upper B at 12:24 (0:51 at 12:25:02), set the device clock back 2 h (10:25). q8-10-timer-after-clock-back.png: the title reads "0:00 . set 1 of 15" at once and was still "0:00" about 70 s of device time later (second frame 10:26). It does not keep counting; it waits for the wall clock to catch up with the start. After the clock was put back to the right time the timer showed the right elapsed time (2:57). The Pass 8 note (frozen for minutes) stands. Only a manual clock change does this; S3 was probably high, S4 on a phone |
+| Q7-20 You "GOALS AND PLAN" | Verified | q7-20-you-goals-header-fresh-install.png: on a fresh install (data cleared) the dark card header is "GOALS AND PLAN / waiting for your details" on its own lines, over the lime pill, with "No target yet" and the explanation below; nothing squeezed |
+| Q6-5 LOG MORE counts | Verified | A sparse seed (food on only 2 days, about 200 kcal each): q6-5-sparse-checkin.png: "For the 7 days Nov 18-24: you logged food on 2 days, 0 of them full days (800 kcal or more), and weighed in on 6 days. The check needs 5 full days and 3 weigh-ins." The week card in the same screen says "Avg intake . 2 days logged". Both say 2 days now and the card says what a full day is. The card window (Nov 18-24) differs from the chip week (Nov 16-22) and is stated |
+| Q6-3 "almo" ranking | Partly (finding below) | No ANR with 2 s per key |
+| Scan barcode tile | Partly | Quick log > Scan barcode opens the scanner (scan-barcode-tile-emulator-no-camera.png; the emulator's virtual camera then draws a test scene, scan-barcode-virtual-camera-and-typed-code.png) with "Or type the barcode number" and Look up. A real scan and a typed lookup (needs network, the emulator is offline) were not completed |
+| "Checking..." allergen chip | Not reached | Typed "milk" in Log food with a screenshot every few seconds: the rows showed their final chips ("Contains milk, milk chocolate, milk powder and whole milk") and "Searching Open Food Facts..." but no "Checking..." chip |
+
+### Q6-3 "almo": which surface ranks Salmon above Almond
+- **Log food > All sources:** a "Drinks: almo" row first ("Drinks matching "almo" are logged from Drinks"), then MY FOODS AND RECENTS with **Salmon fillet, baked as the only row**. No Almond food is listed. (q6-3-logfood-allsources-almo.png) The USDA "Almond butter, creamy" is not shown in All sources.
+- **Log food > Mine:** same as All sources, Salmon fillet only.
+- **Log food > Recipes:** "Salmon, sweet potato and broccoli" only (there is no Almond recipe in the seed). **Log food > USDA:** "Almond butter, creamy" only. **Log food > OFF:** "Open Food Facts could not be reached" (offline).
+- **Library > My foods (Filter your foods):** "Almond milk, unsweetened" first, then "Salmon fillet, baked". Correct order. (q6-3-myfoods-almo-almond-first.png)
+- **Food > Recipes > Search your recipes:** "Salmon, sweet potato and broccoli" only. (q6-3-recipes-almo.png)
+- **Library > Drinks:** "Almond milk, unsweetened" (twice, see Q9-6) and USDA almond milks; no Salmon.
+So the one place where Salmon is above Almond is Log food (All sources and Mine). It is not a ranking inversion: the Almond milk food that My foods lists is a drink and Log food leaves it out of the food list, pointing to the "Drinks: almo" row above instead. Someone typing "almo" in Log food sees Salmon first and no Almond food.
+
+### Regressions checked
+- Train segmented control (Workout / Exercises / Videos): fine at normal and at 1.5x (regress-train-segmented-normal.png, q7-23-font15-train-segmented.png), after the Q9-1 patch.
+- Chips on recipe cards: padded, wrap, all readable (regress-recipe-card-chips.png).
+- Quick log grid: see Q8-4; "Start workout" is the dark tile.
+- Timer on a normal workout (no clock change): counted up through set logging, a rest sheet, an app kill and relaunch (the workout kept counting, 6:42 after the relaunch), pause (frozen at 8:26 for 47 s, regress-timer-paused.png) and resume (8:57 about 30 s later).
+- Today strip (Wed 18 to Tue 24, today dark, regress-today-strip.png) and the Training log calendar (Monday-first, 7 training days, Nov 24 marked; no ANR on the DayCell; regress-training-calendar.png).
+
+### New findings
+### Q9-1 · S1 · Segmented control · The app crashes on opening the Food tab, the Train tab, and any other screen with a segmented control
+Status: open. Found in release/intake-preview.apk (head 2894563 and 8607249, "Segmented fit" change).
+Steps: 1. Install the APK, open Today. 2. Tap Food (or Train). (Settings > Appearance and units, Allergens, Menu sources, Weather settings, progress photos and Food detail use the same control.)
+Expected: the tab opens.
+Actual: the app closes at once. Four times in a row (Food, Train, and Quick log > Start workout which opens Train): `java.lang.IllegalStateException: measure() may not be called multiple times on the same Measurable` at `ControlsKt$Segmented$1$1$1.measure` (Controls.kt:202). In the measure policy each segment is measured twice: once to find the height (`first`), then again for the final size.
+Screenshot: none worth keeping (the launcher is all that is left); the stack is in logcat.
+Suggested fix, tried here and it worked on the same build (Food, Train and the 1.5x tabs all rendered): take the height from the intrinsics instead of a first measure. In `Controls.kt` replace the two lines
+`val first = measurables.mapIndexed { i, m -> m.measure(Constraints(minWidth = widths[i], maxWidth = widths[i])) }` and `val height = first.maxOfOrNull { it.height } ?: 0`
+with `val height = measurables.mapIndexed { i, m -> m.maxIntrinsicHeight(widths[i]) }.maxOrNull() ?: 0`, and keep the single `m.measure(... minHeight = height, maxHeight = height)` pass. A unit or instrumented test that composes `Segmented` once would have caught this.
+
+### Q9-2 · S4 · Font scale 1.5 · ActiveWorkout exercise names and muscle lists break in the middle of words
+Status: open.
+Steps: 1. font_scale 1.5. 2. Start Upper B or Lower B.
+Expected: whole words on each line, or a layout that gives the name more width.
+Actual: the exercise card header column is only about 3 words wide (thumbnail, name, "Form" and the "..." button side by side): "Incline Dumbb/ell Press", "Romani/an Deadlif/t", "hamstring/s, glutes". The title bar and the set rows (Q8-8) are fine.
+Screenshot: design/qa/pass9/q8-8-font15-activeworkout-title.png, q8-8-font15-activeworkout-rpe-label.png
+
+### Q9-3 · S4 · Swap · The "Logged ... to lunch" message uses a lower-case slot name
+Status: open.
+Steps: 1. Recipe > Log a serving > Lunch > Find a safer swap > Choose.
+Expected: "Logged Chicken fajita bowls to Lunch" (the meal-template message says "to Snacks").
+Actual: "Logged Chicken fajita bowls to lunch" (and "to dinner" from Cook mode).
+Screenshot: design/qa/pass9/q8-1-swap-logged-to-lunch.png
+
+### Q9-4 · S3 · ActiveWorkout and workout summary · Repeated "not responding" kills on the emulator, reproducible on dialogs
+Status: open, needs a device check. Emulator only.
+What I saw: 15 ANRs for the preview app in about 3.5 hours (10:47 to 13:50 device time), all "Input dispatching timed out ... Waited 5 s for FocusEvent(hasFocus=false)" or a MotionEvent, nearly all within a minute of opening or closing a dialog or sheet on ActiveWorkout or the workout summary (rest sheet, Save in "Change date, time and length", the "Still training?" dialog). The "Still training?" dialog, which a reopened workout shows when its last set is old, was reproducible: five tries, each ended with the app killed after tapping "Keep going", "Finish at ..." or Back, so I could not dismiss it. The main thread in the ANR traces was busy in Compose recomposition and drawing (ActiveWorkoutScreen, ExerciseThumb) rather than blocked on I/O; the app used about 100 percent of a core on those screens, against 0 percent on Today. I also ran the screen at 720x1520 (same dp) with the same result, so it is not only pixel count. The Pass 8 ANRs looked the same. Unknown whether a phone shows it. Worth a profile of what recomposes every second while a workout is open (timer tick reading state at the top of the screen, exercise photos).
+Also: touching the app in its first minute after a cold start produced the same ANR, so every step in this pass waited about a minute after launch.
+Screenshot: none (a killed app is not visible)
+
+### Q9-5 · S4 · Train · Starting a workout while a reopened one is unfinished leaves a ghost entry
+Status: open, not isolated.
+Steps: 1. Finish a workout, Reopen it (it is the running workout again). 2. Leave the app (it was killed by the ANR in Q9-4). 3. Train > Start workout.
+Expected: "Resume" or a question.
+Actual: a new Upper B started, and the Training log then listed both: the new one and the reopened one as "Upper B, 0 min . 3 sets . 1,200 lb".
+Screenshot: none (found in the log list only)
+
+### Q9-6 · S4 · Drinks · "Almond milk, unsweetened" is listed twice under ON THIS PHONE
+Status: open, may be the seed.
+Steps: 1. Quick log > Drink (or Log food > "Drinks: almo"), type "almo".
+Expected: one row.
+Actual: two identical rows (15 kcal / 100 ml, "Check the label: milk"), then the USDA almond milks. My foods lists the same product once (1 cup (240 ml), 36 kcal), so the seed may hold both a drink and a food of that name.
+Screenshot: none kept
+
+### Logcat
+Four FATAL EXCEPTIONs, all the Q9-1 `Segmented` measure crash (10:44, 10:46, 10:53, 10:55 device time, on the unpatched APK). None on the patched build. 15 ANRs (Q9-4), 0 after 13:50. The ANR counter was reset by the second seed run, so the totals above are from the log read at 13:51.
+
+### Summary for Pass 9
+Retests: 22 items. Verified 18 (Q7-4, 7-19, 7-23, 7-24, 7-25, 5a-9, 6-7/7-3, 8-1, 8-2, 8-3, 8-4, 8-5, 8-6, 8-7, 8-8, 8-9, 7-20, 6-5); Still failing 1 (Q8-10); Partly 2 (Q6-3, Scan barcode tile); Not reached 1 (the "Checking..." chip). New: 6 findings, S1 1 (Q9-1), S2 0, S3 1 (Q9-4), S4 4 (Q9-2, 3, 5, 6).
+Not verifiable on an emulator: touch feel, haptics and the rest sound, keep-awake, real snackbar timing (Undo for Q8-1 and Q6-2 was not caught again), performance and ANR rates on a phone, gesture navigation, Health Connect, a real camera or barcode scan, a typed barcode lookup (offline), Android 15, a Monday-first locale (date pickers).
+Device state left: clock restored (the device zone is still Europe/London), font scale 1.0, screen size reset, the sparse seed loaded.
