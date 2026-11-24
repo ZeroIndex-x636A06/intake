@@ -196,7 +196,7 @@ fun PlanScreen(
                 Row(verticalAlignment = Alignment.Bottom) {
                     Column(Modifier.weight(1f)) {
                         SubHead(
-                            activePlan?.name ?: "No plan yet",
+                            activePlan?.name ?: "Your plan",
                             position?.label() ?: "Make a plan of any length, or import one.",
                         )
                     }

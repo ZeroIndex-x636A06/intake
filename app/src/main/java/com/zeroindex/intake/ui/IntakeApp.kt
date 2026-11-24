@@ -182,10 +182,13 @@ private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, sta
     }
     LaunchedEffect(prefs.tourPending, onToday) {
         if (prefs.loaded && prefs.tourPending && prefs.done && onToday && !tour.running) {
-            val ready = withTimeoutOrNull(5_000) {
+            // A slow device can take many seconds to lay Today out (a replay lands here from You, where the dock
+            // was hidden). Wait for the ring and the dock, then start with whatever is there rather than give up
+            // for good: the old 5 s cut-off left the tour pending but never shown.
+            withTimeoutOrNull(30_000) {
                 snapshotFlow { TourIds.RING in tour.available && TourIds.PILL in tour.available }.first { it }
             }
-            if (ready == true) {
+            if (TourIds.RING in tour.available || TourIds.ADD_FOOD in tour.available) {
                 delay(500)
                 if (!tour.start()) flow.tourFinished()
             }

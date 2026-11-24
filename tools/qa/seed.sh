@@ -61,10 +61,14 @@ wait_for "Goals and plan" 20 || exit 1
 tap "Settings"
 wait_for "Sync and export" 20 || exit 1
 tap "Sync and export"
-wait_for "Import a backup" 20 || { $UI swipe up; }
-dump | grep -q "Import a backup" && true
-# the Import row can be below the fold
-for i in 1 2 3; do dump | grep "Import a backup" | grep -qv "^ *0 *0" && break; $UI swipe up; sleep 2; done
+# The regrouped Settings puts the Import button below the fold, and a lazy list only exposes visible rows to
+# uiautomator: scroll until the button is in the dump (up to 10 swipes), then tap it.
+found=0
+for i in $(seq 1 10); do
+  if dump | grep -qi "Import a backup"; then found=1; break; fi
+  $UI swipe up; sleep 2
+done
+[ $found = 1 ] || { say "Import a backup not found after scrolling"; exit 1; }
 tap "Import a backup"
 wait_for "Search" 20 || exit 1
 say "picker open; searching for the seed file"

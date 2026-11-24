@@ -9,7 +9,7 @@ enum class TodayCard { NEXT, WATER, WEIGHT, MEALS, ACTIVITY }
 /** The twelve Settings pages, in the order the home lists them (docs/SETTINGS-INVENTORY.md). */
 enum class SettingsGroup(val id: String, val title: String, val blurb: String) {
     APPEARANCE("appearance", "Appearance and units", "How numbers and colours look. Nothing here changes your data."),
-    NUTRITION("nutrition", "Nutrition", "How your targets are worked out and what the dashboard shows. Your allergens are on the Allergens screen in Food, because they are safety data."),
+    NUTRITION("nutrition", "Food", "How your targets are worked out and what the dashboard shows. Your allergens are on the Allergens screen in Food, because they are safety data."),
     WATER("water", "Water and drinks", "The water target, how it adjusts, and which sizes you tap. Log a drink from the water card on Today or from Log food."),
     TRAINING("training", "Training", "Rest timer, bar and plates, equipment and volume targets."),
     HEALTH("health", "Health Connect", "Which records Intake may read from and write to Health Connect."),

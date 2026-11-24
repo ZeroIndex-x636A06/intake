@@ -136,7 +136,7 @@ private fun weekdayInitial(day: LocalDate): String = day.dayOfWeek.getDisplayNam
 /** The month calendar behind the date heading: any day up to today. Choosing a day selects it and closes the dialog. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DayCalendarDialog(today: LocalDate, selected: LocalDate, onPick: (LocalDate) -> Unit, onDismiss: () -> Unit) {
+fun DayCalendarDialog(today: LocalDate, selected: LocalDate, onPick: (LocalDate) -> Unit, onDismiss: () -> Unit) = com.zeroindex.intake.ui.components.MondayFirstWeek {
     val state = rememberDatePickerState(
         initialSelectedDateMillis = selected.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
         selectableDates = remember(today) {
