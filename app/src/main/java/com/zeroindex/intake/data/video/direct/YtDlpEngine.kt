@@ -3,6 +3,9 @@ package com.zeroindex.intake.data.video.direct
 import android.content.Context
 import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLRequest
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import com.zeroindex.intake.domain.videos.DirectFailure
 import com.zeroindex.intake.domain.videos.TranscriptLanguage
 import com.zeroindex.intake.domain.videos.YoutubeIds
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -16,7 +19,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /** Why direct playback or a download did not work, in plain words. Messages never carry a stream address. */
-class DirectVideoException(message: String) : Exception(message)
+class DirectVideoException(message: String, val failure: DirectFailure = DirectFailure.EXTRACTION) : Exception(message)
 
 /** A caption file read from yt-dlp: its text (json3 or WebVTT), its language code and whether YouTube made it automatically. */
 class CaptionFile(val text: String, val language: String, val auto: Boolean)
@@ -48,6 +51,13 @@ class YtDlpEngine @Inject constructor(@ApplicationContext private val context: C
         }
     }
 
+    /** True when the phone has a network that can reach the internet (not that it is working: a timeout covers that). */
+    fun hasNetwork(): Boolean {
+        val cm = context.getSystemService(ConnectivityManager::class.java) ?: return true
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork ?: return false) ?: return false
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
     /** Asks yt-dlp for its own newer version once per run, because YouTube changes often. Failure is not an error. */
     private suspend fun updateOnce() = withContext(Dispatchers.IO) {
         if (updatedThisRun) return@withContext
@@ -58,6 +68,8 @@ class YtDlpEngine @Inject constructor(@ApplicationContext private val context: C
     /** The address of a single playable file (about 360p to 720p) for [videoId]. Held in memory by the caller, never logged. */
     suspend fun streamUrl(videoId: String): String {
         require(YoutubeIds.parse(YoutubeIds.watchUrl(videoId)) == videoId)
+        // No connection: say so at once instead of starting the downloader and waiting for it to give up.
+        if (!hasNetwork()) throw DirectVideoException(DirectFailure.NO_NETWORK.playbackNote(), DirectFailure.NO_NETWORK)
         ensureInit()
         return withContext(Dispatchers.IO) {
             try {
@@ -65,14 +77,18 @@ class YtDlpEngine @Inject constructor(@ApplicationContext private val context: C
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                // The usual reason is that YouTube changed: update the downloader once and try again.
+                // A connection failure will not be mended by an update; anything else is usually that YouTube changed:
+                // update the downloader once and try again.
+                val first = DirectFailure.classify(hasNetwork(), *DirectFailure.messagesOf(e))
+                if (first == DirectFailure.NO_NETWORK) throw DirectVideoException(first.playbackNote(), first)
                 updateOnce()
                 try {
                     firstUrl(videoId)
                 } catch (e2: CancellationException) {
                     throw e2
                 } catch (e2: Exception) {
-                    throw DirectVideoException("Could not get this video directly. YouTube may have changed. Try again later, or turn the option off in Settings > Videos.")
+                    val f = DirectFailure.classify(hasNetwork(), *DirectFailure.messagesOf(e2))
+                    throw DirectVideoException(f.playbackNote(), f)
                 }
             }
         }
@@ -85,6 +101,7 @@ class YtDlpEngine @Inject constructor(@ApplicationContext private val context: C
      */
     suspend fun captions(videoId: String, deviceLanguage: String, workDir: File): CaptionFile? {
         require(YoutubeIds.parse(YoutubeIds.watchUrl(videoId)) == videoId)
+        if (!hasNetwork()) throw DirectVideoException(DirectFailure.NO_NETWORK.captionsMessage(), DirectFailure.NO_NETWORK)
         ensureInit()
         return withContext(Dispatchers.IO) {
             workDir.mkdirs()
@@ -94,13 +111,16 @@ class YtDlpEngine @Inject constructor(@ApplicationContext private val context: C
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
+                    val first = DirectFailure.classify(hasNetwork(), *DirectFailure.messagesOf(e))
+                    if (first == DirectFailure.NO_NETWORK) throw DirectVideoException(first.captionsMessage(), first)
                     updateOnce()
                     try {
                         captionsOnce(videoId, deviceLanguage, workDir)
                     } catch (e2: CancellationException) {
                         throw e2
                     } catch (e2: Exception) {
-                        throw DirectVideoException("Could not get the captions. YouTube may have changed. Try again later, or paste the transcript below.")
+                        val f = DirectFailure.classify(hasNetwork(), *DirectFailure.messagesOf(e2))
+                        throw DirectVideoException(f.captionsMessage(), f)
                     }
                 }
             } finally {
@@ -175,7 +195,8 @@ class YtDlpEngine @Inject constructor(@ApplicationContext private val context: C
                 throw e
             } catch (e: Exception) {
                 cleanup(videoId, dir)
-                throw DirectVideoException("The download failed. Check your connection and try again.")
+                val f = DirectFailure.classify(hasNetwork(), *DirectFailure.messagesOf(e))
+                throw DirectVideoException(f.downloadMessage(), f)
             }
         }
     }

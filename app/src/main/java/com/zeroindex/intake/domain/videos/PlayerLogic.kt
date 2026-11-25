@@ -24,6 +24,10 @@ object PlayerChapters {
         return found
     }
 
+    /** The chapter to mark as playing: none until the video has started (a page that has not been played shows no "Playing"). */
+    fun playingIndex(started: Boolean, chapters: List<Chapter>, positionSec: Int): Int =
+        if (started) indexAt(chapters, positionSec) else -1
+
     /** Where chapter [index] ends: the next chapter's start, or the video's end ([durationSec], or -1 when unknown). */
     fun endSec(chapters: List<Chapter>, index: Int, durationSec: Int): Int =
         chapters.getOrNull(index + 1)?.startSec ?: if (durationSec > 0) durationSec else -1

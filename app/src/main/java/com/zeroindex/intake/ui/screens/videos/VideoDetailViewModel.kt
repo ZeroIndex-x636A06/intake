@@ -102,11 +102,20 @@ class VideoDetailViewModel @Inject constructor(
                 hasDescription = !meta?.description.isNullOrBlank(),
                 workoutId = videos.workoutIdFor(videoId),
                 error = error,
-                source = runCatching { sources.resolve(videoId) }.getOrDefault(ResolvedSource(PlayerKind.YOUTUBE)),
+                // The page shows at once; the player area says "getting the video" until the source is worked out below.
+                source = null,
                 directOn = _state.value.directOn,
                 downloadedBytes = _state.value.downloadedBytes,
                 download = _state.value.download,
             )
+            val source = try {
+                sources.resolve(videoId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                ResolvedSource(PlayerKind.YOUTUBE)
+            }
+            _state.update { it.copy(source = source) }
         }
     }
 

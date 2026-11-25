@@ -17,12 +17,22 @@ object YoutubeEmbed {
         require(isValidId(videoId)) { "not a YouTube video id" }
         val autoplay = if (autoplay) 1 else 0
         val src = "https://www.youtube-nocookie.com/embed/$videoId" +
-            "?playsinline=1&rel=0&modestbranding=1&fs=0&start=${startSec.coerceAtLeast(0)}&autoplay=$autoplay"
+            "?playsinline=1&rel=0&modestbranding=1&fs=0&start=${startSec.coerceAtLeast(0)}&autoplay=$autoplay" +
+            "&enablejsapi=1&origin=https%3A%2F%2Fcom.zeroindex.intake"
         return "<!doctype html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" +
             "<style>html,body{margin:0;height:100%;background:#000}iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0}</style>" +
-            "</head><body><iframe src=\"$src\" title=\"YouTube video player\" " +
+            "</head><body><iframe id=\"f\" src=\"$src\" title=\"YouTube video player\" " +
             "allow=\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\" " +
-            "referrerpolicy=\"strict-origin-when-cross-origin\"></iframe></body></html>"
+            "referrerpolicy=\"strict-origin-when-cross-origin\"></iframe><script>" +
+            // The frame's own messages tell the app that it is alive, or that it hit an error (numbers only go to the app).
+            "var f=document.getElementById('f');" +
+            "function B(){return window.IntakeBridge}" +
+            "window.addEventListener('message',function(e){try{" +
+            "if(!/(^|\\.)youtube(-nocookie)?\\.com\$/.test(new URL(e.origin).hostname))return;" +
+            "var d=typeof e.data==='string'?JSON.parse(e.data):e.data;B().onEmbedAlive();" +
+            "if(d&&d.event==='onError')B().onEmbedError(d.info|0)}catch(x){}});" +
+            "f.onload=function(){try{f.contentWindow.postMessage(JSON.stringify({event:'listening',id:1,channel:'widget'}),'*')}catch(x){}};" +
+            "</script></body></html>"
     }
 
     /**

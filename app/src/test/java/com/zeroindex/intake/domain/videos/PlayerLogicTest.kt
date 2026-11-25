@@ -92,4 +92,13 @@ class PlayerLogicTest {
         assertThat(ControlsVisibility.shouldAutoHide(true, true, false, 9_000)).isFalse()
         assertThat(ControlsVisibility.shouldAutoHide(true, false, true, 9_000)).isFalse()
     }
+
+    @Test
+    fun `no chapter is marked as playing before the video has started`() {
+        val chapters = listOf(Chapter(0, "Warm up"), Chapter(60, "Squats"))
+        assertThat(PlayerChapters.playingIndex(false, chapters, 0)).isEqualTo(-1)
+        assertThat(PlayerChapters.playingIndex(false, chapters, 75)).isEqualTo(-1)
+        assertThat(PlayerChapters.playingIndex(true, chapters, 0)).isEqualTo(0)
+        assertThat(PlayerChapters.playingIndex(true, chapters, 75)).isEqualTo(1)
+    }
 }

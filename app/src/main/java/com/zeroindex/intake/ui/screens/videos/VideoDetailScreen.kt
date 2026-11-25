@@ -5,6 +5,7 @@ import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IconSize
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import com.zeroindex.intake.data.video.direct.DownloadState
 import com.zeroindex.intake.domain.videos.DirectPlayback
@@ -98,7 +99,28 @@ fun VideoDetailScreen(
                 YoutubeEmbed.isValidId(state.videoId) -> PlayerSource.Youtube(state.videoId)
                 else -> null
             }
-            if (playerSource != null) {
+            if (source == null && playerSource != null) {
+                // Still working out how to play (a direct stream can take a few seconds): the picture and a note, not a blank page.
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    VideoThumbnail(
+                        url = meta?.thumbnailUrl ?: YoutubeIds.thumbnailUrl(state.videoId),
+                        durationSec = meta?.durationSec ?: 0,
+                        modifier = Modifier.fillMaxWidth(),
+                        showPlay = false,
+                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        CircularProgressIndicator(color = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(32.dp))
+                        Text(
+                            "Getting the video\u2026",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = androidx.compose.ui.graphics.Color.White,
+                            modifier = Modifier
+                                .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.6f), IntakeShape.Pill)
+                                .padding(horizontal = 10.dp, vertical = 4.dp),
+                        )
+                    }
+                }
+            } else if (playerSource != null) {
                 // One first-party player for both backends: YouTube's player or the in-app one, Intake's controls on top.
                 IntakeVideoPlayer(
                     source = playerSource,

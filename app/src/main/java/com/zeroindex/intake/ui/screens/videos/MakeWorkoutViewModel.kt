@@ -210,7 +210,8 @@ class MakeWorkoutViewModel @Inject constructor(
         if (timed.isNotEmpty()) {
             val t = Transcript(videoId, "pasted", auto = false, segments = timed)
             val draft = VideoWorkoutDrafter.draft(meta, library, t)
-            _state.update { it.copy(transcript = t, source = draft.source, items = draft.items.ifEmpty { it.items }, pastedFound = draft.items.size) }
+            val shown = if (draft.source == DraftSource.TRANSCRIPT) DraftSource.PASTED_TRANSCRIPT else draft.source
+            _state.update { it.copy(transcript = t, source = shown, items = draft.items.ifEmpty { it.items }, pastedFound = draft.items.size) }
             return
         }
         val pasted = text.trim().take(MAX_PASTE)

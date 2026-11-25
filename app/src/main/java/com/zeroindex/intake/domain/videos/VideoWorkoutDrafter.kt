@@ -5,6 +5,7 @@ enum class DraftSource(val label: String) {
     CHAPTERS("Read from the video's chapters"),
     DESCRIPTION("Read from lines of the description"),
     TRANSCRIPT("Read from the video's captions"),
+    PASTED_TRANSCRIPT("Read from the transcript you pasted"),
     CHAPTERS_AND_CAPTIONS("Read from the video's chapters, with times from its captions"),
     DESCRIPTION_AND_CAPTIONS("Read from the description and the video's captions"),
     AI("AI suggested"),

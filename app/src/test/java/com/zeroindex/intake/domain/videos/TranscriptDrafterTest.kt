@@ -224,6 +224,90 @@ class TranscriptDrafterTest {
         assertThat(none).isEqualTo(VideoWorkoutDrafter.draft(chapterMeta, library))
     }
 
+    // --- Pass 12 fixture: pasted lines, each row keeps to its own lines ---------------------------------------------
+
+    private fun pasted(pushups: String) = transcript(
+        12 to "do 3 sets of 12 squats",
+        65 to "lunges 10 reps each side",
+        135 to "$pushups AMRAP",
+        210 to "plank hold for 45 secs",
+    )
+
+    @Test
+    fun `each row quotes its own lines and modifiers stay with their exercise`() {
+        for (spelling in listOf("push-ups", "pushups", "push ups", "Push-Ups")) {
+            val d = TranscriptDrafter.draft(pasted(spelling), library)
+            val names = d.items.map { it.exerciseName.lowercase() }
+            assertThat(names).containsExactly("bodyweight squat", "lunges", "push-up", "plank").inOrder()
+            val (squat, lunge, push, plank) = d.items
+            assertThat(squat.text).isEqualTo("do 3 sets of 12 squats")
+            assertThat(lunge.text).isEqualTo("lunges 10 reps each side")
+            assertThat(push.text).isEqualTo("$spelling AMRAP")
+            assertThat(plank.text).isEqualTo("plank hold for 45 secs")
+            assertThat(squat.sets).isEqualTo(3)
+            assertThat(squat.reps).isEqualTo(12)
+            assertThat(lunge.reps).isEqualTo(10)
+            assertThat(lunge.eachSide).isTrue()
+            assertThat(push.amrap).isTrue()
+            // AMRAP does not leak into the Plank row, and the plank keeps its 45 seconds.
+            assertThat(plank.amrap).isFalse()
+            assertThat(plank.eachSide).isFalse()
+            assertThat(plank.seconds).isEqualTo(45)
+            assertThat(d.items.map { it.startSec }).containsExactly(12, 65, 135, 210).inOrder()
+        }
+    }
+
+    @Test
+    fun `AMRAP on a line with an exercise the library does not know does not move to the next line`() {
+        // "burpee" is only in the common list, and "zottman" is nothing: the AMRAP line names no exercise at all.
+        val t = transcript(
+            12 to "do 3 sets of 12 squats",
+            65 to "zottman thingies AMRAP",
+            135 to "plank hold for 45 secs",
+        )
+        val d = TranscriptDrafter.draft(t, library)
+        val plank = d.items.first { it.named("Plank") }
+        assertThat(plank.amrap).isFalse()
+        assertThat(plank.seconds).isEqualTo(45)
+        assertThat(d.items.first { it.named("Bodyweight squat") }.amrap).isFalse()
+    }
+
+    @Test
+    fun `a lead-in line that is only the modifier does apply to the exercise on the next line`() {
+        val t = transcript(10 to "as many as you can", 15 to "of push ups", 40 to "then plank for thirty seconds")
+        val d = TranscriptDrafter.draft(t, library)
+        assertThat(d.items.first { it.named("Push-up") }.amrap).isTrue()
+        assertThat(d.items.first { it.named("Plank") }.amrap).isFalse()
+    }
+
+    @Test
+    fun `a number does not reach an exercise two lines away`() {
+        val t = transcript(
+            0 to "welcome back everyone",
+            20 to "hold it for forty five seconds",
+            30 to "and keep breathing, you are doing great",
+            45 to "now some squats",
+        )
+        val squat = TranscriptDrafter.draft(t, library).items.single()
+        assertThat(squat.seconds).isNull()
+        assertThat(squat.text).isEqualTo("now some squats")
+    }
+
+    @Test
+    fun `push-up spellings all match the library and the common list`() {
+        val noLibrary = emptyList<ExerciseEntry>()
+        for (spelling in listOf("push-ups", "pushups", "push ups", "pushup", "push-up")) {
+            val inLibrary = TranscriptDrafter.draft(transcript(0 to "$spelling 10 reps", 10 to "x", 20 to "y"), library).items.single()
+            assertThat(inLibrary.exerciseName).isEqualTo("Push-up")
+            assertThat(inLibrary.kind).isEqualTo(DraftKind.MATCHED)
+            val common = TranscriptDrafter.draft(transcript(0 to "$spelling 10 reps", 10 to "x", 20 to "y"), noLibrary).items.single()
+            assertThat(common.kind).isEqualTo(DraftKind.NEW)
+            assertThat(common.exerciseName.lowercase()).contains("push")
+        }
+        val m = ExerciseNameMatcher(library)
+        for (spelling in listOf("pushups", "push ups", "push-ups")) assertThat(m.match(spelling)?.entry?.name).isEqualTo("Push-up")
+    }
+
     // --- the stored time -------------------------------------------------------------------------------------
 
     @Test

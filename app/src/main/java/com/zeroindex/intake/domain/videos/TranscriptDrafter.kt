@@ -32,6 +32,9 @@ object TranscriptDrafter {
     )
     private val TENS = mapOf("thirty" to 30, "forty" to 40, "fifty" to 50, "sixty" to 60, "ninety" to 90)
 
+    /** Words that fill a line without being about an exercise. */
+    private val FILLER = setOf("and", "a", "an", "the", "do", "it", "you", "can", "as", "many", "possible", "for", "of", "to", "with")
+
     private val TOKEN = Regex("""\d+|[A-Za-z']+""")
 
     private val REST_AFTER = Regex("""\b(?:rest|break|recover|recovery)(?: for| of)? (\d+) (seconds?|secs?|s|minutes?|mins?)\b""")
@@ -56,7 +59,9 @@ object TranscriptDrafter {
 
     private class Acc(val key: String, val exerciseId: String?, val name: String, val isNew: Boolean) {
         var firstSeg = Int.MAX_VALUE
-        var snippet = ""
+
+        /** The lines this row was read from: the one that names it, and any other line a number or modifier came from. */
+        val sourceSegs = sortedSetOf<Int>()
         var count = 0
         var sets: Int? = null
         var reps: Int? = null
@@ -124,44 +129,74 @@ object TranscriptDrafter {
         for (m in order) {
             val a = accs.getOrPut(m.key) { Acc(m.key, m.exerciseId, m.name, m.isNew) }
             a.count++
-            if (toks[m.first].seg < a.firstSeg) {
-                a.firstSeg = toks[m.first].seg
-                a.snippet = snippet(norm, m.start, m.end)
-            }
+            if (toks[m.first].seg < a.firstSeg) a.firstSeg = toks[m.first].seg
         }
+        for (a in accs.values) a.sourceSegs += a.firstSeg
         // A number said straight before the name ("12 squats") is its reps.
         val bareReps = HashMap<Int, Int>()
         order.forEachIndexed { idx, m ->
             val prev = m.first - 1
-            if (prev >= 0 && toks[prev].text.all { it.isDigit() } && !taken[starts[prev]]) {
+            if (prev >= 0 && toks[prev].text.all { it.isDigit() } && !taken[starts[prev]] && toks[prev].seg == toks[m.first].seg) {
                 toks[prev].text.toInt().takeIf { it in 1..100 }?.let { bareReps[idx] = it }
             }
         }
 
-        fun nearest(p: Phrase, preferBefore: Boolean): Int? {
-            var best: Int? = null
-            var bestDist = Int.MAX_VALUE
-            order.forEachIndexed { idx, m ->
-                if (preferBefore && m.end > p.start) return@forEachIndexed
-                val d = when {
-                    m.end <= p.start -> p.start - m.end
-                    m.start >= p.end -> m.start - p.end
-                    else -> 0
-                }
-                // Ties go to the later mention ("10 lunges": the number comes first).
-                if (d <= bestDist && d <= MAX_DISTANCE) {
-                    bestDist = d
-                    best = idx
-                }
+        fun segOf(pos: Int): Int {
+            var lo = 0
+            var hi = starts.size - 1
+            while (lo < hi) {
+                val mid = (lo + hi + 1) / 2
+                if (starts[mid] <= pos) lo = mid else hi = mid - 1
             }
-            if (best == null && preferBefore) return nearest(p, false)
-            return best
+            return toks[lo].seg
+        }
+
+        /** True when the line holds nothing but this phrase (and filler), so it is a lead-in to the next line. */
+        fun phraseIsWholeLine(p: Phrase, seg: Int): Boolean =
+            toks.indices.filter { toks[it].seg == seg }.all { i -> (starts[i] >= p.start && starts[i] <= p.end) || toks[i].text in FILLER }
+
+        // A number or modifier belongs to the exercise named in its own line or the line right after it (a rest time may also
+        // belong to the line before). It never jumps across an unrelated line, and it never reaches past MAX_DISTANCE.
+        fun nearest(p: Phrase): Int? {
+            val seg = segOf(p.start)
+            fun nearestIn(candidates: List<Int>): Int? {
+                var best: Int? = null
+                var bestDist = Int.MAX_VALUE
+                for (idx in candidates) {
+                    val m = order[idx]
+                    val d = when {
+                        m.end <= p.start -> p.start - m.end
+                        m.start >= p.end -> m.start - p.end
+                        else -> 0
+                    }
+                    // Ties go to the later mention ("10 lunges": the number comes first).
+                    if (d <= MAX_DISTANCE && d <= bestDist) { bestDist = d; best = idx }
+                }
+                return best
+            }
+            fun inSeg(sg: Int) = order.indices.filter { toks[order[it].first].seg == sg }
+            val rest = p.kind == "rest"
+            if (rest) {
+                // "squats, rest 30 seconds": the exercise before the rest wins when it is in the same line.
+                val before = inSeg(seg).filter { order[it].end <= p.start }
+                nearestIn(before)?.let { return it }
+            }
+            nearestIn(inSeg(seg))?.let { return it }
+            // The line has no exercise of its own. A modifier ("AMRAP", "each side") may only borrow one when its line is nothing
+            // but that modifier; "pushups AMRAP" with pushups unknown must not hand its AMRAP to the next exercise.
+            val modifier = p.kind == "each" || p.kind == "amrap"
+            if (modifier && !phraseIsWholeLine(p, seg)) return null
+            // Numbers: the line before ("Second is the bench press" / "three sets of eight") or after ("three sets of" / "squats"),
+            // never one further away. A rest time prefers the line before it.
+            if (rest) nearestIn(inSeg(seg - 1))?.let { return it }
+            return nearestIn(inSeg(seg - 1) + inSeg(seg + 1))
         }
 
         for (p in phrases) {
             if (p.kind == "rounds" || p.kind == "onoff") continue
-            val idx = nearest(p, preferBefore = p.kind == "rest") ?: continue
+            val idx = nearest(p) ?: continue
             val a = accs.getValue(order[idx].key)
+            a.sourceSegs += segOf(p.start)
             when (p.kind) {
                 "setsreps" -> { if (a.sets == null) a.sets = p.a; if (a.reps == null) a.reps = p.b }
                 "reps" -> if (a.reps == null) a.reps = p.a
@@ -185,7 +220,7 @@ object TranscriptDrafter {
             val include = a.prescribed || onOff != null || a.count >= 2
             DraftItem(
                 key = i,
-                text = a.snippet,
+                text = quote(a.sourceSegs.map { segs[it].text }),
                 kind = kind,
                 exerciseId = a.exerciseId,
                 exerciseName = a.name,
@@ -326,9 +361,7 @@ object TranscriptDrafter {
         return extra.all { e -> e in MODIFIERS || nameTokens.any { ExerciseNameMatcher.levenshtein(e, it) <= 1 } }
     }
 
-    private fun snippet(norm: String, start: Int, end: Int): String {
-        val a = (start - 30).coerceAtLeast(0)
-        val b = (end + 50).coerceAtMost(norm.length)
-        return norm.substring(a, b).trim()
-    }
+    /** The row's own source lines, each shortened, joined; never text from the lines around them. */
+    private fun quote(lines: List<String>): String =
+        lines.joinToString(" / ") { l -> val t = l.trim(); if (t.length > 70) t.take(69).trimEnd() + "\u2026" else t }
 }

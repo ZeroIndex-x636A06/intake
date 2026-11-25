@@ -71,6 +71,8 @@ class ExerciseNameMatcher(entries: List<ExerciseEntry>) {
         /** Single words that name a whole family, so alone they do not pick one exercise. */
         private val GENERIC = setOf("press", "curl", "raise", "row", "extension", "fly", "flye", "pull", "push", "lift", "kick", "twist", "jump", "hold", "pulldown", "crunch", "bridge", "walk", "run")
 
+        private val UPS = Regex("""\b(push|pull|sit|chin)\s*-?\s*ups?\b""")
+
         private val SYNONYMS = mapOf(
             "pushup" to "push up", "pullup" to "pull up", "chinup" to "chin up", "situp" to "sit up",
             "db" to "dumbbell", "dumbell" to "dumbbell", "dumbbel" to "dumbbell", "bb" to "barbell", "kb" to "kettlebell",
@@ -85,6 +87,8 @@ class ExerciseNameMatcher(entries: List<ExerciseEntry>) {
         internal fun words(text: String): List<String> {
             val spaced = text.lowercase()
                 .replace('’', '\'')
+                // "pushups", "push ups", "push-ups" and "push-up" are one thing; so are the pull, sit and chin variants.
+                .replace(UPS, "$1 up")
                 .replace("press-up", "push up").replace("press up", "push up")
                 .replace(Regex("""[^a-z0-9]+"""), " ")
                 .trim()

@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -202,22 +203,12 @@ internal fun PlayerChrome(
         }
 
         // YouTube's mark stays visible: this names where the video comes from and is never hidden with the controls.
-        if (controller.backend == PlayerBackend.YOUTUBE) {
-            Text(
-                "YouTube",
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.White,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(8.dp)
-                    .clip(IntakeShape.Pill)
-                    .background(Badge)
-                    .padding(horizontal = 8.dp, vertical = 3.dp),
-            )
-        }
+        if (controller.backend == PlayerBackend.YOUTUBE && error == null) YoutubeBadge(Modifier.align(Alignment.TopStart))
 
         if (error != null) {
             ErrorOverlay(error, controller, openInYoutubeUrl)
+            // Drawn after the panel so the dark overlay does not dim it.
+            if (controller.backend == PlayerBackend.YOUTUBE) YoutubeBadge(Modifier.align(Alignment.TopStart))
             return@Box
         }
 
@@ -297,6 +288,66 @@ internal fun PlayerChrome(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun YoutubeBadge(modifier: Modifier = Modifier) {
+    Text(
+        "YouTube",
+        style = MaterialTheme.typography.labelSmall,
+        color = Color.White,
+        modifier = modifier
+            .padding(8.dp)
+            .clip(IntakeShape.Pill)
+            .background(Badge)
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+    )
+}
+
+/**
+ * What stays on screen when YouTube's own controls are showing (the plain-embed fallback): the YouTube mark, a way out to the
+ * YouTube app or site, and a note when the frame has shown no sign of life. It never covers the middle or the bottom, where
+ * YouTube's controls are, and everything but the button lets touches through to the video.
+ */
+@Composable
+internal fun FallbackChrome(stalled: Boolean, openInYoutubeUrl: String?, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    Box(modifier) {
+        YoutubeBadge(Modifier.align(Alignment.TopStart))
+        if (openInYoutubeUrl != null) {
+            Row(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .heightIn(min = 48.dp)
+                    .clickable(role = Role.Button, onClickLabel = "Open this video in YouTube") {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(openInYoutubeUrl)))
+                    }
+                    .padding(horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(
+                    Modifier.clip(IntakeShape.Pill).background(Badge).padding(horizontal = 10.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(IntakeIcons.External, contentDescription = null, tint = Color.White, modifier = Modifier.size(IconSize.Small))
+                    Text("  Open in YouTube", style = MaterialTheme.typography.labelLarge, color = Color.White, maxLines = 1)
+                }
+            }
+        }
+        if (stalled) {
+            Text(
+                "YouTube's player has not started here. Open the video in YouTube instead.",
+                style = MaterialTheme.typography.labelLarge,
+                color = Color.White,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 24.dp)
+                    .clip(IntakeShape.Pill)
+                    .background(Badge)
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            )
         }
     }
 }
@@ -433,9 +484,10 @@ private fun Scrubber(
     val accent = MaterialTheme.intake.accent
     val durationSec = (controller.durationMs / 1000L).toInt()
     val ticks = remember(chapters, durationSec) { PlayerChapters.tickFractions(chapters, durationSec) }
+    // A fixed height, so the touch area is this strip and never the whole player (the Canvas below used to fill the parent).
     Box(
         modifier
-            .heightIn(min = if (thin) 24.dp else 48.dp)
+            .height(if (thin) 24.dp else 48.dp)
             .pointerInput(controller) {
                 detectTapGestures { o -> onSeek(PlayerSeek.positionAt(o.x / size.width, controller.durationMs)) }
             }

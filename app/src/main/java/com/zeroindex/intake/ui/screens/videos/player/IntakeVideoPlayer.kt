@@ -108,7 +108,7 @@ class PlayerSession(
     }
 
     /** The index of the chapter playing now, or -1. */
-    fun currentChapter(chapters: List<Chapter>): Int = PlayerChapters.indexAt(chapters, (positionMs / 1000L).toInt())
+    fun currentChapter(chapters: List<Chapter>): Int = PlayerChapters.playingIndex(started, chapters, (positionMs / 1000L).toInt())
 
     companion object {
         val Saver = listSaver<PlayerSession, Any>(
@@ -230,8 +230,12 @@ private fun PlayerContent(
 ) {
     Box(modifier.background(Color.Black)) {
         PlayerSurface(controller, Modifier.fillMaxSize())
-        val embedFallback = (controller as? YoutubePlayerController)?.fallbackEmbed == true
-        if (!embedFallback) {
+        val youtube = controller as? YoutubePlayerController
+        // In the plain-embed fallback YouTube's own controls show; Intake keeps a small chrome (badge, way out, a note) and
+        // takes over fully again if the embed reports an error, so a failure is never a bare black box.
+        if (youtube != null && youtube.fallbackEmbed && controller.error == null) {
+            FallbackChrome(stalled = youtube.fallbackStalled, openInYoutubeUrl = openInYoutubeUrl, modifier = Modifier.fillMaxSize())
+        } else {
             PlayerChrome(
                 controller = controller,
                 chapters = chapters,

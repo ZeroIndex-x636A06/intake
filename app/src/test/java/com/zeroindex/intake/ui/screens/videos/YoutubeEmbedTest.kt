@@ -21,6 +21,16 @@ class YoutubeEmbedTest {
     }
 
     @Test
+    fun `the fallback page lets the app hear whether the frame is alive or failed`() {
+        val html = YoutubeEmbed.html("dQw4w9WgXcQ", 0)
+        assertThat(html).contains("enablejsapi=1")
+        assertThat(html).contains("onEmbedAlive")
+        assertThat(html).contains("onEmbedError")
+        // Only YouTube's own origins are listened to.
+        assertThat(html).contains("youtube(-nocookie)?")
+    }
+
+    @Test
     fun `the api page turns youtube's controls off and keeps the nocookie host`() {
         val html = YoutubeEmbed.apiHtml("dQw4w9WgXcQ", 95, autoplay = true)
         assertThat(html).contains("controls:0")

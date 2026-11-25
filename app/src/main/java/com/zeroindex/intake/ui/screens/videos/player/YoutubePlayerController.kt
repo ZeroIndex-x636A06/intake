@@ -7,7 +7,9 @@ import android.view.ViewGroup
 import android.webkit.JavascriptInterface
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.runtime.getValue
@@ -38,6 +40,10 @@ class YoutubePlayerController(
     var fallbackEmbed by mutableStateOf(false)
         private set
 
+    /** In the fallback: no sign that YouTube's frame drew anything yet. Shown as a note, cleared when the frame reports in. */
+    var fallbackStalled by mutableStateOf(false)
+        private set
+
     val webView: WebView = WebView(context)
     private var ready = false
     private var released = false
@@ -50,7 +56,24 @@ class YoutubePlayerController(
         if (!ready && !released && error == null) switchToEmbed()
     }
 
+    private val stallTimeout = Runnable {
+        if (fallbackEmbed && !embedAlive && !released && error == null) fallbackStalled = true
+    }
+    private var embedAlive = false
+
     private inner class Bridge {
+        /** The plain embed's frame sent a message: it is running. */
+        @JavascriptInterface
+        fun onEmbedAlive() = onMain {
+            embedAlive = true
+            fallbackStalled = false
+            webView.removeCallbacks(stallTimeout)
+        }
+
+        /** The plain embed's frame reported a player error code. */
+        @JavascriptInterface
+        fun onEmbedError(code: Int) = onMain { if (fallbackEmbed) fail(PlayerError(YoutubePlayerErrors.message(code), YoutubePlayerErrors.canRetry(code))) }
+
         @JavascriptInterface
         fun onReady(durationSec: Double) = onMain {
             ready = true
@@ -89,12 +112,16 @@ class YoutubePlayerController(
         fun onRate(r: Double) = onMain { if (r in 0.1..4.0) rate = r.toFloat() }
 
         @JavascriptInterface
-        fun onError(code: Int) = onMain {
-            webView.removeCallbacks(readyTimeout)
-            error = PlayerError(YoutubePlayerErrors.message(code), YoutubePlayerErrors.canRetry(code))
-            isPlaying = false
-            buffering = false
-        }
+        fun onError(code: Int) = onMain { fail(PlayerError(YoutubePlayerErrors.message(code), YoutubePlayerErrors.canRetry(code))) }
+    }
+
+    private fun fail(e: PlayerError) {
+        webView.removeCallbacks(readyTimeout)
+        webView.removeCallbacks(stallTimeout)
+        fallbackStalled = false
+        error = e
+        isPlaying = false
+        buffering = false
     }
 
     private fun secToMs(sec: Double): Long = if (sec.isNaN() || sec < 0) 0L else (sec * 1000.0).toLong().coerceAtMost(MAX_MS)
@@ -117,6 +144,17 @@ class YoutubePlayerController(
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
                     if (request.isForMainFrame) !YoutubeEmbed.allowsHost(request.url.host) else !YoutubeEmbed.allowsFrameHost(request.url.host)
 
+                // A page or frame that cannot load at all (no connection, blocked, a server error): say so in words.
+                override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                    if (isPlayerDocument(request) && error.errorCode in CONNECTION_ERRORS) onMain { fail(PlayerError(YoutubePlayerErrors.message(YoutubePlayerErrors.SCRIPT_FAILED))) }
+                }
+
+                override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, errorResponse: WebResourceResponse) {
+                    if (isPlayerDocument(request) && errorResponse.statusCode >= 400) {
+                        onMain { fail(PlayerError("YouTube's player could not load this video (error ${errorResponse.statusCode}).")) }
+                    }
+                }
+
                 override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
                     if (!released) {
                         error = PlayerError("The video player stopped. Try again.")
@@ -132,6 +170,10 @@ class YoutubePlayerController(
         }
         load(startMs)
     }
+
+    /** The page itself, or the embed's own document inside it: not the many pictures, scripts and trackers around a player. */
+    private fun isPlayerDocument(request: WebResourceRequest): Boolean =
+        request.isForMainFrame || (YoutubeEmbed.allowsHost(request.url.host) && request.url.path.orEmpty().startsWith("/embed/"))
 
     private fun load(fromMs: Long) {
         if (!YoutubeEmbed.isValidId(videoId)) {
@@ -152,7 +194,11 @@ class YoutubePlayerController(
 
     private fun switchToEmbed() {
         fallbackEmbed = true
+        embedAlive = false
+        fallbackStalled = false
         buffering = false
+        webView.removeCallbacks(stallTimeout)
+        webView.postDelayed(stallTimeout, STALL_TIMEOUT_MS)
         webView.loadDataWithBaseURL(
             YoutubeEmbed.BASE_URL,
             YoutubeEmbed.html(videoId, (lastKnownMs / 1000L).toInt(), autoplay = true),
@@ -194,6 +240,8 @@ class YoutubePlayerController(
         error = null
         buffering = true
         fallbackEmbed = false
+        fallbackStalled = false
+        webView.removeCallbacks(stallTimeout)
         load(lastKnownMs)
     }
 
@@ -203,6 +251,7 @@ class YoutubePlayerController(
     override fun release() {
         released = true
         webView.removeCallbacks(readyTimeout)
+        webView.removeCallbacks(stallTimeout)
         webView.removeJavascriptInterface("IntakeBridge")
         webView.stopLoading()
         (webView.parent as? ViewGroup)?.removeView(webView)
@@ -211,6 +260,13 @@ class YoutubePlayerController(
 
     private companion object {
         const val READY_TIMEOUT_MS = 12_000L
+        const val STALL_TIMEOUT_MS = 15_000L
+
+        /** WebViewClient error codes for a connection that did not work (not a load that was cancelled by a newer one). */
+        val CONNECTION_ERRORS = setOf(
+            WebViewClient.ERROR_HOST_LOOKUP, WebViewClient.ERROR_CONNECT, WebViewClient.ERROR_TIMEOUT, WebViewClient.ERROR_IO,
+            WebViewClient.ERROR_FAILED_SSL_HANDSHAKE,
+        )
         const val MAX_MS = 24L * 3600 * 1000
     }
 }

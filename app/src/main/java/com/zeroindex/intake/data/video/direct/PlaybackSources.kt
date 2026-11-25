@@ -7,7 +7,13 @@ import com.zeroindex.intake.domain.videos.PlayerKind
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.zeroindex.intake.domain.videos.DirectFailure
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.first
 
 /**
@@ -30,6 +36,8 @@ class PlaybackSources @Inject constructor(
     /** The Shorts shown in the list the person opened a Short from. */
     @Volatile var shortsInView: List<String> = emptyList()
 
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     private val streams = ConcurrentHashMap<String, Pair<String, Long>>()
 
     suspend fun resolve(videoId: String): ResolvedSource {
@@ -39,13 +47,26 @@ class PlaybackSources @Inject constructor(
             PlayerKind.OFFLINE_FILE -> ResolvedSource(PlayerKind.OFFLINE_FILE, file!!.absolutePath)
             PlayerKind.YOUTUBE -> ResolvedSource(PlayerKind.YOUTUBE)
             PlayerKind.DIRECT_STREAM -> try {
-                ResolvedSource(PlayerKind.DIRECT_STREAM, stream(videoId))
+                ResolvedSource(PlayerKind.DIRECT_STREAM, streamWithin(videoId))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                ResolvedSource(PlayerKind.YOUTUBE, note = e.message ?: "Direct playback did not work, so YouTube's player is used.")
+                // Any failure (no connection, too slow, yt-dlp cannot read it) plays with YouTube's own player, and says why.
+                val failure = (e as? DirectVideoException)?.failure ?: DirectFailure.EXTRACTION
+                ResolvedSource(PlayerKind.YOUTUBE, note = failure.playbackNote())
             }
         }
+    }
+
+    /**
+     * [stream] with a deadline. yt-dlp is blocking code that cannot be interrupted, so it runs in the app's own scope and is
+     * only waited for: after [DirectFailure.STREAM_TIMEOUT_MS] the caller gets a timeout, and a late answer is still cached
+     * for the next open.
+     */
+    private suspend fun streamWithin(videoId: String): String {
+        val work = scope.async { stream(videoId) }
+        val url = withTimeoutOrNull(DirectFailure.STREAM_TIMEOUT_MS) { work.await() }
+        return url ?: throw DirectVideoException(DirectFailure.TIMEOUT.playbackNote(), DirectFailure.TIMEOUT)
     }
 
     private suspend fun stream(videoId: String): String {
