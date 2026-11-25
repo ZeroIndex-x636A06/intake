@@ -86,6 +86,7 @@ object ProgramBlueprintBuilder {
                 progressionRuleId = e.progression?.let { ruleIds[it] },
                 restSec = e.restSec,
                 startWeightKg = e.startWeightKg,
+                videoStartSec = e.videoStartSec,
                 notes = listOfNotNull(e.why.takeIf { it.isNotBlank() && it != FREESTYLE_WHY }, e.startNote)
                     .joinToString(" ").ifBlank { null },
                 createdAt = now,

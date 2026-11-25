@@ -123,6 +123,14 @@ object IntakeIcons {
     val Play: ImageVector by lazy { line("Play", "M7 4l13 8-13 8z" to false) }
     val PlayAlt: ImageVector by lazy { line("PlayAlt", "M8 5l11 7-11 7z" to false) }
     val Bookmark: ImageVector by lazy { line("Bookmark", "M6 3h12v18l-6-4-6 4z" to false) }
+    // Video player controls (filled play and pause, so the big centre button reads at a glance).
+    val PlayFilled: ImageVector by lazy { line("PlayFilled", "M8 5l11 7-11 7z" to true) }
+    val PauseFilled: ImageVector by lazy { line("PauseFilled", "M7.5 5h3v14h-3z" to true, "M13.5 5h3v14h-3z" to true) }
+    val Rewind: ImageVector by lazy { line("Rewind", "M11 6l-6 6 6 6M19 6l-6 6 6 6" to false) }
+    val FastForward: ImageVector by lazy { line("FastForward", "M13 6l6 6-6 6M5 6l6 6-6 6" to false) }
+    val Fullscreen: ImageVector by lazy { line("Fullscreen", "M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" to false) }
+    val FullscreenExit: ImageVector by lazy { line("FullscreenExit", "M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" to false) }
+    val Loop: ImageVector by lazy { line("Loop", "M17 2l3 3-3 3M4 11V9a4 4 0 0 1 4-4h12M7 22l-3-3 3-3M20 13v2a4 4 0 0 1-4 4H4" to false) }
     val History: ImageVector by lazy { line("History", "M4 12a8 8 0 1 0 2.3-5.7M4 4v4h4" to false) }
     val Trophy: ImageVector by lazy { line("Trophy", "M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4" to false) }
     val BackCircle: ImageVector by lazy { line("BackCircle", "M3 12 a9 9 0 1 0 18 0 a9 9 0 1 0 -18 0" to false, "M12 8l-4 4 4 4M8 12h8" to false) }

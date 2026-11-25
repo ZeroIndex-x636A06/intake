@@ -129,6 +129,12 @@ data class ProgramExerciseEntity(
     val startWeightKg: Double? = null,
     /** A note for this exercise in this routine ("slow negatives", "seat 4"). */
     val notes: String? = null,
+    /**
+     * Second of the workout's linked video (`program.videoId`) where this exercise starts or is first named, from the video's
+     * chapters or captions. Null when unknown. Groundwork for a workout overlay on the video; today it only shows a "play
+     * from here" chip.
+     */
+    val videoStartSec: Int? = null,
     override val createdAt: Long,
     override val updatedAt: Long,
     override val deletedAt: Long? = null,

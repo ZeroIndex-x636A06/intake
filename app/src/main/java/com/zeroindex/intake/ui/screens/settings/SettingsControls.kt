@@ -757,8 +757,9 @@ private fun DirectVideosSetting(checked: Boolean, onChange: (Boolean) -> Unit) {
             text = {
                 Text(
                     "This uses yt-dlp, a third-party tool, to get video streams from YouTube. It is not an official YouTube feature, and " +
-                        "YouTube's terms do not allow downloading videos or skipping ads outside YouTube's own apps. Using it can get the YouTube " +
-                        "key you added suspended, and it can stop working whenever YouTube changes. Downloads stay in Intake's private storage on this " +
+                        "YouTube's terms do not allow downloading videos or skipping ads outside YouTube's own apps. YouTube may slow down or block " +
+                        "requests from your phone's network, and it can stop working whenever YouTube changes. It does not use the YouTube key you " +
+                        "added; that key is only for search and video details. Downloads stay in Intake's private storage on this " +
                         "phone and are never uploaded. Intake adds a large component to the app for this. You can turn it off at any time.",
                 )
             },

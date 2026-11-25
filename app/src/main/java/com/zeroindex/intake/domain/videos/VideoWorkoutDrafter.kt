@@ -4,6 +4,9 @@ package com.zeroindex.intake.domain.videos
 enum class DraftSource(val label: String) {
     CHAPTERS("Read from the video's chapters"),
     DESCRIPTION("Read from lines of the description"),
+    TRANSCRIPT("Read from the video's captions"),
+    CHAPTERS_AND_CAPTIONS("Read from the video's chapters, with times from its captions"),
+    DESCRIPTION_AND_CAPTIONS("Read from the description and the video's captions"),
     AI("AI suggested"),
     NOTHING("Nothing found"),
 }
@@ -35,6 +38,10 @@ data class DraftItem(
     val include: Boolean,
     val startSec: Int? = null,
     val primaryMuscle: String = "core",
+    /** The video said "each side": the numbers are per side. */
+    val eachSide: Boolean = false,
+    /** The video said "as many as you can" (AMRAP). */
+    val amrap: Boolean = false,
 )
 
 data class VideoWorkoutDraft(val source: DraftSource, val items: List<DraftItem>) {
@@ -56,6 +63,16 @@ object VideoWorkoutDrafter {
         "conclusion", "end", "ending", "credits", "overview", "what you need", "equipment", "preview", "announcement", "ad",
         "disclaimer", "tips", "bonus", "q&a", "final thoughts",
     )
+
+    /**
+     * The draft from chapters or the description, combined with the video's captions when [transcript] is given
+     * (see [TranscriptDrafter.merge]: chapters win on timing and numbers).
+     */
+    fun draft(video: VideoMeta, library: List<ExerciseEntry>, transcript: Transcript?): VideoWorkoutDraft {
+        val base = draft(video, library)
+        if (transcript == null || transcript.isEmpty) return base
+        return TranscriptDrafter.merge(base, TranscriptDrafter.draft(transcript, library))
+    }
 
     fun draft(video: VideoMeta, library: List<ExerciseEntry>): VideoWorkoutDraft {
         val matcher = ExerciseNameMatcher(library)

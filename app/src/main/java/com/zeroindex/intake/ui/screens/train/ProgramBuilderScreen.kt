@@ -46,6 +46,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -82,6 +84,7 @@ fun ProgramBuilderScreen(
     contentPadding: PaddingValues,
     onOpenScriptReference: (page: String, anchor: String?) -> Unit,
     modifier: Modifier = Modifier,
+    onOpenVideo: (videoId: String, startSec: Int) -> Unit = { _, _ -> },
     viewModel: ProgramBuilderViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -183,6 +186,8 @@ fun ProgramBuilderScreen(
                     onInfo = { infoFor = it },
                     standalone = program.isStandalone,
                     unit = state.weightUnit,
+                    videoId = program.videoId,
+                    onOpenVideo = onOpenVideo,
                 )
             }
             if (!(state.program?.isStandalone ?: false)) {
@@ -317,6 +322,8 @@ private fun DayCard(
     onInfo: (String) -> Unit,
     standalone: Boolean,
     unit: WeightUnit,
+    videoId: String? = null,
+    onOpenVideo: (videoId: String, startSec: Int) -> Unit = { _, _ -> },
 ) {
     var menu by remember { mutableStateOf(false) }
     var weekdayDialog by remember { mutableStateOf(false) }
@@ -373,6 +380,7 @@ private fun DayCard(
                 onEdit = { onEdit(item.row.id) },
                 onMove = { delta -> viewModel.moveExercise(item.row.id, delta) },
                 onInfo = { item.exercise?.let { onInfo(it.id) } },
+                onPlayVideo = videoId?.let { id -> item.row.videoStartSec?.let { sec -> { onOpenVideo(id, sec) } } },
             )
         }
         Spacer(Modifier.height(8.dp))
@@ -436,6 +444,7 @@ private fun ExerciseSummaryRow(
     onEdit: () -> Unit,
     onMove: (Int) -> Unit,
     onInfo: () -> Unit,
+    onPlayVideo: (() -> Unit)? = null,
 ) {
     val pe = item.row
     var menu by remember { mutableStateOf(false) }
@@ -471,6 +480,15 @@ private fun ExerciseSummaryRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
+            }
+            // Where this exercise starts in the video the workout was made from; opens the video at that second.
+            if (onPlayVideo != null && pe.videoStartSec != null) {
+                val at = com.zeroindex.intake.domain.videos.YoutubeIds.clock(pe.videoStartSec)
+                androidx.compose.material3.AssistChip(
+                    onClick = onPlayVideo,
+                    label = { Text("▶ $at") },
+                    modifier = Modifier.semantics { contentDescription = "Play the video from $at" },
                 )
             }
         }

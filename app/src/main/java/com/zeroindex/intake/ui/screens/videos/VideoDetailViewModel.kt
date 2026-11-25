@@ -61,6 +61,9 @@ class VideoDetailViewModel @Inject constructor(
 ) : ViewModel() {
     private val videoId: String = savedStateHandle.toRoute<Route.VideoDetail>().videoId
 
+    /** Where to start playing, when the page was opened from a workout's "play from here" chip; 0 otherwise. */
+    val initialStartSec: Int = savedStateHandle.toRoute<Route.VideoDetail>().startSec.coerceAtLeast(0)
+
     private val _state = MutableStateFlow(VideoDetailState(videoId = videoId))
     val state: StateFlow<VideoDetailState> = _state.asStateFlow()
 
