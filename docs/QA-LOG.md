@@ -1754,3 +1754,52 @@ Fixed in 16ab543 unless noted. Emulator smoke test (phone30, preview APK version
 - **Q10-6** Fixed, smoke-tested: Theme Dark on a light phone shows light status bar icons and a dark navigation bar (`enableEdgeToEdge` styles follow the app's resolved theme). Needs a check on a phone and with gesture navigation.
 - **Q10-7** Fixed, in parts. (a) The allergen sheet says "Logging blocked", "not logged" and "Nothing is logged until you choose what to do"; the block itself is unchanged. (b) "100 g (100 g)" now reads "100 g". (c) The macro tiles' kcal are the 4/4/9 figures scaled to add up to the eaten total (tiles 298 + 442 + 765 = 1,505 eaten, smoke-tested). (d) Saved recipes with ingredient lines now say "Ingredient names checked" (seen in Recipes); the scan does read every line's words, so "Only the name was checked" was untrue for them, but they are still never green unless every line has a label behind it, and a warning is never downgraded; a recipe with no lines still says "Only the name was checked". (e) "Removed water" says the amount ("Removed 8 fl oz water"), not seen on emulator. (f) Cook mode: space under the ingredients label, not seen on emulator. (g) Identical 4th set: a set equal to an earlier one earns no estimated max, heaviest or rep record (tests). What remains is the session-volume record (more sets than the best day), which the chip now calls "Volume PR"; needs an owner decision on whether that should count at all.
 - **Q10-8** Fixed, smoke-tested: Add set on ActiveWorkout posts "Set added to this exercise. Undo"; Undo took the new row out (rows 6, then 6 again), and it never hides a set that has been logged.
+
+## Pass 11 — Retest of Pass 10 fixes
+Date: 2026-11-24/25 (device zone Europe/London) · Build: release/intake-preview.apk (com.zeroindex.intake.preview, versionCode 26112418, repo head 740c01e) · AVD: phone30 (Android 11, no KVM, 3-button navigation) · Seed: tools/qa/seed.sh through a temporary copy pointed at the preview package (not committed), clean install, default 1080x2280, "Import 573 changes". The worker restarted mid-pass; the emulator was restarted and the clock set back to the seeded day (Nov 24, 14:00) so Today kept its data. **Emulator only**; nothing here was seen on a phone.
+Screenshots: design/qa/pass11/ (small PNGs, no personal photos). Counts: **FATAL 0. App ANR 1** (Q11-1, fast typed text in Log food search, see below; not reproduced typing slowly). The only other "ANR in" lines are system processes (systemui, phone) during the emulator boot after the restart.
+
+### Result per Pass 10 fix
+| Item | Result | Evidence |
+| --- | --- | --- |
+| Q10-5 water target, reopened workout | **Verified** | Edited start to 6:05 PM (about 96 min before), length 20, Reopen. Timer 20:14 on the workout, Today water card "Base 103.1 fl oz + workout +10.1" (target 113.3) with the timer at 21:25. After Finish (23 min) the same +10.1. Pass 10 showed +44 for the same setup. reopened.png, water-reopened.png |
+| Q10-4 12-hour time in "Still training?" | **Verified** | "Nothing has been logged for about 1 hour. Your last set was at 7:54 PM" with "Finish at 7:54 PM" (still.png); summary header "Tuesday 24 November, 7:53 PM". Threshold was lowered to 1 h and the clock moved forward, then both restored |
+| Q10-7e "Removed N fl oz water" | **Verified** | "Removed 16.9 fl oz water" with Undo (water-removed.png). The 12 fl oz removal snackbar was missed, the total fell 54.4 to 42.4 |
+| Q10-7f Cook mode spacing | **Verified** | Gap between the "INGREDIENTS · 0 OF 4 READY" label and the servings stepper (cook.png) |
+| Q10-6 dark app on light phone | **Verified on emulator** | Theme Dark: light status bar icons, dark nav bar on Today, Food, Train, Insights, Appearance (appear-dark.png, dk-*.png). Not checked with gesture navigation or on a phone |
+| Q10-1 macro tiles | **Verified** | "115 g / of 170 g" two lines, no cut digit at 1.0 (food1.png) and 1.5 (f-diary.png) |
+| Q10-1 ring "kcal left" at 1.5 | **Still failing (known open)** | Diary ring: "kcal left" runs over the ring stroke (f-diary.png). Today ring at 1.5 is fine (f-today.png) |
+| Q10-2 Theme row at 1.5 | **Verified** | Unit and Theme controls sit under their labels, no broken words, all segments tapped, no crash (f-appear.png, f-appear-light.png) |
+| Q10-3 Insights tiles and You card at 1.5 | **Verified** | Tiles stack and read whole; You plan figures one per row, first row "36 · 72.0 in · 192.0 lb · goal 185.0 lb" wraps cleanly (f-ins.png, f-you.png) |
+| Q10-8 Add set Undo on ActiveWorkout | **Verified** | "Set added to this exercise. Undo" (aw-addset.png); Undo took the row out (6 rows, set count 18 unchanged). The earlier taps missed the snackbar, so it needs a tap inside about 2 s on this emulator |
+| Tiles sum to "eaten" | **Verified** | 448 + 676 + 900 = 2,024 (food1.png) |
+| USDA "100 g" rows | **Verified** | "Yogurt, plain, nonfat · 100 g · Dairy and Egg Products" (usda.png, usda2.png) |
+| "Ingredient names checked" on saved recipes | **Verified** | Amber, not green, on Salmon, Soup, and others; Turkey chili shows the red "Contains cream, milk and yogurt" (recipes2.png) |
+| "Volume PR" chip | **Not reached / Partly** | Seeded summaries show a plain "PR" chip, not "Volume PR", always on Set 2 (lowerA3.png, lowerA4.png); see Q11-3. I could not make a session that beats the best day's volume |
+| Q10-7a allergen sheet wording, Q10-7g repeat-set records | **Not reached** | Not exercised this pass |
+
+### Crash sweep
+No FATAL. Today, Food (Diary, Plan, Recipes, Library), Train (Workout, Exercises, Videos), Insights (1M, 3M, 6M, 1Y, All), You, Settings > Appearance and units (kg/lb, cm/in, ml/fl oz, g/oz, System/Light/Dark) at 1.0 light, 1.0 dark and 1.5 dark; Appearance again at 1.5 light. Workout start, set, Add set + Undo, pause none, Finish, edit date/time/length, Reopen, Finish, "Still training?" all ran. Units were put back to lb, in, fl oz, g.
+
+### New findings
+### Q11-1 · S4 (maybe emulator) · Log food search · Fast typing causes an ANR
+Steps: Today > Log food > Search, `adb shell input text yogurt` (six keys at once). The app ran at about 165 percent CPU for 28 s and "Input dispatching timed out" (KeyEvent 'o') followed. Typing the same word one key every 4 s gave no ANR and results. Probably the emulator's speed, but search work per keystroke looks heavy; check on a phone and consider debouncing.
+### Q11-2 · S4 · Food Diary ring at 1.5x · "kcal left" touches the ring
+Same as the known open item (f-diary.png).
+### Q11-3 · S4 · Workout summary · "PR" chip sits on Set 2, label is not "Volume PR"
+Steps: Train > Recent sessions > Lower A (Nov 19) > Exercises. Back squat: Set 1 160 lb x 7 is the heaviest weight and best estimated max, yet the "PR" chip is on Set 2 (160 x 6). Walking Lunge and Dumbbell Lateral Raise also show it on Set 2. A reader cannot tell what the chip means (lowerA3.png).
+### Q11-4 · S4 · Weight rate wording does not agree across screens
+Today: "-1.9 lb this week". Insights 1M: "-0.3 lb/week" while the chart falls about 3 lb over the month; Averages: "-0.3 lb avg weight change" with no period (ins-b1.png, ins-b5.png). Different bases may be intended, but the labels should say which.
+### Q11-5 · S4 · Insights measurements · Change chips have no unit
+"Waist 36.3 in  -0.39", "Chest 41.7 in  +-0" (ins-b4.png). Add "in"; "+-0" for no change reads oddly.
+### Q11-6 · S4 · Insights Maintenance · "Needs 14 days of weigh-ins and logs" with 21 days logged
+The card shows a dash and the message while Days logged says 21 of 28 and 17 weigh-ins exist (ins-b5.png). If the rule is 14 consecutive days, say so.
+### Q11-7 · S4 · Duration of the same workout differs
+Summary after the second Finish read "23 minutes", Train > Recent sessions "22 min" for the same session; a 1-minute session reads "0 min" / "0 minutes" (trainlog.png). Pick one rounding.
+### Q11-8 · S4 · You card at 1.0 · "4 days · 60 min" wraps ("60 / min")
+you1.png. Also "1.9 g per kg" for 170 g at 87.1 kg (1.95) rounds down, and Today lists macros Protein/Carbs/Fat while the Diary tiles are Protein/Fat/Carbs.
+
+### Summary for Pass 11
+Verified: Q10-1 (tiles), Q10-2, Q10-3, Q10-4, Q10-5, Q10-6 (emulator), Q10-7 b/c/d/e/f, Q10-8. Still failing: ring "kcal left" at 1.5x on the Diary. Not reached: Q10-7a, Q10-7g, "Volume PR" label. New: Q11-1 to Q11-8, all S4; S1-S3 none.
+Not verifiable on an emulator: touch feel, haptics, real snackbar timing, CPU and ANR rates on a phone (Q11-1), gesture navigation, a 24-hour phone setting, Health Connect, camera and barcode, network lookups, Android 15.
+Device state left: auto time on, zone Europe/London, font 1.0, theme Light, "Still training?" 3 h, units lb/in/fl oz/g, emulator stopped.
