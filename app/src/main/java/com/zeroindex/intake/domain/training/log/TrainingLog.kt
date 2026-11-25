@@ -36,6 +36,8 @@ data class SessionLogRow(
     /** The program the day belongs to; null for a freestyle workout or a saved workout. */
     val subtitle: String?,
     val minutes: Int?,
+    /** The length in milliseconds, for the one reading of a duration ([com.zeroindex.intake.domain.training.WorkoutDuration]). */
+    val durationMs: Long? = null,
     val workingSets: Int,
     val volumeKg: Double,
     val prCount: Int,
@@ -65,7 +67,8 @@ object TrainingLog {
                 startedAt = s.startedAt,
                 title = day?.dayName ?: "Workout",
                 subtitle = day?.programName?.takeIf { !day.standalone && it != day.dayName },
-                minutes = s.finishedAt?.let { ((it - s.startedAt) / 60_000).toInt().coerceAtLeast(0) },
+                minutes = s.finishedAt?.let { com.zeroindex.intake.domain.training.WorkoutDuration.minutes(it - s.startedAt) },
+                durationMs = s.finishedAt?.let { (it - s.startedAt).coerceAtLeast(0L) },
                 workingSets = working.size,
                 volumeKg = working.sumOf { it.weightKg * it.reps },
                 prCount = prs[s.id] ?: 0,

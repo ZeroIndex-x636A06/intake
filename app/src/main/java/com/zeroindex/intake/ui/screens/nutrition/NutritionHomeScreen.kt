@@ -192,6 +192,9 @@ fun NutritionHomeScreen(
 /** Room kept for the overview card while its day is read: the ring box plus the macro tiles under it. */
 private val OverviewPlaceholderHeight = 360.dp
 private val RingSize = 88.dp
+
+/** The largest font scale the text inside the ring follows; the ring itself does not grow. */
+private const val RingTextMaxFontScale = 1.1f
 private val RingStroke = 10.dp
 /** The ring's gap to its percentage labels, and the room the box keeps for them on each side (a "100%" label, the gap, a margin). */
 private val RingLabelGap = 6.dp
@@ -368,9 +371,16 @@ private fun CalorieRingView(model: DashboardModel, showSplit: Boolean, protein: 
                 )
             }
         }
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(RingSize - RingStroke * 2)) {
-            Text(big, style = NumberSmall, maxLines = 1, softWrap = false)
-            Text(small, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+        // The ring's inner circle is a fixed size, so the text inside it grows with the font setting only up to what fits
+        // (Q11-2: "kcal left" touched the ring at 1.5x).
+        val density = LocalDensity.current
+        androidx.compose.runtime.CompositionLocalProvider(
+            LocalDensity provides androidx.compose.ui.unit.Density(density.density, minOf(density.fontScale, RingTextMaxFontScale)),
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(RingSize - RingStroke * 2)) {
+                Text(big, style = NumberSmall, maxLines = 1, softWrap = false)
+                Text(small, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
+            }
         }
     }
 }

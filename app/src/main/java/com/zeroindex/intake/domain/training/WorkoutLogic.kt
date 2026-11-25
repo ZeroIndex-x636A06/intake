@@ -210,6 +210,11 @@ data class RecordLine(
     /** The earlier best, or null when there is none to compare. */
     val previous: Double?,
     val weightKg: Double,
+    /**
+     * Which working set of the exercise set the record (its index among that exercise's working sets, in the order
+     * logged), for the set-level kinds. Null for [PrKind.BEST_VOLUME]: the whole session earned it, no set did (Q11-3).
+     */
+    val setIndex: Int? = null,
 )
 
 data class NextTimeChange(val exerciseName: String, val fromKg: Double, val toKg: Double, val reps: Int, val reason: String)
@@ -219,6 +224,8 @@ data class SessionSummary(
     val workingSets: Int,
     val totalReps: Int,
     val durationMin: Int,
+    /** The length in milliseconds; the summary shows it through [WorkoutDuration]. */
+    val durationMs: Long = 0L,
     val records: List<RecordLine>,
     /** Weighted sets this session per region, most first. */
     val regionSets: Map<BodyRegion, Double>,
@@ -248,12 +255,12 @@ object SessionSummaries {
             val topSet = weighted.maxByOrNull { OneRepMax.estimate(it.weightKg, it.reps) }
             if (topSet != null && bestBefore != null) {
                 val e = OneRepMax.estimate(topSet.weightKg, topSet.reps)
-                if (e > bestBefore + 0.05) records += RecordLine(name, PrKind.ESTIMATED_MAX, e, bestBefore, topSet.weightKg)
+                if (e > bestBefore + 0.05) records += RecordLine(name, PrKind.ESTIMATED_MAX, e, bestBefore, topSet.weightKg, exerciseSets.indexOf(topSet))
             }
             // Heaviest weight: the heaviest working set of the session, when it is heavier than any set before.
             val heaviest = weighted.maxByOrNull { it.weightKg }
             if (heaviest != null && weightedBefore.isNotEmpty() && heaviest.weightKg > weightedBefore.maxOf { it.weightKg } + 0.01) {
-                records += RecordLine(name, PrKind.HEAVIEST_WEIGHT, heaviest.weightKg, weightedBefore.maxOf { it.weightKg }, heaviest.weightKg)
+                records += RecordLine(name, PrKind.HEAVIEST_WEIGHT, heaviest.weightKg, weightedBefore.maxOf { it.weightKg }, heaviest.weightKg, exerciseSets.indexOf(heaviest))
             }
             // Rep records: the best reps this session at a weight that was lifted before (no added weight counts as a weight).
             exerciseSets.filter { it.reps >= 1 }.groupBy { Math.round(it.weightKg * 100) }.forEach { (_, same) ->
@@ -263,7 +270,7 @@ object SessionSummaries {
                 if (w >= 0 && earlier.isNotEmpty() && best > earlier.maxOf { it.reps } &&
                     records.none { it.exerciseName == name && it.kind == PrKind.ESTIMATED_MAX && abs(it.weightKg - w) < 0.01 }
                 ) {
-                    records += RecordLine(name, PrKind.REP_RECORD, best.toDouble(), earlier.maxOf { it.reps }.toDouble(), w)
+                    records += RecordLine(name, PrKind.REP_RECORD, best.toDouble(), earlier.maxOf { it.reps }.toDouble(), w, exerciseSets.indexOf(same.first { it.reps == best }))
                 }
             }
             ExerciseRecordsCalc.volumeRecord(before, exerciseSets.map { SetResult(it.weightKg, it.reps) })?.let {
@@ -281,18 +288,29 @@ object SessionSummaries {
             primary += h.primary
             secondary += h.secondary
         }
-        val minutes = ((finishedAt - startedAt).coerceAtLeast(0) / 60_000.0).roundToInt()
+        val minutes = WorkoutDuration.minutes(finishedAt - startedAt)
         return SessionSummary(
             volumeKg = volume,
             workingSets = working.size,
             totalReps = working.sumOf { it.reps },
             durationMin = minutes,
+            durationMs = (finishedAt - startedAt).coerceAtLeast(0L),
             records = records,
             regionSets = regionSets.entries.sortedByDescending { it.value }.associate { it.key to it.value },
             highlight = MuscleHighlight(primary, secondary - primary),
             exercises = working.groupBy { it.exerciseName }.map { (n, l) -> "$n: ${l.size} sets" },
         )
     }
+
+    /**
+     * The set-level record each working set of [exerciseName] set, by its index among that exercise's working sets. A set
+     * that earns more than one kind shows the first in [PrKind] order. The session's best volume is not here: it belongs to
+     * the session, not to a set (Q11-3).
+     */
+    fun setRecords(records: List<RecordLine>, exerciseName: String): Map<Int, PrKind> =
+        records.filter { it.exerciseName == exerciseName && it.setIndex != null }
+            .groupBy { it.setIndex!! }
+            .mapValues { (_, lines) -> lines.minOf { it.kind } }
 
     /** "Bench press next time: 142.5 lb × 8", or null when the prescription did not change. */
     fun nextTime(

@@ -559,12 +559,12 @@ private fun RegionRow(v: RegionVolume, expanded: Boolean, onClick: () -> Unit) {
 private fun RecentRow(s: SessionStat, unit: WeightUnit, onClick: () -> Unit) {
     val zone = ZoneId.systemDefault()
     val date = DateText.mediumWithWeekday(s.startedAt, zone)
-    val minutes = s.finishedAt?.let { ((it - s.startedAt) / 60_000).coerceAtLeast(0) }
+    val duration = s.finishedAt?.let { com.zeroindex.intake.domain.training.WorkoutDuration.short(it - s.startedAt) }
     TrainRow(
         title = s.dayName ?: "Workout",
         subtitle = buildString {
             append(date)
-            if (minutes != null) append(" · ").append(minutes).append(" min")
+            if (duration != null) append(" · ").append(duration)
             if (s.volumeKg > 0) append(" · ").append(TrainText.thousands(unit.fromKg(s.volumeKg))).append(' ').append(unit.label)
             append(" · ").append(s.workingSets).append(if (s.workingSets == 1) " set" else " sets")
         },

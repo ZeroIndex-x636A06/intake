@@ -173,7 +173,7 @@ fun WorkoutHistoryScreen(
 private fun SessionRow(s: SessionLogRow, unit: WeightUnit, onClick: () -> Unit) {
     val date = DateText.mediumWithWeekday(s.startedAt)
     val facts = buildList {
-        add(if (s.unfinished) "Unfinished" else s.minutes?.let { "$it min" } ?: "")
+        add(if (s.unfinished) "Unfinished" else s.durationMs?.let { com.zeroindex.intake.domain.training.WorkoutDuration.short(it) } ?: "")
         add("${s.workingSets} ${if (s.workingSets == 1) "set" else "sets"}")
         if (s.volumeKg > 0) add("${TrainText.thousands(unit.fromKg(s.volumeKg))} ${unit.label}")
     }.filter { it.isNotEmpty() }.joinToString(" · ")
