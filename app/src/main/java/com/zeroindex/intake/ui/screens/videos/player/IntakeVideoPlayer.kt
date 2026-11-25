@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -296,14 +295,17 @@ private fun FullscreenHost(onExit: () -> Unit, content: @Composable () -> Unit) 
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false, dismissOnClickOutside = false),
     ) {
         val view = LocalView.current
-        SideEffect {
-            val window = (view.parent as? DialogWindowProvider)?.window ?: return@SideEffect
+        // Once per dialog window. A SideEffect here ran after every recomposition, and each hide() asks the system for new insets,
+        // which recomposed again: a loop that kept the main thread busy on every frame (the ANR on entering fullscreen).
+        DisposableEffect(view) {
+            val window = (view.parent as? DialogWindowProvider)?.window ?: return@DisposableEffect onDispose { }
             window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
             WindowCompat.setDecorFitsSystemWindows(window, false)
             WindowInsetsControllerCompat(window, view).apply {
                 hide(WindowInsetsCompat.Type.systemBars())
                 systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             }
+            onDispose { }
         }
         Box(Modifier.fillMaxSize().background(Color.Black)) { content() }
     }
