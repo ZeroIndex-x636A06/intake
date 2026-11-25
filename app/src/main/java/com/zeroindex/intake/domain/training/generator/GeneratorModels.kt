@@ -78,6 +78,8 @@ data class GeneratedExercise(
     val startWeightKg: Double? = null,
     /** Why that starting weight, shown with it. */
     val startNote: String? = null,
+    /** Second of the linked video where this exercise starts (a workout made from a video); null otherwise. */
+    val videoStartSec: Int? = null,
 )
 
 data class GeneratedDay(

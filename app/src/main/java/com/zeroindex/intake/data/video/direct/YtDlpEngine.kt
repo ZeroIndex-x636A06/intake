@@ -3,6 +3,7 @@ package com.zeroindex.intake.data.video.direct
 import android.content.Context
 import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLRequest
+import com.zeroindex.intake.domain.videos.TranscriptLanguage
 import com.zeroindex.intake.domain.videos.YoutubeIds
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -16,6 +17,9 @@ import kotlinx.coroutines.withContext
 
 /** Why direct playback or a download did not work, in plain words. Messages never carry a stream address. */
 class DirectVideoException(message: String) : Exception(message)
+
+/** A caption file read from yt-dlp: its text (json3 or WebVTT), its language code and whether YouTube made it automatically. */
+class CaptionFile(val text: String, val language: String, val auto: Boolean)
 
 /**
  * The only place the app talks to yt-dlp (the youtubedl-android library). This is opt-in (Settings > Videos) and is not an
@@ -72,6 +76,58 @@ class YtDlpEngine @Inject constructor(@ApplicationContext private val context: C
                 }
             }
         }
+    }
+
+    /**
+     * The captions of [videoId] without downloading the video and without any API key. Manual captions are tried first, then
+     * YouTube's automatic ones; English first, then [deviceLanguage]. Returns null when the video has none in those languages.
+     * Files are written to [workDir], read, and deleted. yt-dlp's output lines are never logged.
+     */
+    suspend fun captions(videoId: String, deviceLanguage: String, workDir: File): CaptionFile? {
+        require(YoutubeIds.parse(YoutubeIds.watchUrl(videoId)) == videoId)
+        ensureInit()
+        return withContext(Dispatchers.IO) {
+            workDir.mkdirs()
+            try {
+                try {
+                    captionsOnce(videoId, deviceLanguage, workDir)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    updateOnce()
+                    try {
+                        captionsOnce(videoId, deviceLanguage, workDir)
+                    } catch (e2: CancellationException) {
+                        throw e2
+                    } catch (e2: Exception) {
+                        throw DirectVideoException("Could not get the captions. YouTube may have changed. Try again later, or paste the transcript below.")
+                    }
+                }
+            } finally {
+                workDir.listFiles { f -> f.name.startsWith("$videoId.") }?.forEach { runCatching { it.delete() } }
+            }
+        }
+    }
+
+    private fun captionsOnce(videoId: String, deviceLanguage: String, dir: File): CaptionFile? {
+        val langs = TranscriptLanguage.requested(deviceLanguage).joinToString(",") { "$it.*" }
+        for (auto in listOf(false, true)) {
+            dir.listFiles { f -> f.name.startsWith("$videoId.") }?.forEach { runCatching { it.delete() } }
+            val request = YoutubeDLRequest(YoutubeIds.watchUrl(videoId))
+                .addOption("--skip-download")
+                .addOption("--no-playlist")
+                .addOption(if (auto) "--write-auto-subs" else "--write-subs")
+                .addOption("--sub-langs", langs)
+                .addOption("--sub-format", "json3/vtt")
+                .addOption("-o", File(dir, "$videoId.%(ext)s").absolutePath)
+            YoutubeDL.getInstance().execute(request)
+            val files = dir.listFiles { f -> f.name.startsWith("$videoId.") && (f.name.endsWith(".json3") || f.name.endsWith(".vtt")) }.orEmpty()
+            val byLang = files.groupBy { it.name.removePrefix("$videoId.").substringBeforeLast('.') }
+            val lang = TranscriptLanguage.pick(byLang.keys.toList(), deviceLanguage) ?: continue
+            val file = byLang.getValue(lang).let { fs -> fs.firstOrNull { it.name.endsWith(".json3") } ?: fs.first() }
+            return CaptionFile(file.readText(), lang, auto)
+        }
+        return null
     }
 
     private fun firstUrl(videoId: String): String {

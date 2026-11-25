@@ -23,6 +23,7 @@ import com.zeroindex.intake.data.training.ProgramImportBuilder
 import com.zeroindex.intake.domain.script.Diagnostic
 import com.zeroindex.intake.domain.script.IntakeScript
 import com.zeroindex.intake.domain.script.ProgramScript
+import com.zeroindex.intake.domain.script.Reps
 import com.zeroindex.intake.domain.script.ScriptDocument
 import com.zeroindex.intake.data.db.dao.ProgramDao
 import com.zeroindex.intake.data.db.dao.ProgressionRuleDao
@@ -1308,12 +1309,16 @@ class TrainingRepository @Inject constructor(
                 name = item.exerciseName,
                 muscle = item.primaryMuscle,
                 sets = item.sets.coerceIn(1, 20),
-                repsMin = item.reps.coerceIn(1, 100),
-                repsMax = item.reps.coerceIn(1, 100),
+                repsMin = if (item.amrap) 1 else item.reps.coerceIn(1, 100),
+                repsMax = if (item.amrap) Reps.AMRAP_ENTITY_MAX else item.reps.coerceIn(1, 100),
                 rpe = null,
                 restSec = item.restSec.coerceIn(0, 600),
                 progression = null,
-                why = item.seconds?.let { "Timed: $it seconds per set." }.orEmpty(),
+                why = listOfNotNull(
+                    item.seconds?.let { "Timed: $it seconds per set." },
+                    "Each side.".takeIf { item.eachSide },
+                ).joinToString(" "),
+                videoStartSec = item.startSec?.takeIf { it >= 0 },
             )
         }
         val taken = programDao.all().map { it.name }

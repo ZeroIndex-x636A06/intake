@@ -47,8 +47,9 @@ enum class AiFeature(
 
     VIDEO_TO_WORKOUT(
         "Video to workout", AiTask.DAILY_INSIGHT, 0.05,
-        // Title, chapters and a trimmed description in; a list of exercises out. Rides the daily-insight text model.
-        profileOverride = TokenProfile(inputTokens = 2_500, outputTokens = 800),
+        // Title, chapters, a trimmed description and (when fetched or pasted) up to 12,000 characters of timed transcript in;
+        // a list of exercises with their video times out. Rides the daily-insight text model.
+        profileOverride = TokenProfile(inputTokens = 5_000, outputTokens = 900),
     ),
 
     /** The in-app benchmark: the person's own spend, counted in the meter but not in the estimate. */

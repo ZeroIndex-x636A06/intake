@@ -119,8 +119,11 @@ class PlayerSession(
 }
 
 @Composable
-fun rememberPlayerSession(startedInitially: Boolean = false): PlayerSession =
-    rememberSaveable(saver = PlayerSession.Saver) { PlayerSession(started = startedInitially) }
+fun rememberPlayerSession(startedInitially: Boolean = false, startSec: Int = 0): PlayerSession =
+    rememberSaveable(saver = PlayerSession.Saver) {
+        // A route start second above 0 (a "play from 2:15" chip) starts the player there, playing.
+        PlayerSession(started = startedInitially || startSec > 0, startMs = startSec.coerceAtLeast(0) * 1000L)
+    }
 
 /**
  * Intake's own video player, used for both backends (DESIGN-V6 players): the video surface is YouTube's player or Media3, and

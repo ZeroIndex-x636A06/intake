@@ -411,32 +411,6 @@ fun IntakeNavHost(
                     )
                 }
             }
-            composable<Route.VideoDetail> {
-                PushedScreen("Video", back) { pad ->
-                    VideoDetailScreen(
-                        contentPadding = pad,
-                        onMakeWorkout = { id -> navController.navigate(Route.MakeWorkout(id)) },
-                        onOpenWorkout = { id -> navController.navigate(Route.ProgramBuilder(id)) },
-                    )
-                }
-            }
-            composable<Route.MakeWorkout> {
-                PushedScreen("Make this a workout", back) { pad ->
-                    MakeWorkoutScreen(
-                        contentPadding = pad,
-                        onSaved = { _, sessionId ->
-                            if (sessionId != null) {
-                                navController.navigate(Route.ActiveWorkout(sessionId)) { popUpTo<Route.MakeWorkout> { inclusive = true } }
-                            } else {
-                                navController.popBackStack()
-                            }
-                        },
-                        onAddByHand = { id ->
-                            navController.navigate(Route.ProgramBuilder(id)) { popUpTo<Route.MakeWorkout> { inclusive = true } }
-                        },
-                    )
-                }
-            }
             composable<Route.ProgramTemplates> {
                 PushedScreen("Program templates", back) { pad ->
                     ProgramTemplatesScreen(
@@ -651,7 +625,13 @@ fun IntakeNavHost(
             }
         }
         composable<Route.ProgramBuilder> {
-            PushedScreen("Program", back) { pad -> ProgramBuilderScreen(pad, onOpenScriptReference = openScriptReference) }
+            PushedScreen("Program", back) { pad ->
+                ProgramBuilderScreen(
+                    pad,
+                    onOpenScriptReference = openScriptReference,
+                    onOpenVideo = { id, sec -> navController.navigate(Route.VideoDetail(id, sec)) },
+                )
+            }
         }
         composable<Route.Performance> {
             PushedScreen("Jump tests", back) { pad -> PerformanceScreen(contentPadding = pad, onSaved = {}) }
@@ -663,6 +643,34 @@ fun IntakeNavHost(
         }
         composable<Route.WeeklyCheckIn> {
             PushedScreen("Weekly check-in", back) { pad -> WeeklyCheckInScreen(contentPadding = pad) }
+        }
+        // One video. Shared: a saved workout's "play from here" chip opens it at a second, as well as the Videos list.
+        composable<Route.VideoDetail> {
+            PushedScreen("Video", back) { pad ->
+                VideoDetailScreen(
+                    contentPadding = pad,
+                    onMakeWorkout = { id -> navController.navigate(Route.MakeWorkout(id)) },
+                    onOpenWorkout = { id -> navController.navigate(Route.ProgramBuilder(id)) },
+                )
+            }
+        }
+        composable<Route.MakeWorkout> {
+            PushedScreen("Make this a workout", back) { pad ->
+                MakeWorkoutScreen(
+                    contentPadding = pad,
+                    onSaved = { _, sessionId ->
+                        if (sessionId != null) {
+                            navController.navigate(Route.ActiveWorkout(sessionId)) { popUpTo<Route.MakeWorkout> { inclusive = true } }
+                        } else {
+                            navController.popBackStack()
+                        }
+                    },
+                    onAddByHand = { id ->
+                        navController.navigate(Route.ProgramBuilder(id)) { popUpTo<Route.MakeWorkout> { inclusive = true } }
+                    },
+                    onOpenVideoSettings = { openSettings("videos", "directVideos") },
+                )
+            }
         }
         // Add new shared routes above this line.
     }
