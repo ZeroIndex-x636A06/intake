@@ -1,14 +1,16 @@
 package com.zeroindex.intake.ui.screens.videos.player
 
-import android.app.Activity
-import android.content.Context
-import android.content.ContextWrapper
-import android.content.pm.ActivityInfo
+import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,20 +29,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.DialogWindowProvider
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.media3.ui.PlayerView
 import com.zeroindex.intake.domain.videos.Chapter
 import com.zeroindex.intake.domain.videos.PlayerChapters
 import com.zeroindex.intake.domain.videos.PlayerKind
@@ -205,13 +199,23 @@ fun IntakeVideoPlayer(
         if (!active) controller.pause() else if (session.resumePlaying) controller.play()
     }
 
-    val fullscreen = session.fullscreen && style == PlayerStyle.Full
-    Box(frame.background(Color.Black)) {
-        if (fullscreen) {
-            FullscreenHost(onExit = { session.fullscreen = false }) {
+    // Fullscreen is drawn on the app-wide layer (PlayerFullscreen.kt) in the activity's own window. The controller and its video
+    // view stay the same objects: only where the view and the controls are drawn changes, so position and playing carry over.
+    val host = LocalFullscreenHost.current
+    val fullscreen = session.fullscreen && style == PlayerStyle.Full && host != null
+    if (fullscreen && host != null) {
+        DisposableEffect(host, controller, chapters, style, openInYoutubeUrl) {
+            val entry = FullscreenEntry(onExit = { session.fullscreen = false }) {
                 PlayerContent(controller, chapters, style, true, { session.fullscreen = false }, openInYoutubeUrl, Modifier.fillMaxSize())
             }
-        } else {
+            host.enter(entry)
+            onDispose { host.leave(entry) }
+        }
+        // Leaving the screen (or this player) while fullscreen ends fullscreen, so coming back does not re-enter it.
+        DisposableEffect(session) { onDispose { session.fullscreen = false } }
+    }
+    Box(frame.background(Color.Black)) {
+        if (!fullscreen) {
             PlayerContent(controller, chapters, style, false, { session.fullscreen = true }, openInYoutubeUrl, Modifier.fillMaxSize())
         }
     }
@@ -229,11 +233,17 @@ private fun PlayerContent(
 ) {
     Box(modifier.background(Color.Black)) {
         PlayerSurface(controller, Modifier.fillMaxSize())
+        val chromeModifier = if (fullscreen) {
+            // Keep the controls clear of a camera cutout in landscape; the video itself fills the screen.
+            Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal))
+        } else {
+            Modifier.fillMaxSize()
+        }
         val youtube = controller as? YoutubePlayerController
         // In the plain-embed fallback YouTube's own controls show; Intake keeps a small chrome (badge, way out, a note) and
         // takes over fully again if the embed reports an error, so a failure is never a bare black box.
         if (youtube != null && youtube.fallbackEmbed && controller.error == null) {
-            FallbackChrome(stalled = youtube.fallbackStalled, openInYoutubeUrl = openInYoutubeUrl, modifier = Modifier.fillMaxSize())
+            FallbackChrome(stalled = youtube.fallbackStalled, openInYoutubeUrl = openInYoutubeUrl, modifier = chromeModifier)
         } else {
             PlayerChrome(
                 controller = controller,
@@ -242,78 +252,31 @@ private fun PlayerContent(
                 fullscreen = fullscreen,
                 onToggleFullscreen = onToggleFullscreen,
                 openInYoutubeUrl = openInYoutubeUrl,
-                modifier = Modifier.fillMaxSize(),
+                modifier = chromeModifier,
             )
         }
     }
 }
 
-/** The video surface of either backend. Several of these can come and go (inline, fullscreen); the controller is the one owner. */
+/**
+ * The video surface of either backend. Each controller owns exactly one video view (the PlayerView or the WebView); a slot only
+ * holds it. Moving between the inline slot and the fullscreen layer re-parents that one view: nothing is inflated or rebuilt.
+ */
 @Composable
 private fun PlayerSurface(controller: PlayerController, modifier: Modifier) {
-    when (controller) {
-        is Media3PlayerController -> AndroidView(
-            modifier = modifier,
-            factory = { c ->
-                PlayerView(c).apply {
-                    useController = false
-                    player = controller.exo
-                }
-            },
-            update = { if (it.player !== controller.exo) it.player = controller.exo },
-            onRelease = { it.player = null },
-        )
-        is YoutubePlayerController -> AndroidView(
-            modifier = modifier,
-            factory = { c ->
-                // The WebView belongs to the controller; this frame only holds it, so it can move to fullscreen and back.
-                FrameLayout(c).apply {
-                    (controller.webView.parent as? ViewGroup)?.removeView(controller.webView)
-                    addView(controller.webView, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-                }
-            },
-            onRelease = { frame -> if (controller.webView.parent === frame) frame.removeView(controller.webView) },
-        )
-        else -> Unit
+    val view: View = when (controller) {
+        is Media3PlayerController -> controller.playerView
+        is YoutubePlayerController -> controller.webView
+        else -> return
     }
-}
-
-/** Landscape, immersive fullscreen in a dialog; back (or the exit button) closes it. Rotation is restored on exit. */
-@Composable
-private fun FullscreenHost(onExit: () -> Unit, content: @Composable () -> Unit) {
-    val context = LocalContext.current
-    DisposableEffect(context) {
-        val activity = context.findActivity()
-        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-        onDispose {
-            // A rotation recreates the activity and disposes this; the new activity sets landscape again, so only reset on a real exit.
-            if (activity != null && !activity.isChangingConfigurations) activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-        }
-    }
-    Dialog(
-        onDismissRequest = onExit,
-        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false, dismissOnClickOutside = false),
-    ) {
-        val view = LocalView.current
-        // Once per dialog window. A SideEffect here ran after every recomposition, and each hide() asks the system for new insets,
-        // which recomposed again: a loop that kept the main thread busy on every frame (the ANR on entering fullscreen).
-        DisposableEffect(view) {
-            val window = (view.parent as? DialogWindowProvider)?.window ?: return@DisposableEffect onDispose { }
-            window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-            WindowCompat.setDecorFitsSystemWindows(window, false)
-            WindowInsetsControllerCompat(window, view).apply {
-                hide(WindowInsetsCompat.Type.systemBars())
-                systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+    AndroidView(
+        modifier = modifier,
+        factory = { c ->
+            FrameLayout(c).apply {
+                (view.parent as? ViewGroup)?.removeView(view)
+                addView(view, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
             }
-            onDispose { }
-        }
-        Box(Modifier.fillMaxSize().background(Color.Black)) { content() }
-    }
+        },
+        onRelease = { slot -> if (view.parent === slot) slot.removeView(view) },
+    )
 }
-
-private tailrec fun Context.findActivity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> null
-}
-

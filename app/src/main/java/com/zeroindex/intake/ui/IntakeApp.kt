@@ -97,6 +97,9 @@ import com.zeroindex.intake.ui.screens.workout.SessionBar
 import com.zeroindex.intake.ui.screens.workout.SessionBarHeight
 import com.zeroindex.intake.ui.screens.workout.SessionBarViewModel
 import com.zeroindex.intake.ui.motion.Motion
+import com.zeroindex.intake.ui.screens.videos.player.FullscreenHost
+import com.zeroindex.intake.ui.screens.videos.player.FullscreenLayer
+import com.zeroindex.intake.ui.screens.videos.player.LocalFullscreenHost
 
 @Composable
 fun IntakeApp(messages: AppMessages? = null) {
@@ -252,6 +255,8 @@ private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, sta
             QuickTile.JUMP_TEST -> navController.navigate(Route.Performance)
         }
     }
+    // Fullscreen video is drawn on a layer over everything in this window (no Dialog); see PlayerFullscreen.kt.
+    val fullscreenHost = remember { FullscreenHost() }
     val compactDock = LocalConfiguration.current.screenHeightDp < 480
     val dockTabs = destinations.map { DockTab(stringResource(it.labelRes), it.icon) }
     val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -262,6 +267,7 @@ private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, sta
         LocalShellActions provides shellActions,
         LocalPillIsRail provides showRail,
         LocalSessionBarSpace provides if (sessionBarShown) SessionBarHeight else 0.dp,
+        LocalFullscreenHost provides fullscreenHost,
     ) {
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
             Row(Modifier.fillMaxSize()) {
@@ -379,6 +385,7 @@ private fun IntakeAppContent(messages: AppMessages?, flow: AppFlowViewModel, sta
                     .padding(bottom = (if (pillVisible && !showRail) AboveDock else 0.dp) + (if (sessionBarShown) SessionBarHeight else 0.dp)),
             )
             TourOverlay(tour)
+            FullscreenLayer(fullscreenHost)
         }
     }
 }

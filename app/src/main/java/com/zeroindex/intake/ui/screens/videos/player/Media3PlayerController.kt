@@ -2,12 +2,14 @@ package com.zeroindex.intake.ui.screens.videos.player
 
 import android.content.Context
 import android.net.Uri
+import android.view.ViewGroup
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
 import com.zeroindex.intake.domain.videos.PlayerKind
 
 /**
@@ -15,7 +17,7 @@ import com.zeroindex.intake.domain.videos.PlayerKind
  * switched off; the controls are Intake's. [location] is never logged.
  */
 class Media3PlayerController(
-    context: Context,
+    private val context: Context,
     kind: PlayerKind,
     location: String,
     loopWhole: Boolean,
@@ -25,6 +27,19 @@ class Media3PlayerController(
     override val backend = PlayerBackend.MEDIA3
 
     val exo: ExoPlayer = ExoPlayer.Builder(context).build()
+
+    /**
+     * The one video surface. Building a PlayerView inflates Media3's whole default control layout (even with its controller
+     * off), which is slow, so it is made once here and moved between the inline slot and the fullscreen layer instead of being
+     * rebuilt each time. Only the main thread touches it.
+     */
+    private val surface = lazy {
+        PlayerView(context).apply {
+            useController = false
+            player = exo
+        }
+    }
+    val playerView: PlayerView get() = surface.value
 
     private val listener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -96,6 +111,10 @@ class Media3PlayerController(
 
     override fun release() {
         exo.removeListener(listener)
+        if (surface.isInitialized()) {
+            (playerView.parent as? ViewGroup)?.removeView(playerView)
+            playerView.player = null
+        }
         exo.release()
     }
 }
