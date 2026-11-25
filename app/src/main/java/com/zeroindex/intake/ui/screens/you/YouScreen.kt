@@ -212,7 +212,10 @@ fun YouScreen(
                 }, {
                     PlanStat(
                         "Protein · fat · carbs", t?.let { "${it.proteinG} · ${it.fatG} · ${it.carbsG} g" } ?: "—",
-                        if (t == null && missing != null) "needs the same details" else "${s.proteinGramsPerKg} and ${s.fatGramsPerKg} g per kg",
+                        if (t == null && missing != null) "needs the same details" else t?.let {
+                            "${com.zeroindex.intake.domain.nutrition.GramsPerKg.text(it.proteinG.toDouble(), state.weightKg, s.proteinGramsPerKg)} and " +
+                                "${com.zeroindex.intake.domain.nutrition.GramsPerKg.text(it.fatG.toDouble(), state.weightKg, s.fatGramsPerKg)} g per kg"
+                        } ?: "${s.proteinGramsPerKg} and ${s.fatGramsPerKg} g per kg",
                         it,
                     ) { onChangeSetting("nutrition", "proteinPerKg") }
                 })
@@ -356,7 +359,16 @@ private fun PlanStat(title: String, value: String, reason: String, modifier: Mod
             .heightIn(min = IntakeSpacing.TouchTarget)
             .padding(vertical = 6.dp),
     ) {
-        Text(value, style = MaterialTheme.typography.headlineSmall)
+        // The figure stays on one line: it shrinks to fit the column instead of wrapping "60 / min" (Q11-8), down to a floor.
+        var shrink by remember(value) { mutableStateOf(1f) }
+        val base = MaterialTheme.typography.headlineSmall
+        Text(
+            value,
+            style = base.copy(fontSize = base.fontSize * shrink, lineHeight = base.lineHeight * shrink),
+            maxLines = if (shrink > 0.7f) 1 else Int.MAX_VALUE,
+            softWrap = shrink <= 0.7f,
+            onTextLayout = { if (it.hasVisualOverflow && shrink > 0.7f) shrink = maxOf(0.7f, shrink * 0.92f) },
+        )
         Text(title, style = MaterialTheme.typography.titleSmall, color = heroMuted())
         Text(reason, style = MaterialTheme.typography.bodySmall, color = heroMuted())
     }

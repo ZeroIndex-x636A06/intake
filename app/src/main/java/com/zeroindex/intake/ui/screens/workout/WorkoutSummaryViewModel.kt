@@ -47,7 +47,7 @@ data class SummaryExercise(
 )
 
 /** One set line of the summary that can be tapped to edit it. */
-data class SummarySetRow(val setId: String, val label: String, val weightKg: Double, val reps: Int, val isWarmup: Boolean)
+data class SummarySetRow(val setId: String, val label: String, val weightKg: Double, val reps: Int, val isWarmup: Boolean, val record: PrKind = PrKind.NONE)
 
 data class WorkoutSummaryState(
     val loading: Boolean = true,
@@ -138,10 +138,13 @@ class WorkoutSummaryViewModel @Inject constructor(
             }
             val every = sets.filter { it.exerciseId == list.first().exerciseId }
             var n = 0
+            // The set that set each set-level record (Q11-3), found by its place among this exercise's working sets.
+            val recordByWorkingSet = SessionSummaries.setRecords(summary.records, name)
+            val recordKindBySetId = recordByWorkingSet.mapNotNull { (i, kind) -> list.getOrNull(i)?.let { setIdByIndex[it]!! to kind } }.toMap()
             val setRows = every.map { s ->
                 val weight = if (s.weightKg > 0) "${WeightText.format(s.weightKg, unit)} × ${s.reps}" else "${s.reps} reps"
                 val label = if (s.isWarmup) "Warm-up: $weight" else "Set ${++n}: $weight"
-                SummarySetRow(setIdByIndex[s]!!, label, s.weightKg, s.reps, s.isWarmup)
+                SummarySetRow(setIdByIndex[s]!!, label, s.weightKg, s.reps, s.isWarmup, recordKindBySetId[setIdByIndex[s]!!] ?: PrKind.NONE)
             }
             SummaryExercise(
                 exerciseId = list.first().exerciseId,

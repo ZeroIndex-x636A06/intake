@@ -54,6 +54,7 @@ import com.zeroindex.intake.domain.model.TdeeConfidence
 import com.zeroindex.intake.domain.time.DateText
 import com.zeroindex.intake.domain.units.KcalFormat
 import com.zeroindex.intake.domain.units.LengthUnit
+import com.zeroindex.intake.domain.units.MeasurementDelta
 import com.zeroindex.intake.domain.units.UnitConverter
 import com.zeroindex.intake.ui.adaptive.LocalWindowSizeClass
 import com.zeroindex.intake.ui.adaptive.isExpanded
@@ -337,9 +338,16 @@ private fun WeightCard(state: ProgressUiState) {
                         )
                     }
                 }
-                if (weekly != null && abs(weekly) > 0.005) {
-                    val arrow = if (weekly < 0) "−" else "+"
-                    IntakeChip("$arrow${format(abs(unit.fromKg(weekly)))} ${unit.label}/week")
+                if (weekly != null) {
+                    // One rate for the app, over the last four weeks whatever the range (Q11-4).
+                    Column(horizontalAlignment = Alignment.End) {
+                        IntakeChip(com.zeroindex.intake.domain.tdee.WeightRate.text(weekly, unit))
+                        Text(
+                            com.zeroindex.intake.domain.tdee.WeightRate.PERIOD_LABEL,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         }
@@ -536,7 +544,7 @@ private fun MeasurementsCard(state: ProgressUiState) {
                 Text("${format(site.points.last().y)} ${unit.label}", style = MaterialTheme.typography.titleMedium)
                 if (site.points.size >= 2) {
                     Spacer(Modifier.width(8.dp))
-                    IntakeChip(deltaText(site.points.last().y - site.points.first().y))
+                    IntakeChip(deltaText(site.points.last().y - site.points.first().y, unit))
                 }
             }
         }
@@ -571,14 +579,7 @@ private fun MeasurementsCard(state: ProgressUiState) {
     }
 }
 
-private fun deltaText(d: Double): String {
-    val r = UnitConverter.round(abs(d), 2)
-    return when {
-        r == 0.0 -> "±0"
-        d < 0 -> "−$r"
-        else -> "+$r"
-    }
-}
+private fun deltaText(d: Double, unit: LengthUnit): String = MeasurementDelta.text(d, unit)
 
 private fun LazyListScope.photosItem(state: ProgressUiState, onOpen: () -> Unit) {
     item(key = "photos") {
@@ -637,8 +638,8 @@ private fun AveragesRow(state: ProgressUiState, onRecalculate: () -> Unit) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 AverageLine(state.averageIntake?.let { "%,d".format(it.roundToInt()) } ?: "—", "avg kcal / day")
                 AverageLine(
-                    weekly?.let { "${if (it < 0) "−" else "+"}${format(abs(unit.fromKg(it)))} ${unit.label}" } ?: "—",
-                    "avg weight change",
+                    weekly?.let { com.zeroindex.intake.domain.tdee.WeightRate.text(it, unit) } ?: "—",
+                    "weight change, ${com.zeroindex.intake.domain.tdee.WeightRate.PERIOD_LABEL}",
                 )
                 AverageLine(state.proteinHitRate?.let { "${(it * 100).roundToInt()}%" } ?: "—", "protein target hit, ${state.range.caption}")
             }
@@ -657,7 +658,7 @@ private fun AveragesRow(state: ProgressUiState, onRecalculate: () -> Unit) {
             Spacer(Modifier.height(4.dp))
             Text(
                 if (tdee == null) {
-                    "Needs 14 days of weigh-ins and logs"
+                    state.tdeeReadiness?.message() ?: "Needs 14 days with both a weigh-in and a food log"
                 } else {
                     "${tdee.confidence.describe().replaceFirstChar { it.uppercase() }} · based on your intake and weight history"
                 },
@@ -728,7 +729,7 @@ private fun weightDescription(state: ProgressUiState, unitLabel: String): String
         append("Weight trend ${format(state.settings.weightUnit.fromKg(trend))} $unitLabel")
         if (weekly != null) {
             val direction = if (weekly < 0) "down" else "up"
-            append(", $direction ${format(abs(state.settings.weightUnit.fromKg(weekly)))} $unitLabel per week")
+            append(", $direction ${format(abs(state.settings.weightUnit.fromKg(weekly)))} $unitLabel per week over the last four weeks")
         }
         append(", from ${state.metrics.size} weigh-ins.")
     }

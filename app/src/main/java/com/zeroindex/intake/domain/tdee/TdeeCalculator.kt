@@ -48,6 +48,31 @@ object TdeeCalculator {
     const val TARGET_SHIFT_NOTIFY_KCAL = 100
 
     /**
+     * What the maintenance card says when there is no estimate (Q11-6). The rule is [MIN_DAYS] days that carry BOTH a
+     * weigh-in and a food log inside the last [WINDOW_DAYS] days; 21 logged days and 17 weigh-in days can still overlap on
+     * fewer than 14, so the card now says how many days of each kind there are instead of "needs 14 days".
+     */
+    data class Readiness(val weighInDays: Int, val loggedDays: Int, val bothDays: Int) {
+        val ready: Boolean get() = bothDays >= MIN_DAYS
+
+        fun message(): String =
+            if (ready) {
+                "Enough data. Tap Recalculate now."
+            } else {
+                "Needs $MIN_DAYS days with both a weigh-in and a food log. Last $WINDOW_DAYS days: " +
+                    "$weighInDays with a weigh-in, $loggedDays logged, $bothDays with both."
+            }
+    }
+
+    /** Counts the days in the window ending [todayIndex] by what they hold; the same days [estimate] pairs up. */
+    fun readiness(weighInDays: Set<Long>, loggedDays: Set<Long>, todayIndex: Long): Readiness {
+        val range = (todayIndex - WINDOW_DAYS + 1)..todayIndex
+        val w = weighInDays.filter { it in range }.toSet()
+        val l = loggedDays.filter { it in range }.toSet()
+        return Readiness(w.size, l.size, (w intersect l).size)
+    }
+
+    /**
      * Returns null when fewer than [MIN_DAYS] days carry both a weigh-in and an
      * intake log, or when the weight series has no slope.
      */

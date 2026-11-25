@@ -19,6 +19,8 @@ import com.zeroindex.intake.domain.nutrition.MacroTarget
 import com.zeroindex.intake.domain.progress.IntakeDays
 import com.zeroindex.intake.domain.performance.OverlayWeek
 import com.zeroindex.intake.domain.tdee.TrendPoint
+import com.zeroindex.intake.domain.tdee.WeightPoint
+import com.zeroindex.intake.domain.tdee.WeightRate
 import com.zeroindex.intake.domain.time.Clock
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDate
@@ -70,20 +72,13 @@ data class ProgressUiState(
     /** Progress photos (the dated timeline kept on this phone): how many, and when the newest was taken. */
     val photoCount: Int = 0,
     val photoNewestAt: Long? = null,
+    /** Kilograms per week over the last four weeks, whatever range is on screen; the same figure Today shows (Q11-4). */
+    val weeklyChangeKg: Double? = null,
+    /** Why there is no maintenance estimate yet, in days of each kind (Q11-6). */
+    val tdeeReadiness: com.zeroindex.intake.domain.tdee.TdeeCalculator.Readiness? = null,
 ) {
     val latestWeightKg: Double? get() = metrics.maxByOrNull { it.measuredAt }?.weightKg
     val trendWeightKg: Double? get() = trend.lastOrNull()?.trendKg
-
-    /** Average weekly change from the smoothed trend, in kilograms. */
-    val weeklyChangeKg: Double?
-        get() {
-            if (trend.size < 2) return null
-            val first = trend.first()
-            val last = trend.last()
-            val days = (last.dayIndex - first.dayIndex).toDouble()
-            if (days <= 0) return null
-            return (last.trendKg - first.trendKg) / days * 7.0
-        }
 
     val averageIntake: Double? get() = intakeStats.averageKcal
     val daysLogged: Int get() = adherence.count { it != null && it > 0 }
@@ -136,9 +131,16 @@ class ProgressViewModel @Inject constructor(
                         recalculating,
                         performanceRepository.observeOverlay(from, today),
                         healthDao.observeInRange(clock.rangeFor(from).startInclusive, clock.rangeFor(today).endExclusive),
-                    ) { busy, weeks, health -> Triple(busy, weeks, health.map { it.toDailyHealth() }) },
+                        // The weigh-ins the weekly rate is worked out from: the same window whatever the range (Q11-4).
+                        bodyRepository.observeInRange(today.minusDays((WeightRate.SMOOTHING_DAYS - 1).toLong()), today),
+                    ) { busy, weeks, health, recent -> Quad(busy, weeks, health.map { it.toDailyHealth() }, recent) },
                 ) { tdee, settings, photos, timeline, busyWeeksHealth ->
-                    Extras(tdee, settings, photos, busyWeeksHealth.first, busyWeeksHealth.second, busyWeeksHealth.third, timeline.size, timeline.maxOfOrNull { it.takenAt })
+                    val recent = busyWeeksHealth.fourth
+                    val rate = WeightRate.weeklyKg(
+                        recent.map { WeightPoint(com.zeroindex.intake.domain.time.localDateOf(it.measuredAt, clock.zone()).toEpochDay(), it.weightKg) },
+                        today.toEpochDay(),
+                    )
+                    Extras(rate, recent.map { com.zeroindex.intake.domain.time.localDateOf(it.measuredAt, clock.zone()).toEpochDay() }.toSet(), tdee, settings, photos, busyWeeksHealth.first, busyWeeksHealth.second, busyWeeksHealth.third, timeline.size, timeline.maxOfOrNull { it.takenAt })
                 },
             ) { metrics, trend, intake, target, extras ->
                 val byDay = intake
@@ -170,6 +172,12 @@ class ProgressViewModel @Inject constructor(
                     health = extras.health,
                     photoCount = extras.photoCount,
                     photoNewestAt = extras.photoNewestAt,
+                    weeklyChangeKg = extras.weeklyChangeKg,
+                    tdeeReadiness = com.zeroindex.intake.domain.tdee.TdeeCalculator.readiness(
+                        extras.weighInDays,
+                        adherence.withIndex().filter { (it.value ?: 0.0) > 0 }.map { today.minusDays((adherence.size - 1 - it.index).toLong()).toEpochDay() }.toSet(),
+                        today.toEpochDay(),
+                    ),
                     loaded = true,
                 )
             }
@@ -180,7 +188,11 @@ class ProgressViewModel @Inject constructor(
             initialValue = ProgressUiState(),
         )
 
+    private data class Quad<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
+
     private data class Extras(
+        val weeklyChangeKg: Double?,
+        val weighInDays: Set<Long>,
         val tdee: TdeeEstimateEntity?,
         val settings: AppSettings,
         val photos: List<BodyMetricEntity>,

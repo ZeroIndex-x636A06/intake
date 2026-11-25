@@ -176,16 +176,22 @@ fun WorkoutSummaryScreen(
                                                 )
                                                 Text(e.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                                 e.setRows.forEach { row ->
-                                                    Text(
-                                                        row.label,
-                                                        style = MaterialTheme.typography.labelMedium,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        modifier = Modifier
+                                                    Row(
+                                                        Modifier
                                                             .fillMaxWidth()
                                                             .heightIn(min = 48.dp)
-                                                            .clickable(role = Role.Button, onClickLabel = "Change this set") { editing = row }
-                                                            .wrapContentHeight(Alignment.CenterVertically),
-                                                    )
+                                                            .clickable(role = Role.Button, onClickLabel = "Change this set") { editing = row },
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                    ) {
+                                                        Text(
+                                                            row.label,
+                                                            style = MaterialTheme.typography.labelMedium,
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                            modifier = Modifier.weight(1f, fill = false),
+                                                        )
+                                                        com.zeroindex.intake.domain.training.RecordText.setChipLabel(row.record)?.let { IntakeChip(it, tone = ChipTone.Ok) }
+                                                    }
                                                 }
                                                 if (state.session?.finishedAt != null) {
                                                     GhostButton(onClick = { addingSetFor = e.exerciseId to e.name }) {
@@ -193,6 +199,7 @@ fun WorkoutSummaryScreen(
                                                     }
                                                 }
                                             }
+                                            // Only the session's volume record belongs to the exercise; set records sit on their set (Q11-3).
                                             com.zeroindex.intake.domain.training.RecordText.chipLabel(e.records)?.let { IntakeChip(it, tone = ChipTone.Ok) }
                                         }
                                     }
@@ -495,7 +502,7 @@ internal fun recordText(r: RecordLine, unit: WeightUnit): String = when (r.kind)
 @Composable
 private fun StatsRow(summary: SessionSummary, unit: WeightUnit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        StatBlock(Modifier.weight(1f), "${summary.durationMin}", if (summary.durationMin == 1) "minute" else "minutes")
+        StatBlock(Modifier.weight(1f), com.zeroindex.intake.domain.training.WorkoutDuration.statValue(summary.durationMs), com.zeroindex.intake.domain.training.WorkoutDuration.statCaption(summary.durationMs))
         StatBlock(Modifier.weight(1f), TrainText.thousands(unit.fromKg(summary.volumeKg)), "${unit.label} volume")
         StatBlock(Modifier.weight(1f), "${summary.workingSets}", if (summary.workingSets == 1) "working set" else "working sets")
     }

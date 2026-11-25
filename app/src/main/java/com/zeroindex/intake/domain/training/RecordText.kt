@@ -26,16 +26,16 @@ object RecordText {
         }
 
     /**
-     * The chip beside an exercise on the summary. "PR" is for a better set (estimated max, heaviest weight, rep record). When the
-     * only record is the session's total volume (more sets than the best day, with every set equal to ones done before), the chip
-     * says so, so a repeated set is never read as a better lift (Q10-7). Null when there is no record.
+     * The chip in an exercise's header on the summary: only the session's total volume belongs to the whole exercise, so
+     * "Volume PR" is all it ever says. Set-level records are on the sets ([setChipLabel]). Null when there is none (Q11-3).
      */
-    fun chipLabel(kinds: List<PrKind>): String? {
-        val real = kinds.filter { it != PrKind.NONE }
-        return when {
-            real.isEmpty() -> null
-            real.all { it == PrKind.BEST_VOLUME } -> "Volume PR"
-            else -> "PR"
-        }
+    fun chipLabel(kinds: List<PrKind>): String? = if (PrKind.BEST_VOLUME in kinds) "Volume PR" else null
+
+    /** The chip on the set that set a record: what it was, so "PR" is never left to be guessed. */
+    fun setChipLabel(kind: PrKind): String? = when (kind) {
+        PrKind.NONE, PrKind.BEST_VOLUME -> null
+        PrKind.ESTIMATED_MAX -> "Est. max PR"
+        PrKind.HEAVIEST_WEIGHT -> "Weight PR"
+        PrKind.REP_RECORD -> "Rep PR"
     }
 }

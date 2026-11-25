@@ -343,15 +343,16 @@ internal fun BigFigure(value: String, unit: String) {
     )
 }
 
-/** The weight tile: the last weigh-in, its change this week, and a Weigh in button. */
+/** The weight tile: the last weigh-in, its weekly rate over the last four weeks, and a Weigh in button. */
 @Composable
 fun WeightTile(weightKg: Double?, deltaKg: Double?, unit: WeightUnit, onWeighIn: () -> Unit, modifier: Modifier = Modifier) {
     StatCard("Weight", modifier) {
         if (weightKg != null) BigFigure("%.1f".format(unit.fromKg(weightKg)), unit.label)
         else Text("No weigh-in yet", style = MaterialTheme.typography.titleLarge)
         deltaKg?.let {
-            val v = unit.fromKg(it)
-            IntakeChip((if (v >= 0) "+" else "−") + "%.1f %s this week".format(abs(v), unit.label), tone = ChipTone.Ok)
+            // The same four-week trend rate as Insights, with its period named (Q11-4).
+            IntakeChip(com.zeroindex.intake.domain.tdee.WeightRate.text(it, unit), tone = ChipTone.Ok)
+            Text(com.zeroindex.intake.domain.tdee.WeightRate.PERIOD_LABEL, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.height(2.dp))
         SoftButton(onClick = onWeighIn, modifier = Modifier.fillMaxWidth()) { Text("Weigh in") }

@@ -37,6 +37,7 @@ import com.zeroindex.intake.domain.allergen.AllergenOverride
 import com.zeroindex.intake.domain.allergen.AllergenScanResult
 import com.zeroindex.intake.domain.drinks.DrinkRule
 import com.zeroindex.intake.domain.drinks.SearchScope
+import com.zeroindex.intake.domain.food.settled
 import com.zeroindex.intake.domain.allergen.CheckLabelTerm
 import com.zeroindex.intake.domain.model.FoodSource
 import com.zeroindex.intake.domain.model.MealSlot
@@ -294,8 +295,8 @@ class AddFoodViewModel @Inject constructor(
 
     @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
     private val localResults = query
-        // SPEC §5.1: 300ms debounce.
-        .debounce(300)
+        // Q11-1: one settled, trimmed query (SettledQuery), the same rule for every source.
+        .settled()
         .flatMapLatest { q ->
             // Food search lists foods only: a drink on this phone is found in Drinks (one rule, DrinkRule).
             if (q.isBlank()) flowOf(emptyList()) else foodRepository.search(q.trim()).map { found ->
@@ -316,7 +317,7 @@ class AddFoodViewModel @Inject constructor(
      */
     @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
     private val menuRows: kotlinx.coroutines.flow.Flow<List<MenuRow>> = combine(
-        query.debounce(300),
+        query.settled(),
         allergenRepository.observeAvoidedAllergens(),
         allergenRepository.observeAliases(),
     ) { q, _, _ -> q }.mapLatest { q ->
@@ -349,10 +350,10 @@ class AddFoodViewModel @Inject constructor(
 
     @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
     private val refResults = query
-        .debounce(300)
+        .settled()
         .flatMapLatest { q ->
             flow {
-                if (q.isBlank()) {
+                if (q.length < com.zeroindex.intake.domain.food.SettledQuery.MIN_REFERENCE_CHARS) {
                     emit(RefAnswer())
                 } else {
                     // The pointer to Drinks shows when a drink name starts with the words, or has a word that does
@@ -383,6 +384,8 @@ class AddFoodViewModel @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
     private val offState = query
         .debounce(OFF_DEBOUNCE_MS)
+        .map { it.trim() }
+        .distinctUntilChanged()
         .flatMapLatest { q ->
             flow {
                 if (q.trim().length < OffSearchRepository.MIN_QUERY) {

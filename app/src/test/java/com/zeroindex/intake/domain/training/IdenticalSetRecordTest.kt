@@ -21,8 +21,11 @@ class IdenticalSetRecordTest {
         assertThat(RecordText.chipLabel(four.records.map { it.kind })).isEqualTo("Volume PR")
     }
 
-    @Test fun `the chip says PR for a better set and nothing for no record`() {
-        assertThat(RecordText.chipLabel(listOf(PrKind.REP_RECORD, PrKind.BEST_VOLUME))).isEqualTo("PR")
+    @Test fun `the exercise chip is only for the session volume, set records sit on their set`() {
+        assertThat(RecordText.chipLabel(listOf(PrKind.REP_RECORD, PrKind.BEST_VOLUME))).isEqualTo("Volume PR")
+        assertThat(RecordText.chipLabel(listOf(PrKind.REP_RECORD))).isNull()
         assertThat(RecordText.chipLabel(emptyList())).isNull()
+        assertThat(RecordText.setChipLabel(PrKind.REP_RECORD)).isEqualTo("Rep PR")
+        assertThat(RecordText.setChipLabel(PrKind.BEST_VOLUME)).isNull()
     }
 }

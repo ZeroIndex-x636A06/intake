@@ -127,7 +127,7 @@ class TodayViewModel @Inject constructor(
                     activityBonusKcal = presetsAndSettings.bonus,
                     insight = presetsAndSettings.insight?.takeIf { date == today && it.dismissedAt == null },
                     latestWeightKg = presetsAndSettings.metrics.firstOrNull()?.weightKg,
-                    weightWeekDeltaKg = weekDelta(presetsAndSettings.metrics, clock.nowMillis()),
+                    weightWeekDeltaKg = weeklyRate(presetsAndSettings.metrics),
                     loaded = true,
                 )
             }
@@ -146,11 +146,13 @@ class TodayViewModel @Inject constructor(
         val metrics: List<com.zeroindex.intake.data.db.entity.BodyMetricEntity>,
     )
 
-    /** Newest weigh-in minus the newest one at least six days older; null without both. [metrics] is newest first. */
-    private fun weekDelta(metrics: List<com.zeroindex.intake.data.db.entity.BodyMetricEntity>, now: Long): Double? {
-        val latest = metrics.firstOrNull() ?: return null
-        val older = metrics.firstOrNull { latest.measuredAt - it.measuredAt >= 6 * 86_400_000L } ?: return null
-        return latest.weightKg - older.weightKg
+    /** Kilograms per week over the last four weeks: the same number the Insights screen shows (Q11-4, [WeightRate]). */
+    private fun weeklyRate(metrics: List<com.zeroindex.intake.data.db.entity.BodyMetricEntity>): Double? {
+        val zone = clock.zone()
+        val points = metrics.map {
+            com.zeroindex.intake.domain.tdee.WeightPoint(com.zeroindex.intake.domain.time.localDateOf(it.measuredAt, zone).toEpochDay(), it.weightKg)
+        }
+        return com.zeroindex.intake.domain.tdee.WeightRate.weeklyKg(points, clock.today().toEpochDay())
     }
 
     /** Water card "+": one more of the same drink and size. */
