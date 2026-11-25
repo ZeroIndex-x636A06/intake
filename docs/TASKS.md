@@ -21,6 +21,8 @@ Drinks page simplified to one list with a size sheet. No schema change. See `RES
 (`NutritionMealScreen`, route `NutritionMeal`), day switcher on the Nutrition tab (future days blocked), meal template editor lists "Recent" then
 "All saved" (`domain/template/TemplatePicker.kt`). No schema change. See `RESUME.md`.
 
+**Video player + transcripts: landed** on `agent/integrate-video` (schema v7; not seen on a device). **Later, owner-requested, unclaimed:** overlay / form-judging on video.
+
 **Videos tab, round 5 item 14** (branch `worktree-agent-a03c7ea740999eae8`, not pushed, not seen on a device). One filter row with a Filters sheet,
 Saved as a compact row near the top, overflow menu for the key note, quota and cache clearing, infinite scroll with `nextPageToken` (search and
 Recommended rows), Hide Shorts by orientation (`ShortsRule`, `part=player`), a vertical Shorts player, "More like this", and opt-in yt-dlp
