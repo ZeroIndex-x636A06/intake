@@ -9,6 +9,8 @@ import com.zeroindex.intake.data.ai.video.VideoWorkoutAi
 import com.zeroindex.intake.data.remote.youtube.VideoError
 import com.zeroindex.intake.data.repository.TrainingRepository
 import com.zeroindex.intake.data.video.VideoRepository
+import com.zeroindex.intake.data.video.direct.TranscriptRepository
+import com.zeroindex.intake.data.video.direct.TranscriptResult
 import com.zeroindex.intake.domain.time.Clock
 import com.zeroindex.intake.domain.videos.ChapterParser
 import com.zeroindex.intake.domain.videos.DraftItem
@@ -17,6 +19,8 @@ import com.zeroindex.intake.domain.videos.DraftSource
 import com.zeroindex.intake.domain.videos.ExerciseEntry
 import com.zeroindex.intake.domain.videos.MuscleGuess
 import com.zeroindex.intake.domain.videos.ParsedExerciseLine
+import com.zeroindex.intake.domain.videos.Transcript
+import com.zeroindex.intake.domain.videos.TranscriptParser
 import com.zeroindex.intake.domain.videos.VideoMeta
 import com.zeroindex.intake.domain.videos.VideoWorkoutDrafter
 import com.zeroindex.intake.ui.navigation.Route
@@ -49,6 +53,13 @@ data class MakeWorkoutState(
     val aiError: String? = null,
     val saving: Boolean = false,
     val error: String? = null,
+    /** The captions the drafts were read with (fetched with yt-dlp, or pasted with times), or null. */
+    val transcript: Transcript? = null,
+    /** True when the yt-dlp opt-in (Settings > Videos) is on, so "Get transcript" can run. */
+    val directOn: Boolean = false,
+    val transcriptBusy: Boolean = false,
+    /** Plain-words result of the last "Get transcript" tap (no captions, failed, ...), or null. */
+    val transcriptNote: String? = null,
 ) {
     val includedCount: Int get() = items.count { it.include && it.exerciseName.isNotBlank() }
 }
@@ -64,6 +75,7 @@ class MakeWorkoutViewModel @Inject constructor(
     private val training: TrainingRepository,
     private val ai: VideoWorkoutAi,
     private val clock: Clock,
+    private val transcripts: TranscriptRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     private val videoId: String = savedStateHandle.toRoute<Route.MakeWorkout>().videoId
@@ -87,7 +99,9 @@ class MakeWorkoutViewModel @Inject constructor(
                 null
             }
             val video = meta ?: VideoMeta(id = videoId, title = "YouTube video")
-            val draft = VideoWorkoutDrafter.draft(video, library)
+            // A transcript fetched earlier is read from app storage: no network, no yt-dlp, no tap needed.
+            val transcript = transcripts.cached(videoId)
+            val draft = VideoWorkoutDrafter.draft(video, library, transcript)
             _state.value = MakeWorkoutState(
                 loading = false,
                 videoId = videoId,
@@ -99,6 +113,8 @@ class MakeWorkoutViewModel @Inject constructor(
                 aiAvailable = ai.isAvailable(),
                 workoutRunning = training.observeInProgress().first() != null,
                 error = error,
+                transcript = transcript,
+                directOn = transcripts.directOn(),
             )
         }
     }
@@ -145,8 +161,58 @@ class MakeWorkoutViewModel @Inject constructor(
      * gives an app only the title and description, never the spoken or on-screen content, so this is how that content
      * gets in. It is read on this phone like a description, and it is what "Improve with AI" is sent if that is tapped.
      */
+    /**
+     * "Get transcript": one explicit tap. Asks yt-dlp for the video's captions (Settings > Videos opt-in; no API key), keeps
+     * them on the phone and re-reads the draft with them. Nothing here talks to AI.
+     */
+    fun getTranscript() {
+        val s = _state.value
+        val meta = s.meta ?: return
+        if (s.transcriptBusy) return
+        _state.update { it.copy(transcriptBusy = true, transcriptNote = null) }
+        viewModelScope.launch {
+            val result = try {
+                transcripts.fetch(videoId)
+            } catch (e: CancellationException) {
+                _state.update { it.copy(transcriptBusy = false) }
+                throw e
+            }
+            when (result) {
+                is TranscriptResult.Found -> applyTranscript(meta, result.transcript)
+                TranscriptResult.NotEnabled -> _state.update {
+                    it.copy(transcriptBusy = false, directOn = false, transcriptNote = "Turn on direct playback in Settings to fetch transcripts automatically.")
+                }
+                TranscriptResult.NoCaptions -> _state.update {
+                    it.copy(transcriptBusy = false, transcriptNote = "This video has no captions in English or your language. You can paste a transcript below.")
+                }
+                is TranscriptResult.Failed -> _state.update { it.copy(transcriptBusy = false, transcriptNote = result.message) }
+            }
+        }
+    }
+
+    private fun applyTranscript(meta: VideoMeta, transcript: Transcript) {
+        val draft = VideoWorkoutDrafter.draft(meta, library, transcript)
+        _state.update {
+            it.copy(
+                transcriptBusy = false,
+                transcript = transcript,
+                source = draft.source,
+                items = draft.items.ifEmpty { it.items },
+                transcriptNote = if (draft.items.isEmpty()) "Got the captions (${transcript.segments.size} lines) but found no exercises in them. You can still add them by hand or ask AI." else null,
+            )
+        }
+    }
+
     fun usePastedText(text: String) {
         val meta = _state.value.meta ?: return
+        // A transcript copied from YouTube has times: keep them, so each exercise knows where it is in the video.
+        val timed = TranscriptParser.parsePasted(text)
+        if (timed.isNotEmpty()) {
+            val t = Transcript(videoId, "pasted", auto = false, segments = timed)
+            val draft = VideoWorkoutDrafter.draft(meta, library, t)
+            _state.update { it.copy(transcript = t, source = draft.source, items = draft.items.ifEmpty { it.items }, pastedFound = draft.items.size) }
+            return
+        }
         val pasted = text.trim().take(MAX_PASTE)
         if (pasted.isEmpty()) return
         // Pasted text goes first: it is what the person chose to give, and the AI step reads only the start of long text.
@@ -165,18 +231,25 @@ class MakeWorkoutViewModel @Inject constructor(
         aiJob = viewModelScope.launch {
             try {
                 val chapters = ChapterParser.chapters(meta.description)
-                val result = ai.improve(meta, chapters)
+                val result = ai.improve(meta, chapters, s.transcript)
                 if (result.isEmpty()) {
                     _state.update { it.copy(aiBusy = false, aiError = "AI did not find a workout in this video's title and description.") }
                 } else {
                     val lines = result.map {
                         ParsedExerciseLine(
                             rawText = it.name, name = it.name, sets = it.sets.takeIf { n -> n > 0 }, reps = it.reps.takeIf { n -> n > 0 },
-                            seconds = it.seconds, restSec = it.restSec,
+                            seconds = it.seconds, restSec = it.restSec, startSec = it.startSec?.toInt()?.takeIf { t -> t >= 0 },
                         )
                     }
                     val draft = VideoWorkoutDrafter.fromLines(lines, library, DraftSource.AI)
-                    _state.update { it.copy(aiBusy = false, source = DraftSource.AI, items = draft.items) }
+                    // A time the model left out is kept from the deterministic draft when the same exercise was in it.
+                    val before = _state.value.items
+                    val items = draft.items.map { n ->
+                        if (n.startSec != null) n else n.copy(startSec = before.firstOrNull { b ->
+                            (n.exerciseId != null && n.exerciseId == b.exerciseId) || b.exerciseName.equals(n.exerciseName, ignoreCase = true)
+                        }?.startSec)
+                    }
+                    _state.update { it.copy(aiBusy = false, source = DraftSource.AI, items = items) }
                 }
             } catch (e: CancellationException) {
                 _state.update { it.copy(aiBusy = false) }

@@ -494,7 +494,7 @@ Covered in section 8.6 (cross-cutting) with the screens here:
   **Cancel download**, "Downloaded", **More like this**, Save to watch later and "Remove from saved". Message: "You already
   made a workout from this. Open it".
 - **Make this a workout** (full screen, route `MakeWorkout`): found chapters and exercise lines ("No chapters or exercise
-  lines found."), "What is in the video itself", transcript or exercise list paste ("Read this text"), **Improve with AI**
+  lines found."), "What is in the video itself", **Get transcript** (needs "Offline downloads and direct playback"; otherwise "Turn on direct playback in Settings to fetch transcripts automatically", with **Open Settings > Videos**; "This video has no captions in English or your language. You can paste a transcript below."), transcript or exercise list paste ("Read this text", times kept), "At 2:15 in the video" / "Each side" / "As many reps as you can" on a draft row, **Improve with AI**
   [AI, needs key], a draft list with **Include** / **Left out** per exercise, name, sets, seconds or reps, rest, "Use
   another", "Pick from library", count reps or timed, move, remove. **Save workout**, **Save and start**. "Turn on at least
   one exercise to save."
@@ -862,6 +862,7 @@ Rule: no feature needs AI. Targets, allergens, plans, lookups and parsing never 
 - Video detail: player, chapters, share link, make this a workout.
 - **Make this a workout** reads chapters and the description on the phone first; no AI unless you tap **Improve with AI**.
   The result is a My workout (Train).
+- Transcripts: **Get transcript** on Make this a workout reads the video's captions on the phone (yt-dlp, same opt-in, no API key) and drafts exercises, sets, reps, rest and the time each starts. Saved workouts show a "▶ 2:15" chip on each exercise that opens the video there.
 - Direct playback and offline downloads: [off by default; setting "Offline downloads and direct playback"]. Not an official
   YouTube feature. Downloads show "Downloaded" and can be cancelled.
 - Cache: "Clear cached video information".

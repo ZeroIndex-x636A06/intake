@@ -266,6 +266,27 @@ class MigrationSchemaTest {
     }
 
     @Test
+    fun migrationSixToSevenAddsANullableVideoStartToWorkoutExercisesAndKeepsEveryRow() {
+        val v6 = createAt(6)
+        assertThat(entities(6).getValue("program_exercise")["fields"]!!.jsonArray.map { it.jsonObject["columnName"]!!.jsonPrimitive.content })
+            .doesNotContain("videoStartSec")
+        v6.exec("INSERT INTO exercise (id, name, primaryMuscle, secondaryMuscles, equipment, isBodyweight, defaultRestSec, notes, createdAt, updatedAt) VALUES ('e1', 'Plank', 'core', '', '', 1, 60, '', 1, 1)")
+        v6.exec("INSERT INTO program (id, name, description, isActive, currentWeek, currentDayIndex, isStandalone, videoId, createdAt, updatedAt) VALUES ('w1', 'HIIT', '', 0, 1, 0, 1, 'dQw4w9WgXcQ', 1, 1)")
+        v6.exec("INSERT INTO program_day (id, programId, dayIndex, name, createdAt, updatedAt) VALUES ('d1', 'w1', 0, 'HIIT', 1, 1)")
+        v6.exec("INSERT INTO program_exercise (id, programDayId, exerciseId, displayOrder, targetSets, targetRepsMin, targetRepsMax, restSec, createdAt, updatedAt) VALUES ('x1', 'd1', 'e1', 0, 3, 1, 1, 30, 1, 1)")
+        MIGRATION_6_7_STATEMENTS.forEach { v6.exec(it) }
+        // The old row is kept and has no video time; a new one can carry it.
+        val old = v6.rows("SELECT targetSets, restSec, videoStartSec FROM program_exercise WHERE id = 'x1'").single()
+        assertThat(old["targetSets"]).isEqualTo(3)
+        assertThat(old["restSec"]).isEqualTo(30)
+        assertThat(old["videoStartSec"]).isNull()
+        v6.exec("INSERT INTO program_exercise (id, programDayId, exerciseId, displayOrder, targetSets, targetRepsMin, targetRepsMax, restSec, videoStartSec, createdAt, updatedAt) VALUES ('x2', 'd1', 'e1', 1, 3, 1, 1, 30, 135, 1, 1)")
+        assertThat(v6.rows("SELECT videoStartSec FROM program_exercise WHERE id = 'x2'").single()["videoStartSec"]).isEqualTo(135)
+        assertMatches(v6, 7)
+        v6.close()
+    }
+
+    @Test
     fun migrationTwoToThreeCreatesTheAiUsageLogEmptyAndUsable() {
         val v2 = createAt(2)
         assertThat(entities(2)).doesNotContainKey("ai_usage")
@@ -580,7 +601,10 @@ class MigrationSchemaTest {
         // 5 -> 6 adds the video player size and the downloaded videos table.
         statementsFrom(5, c).forEach { c.exec(it) }
         assertMatches(c, 6)
-        assertThat(IntakeDatabase.VERSION).isEqualTo(6)
+        // 6 -> 7 adds the video start second on workout exercises.
+        statementsFrom(6, c).forEach { c.exec(it) }
+        assertMatches(c, 7)
+        assertThat(IntakeDatabase.VERSION).isEqualTo(7)
         c.close()
     }
 

@@ -62,7 +62,7 @@ fun VideoDetailScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    var startSec by remember { mutableIntStateOf(0) }
+    var startSec by remember { mutableIntStateOf(viewModel.initialStartSec) }
     var showDescription by remember { mutableStateOf(false) }
     val meta = state.meta
 

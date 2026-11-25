@@ -3,6 +3,10 @@
 Read this first when picking the work back up. Latest work: branch
 `claude/optimistic-noether-fullk5` (not yet merged into `claude/app-build-k2ag1d`).
 
+## Video transcripts (branch `agent/video-transcripts`, schema v7, not merged)
+
+"Get transcript" on Make this a workout fetches captions with yt-dlp (same opt-in as direct playback, no API key, on tap only), parses VTT or json3 (`domain/videos/Transcript*.kt`), drafts exercises, sets, reps, rest and first-mention times with no model (`TranscriptDrafter`), and merges with chapters (chapters win). Improve with AI now also sends the timed transcript and may return `startSec`. Schema v7 adds nullable `program_exercise.videoStartSec` (`MIGRATION_6_7`, `MigrationSchemaTest` case); saved workouts show a "play from here" chip that opens `Route.VideoDetail(videoId, startSec)`. Docs: `docs/VIDEOS.md`, `docs/PRIVACY.md`, `docs/AI-COSTS.md`, `docs/FEATURES.md`. **Not verified:** real caption fetching from YouTube (yt-dlp was not run), the screens on an emulator or a device. Verified by unit tests only.
+
 ## Design v6 landed (branch `claude/optimistic-noether-fullk5`)
 
 All twelve design-v6 branches and `agent/qa6-perf` are merged (qa6-perf, core, nav, today, insights, train, train2, food, plan, allergens, you, wear). One textual conflict (TrainingStatsUi.kt, train2: kept train2's 50 dp buttons, dropped a duplicate import). No schema change. Nav names are Today · Food · + · Train · Insights; routes keep `Nutrition` and `Progress`.

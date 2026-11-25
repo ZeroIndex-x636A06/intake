@@ -84,7 +84,7 @@ sealed interface Route {
     @Serializable data object ProgramTemplates : Route
     @Serializable data object ProgramGenerator : Route
     /** Train > Videos: one video (the player, chapters, save, Make this a workout). Inside the Train graph. */
-    @Serializable data class VideoDetail(val videoId: String) : Route
+    @Serializable data class VideoDetail(val videoId: String, val startSec: Int = 0) : Route
     /** "Make this a workout": review what was read from a video, then save it as a My workout. Inside the Train graph. */
     @Serializable data class MakeWorkout(val videoId: String) : Route
     @Serializable data object Performance : Route

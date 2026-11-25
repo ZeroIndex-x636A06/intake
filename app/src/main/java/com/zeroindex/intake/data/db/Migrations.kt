@@ -375,8 +375,23 @@ internal val MIGRATION_5_6 = object : Migration(5, 6) {
     }
 }
 
+/**
+ * 6 -> 7: Video transcripts groundwork. One nullable column on `program_exercise` holds the second of the workout's linked
+ * video where the exercise starts (read from chapters or captions when a workout is made from a video). Existing rows keep
+ * null. Purely additive.
+ */
+internal val MIGRATION_6_7_STATEMENTS: List<String> = listOf(
+    "ALTER TABLE `program_exercise` ADD COLUMN `videoStartSec` INTEGER",
+)
+
+internal val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        MIGRATION_6_7_STATEMENTS.forEach(db::execSQL)
+    }
+}
+
 /** Every migration, in order. [IntakeDatabase] registers all of them. */
-internal val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+internal val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
 
 /** Statement lists by starting version, for `MigrationSchemaTest`. Version 3 is computed: see [migrateRepair_3_4]. */
 internal val MIGRATION_STATEMENTS: Map<Int, List<String>> = mapOf(
@@ -384,4 +399,5 @@ internal val MIGRATION_STATEMENTS: Map<Int, List<String>> = mapOf(
     2 to MIGRATION_2_3_STATEMENTS,
     4 to MIGRATION_4_5_STATEMENTS,
     5 to MIGRATION_5_6_STATEMENTS,
+    6 to MIGRATION_6_7_STATEMENTS,
 )

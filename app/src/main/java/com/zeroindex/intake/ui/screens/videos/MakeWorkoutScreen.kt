@@ -44,6 +44,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.domain.videos.DraftItem
 import com.zeroindex.intake.domain.videos.DraftKind
 import com.zeroindex.intake.domain.videos.DraftSource
+import com.zeroindex.intake.domain.videos.YoutubeIds
 import com.zeroindex.intake.ui.components.AiWaitCard
 import com.zeroindex.intake.ui.components.EmptyState
 import com.zeroindex.intake.ui.components.ErrorState
@@ -63,6 +64,7 @@ fun MakeWorkoutScreen(
     onSaved: (programId: String, sessionId: String?) -> Unit,
     onAddByHand: (programId: String) -> Unit,
     modifier: Modifier = Modifier,
+    onOpenVideoSettings: () -> Unit = {},
     viewModel: MakeWorkoutViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -127,6 +129,55 @@ fun MakeWorkoutScreen(
                     Text("  Add an exercise")
                 }
             }
+            item(key = "transcript") {
+                IntakeCard {
+                    Text("Transcript", style = MaterialTheme.typography.titleMedium)
+                    val t = state.transcript
+                    when {
+                        t != null -> Text(
+                            when {
+                                t.language == "pasted" -> "Using the transcript you pasted (${t.segments.size} lines with times)."
+                                t.auto -> "Using this video's automatic captions (${t.language}, ${t.segments.size} lines). Automatic captions can mishear exercise names, so check each row."
+                                else -> "Using this video's captions (${t.language}, ${t.segments.size} lines)."
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 2.dp),
+                        )
+                        state.directOn -> {
+                            Text(
+                                "Reads what the video says: Intake asks YouTube for the captions from this phone (using yt-dlp, no API key), finds the exercises, " +
+                                    "the sets, reps and times said, and the moment each one starts. The captions stay on this phone. Nothing goes to AI unless you tap Improve with AI below.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 2.dp, bottom = 10.dp),
+                            )
+                            if (state.transcriptBusy) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                                    Text("Getting the captions. This can take a little while.", style = MaterialTheme.typography.bodyMedium)
+                                }
+                            } else {
+                                OutlinedButton(onClick = viewModel::getTranscript, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                                    Text("Get transcript")
+                                }
+                            }
+                        }
+                        else -> {
+                            Text(
+                                "Turn on direct playback in Settings to fetch transcripts automatically. Until then, paste the transcript below.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 2.dp),
+                            )
+                            TextButton(onClick = onOpenVideoSettings, modifier = Modifier.heightIn(min = 48.dp)) { Text("Open Settings > Videos") }
+                        }
+                    }
+                    state.transcriptNote?.let {
+                        Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
+                    }
+                }
+            }
             item(key = "paste") {
                 var pasted by remember { mutableStateOf("") }
                 IntakeCard {
@@ -134,7 +185,7 @@ fun MakeWorkoutScreen(
                     Text(
                         "Intake cannot watch a video. YouTube gives apps only the title and description, so exercises that are " +
                             "only spoken or shown are not seen. To bring them in: open the video in YouTube, tap the description, " +
-                            "then \"Show transcript\", copy it and paste it here. A typed list works too, one exercise a line.",
+                            "then \"Show transcript\", copy it and paste it here (the times are kept). A typed list works too, one exercise a line.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 2.dp, bottom = 10.dp),
@@ -174,7 +225,7 @@ fun MakeWorkoutScreen(
                     IntakeCard {
                         Text("Improve with AI", style = MaterialTheme.typography.titleMedium)
                         Text(
-                            "Optional. Sends this video's title, chapters, description and any text you pasted above (nothing else) to your AI model, and shows the answer here for you to check. It counts towards your AI budget.",
+                            "Optional. Sends this video's title, chapters, description, and the transcript with its times if you fetched or pasted one (nothing else, trimmed to a budget) to your AI model, and shows the answer here for you to check. It counts towards your AI budget.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 2.dp, bottom = 10.dp),
@@ -292,6 +343,14 @@ private fun DraftCard(
         }
         if (item.text.isNotBlank() && !item.text.equals(item.exerciseName, ignoreCase = true)) {
             Text("From: \"${item.text.take(80)}\"", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        val notes = listOfNotNull(
+            item.startSec?.let { "At ${YoutubeIds.clock(it)} in the video" },
+            "Each side".takeIf { item.eachSide },
+            "As many reps as you can".takeIf { item.amrap },
+        )
+        if (notes.isNotEmpty()) {
+            Text(notes.joinToString(" · "), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
         }
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
