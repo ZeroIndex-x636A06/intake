@@ -19,6 +19,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.domain.onboarding.TipKey
 import com.zeroindex.intake.domain.onboarding.TipsSeen
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.intake
 
 /** The two-sentence copy shown the first time each tab is opened. */
 object TabTipCopy {
@@ -39,14 +40,16 @@ fun TabTip(
     actionLabel: String,
     onAction: () -> Unit,
     modifier: Modifier = Modifier,
+    /** A first-run tip: pass true once the tab has data, and it stays hidden. */
+    hasHistory: Boolean = false,
     viewModel: TipsViewModel = hiltViewModel(),
 ) {
     val prefs by viewModel.prefs.collectAsStateWithLifecycle()
     // A person still in the welcome flow gets the flow first, not tips.
-    if (!prefs.loaded || !prefs.done || !TipsSeen.shouldShow(key, prefs.tipsSeen)) return
+    if (hasHistory || !prefs.loaded || !prefs.done || !TipsSeen.shouldShow(key, prefs.tipsSeen)) return
     Surface(
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        color = MaterialTheme.intake.accent,
+        contentColor = MaterialTheme.intake.onAccent,
         shape = IntakeShape.Banner,
         modifier = modifier.fillMaxWidth(),
     ) {
@@ -54,7 +57,7 @@ fun TabTip(
             Text(body, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(end = 6.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 TextButton(onClick = { viewModel.dismiss(key) }, modifier = Modifier.heightIn(min = 48.dp)) {
-                    Text("Got it")
+                    Text("Got it", color = MaterialTheme.intake.onAccent)
                 }
                 TextButton(
                     onClick = {
@@ -62,7 +65,7 @@ fun TabTip(
                         onAction()
                     },
                     modifier = Modifier.heightIn(min = 48.dp),
-                ) { Text(actionLabel) }
+                ) { Text(actionLabel, color = MaterialTheme.intake.onAccent) }
             }
         }
     }

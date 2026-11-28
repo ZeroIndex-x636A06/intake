@@ -5,8 +5,11 @@ import androidx.room.Query
 import androidx.room.Upsert
 import com.zeroindex.intake.data.db.entity.SetLogEntity
 import com.zeroindex.intake.data.db.entity.WorkoutSessionEntity
+import com.zeroindex.intake.data.db.projection.DayLabel
 import com.zeroindex.intake.data.db.projection.MuscleSetCount
+import com.zeroindex.intake.data.db.projection.SessionStat
 import com.zeroindex.intake.data.db.projection.SetPoint
+import com.zeroindex.intake.data.db.projection.SetWithExercise
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -84,6 +87,18 @@ interface WorkoutDao {
     )
     fun observeSetPoints(exerciseId: String): Flow<List<SetPoint>>
 
+    /** Every non-deleted set, for the Training log (queries only; no schema change). */
+    @Query("SELECT * FROM set_log WHERE deletedAt IS NULL ORDER BY completedAt")
+    fun observeAllSets(): Flow<List<SetLogEntity>>
+
+    @Query(
+        """
+        SELECT d.id AS dayId, d.name AS dayName, p.name AS programName, p.isStandalone AS standalone
+        FROM program_day d JOIN program p ON p.id = d.programId
+        """,
+    )
+    fun observeDayLabels(): Flow<List<DayLabel>>
+
     /** Every non-deleted set for an exercise, newest first. */
     @Query("SELECT * FROM set_log WHERE exerciseId = :exerciseId AND deletedAt IS NULL ORDER BY completedAt DESC")
     fun observeSetsForExercise(exerciseId: String): Flow<List<SetLogEntity>>
@@ -120,11 +135,52 @@ interface WorkoutDao {
     @Query("UPDATE workout_session SET finishedAt = :now, updatedAt = :now WHERE id = :id")
     suspend fun finishSession(id: String, now: Long)
 
+    /** Finish at a chosen time (a forgotten workout ends at its last set, not now). */
+    @Query("UPDATE workout_session SET finishedAt = :finishedAt, updatedAt = :now WHERE id = :id")
+    suspend fun finishSessionAt(id: String, finishedAt: Long, now: Long)
+
+    /** Undo Finish: the session is the active one again. */
+    @Query("UPDATE workout_session SET finishedAt = NULL, updatedAt = :now WHERE id = :id")
+    suspend fun reopenSession(id: String, now: Long)
+
+    /** History editing: a finished session's start and end. */
+    @Query("UPDATE workout_session SET startedAt = :startedAt, finishedAt = :finishedAt, updatedAt = :now WHERE id = :id")
+    suspend fun updateSessionTimes(id: String, startedAt: Long, finishedAt: Long, now: Long)
+
+    /** Moves every set of a session (removed ones too, so an Undo lands in the right place) by [delta] millis. */
+    @Query("UPDATE set_log SET completedAt = completedAt + :delta, updatedAt = :now WHERE sessionId = :sessionId")
+    suspend fun shiftSetTimes(sessionId: String, delta: Long, now: Long)
+
+    /** Moves the sets logged at or after [from] by [delta] millis (the idle gap of a reopened workout is taken off them). */
+    @Query("UPDATE set_log SET completedAt = completedAt + :delta, updatedAt = :now WHERE sessionId = :sessionId AND completedAt >= :from")
+    suspend fun shiftSetTimesFrom(sessionId: String, from: Long, delta: Long, now: Long)
+
+    @Query("UPDATE set_log SET exerciseId = :exerciseId, updatedAt = :now WHERE id = :id AND deletedAt IS NULL")
+    suspend fun updateSetExercise(id: String, exerciseId: String, now: Long)
+
+    /** The saved start moves later by the time spent paused, so finish minus start is trained time (see WorkoutClock.netStart). */
+    @Query("UPDATE workout_session SET startedAt = :startedAt, updatedAt = :now WHERE id = :id")
+    suspend fun updateSessionStart(id: String, startedAt: Long, now: Long)
+
+    @Query("UPDATE set_log SET rpe = :rpe, updatedAt = :now WHERE id = :id AND deletedAt IS NULL")
+    suspend fun updateSetRpe(id: String, rpe: Double?, now: Long)
+
     @Query("UPDATE workout_session SET deletedAt = :now, updatedAt = :now WHERE id = :id")
     suspend fun softDeleteSession(id: String, now: Long)
 
     @Query("UPDATE set_log SET deletedAt = :now, updatedAt = :now WHERE id = :id")
     suspend fun softDeleteSet(id: String, now: Long)
+
+    /** Undo for a soft delete (a set taken out of a finished session). */
+    @Query("UPDATE set_log SET deletedAt = NULL, updatedAt = :now WHERE id = :id")
+    suspend fun restoreSet(id: String, now: Long)
+
+    @Query("UPDATE set_log SET weightKg = :weightKg, reps = :reps, updatedAt = :now WHERE id = :id AND deletedAt IS NULL")
+    suspend fun updateSetValues(id: String, weightKg: Double, reps: Int, now: Long)
+
+    /** "Discard workout": the session's sets are hidden together with it (a soft delete; nothing is removed). */
+    @Query("UPDATE set_log SET deletedAt = :now, updatedAt = :now WHERE sessionId = :sessionId AND deletedAt IS NULL")
+    suspend fun softDeleteSetsOfSession(sessionId: String, now: Long)
 
     /** Every row touched since [since], deleted rows included, for Health Connect sync. */
     @Query("SELECT * FROM workout_session WHERE updatedAt > :since ORDER BY updatedAt")
@@ -133,6 +189,58 @@ interface WorkoutDao {
     /** Emits whenever the table changes; the sync debounces on it. */
     @Query("SELECT MAX(updatedAt) FROM workout_session")
     fun observeLastChange(): Flow<Long?>
+
+    /** Every logged set in a window with its exercise's muscles, for the weekly volume (warm-ups included; the maths skips them). */
+    @Query(
+        """
+        SELECT l.id AS setId, l.exerciseId AS exerciseId, e.name AS exerciseName, e.primaryMuscle AS primaryMuscle,
+               e.secondaryMuscles AS secondaryMuscles, l.weightKg AS weightKg, l.reps AS reps,
+               l.completedAt AS completedAt, l.isWarmup AS isWarmup
+        FROM set_log l JOIN exercise e ON e.id = l.exerciseId
+        WHERE l.deletedAt IS NULL AND l.completedAt >= :startInclusive AND l.completedAt < :endExclusive
+        ORDER BY l.completedAt
+        """,
+    )
+    fun observeSetsWithExercise(startInclusive: Long, endExclusive: Long): Flow<List<SetWithExercise>>
+
+    @Query(
+        """
+        SELECT l.id AS setId, l.exerciseId AS exerciseId, e.name AS exerciseName, e.primaryMuscle AS primaryMuscle,
+               e.secondaryMuscles AS secondaryMuscles, l.weightKg AS weightKg, l.reps AS reps,
+               l.completedAt AS completedAt, l.isWarmup AS isWarmup
+        FROM set_log l JOIN exercise e ON e.id = l.exerciseId
+        WHERE l.deletedAt IS NULL AND l.sessionId = :sessionId
+        ORDER BY l.completedAt, l.setIndex
+        """,
+    )
+    suspend fun setsWithExerciseOf(sessionId: String): List<SetWithExercise>
+
+    /** Working sets of earlier sessions for some exercises: what a record in [sessionId] is measured against. */
+    @Query(
+        """
+        SELECT * FROM set_log
+        WHERE deletedAt IS NULL AND isWarmup = 0 AND sessionId != :sessionId AND completedAt < :before
+          AND exerciseId IN (:exerciseIds)
+        """,
+    )
+    suspend fun historyBefore(sessionId: String, before: Long, exerciseIds: List<String>): List<SetLogEntity>
+
+    /** Finished sessions, newest first, with volume and set counts. */
+    @Query(
+        """
+        SELECT s.id AS sessionId, s.startedAt AS startedAt, s.finishedAt AS finishedAt, d.name AS dayName,
+               COALESCE(SUM(CASE WHEN l.isWarmup = 0 THEN l.weightKg * l.reps END), 0.0) AS volumeKg,
+               COUNT(CASE WHEN l.isWarmup = 0 THEN 1 END) AS workingSets
+        FROM workout_session s
+        LEFT JOIN program_day d ON d.id = s.programDayId
+        LEFT JOIN set_log l ON l.sessionId = s.id AND l.deletedAt IS NULL
+        WHERE s.deletedAt IS NULL AND s.finishedAt IS NOT NULL
+        GROUP BY s.id
+        ORDER BY s.startedAt DESC
+        LIMIT :limit
+        """,
+    )
+    fun observeSessionStats(limit: Int): Flow<List<SessionStat>>
 
     @Query(
         """

@@ -1,0 +1,74 @@
+package com.zeroindex.intake.ui.screens.videos
+
+import com.google.common.truth.Truth.assertThat
+import org.junit.Test
+
+class YoutubeEmbedTest {
+    @Test
+    fun `only real video ids are embedded`() {
+        assertThat(YoutubeEmbed.isValidId("dQw4w9WgXcQ")).isTrue()
+        assertThat(YoutubeEmbed.isValidId("abc\"><script>")).isFalse()
+        assertThat(YoutubeEmbed.isValidId("short")).isFalse()
+    }
+
+    @Test
+    fun `the page is the nocookie embed and starts at the chapter`() {
+        val html = YoutubeEmbed.html("dQw4w9WgXcQ", 95)
+        assertThat(html).contains("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?")
+        assertThat(html).contains("start=95")
+        assertThat(html).contains("autoplay=1")
+        assertThat(YoutubeEmbed.html("dQw4w9WgXcQ", 0)).contains("autoplay=0")
+    }
+
+    @Test
+    fun `the fallback page lets the app hear whether the frame is alive or failed`() {
+        val html = YoutubeEmbed.html("dQw4w9WgXcQ", 0)
+        assertThat(html).contains("enablejsapi=1")
+        assertThat(html).contains("onEmbedAlive")
+        assertThat(html).contains("onEmbedError")
+        // Only YouTube's own origins are listened to.
+        assertThat(html).contains("youtube(-nocookie)?")
+    }
+
+    @Test
+    fun `the api page turns youtube's controls off and keeps the nocookie host`() {
+        val html = YoutubeEmbed.apiHtml("dQw4w9WgXcQ", 95, autoplay = true)
+        assertThat(html).contains("controls:0")
+        assertThat(html).contains("modestbranding:1")
+        assertThat(html).contains("playsinline:1")
+        assertThat(html).contains("rel:0")
+        assertThat(html).contains("host:'https://www.youtube-nocookie.com'")
+        assertThat(html).contains("videoId:'dQw4w9WgXcQ'")
+        assertThat(html).contains("start:95")
+        assertThat(html).contains("autoplay:1")
+        assertThat(YoutubeEmbed.apiHtml("dQw4w9WgXcQ", -5, autoplay = false)).contains("start:0,autoplay:0")
+    }
+
+    @Test
+    fun `the api page refuses an id that is not a video id`() {
+        val r = runCatching { YoutubeEmbed.apiHtml("a'});alert(1)//", 0) }
+        assertThat(r.isFailure).isTrue()
+    }
+
+    @Test
+    fun `only the embed host may load`() {
+        assertThat(YoutubeEmbed.allowsHost("www.youtube-nocookie.com")).isTrue()
+        assertThat(YoutubeEmbed.allowsHost("evil.example.com")).isFalse()
+        assertThat(YoutubeEmbed.allowsHost("youtube-nocookie.com.evil.com")).isFalse()
+        assertThat(YoutubeEmbed.allowsHost(null)).isFalse()
+    }
+
+    @Test fun thePlayerFrameMayMoveBetweenYoutubeAndGoogleHostsOnly() {
+        listOf("www.youtube-nocookie.com", "www.youtube.com", "consent.google.com", "i.ytimg.com").forEach {
+            assertThat(YoutubeEmbed.allowsFrameHost(it)).isTrue()
+        }
+        listOf("evil.example.com", "youtube.com.evil.com", "notyoutube.com", null).forEach {
+            assertThat(YoutubeEmbed.allowsFrameHost(it)).isFalse()
+        }
+    }
+
+    @Test fun aTapOnThePictureStartsTheVideoPlaying() {
+        assertThat(YoutubeEmbed.html("dQw4w9WgXcQ", 0, autoplay = true)).contains("autoplay=1")
+        assertThat(com.zeroindex.intake.domain.videos.YoutubeIds.thumbnailUrl("dQw4w9WgXcQ")).isEqualTo("https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg")
+    }
+}

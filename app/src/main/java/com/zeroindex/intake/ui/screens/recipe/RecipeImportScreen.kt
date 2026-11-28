@@ -1,5 +1,9 @@
 package com.zeroindex.intake.ui.screens.recipe
 
+import com.zeroindex.intake.ui.components.LineButton
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.components.scrollIntoViewOnFocus
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -15,7 +19,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import com.zeroindex.intake.ui.motion.SkeletonLine
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -219,18 +222,17 @@ fun RecipeImportScreen(
     LaunchedEffect(stage) { (stage as? ImportStage.Saved)?.let { onSaved(it.recipeId) } }
 
     Column(
-        modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(contentPadding).padding(horizontal = 16.dp),
+        modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(contentPadding).padding(horizontal = IntakeSpacing.ScreenGutter),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        SubHead("Import from a link", "Paste a recipe page. Intake reads the recipe data on the page, with no AI.")
+        SubHead("Recipe link", "Paste a recipe link. Intake reads the recipe data on that page, with no AI.")
         OutlinedTextField(
             url, viewModel::setUrl, label = { Text("Recipe web address") }, singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().scrollIntoViewOnFocus(),
         )
         Button(
-            onClick = viewModel::import, enabled = url.isNotBlank() && stage != ImportStage.Fetching,
-            shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+            onClick = viewModel::import, enabled = url.isNotBlank() && stage != ImportStage.Fetching, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
         ) { Text("Read this page") }
         Text(
             "Tapping this fetches the page straight from that site, so the site can see your phone's IP address. Nothing is sent anywhere else.",
@@ -252,8 +254,8 @@ fun RecipeImportScreen(
                 SandNote("This page has no recipe data we can read.", title = "No recipe found")
                 s.message?.let { SandNote(it) }
                 if (s.aiAvailable) {
-                    OutlinedButton(
-                        onClick = viewModel::tryWithAi, shape = IntakeShape.Button,
+                    LineButton(
+                        onClick = viewModel::tryWithAi,
                         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                     ) { Text("Try with AI") }
                     Text(
@@ -297,7 +299,7 @@ private fun Preview(s: ImportStage.Preview, vm: RecipeImportViewModel) {
         label = { Text("Ingredients, one per line") }, minLines = 4, modifier = Modifier.fillMaxWidth(),
         supportingText = { Text("A line starting with ## is a group heading, like \"## For the Sauce\".") },
     )
-    AllergenChips(s.scan)
+    AllergenChips(s.scan, ingredientLineCount = f.ingredientsText.lines().count { it.isNotBlank() && !it.trimStart().startsWith("##") })
     OutlinedTextField(
         f.stepsText, { v -> vm.edit { it.copy(stepsText = v) } },
         label = { Text("Steps, one per line") }, minLines = 4, modifier = Modifier.fillMaxWidth(),
@@ -310,12 +312,18 @@ private fun Preview(s: ImportStage.Preview, vm: RecipeImportViewModel) {
         IntakeCard {
             Text("From the recipe page", style = MaterialTheme.typography.titleSmall)
             Text(
-                "${n.kcal!!.roundToInt()} kcal · ${(n.proteinG ?: 0.0).roundToInt()} g protein · ${(n.carbsG ?: 0.0).roundToInt()} g carbs · ${(n.fatG ?: 0.0).roundToInt()} g fat per serving",
+                "${n.kcal!!.roundToInt()} kcal · protein ${n.proteinG.listed()} · carbs ${n.carbsG.listed()} · fat ${n.fatG.listed()} per serving",
                 style = MaterialTheme.typography.bodyMedium,
             )
             RecipeNutritionLabels.extras(n.fiberG, n.sugarG, n.saturatedFatG, n.sodiumMg).takeIf { it.isNotEmpty() }?.let { extras ->
                 Text(
                     extras.joinToString(" · ") { (label, value) -> "$label $value" },
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            if (n.proteinG == null || n.carbsG == null || n.fatG == null) {
+                Text(
+                    "The page did not list everything. Intake will estimate what is missing from the ingredients and label it as an estimate.",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
@@ -325,14 +333,17 @@ private fun Preview(s: ImportStage.Preview, vm: RecipeImportViewModel) {
             )
         }
     } ?: Text(
-        "The page published no nutrition. You can add ingredient macros later by editing the recipe.",
+        "The page published no nutrition. Intake will estimate it from the ingredients, labelled as an estimate, or you can add ingredient macros by editing the recipe.",
         style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     if (f.sourceUrl.isNotBlank()) {
         Text("Source: ${f.sourceUrl}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
     Button(
-        onClick = vm::save, enabled = f.name.isNotBlank(), shape = IntakeShape.Button,
+        onClick = vm::save, enabled = f.name.isNotBlank(),
         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
     ) { Text("Save recipe") }
 }
+
+/** "12 g", or "not listed" for a number the page did not give. Never "0 g" for a missing one. */
+private fun Double?.listed(): String = this?.let { "${it.roundToInt()} g" } ?: "not listed"

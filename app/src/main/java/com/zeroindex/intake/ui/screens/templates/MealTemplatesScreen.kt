@@ -2,6 +2,18 @@
 
 package com.zeroindex.intake.ui.screens.templates
 
+import com.zeroindex.intake.ui.components.IconCircleButton
+import com.zeroindex.intake.ui.components.IconCircleStyle
+import com.zeroindex.intake.ui.components.IconTile
+import com.zeroindex.intake.ui.components.IconTileStyle
+import com.zeroindex.intake.ui.components.IntakeCard
+import com.zeroindex.intake.ui.theme.IntakeIcons
+import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.components.ChipTone
+import com.zeroindex.intake.ui.theme.intake
+import com.zeroindex.intake.domain.time.DateText
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
@@ -17,8 +29,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Nfc
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -35,20 +46,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import com.zeroindex.intake.ui.components.EmptyState
 import com.zeroindex.intake.ui.components.ErrorState
-import com.zeroindex.intake.ui.components.SandNote
 import com.zeroindex.intake.ui.components.SectionLine
-import com.zeroindex.intake.ui.components.StatusPill
-import com.zeroindex.intake.ui.components.TagIcon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -63,10 +70,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.repository.TemplateSummary
 import com.zeroindex.intake.nfc.TagWriteResult
-import com.zeroindex.intake.ui.components.IntakeCard
-import com.zeroindex.intake.ui.components.SubHead
 import com.zeroindex.intake.ui.screens.today.SlotPickerSheet
-import com.zeroindex.intake.ui.theme.IntakeShape
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -75,58 +79,65 @@ import kotlin.math.roundToInt
 @Composable
 fun MealTemplatesScreen(
     contentPadding: PaddingValues,
+    /** Opens the editor for a new template. Needs no meal plan. */
+    onNew: () -> Unit,
+    onEdit: (templateId: String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MealTemplatesViewModel = hiltViewModel(),
 ) {
     val templates by viewModel.templates.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val verdicts by viewModel.verdicts.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val nfc = remember { NfcAdapter.getDefaultAdapter(context) }
     var logging by remember { mutableStateOf<TemplateSummary?>(null) }
-    val dates = remember { DateTimeFormatter.ofPattern("d MMM") }
+    var deleting by remember { mutableStateOf<TemplateSummary?>(null) }
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(
             top = contentPadding.calculateTopPadding(),
             bottom = contentPadding.calculateBottomPadding() + 24.dp,
-            start = 16.dp,
-            end = 16.dp,
+            start = IntakeSpacing.ScreenGutter,
+            end = IntakeSpacing.ScreenGutter,
         ),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
     ) {
+        // The top bar already says "Meal templates"; this line says what the screen is for, with no second heading.
         item(key = "head") {
-            SubHead("Tap to log", "One tap logs a meal template from a tag on its container, to whatever meal it is now.")
+            // The top bar already says "Meal templates": the page does not repeat it a second and third time.
+            Text(
+                "Meals you eat often, saved so one tap logs them. Make one here, or save a meal you logged on Today. No meal plan needed.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
-        if (nfc == null) {
-            item(key = "nonfc") {
-                EmptyState(body = "This phone has no NFC. Templates still log in one tap from here.")
-            }
+        item(key = "new") {
+            Button(
+                onClick = onNew,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+            ) { Text("New meal template") }
         }
-        state.message?.let { item(key = "msg") { SandNote(it) } }
-        item(key = "list-head") { SectionLine("Meal templates", note = "${templates.size} saved") }
+        item(key = "list-head") { SectionLine("Saved", note = "${templates.size} saved") }
         if (templates.isEmpty()) {
             item(key = "empty") {
                 EmptyState(
                     title = "No meal templates yet",
-                    body = "On Today, log a prepped meal once, then choose \"Save as meal prep\" on that meal.",
+                    body = "Tap \"New meal template\" to build one from foods and recipes. Or, on Today, log a meal once, then choose \"Save as meal template\" on it.",
                 )
             }
         } else {
-            item(key = "list") {
-                IntakeCard {
-                    templates.forEachIndexed { i, t ->
-                        TemplateRow(
-                            t = t,
-                            written = t.template.nfcWrittenAt?.let { dates.format(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault())) },
-                            canWrite = nfc != null,
-                            onLog = { logging = t },
-                            onWrite = { viewModel.startWrite(t) },
-                            onDelete = { viewModel.delete(t) },
-                        )
-                        if (i != templates.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    }
-                }
+            items(items = templates, key = { "t-${it.template.id}" }) { t ->
+                TemplateRow(
+                    t = t,
+                    allergen = verdicts[t.template.id],
+                    written = t.template.nfcWrittenAt?.let { DateText.medium(it) },
+                    canWrite = nfc != null,
+                    onLog = { logging = t },
+                    onWrite = { viewModel.startWrite(t) },
+                    onEdit = { onEdit(t.template.id) },
+                    onDelete = { deleting = t },
+                )
             }
         }
     }
@@ -136,6 +147,27 @@ fun MealTemplatesScreen(
             title = "Log ${t.template.name} to",
             onDismiss = { logging = null },
             onPick = { slot -> viewModel.logNow(t, slot); logging = null },
+            // A template is food: Drinks is not a slot to log it to (Q5a-9).
+            slots = com.zeroindex.intake.domain.model.MealSlot.MEALS,
+        )
+    }
+    state.pending?.let { p ->
+        com.zeroindex.intake.ui.allergen.AllergenWarningSheet(
+            onFindSwap = com.zeroindex.intake.ui.allergen.rememberFindSwap(),
+            foodName = p.summary.template.name,
+            scan = p.check.scan,
+            ingredientText = p.check.allFoods.joinToString(", "),
+            onDismiss = viewModel::dismissPending,
+            onLogAnyway = viewModel::confirmPending,
+        )
+    }
+    deleting?.let { t ->
+        AlertDialog(
+            onDismissRequest = { deleting = null },
+            title = { Text("Delete this meal template?") },
+            text = { Text("\"${t.template.name}\" leaves your list. Meals you already logged from it stay logged. A tag written for it stops logging anything.") },
+            confirmButton = { TextButton(onClick = { viewModel.delete(t); deleting = null }) { Text("Delete", color = MaterialTheme.intake.bad) } },
+            dismissButton = { TextButton(onClick = { deleting = null }) { Text("Keep it") } },
         )
     }
     state.writingFor?.let { t -> WriteSheet(t, state.write, nfc, viewModel) }
@@ -144,47 +176,53 @@ fun MealTemplatesScreen(
 @Composable
 private fun TemplateRow(
     t: TemplateSummary,
+    allergen: com.zeroindex.intake.ui.addfood.RowAllergen?,
     written: String?,
     canWrite: Boolean,
     onLog: () -> Unit,
     onWrite: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
+    IntakeCard(
+        modifier = Modifier.clickable(onClickLabel = "Log ${t.template.name} now", onClick = onLog),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(start = IntakeSpacing.CardPad, top = 12.dp, bottom = 12.dp, end = 8.dp),
+    ) {
     Row(
         Modifier
             .fillMaxWidth()
-            .heightIn(min = 56.dp)
-            .clickable(onClickLabel = "Log ${t.template.name} now", onClick = onLog)
-            .padding(vertical = 9.dp),
+            .heightIn(min = 56.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        TagIcon(if (written != null) "▰" else "◌")
-        Spacer(Modifier.width(8.dp))
+        IconTile(IntakeIcons.Bowl, style = if (written != null) IconTileStyle.Ink else IconTileStyle.Soft)
+        Spacer(Modifier.width(IntakeSpacing.IconGap))
         Column(Modifier.weight(1f)) {
             Text(t.template.name, style = MaterialTheme.typography.titleSmall)
             Text(
-                "${t.kcal.safeRound()} kcal · ${t.protein.safeRound()} g protein · " +
-                    (written?.let { "Tag written $it" } ?: "Not on a tag"),
+                "${t.totals.kcal.safeRound()} kcal · ${t.totals.proteinText} · " +
+                    (written?.let { "NFC tag written $it" } ?: "No NFC tag"),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            // The verdict is shown before the one-tap log, from the local engine over every food in the template.
+            allergen?.let { Box(Modifier.padding(top = 4.dp)) { com.zeroindex.intake.ui.addfood.RowAllergenChip(it) } }
         }
         Box {
-            TextButton(onClick = { menu = true }, modifier = Modifier.semantics { contentDescription = "More for ${t.template.name}" }) {
-                Text("•••")
-            }
+            IconCircleButton(IntakeIcons.More, "More for ${t.template.name}", onClick = { menu = true }, style = IconCircleStyle.Soft)
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 DropdownMenuItem(text = { Text("Log now") }, onClick = { menu = false; onLog() })
+                DropdownMenuItem(text = { Text("Edit") }, onClick = { menu = false; onEdit() })
                 if (canWrite) {
                     DropdownMenuItem(
-                        text = { Text(if (written != null) "Write to another tag" else "Write to a tag") },
+                        text = { Text(if (written != null) "Write to another NFC tag" else "Write to an NFC tag (optional)") },
                         onClick = { menu = false; onWrite() },
                     )
                 }
                 DropdownMenuItem(text = { Text("Delete template") }, onClick = { menu = false; onDelete() })
             }
         }
+    }
     }
 }
 
@@ -207,15 +245,15 @@ private fun WriteSheet(t: TemplateSummary, write: WriteState, nfc: NfcAdapter?, 
     }
     ModalBottomSheet(onDismissRequest = viewModel::stopWrite, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(
-            Modifier.fillMaxWidth().padding(24.dp).navigationBarsPadding(),
+            Modifier.fillMaxWidth().padding(IntakeSpacing.ScreenGutter).navigationBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text("Write “${t.template.name}”", style = MaterialTheme.typography.headlineSmall)
             Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = RoundedCornerShape(18.dp),
-                modifier = Modifier.fillMaxWidth().height(125.dp),
+                color = MaterialTheme.intake.soft,
+                shape = IntakeShape.InnerCard,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 125.dp),
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Box(
@@ -227,7 +265,7 @@ private fun WriteSheet(t: TemplateSummary, write: WriteState, nfc: NfcAdapter?, 
                         if (write == WriteState.Waiting && nfc?.isEnabled != false) {
                             CircularProgressIndicator(Modifier.size(95.dp), strokeWidth = 2.dp)
                         }
-                        Icon(Icons.Filled.Nfc, contentDescription = null, modifier = Modifier.size(44.dp), tint = MaterialTheme.colorScheme.primary)
+                        Icon(IntakeIcons.Signal, contentDescription = null, modifier = Modifier.size(44.dp), tint = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
@@ -244,7 +282,7 @@ private fun WriteSheet(t: TemplateSummary, write: WriteState, nfc: NfcAdapter?, 
                 }
                 is WriteState.Done -> {
                     when (val r = write.result) {
-                        is TagWriteResult.Written -> StatusPill("Tag written · tapping it now logs ${t.template.name}")
+                        is TagWriteResult.Written -> IntakeChip("Tag written · tapping it now logs ${t.template.name}", tone = ChipTone.Ok)
                         TagWriteResult.ReadOnly -> ErrorState(title = "Couldn't write", body = "This tag is read-only. Use a blank, writable tag such as an NTAG213 sticker.")
                         is TagWriteResult.TooSmall -> ErrorState(title = "Couldn't write", body = "This tag holds ${r.available} bytes and this needs ${r.needed}. Try a larger NFC tag.")
                         TagWriteResult.Unsupported -> ErrorState(title = "Couldn't write", body = "This tag does not support NDEF links. Use an NTAG21x sticker.")
@@ -253,8 +291,7 @@ private fun WriteSheet(t: TemplateSummary, write: WriteState, nfc: NfcAdapter?, 
                     if (write.result !is TagWriteResult.Written) {
                         Button(
                             onClick = { viewModel.startWrite(t) },
-                            shape = IntakeShape.Button,
-                            modifier = Modifier.fillMaxWidth().height(52.dp),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                         ) { Text("Start writing again") }
                     }
                 }

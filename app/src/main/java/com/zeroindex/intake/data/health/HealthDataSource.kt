@@ -2,6 +2,8 @@ package com.zeroindex.intake.data.health
 
 import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.HealthConnectFeatures
+import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
 import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.StepsRecord
@@ -38,6 +40,14 @@ interface HealthDataSource {
     suspend fun totalSteps(from: Instant, to: Instant): Long?
     suspend fun totalCaloriesBurned(from: Instant, to: Instant): Double?
     suspend fun averageHeartRate(from: Instant, to: Instant): Double?
+    /** De-duplicated all-day active calories (above resting burn). Null when there is no data. */
+    suspend fun totalActiveCalories(from: Instant, to: Instant): Double?
+
+    /**
+     * Whether this phone's Health Connect can grant "read older history". Without it an app only sees data from the
+     * 30 days before it was first allowed, which is why weigh-ins from before connecting never arrive.
+     */
+    suspend fun historyPermissionSupported(): Boolean
 
     suspend fun insert(records: List<Record>)
     suspend fun delete(type: KClass<out Record>, clientRecordIds: List<String>)
@@ -65,12 +75,21 @@ class HealthConnectSource @Inject constructor(
 ) : HealthDataSource {
     override val ownPackage: String get() = context.packageName
 
-    override fun availability(): HealthAvailability = when (runCatching { HealthConnectClient.getSdkStatus(context) }.getOrNull()) {
-        HealthConnectClient.SDK_AVAILABLE -> HealthAvailability.AVAILABLE
-        HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED -> HealthAvailability.UPDATE_REQUIRED
-        HealthConnectClient.SDK_UNAVAILABLE -> HealthAvailability.NOT_INSTALLED
-        else -> HealthAvailability.UNSUPPORTED
+    override fun availability(): HealthAvailability {
+        val fromSdk = when (runCatching { HealthConnectClient.getSdkStatus(context) }.getOrNull()) {
+            HealthConnectClient.SDK_AVAILABLE -> HealthAvailability.AVAILABLE
+            HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED -> HealthAvailability.UPDATE_REQUIRED
+            HealthConnectClient.SDK_UNAVAILABLE -> HealthAvailability.NOT_INSTALLED
+            else -> HealthAvailability.UNSUPPORTED
+        }
+        return HealthAvailabilityRules.resolve(fromSdk, providerInstalled())
     }
+
+    @Suppress("DEPRECATION")
+    private fun providerInstalled(): Boolean = runCatching {
+        context.packageManager.getPackageInfo(HEALTH_CONNECT_PROVIDER, 0)
+        true
+    }.getOrDefault(false)
 
     private fun client(): HealthConnectClient = HealthConnectClient.getOrCreate(context)
 
@@ -92,6 +111,16 @@ class HealthConnectSource @Inject constructor(
     override suspend fun averageHeartRate(from: Instant, to: Instant): Double? =
         client().aggregate(AggregateRequest(setOf(HeartRateRecord.BPM_AVG), TimeRangeFilter.between(from, to)))[HeartRateRecord.BPM_AVG]
             ?.toDouble()
+
+    override suspend fun totalActiveCalories(from: Instant, to: Instant): Double? =
+        client().aggregate(AggregateRequest(setOf(ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL), TimeRangeFilter.between(from, to)))[
+            ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL,
+        ]?.inKilocalories
+
+    override suspend fun historyPermissionSupported(): Boolean = runCatching {
+        client().features.getFeatureStatus(HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_HISTORY) ==
+            HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
+    }.getOrDefault(false)
 
     override suspend fun insert(records: List<Record>) {
         client().insertRecords(records)

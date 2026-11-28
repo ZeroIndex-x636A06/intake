@@ -73,7 +73,7 @@ class GoalBuilderTest {
         // 80 kg x 35 ml = 2,800 ml.
         assertThat(plan.waterCard.headline).contains("2,800")
         assertThat(plan.waterCard.why).contains("35 ml per kg")
-        assertThat(plan.waterCard.why).contains("80.0 kg")
+        assertThat(plan.waterCard.why).contains("80 kg")
         listOf(plan.calorieCard, plan.macroCard, plan.waterCard).forEach {
             assertThat(it.why).isNotEmpty()
             assertThat(it.detail).isNotEmpty()

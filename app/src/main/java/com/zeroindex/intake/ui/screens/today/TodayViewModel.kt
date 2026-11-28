@@ -3,6 +3,8 @@ package com.zeroindex.intake.ui.screens.today
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroindex.intake.data.ai.insight.DailyInsights
+import com.zeroindex.intake.ui.AppMessage
+import com.zeroindex.intake.ui.AppMessages
 import com.zeroindex.intake.data.db.entity.AiInsightEntity
 import com.zeroindex.intake.data.db.entity.FoodLogEntity
 import com.zeroindex.intake.data.db.entity.HydrationLogEntity
@@ -28,6 +30,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
@@ -65,16 +68,12 @@ data class MealSlotUi(
     val protein: Double get() = entries.sumOf { it.protein }
 }
 
-internal fun MealSlot.displayName(): String = when (this) {
-    MealSlot.BREAKFAST -> "Breakfast"
-    MealSlot.LUNCH -> "Lunch"
-    MealSlot.DINNER -> "Dinner"
-    MealSlot.SNACK -> "Snacks"
-}
+internal fun MealSlot.displayName(): String = label
 
 @HiltViewModel
 class TodayViewModel @Inject constructor(
     private val foodLogRepository: FoodLogRepository,
+    private val allergens: com.zeroindex.intake.data.repository.AllergenRepository,
     private val targetRepository: TargetRepository,
     private val hydrationRepository: HydrationRepository,
     private val settingsRepository: SettingsRepository,
@@ -82,9 +81,11 @@ class TodayViewModel @Inject constructor(
     private val insights: DailyInsights,
     private val body: BodyRepository,
     private val clock: Clock,
+    private val sharedDay: com.zeroindex.intake.ui.SharedDay,
+    private val messages: AppMessages,
 ) : ViewModel() {
 
-    private val selectedDate = MutableStateFlow(clock.today())
+    private val selectedDate = sharedDay.date
 
     init {
         viewModelScope.launch { hydrationRepository.ensureDefaultPresets() }
@@ -114,9 +115,11 @@ class TodayViewModel @Inject constructor(
                     isToday = date == today,
                     isFuture = date.isAfter(today),
                     progress = DayProgress(consumed = totals, target = target),
-                    slots = MealSlot.entries.map { slot ->
+                    // The four meals always show; "Drinks" (no meal) shows only once something was logged there.
+                    slots = MealSlot.MEALS.map { slot ->
                         MealSlotUi(slot = slot, entries = logs.filter { it.mealSlot == slot })
-                    },
+                    } + MealSlotUi(slot = MealSlot.DRINKS, entries = logs.filter { it.mealSlot == MealSlot.DRINKS })
+                        .takeIf { it.entries.isNotEmpty() }.let { listOfNotNull(it) },
                     hasTarget = target != null,
                     hydration = hydration,
                     hydrationPresets = presetsAndSettings.presets,
@@ -124,7 +127,7 @@ class TodayViewModel @Inject constructor(
                     activityBonusKcal = presetsAndSettings.bonus,
                     insight = presetsAndSettings.insight?.takeIf { date == today && it.dismissedAt == null },
                     latestWeightKg = presetsAndSettings.metrics.firstOrNull()?.weightKg,
-                    weightWeekDeltaKg = weekDelta(presetsAndSettings.metrics, clock.nowMillis()),
+                    weightWeekDeltaKg = weeklyRate(presetsAndSettings.metrics),
                     loaded = true,
                 )
             }
@@ -143,11 +146,13 @@ class TodayViewModel @Inject constructor(
         val metrics: List<com.zeroindex.intake.data.db.entity.BodyMetricEntity>,
     )
 
-    /** Newest weigh-in minus the newest one at least six days older; null without both. [metrics] is newest first. */
-    private fun weekDelta(metrics: List<com.zeroindex.intake.data.db.entity.BodyMetricEntity>, now: Long): Double? {
-        val latest = metrics.firstOrNull() ?: return null
-        val older = metrics.firstOrNull { latest.measuredAt - it.measuredAt >= 6 * 86_400_000L } ?: return null
-        return latest.weightKg - older.weightKg
+    /** Kilograms per week over the last four weeks: the same number the Insights screen shows (Q11-4, [WeightRate]). */
+    private fun weeklyRate(metrics: List<com.zeroindex.intake.data.db.entity.BodyMetricEntity>): Double? {
+        val zone = clock.zone()
+        val points = metrics.map {
+            com.zeroindex.intake.domain.tdee.WeightPoint(com.zeroindex.intake.domain.time.localDateOf(it.measuredAt, zone).toEpochDay(), it.weightKg)
+        }
+        return com.zeroindex.intake.domain.tdee.WeightRate.weeklyKg(points, clock.today().toEpochDay())
     }
 
     /** Water card "+": one more of the same drink and size. */
@@ -169,16 +174,58 @@ class TodayViewModel @Inject constructor(
     fun dismissInsight(insight: AiInsightEntity) = viewModelScope.launch { insights.dismiss(insight.id) }
 
     fun showPreviousDay() { selectedDate.value = selectedDate.value.minusDays(1) }
-    fun showNextDay() { selectedDate.value = selectedDate.value.plusDays(1) }
+    /** Stops at today: a future day has nothing logged yet and would read as "today" (QA Q1-10). */
+    fun showNextDay() {
+        val next = selectedDate.value.plusDays(1)
+        if (!next.isAfter(clock.today())) selectedDate.value = next
+    }
     fun showToday() { selectedDate.value = clock.today() }
+    /** The week strip and the month calendar: any day up to today (a later one is ignored by clamping to today). */
+    fun showDay(date: LocalDate) { selectedDate.value = com.zeroindex.intake.domain.time.WeekStrip.clampToToday(clock.today(), date) }
+    fun today(): LocalDate = clock.today()
 
+    /** Soft delete with an Undo that brings the entry back (and its drink row, if it has one). */
     fun deleteLog(log: FoodLogEntity) = viewModelScope.launch {
         foodLogRepository.softDelete(log.id)
+        messages.post(AppMessage("Removed ${log.foodNameAtLog}", "Undo") { foodLogRepository.restore(listOf(log)) })
     }
 
+    private val _pendingCopy = MutableStateFlow<com.zeroindex.intake.ui.allergen.PendingEntryAllergen?>(null)
+    val pendingCopy: StateFlow<com.zeroindex.intake.ui.allergen.PendingEntryAllergen?> = _pendingCopy.asStateFlow()
+
+    /**
+     * Copies an entry to another meal. The name is scanned as the profile is now (an entry that already says "Logged
+     * despite" was chosen before and keeps that note), and a match waits behind the warning sheet.
+     */
     fun copyLogToSlot(log: FoodLogEntity, slot: MealSlot) = viewModelScope.launch {
-        foodLogRepository.copyToSlot(log, slot)
+        val scan = if (com.zeroindex.intake.domain.allergen.AllergenOverride.alreadyNoted(log.foodNameAtLog)) {
+            com.zeroindex.intake.domain.allergen.AllergenScanResult.CLEAN
+        } else {
+            allergens.scan(name = log.foodNameAtLog)
+        }
+        if (com.zeroindex.intake.domain.allergen.AllergenLogGate.decide(scan) is com.zeroindex.intake.domain.allergen.AllergenLogGate.Decision.Review) {
+            _pendingCopy.value = com.zeroindex.intake.ui.allergen.PendingEntryAllergen(
+                com.zeroindex.intake.ui.allergen.PendingEntryAllergen.Action.Copy(log, slot), log.foodNameAtLog, scan,
+            )
+        } else {
+            foodLogRepository.copyToSlot(log, slot)
+        }
     }
+
+    /** "Log it anyway" on the warning sheet. */
+    fun confirmPendingCopy() {
+        val p = _pendingCopy.value ?: return
+        _pendingCopy.value = null
+        val a = p.action as? com.zeroindex.intake.ui.allergen.PendingEntryAllergen.Action.Copy ?: return
+        viewModelScope.launch {
+            foodLogRepository.markOverridden(
+                foodLogRepository.copyToSlot(a.entry, a.slot),
+                com.zeroindex.intake.domain.allergen.AllergenLogGate.overrideNote(p.scan),
+            )
+        }
+    }
+
+    fun dismissPendingCopy() { _pendingCopy.value = null }
 
     fun moveLogToSlot(log: FoodLogEntity, slot: MealSlot) = viewModelScope.launch {
         foodLogRepository.moveToSlot(log, slot)
@@ -206,7 +253,12 @@ class TodayViewModel @Inject constructor(
             onLogged(hydrationRepository.log(volumeMl, timestampForSelectedDay(), presetId, drink))
         }
 
-    fun deleteWater(log: HydrationLogEntity) = viewModelScope.launch { hydrationRepository.delete(log.id) }
+    fun deleteWater(log: HydrationLogEntity) = viewModelScope.launch {
+        hydrationRepository.delete(log.id)
+        // Says how much, in the person's unit: "Removed 8 fl oz water".
+        val amount = uiState.value.settings.volumeUnit.format(log.volumeMl)
+        messages.post(AppMessage("Removed $amount ${log.drinkType.label.lowercase()}", "Undo") { hydrationRepository.restore(log) })
+    }
     fun restoreWater(log: HydrationLogEntity) = viewModelScope.launch { hydrationRepository.restore(log) }
 
     fun saveWaterPreset(name: String, volumeMl: Double, existing: HydrationPresetEntity?, drink: DrinkType? = null) =

@@ -1,20 +1,18 @@
 package com.zeroindex.intake.ui.screens.train
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -32,9 +30,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.zeroindex.intake.data.db.projection.WorkoutSummary
 import com.zeroindex.intake.data.repository.TrainingRepository
-import com.zeroindex.intake.ui.components.Eyebrow
-import com.zeroindex.intake.ui.components.IntakeCard
+import com.zeroindex.intake.ui.components.ListCard
+import com.zeroindex.intake.ui.components.ListDivider
+import com.zeroindex.intake.ui.components.SectionLine
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
@@ -68,6 +70,7 @@ class MyWorkoutsViewModel @Inject constructor(
 fun MyWorkoutsSection(
     onOpenSession: (String) -> Unit,
     onEditWorkout: (programId: String) -> Unit,
+    onOpenVideo: (videoId: String) -> Unit = {},
     viewModel: MyWorkoutsViewModel = hiltViewModel(),
 ) {
     val workouts by viewModel.workouts.collectAsStateWithLifecycle()
@@ -75,53 +78,55 @@ fun MyWorkoutsSection(
     var renaming by remember { mutableStateOf<WorkoutSummary?>(null) }
     var deleting by remember { mutableStateOf<WorkoutSummary?>(null) }
 
-    IntakeCard {
-        Eyebrow("My workouts")
-        Text(
-            text = if (workouts.isEmpty()) {
-                "Save a routine you repeat, like \"Arm day\" or \"Hotel gym\", and start it any time. It does not need a program."
-            } else {
-                "Start any of these any time. They sit outside your program."
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            workouts.forEach { w ->
-                var menu by remember { mutableStateOf(false) }
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.weight(1f)) {
-                        Text(w.name, style = MaterialTheme.typography.titleSmall)
-                        Text(
-                            "${w.exerciseCount} ${if (w.exerciseCount == 1) "exercise" else "exercises"}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    OutlinedButton(
-                        onClick = { w.dayId?.let { viewModel.start(it, onOpenSession) } },
-                        enabled = w.dayId != null && w.exerciseCount > 0,
-                        shape = IntakeShape.Chip,
-                        modifier = Modifier.heightIn(min = 48.dp),
-                    ) { Text("Start") }
-                    IconButton(onClick = { menu = true }) {
-                        Icon(Icons.Filled.MoreVert, contentDescription = "More for ${w.name}")
-                        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                            DropdownMenuItem(text = { Text("Edit exercises") }, onClick = { menu = false; onEditWorkout(w.programId) })
-                            DropdownMenuItem(text = { Text("Rename") }, onClick = { menu = false; renaming = w })
-                            DropdownMenuItem(text = { Text("Duplicate") }, onClick = { menu = false; viewModel.duplicate(w.programId) })
-                            DropdownMenuItem(text = { Text("Delete") }, onClick = { menu = false; deleting = w })
+    Column {
+    SectionLine("My workouts", note = if (workouts.isEmpty()) null else "Saved routines")
+    ListCard {
+        if (workouts.isEmpty()) {
+            Text(
+                text = "Save a routine you repeat, like \"Arm day\" or \"Hotel gym\", and start it any time. It does not need a program.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = IntakeSpacing.ListRowPadH, vertical = IntakeSpacing.ListRowPadV),
+            )
+            ListDivider()
+        }
+        workouts.forEach { w ->
+            var menu by remember { mutableStateOf(false) }
+            TrainRow(
+                title = w.name,
+                subtitle = "${w.exerciseCount} ${if (w.exerciseCount == 1) "exercise" else "exercises"}",
+                trailing = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Button(
+                            onClick = { w.dayId?.let { viewModel.start(it, onOpenSession) } },
+                            enabled = w.dayId != null && w.exerciseCount > 0,
+                            shape = IntakeShape.Button,
+                            modifier = Modifier.heightIn(min = IntakeSpacing.TouchTarget),
+                        ) { Text("Start") }
+                        Box {
+                            IconButton(onClick = { menu = true }) {
+                                Icon(IntakeIcons.More, contentDescription = "More for ${w.name}", modifier = Modifier.size(IconSize.Default))
+                            }
+                            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                                DropdownMenuItem(text = { Text("Edit exercises") }, onClick = { menu = false; onEditWorkout(w.programId) })
+                                w.videoId?.let { v -> DropdownMenuItem(text = { Text("Watch the video") }, onClick = { menu = false; onOpenVideo(v) }) }
+                                DropdownMenuItem(text = { Text("Rename") }, onClick = { menu = false; renaming = w })
+                                DropdownMenuItem(text = { Text("Duplicate") }, onClick = { menu = false; viewModel.duplicate(w.programId) })
+                                DropdownMenuItem(text = { Text("Delete") }, onClick = { menu = false; deleting = w })
+                            }
                         }
                     }
-                }
-            }
+                },
+            )
+            ListDivider()
         }
-        OutlinedButton(
+        TrainRow(
+            title = "New workout",
+            icon = IntakeIcons.Plus,
             onClick = { naming = true },
-            shape = IntakeShape.Button,
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp).heightIn(min = 48.dp),
-        ) { Text("New workout") }
+            trailing = { RowChevronIcon() },
+        )
+    }
     }
 
     if (naming) {

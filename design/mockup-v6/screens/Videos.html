@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Train · Videos</title>
+<link rel="stylesheet" href="intake.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.vt{position:relative;border-radius:18px;background:#1D2321;color:#fff;display:flex;align-items:center;justify-content:center}
+.dur{position:absolute;right:8px;bottom:8px;background:rgba(0,0,0,.7);color:#fff;font-size:11.5px;font-weight:600;padding:2px 6px;border-radius:6px}
+</style>
+</helmet>
+<div class="phone " style="--accent: #D4F25A; width: 390px; height: 1240px">
+  <header class="top">
+    <h1 class="title">Train</h1>
+    <div class="rowx" style="gap: 8px">
+      <button class="iconbtn" aria-label="Video options: how Videos works, clear cached video information"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg></button>
+      <a class="avatar" href="You.html" aria-label="Open You">Y</a>
+    </div>
+  </header>
+  <div class="pad stack" style="gap: 12px">
+    <nav class="seg" aria-label="Train sections"><a href="Train.html">Workout</a><a href="Exercises.html">Exercises</a><a class="on" href="Videos.html" aria-current="page">Videos</a></nav>
+    <label class="search"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input placeholder="Search workout videos or paste a link" aria-label="Search workout videos or paste a YouTube link"></label>
+    <div class="wrap"><span class="chip inkb">Workouts only</span><span class="chip inkb">Hide Shorts</span><span class="chip">Muscle</span><span class="chip">Style</span><span class="chip">Duration</span></div>
+
+    <div class="sec"><h2 class="h2">Saved · 4</h2><button class="btn ghost sm" style="padding: 0">See all</button></div>
+    <div class="grid3">
+      <div class="vt" style="height: 80px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg><span class="dur">20:14</span></div>
+      <div class="vt" style="height: 80px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg><span class="dur">12:02</span></div>
+      <div class="vt" style="height: 80px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg><span class="dur">35:40</span></div>
+    </div>
+
+    <div class="sec"><h2 class="h2">Recommended for you</h2><span class="sub">From this phone's data</span></div>
+    <article class="card stack" style="gap: 10px; padding: 10px 10px 14px">
+      <div class="vt" style="height: 180px"><svg class="i l" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg><span class="dur">24:10</span></div>
+      <div class="pad stack" style="padding: 0 6px; gap: 6px">
+        <div class="between"><p class="h3">Leg day you can do at home</p><span class="chip ok">Workout</span></div>
+        <p class="sub">8 chapters · picked because Legs is under target this week</p>
+        <div class="rowx" style="gap: 6px"><button class="btn sm primary">Make this a workout</button><button class="btn sm">Save</button><button class="btn sm ghost">More like this</button></div>
+      </div>
+    </article>
+    <section class="list">
+      <div class="li"><div class="vt" style="width: 96px; height: 60px; flex: none"><span class="dur">11:45</span></div><div class="grow"><p class="h3">Shoulder mobility flow</p><p class="sub">No chapters</p></div><span class="chip warn">Maybe</span></div>
+      <div class="li"><div class="vt" style="width: 96px; height: 60px; flex: none"><span class="dur">8:30</span></div><div class="grow"><p class="h3">What I eat in a day</p><p class="sub">Hidden by Workouts only</p></div><span class="chip">Not a workout</span></div>
+    </section>
+  </div>
+
+  <nav class="dock" aria-label="Main">
+    <a class="tab" href="Today.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Today</a>
+    <a class="tab" href="FoodDiary.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v20M4 2v6a3 3 0 0 0 6 0V2M17 22V2c-2 0-3.5 3-3.5 7s1.5 4 3.5 4"/></svg>Food</a>
+    <a class="fab" href="QuickLog.html" aria-label="Log something"><svg class="i l" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></a>
+    <a class="tab on" href="Train.html" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7v10M3 9.5v5M18 7v10M21 9.5v5M6 12h12"/></svg>Train</a>
+    <a class="tab" href="Insights.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M6 16l4-5 4 3 5-7"/></svg>Insights</a>
+  </nav>
+</div>
+</x-dc>
+</body>
+</html>

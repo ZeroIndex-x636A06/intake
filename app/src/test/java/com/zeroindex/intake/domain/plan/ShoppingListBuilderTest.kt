@@ -53,6 +53,37 @@ class ShoppingListBuilderTest {
         assertThat(l.quantity).isEmpty()
     }
 
+    @Test fun `dairy and eggs have their own aisle and look-alikes do not land in it`() {
+        for (k in listOf("milk", "whole milk", "cheddar cheese", "butter", "greek yogurt", "heavy cream", "sour cream", "cream cheese", "eggs", "egg", "almond milk", "oat milk", "buttermilk", "mozzarella", "parmesan"))
+            assertThat(ShoppingListBuilder.categoryOf(k)).isEqualTo(StoreCategory.DAIRY)
+        assertThat(ShoppingListBuilder.categoryOf("half and half")).isEqualTo(StoreCategory.DAIRY)
+        assertThat(ShoppingListBuilder.categoryOf("peanut butter")).isEqualTo(StoreCategory.PANTRY)
+        assertThat(ShoppingListBuilder.categoryOf("coconut milk")).isEqualTo(StoreCategory.PANTRY)
+        assertThat(ShoppingListBuilder.categoryOf("milk powder")).isEqualTo(StoreCategory.PANTRY)
+        assertThat(ShoppingListBuilder.categoryOf("milk chocolate")).isEqualTo(StoreCategory.PANTRY)
+        assertThat(ShoppingListBuilder.categoryOf("egg noodles")).isEqualTo(StoreCategory.PANTRY)
+        assertThat(ShoppingListBuilder.categoryOf("ice cream")).isEqualTo(StoreCategory.FROZEN)
+        assertThat(ShoppingListBuilder.categoryOf("cream of mushroom soup")).isEqualTo(StoreCategory.PANTRY)
+        assertThat(ShoppingListBuilder.categoryOf("eggplant")).isNotEqualTo(StoreCategory.DAIRY)
+        assertThat(ShoppingListBuilder.sectionTitle(StoreCategory.DAIRY)).isEqualTo("Dairy & eggs")
+    }
+
+    @Test fun `rice and every pasta shape are grains in one section, and broth is pantry whatever animal`() {
+        for (k in listOf("rice", "white rice", "brown rice", "spaghetti", "penne", "pasta", "macaroni", "linguine", "quinoa", "black bean", "lentil"))
+            assertThat(ShoppingListBuilder.categoryOf(k)).isEqualTo(StoreCategory.PANTRY)
+        for (k in listOf("rice", "spaghetti", "pasta", "penne")) assertThat(ShoppingListBuilder.isPantryStaple(k)).isFalse()
+        assertThat(ShoppingListBuilder.categoryOf("chicken broth")).isEqualTo(StoreCategory.PANTRY)
+        assertThat(ShoppingListBuilder.categoryOf("beef stock")).isEqualTo(StoreCategory.PANTRY)
+        assertThat(ShoppingListBuilder.categoryOf("chicken breast")).isEqualTo(StoreCategory.MEAT)
+    }
+
+    @Test fun `the dairy section sits between meat and pantry`() {
+        val g = ShoppingListBuilder.group(
+            listOf(item("Rice", StoreCategory.PANTRY), item("Milk", StoreCategory.DAIRY), item("Beef", StoreCategory.MEAT), item("Apples", StoreCategory.PRODUCE)),
+        )
+        assertThat(g.sections.map { it.first }).containsExactly(StoreCategory.PRODUCE, StoreCategory.MEAT, StoreCategory.DAIRY, StoreCategory.PANTRY).inOrder()
+    }
+
     @Test fun `categories and staples`() {
         assertThat(ShoppingListBuilder.categoryOf("chicken thigh, boneless")).isEqualTo(StoreCategory.MEAT)
         assertThat(ShoppingListBuilder.categoryOf("cucumber")).isEqualTo(StoreCategory.PRODUCE)

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Swap · nearby options</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c2d55ca210a28925c2ccf0c9b8a5b709">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="phone {{themeCls}}" style="--accent: {{accent}}; width: 390px; height: 844px">
+  <header class="top"><h1 class="title">Today</h1><span class="avatar" aria-hidden="true">Y</span></header>
+  <div class="scrim"></div>
+  <section class="sheet" role="dialog" aria-label="Swap the planned meal" style="top: 56px; display: flex; flex-direction: column; gap: 12px">
+    <div class="grab" style="margin-bottom: 4px"></div>
+    <div class="between"><h2 class="h2" style="font-size: 22px">Swap lunch</h2><a class="iconbtn soft" href="Today.dc.html" aria-label="Close"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></a></div>
+    <div class="card soft rowx" style="padding: 12px 14px"><span class="chip lime">Planned</span><div class="grow"><p class="h3">Chicken burrito bowl</p><p class="sub">640 kcal · 48 g protein</p></div></div>
+    <div class="seg"><button>Plan and recipes</button><button>Saved</button><button class="on">Nearby</button></div>
+    <div class="rowx" style="gap: 8px">
+      <button class="btn sm primary grow"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6 7-12a7 7 0 0 0-14 0c0 6 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>Search near me</button>
+      <button class="btn sm">Use a zip code</button>
+      <span class="chip">2 mi</span>
+    </div>
+    <p class="sub">Searching on this phone with OpenStreetMap. 3 places found.</p>
+    <div class="list" style="background: var(--soft)">
+      <div class="li" style="flex-direction: column; align-items: stretch; gap: 8px">
+        <div class="between"><div><p class="h3">Burrito bowl, double chicken</p><p class="sub">Fresh-Mex place · 0.4 mi · 720 kcal</p></div><span class="chip ok">Fits</span></div>
+        <div class="rowx" style="gap: 6px"><button class="btn sm primary">Choose</button><button class="btn sm" style="background: var(--card)">Save for offline</button></div>
+      </div>
+      <div class="li" style="flex-direction: column; align-items: stretch; gap: 8px">
+        <div class="between"><div><p class="h3">Chicken shawarma plate</p><p class="sub">0.9 mi · nutrition unknown</p></div><span class="chip warn">May contain</span></div>
+        <div class="rowx" style="gap: 6px"><button class="btn sm" style="background: var(--card)">Choose anyway</button><button class="btn sm" style="background: var(--card)">Estimate</button></div>
+      </div>
+    </div>
+    <div class="rowx" style="gap: 8px">
+      <button class="btn sm line grow">Look up the rest with AI <span class="chip ai" style="min-height: 20px; padding: 0 6px; font-size: 11px">AI</span></button>
+      <button class="btn sm ghost">Stop searching</button>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["Light","Dark"],"default":"Light"},"accent":{"editor":"color","default":"#D4F25A","options":["#D4F25A","#7CE0C3","#FFB86B","#B9A8FF"]},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themeCls: this.props.theme === 'Dark' ? 'dark' : '', accent: this.props.accent ?? '#D4F25A' };
+  }
+}
+</script>
+</body>
+</html>

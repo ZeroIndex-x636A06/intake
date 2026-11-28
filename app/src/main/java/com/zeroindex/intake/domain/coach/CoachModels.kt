@@ -44,6 +44,12 @@ data class CoachConfig(
     // --- Protein and water ---
     val proteinShare: Double = 0.85,
     val proteinMinLoggedDays: Int = 3,
+    /** A logged day "hits" protein at this share of the target (the same share as [proteinShare]). */
+    val proteinHitFraction: Double = 0.85,
+    /** Fewer than this share of logged days hitting protein is a low hit rate. */
+    val proteinMinHitRate: Double = 0.5,
+    /** Logged days averaging under this share of the calorie target are probably under-logged, not real eating. */
+    val intakeFarBelowShare: Double = 0.7,
     val waterShare: Double = 0.8,
     val waterMinDaysWithLogs: Int = 3,
 
@@ -273,6 +279,19 @@ data class WeekSummary(
 data class CheckIn(
     val summary: WeekSummary,
     val suggestions: List<Suggestion>,
-    /** "All on track" when there is nothing to suggest. */
+    /** What the week says. "All on track" only when [verdict] is [CheckInVerdict.ON_TRACK]. */
     val headline: String,
+    val verdict: CheckInVerdict = CheckInVerdict.ON_TRACK,
 )
+
+/** The honest reading of a week. ON_TRACK is claimed only when the data supports it and nothing contradicts it. */
+enum class CheckInVerdict {
+    /** Enough full days logged, protein and intake fine, no suggestions. */
+    ON_TRACK,
+    /** There are suggestions to review. */
+    SUGGESTIONS,
+    /** Too few full days were logged to judge anything. */
+    NOT_ENOUGH_DATA,
+    /** Nothing new to show (already decided), but the week is not clean: protein or intake is off. */
+    NEEDS_ATTENTION,
+}

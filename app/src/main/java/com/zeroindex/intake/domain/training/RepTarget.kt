@@ -30,6 +30,6 @@ object NewBest {
     fun isNewBest(weightKg: Double, reps: Int, priorSets: List<SetResult>): Boolean {
         if (weightKg <= 0.0 || reps < 1) return false
         val prior = OneRepMax.best(priorSets) ?: return false
-        return OneRepMax.epley(weightKg, reps) > prior + 0.05
+        return OneRepMax.estimate(weightKg, reps) > prior + 0.05
     }
 }

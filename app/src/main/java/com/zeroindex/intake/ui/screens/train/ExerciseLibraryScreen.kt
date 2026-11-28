@@ -2,7 +2,7 @@
 
 package com.zeroindex.intake.ui.screens.train
 
-import androidx.compose.foundation.BorderStroke
+import com.zeroindex.intake.ui.components.rememberSyncedText
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -18,21 +18,17 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Info
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -60,16 +56,29 @@ import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.ui.components.Glossary
 import com.zeroindex.intake.ui.components.InfoTip
 import com.zeroindex.intake.ui.components.SubHead
-import com.zeroindex.intake.ui.components.Tag
+import com.zeroindex.intake.ui.components.ChipTone
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.components.IntakeSwitch
+import com.zeroindex.intake.ui.components.LineButton
+import com.zeroindex.intake.ui.components.ListDivider
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CornerSize
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
-/** Browse, search and filter the exercise library; add, edit and hide your own; see history. */
+/**
+ * Train > Exercises: search, "My equipment" and muscle filters, thumbnails, the detail sheet, and "Add your own exercise".
+ * Hiding an exercise is a soft delete and can be undone from the Hidden switch.
+ */
 @Composable
-fun ExerciseLibraryScreen(
+fun ExercisesSection(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
     viewModel: ExerciseLibraryViewModel = hiltViewModel(),
@@ -77,53 +86,82 @@ fun ExerciseLibraryScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     var detail by remember { mutableStateOf<ExerciseEntity?>(null) }
     var form by remember { mutableStateOf<FormTarget?>(null) }
+    // The library opens on what you can do with your own equipment; one tap on the chip shows everything.
+    LaunchedEffect(Unit) { viewModel.setMyEquipment(true) }
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(
-            top = contentPadding.calculateTopPadding(),
-            bottom = contentPadding.calculateBottomPadding() + 24.dp,
-            start = 16.dp,
-            end = 16.dp,
-        ),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = contentPadding,
+        verticalArrangement = Arrangement.spacedBy(IntakeSpacing.GridGap3),
     ) {
-        item(key = "heading") {
-            SubHead("Exercises", "${state.total} to choose from. Add your own, or hide ones you never use.")
+        item(key = "search") {
+            val search = rememberSyncedText(state.query, viewModel::setQuery)
+            OutlinedTextField(
+                state = search.box,
+                placeholder = { Text("Search ${state.total} exercises") },
+                leadingIcon = { Icon(IntakeIcons.Search, contentDescription = null, modifier = Modifier.size(IconSize.Default)) },
+                trailingIcon = {
+                    if (search.box.text.isNotEmpty()) {
+                        IconButton(onClick = { search.edit("") }) { Icon(IntakeIcons.Close, contentDescription = "Clear the search", modifier = Modifier.size(IconSize.Default)) }
+                    }
+                },
+                lineLimits = TextFieldLineLimits.SingleLine,
+                shape = IntakeShape.Pill,
+                colors = searchFieldColors(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        item(key = "filters") {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ChoiceChip("My equipment", selected = state.myEquipment, onClick = { viewModel.setMyEquipment(!state.myEquipment) })
+                    ChoiceChip("All muscles", selected = state.muscle == null, onClick = { viewModel.setMuscle(null) })
+                    Muscles.ALL.forEach { m ->
+                        ChoiceChip(Muscles.label(m), selected = state.muscle == m, onClick = { viewModel.setMuscle(if (state.muscle == m) null else m) })
+                    }
+                }
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ChoiceChip("Any equipment", selected = state.equipment == null, onClick = { viewModel.setEquipment(null) })
+                    (Equipment.ALL + state.equipmentOptions).distinct().forEach { e ->
+                        ChoiceChip(Equipment.label(e), selected = state.equipment == e, onClick = { viewModel.setEquipment(if (state.equipment == e) null else e) })
+                    }
+                }
+            }
+        }
+        item(key = "count-hidden") {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "${state.shown.size} ${if (state.showHidden) "hidden " else ""}${if (state.shown.size == 1) "exercise" else "exercises"}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                Text("Show hidden", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                IntakeSwitch(checked = state.showHidden, onCheckedChange = viewModel::setShowHidden, modifier = Modifier.padding(start = 8.dp))
+            }
         }
         item(key = "add") {
-            Button(
-                onClick = { form = FormTarget.New },
-                shape = IntakeShape.Button,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-            ) { Text("Add your own exercise") }
+            LineButton(onClick = { form = FormTarget.New }, modifier = Modifier.fillMaxWidth()) {
+                Icon(IntakeIcons.Plus, contentDescription = null, modifier = Modifier.size(IconSize.Small))
+                Spacer(Modifier.width(8.dp))
+                Text("Add your own exercise", style = MaterialTheme.typography.labelLarge)
+            }
         }
-        item(key = "filters") { ExerciseFilterBar(state, viewModel) }
         if (state.shown.isEmpty()) {
             item(key = "empty") {
                 Text(
-                    text = if (state.showHidden) "Nothing is hidden." else "No exercise matches. Clear a filter, or add it as your own.",
+                    text = when {
+                        state.showHidden -> "Nothing is hidden."
+                        state.myEquipment -> "No exercise matches with your equipment. Tap \"My equipment\" to see them all, or add it as your own."
+                        else -> "No exercise matches. Clear a filter, or add it as your own."
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 16.dp),
                 )
             }
         } else {
-            item(key = "list") {
-                Surface(
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = IntakeShape.Card,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column {
-                        state.shown.forEachIndexed { i, exercise ->
-                            ExerciseRow(exercise, onClick = { detail = exercise })
-                            if (i != state.shown.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        }
-                    }
-                }
-            }
+            exerciseRows(state.shown) { exercise -> ExerciseRow(exercise, onClick = { detail = exercise }) }
         }
         item(key = "credit") {
             Text(
@@ -169,11 +207,11 @@ private sealed interface FormTarget {
 @Composable
 fun ExerciseFilterBar(state: ExerciseBrowseState, viewModel: ExerciseLibraryViewModel, showHiddenSwitch: Boolean = true) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        val search = rememberSyncedText(state.query, viewModel::setQuery)
         OutlinedTextField(
-            value = state.query,
-            onValueChange = viewModel::setQuery,
+            state = search.box,
             label = { Text("Search exercises") },
-            singleLine = true,
+            lineLimits = TextFieldLineLimits.SingleLine,
             modifier = Modifier.fillMaxWidth(),
         )
         Eyebrow("Muscle")
@@ -193,7 +231,32 @@ fun ExerciseFilterBar(state: ExerciseBrowseState, viewModel: ExerciseLibraryView
         if (showHiddenSwitch) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Text("Show hidden exercises", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                Switch(checked = state.showHidden, onCheckedChange = viewModel::setShowHidden)
+                IntakeSwitch(checked = state.showHidden, onCheckedChange = viewModel::setShowHidden)
+            }
+        }
+    }
+}
+
+/**
+ * The exercise list as lazy rows that together look like one outlined card. The catalog has a few hundred lifts, each
+ * with a thumbnail, so they must not all be composed at once inside a single list item.
+ */
+fun androidx.compose.foundation.lazy.LazyListScope.exerciseRows(
+    exercises: List<ExerciseEntity>,
+    row: @Composable (ExerciseEntity) -> Unit,
+) {
+    items(count = exercises.size, key = { "exercise-${exercises[it].id}" }) { i ->
+        val square = CornerSize(0.dp)
+        val shape = IntakeShape.Card.copy(
+            topStart = if (i == 0) IntakeShape.Card.topStart else square,
+            topEnd = if (i == 0) IntakeShape.Card.topEnd else square,
+            bottomStart = if (i == exercises.lastIndex) IntakeShape.Card.bottomStart else square,
+            bottomEnd = if (i == exercises.lastIndex) IntakeShape.Card.bottomEnd else square,
+        )
+        Surface(color = MaterialTheme.colorScheme.surface, shape = shape, modifier = Modifier.fillMaxWidth()) {
+            Column {
+                if (i > 0) ListDivider()
+                row(exercises[i])
             }
         }
     }
@@ -206,28 +269,27 @@ fun ExerciseRow(exercise: ExerciseEntity, onClick: () -> Unit, trailing: String?
             .fillMaxWidth()
             .heightIn(min = 60.dp)
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            .padding(horizontal = IntakeSpacing.ListRowPadH, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         ExerciseThumb(exercise.id, exercise.photoPath)
         Column(Modifier.weight(1f)) {
-            Text(exercise.name, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+            Text(exercise.name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
             Text(
                 text = buildString {
                     append(Muscles.label(exercise.primaryMuscle))
-                    if (exercise.equipment.isNotBlank()) append(" · ").append(Equipment.label(exercise.equipment))
-                    if (exercise.isBodyweight) append(" · bodyweight")
+                    Equipment.describe(exercise.equipment, exercise.isBodyweight).takeIf { it.isNotEmpty() }?.let { append(" · ").append(it) }
                 },
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        if (ExerciseFilter.isCustom(exercise)) Tag("Custom")
+        if (ExerciseFilter.isCustom(exercise)) IntakeChip("Custom", tone = ChipTone.Lime)
         if (trailing != null) Text(trailing, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (onInfo != null) {
             IconButton(onClick = onInfo, modifier = Modifier.size(48.dp)) {
-                Icon(Icons.Outlined.Info, contentDescription = "About ${exercise.name}: photos, muscles and how to")
+                Icon(IntakeIcons.Info, contentDescription = "About ${exercise.name}: photos, muscles and how to", modifier = Modifier.size(IconSize.Default))
             }
         }
     }

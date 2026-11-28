@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.components
 
+import com.zeroindex.intake.domain.units.KcalFormat
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -174,11 +175,11 @@ fun MacroRing(
                     Text(
                         text = if (remaining >= 0) "kcal left" else "kcal over",
                         style = MaterialTheme.typography.labelLarge,
-                        color = if (remaining >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
+                        color = if (remaining >= 0) MaterialTheme.colorScheme.onSurface else CarbAccent,
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = "%,d of %,d kcal eaten".format(progress.consumed.kcal.roundToInt(), target.kcal),
+                        text = "${KcalFormat.format(progress.consumed.kcal)} of ${KcalFormat.format(target.kcal)} kcal eaten",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -210,7 +211,7 @@ fun MacroRing(
             MacroBarRow("Fat", progress.consumed.fat, target?.fatG, progress.fatFraction, fatColor, track)
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth()) {
-                Text("Fibre", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                Text("Fiber", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
                 Text(
                     "${progress.consumed.fiber.roundToInt()} g",
                     style = MaterialTheme.typography.labelLarge,
@@ -267,8 +268,8 @@ private fun MacroBarRow(label: String, consumed: Double, targetG: Int?, fraction
 private fun describe(progress: DayProgress): String {
     val target = progress.target
     return buildString {
-        append("${progress.consumed.kcal.roundToInt()} calories")
-        if (target != null) append(" of ${target.kcal}")
+        append("${KcalFormat.format(progress.consumed.kcal)} calories")
+        if (target != null) append(" of ${KcalFormat.format(target.kcal)}")
         append(". Protein ${progress.consumed.protein.roundToInt()} grams")
         if (target != null) append(" of ${target.proteinG}")
         progress.proteinRemaining?.let { if (it > 0) append(", $it grams left") }

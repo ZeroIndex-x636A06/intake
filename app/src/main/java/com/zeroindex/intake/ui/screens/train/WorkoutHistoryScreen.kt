@@ -1,197 +1,202 @@
 package com.zeroindex.intake.ui.screens.train
 
-import androidx.compose.foundation.BorderStroke
+import com.zeroindex.intake.domain.time.DateText
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import com.zeroindex.intake.ui.motion.flashOn
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.Spacer
+import com.zeroindex.intake.domain.training.history.TrainingCalendar
+import java.time.LocalDate
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.zeroindex.intake.domain.training.OneRepMax
-import com.zeroindex.intake.ui.components.ChartPoint
-import com.zeroindex.intake.ui.components.ScreenHeading
-import com.zeroindex.intake.ui.theme.IntakeShape
-import com.zeroindex.intake.ui.components.TrendLineChart
+import com.zeroindex.intake.domain.training.TrainText
+import com.zeroindex.intake.domain.training.log.SessionLogRow
+import com.zeroindex.intake.domain.units.WeightUnit
+import com.zeroindex.intake.ui.components.EmptyState
+import com.zeroindex.intake.ui.components.ChipTone
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.components.LineButton
+import com.zeroindex.intake.ui.components.ListCard
+import com.zeroindex.intake.ui.components.ListDivider
+import com.zeroindex.intake.ui.components.SectionLine
+import com.zeroindex.intake.ui.components.Eyebrow
+import com.zeroindex.intake.ui.theme.IntakeIcons
+import com.zeroindex.intake.ui.theme.IntakeSpacing
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import kotlin.math.roundToInt
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * The Training log: every session, newest first, grouped by week. A row is the date, the program or day, the length, sets,
+ * volume and records; tapping it opens the session (every set, notes, Repeat this workout). Per-exercise stats are on the
+ * exercise's own page, under Train > Exercises.
+ */
 @Composable
 fun WorkoutHistoryScreen(
     contentPadding: PaddingValues,
+    onOpenSession: (sessionId: String) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: WorkoutHistoryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    var expanded by remember { mutableStateOf(false) }
+    val dayChoices by viewModel.dayChoices.collectAsStateWithLifecycle()
     val unit = state.settings.weightUnit
+    var calendar by rememberSaveable { mutableStateOf(false) }
+    var selectedDay by rememberSaveable { mutableStateOf<String?>(null) }
+    var logging by remember { mutableStateOf(false) }
+    val zone = ZoneId.systemDefault()
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(
+        contentPadding = trainPadding(
             top = contentPadding.calculateTopPadding() + 12.dp,
             bottom = contentPadding.calculateBottomPadding() + 24.dp,
-            start = 16.dp,
-            end = 16.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
     ) {
-        item(key = "heading") { ScreenHeading("History") }
-
-        item(key = "picker") {
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = it },
-            ) {
-                OutlinedTextField(
-                    value = state.selectedExercise?.name ?: "Pick an exercise",
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Exercise") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-                    modifier = Modifier.fillMaxWidth().menuAnchor(
-                        androidx.compose.material3.MenuAnchorType.PrimaryNotEditable,
-                    ),
-                )
-                ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                    state.exercises.forEach { exercise ->
-                        DropdownMenuItem(
-                            text = { Text(exercise.name) },
-                            onClick = {
-                                viewModel.selectExercise(exercise.id)
-                                expanded = false
-                            },
-                        )
-                    }
+        item(key = "controls") {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                IntakeChip("List", tone = if (!calendar) ChipTone.Ink else ChipTone.Neutral, onClick = { calendar = false })
+                IntakeChip("Calendar", tone = if (calendar) ChipTone.Ink else ChipTone.Neutral, onClick = { calendar = true })
+                Spacer(Modifier.weight(1f))
+                LineButton(onClick = { logging = true }, small = true) {
+                    Text("Log a past workout")
                 }
             }
         }
-
-        if (state.selectedExercise != null) {
-            item(key = "chart") {
-                OutlinedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = IntakeShape.Card,
-                    colors = CardDefaults.outlinedCardColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                    ),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                ) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text(
-                            text = "Estimated max over time",
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        Text(
-                            // SPEC §10: show the formula used.
-                            text = OneRepMax.FORMULA,
-                            style = MaterialTheme.typography.bodySmall,
+        if (calendar) {
+            item(key = "calendar") {
+                TrainingCalendarView(
+                    sessionStarts = remember(state.rows) { state.rows.map { it.startedAt } },
+                    zone = zone,
+                    today = viewModel.today(),
+                    selected = selectedDay?.let { LocalDate.parse(it) },
+                    onSelect = { selectedDay = it.toString() },
+                )
+            }
+            item(key = "day") {
+                val day = selectedDay?.let { LocalDate.parse(it) }
+                val onDay = if (day == null) emptyList() else TrainingCalendar.on(day, state.rows, zone) { it.startedAt }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    when {
+                        day == null -> Text(
+                            "Tap a day to see its sessions.",
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Spacer(Modifier.height(10.dp))
-                        val points = state.oneRepMaxSeries.map {
-                            ChartPoint(it.first.toDouble(), unit.fromKg(it.second))
-                        }
-                        TrendLineChart(
-                            raw = points,
-                            trend = points,
-                            description = "Estimated one-rep max for " +
-                                "${state.selectedExercise?.name}, " +
-                                "${points.size} points, latest " +
-                                "${points.lastOrNull()?.y?.roundToInt() ?: 0} ${unit.label}.",
+                        onDay.isEmpty() -> Text(
+                            DAY_TITLE.format(day) + ": no training logged.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        state.personalRecord?.let { pr ->
-                            Spacer(Modifier.height(8.dp))
-                            // A brief highlight when the record first shows (and when the chosen lift changes).
-                            var flash by androidx.compose.runtime.remember(state.selectedExercise?.id) { androidx.compose.runtime.mutableIntStateOf(0) }
-                            androidx.compose.runtime.LaunchedEffect(state.selectedExercise?.id, pr) { flash += 1 }
-                            Text(
-                                text = "Best estimated max: " +
-                                    "${unit.fromKg(pr).roundToInt()} ${unit.label}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier
-                                    .flashOn(flash, MaterialTheme.colorScheme.tertiaryContainer)
-                                    .padding(vertical = 4.dp),
-                            )
+                        else -> {
+                            Eyebrow(DAY_TITLE.format(day))
+                            ListCard {
+                                Column {
+                                    onDay.forEachIndexed { i, s ->
+                                        SessionRow(s, unit) { onOpenSession(s.sessionId) }
+                                        if (i != onDay.lastIndex) ListDivider()
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
         }
-
-        item(key = "sessions-heading") {
-            Text("Sessions", style = MaterialTheme.typography.titleMedium)
-        }
-
-        if (state.sessions.isEmpty()) {
+        if (state.loaded && state.weeks.isEmpty()) {
             item(key = "empty") {
-                com.zeroindex.intake.ui.components.EmptyState(
+                EmptyState(
+                    icon = IntakeIcons.History,
                     title = "No sessions yet",
-                    body = "Open the Train tab and tap Start today's workout. Finished sessions show up here.",
+                    body = "Open the Train tab and tap Start workout. Finished sessions, including ones you start from your watch, show up here.",
                 )
             }
         }
-
-        items(items = state.sessions, key = { it.id }) { session ->
-            OutlinedCard(
-                modifier = Modifier.fillMaxWidth(),
-                shape = IntakeShape.Card,
-                colors = CardDefaults.outlinedCardColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
+        if (!calendar) state.weeks.forEach { week ->
+            item(key = "week-${week.weekStart}") {
+                SectionLine(
+                    week.label,
+                    note = "${week.sessions.size} ${if (week.sessions.size == 1) "session" else "sessions"} · ${TrainText.thousands(unit.fromKg(week.volumeKg))} ${unit.label}",
+                )
+            }
+            item(key = "list-${week.weekStart}") {
+                ListCard {
                     Column {
-                        Text(
-                            text = formatter.format(
-                                Instant.ofEpochMilli(session.startedAt)
-                                    .atZone(ZoneId.systemDefault()),
-                            ),
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                        Text(
-                            text = session.finishedAt?.let {
-                                "${(it - session.startedAt) / 60_000} minutes"
-                            } ?: "Unfinished",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        week.sessions.forEachIndexed { i, s ->
+                            SessionRow(s, unit) { onOpenSession(s.sessionId) }
+                            if (i != week.sessions.lastIndex) ListDivider()
+                        }
                     }
                 }
             }
         }
     }
+
+    if (logging) {
+        PastWorkoutDialog(
+            today = viewModel.today(),
+            days = dayChoices,
+            problemWith = viewModel::problemWith,
+            onCreate = { date, time, minutes, dayId ->
+                logging = false
+                viewModel.logPast(date, time, minutes, dayId, onOpenSession)
+            },
+            onDismiss = { logging = false },
+        )
+    }
 }
 
-private val formatter: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE d MMM, HH:mm")
+@Composable
+private fun SessionRow(s: SessionLogRow, unit: WeightUnit, onClick: () -> Unit) {
+    val date = DateText.mediumWithWeekday(s.startedAt)
+    val facts = buildList {
+        add(if (s.unfinished) "Unfinished" else s.durationMs?.let { com.zeroindex.intake.domain.training.WorkoutDuration.short(it) } ?: "")
+        add("${s.workingSets} ${if (s.workingSets == 1) "set" else "sets"}")
+        if (s.volumeKg > 0) add("${TrainText.thousands(unit.fromKg(s.volumeKg))} ${unit.label}")
+    }.filter { it.isNotEmpty() }.joinToString(" · ")
+    val spoken = "${s.title}, $date, $facts" + if (s.prCount > 0) ", ${s.prCount} ${if (s.prCount == 1) "record" else "records"}" else ""
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 64.dp)
+            .clickable(role = Role.Button, onClickLabel = "Open this session", onClick = onClick)
+            .padding(horizontal = IntakeSpacing.ListRowPadH, vertical = 10.dp)
+            .semantics(mergeDescendants = true) { contentDescription = spoken },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(date, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(s.title, style = MaterialTheme.typography.titleMedium)
+            s.subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            Text(facts, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (s.prCount > 0) {
+            IntakeChip("${s.prCount} PR", tone = ChipTone.Lime, icon = IntakeIcons.Trophy)
+        }
+    }
+}
+
+private val DAY_TITLE: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE d MMMM")

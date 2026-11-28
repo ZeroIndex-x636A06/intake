@@ -2,21 +2,22 @@
 
 package com.zeroindex.intake.ui.screens.train
 
+import com.zeroindex.intake.domain.time.DateText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -39,6 +40,13 @@ import com.zeroindex.intake.data.training.ExerciseFilter
 import com.zeroindex.intake.data.training.ExerciseHistory
 import com.zeroindex.intake.data.training.ExerciseHistoryCalc
 import com.zeroindex.intake.domain.training.ExerciseGuideIndex
+import com.zeroindex.intake.domain.training.HistoryFormat
+import com.zeroindex.intake.domain.training.OneRepMax
+import com.zeroindex.intake.domain.training.log.ExerciseStats
+import com.zeroindex.intake.domain.training.log.ExerciseStatsBuilder
+import com.zeroindex.intake.domain.training.log.LogSet
+import com.zeroindex.intake.ui.components.ChartPoint
+import com.zeroindex.intake.ui.components.TrendLineChart
 import com.zeroindex.intake.domain.training.generator.Equipment
 import com.zeroindex.intake.domain.training.generator.Muscles
 import com.zeroindex.intake.domain.training.muscles.MuscleMap
@@ -50,7 +58,11 @@ import com.zeroindex.intake.ui.components.ExercisePhotoPair
 import com.zeroindex.intake.ui.components.Glossary
 import com.zeroindex.intake.ui.components.InfoTip
 import com.zeroindex.intake.ui.components.MuscleMapView
-import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.components.ListDivider
+import com.zeroindex.intake.ui.components.SoftButton
+import com.zeroindex.intake.ui.components.StatTile
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.theme.intake
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Instant
 import java.time.ZoneId
@@ -69,6 +81,7 @@ import kotlinx.coroutines.flow.stateIn
 data class ExerciseDetailState(
     val exercise: ExerciseEntity? = null,
     val history: ExerciseHistory = ExerciseHistory(emptyList(), null, null, 0),
+    val stats: ExerciseStats = ExerciseStatsBuilder.build(emptyList()),
     val unit: WeightUnit = WeightUnit.KILOGRAMS,
 )
 
@@ -89,10 +102,15 @@ class ExerciseDetailViewModel @Inject constructor(
         } else {
             combine(
                 flow { emit(repository.exerciseAnyState(exerciseId)) },
-                repository.observeExerciseSets(exerciseId)
-                    .map { ExerciseHistoryCalc.summarize(it, java.util.TimeZone.getDefault().rawOffset.toLong()) },
+                repository.observeExerciseSets(exerciseId),
+                repository.observeSetsForExercise(exerciseId),
                 settings.settings,
-            ) { exercise, history, s -> ExerciseDetailState(exercise, history, s.weightUnit) }
+            ) { exercise, historyRows, rows, s ->
+                val history = ExerciseHistoryCalc.summarize(historyRows, java.util.TimeZone.getDefault().rawOffset.toLong())
+                // Built here, after the settings arrived, so a change of 1RM formula recomputes the estimates.
+                val stats = ExerciseStatsBuilder.build(rows.map { LogSet(it.sessionId, it.exerciseId, it.setIndex, it.weightKg, it.reps, it.isWarmup, it.completedAt) })
+                ExerciseDetailState(exercise, history, stats, s.weightUnit)
+            }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ExerciseDetailState())
 }
@@ -137,7 +155,7 @@ fun ExerciseDetailSheet(
         val history = state.history
 
         Column(
-            modifier = Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 24.dp),
+            modifier = Modifier.verticalScroll(rememberScrollState()).padding(horizontal = IntakeSpacing.ScreenGutter).padding(bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(exercise.name, style = MaterialTheme.typography.headlineSmall)
@@ -145,8 +163,7 @@ fun ExerciseDetailSheet(
                 text = buildString {
                     append(Muscles.label(exercise.primaryMuscle))
                     if (secondary.isNotEmpty()) append(" (also ${secondary.joinToString(", ")})")
-                    if (exercise.equipment.isNotBlank()) append(" · ").append(Equipment.label(exercise.equipment))
-                    if (exercise.isBodyweight) append(" · bodyweight")
+                    Equipment.describe(exercise.equipment, exercise.isBodyweight).takeIf { it.isNotEmpty() }?.let { append(" · ").append(it) }
                     append(" · rest ${exercise.defaultRestSec}s")
                 },
                 style = MaterialTheme.typography.bodyMedium,
@@ -175,15 +192,9 @@ fun ExerciseDetailSheet(
                 ChoiceChip("Six regions", selected = !fineMuscles, onClick = { fineMuscles = false })
                 ChoiceChip("Show detail", selected = fineMuscles, onClick = { fineMuscles = true })
             }
-            if (!highlight.isEmpty) {
+            MuscleMap.caption(highlight, exercise.primaryMuscle).takeIf { it.isNotEmpty() }?.let { caption ->
                 Text(
-                    text = buildString {
-                        if (highlight.primary.isNotEmpty()) append("Main: ").append(highlight.primary.joinToString { it.label.lowercase() })
-                        if (highlight.secondary.isNotEmpty()) {
-                            if (isNotEmpty()) append(". ")
-                            append("Also: ").append(highlight.secondary.joinToString { it.label.lowercase() })
-                        }
-                    },
+                    text = caption,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -191,57 +202,27 @@ fun ExerciseDetailSheet(
 
             val howTo = if (custom) exercise.notes?.takeIf { it.isNotBlank() }?.let { listOf(it) }.orEmpty() else steps
             if (howTo.isNotEmpty()) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                ListDivider()
                 Eyebrow("How to")
                 howTo.forEachIndexed { i, step ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (howTo.size > 1) Text("${i + 1}.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                        if (howTo.size > 1) Text("${i + 1}.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(step, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Eyebrow("Estimated max")
-                        InfoTip(Glossary.ESTIMATED_MAX)
-                    }
-                    Text(
-                        text = history.bestEstimatedMaxKg?.let { "${weightText(unit.fromKg(it))} ${unit.label}" } ?: "Not enough data yet",
-                        style = MaterialTheme.typography.titleLarge,
-                    )
-                }
-                Column(Modifier.weight(1f)) {
-                    Eyebrow("Sets logged")
-                    Text("${history.totalSets}", style = MaterialTheme.typography.titleLarge)
-                }
-            }
-            Eyebrow("Your history")
-            if (history.days.isEmpty()) {
-                Text("You have not logged this exercise yet.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            } else {
-                history.days.take(8).forEach { day ->
-                    Column {
-                        Text(dateText(day.startedAt), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
-                        Text(
-                            day.sets.joinToString("  ·  ") { "${weightText(unit.fromKg(it.weightKg))} × ${it.reps}" },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
+            ListDivider()
+            YourHistory(state.stats, unit)
 
             if ((onEdit != null && custom && !hidden) || onHideToggle != null) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
                     if (onEdit != null && custom && !hidden) {
-                        OutlinedButton(onClick = onEdit, shape = IntakeShape.Button, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) { Text("Edit") }
+                        SoftButton(onClick = onEdit, modifier = Modifier.weight(1f)) { Text("Edit", style = MaterialTheme.typography.labelLarge) }
                     }
                     if (onHideToggle != null) {
-                        OutlinedButton(onClick = onHideToggle, shape = IntakeShape.Button, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
-                            Text(if (hidden) "Show again" else "Hide")
+                        SoftButton(onClick = onHideToggle, modifier = Modifier.weight(1f)) {
+                            Text(if (hidden) "Show again" else "Hide", style = MaterialTheme.typography.labelLarge)
                         }
                     }
                 }
@@ -260,5 +241,92 @@ fun ExerciseDetailSheet(
     }
 }
 
+/** "Your history": the numbers, the estimated max over time, best reps at each weight and the last sessions. */
+@Composable
+private fun YourHistory(stats: ExerciseStats, unit: WeightUnit) {
+    Eyebrow("Your history")
+    if (stats.isEmpty) {
+        Text("No history yet. Log this exercise in a workout and your best sets, estimated max and past sessions show up here.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        return
+    }
+    fun w(kg: Double) = HistoryFormat.weight(unit.fromKg(kg), unit.label)
+    // Four stat tiles (`.stat`): the value over its caption, two to a row so they hold at font scale 1.5.
+    Row(horizontalArrangement = Arrangement.spacedBy(IntakeSpacing.RowGap), modifier = Modifier.fillMaxWidth()) {
+        StatTile(
+            value = stats.bestSet?.let { "${w(it.weightKg)} × ${it.reps}" } ?: "Reps only",
+            caption = "Best set",
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+        )
+        StatTile(value = stats.heaviestKg?.let { w(it) } ?: "No weight", caption = "Heaviest", modifier = Modifier.weight(1f).fillMaxHeight())
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(IntakeSpacing.RowGap), modifier = Modifier.fillMaxWidth()) {
+        // A bodyweight lift has no load to total: show its reps rather than "0 lb" (Q5b-16).
+        StatTile(
+            value = if (stats.isBodyweightOnly) "${stats.totalReps} reps" else w(stats.totalVolumeKg),
+            caption = "Total volume",
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+        )
+        StatTile(value = "${stats.sessionCount} · ${stats.totalSets} sets", caption = "Sessions", modifier = Modifier.weight(1f).fillMaxHeight())
+    }
+    stats.bestSet?.let {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("est. max ${com.zeroindex.intake.domain.units.WeightText.formatEstimate(it.estimatedMaxKg, unit)}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            InfoTip(Glossary.ESTIMATED_MAX, modifier = Modifier.size(24.dp))
+        }
+    }
+    if (stats.estimatedMaxSeries.isNotEmpty()) {
+        Text("Estimated max over time", style = MaterialTheme.typography.titleSmall)
+        Text(OneRepMax.formulaText, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        val points = stats.estimatedMaxSeries.map { ChartPoint(it.first.toDouble(), unit.fromKg(it.second)) }
+        TrendLineChart(
+            raw = points,
+            trend = points,
+            description = "Estimated one-rep max over ${points.size} sessions, latest ${weightText(points.last().y)} ${unit.label}.",
+            valueSuffix = unit.label,
+            gapDays = null,
+        )
+        // The chart has no date axis of its own: the first and last session dates sit under it, and its top point is named.
+        val firstAt = stats.estimatedMaxSeries.minOf { it.first }
+        val lastAt = stats.estimatedMaxSeries.maxOf { it.first }
+        Row(Modifier.fillMaxWidth()) {
+            Text(shortDate(firstAt), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+            Text(shortDate(lastAt), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        stats.estimatedMaxSeries.maxByOrNull { it.second }?.let { top ->
+            Text(
+                "Highest: ${w(top.second)} on ${shortDate(top.first)}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+    if (!stats.records.isEmpty) {
+        Text("Records", style = MaterialTheme.typography.titleSmall)
+        RecordsBlock(stats.records, unit)
+    }
+    Text(
+        HistoryFormat.sessionsHeading(stats.sessions.size, stats.recordCount),
+        style = MaterialTheme.typography.titleSmall,
+    )
+    stats.sessions.forEach { session ->
+        Column {
+            Text(dateText(session.at), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
+            var n = 0
+            session.sets.forEachIndexed { i, set ->
+                val label = if (set.isWarmup) "Warm-up" else "Set ${++n}"
+                val record = i in session.records
+                Text(
+                    "$label: ${if (set.weightKg > 0) "${w(set.weightKg)} × ${set.reps}" else "${set.reps} reps"}" + if (record) " (PR)" else "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (record) MaterialTheme.intake.ok else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+private fun shortDate(millis: Long): String =
+    DateText.medium(millis)
+
 private fun dateText(millis: Long): String =
-    DateTimeFormatter.ofPattern("EEE d MMM yyyy").format(Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()))
+    DateText.mediumWithWeekday(millis)

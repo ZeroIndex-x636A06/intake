@@ -57,3 +57,15 @@ device sync**; they travel only with exports.
 ## Restoring
 
 Settings > Sync and export > Import a backup, pick the `.intake` (or `.json`) file, enter the passphrase if it asks.
+
+The passphrase step and the reading of the file run in the background with a "Please wait" spinner, so the app stays
+responsive (the key derivation is slow on purpose). A wrong passphrase asks again; it never crashes. A file that cannot be
+imported gives a plain sentence (cut off or damaged, not an Intake backup, from a newer version of the app, or which field of
+which table is damaged), never raw parser text. Nothing is written when an import fails.
+
+**Settings are never replaced silently.** The preview compares each setting in the file with this phone's current value
+and lists only the ones that differ ("Settings: units, targets (N differ from this phone)"). Below it is a checkbox,
+"Replace these settings with the backup's", on by default so a reinstall restores your preferences, and one tap to turn
+off. Only the listed differences are written, and only while the box is ticked. If the preview shows no setting
+differences, no setting changes; untick the box and the rows merge while every setting stays as it is. Rows keep their own
+rule: the later change wins, nothing is deleted. The logic is `PortableSettings.changes`.

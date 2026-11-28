@@ -41,11 +41,22 @@ data class SweatMeasurement(val preKg: Double, val postKg: Double, val fluidMl: 
  * Water to replace sweat from logged workouts: minutes x a rate. The rate is by effort (average RPE under 6
  * is light 0.5 L/h, under 8 moderate 0.8 L/h, 8 and up hard 1.2 L/h; moderate when nothing was rated), or the
  * user's own measured rate. These are mid-range figures for exercise in mild weather, and heat is handled
- * separately by the weather line. A day's sweat is capped at 2 litres, and sessions under 5 minutes are ignored.
+ * separately by the weather line. A day's sweat is capped at 2 litres, sessions under 5 minutes are ignored, and one under 15 minutes counts only in part,
+ * so a short workout moves the target by a few ounces rather than a step.
  */
 object SweatLoss {
     const val DAY_CAP_ML = 2_000.0
     const val MIN_SESSION_MINUTES = 5.0
+
+    /** From this length a session counts in full; between the minimum and this it ramps up, so there is no jump at 5 minutes. */
+    const val FULL_WEIGHT_MINUTES = 15.0
+
+    /** How much of a session's minutes count: 0 under the minimum, rising in a line to all of them at [FULL_WEIGHT_MINUTES]. */
+    fun countedMinutes(minutes: Double): Double = when {
+        minutes < MIN_SESSION_MINUTES -> 0.0
+        minutes >= FULL_WEIGHT_MINUTES -> minutes
+        else -> minutes * (minutes - MIN_SESSION_MINUTES) / (FULL_WEIGHT_MINUTES - MIN_SESSION_MINUTES)
+    }
 
     fun intensityFor(avgRpe: Double?): SweatIntensity = when {
         avgRpe == null -> SweatIntensity.MODERATE
@@ -58,7 +69,7 @@ object SweatLoss {
         measuredLitresPerHour ?: intensityFor(s.avgRpe).litresPerHour
 
     fun sessionMl(s: SessionLoad, measuredLitresPerHour: Double?): Double =
-        if (s.minutes < MIN_SESSION_MINUTES) 0.0 else s.minutes / 60.0 * rateFor(s, measuredLitresPerHour) * 1000.0
+        countedMinutes(s.minutes) / 60.0 * rateFor(s, measuredLitresPerHour) * 1000.0
 
     fun totalMl(sessions: List<SessionLoad>, measuredLitresPerHour: Double?): Double =
         min(sessions.sumOf { sessionMl(it, measuredLitresPerHour) }, DAY_CAP_ML)

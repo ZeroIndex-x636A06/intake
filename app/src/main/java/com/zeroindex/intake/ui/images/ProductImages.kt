@@ -16,9 +16,7 @@ import androidx.compose.material.icons.filled.Egg
 import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material.icons.filled.Grass
 import androidx.compose.material.icons.filled.Icecream
-import androidx.compose.material.icons.filled.LocalDrink
-import androidx.compose.material.icons.filled.LunchDining
-import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.OutdoorGrill
 import androidx.compose.material.icons.filled.SetMeal
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.Icon
@@ -38,6 +36,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.data.db.entity.FoodEntity
+import com.zeroindex.intake.domain.drinks.DrinkCategory
 import com.zeroindex.intake.data.di.OffHttp
 import com.zeroindex.intake.data.recipe.RecipeFetcher
 import com.zeroindex.intake.data.remote.Connectivity
@@ -178,7 +177,7 @@ fun FoodThumb(
     food: FoodEntity,
     modifier: Modifier = Modifier,
     size: Dp = 44.dp,
-) = ThumbTile(name = food.name, imageUrl = food.imageUrl, modifier = modifier, size = size)
+) = ThumbTile(name = food.name, imageUrl = food.imageUrl, modifier = modifier, size = size, drinkCategory = food.drinkCategory)
 
 @Composable
 fun ThumbTile(
@@ -189,6 +188,8 @@ fun ThumbTile(
     category: String = "",
     /** True for a recipe's photo: it comes from the page the user imported, not from Open Food Facts. */
     fromRecipePage: Boolean = false,
+    /** The stored drink category of a drink: its icon is a cup or glass for that category, never a food-word guess ("sugar" is not a cookie). */
+    drinkCategory: String? = null,
 ) {
     val loader = rememberProductImageLoader()
     val px = with(androidx.compose.ui.platform.LocalDensity.current) { size.roundToPx() }
@@ -214,7 +215,7 @@ fun ThumbTile(
                 )
             } else {
                 Icon(
-                    imageVector = categoryIcon(FoodCategory.of(name, category)),
+                    imageVector = DrinkCategory.fromStored(drinkCategory)?.let(::drinkIcon) ?: categoryIcon(FoodCategory.of(name, category)),
                     contentDescription = null,
                     modifier = Modifier.size(size * 0.52f),
                 )
@@ -223,16 +224,27 @@ fun ThumbTile(
     }
 }
 
+/** The icon of a saved drink, by its category: a tea cup for tea, a coffee cup for coffee, and so on. */
+internal fun drinkIcon(category: DrinkCategory): ImageVector = when (category) {
+    DrinkCategory.WATER -> com.zeroindex.intake.ui.theme.IntakeIcons.Drop
+    DrinkCategory.COFFEE -> com.zeroindex.intake.ui.theme.IntakeIcons.Mug
+    DrinkCategory.TEA -> com.zeroindex.intake.ui.theme.IntakeIcons.Mug
+    DrinkCategory.ALCOHOL -> com.zeroindex.intake.ui.theme.IntakeIcons.Cup
+    DrinkCategory.SPORTS_ENERGY -> com.zeroindex.intake.ui.theme.IntakeIcons.Cup
+    DrinkCategory.SODA, DrinkCategory.JUICE, DrinkCategory.MILK, DrinkCategory.OTHER -> com.zeroindex.intake.ui.theme.IntakeIcons.Drop
+}
+
 internal fun categoryIcon(category: FoodCategory): ImageVector = when (category) {
     FoodCategory.DAIRY -> Icons.Filled.Icecream
     FoodCategory.EGG -> Icons.Filled.Egg
-    FoodCategory.MEAT -> Icons.Filled.LunchDining
+    FoodCategory.MEAT -> Icons.Filled.OutdoorGrill  // a grill, not a burger: chili and stew are meat too
     FoodCategory.FISH -> Icons.Filled.SetMeal
     FoodCategory.FRUIT -> Icons.Filled.Eco
     FoodCategory.VEGETABLE -> Icons.Filled.Grass
     FoodCategory.GRAIN -> Icons.Filled.BakeryDining
     FoodCategory.SWEET -> Icons.Filled.Cookie
-    FoodCategory.DRINK -> Icons.Filled.LocalDrink
+    FoodCategory.DRINK -> com.zeroindex.intake.ui.theme.IntakeIcons.Drop
     FoodCategory.NUT -> Icons.Filled.Spa
-    FoodCategory.OTHER -> Icons.Filled.Restaurant
+    FoodCategory.SUPPLEMENT -> com.zeroindex.intake.ui.theme.IntakeIcons.Dumbbell
+    FoodCategory.OTHER -> com.zeroindex.intake.ui.theme.IntakeIcons.ForkKnife
 }

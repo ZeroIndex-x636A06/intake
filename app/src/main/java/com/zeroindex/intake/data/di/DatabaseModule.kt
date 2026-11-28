@@ -73,6 +73,7 @@ object DatabaseModule {
     @Provides fun provideAiUsageDao(db: IntakeDatabase): AiUsageDao = db.aiUsageDao()
     @Provides fun provideCoachDao(db: IntakeDatabase): CoachDao = db.coachDao()
     @Provides fun provideProgressPhotoDao(db: IntakeDatabase): ProgressPhotoDao = db.progressPhotoDao()
+    @Provides fun provideVideoDao(db: IntakeDatabase): com.zeroindex.intake.data.db.dao.VideoDao = db.videoDao()
     @Provides fun provideHealthSummaryDao(db: IntakeDatabase): HealthSummaryDao = db.healthSummaryDao()
     @Provides fun provideExportDao(db: IntakeDatabase): ExportDao = db.exportDao()
     @Provides fun provideSyncConflictDao(db: IntakeDatabase): SyncConflictDao = db.syncConflictDao()

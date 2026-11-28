@@ -42,6 +42,7 @@ object ProgramBlueprintBuilder {
             name = name,
             description = blueprint.description,
             isActive = activate,
+            deloadEveryWeeks = blueprint.deloadEveryWeeks.takeIf { it >= 2 },
             createdAt = now,
             updatedAt = now,
         )
@@ -85,6 +86,7 @@ object ProgramBlueprintBuilder {
                 progressionRuleId = e.progression?.let { ruleIds[it] },
                 restSec = e.restSec,
                 startWeightKg = e.startWeightKg,
+                videoStartSec = e.videoStartSec,
                 notes = listOfNotNull(e.why.takeIf { it.isNotBlank() && it != FREESTYLE_WHY }, e.startNote)
                     .joinToString(" ").ifBlank { null },
                 createdAt = now,

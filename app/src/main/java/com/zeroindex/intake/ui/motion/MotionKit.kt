@@ -21,8 +21,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -282,7 +280,7 @@ fun ExpandChevron(expanded: Boolean, modifier: Modifier = Modifier, tint: Color 
         label = "chevron",
     )
     Icon(
-        imageVector = Icons.Filled.ExpandMore,
+        imageVector = com.zeroindex.intake.ui.theme.IntakeIcons.ChevronDown,
         contentDescription = null,
         tint = tint,
         modifier = modifier.size(24.dp).graphicsLayer { rotationZ = turn },

@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Intake 2.0 — what changed</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c2d55ca210a28925c2ccf0c9b8a5b709">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="phone {{themeCls}}" style="--accent: {{accent}}; width: 1440px; height: 1180px; padding: 72px 80px; display: flex; flex-direction: column; gap: 48px">
+
+  <div style="display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 32px; align-items: end">
+    <div style="grid-column: span 7; display: flex; flex-direction: column; gap: 18px">
+      <span class="chip lime" style="align-self: flex-start">Intake 2.0 · design direction</span>
+      <h1 class="title" style="font-size: 64px; line-height: 1.02">Everything you track, A to Z. One calm place.</h1>
+      <p style="font-size: 19px; color: var(--muted); max-width: 640px">Food, drinks, training, body, sleep and recovery, rebuilt around one log button and four clear tabs. The rules stay the same: no account, works offline, and AI is never required.</p>
+    </div>
+    <div style="grid-column: span 5; display: flex; flex-direction: column; gap: 14px">
+      <span class="eyebrow">Navigation model</span>
+      <div style="position: relative; height: 92px; border-radius: 999px; background: var(--dock); display: flex; align-items: center; justify-content: space-between; padding: 0 22px; color: #C5CBC8; font-size: 13px; font-weight: 600">
+        <span style="display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--accent)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Today</span>
+        <span style="display: flex; flex-direction: column; align-items: center; gap: 4px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v20M4 2v6a3 3 0 0 0 6 0V2M17 22V2c-2 0-3.5 3-3.5 7s1.5 4 3.5 4"/></svg>Food</span>
+        <span style="width: 68px; height: 68px; border-radius: 999px; background: var(--accent); color: #111514; display: flex; align-items: center; justify-content: center"><svg class="i l" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span>
+        <span style="display: flex; flex-direction: column; align-items: center; gap: 4px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7v10M3 9.5v5M18 7v10M21 9.5v5M6 12h12"/></svg>Train</span>
+        <span style="display: flex; flex-direction: column; align-items: center; gap: 4px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M6 16l4-5 4 3 5-7"/></svg>Insights</span>
+      </div>
+      <p class="sub" style="font-size: 14px">Four tabs plus a centre <b style="color: var(--ink)">+</b> that logs anything. Your avatar (top right of every tab) opens You, profile and Settings. A live pill floats above the dock while a workout runs.</p>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px">
+    <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+      <span class="ic lime"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span>
+      <h2 class="h2">One + for every log</h2>
+      <p class="sub">Food, drinks, water, weight, scan, photo estimate, quick calories, a workout, measurements and progress photos all start from the same sheet instead of eight scattered buttons.</p>
+    </div>
+    <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v20M4 2v6a3 3 0 0 0 6 0V2M17 22V2c-2 0-3.5 3-3.5 7s1.5 4 3.5 4"/></svg></span>
+      <h2 class="h2">Food, without a "More" row</h2>
+      <p class="sub">Nutrition becomes Food with four segments: Diary, Plan, Recipes and Library. Templates, shopping, eating out, menus and drinks now sit one tap from the tab.</p>
+    </div>
+    <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg></span>
+      <h2 class="h2">Allergen safety, always in view</h2>
+      <p class="sub">A shield in the Food header shows what you avoid. Every food, recipe, plan and nearby option carries one consistent chip. Allergens stay out of Settings.</p>
+    </div>
+    <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M6 16l4-5 4 3 5-7"/></svg></span>
+      <h2 class="h2">Progress becomes Insights</h2>
+      <p class="sub">Led by the weekly check-in and its suggestions, then a bento of trends: weight, sleep, steps, heart rate, adherence, measurements, photos and maintenance.</p>
+    </div>
+    <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="10" rx="2.5"/><rect x="13" y="3" width="8" height="6" rx="2.5"/><rect x="13" y="11" width="8" height="10" rx="2.5"/><rect x="3" y="15" width="8" height="6" rx="2.5"/></svg></span>
+      <h2 class="h2">Today as a bento</h2>
+      <p class="sub">A dark hero with calories, macros and water at a glance, a "Next up" timeline (meal, coach focus, workout), then weight, activity and meals as tiles.</p>
+    </div>
+    <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg></span>
+      <h2 class="h2">Settings in four sections</h2>
+      <p class="sub">The same twelve groups, sorted into Display and you, Tracking, Connections and data, and Help. Search still jumps straight to any control.</p>
+    </div>
+    <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg></span>
+      <h2 class="h2">AI is labelled, never assumed</h2>
+      <p class="sub">Every AI action wears the same violet AI chip and only runs on a tap or a switch you turned on. The app is complete without it.</p>
+    </div>
+    <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7v10M3 9.5v5M18 7v10M21 9.5v5M6 12h12"/></svg></span>
+      <h2 class="h2">Train keeps what works</h2>
+      <p class="sub">Workout, Exercises and Videos stay as segments. Programs is promoted to a card and a header action, and the live workout pill follows you everywhere.</p>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 32px">
+    <div style="grid-column: span 5; display: flex; flex-direction: column; gap: 14px">
+      <span class="eyebrow">Palette · "Ink and Lime"</span>
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px">
+        <div style="display: flex; flex-direction: column; gap: 6px"><span style="height: 64px; border-radius: 16px; background: #F3F4EF; box-shadow: inset 0 0 0 1px #E2E5DE"></span><span class="sub">Ground</span></div>
+        <div style="display: flex; flex-direction: column; gap: 6px"><span style="height: 64px; border-radius: 16px; background: #111514"></span><span class="sub">Ink</span></div>
+        <div style="display: flex; flex-direction: column; gap: 6px"><span style="height: 64px; border-radius: 16px; background: {{accent}}"></span><span class="sub">Accent</span></div>
+        <div style="display: flex; flex-direction: column; gap: 6px"><span style="height: 64px; border-radius: 16px; background: #FFFFFF; box-shadow: inset 0 0 0 1px #E2E5DE"></span><span class="sub">Card</span></div>
+        <div style="display: flex; flex-direction: column; gap: 6px"><span style="height: 40px; border-radius: 12px; background: var(--pro)"></span><span class="sub">Protein</span></div>
+        <div style="display: flex; flex-direction: column; gap: 6px"><span style="height: 40px; border-radius: 12px; background: var(--carb)"></span><span class="sub">Carbs</span></div>
+        <div style="display: flex; flex-direction: column; gap: 6px"><span style="height: 40px; border-radius: 12px; background: var(--fat)"></span><span class="sub">Fat</span></div>
+        <div style="display: flex; flex-direction: column; gap: 6px"><span style="height: 40px; border-radius: 12px; background: var(--water)"></span><span class="sub">Water</span></div>
+      </div>
+    </div>
+    <div style="grid-column: span 4; display: flex; flex-direction: column; gap: 14px">
+      <span class="eyebrow">One status language</span>
+      <div class="wrap">
+        <span class="chip ok"><svg class="i xs" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Fits your allergens</span>
+        <span class="chip">Only the name was checked</span>
+        <span class="chip">Checking…</span>
+        <span class="chip warn">May contain</span>
+        <span class="chip bad">Contains your allergen</span>
+        <span class="chip warn">Check the label</span>
+        <span class="chip warn">Not checked</span>
+        <span class="chip bad">Blocked</span>
+        <span class="chip">Mentioned as avoided</span>
+        <span class="chip ai"><svg class="i xs" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>AI</span>
+        <span class="chip out">Needs your key</span>
+      </div>
+    </div>
+    <div style="grid-column: span 3; display: flex; flex-direction: column; gap: 10px">
+      <span class="eyebrow">Type</span>
+      <span class="num" style="font-size: 48px; line-height: 1">1,284</span>
+      <span class="h2">Space Grotesk for numbers and titles</span>
+      <span class="sub" style="font-size: 15px">Inter for everything you read. Light and dark themes share one set of tokens; try the Theme tweak on any screen.</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["Light","Dark"],"default":"Light"},"accent":{"editor":"color","default":"#D4F25A","options":["#D4F25A","#7CE0C3","#FFB86B","#B9A8FF"]},"$preview":{"width":1440,"height":1180}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themeCls: this.props.theme === 'Dark' ? 'dark' : '', accent: this.props.accent ?? '#D4F25A' };
+  }
+}
+</script>
+</body>
+</html>

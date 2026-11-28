@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.performance
 
+import com.zeroindex.intake.domain.time.DateText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -9,8 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -39,7 +38,12 @@ import com.zeroindex.intake.ui.components.LabeledField
 import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.SectionLine
 import com.zeroindex.intake.ui.components.SubHead
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.padding
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -64,17 +68,16 @@ fun PerformanceScreen(
     var notes by remember { mutableStateOf("") }
 
     val preview = JumpMetrics.complete(vertical.toDoubleOrNull(), standing.toDoubleOrNull(), total.toDoubleOrNull())
-    val dates = remember { DateTimeFormatter.ofPattern("EEE d MMM yyyy") }
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(
             top = contentPadding.calculateTopPadding(),
             bottom = contentPadding.calculateBottomPadding() + 24.dp,
-            start = 16.dp,
-            end = 16.dp,
+            start = IntakeSpacing.ScreenGutter,
+            end = IntakeSpacing.ScreenGutter,
         ),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
     ) {
         item(key = "head") {
             SubHead("Explosive performance", "Track a jump test in ${if (unit == LengthUnit.INCHES) "inches" else "centimetres"}. Enter any two; the third is worked out.")
@@ -127,7 +130,7 @@ fun PerformanceScreen(
                         enabled = !preview.inconsistent &&
                             (preview.verticalJumpCm != null || preview.totalReachCm != null),
                         shape = IntakeShape.Button,
-                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                     ) { Text("Log jump test") }
                 }
             }
@@ -142,15 +145,15 @@ fun PerformanceScreen(
         if (state.history.isEmpty()) {
             item(key = "empty") { EmptyState(title = "No jump tests yet", body = "Fill in the boxes above and tap Log jump test. The first one is your baseline.") }
         } else {
-            item(key = "history-head") { SectionLine("History", note = "Trend is on Progress") }
+            item(key = "history-head") { SectionLine("History", note = "Trend is on Insights") }
             items(state.history, key = { it.id }) { m ->
                 Row(
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(Modifier.weight(1f)) {
                         Text(
-                            text = dates.format(Instant.ofEpochMilli(m.measuredAt).atZone(ZoneId.systemDefault())),
+                            text = DateText.mediumWithWeekday(m.measuredAt),
                             style = MaterialTheme.typography.titleSmall,
                         )
                         Text(
@@ -163,8 +166,8 @@ fun PerformanceScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    IconButton(onClick = { viewModel.delete(m.id) }) {
-                        Icon(Icons.Filled.Delete, contentDescription = "Delete this jump test")
+                    IconButton(onClick = { viewModel.delete(m) }) {
+                        Icon(IntakeIcons.Trash, contentDescription = "Delete this jump test", modifier = Modifier.size(IconSize.Default))
                     }
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)

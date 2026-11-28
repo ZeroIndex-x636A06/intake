@@ -27,6 +27,8 @@ data class UsdaFood(
     val servingSizeUnit: String? = null,
     val householdServingFullText: String? = null,
     val ingredients: String? = null,
+    /** The food group ("Beverages") or branded category; used only to tell drinks apart. */
+    val foodCategory: String? = null,
     val foodNutrients: List<UsdaNutrient> = emptyList(),
 )
 

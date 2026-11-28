@@ -28,6 +28,8 @@ data class HealthDailySummaryEntity(
     val activeKcalNet: Double? = null,
     /** The device's whole-day burn estimate, BMR included - for reports, never added to a target. */
     val totalKcalBurned: Double? = null,
+    /** All-day active calories (Health Connect's total, what a watch shows). Display only; targets use [activeKcalNet]. */
+    val activeKcalDay: Double? = null,
     val steps: Long? = null,
     val sleepMinutes: Long? = null,
     val sleepStartMillis: Long? = null,

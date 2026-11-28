@@ -27,7 +27,6 @@ import com.zeroindex.intake.domain.units.VolumeUnit
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.math.min
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -69,7 +68,9 @@ class HydrationRepository @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val hydrationPrefs: HydrationPrefs,
     private val weatherRepository: WeatherRepository,
+    private val drinks: DrinkRepository,
     private val clock: Clock,
+    private val workoutPauses: com.zeroindex.intake.data.training.WorkoutPauseStore,
 ) {
     fun observePresets(): Flow<List<HydrationPresetEntity>> = dao.observePresets()
 
@@ -78,13 +79,18 @@ class HydrationRepository @Inject constructor(
 
     fun observeDay(date: LocalDate): Flow<HydrationDay> {
         val range = clock.rangeFor(date)
-        val sessions = workoutDao.observeSessions().map { all ->
+        // Pausing, resuming and reopening change the running workout's trained time, so they re-run this too.
+        val sessions = combine(workoutDao.observeSessions(), workoutPauses.state) { all, _ -> all }.map { all ->
             all.filter { it.startedAt >= range.startInclusive && it.startedAt < range.endExclusive }
                 .map { s ->
-                    val end = s.finishedAt ?: min(clock.nowMillis(), s.startedAt + MAX_SESSION_MS)
+                    // The same length the timer and the summary show: a running workout counts trained time only, so a reopened
+                    // one (edited start, idle gap) or a paused one does not add the time it was not training.
+                    val lengthMs = com.zeroindex.intake.domain.training.WorkoutClock.loadMs(
+                        s.startedAt, s.finishedAt, workoutPauses.forSession(s.id), clock.nowMillis(), MAX_SESSION_MS,
+                    )
                     val rpes = workoutDao.setsOf(s.id).filter { !it.isWarmup }.mapNotNull { it.rpe }
                     SessionLoad(
-                        minutes = (min(end - s.startedAt, MAX_SESSION_MS) / 60_000.0).coerceAtLeast(0.0),
+                        minutes = lengthMs / 60_000.0,
                         avgRpe = rpes.takeIf { it.isNotEmpty() }?.average(),
                     )
                 }
@@ -113,7 +119,8 @@ class HydrationRepository @Inject constructor(
                 trainingDayBonusMl = settings.hydrationTrainingBonusMl,
                 sessions = loads,
                 measuredSweatLitresPerHour = prefs.measuredSweatLitresPerHour,
-                activeKcalNet = health?.activeKcalNet,
+                // All-day active calories (what the watch shows); falls back to the workout-only figure.
+                activeKcalNet = health?.activeKcalDay ?: health?.activeKcalNet,
                 weather = (weather as? WeatherStatus.Ready)?.day,
                 drinks = totals,
             )
@@ -129,9 +136,10 @@ class HydrationRepository @Inject constructor(
     }
 
     /**
-     * Logs one drink. With no [drink] given, a tapped preset decides the type, else it is water. The factor,
-     * caffeine and alcohol are worked out now from the user's current Advanced values and stored on the row, so
-     * changing a factor later never rewrites history.
+     * Logs one drink through the one drink flow ([DrinkRepository]): the hydration row, and the food-log row for a drink
+     * that has calories, so Today's water card and the Drinks page write the same thing. With no [drink] given, a tapped
+     * preset decides the type, else it is water. The factor, caffeine and alcohol are worked out now from the user's
+     * current Advanced values and stored on the row, so changing a factor later never rewrites history.
      */
     suspend fun log(
         volumeMl: Double,
@@ -140,30 +148,15 @@ class HydrationRepository @Inject constructor(
         drink: DrinkType? = null,
     ): HydrationLogEntity {
         require(volumeMl > 0) { "volume must be positive" }
-        val now = clock.nowMillis()
         val type = drink ?: presetId?.let { dao.presetById(it)?.drinkType } ?: DrinkType.WATER
-        val profile = Drinks.profile(type, hydrationPrefs.current().drinkOverrides[type])
-        val entry = Drinks.entry(volumeMl, profile)
-        val log = HydrationLogEntity(
-            loggedAt = loggedAt,
-            volumeMl = volumeMl,
-            presetId = presetId,
-            drinkType = type,
-            hydrationFactor = entry.factor,
-            caffeineMg = entry.caffeineMg,
-            alcoholMl = entry.alcoholMl,
-            createdAt = now,
-            updatedAt = now,
-        )
-        dao.upsertLog(log)
-        return log
+        return drinks.logOfType(type, volumeMl, loggedAt, presetId)
     }
 
-    suspend fun delete(id: String) = dao.softDeleteLog(id, clock.nowMillis())
+    /** Soft-deletes the entry and, for a drink with calories, its food-log row too. */
+    suspend fun delete(id: String) = drinks.delete(id)
 
-    /** Brings a soft-deleted entry back, for the snackbar's Undo. */
-    suspend fun restore(log: HydrationLogEntity) =
-        dao.upsertLog(log.copy(deletedAt = null, updatedAt = clock.nowMillis()))
+    /** Brings a soft-deleted entry back (and its food-log row), for the snackbar's Undo. */
+    suspend fun restore(log: HydrationLogEntity) = drinks.restore(log.id)
 
     suspend fun savePreset(
         name: String,
@@ -194,6 +187,8 @@ class HydrationRepository @Inject constructor(
      * their fixed ids and deleted rows count, so removing them is permanent.
      */
     suspend fun ensureDefaultPresets() {
+        // The generic drinks (water, coffee, cola ...) are food rows too; seed them with the presets so Drinks is never empty.
+        drinks.ensureSeeded()
         val oz = VolumeUnit.US_FLUID_OUNCES
         val now = SEED_TIMESTAMP
         fun seed(name: String, ml: Double, order: Int, type: DrinkType = DrinkType.WATER) = HydrationPresetEntity(

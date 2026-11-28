@@ -3,17 +3,20 @@ package com.zeroindex.intake.ui.screens.body
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import com.zeroindex.intake.ui.components.FormRow
+import com.zeroindex.intake.ui.components.IntakeCard
+import com.zeroindex.intake.ui.components.LabeledField
+import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -25,7 +28,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.zeroindex.intake.ui.components.ScreenHeading
 
 @Composable
 fun BodyMetricsScreen(
@@ -52,43 +54,43 @@ fun BodyMetricsScreen(
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
             .padding(contentPadding)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = IntakeSpacing.ScreenGutter, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
     ) {
-        ScreenHeading("Log weight")
         Text(
             // SPEC §3.5: entered in the display unit, stored in kilograms.
             text = "Entered in ${weightUnit.label} and ${lengthUnit.label}; stored in " +
                 "kilograms and centimetres so the unit setting can change later without " +
                 "touching your history.",
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        Num(weight, { weight = it }, "Weight (${weightUnit.label})", Modifier.fillMaxWidth())
-        Num(bodyFat, { bodyFat = it }, "Body fat % (optional)", Modifier.fillMaxWidth())
-
-        Text(
-            text = "Measurements (optional)",
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.padding(top = 8.dp),
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Num(waist, { waist = it }, "Waist (${lengthUnit.label})", Modifier.weight(1f))
-            Num(chest, { chest = it }, "Chest (${lengthUnit.label})", Modifier.weight(1f))
+        IntakeCard {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Num(weight, { weight = it }, "Weight (${weightUnit.label})", Modifier.fillMaxWidth())
+                Num(bodyFat, { bodyFat = it }, "Body fat % (optional)", Modifier.fillMaxWidth())
+            }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Num(arm, { arm = it }, "Arm (${lengthUnit.label})", Modifier.weight(1f))
-            Num(thigh, { thigh = it }, "Thigh (${lengthUnit.label})", Modifier.weight(1f))
-        }
-        Num(hip, { hip = it }, "Hip (${lengthUnit.label})", Modifier.fillMaxWidth())
 
-        OutlinedTextField(
-            value = notes,
-            onValueChange = { notes = it },
-            label = { Text("Notes") },
-            modifier = Modifier.fillMaxWidth(),
-        )
+        IntakeCard {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Measurements (optional)", style = MaterialTheme.typography.titleLarge)
+                FormRow(
+                    left = { m -> Num(waist, { waist = it }, "Waist (${lengthUnit.label})", m) },
+                    right = { m -> Num(chest, { chest = it }, "Chest (${lengthUnit.label})", m) },
+                )
+                FormRow(
+                    left = { m -> Num(arm, { arm = it }, "Arm (${lengthUnit.label})", m) },
+                    right = { m -> Num(thigh, { thigh = it }, "Thigh (${lengthUnit.label})", m) },
+                )
+                Num(hip, { hip = it }, "Hip (${lengthUnit.label})", Modifier.fillMaxWidth())
+            }
+        }
+
+        IntakeCard {
+            LabeledField(label = "Notes", value = notes, onValueChange = { notes = it })
+        }
 
         Button(
             onClick = {
@@ -105,7 +107,8 @@ fun BodyMetricsScreen(
                 )
             },
             enabled = weight.toDoubleOrNull()?.let { it > 0 } == true,
-            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = IntakeShape.Button,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
         ) { Text("Log weight") }
 
         Spacer(Modifier.height(24.dp))
@@ -119,12 +122,11 @@ private fun Num(
     label: String,
     modifier: Modifier = Modifier,
 ) {
-    OutlinedTextField(
+    LabeledField(
+        label = label,
         value = value,
         onValueChange = { next -> onValueChange(next.filter { it.isDigit() || it == '.' }) },
-        label = { Text(label) },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        keyboardType = KeyboardType.Decimal,
         modifier = modifier,
     )
 }

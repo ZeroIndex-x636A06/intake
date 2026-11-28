@@ -1,20 +1,26 @@
 package com.zeroindex.intake.ui.screens.backup
 
+import com.zeroindex.intake.domain.time.DateText
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Switch
+import com.zeroindex.intake.ui.components.IntakeSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -22,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -44,10 +51,11 @@ import java.time.format.DateTimeFormatter
 fun ExportSection(modifier: Modifier = Modifier, viewModel: ExportViewModel = hiltViewModel()) {
     val message by viewModel.message.collectAsStateWithLifecycle()
     val import by viewModel.import.collectAsStateWithLifecycle()
+    val exporting by viewModel.exporting.collectAsStateWithLifecycle()
     val lastExport by viewModel.lastExportAt.collectAsStateWithLifecycle()
     val includePhotos by viewModel.includePhotos.collectAsStateWithLifecycle()
-    val whenFmt = remember { DateTimeFormatter.ofPattern("MMM d, h:mm a") }
-    fun at(millis: Long) = whenFmt.format(Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()))
+    val timeFmt = remember { DateTimeFormatter.ofPattern("h:mm a") }
+    fun at(millis: Long) = DateText.medium(millis) + ", " + timeFmt.format(Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()))
 
     var passphrase by remember { mutableStateOf("") }
     var pendingCsv by remember { mutableStateOf(CsvKind.FOOD) }
@@ -71,6 +79,10 @@ fun ExportSection(modifier: Modifier = Modifier, viewModel: ExportViewModel = hi
             TextButton(onClick = viewModel::clearMessage) { Text("Dismiss") }
         }
         IntakeCard {
+            if (exporting) {
+                Text("Encrypting and saving...", style = MaterialTheme.typography.labelMedium)
+                LinearProgressIndicator(Modifier.fillMaxWidth().padding(vertical = 6.dp))
+            }
             Text(
                 "Everything, deleted rows included, as one file. Importing merges by last change and shows what will change " +
                     "before anything is written. Last export: " + (lastExport?.let(::at) ?: "never") + ".",
@@ -85,17 +97,17 @@ fun ExportSection(modifier: Modifier = Modifier, viewModel: ExportViewModel = hi
                 placeholder = "Leave blank for plain JSON",
                 supporting = "Used for the next export only. It is never saved. Without it an encrypted file cannot be opened.",
             )
-            Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.padding(top = 6.dp).height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = { exportLauncher.launch("intake-export-$stamp" + if (passphrase.isEmpty()) ".json" else ".intake") },
                     shape = IntakeShape.Button,
-                    modifier = Modifier.weight(1f).height(52.dp),
-                ) { Text("Export everything (JSON)") }
+                    modifier = Modifier.weight(1f).fillMaxHeight().heightIn(min = 52.dp),
+                ) { Text("Export everything (JSON)", textAlign = TextAlign.Center) }
                 OutlinedButton(
                     onClick = { importLauncher.launch(arrayOf("application/json", "application/octet-stream", "*/*")) },
                     shape = IntakeShape.Button,
-                    modifier = Modifier.weight(1f).height(52.dp),
-                ) { Text("Import a backup") }
+                    modifier = Modifier.weight(1f).fillMaxHeight().heightIn(min = 52.dp),
+                ) { Text("Import a backup", textAlign = TextAlign.Center) }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 10.dp))
             Text("Export spreadsheets (CSV, not encrypted)", style = MaterialTheme.typography.titleSmall)
@@ -111,25 +123,35 @@ fun ExportSection(modifier: Modifier = Modifier, viewModel: ExportViewModel = hi
                     ) { Text(kind.label, style = MaterialTheme.typography.labelSmall) }
                 }
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 10.dp))
-            SettingRow(
-                title = "Include progress photos in the export",
-                subtitle = "Off by default. The JSON file carries only each photo's date and angle. With this on you can also save " +
-                    "the photo files as a zip. Photos are never synced or uploaded.",
-                showDivider = false,
-            ) { Switch(checked = includePhotos, onCheckedChange = viewModel::setIncludePhotos) }
-            if (includePhotos) {
-                OutlinedButton(
-                    onClick = { photoLauncher.launch("intake-progress-photos-$stamp.zip") },
-                    shape = IntakeShape.Chip,
-                    modifier = Modifier.heightIn(min = 48.dp),
-                ) { Text("Save photo files (zip)") }
-            }
+        }
+        // Outside the card, at the same inset as the other Settings switches, so its switch lines up with them.
+        SettingRow(
+            title = "Include progress photos in the export",
+            subtitle = "Off by default. The JSON file carries only each photo's date and angle. With this on you can also save " +
+                "the photo files as a zip. Photos are never synced or uploaded.",
+        ) { IntakeSwitch(checked = includePhotos, onCheckedChange = viewModel::setIncludePhotos) }
+        if (includePhotos) {
+            OutlinedButton(
+                onClick = { photoLauncher.launch("intake-progress-photos-$stamp.zip") },
+                shape = IntakeShape.Chip,
+                modifier = Modifier.heightIn(min = 48.dp),
+            ) { Text("Save photo files (zip)") }
         }
     }
 
     when (val stage = import) {
         ImportStage.Idle -> Unit
+        is ImportStage.Working -> AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Please wait") },
+            text = {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    CircularProgressIndicator(Modifier.height(28.dp))
+                    Text(stage.label)
+                }
+            },
+            confirmButton = {},
+        )
         is ImportStage.NeedsPassphrase -> {
             var pass by remember(stage) { mutableStateOf("") }
             AlertDialog(
@@ -149,7 +171,10 @@ fun ExportSection(modifier: Modifier = Modifier, viewModel: ExportViewModel = hi
             val p = stage.preview
             AlertDialog(
                 onDismissRequest = viewModel::cancelImport,
-                title = { Text(if (p.totalChanges == 0 && p.settingsCount == 0) "Nothing to change" else "Import ${p.totalChanges} changes?") },
+                title = {
+                    val n = p.totalChanges + if (stage.restoreSettings) p.settingsCount else 0
+                    Text(if (p.totalChanges == 0 && p.settingsCount == 0) "Nothing to change" else "Import $n changes?")
+                },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         p.exportedAt?.let { Text("Backup made ${at(it)}", style = MaterialTheme.typography.labelSmall) }
@@ -160,14 +185,25 @@ fun ExportSection(modifier: Modifier = Modifier, viewModel: ExportViewModel = hi
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         }
-                        p.settingsLine?.let { Text("$it (${p.settingsCount} preferences)", style = MaterialTheme.typography.bodySmall) }
+                        if (p.settingsCount > 0) {
+                            Text(
+                                "${p.settingsLine} (${p.settingsCount} differ from this phone)",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                Checkbox(checked = stage.restoreSettings, onCheckedChange = viewModel::setRestoreSettings)
+                                Text("Replace these settings with the backup's", style = MaterialTheme.typography.bodySmall)
+                            }
+                        } else if (p.settingsInFile > 0) {
+                            Text("Settings: the same as on this phone, nothing to change", style = MaterialTheme.typography.bodySmall)
+                        }
                         if (p.unknownTables.isNotEmpty()) {
                             Text("Ignored, not in this version: ${p.unknownTables.joinToString()}", style = MaterialTheme.typography.labelSmall)
                         }
                         Text("Nothing is deleted. Where both sides changed a row, the later change wins.", style = MaterialTheme.typography.labelSmall)
                     }
                 },
-                confirmButton = { TextButton(onClick = viewModel::applyImport, enabled = p.totalChanges > 0 || p.settingsCount > 0) { Text("Import") } },
+                confirmButton = { TextButton(onClick = viewModel::applyImport, enabled = p.totalChanges > 0 || (stage.restoreSettings && p.settingsCount > 0)) { Text("Import") } },
                 dismissButton = { TextButton(onClick = viewModel::cancelImport) { Text("Cancel") } },
             )
         }

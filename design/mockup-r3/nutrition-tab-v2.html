@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nutrition tab v2: compact overview and meals</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    --page: #0a0b0d;
+    --bg: #121316;
+    --card: #1c1d21;
+    --tile: #26272c;
+    --track: #2c2d33;
+    --line: #2a2c32;
+    --text: #f2f3f5;
+    --muted: #9a9ca4;
+    --accent: #8fdcc4;
+    --accent-ink: #00201a;
+    --protein: #7fd9bf;
+    --carbs: #e3b64c;
+    --fat: #f0877a;
+    --red-chip: #472b27;
+    --red-ink: #ffb5a0;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--page);
+    color: var(--text);
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 40px 24px 56px;
+    -webkit-font-smoothing: antialiased;
+  }
+  header { max-width: 900px; margin: 0 auto 32px; }
+  header h1 { font-size: 22px; font-weight: 600; margin: 0 0 8px; }
+  header .cap { color: var(--text); font-size: 14px; line-height: 1.5; margin: 0 0 6px; }
+  header .note { color: var(--muted); font-size: 13px; line-height: 1.5; margin: 0; }
+
+  .frames {
+    display: flex;
+    gap: 48px;
+    justify-content: center;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .frame-col { display: flex; flex-direction: column; }
+  .frame-label { font-size: 14px; font-weight: 500; color: var(--muted); margin: 0 0 12px 4px; }
+  .fl-note { font-size: 12px; color: #d9a441; margin-left: 4px; }
+
+  /* Phone frame: 390 px wide, tall enough for the whole page */
+  .phone {
+    position: relative;
+    width: 390px;
+    background: var(--bg);
+    border: 1px solid #2a2c33;
+    border-radius: 44px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 0;
+  }
+  .status {
+    height: 44px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px 0 32px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .screen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 4px 16px 0;
+    gap: 12px;
+  }
+  .top { display: flex; align-items: center; justify-content: space-between; height: 40px; }
+  .top .t { font-size: 24px; font-weight: 700; letter-spacing: -0.01em; }
+  .av {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: #263d37; color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px;
+  }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; align-self: flex-start;
+    border-radius: 999px; padding: 6px 12px;
+    font-size: 12px; font-weight: 700;
+    background: var(--red-chip); color: var(--red-ink);
+  }
+
+  .card { background: var(--card); border-radius: 24px; padding: 16px; }
+
+  /* Overview card (compact dashboard) */
+  .overview-top { display: flex; gap: 16px; align-items: center; height: 140px; }
+  .ring-wrap { position: relative; width: 124px; height: 124px; flex: none; }
+  .ring-wrap svg { display: block; width: 124px; height: 124px; }
+  .ring-center {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; line-height: 1;
+  }
+  .ring-center .big { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+  .ring-center .unit { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .seg { opacity: 0; transition: opacity 0.2s ease; }
+  .eat { opacity: 1; transition: opacity 0.2s ease; }
+  .held .seg { opacity: 1; }
+  .held .eat { opacity: 0; }
+
+  .ov-right { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+  .ov-right .eaten { font-size: 13px; color: var(--muted); line-height: 1.35; }
+  .ov-right .eaten b { color: var(--text); font-weight: 600; }
+
+  .split-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 32px; padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid #3a3d45; background: #24262c; color: var(--text);
+    font: 500 12px/1 Inter, system-ui, sans-serif;
+    cursor: pointer; user-select: none; -webkit-user-select: none;
+    touch-action: none; -webkit-touch-callout: none;
+    transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+  }
+  .split-btn svg { width: 14px; height: 14px; color: var(--accent); flex: none; }
+  .split-btn.is-pressed {
+    transform: scale(0.94);
+    background: #1b3530;
+    border-color: var(--accent);
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.5);
+  }
+
+  .legend { display: none; flex-direction: column; gap: 3px; font-size: 12px; font-weight: 600; }
+  .legend span { display: flex; align-items: center; gap: 6px; }
+  .legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .held .legend { display: flex; }
+
+  .macros { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+  .macro { background: var(--tile); border-radius: 16px; padding: 10px; min-width: 0; }
+  .macro .name { font-size: 12px; color: var(--muted); }
+  .macro .num { font-size: 22px; font-weight: 700; line-height: 1.1; margin-top: 2px; }
+  .macro .tgt { font-size: 11px; color: var(--muted); }
+  .macro .bar { height: 3px; background: var(--track); border-radius: 3px; margin: 8px 0 6px; overflow: hidden; }
+  .macro .bar i { display: block; height: 100%; border-radius: 3px; }
+  .macro .kcal { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .macro .pct { font-size: 11px; font-weight: 700; white-space: nowrap; visibility: hidden; }
+  .held .macro .pct { visibility: visible; }
+
+  .metrics {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px;
+    border-top: 1px solid var(--line); margin-top: 14px; padding-top: 12px;
+  }
+  .metric .row { display: flex; justify-content: space-between; font-size: 12px; font-weight: 500; }
+  .metric .row b { font-weight: 600; }
+  .metric .mbar { height: 3px; background: var(--track); border-radius: 3px; margin-top: 6px; overflow: hidden; }
+  .metric .mbar i { display: block; height: 100%; border-radius: 3px; }
+
+  .more-n {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line);
+    color: var(--accent); font-weight: 600; font-size: 13px;
+  }
+  .more-n svg { width: 16px; height: 16px; }
+
+  /* Meals card */
+  .meals { padding: 4px 16px; }
+  .meal {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 0; border-top: 1px solid var(--line);
+  }
+  .meal:first-child { border-top: 0; }
+  .ico {
+    width: 40px; height: 40px; border-radius: 12px; flex: none;
+    background: #263d37; display: flex; align-items: center; justify-content: center; font-size: 18px;
+  }
+  .meal .n { flex: 1; min-width: 0; }
+  .meal .n b { display: block; font-size: 15px; font-weight: 600; }
+  .meal .n .sub { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .meal .n .sub a { color: var(--accent); font-weight: 700; text-decoration: none; }
+  .mini { height: 5px; border-radius: 3px; display: flex; overflow: hidden; width: 120px; margin-top: 6px; }
+  .mini i { display: block; height: 100%; }
+  .p { background: var(--protein); }
+  .c { background: var(--carbs); }
+  .f { background: var(--fat); }
+  .plus {
+    width: 34px; height: 34px; border-radius: 50%; flex: none;
+    border: 1px solid #34353c; display: flex; align-items: center; justify-content: center;
+    color: var(--accent); font-size: 20px; line-height: 1;
+  }
+
+  .more-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 16px; font-size: 14px; font-weight: 600;
+  }
+  .more-row span:last-child { color: var(--muted); font-size: 18px; }
+
+  /* Bottom pill bar */
+  .pill-wrap { margin: auto 16px 16px; padding-top: 24px; }
+  .pill {
+    height: 58px; border-radius: 30px; background: #26272e;
+    display: flex; align-items: center; justify-content: space-around;
+    font-size: 12px; color: var(--muted);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  }
+  .pill .on {
+    color: var(--accent); background: #263d37; border-radius: 22px;
+    padding: 14px 16px; font-weight: 700;
+  }
+
+  /* One phone screen marker */
+  .fold {
+    position: absolute; left: 0; right: 0; top: 844px;
+    border-top: 1px dashed #d9a441;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .fold span {
+    position: absolute; right: 12px; top: -22px;
+    font-size: 11px; font-weight: 600; color: #d9a441;
+    background: #1d1a12; border: 1px solid #5a4620; border-radius: 999px; padding: 3px 9px;
+  }
+
+  .footnote {
+    max-width: 900px; margin: 40px auto 0;
+    color: var(--muted); font-size: 13px; line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Nutrition tab v2: compact overview and meals</h1>
+  <p class="cap">Option 1 layout with the new overview card. Hold the button to see the split.</p>
+  <p class="note">Reference-limit note (fibre, saturated fat and salt) moved inside More nutrients to save space. Meal kcal add to the day: 265 + 351 = 616. Macros: protein 34 g, carbs 84 g, fat 16 g = 136 + 336 + 144 = 616 kcal of 2,260.</p>
+</header>
+
+<div class="frames">
+
+  <!-- Frame 1: Normal -->
+  <div class="frame-col">
+    <div class="frame-label">Normal <span class="fl-note">· dashed line = one phone screen (844 px)</span></div>
+    <div class="phone" id="phone-normal">
+      <div class="status"><span>9:41</span><span>&#9679;&#9679;&#9679;</span></div>
+      <div class="screen">
+        <div class="top"><div class="t">Nutrition</div><div class="av">Y</div></div>
+        <span class="chip">&#9961; Avoiding: Milk and dairy &rsaquo;</span>
+
+        <section class="card overview">
+          <div class="overview-top">
+            <div class="ring-wrap">
+              <svg viewBox="0 0 124 124" aria-hidden="true">
+                <circle cx="62" cy="62" r="52" fill="none" stroke="#2c2d33" stroke-width="10"/>
+                <circle class="eat" cx="62" cy="62" r="52" fill="none" stroke="#8fdcc4" stroke-width="10"
+                        stroke-dasharray="89.05 326.73" stroke-dashoffset="0" transform="rotate(-90 62 62)"/>
+                <circle class="seg" cx="62" cy="62" r="52" fill="none" stroke="#7fd9bf" stroke-width="10"
+                        stroke-dasharray="19.66 346.07" stroke-dashoffset="0" transform="rotate(-90 62 62)"/>
+                <circle class="seg" cx="62" cy="62" r="52" fill="none" stroke="#e3b64c" stroke-width="10"
+                        stroke-dasharray="48.57 317.16" stroke-dashoffset="-19.66" transform="rotate(-90 62 62)"/>
+                <circle class="seg" cx="62" cy="62" r="52" fill="none" stroke="#f0877a" stroke-width="10"
+                        stroke-dasharray="20.82 344.91" stroke-dashoffset="-68.23" transform="rotate(-90 62 62)"/>
+              </svg>
+              <div class="ring-center">
+                <div class="big">1644</div>
+                <div class="unit">kcal left</div>
+              </div>
+            </div>
+            <div class="ov-right">
+              <div class="eaten">of 2,260 kcal<br><b>616 eaten</b></div>
+              <button class="split-btn hold-btn" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3a9 9 0 0 1 9 9h-9z" fill="currentColor"/></svg>
+                Hold for split
+              </button>
+              <div class="legend">
+                <span style="color:#7fd9bf"><i style="background:#7fd9bf"></i>Protein 22%</span>
+                <span style="color:#e3b64c"><i style="background:#e3b64c"></i>Carbs 55%</span>
+                <span style="color:#f0877a"><i style="background:#f0877a"></i>Fat 23%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="macros">
+            <div class="macro">
+              <div class="name">Protein</div>
+              <div class="num">34</div>
+              <div class="tgt">/ 170 g</div>
+              <div class="bar"><i class="p" style="width:20%"></i></div>
+              <div class="kcal">136 kcal</div>
+              <div class="pct" style="color:#7fd9bf">22% of kcal</div>
+            </div>
+            <div class="macro">
+              <div class="name">Carbs</div>
+              <div class="num">84</div>
+              <div class="tgt">/ 250 g</div>
+              <div class="bar"><i class="c" style="width:34%"></i></div>
+              <div class="kcal">336 kcal</div>
+              <div class="pct" style="color:#e3b64c">55% of kcal</div>
+            </div>
+            <div class="macro">
+              <div class="name">Fat</div>
+              <div class="num">16</div>
+              <div class="tgt">/ 65 g</div>
+              <div class="bar"><i class="f" style="width:25%"></i></div>
+              <div class="kcal">144 kcal</div>
+              <div class="pct" style="color:#f0877a">23% of kcal</div>
+            </div>
+          </div>
+
+          <div class="metrics">
+            <div class="metric">
+              <div class="row"><span>Fibre</span><b>6 g</b></div>
+              <div class="mbar"><i style="width:24%;background:#7fd9bf"></i></div>
+            </div>
+            <div class="metric">
+              <div class="row"><span>Sat fat</span><b>5.1 g</b></div>
+              <div class="mbar"><i style="width:23%;background:#e3b64c"></i></div>
+            </div>
+            <div class="metric">
+              <div class="row"><span>Sugar</span><b>42 g</b></div>
+              <div class="mbar"><i style="width:47%;background:#f0877a"></i></div>
+            </div>
+            <div class="metric">
+              <div class="row"><span>Sodium</span><b>1,240 mg</b></div>
+              <div class="mbar"><i style="width:54%;background:#e3b64c"></i></div>
+            </div>
+          </div>
+
+          <div class="more-n">
+            <span>More nutrients</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+        </section>
+
+        <section class="card meals">
+          <div class="meal">
+            <div class="ico">&#127749;</div>
+            <div class="n"><b>Breakfast</b><span class="sub">Instant oatmeal, banana · 265 kcal</span>
+              <div class="mini"><i class="p" style="width:12%"></i><i class="c" style="width:75%"></i><i class="f" style="width:13%"></i></div></div>
+            <div class="plus">+</div>
+          </div>
+          <div class="meal">
+            <div class="ico">&#9728;&#65039;</div>
+            <div class="n"><b>Lunch</b><span class="sub">Chicken wrap · 351 kcal</span>
+              <div class="mini"><i class="p" style="width:30%"></i><i class="c" style="width:39%"></i><i class="f" style="width:31%"></i></div></div>
+            <div class="plus">+</div>
+          </div>
+          <div class="meal">
+            <div class="ico">&#127769;</div>
+            <div class="n"><b>Dinner</b><span class="sub">Planned: Turkey chili · <a>Log it</a></span></div>
+            <div class="plus">+</div>
+          </div>
+          <div class="meal">
+            <div class="ico">&#127822;</div>
+            <div class="n"><b>Snacks</b><span class="sub">Nothing yet</span></div>
+            <div class="plus">+</div>
+          </div>
+          <div class="meal">
+            <div class="ico">&#128167;</div>
+            <div class="n"><b>Drinks</b><span class="sub">24 of 84 fl oz</span></div>
+            <div class="plus">+</div>
+          </div>
+        </section>
+
+        <section class="card more-row" style="margin-top:0">
+          <span>More: plan, recipes, eating out, nutrients</span>
+          <span>&rsaquo;</span>
+        </section>
+      </div>
+
+      <div class="pill-wrap">
+        <nav class="pill">
+          <span>Today</span><span class="on">Nutrition</span><span>Train</span><span>Progress</span>
+        </nav>
+      </div>
+      <div class="fold"></div>
+    </div>
+  </div>
+
+  <!-- Frame 2: Holding Hold for split -->
+  <div class="frame-col">
+    <div class="frame-label">Holding Hold for split <span class="fl-note">· dashed line = one phone screen (844 px)</span></div>
+    <div class="phone" id="phone-held">
+      <div class="status"><span>9:41</span><span>&#9679;&#9679;&#9679;</span></div>
+      <div class="screen">
+        <div class="top"><div class="t">Nutrition</div><div class="av">Y</div></div>
+        <span class="chip">&#9961; Avoiding: Milk and dairy &rsaquo;</span>
+
+        <section class="card overview held">
+          <div class="overview-top">
+            <div class="ring-wrap">
+              <svg viewBox="0 0 124 124" aria-hidden="true">
+                <circle cx="62" cy="62" r="52" fill="none" stroke="#2c2d33" stroke-width="10"/>
+                <circle class="eat" cx="62" cy="62" r="52" fill="none" stroke="#8fdcc4" stroke-width="10"
+                        stroke-dasharray="89.05 326.73" stroke-dashoffset="0" transform="rotate(-90 62 62)"/>
+                <circle class="seg" cx="62" cy="62" r="52" fill="none" stroke="#7fd9bf" stroke-width="10"
+                        stroke-dasharray="19.66 346.07" stroke-dashoffset="0" transform="rotate(-90 62 62)"/>
+                <circle class="seg" cx="62" cy="62" r="52" fill="none" stroke="#e3b64c" stroke-width="10"
+                        stroke-dasharray="48.57 317.16" stroke-dashoffset="-19.66" transform="rotate(-90 62 62)"/>
+                <circle class="seg" cx="62" cy="62" r="52" fill="none" stroke="#f0877a" stroke-width="10"
+                        stroke-dasharray="20.82 344.91" stroke-dashoffset="-68.23" transform="rotate(-90 62 62)"/>
+              </svg>
+              <div class="ring-center">
+                <div class="big">1644</div>
+                <div class="unit">kcal left</div>
+              </div>
+            </div>
+            <div class="ov-right">
+              <div class="eaten">of 2,260 kcal<br><b>616 eaten</b></div>
+              <button class="split-btn hold-btn is-pressed" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3a9 9 0 0 1 9 9h-9z" fill="currentColor"/></svg>
+                Hold for split
+              </button>
+              <div class="legend">
+                <span style="color:#7fd9bf"><i style="background:#7fd9bf"></i>Protein 22%</span>
+                <span style="color:#e3b64c"><i style="background:#e3b64c"></i>Carbs 55%</span>
+                <span style="color:#f0877a"><i style="background:#f0877a"></i>Fat 23%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="macros">
+            <div class="macro">
+              <div class="name">Protein</div>
+              <div class="num">34</div>
+              <div class="tgt">/ 170 g</div>
+              <div class="bar"><i class="p" style="width:20%"></i></div>
+              <div class="kcal">136 kcal</div>
+              <div class="pct" style="color:#7fd9bf">22% of kcal</div>
+            </div>
+            <div class="macro">
+              <div class="name">Carbs</div>
+              <div class="num">84</div>
+              <div class="tgt">/ 250 g</div>
+              <div class="bar"><i class="c" style="width:34%"></i></div>
+              <div class="kcal">336 kcal</div>
+              <div class="pct" style="color:#e3b64c">55% of kcal</div>
+            </div>
+            <div class="macro">
+              <div class="name">Fat</div>
+              <div class="num">16</div>
+              <div class="tgt">/ 65 g</div>
+              <div class="bar"><i class="f" style="width:25%"></i></div>
+              <div class="kcal">144 kcal</div>
+              <div class="pct" style="color:#f0877a">23% of kcal</div>
+            </div>
+          </div>
+
+          <div class="metrics">
+            <div class="metric">
+              <div class="row"><span>Fibre</span><b>6 g</b></div>
+              <div class="mbar"><i style="width:24%;background:#7fd9bf"></i></div>
+            </div>
+            <div class="metric">
+              <div class="row"><span>Sat fat</span><b>5.1 g</b></div>
+              <div class="mbar"><i style="width:23%;background:#e3b64c"></i></div>
+            </div>
+            <div class="metric">
+              <div class="row"><span>Sugar</span><b>42 g</b></div>
+              <div class="mbar"><i style="width:47%;background:#f0877a"></i></div>
+            </div>
+            <div class="metric">
+              <div class="row"><span>Sodium</span><b>1,240 mg</b></div>
+              <div class="mbar"><i style="width:54%;background:#e3b64c"></i></div>
+            </div>
+          </div>
+
+          <div class="more-n">
+            <span>More nutrients</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+        </section>
+
+        <section class="card meals">
+          <div class="meal">
+            <div class="ico">&#127749;</div>
+            <div class="n"><b>Breakfast</b><span class="sub">Instant oatmeal, banana · 265 kcal</span>
+              <div class="mini"><i class="p" style="width:12%"></i><i class="c" style="width:75%"></i><i class="f" style="width:13%"></i></div></div>
+            <div class="plus">+</div>
+          </div>
+          <div class="meal">
+            <div class="ico">&#9728;&#65039;</div>
+            <div class="n"><b>Lunch</b><span class="sub">Chicken wrap · 351 kcal</span>
+              <div class="mini"><i class="p" style="width:30%"></i><i class="c" style="width:39%"></i><i class="f" style="width:31%"></i></div></div>
+            <div class="plus">+</div>
+          </div>
+          <div class="meal">
+            <div class="ico">&#127769;</div>
+            <div class="n"><b>Dinner</b><span class="sub">Planned: Turkey chili · <a>Log it</a></span></div>
+            <div class="plus">+</div>
+          </div>
+          <div class="meal">
+            <div class="ico">&#127822;</div>
+            <div class="n"><b>Snacks</b><span class="sub">Nothing yet</span></div>
+            <div class="plus">+</div>
+          </div>
+          <div class="meal">
+            <div class="ico">&#128167;</div>
+            <div class="n"><b>Drinks</b><span class="sub">24 of 84 fl oz</span></div>
+            <div class="plus">+</div>
+          </div>
+        </section>
+
+        <section class="card more-row" style="margin-top:0">
+          <span>More: plan, recipes, eating out, nutrients</span>
+          <span>&rsaquo;</span>
+        </section>
+      </div>
+
+      <div class="pill-wrap">
+        <nav class="pill">
+          <span>Today</span><span class="on">Nutrition</span><span>Train</span><span>Progress</span>
+        </nav>
+      </div>
+      <div class="fold"></div>
+    </div>
+  </div>
+
+</div>
+
+<p class="footnote">
+  Press and hold the Hold for split button in either frame to show or hide the split. Holding turns the eaten arc into protein (teal), carbs (amber) and fat (salmon), sized by kcal share of the 616 eaten, and shows each macro's share of kcal. The dashed line marks one phone screen (844 px); everything below it scrolls.
+</p>
+
+<script>
+  document.querySelectorAll('.phone').forEach(function (phone) {
+    var btn = phone.querySelector('.hold-btn');
+    var card = phone.querySelector('.overview');
+    if (!btn || !card) return;
+    function on() { card.classList.add('held'); btn.classList.add('is-pressed'); }
+    function off() { card.classList.remove('held'); btn.classList.remove('is-pressed'); }
+    btn.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      if (btn.setPointerCapture) { try { btn.setPointerCapture(e.pointerId); } catch (err) {} }
+      on();
+    });
+    btn.addEventListener('pointerup', off);
+    btn.addEventListener('pointercancel', off);
+    btn.addEventListener('lostpointercapture', off);
+    btn.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  });
+</script>
+</body>
+</html>

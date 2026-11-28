@@ -24,6 +24,21 @@ class RecipeImportTest {
 
     // ---- 1. notes ----
 
+    // ---- 0. JSON-LD wrapped in CDATA comments with a space (eatwell101.com) ----
+
+    @Test fun `a Recipe block wrapped in a spaced CDATA comment is read`() {
+        val r = found("eatwell101-cdata.html")
+        assertThat(r.name).isEqualTo("Healthy Tomato Zucchini Pasta")
+        assertThat(r.ingredients).hasSize(11)
+        assertThat(r.ingredients).contains("2 medium zucchinis")
+        assertThat(r.steps).hasSize(5)
+        assertThat(r.steps.first()).startsWith("Cook the pasta in salted boiling water")
+        assertThat(r.servings).isEqualTo(4)
+        assertThat(r.prepMinutes).isEqualTo(10)
+        assertThat(r.cookMinutes).isEqualTo(10)
+        assertThat(r.imageUrl).endsWith("Healthy-Tomato-Zucchini-Pasta-recipe.jpg")
+    }
+
     @Test fun `WPRM notes are read from the card and not from a script string`() {
         val notes = found("wprm-groups.html").notes!!
         assertThat(notes.lines()).containsExactly(
@@ -236,7 +251,7 @@ class RecipeImportTest {
 
     @Test fun `nutrition extras list only what the page gave`() {
         assertThat(RecipeNutritionLabels.extras(2.0, 2.0, 37.0, 1179.0)).containsExactly(
-            "Fibre" to "2 g", "Sugar" to "2 g", "Saturated fat" to "37 g", "Sodium" to "1,179 mg",
+            "Fiber" to "2 g", "Sugar" to "2 g", "Saturated fat" to "37 g", "Sodium" to "1,179 mg",
         ).inOrder()
         assertThat(RecipeNutritionLabels.extras(null, 1.5, null, null)).containsExactly("Sugar" to "1.5 g")
         assertThat(RecipeNutritionLabels.extras(null, null, null, null)).isEmpty()

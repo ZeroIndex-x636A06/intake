@@ -13,7 +13,28 @@ package com.zeroindex.intake.domain.model
  */
 enum class FoodSource { MANUAL, BARCODE, SEARCH, AI_PHOTO, RECIPE, DATABASE, OPEN_FOOD_FACTS }
 
-enum class MealSlot { BREAKFAST, LUNCH, DINNER, SNACK }
+/**
+ * Where a food-log row sits on Today. [DRINKS] is "no meal": a drink logged from Drinks, the water card or the watch.
+ * Stored by name in the same TEXT column, so it needs no schema change; rows written before it keep their meal slot.
+ */
+enum class MealSlot {
+    BREAKFAST, LUNCH, DINNER, SNACK, DRINKS;
+
+    /** The name as the person reads it ("Lunch", "Snacks"); messages and labels use this, never the enum name. */
+    val label: String
+        get() = when (this) {
+            BREAKFAST -> "Breakfast"
+            LUNCH -> "Lunch"
+            DINNER -> "Dinner"
+            SNACK -> "Snacks"
+            DRINKS -> "Drinks"
+        }
+
+    companion object {
+        /** The four real meals, in day order: what a meal picker or the meal cards list. */
+        val MEALS: List<MealSlot> = listOf(BREAKFAST, LUNCH, DINNER, SNACK)
+    }
+}
 
 /** Self-reported confidence from the AI photo estimator (SPEC §6.4). */
 enum class AiConfidence { HIGH, MEDIUM, LOW }
@@ -29,8 +50,11 @@ enum class PlanRecipeRole { MAIN, VARIATION }
 /** What happens when a meal plan reaches its last week. */
 enum class PlanLoopMode { NONE, REPEAT, REPEAT_N }
 
-/** Shopping list grouping, ordered the way a store is walked (SPEC §9). */
-enum class StoreCategory { PRODUCE, MEAT, PANTRY, FROZEN, OTHER }
+/**
+ * Shopping list grouping, ordered the way a store is walked (SPEC §9). Stored by name, so a value added in the middle
+ * changes no saved row; DAIRY covers milk, cheese, butter, yogurt, eggs and the non-dairy milks.
+ */
+enum class StoreCategory { PRODUCE, MEAT, DAIRY, PANTRY, FROZEN, OTHER }
 
 enum class AllergenSeverity { AVOID, STRICT }
 

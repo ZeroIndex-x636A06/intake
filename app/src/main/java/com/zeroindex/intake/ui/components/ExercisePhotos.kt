@@ -18,8 +18,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -121,7 +119,10 @@ fun ExercisePicture(
 @Composable
 fun ExerciseThumb(exerciseId: String, photoPath: String?, modifier: Modifier = Modifier, size: Dp = 48.dp) {
     val context = LocalContext.current
-    val has = remember(exerciseId, photoPath) { ExerciseImages.count(context, exerciseId, photoPath) > 0 }
+    // Reading the photo index parses a bundled file, so it stays off the main thread; a list of rows must not wait on it.
+    val has by produceState(false, exerciseId, photoPath) {
+        value = withContext(Dispatchers.IO) { ExerciseImages.count(context, exerciseId, photoPath) > 0 }
+    }
     Box(
         modifier = modifier
             .size(size)
@@ -133,7 +134,7 @@ fun ExerciseThumb(exerciseId: String, photoPath: String?, modifier: Modifier = M
             ExercisePicture(exerciseId, photoPath, which = 0, maxEdge = 160, modifier = Modifier.size(size))
         } else {
             Icon(
-                Icons.Filled.FitnessCenter,
+                com.zeroindex.intake.ui.theme.IntakeIcons.Dumbbell,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                 modifier = Modifier.size(size * 0.45f),

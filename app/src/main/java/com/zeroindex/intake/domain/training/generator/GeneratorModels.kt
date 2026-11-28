@@ -36,6 +36,11 @@ data class GeneratorInputs(
     val daysPerWeek: Int = 4,
     val sessionMinutes: Int = 60,
     val equipment: Set<String> = Equipment.FULL_GYM,
+    /**
+     * The specific items owned (ids from `EquipmentItems`). When set, an exercise is offered only if its requirements are met
+     * by these items, and [equipment] is not used to filter. Null keeps the old kind-only rule.
+     */
+    val equipmentItems: Set<String>? = null,
     val focusMuscles: Set<String> = emptySet(),
     val avoid: Set<BodyArea> = emptySet(),
     /** Advanced: replaces the weekly hard sets for a muscle (0 leaves it out). */
@@ -73,6 +78,8 @@ data class GeneratedExercise(
     val startWeightKg: Double? = null,
     /** Why that starting weight, shown with it. */
     val startNote: String? = null,
+    /** Second of the linked video where this exercise starts (a workout made from a video); null otherwise. */
+    val videoStartSec: Int? = null,
 )
 
 data class GeneratedDay(

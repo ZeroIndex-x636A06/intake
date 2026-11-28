@@ -8,7 +8,6 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -78,6 +77,7 @@ import com.zeroindex.intake.domain.onboarding.TourSteps
 import com.zeroindex.intake.ui.motion.LocalReduceMotion
 import com.zeroindex.intake.ui.motion.Motion
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.intake
 import kotlin.math.min
 
 /**
@@ -190,19 +190,42 @@ class TourState {
                     else -> return true
                 }
                 val s = scroller ?: return true
+                // The scroller animates (or, with reduce motion, jumps) and returns when it has finished.
                 s(dy)
-                withFrameNanos { }
+                // Then wait for the target to stop moving before judging it again, so the highlight never lands on a
+                // position that is still changing.
+                val settled = settleOn(id)
                 // A scroll that moved nothing (end of the list) leaves the target where it was.
-                if (bounds[id] == r) return true
+                if (settled == r) return true
             }
         }
         return bounds[id] != null
+    }
+
+    /**
+     * Waits for a scroll to settle: [id]'s bounds must hold still for [SETTLE_FRAMES] frames in a row. Gives up after
+     * [MAX_SETTLE_FRAMES] frames and returns whatever the bounds are then.
+     */
+    private suspend fun settleOn(id: String): Rect? {
+        var last = bounds[id]
+        var still = 0
+        repeat(MAX_SETTLE_FRAMES) {
+            withFrameNanos { }
+            val now = bounds[id]
+            still = if (now != null && now == last) still + 1 else 0
+            last = now
+            if (still >= SETTLE_FRAMES) return now
+        }
+        return bounds[id]
     }
 
     private companion object {
         const val MAX_SCROLL_STEPS = 24
         const val SEARCH_STEP_PX = 700f
         const val EDGE_PX = 24f
+        /** Frames a target must hold still before the tour trusts its position. */
+        const val SETTLE_FRAMES = 3
+        const val MAX_SETTLE_FRAMES = 30
     }
 }
 
@@ -310,8 +333,8 @@ private fun Scrim(target: Rect?, reduce: Boolean) {
     val density = LocalDensity.current
     val pad = with(density) { 8.dp.toPx() }
     val maxCorner = with(density) { 22.dp.toPx() }
-    val scrim = Color.Black.copy(alpha = 0.62f)
-    val ring = MaterialTheme.colorScheme.primaryContainer
+    val scrim = MaterialTheme.intake.scrim
+    val ring = MaterialTheme.intake.accent
     val padded = target?.let { Rect(it.left - pad, it.top - pad, it.right + pad, it.bottom + pad) }
     val animated by animateRectAsState(
         targetValue = padded ?: Rect.Zero,
@@ -342,7 +365,7 @@ private fun Scrim(target: Rect?, reduce: Boolean) {
                 topLeft = Offset(animated.left, animated.top),
                 size = Size(animated.width, animated.height),
                 cornerRadius = corner,
-                style = Stroke(width = 2.dp.toPx()),
+                style = Stroke(width = 3.dp.toPx()),
             )
         }
     }
@@ -365,7 +388,10 @@ private fun Bubble(
         content = { BubbleCard(tour, ready) },
         modifier = Modifier.fillMaxSize(),
     ) { measurables, constraints ->
-        val placeable = measurables.first().measure(
+        // The card emits nothing once the tour has ended, but the exit animation still measures this layout.
+        val card = measurables.firstOrNull()
+            ?: return@Layout layout(constraints.maxWidth, constraints.maxHeight) {}
+        val placeable = card.measure(
             Constraints(maxWidth = min(maxWidth, constraints.maxWidth - 2 * margin.toInt()).coerceAtLeast(0)),
         )
         val spot = PxRect(target.left - 8f, target.top - 8f, target.right + 8f, target.bottom + 8f)
@@ -393,7 +419,6 @@ private fun BubbleCard(tour: TourState, ready: Boolean) {
         contentColor = MaterialTheme.colorScheme.onSurface,
         shape = IntakeShape.Card,
         shadowElevation = 8.dp,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         // Read the bubble first, before anything behind it (traversal order), without blocking focus.
         modifier = Modifier.semantics { isTraversalGroup = true; traversalIndex = -1f },
     ) {

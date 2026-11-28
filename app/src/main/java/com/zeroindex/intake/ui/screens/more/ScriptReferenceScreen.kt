@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.more
 
+import com.zeroindex.intake.ui.components.ChoiceChip
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -16,7 +17,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -142,12 +142,7 @@ fun ScriptReferenceScreen(
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     val visible = if (topic == ScriptTopic.ALL) WikiPages else WikiPages.filter { it.first in topic.pages }
                     visible.forEach { (id, label) ->
-                        FilterChip(
-                            selected = id == currentPage,
-                            onClick = { if (id != currentPage) open(id, null) },
-                            label = { Text(label) },
-                            modifier = Modifier.heightIn(min = 48.dp),
-                        )
+                        ChoiceChip(label, id == currentPage, { if (id != currentPage) open(id, null) })
                     }
                 }
             }

@@ -1,5 +1,8 @@
 package com.zeroindex.intake.ui.barcode
 
+import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeIcons
+import com.zeroindex.intake.ui.theme.IntakeSpacing
 import android.Manifest
 import android.app.Activity
 import android.content.Context
@@ -29,7 +32,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
@@ -39,17 +41,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FlashOff
-import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import com.zeroindex.intake.ui.components.LineButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -161,14 +159,19 @@ fun BarcodeScannerView(
     // The camera lives in a bounded 4:3 card, clipped to it, so the preview can never grow over the sheet's own
     // tabs, Close button or the manual entry below. The controls sit above the preview in z-order (the
     // preview is a TextureView, which would otherwise draw over siblings that come earlier).
+    // A message card (no camera, no permission, an error) grows with its text and the system font size instead of keeping the
+    // preview's 4:3 shape, which clipped its buttons at font scale 1.5 (QA Q7-23).
+    val showsMessage = !hasCamera || !hasPermission || cameraError != null
     Column(modifier = modifier.fillMaxWidth()) {
         Box(
             modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(horizontal = IntakeSpacing.ScreenGutter, vertical = 8.dp)
                 .fillMaxWidth()
-                .heightIn(max = 340.dp)
-                .aspectRatio(4f / 3f)
-                .clip(RoundedCornerShape(16.dp))
+                .then(
+                    if (showsMessage) Modifier.heightIn(min = 180.dp)
+                    else Modifier.heightIn(max = 340.dp).aspectRatio(4f / 3f),
+                )
+                .clip(IntakeShape.Thumb)
                 .clipToBounds(),
         ) {
             when {
@@ -218,7 +221,7 @@ fun BarcodeScannerView(
                         Surface(
                             color = Color.Transparent,
                             border = BorderStroke(2.dp, Color.White.copy(alpha = 0.85f)),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = IntakeShape.ExtraSmall,
                             modifier = Modifier.fillMaxSize(),
                         ) {}
                     }
@@ -239,7 +242,7 @@ fun BarcodeScannerView(
                             modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).size(48.dp).zIndex(2f),
                         ) {
                             Icon(
-                                imageVector = if (torchOn) Icons.Filled.FlashOn else Icons.Filled.FlashOff,
+                                imageVector = IntakeIcons.Bolt,
                                 contentDescription = if (torchOn) "Turn the torch off" else "Turn the torch on",
                                 tint = Color.White,
                             )
@@ -247,14 +250,17 @@ fun BarcodeScannerView(
                     }
                 }
             }
-            // Back is always drawn above the preview, in every state.
-            Surface(
-                color = Color.Black.copy(alpha = 0.45f),
-                shape = CircleShape,
-                modifier = Modifier.align(Alignment.TopStart).padding(8.dp).size(48.dp).zIndex(2f),
-            ) {
-                IconButton(onClick = onExit) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Leave the scanner", tint = Color.White)
+            // Back sits over the live preview only. On a fallback card it would overlap the card's corner; there system back
+            // (BackHandler above) and the card's own buttons do the job.
+            if (hasCamera && hasPermission && cameraError == null) {
+                Surface(
+                    color = Color.Black.copy(alpha = 0.45f),
+                    shape = CircleShape,
+                    modifier = Modifier.align(Alignment.TopStart).padding(8.dp).size(48.dp).zIndex(2f),
+                ) {
+                    IconButton(onClick = onExit) {
+                        Icon(IntakeIcons.ChevronLeft, contentDescription = "Leave the scanner", tint = Color.White)
+                    }
                 }
             }
         }
@@ -283,7 +289,7 @@ private fun ManualBarcodeEntry(onBarcode: (String) -> Unit) {
         }
     }
 
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = IntakeSpacing.ScreenGutter, vertical = 8.dp)) {
         Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(
                 value = text,
@@ -466,10 +472,9 @@ private fun FallbackMessage(
 ) {
     Column(
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
+            .heightIn(min = 180.dp)
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            // The card is short on a small phone; the message scrolls inside it instead of spilling out.
-            .verticalScroll(rememberScrollState())
             .padding(start = 64.dp, end = 24.dp, top = 12.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.Center,
     ) {
@@ -483,12 +488,12 @@ private fun FallbackMessage(
         if (primaryLabel != null && onPrimary != null) {
             Button(
                 onClick = onPrimary,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget),
             ) { Text(primaryLabel) }
         }
-        OutlinedButton(
+        LineButton(
             onClick = onEnterManually,
-            modifier = Modifier.fillMaxWidth().height(52.dp).padding(top = 8.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget).padding(top = 8.dp),
         ) { Text("Add a product by hand") }
     }
 }

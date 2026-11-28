@@ -51,6 +51,15 @@ android {
             // Matches the phone's debug build, so debug watch talks to debug phone.
             applicationIdSuffix = ".debug"
         }
+        // Pairs with the phone's "preview" build (Intake Preview, com.zeroindex.intake.preview): the Data Layer only
+        // connects a watch app and a phone app with the same package name and the same signing key, so the preview
+        // phone app needs a preview watch app. Built from debug, so it is signed with the same debug key as the
+        // phone's preview build.
+        create("preview") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".preview"
+            matchingFallbacks += "debug"
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true

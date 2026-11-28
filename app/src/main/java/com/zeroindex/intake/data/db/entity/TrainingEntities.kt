@@ -50,6 +50,13 @@ data class ProgramEntity(
      * that is never active, never in the program list and can be started any time. See docs/WORKOUTS.md.
      */
     @ColumnInfo(defaultValue = "0") val isStandalone: Boolean = false,
+    /** The YouTube video id this workout was made from ("Make this a workout"), so the video plays from the workout too. */
+    val videoId: String? = null,
+    /**
+     * Every this many weeks the program takes an easy week by itself (lighter, one set fewer). Null for none: programs
+     * built by hand, imports and saved workouts.
+     */
+    val deloadEveryWeeks: Int? = null,
     override val createdAt: Long,
     override val updatedAt: Long,
     override val deletedAt: Long? = null,
@@ -122,6 +129,12 @@ data class ProgramExerciseEntity(
     val startWeightKg: Double? = null,
     /** A note for this exercise in this routine ("slow negatives", "seat 4"). */
     val notes: String? = null,
+    /**
+     * Second of the workout's linked video (`program.videoId`) where this exercise starts or is first named, from the video's
+     * chapters or captions. Null when unknown. Groundwork for a workout overlay on the video; today it only shows a "play
+     * from here" chip.
+     */
+    val videoStartSec: Int? = null,
     override val createdAt: Long,
     override val updatedAt: Long,
     override val deletedAt: Long? = null,

@@ -2,6 +2,10 @@
 
 package com.zeroindex.intake.ui.screens.plan
 
+import com.zeroindex.intake.ui.components.ChoiceChip
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.components.ChipTone
+import com.zeroindex.intake.ui.components.LineButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -18,11 +22,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -41,7 +43,7 @@ import com.zeroindex.intake.data.db.entity.PlanWeekEntity
 import com.zeroindex.intake.domain.model.PlanLoopMode
 import com.zeroindex.intake.domain.plan.PlanSchedule
 import com.zeroindex.intake.domain.plan.PlanWeekExtras
-import com.zeroindex.intake.ui.components.StatusPill
+import com.zeroindex.intake.domain.time.DateText
 import com.zeroindex.intake.ui.theme.IntakeShape
 import java.time.LocalDate
 
@@ -70,7 +72,7 @@ fun PlansSheet(
                                 style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        if (p.isActive) StatusPill("Active")
+                        if (p.isActive) IntakeChip("Active", tone = ChipTone.Ok)
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         if (!p.isActive) TextButton(onClick = { onSwitch(p) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Use this plan") }
@@ -84,7 +86,7 @@ fun PlansSheet(
                 Text("No plans yet. Make one, or import a plan file.", style = MaterialTheme.typography.bodyMedium)
             }
             Spacer(Modifier.height(12.dp))
-            Button(onClick = onNew, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("New plan") }
+            Button(onClick = onNew, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("New plan") }
             Spacer(Modifier.height(16.dp))
         }
     }
@@ -111,10 +113,11 @@ fun PlanFormDialog(
     var weeks by remember { mutableStateOf("4") }
     var mode by remember { mutableStateOf(initial?.loopMode ?: PlanLoopMode.NONE) }
     var count by remember { mutableStateOf((initial?.loopCount?.takeIf { it >= 2 } ?: 2).toString()) }
-    var start by remember { mutableStateOf(initial?.let { PlanSchedule.date(it.startDate) }?.toString() ?: today.toString()) }
-    val startDate = runCatching { LocalDate.parse(start.trim()) }.getOrNull()
+    // Q6-7: the start day is picked from a calendar and shown in the device's date style, not typed as yyyy-mm-dd.
+    var startDate by remember { mutableStateOf(initial?.let { PlanSchedule.date(it.startDate) } ?: today) }
+    var pickingStart by remember { mutableStateOf(false) }
     val weeksN = weeks.toIntOrNull()
-    val valid = name.isNotBlank() && startDate != null && (initial != null || (weeksN != null && weeksN in 1..PlanSchedule.MAX_WEEKS)) &&
+    val valid = name.isNotBlank() && (initial != null || (weeksN != null && weeksN in 1..PlanSchedule.MAX_WEEKS)) &&
         (mode != PlanLoopMode.REPEAT_N || (count.toIntOrNull() ?: 0) >= 2)
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -128,15 +131,15 @@ fun PlanFormDialog(
                         singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                OutlinedTextField(
-                    start, { start = it }, label = { Text("First day of week 1 (yyyy-mm-dd)") }, singleLine = true,
-                    isError = startDate == null, modifier = Modifier.fillMaxWidth(),
-                )
+                Text("First day of week 1", style = MaterialTheme.typography.labelLarge)
+                LineButton(onClick = { pickingStart = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    Text(DateText.medium(startDate))
+                }
                 Text("When it ends", style = MaterialTheme.typography.labelLarge)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    FilterChip(mode == PlanLoopMode.NONE, { mode = PlanLoopMode.NONE }, label = { Text("Stop") })
-                    FilterChip(mode == PlanLoopMode.REPEAT, { mode = PlanLoopMode.REPEAT }, label = { Text("Repeat") })
-                    FilterChip(mode == PlanLoopMode.REPEAT_N, { mode = PlanLoopMode.REPEAT_N }, label = { Text("Repeat N times") })
+                    ChoiceChip("Stop", mode == PlanLoopMode.NONE, { mode = PlanLoopMode.NONE })
+                    ChoiceChip("Repeat", mode == PlanLoopMode.REPEAT, { mode = PlanLoopMode.REPEAT })
+                    ChoiceChip("Repeat N times", mode == PlanLoopMode.REPEAT_N, { mode = PlanLoopMode.REPEAT_N })
                 }
                 if (mode == PlanLoopMode.REPEAT_N) {
                     OutlinedTextField(
@@ -149,11 +152,29 @@ fun PlanFormDialog(
         confirmButton = {
             TextButton(
                 enabled = valid,
-                onClick = { onSave(name.trim(), weeksN ?: 1, mode, count.toIntOrNull() ?: 2, startDate!!.toEpochDay()) },
+                onClick = { onSave(name.trim(), weeksN ?: 1, mode, count.toIntOrNull() ?: 2, startDate.toEpochDay()) },
             ) { Text(if (initial == null) "Create" else "Save") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
+    if (pickingStart) {
+        val picker = com.zeroindex.intake.ui.components.rememberAppDatePickerState(
+            // The date picker speaks UTC midnight of the calendar date.
+            initialSelectedDateMillis = startDate.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli(),
+        )
+        androidx.compose.material3.DatePickerDialog(
+            onDismissRequest = { pickingStart = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    picker.selectedDateMillis?.let {
+                        startDate = java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneOffset.UTC).toLocalDate()
+                    }
+                    pickingStart = false
+                }) { Text("Use this day") }
+            },
+            dismissButton = { TextButton(onClick = { pickingStart = false }) { Text("Cancel") } },
+        ) { androidx.compose.material3.DatePicker(state = picker) }
+    }
 }
 
 /** The hand-made parts of a week: dish name, protein, a note and one-line variation ideas. */
@@ -180,12 +201,11 @@ fun WeekEditSheet(
             OutlinedTextField(protein, { protein = it }, label = { Text("Protein (for example Chicken)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(variations, { variations = it }, label = { Text("Other ways to eat it, one per line") }, minLines = 3, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(note, { note = it }, label = { Text("Notes for this week") }, minLines = 2, modifier = Modifier.fillMaxWidth())
-            OutlinedButton(onClick = onChooseRecipe, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            LineButton(onClick = onChooseRecipe, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                 Text(if (hasRecipe) "Change the recipe" else "Use a saved recipe for the steps and macros")
             }
             Button(
-                onClick = { onSave(dish, protein, note, variations.lines()) },
-                shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                onClick = { onSave(dish, protein, note, variations.lines()) }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
             ) { Text("Save week") }
             Spacer(Modifier.height(16.dp))
         }

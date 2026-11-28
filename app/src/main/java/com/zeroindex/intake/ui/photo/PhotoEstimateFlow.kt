@@ -2,6 +2,7 @@
 
 package com.zeroindex.intake.ui.photo
 
+import com.zeroindex.intake.ui.theme.IntakeSpacing
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -13,17 +14,14 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import com.zeroindex.intake.ui.components.LineButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -47,6 +45,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.zeroindex.intake.domain.ai.EstimateLine
+import com.zeroindex.intake.domain.ai.HiddenCalorieRules
 import com.zeroindex.intake.domain.ai.PhotoItem
 import com.zeroindex.intake.domain.ai.PhotoItems
 import com.zeroindex.intake.domain.ai.VisionMath
@@ -56,10 +55,11 @@ import com.zeroindex.intake.domain.units.PortionUnit
 import com.zeroindex.intake.ui.allergen.AllergenWarningSheet
 import com.zeroindex.intake.ui.components.AccentNote
 import com.zeroindex.intake.ui.components.AiWaitCard
+import com.zeroindex.intake.ui.components.ChoiceChip
 import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.ui.components.MathGrid
-import com.zeroindex.intake.ui.theme.AllergenAmber
-import com.zeroindex.intake.ui.theme.AllergenRed
+import com.zeroindex.intake.ui.theme.IntakeIcons
+import com.zeroindex.intake.ui.theme.intake
 import com.zeroindex.intake.ui.theme.IntakeShape
 import java.io.File
 import kotlin.math.abs
@@ -82,26 +82,28 @@ fun PhotoEstimateFlow(
     onOpenAiSettings: () -> Unit,
     onManualEntry: () -> Unit,
     onDone: () -> Unit,
+    /** Opens Log food's search with this product name filled in: a label beats a guess. */
+    onFindProduct: (String) -> Unit = {},
     viewModel: PhotoEstimateViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     when (val stage = state.stage) {
-        PhotoStage.NeedsKey -> Column(Modifier.padding(16.dp)) {
+        PhotoStage.NeedsKey -> Column(Modifier.padding(IntakeSpacing.ScreenGutter)) {
             AccentNote(
                 lead = "Photo estimates are optional",
                 body = "They use an AI model through your own OpenRouter key and need “Use AI features” on. " +
                     "Set both in Settings → AI; everything else in the app works without it.",
             )
             Spacer(Modifier.height(12.dp))
-            Button(onClick = onOpenAiSettings, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+            Button(onClick = onOpenAiSettings, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget)) {
                 Text("Set up AI tools")
             }
         }
 
         PhotoStage.Capture -> Column {
             state.biasNote?.let {
-                AccentNote(lead = "From your corrections", body = it, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                AccentNote(lead = "From your corrections", body = it, modifier = Modifier.padding(horizontal = IntakeSpacing.ScreenGutter, vertical = 8.dp))
             }
             OutlinedTextField(
                 value = state.extraContext,
@@ -112,7 +114,7 @@ fun PhotoEstimateFlow(
                 minLines = 2,
                 maxLines = 3,
                 shape = IntakeShape.Field,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = IntakeSpacing.ScreenGutter, vertical = 6.dp),
             )
             PhotoCaptureView(newCaptureFile = viewModel::newCaptureFile, onPhoto = viewModel::onPhoto)
         }
@@ -136,38 +138,42 @@ fun PhotoEstimateFlow(
             onMacro = viewModel::setMacro,
             onConfirm = { viewModel.confirm(slot, loggedAtMillis, state.unit, onDone) },
             onRetake = viewModel::retake,
+            onAnswer = viewModel::answer,
+            onRefine = viewModel::refine,
+            onCancelRefine = viewModel::cancelRefine,
+            onFindProduct = onFindProduct,
         )
 
         // Never the model's own text: a plain message and a way forward.
-        is PhotoStage.Unreadable -> Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        is PhotoStage.Unreadable -> Column(Modifier.padding(IntakeSpacing.ScreenGutter), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("The estimate could not be read", style = MaterialTheme.typography.titleMedium)
             Text(
                 stage.reason,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Button(onClick = viewModel::retake, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+            Button(onClick = viewModel::retake, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget)) {
                 Text("Try again")
             }
-            OutlinedButton(onClick = onManualEntry, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(50.dp)) {
+            LineButton(onClick = onManualEntry, modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget)) {
                 Text("Log manually")
             }
         }
 
-        PhotoStage.NotFood -> Column(Modifier.padding(16.dp)) {
+        PhotoStage.NotFood -> Column(Modifier.padding(IntakeSpacing.ScreenGutter)) {
             Text("That does not look like food", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(10.dp))
-            Button(onClick = viewModel::retake, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+            Button(onClick = viewModel::retake, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget)) {
                 Text("Retake photo")
             }
         }
 
-        is PhotoStage.Failed -> Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        is PhotoStage.Failed -> Column(Modifier.padding(IntakeSpacing.ScreenGutter), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(stage.message, style = MaterialTheme.typography.bodyMedium)
-            Button(onClick = viewModel::retake, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+            Button(onClick = viewModel::retake, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget)) {
                 Text("Try again")
             }
-            OutlinedButton(onClick = onManualEntry, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().height(50.dp)) {
+            LineButton(onClick = onManualEntry, modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget)) {
                 Text("Log manually")
             }
         }
@@ -176,6 +182,7 @@ fun PhotoEstimateFlow(
     (state.stage as? PhotoStage.Review)?.confirmingAllergens?.let { scan ->
         val review = state.stage as PhotoStage.Review
         AllergenWarningSheet(
+            onFindSwap = com.zeroindex.intake.ui.allergen.rememberFindSwap(),
             foodName = review.shown.joinToString(", ") { it.line.name },
             scan = scan,
             onDismiss = viewModel::cancelAllergenConfirm,
@@ -201,6 +208,10 @@ private fun Review(
     onMacro: (Int, (EstimateLine) -> EstimateLine) -> Unit,
     onConfirm: () -> Unit,
     onRetake: () -> Unit,
+    onAnswer: (Int, String) -> Unit,
+    onRefine: () -> Unit,
+    onCancelRefine: () -> Unit,
+    onFindProduct: (String) -> Unit,
 ) {
     val estimate = stage.result.estimate
     val range = estimate.range
@@ -212,10 +223,14 @@ private fun Review(
             .fillMaxWidth()
             .heightIn(max = 640.dp)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = IntakeSpacing.ScreenGutter, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text("Review estimate", style = MaterialTheme.typography.headlineSmall)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Review estimate", style = MaterialTheme.typography.headlineSmall)
+            // Photo estimates are read by a model: the AI label.
+            com.zeroindex.intake.ui.components.IntakeChip("AI", tone = com.zeroindex.intake.ui.components.ChipTone.Ai, icon = IntakeIcons.Sparkle, small = true)
+        }
         Text(
             "Nothing is saved until you confirm. Photo estimates are a first guess to correct.",
             style = MaterialTheme.typography.bodySmall,
@@ -225,13 +240,37 @@ private fun Review(
             model = File(stage.result.photoPath),
             contentDescription = "The photo being estimated",
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxWidth().height(140.dp).clip(RoundedCornerShape(18.dp)),
+            modifier = Modifier.fillMaxWidth().height(140.dp).clip(IntakeShape.InnerCard),
         )
+
+        stage.result.productQuery?.let { product ->
+            Surface(
+                color = MaterialTheme.intake.soft,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                shape = IntakeShape.Banner,
+            ) {
+                Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("This looks like a packaged product", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "$product. The label on the pack is more exact than any estimate from a photo.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    LineButton(
+                        onClick = { onFindProduct(product) },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget),
+                    ) { Text("Find this product instead") }
+                }
+            }
+        }
+
+        if (stage.questions.isNotEmpty()) {
+            Questions(stage, onAnswer, onRefine, onCancelRefine)
+        }
 
         // SPEC §6.7: the portion assumption, prominent, with the slider beside it.
         Surface(
-            color = MaterialTheme.colorScheme.secondaryContainer,
-            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            color = MaterialTheme.intake.soft,
+            contentColor = MaterialTheme.colorScheme.onSurface,
             shape = IntakeShape.Banner,
         ) {
             Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -261,15 +300,14 @@ private fun Review(
                 Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        OutlinedButton(
+        LineButton(
             onClick = onCautious,
-            shape = IntakeShape.Button,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget),
         ) {
             Text("Use the cautious estimate (${range.kcalHigh.roundToInt()} kcal)")
         }
 
-        biasNote?.let { Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary) }
+        biasNote?.let { Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
 
         Eyebrow("${stage.items.size} ${if (stage.items.size == 1) "food" else "foods"} found")
         Text(
@@ -294,9 +332,10 @@ private fun Review(
             )
         }
 
-        if (estimate.hiddenCalorieSources.isNotEmpty()) {
+        val counted = estimate.hiddenCalorieSources.filter { HiddenCalorieRules.isCounted(it.basis) }
+        if (counted.isNotEmpty()) {
             Eyebrow("Hidden calories counted")
-            estimate.hiddenCalorieSources.forEach {
+            counted.forEach {
                 Text("${it.source} · ${it.kcal.roundToInt()} kcal", style = MaterialTheme.typography.bodyMedium)
             }
         }
@@ -312,7 +351,8 @@ private fun Review(
         )
         Text(
             "Estimated by ${stage.result.model}" +
-                (stage.result.costUsd?.let { " · cost \$%.4f".format(it) } ?: ""),
+                (stage.result.costUsd?.let { " · cost \$%.4f".format(it) } ?: "") +
+                (if (stage.result.calls > 1) " · ${stage.result.calls} calls" else ""),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -320,7 +360,7 @@ private fun Review(
             onClick = onConfirm,
             enabled = ticked > 0 && !stage.saving,
             shape = IntakeShape.Button,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget),
         ) {
             Text(
                 when {
@@ -330,10 +370,61 @@ private fun Review(
                 },
             )
         }
-        OutlinedButton(onClick = onRetake, shape = IntakeShape.Button, modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp)) {
+        LineButton(onClick = onRetake, modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget)) {
             Text("Retake photo")
         }
         Spacer(Modifier.height(12.dp))
+    }
+}
+
+/**
+ * "Ask instead of guessing wrong": the model's short questions as tappable choices, above the estimate. The answers
+ * go back in one follow-up call for the final numbers; nothing is sent until the button is pressed.
+ */
+@Composable
+private fun Questions(
+    stage: PhotoStage.Review,
+    onAnswer: (Int, String) -> Unit,
+    onRefine: () -> Unit,
+    onCancelRefine: () -> Unit,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = IntakeShape.Banner,
+    ) {
+        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("A quick check", style = MaterialTheme.typography.titleSmall)
+            Text(
+                "The model is not sure about a few things. Tap what fits for a better estimate, or skip them.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            stage.questions.forEachIndexed { index, q ->
+                Text(q.text, style = MaterialTheme.typography.labelLarge)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    q.choices.forEach { choice ->
+                        ChoiceChip(choice, stage.answers[index] == choice, { onAnswer(index, choice) })
+                    }
+                }
+            }
+            if (stage.refining) {
+                Text("Working out the final numbers…", style = MaterialTheme.typography.bodyMedium)
+                TextButton(onClick = onCancelRefine) { Text("Cancel") }
+            } else {
+                Button(
+                    onClick = onRefine,
+                    enabled = stage.canRefine,
+                    shape = IntakeShape.Button,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget),
+                ) { Text("Update the estimate with my answers") }
+                Text(
+                    "One more call to the model, without the photo. It replaces any edits you made below.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            stage.refineError?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+        }
     }
 }
 
@@ -416,9 +507,9 @@ private fun FoodItemCard(
                 if (flag != null && flag != AllergenMatchKind.CHECK_LABEL) {
                     Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Icon(
-                            Icons.Filled.Warning,
+                            IntakeIcons.ShieldAlert,
                             contentDescription = null,
-                            tint = if (flag == AllergenMatchKind.CONTAINS) AllergenRed else AllergenAmber,
+                            tint = if (flag == AllergenMatchKind.CONTAINS) MaterialTheme.intake.bad else MaterialTheme.intake.warn,
                         )
                         Text(
                             buildString {

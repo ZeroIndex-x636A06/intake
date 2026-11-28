@@ -2,6 +2,9 @@
 
 package com.zeroindex.intake.ui.onboarding
 
+import com.zeroindex.intake.domain.units.KcalFormat
+import com.zeroindex.intake.domain.training.generator.EquipmentPreset
+import com.zeroindex.intake.ui.components.EquipmentChecklist
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -28,18 +31,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import com.zeroindex.intake.ui.components.IntakeSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -57,6 +58,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -75,6 +77,7 @@ import com.zeroindex.intake.domain.goals.Phase
 import com.zeroindex.intake.domain.goals.PhasePlanner
 import com.zeroindex.intake.domain.goals.Sex
 import com.zeroindex.intake.domain.onboarding.OnboardingFlow
+import com.zeroindex.intake.domain.food.OffLanguage
 import com.zeroindex.intake.domain.onboarding.OnboardingStep
 import com.zeroindex.intake.domain.onboarding.PendingDestination
 import com.zeroindex.intake.domain.units.LengthUnit
@@ -91,6 +94,18 @@ import com.zeroindex.intake.ui.screens.allergen.MyAllergensViewModel
 import com.zeroindex.intake.ui.screens.profile.ChipGroup
 import com.zeroindex.intake.ui.screens.profile.CommitField
 import com.zeroindex.intake.ui.screens.profile.OptionTile
+import com.zeroindex.intake.ui.components.AccentButton
+import com.zeroindex.intake.ui.components.Eyebrow
+import com.zeroindex.intake.ui.components.IconCircleButton
+import com.zeroindex.intake.ui.components.HeroCard
+import com.zeroindex.intake.ui.components.IconTile
+import com.zeroindex.intake.ui.components.ListCard
+import com.zeroindex.intake.ui.components.ListDivider
+import com.zeroindex.intake.ui.components.heroMuted
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.theme.intake
 import com.zeroindex.intake.ui.screens.profile.ProfileViewModel
 import com.zeroindex.intake.ui.screens.profile.num
 import com.zeroindex.intake.ui.theme.IntakeShape
@@ -109,6 +124,8 @@ fun OnboardingScreen(
     contentPadding: PaddingValues,
     onFinished: () -> Unit,
     modifier: Modifier = Modifier,
+    /** The Optional extras "Set up" buttons: finishes the welcome flow, then opens that Settings group (health, sync, ai). */
+    onSetUp: (group: String) -> Unit = {},
     viewModel: OnboardingViewModel = hiltViewModel(),
     profileViewModel: ProfileViewModel = hiltViewModel(),
 ) {
@@ -142,15 +159,25 @@ fun OnboardingScreen(
             .imePadding(),
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 6.dp),
+            Modifier.fillMaxWidth().padding(start = IntakeSpacing.ScreenGutter, end = 8.dp, top = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            ProgressDots(step, Modifier.weight(1f))
+            val (position, total) = OnboardingFlow.position(step)
+            if (OnboardingFlow.canGoBack(step)) {
+                IconCircleButton(IntakeIcons.ChevronLeft, "Back", onClick = { viewModel.back(step) })
+                Spacer(Modifier.width(12.dp))
+            }
+            Eyebrow("Step $position of $total", modifier = Modifier.weight(1f).clearAndSetSemantics { })
             // Always visible: nobody is ever stuck in the flow.
-            TextButton(onClick = { viewModel.finish(onFinished) }, modifier = Modifier.heightIn(min = 48.dp)) {
-                Text("Skip setup")
+            TextButton(
+                onClick = { viewModel.finish(onFinished) },
+                modifier = Modifier.heightIn(min = 48.dp),
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface),
+            ) {
+                Text("Skip setup", style = MaterialTheme.typography.labelLarge)
             }
         }
+        ProgressDots(step, Modifier.fillMaxWidth().padding(horizontal = IntakeSpacing.ScreenGutter))
 
         AnimatedContent(
             targetState = step,
@@ -164,18 +191,20 @@ fun OnboardingScreen(
                 Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                    .padding(horizontal = IntakeSpacing.ScreenGutter, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
             ) {
                 when (s) {
                     OnboardingStep.WELCOME -> WelcomeStep()
                     OnboardingStep.UNITS -> UnitsStep(viewModel)
                     OnboardingStep.ABOUT_YOU -> AboutYouStep(profileViewModel)
                     OnboardingStep.GOAL -> GoalStep(profileViewModel) { viewModel.goTo(OnboardingStep.ABOUT_YOU) }
+                    OnboardingStep.EQUIPMENT -> EquipmentStep(profileViewModel)
                     OnboardingStep.ALLERGENS -> AllergensStep()
                     OnboardingStep.HOW_TO_START -> HowToStartStep(viewModel) { viewModel.goTo(OnboardingStep.ABOUT_YOU) }
                     OnboardingStep.PLANS -> PlansStep(viewModel)
-                    OnboardingStep.EXTRAS -> ExtrasStep()
+                    // The flow stays open (on this saved step) under the Settings page, so Back returns here (QA Q8-7).
+                    OnboardingStep.EXTRAS -> ExtrasStep(onSetUp = onSetUp)
                     OnboardingStep.DONE -> DoneStep(prefs.pending, prefs.replay)
                 }
             }
@@ -193,22 +222,31 @@ fun OnboardingScreen(
     }
 }
 
+/** The hairline progress of the mockup: one 4 dp segment per step, done in ink, the current one lime, the rest `line`. */
 @Composable
 private fun ProgressDots(step: OnboardingStep, modifier: Modifier = Modifier) {
     val (position, total) = OnboardingFlow.position(step)
-    val on = MaterialTheme.colorScheme.primary
+    val done = MaterialTheme.colorScheme.primary
+    val current = MaterialTheme.intake.accent
     val off = MaterialTheme.colorScheme.outlineVariant
     Row(
         modifier.clearAndSetSemantics { contentDescription = "Step $position of $total" },
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         repeat(total) { i ->
             Box(
                 Modifier
-                    .size(if (i + 1 == position) 10.dp else 8.dp)
+                    .weight(1f)
+                    .height(4.dp)
                     .clip(CircleShape)
-                    .background(if (i < position) on else off),
+                    .background(
+                        when {
+                            i + 1 < position -> done
+                            i + 1 == position -> current
+                            else -> off
+                        },
+                    ),
             )
         }
     }
@@ -223,29 +261,31 @@ private fun BottomBar(
     onNext: () -> Unit,
 ) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+        Modifier.fillMaxWidth().padding(horizontal = IntakeSpacing.ScreenGutter, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (OnboardingFlow.canGoBack(step)) {
-            TextButton(onClick = onBack, modifier = Modifier.heightIn(min = 52.dp)) { Text("Back") }
-        }
         if (OnboardingFlow.canSkip(step)) {
             TextButton(onClick = onSkip, modifier = Modifier.heightIn(min = 52.dp)) { Text("Skip") }
         }
-        Button(
-            onClick = onNext,
-            shape = IntakeShape.Button,
-            modifier = Modifier.weight(1f).heightIn(min = 56.dp),
-        ) {
-            Text(
-                when (step) {
-                    OnboardingStep.WELCOME -> "Get started"
-                    OnboardingStep.DONE -> if (replay) "Done" else "Go to Today"
-                    else -> "Continue"
-                },
-                style = MaterialTheme.typography.titleMedium,
-            )
+        val label = when (step) {
+            OnboardingStep.WELCOME -> "Get started"
+            OnboardingStep.DONE -> if (replay) "Done" else "Go to Today"
+            else -> "Continue"
+        }
+        // The first screen is the one place the lime button is the call to action; every other step is the ink pill.
+        if (step == OnboardingStep.WELCOME) {
+            AccentButton(onClick = onNext, modifier = Modifier.weight(1f).heightIn(min = 56.dp)) {
+                Text(label, style = MaterialTheme.typography.titleMedium)
+            }
+        } else {
+            Button(
+                onClick = onNext,
+                shape = IntakeShape.Button,
+                modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+            ) {
+                Text(label, style = MaterialTheme.typography.titleMedium)
+            }
         }
     }
 }
@@ -257,7 +297,7 @@ private fun StepHeading(title: String, subtitle: String? = null) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
             title,
-            style = MaterialTheme.typography.headlineMedium,
+            style = MaterialTheme.typography.headlineLarge,
             color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.semantics { heading() },
         )
@@ -270,7 +310,7 @@ private fun StepHeading(title: String, subtitle: String? = null) {
 @Composable
 private fun Reassurance(icon: ImageVector, text: String) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.heightIn(min = 48.dp)) {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
+        Icon(icon, contentDescription = null, tint = MaterialTheme.intake.accent, modifier = Modifier.size(IconSize.Default))
         Spacer(Modifier.width(14.dp))
         Text(text, style = MaterialTheme.typography.titleMedium)
     }
@@ -280,24 +320,24 @@ private fun Reassurance(icon: ImageVector, text: String) {
 
 @Composable
 private fun WelcomeStep() {
-    Spacer(Modifier.height(12.dp))
-    Text(
-        "Intake",
-        style = MaterialTheme.typography.displaySmall,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.semantics { heading() },
-    )
-    Text(
-        "Food, training and progress in one calm place.",
-        style = MaterialTheme.typography.bodyLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-    Spacer(Modifier.height(6.dp))
-    IntakeCard {
-        Reassurance(Icons.Filled.Lock, "Your log stays on this phone.")
-        Reassurance(Icons.Filled.CloudOff, "Works with no account, no internet and no AI.")
-        Reassurance(Icons.Filled.AutoAwesome, "AI is an optional shortcut you can add later.")
+    // The dark "ink" page of the mockup, as a hero card: the title, the line under it and the three promises.
+    HeroCard {
+        Spacer(Modifier.height(12.dp))
+        Text(
+            "Intake",
+            style = MaterialTheme.typography.displayMedium,
+            modifier = Modifier.semantics { heading() },
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "Food, training and progress in one calm place.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = heroMuted(),
+        )
+        Spacer(Modifier.height(18.dp))
+        Reassurance(IntakeIcons.Check, "Your log stays on this phone.")
+        Reassurance(IntakeIcons.Check, "Works with no account, no internet and no AI.")
+        Reassurance(IntakeIcons.Check, "AI is an optional shortcut you can add later.")
     }
     Text(
         "A few quick questions set things up. You can skip any of them.",
@@ -311,7 +351,8 @@ private fun WelcomeStep() {
 @Composable
 private fun UnitsStep(viewModel: OnboardingViewModel) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
-    StepHeading("Which units do you like?", "Pick what you use every day. You can change this later in Settings.")
+    val foodData by viewModel.foodData.collectAsStateWithLifecycle()
+    StepHeading("Units and language", "Pick what you use every day. You can change this later in Settings.")
     IntakeCard {
         Text("Body weight", style = MaterialTheme.typography.titleSmall)
         ChipGroup(
@@ -328,6 +369,37 @@ private fun UnitsStep(viewModel: OnboardingViewModel) {
             VolumeUnit.entries.reversed(), settings.volumeUnit, { it.label }, viewModel::setVolumeUnit,
             Modifier.padding(top = 8.dp),
         )
+    }
+    Spacer(Modifier.height(12.dp))
+    IntakeCard {
+        Text("Food search language", style = MaterialTheme.typography.titleSmall)
+        Text(
+            "Packaged foods are listed when they have a name in this language or in English.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        ChipGroup(
+            listOf("") + OffLanguage.CHOICES.map { it.first }, foodData.offLanguage,
+            { code -> OffLanguage.choiceLabel(code, java.util.Locale.getDefault()) }, viewModel::setFoodLanguage,
+            Modifier.padding(top = 8.dp, bottom = 6.dp),
+        )
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .toggleable(value = foodData.offOtherLanguages, role = Role.Switch, onValueChange = viewModel::setOtherLanguages)
+                .heightIn(min = 48.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Show products in other languages", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "Off leaves out products with no name in your language or English.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            IntakeSwitch(checked = foodData.offOtherLanguages, onCheckedChange = null)
+        }
     }
 }
 
@@ -503,7 +575,7 @@ private fun GoalStep(viewModel: ProfileViewModel, onNeedAbout: () -> Unit) {
             null
         }
         AccentNote(
-            lead = "About ${"%,d".format(preview.calories.kcal)} kcal and ${preview.macros.proteinG} g protein a day",
+            lead = "About ${KcalFormat.format(preview.calories.kcal)} kcal and ${preview.macros.proteinG} g protein a day",
             body = (pace?.let { "$it. " } ?: "") +
                 "This is a day-one estimate. After a week of logging, Intake uses your real numbers instead.",
         )
@@ -512,6 +584,51 @@ private fun GoalStep(viewModel: ProfileViewModel, onNeedAbout: () -> Unit) {
             "Add your sex, birth year, height and weight on the About you step to see your daily calories and protein here.",
         )
         TextButton(onClick = onNeedAbout, modifier = Modifier.heightIn(min = 48.dp)) { Text("Go to About you") }
+    }
+}
+
+// ------------------------------------------------------------------------------------ Equipment
+
+/** The simple choice first (three quick picks); "Advanced: pick each item" opens the grouped checklist. */
+@Composable
+private fun EquipmentStep(viewModel: ProfileViewModel) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val profile = state.profile
+    var advanced by remember { mutableStateOf(false) }
+    StepHeading("What can you train with?", "Used to pick exercises and swaps that fit. You can change it later in Settings.")
+    listOf(EquipmentPreset.FULL_GYM, EquipmentPreset.HOME_DUMBBELLS, EquipmentPreset.BODYWEIGHT_ONLY).forEach { p ->
+        OptionTile(
+            title = p.label,
+            description = when (p) {
+                EquipmentPreset.FULL_GYM -> "Barbells, racks, dumbbells, machines and cables"
+                EquipmentPreset.HOME_DUMBBELLS -> "Adjustable dumbbells, a bench and a pull-up bar"
+                else -> "Your own bodyweight and a pull-up bar"
+            },
+            // One card is selected at a time: while the item list is open, the Advanced card is the one.
+            selected = !advanced && profile.equipmentPreset == p,
+            onClick = {
+                advanced = false
+                viewModel.update { it.withEquipmentPreset(p) }
+            },
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+    OptionTile(
+        title = "Advanced: pick each item",
+        description = if (profile.equipmentPreset == EquipmentPreset.CUSTOM) "Your own list: ${profile.effectiveEquipmentItems.size} items" else "Tick every barbell, bench, machine and extra you have",
+        selected = advanced || profile.equipmentPreset == EquipmentPreset.CUSTOM,
+        onClick = { advanced = !advanced },
+        modifier = Modifier.fillMaxWidth(),
+        secondary = "Advanced",
+    )
+    if (advanced) {
+        EquipmentChecklist(
+            selected = profile.effectiveEquipmentItems,
+            onChange = { items -> viewModel.update { it.withEquipmentItems(items) } },
+            dumbbellMaxKg = profile.dumbbellMaxKg,
+            onDumbbellMax = { kg -> viewModel.update { it.copy(dumbbellMaxKg = kg) } },
+            unit = state.settings.weightUnit,
+        )
     }
 }
 
@@ -619,7 +736,7 @@ private fun HowToStartStep(viewModel: OnboardingViewModel, onNeedAbout: () -> Un
     when (val result = estimate) {
         is EstimateResult.Applied -> AccentNote(
             lead = "Plan applied",
-            body = "${"%,d".format(result.kcal)} kcal and ${result.proteinG} g protein a day. See it any time on You, the circle at the top right.",
+            body = "${KcalFormat.format(result.kcal)} kcal and ${result.proteinG} g protein a day. See it any time on You, the circle at the top right.",
         )
         EstimateResult.NeedsBasics -> {
             SandNote("An estimate needs your sex, birth year, height and weight. You can add them on the About you step.")
@@ -659,41 +776,46 @@ private fun PlansStep(viewModel: OnboardingViewModel) {
 // --------------------------------------------------------------------------------------- 8 Extras
 
 @Composable
-private fun ExtrasStep() {
+private fun ExtrasStep(onSetUp: (String) -> Unit) {
     StepHeading("Optional extras", "None of these are needed. Intake works fully without them.")
-    ExtraRow(
-        Icons.Filled.FavoriteBorder,
-        "Health Connect",
-        "Steps, sleep and weight from your watch or scale.",
-    )
-    ExtraRow(
-        Icons.Filled.CloudUpload,
-        "Backups",
-        "A copy of your data in a file, or on a server you run yourself.",
-    )
-    ExtraRow(
-        Icons.Filled.AutoAwesome,
-        "AI shortcuts",
-        "Photo estimates and recipe ideas. Off until you add your own key.",
+    ListCard {
+        ExtraRow(IntakeIcons.Heart, "Health Connect", "Steps, sleep and weight from your watch or scale.", onSetUp = { onSetUp("health") })
+        ListDivider()
+        ExtraRow(IntakeIcons.Download, "Backups", "A copy of your data in a file, or on a server you run yourself.", onSetUp = { onSetUp("sync") })
+        ListDivider()
+        ExtraRow(IntakeIcons.Sparkle, "AI shortcuts", "Photo estimates and recipe ideas. Off until you add your own key.", ai = true, onSetUp = { onSetUp("ai") })
+    }
+    Text(
+        "You can set these up later on You, the circle at the top right.",
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
 
 @Composable
-private fun ExtraRow(icon: ImageVector, title: String, description: String) {
-    IntakeCard {
-        Row(verticalAlignment = Alignment.Top) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
-            Spacer(Modifier.width(14.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(description, style = MaterialTheme.typography.bodyMedium)
-                Text(
-                    "You can set this up later on You, the circle at the top right.",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+private fun ExtraRow(icon: ImageVector, title: String, description: String, ai: Boolean = false, onSetUp: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = IntakeSpacing.ListRowPadH, vertical = IntakeSpacing.ListRowPadV),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (ai) {
+            Surface(color = MaterialTheme.intake.aiBg, contentColor = MaterialTheme.intake.ai, shape = IntakeShape.Tile, modifier = Modifier.size(40.dp)) {
+                Box(contentAlignment = Alignment.Center) { Icon(icon, contentDescription = null, modifier = Modifier.size(IconSize.Default)) }
             }
+        } else {
+            IconTile(icon)
         }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Spacer(Modifier.width(8.dp))
+        androidx.compose.material3.OutlinedButton(
+            onClick = onSetUp,
+            shape = IntakeShape.Chip,
+            modifier = Modifier.semantics { contentDescription = "Set up $title" },
+        ) { Text("Set up") }
     }
 }
 
@@ -704,9 +826,8 @@ private fun DoneStep(pending: PendingDestination?, replay: Boolean) {
     Spacer(Modifier.height(24.dp))
     Text(
         "You're set",
-        style = MaterialTheme.typography.displaySmall,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary,
+        style = MaterialTheme.typography.displayMedium,
+        color = MaterialTheme.colorScheme.onBackground,
         modifier = Modifier.semantics { heading() },
     )
     Text(

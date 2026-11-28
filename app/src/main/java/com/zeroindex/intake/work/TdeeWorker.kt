@@ -9,7 +9,11 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.zeroindex.intake.data.profile.AutoTargetOutcome
+import com.zeroindex.intake.data.profile.AutoTargets
+import com.zeroindex.intake.data.repository.TargetShift
 import com.zeroindex.intake.data.repository.TdeeRepository
+import com.zeroindex.intake.domain.tdee.TdeeCalculator
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.util.concurrent.TimeUnit
@@ -23,16 +27,20 @@ class TdeeWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
     private val tdeeRepository: TdeeRepository,
+    private val autoTargets: AutoTargets,
     private val notifier: TargetShiftNotifier,
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result = try {
         val result = tdeeRepository.recalculate()
-        if (result != null) {
-            val shift = tdeeRepository.refreshTargetFromTdee(result)
-            // SPEC §8: notify when the target moves more than 100 kcal, and say
-            // why rather than silently changing the number.
-            if (shift != null && shift.notify) notifier.notifyShift(shift)
+        // One computation for the target, shared with the plan screen and Settings (QA Q4-6).
+        val outcome = autoTargets.refresh()
+        // SPEC §8: notify when the target moves more than 100 kcal, and say
+        // why rather than silently changing the number.
+        if (result != null && outcome is AutoTargetOutcome.Updated && outcome.previousKcal != null &&
+            TdeeCalculator.shouldNotifyShift(outcome.previousKcal, outcome.target.kcal)
+        ) {
+            notifier.notifyShift(TargetShift(outcome.previousKcal, outcome.target.kcal, true, result.confidence))
         }
         Result.success()
     } catch (e: Exception) {

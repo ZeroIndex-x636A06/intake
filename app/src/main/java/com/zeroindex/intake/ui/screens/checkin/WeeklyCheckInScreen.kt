@@ -1,5 +1,7 @@
 package com.zeroindex.intake.ui.screens.checkin
 
+import com.zeroindex.intake.domain.time.DateText
+import com.zeroindex.intake.domain.units.KcalFormat
 import android.content.Context
 import android.os.Bundle
 import android.os.CancellationSignal
@@ -26,10 +28,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -39,27 +43,41 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zeroindex.intake.data.db.entity.CoachSuggestionEntity
+import com.zeroindex.intake.domain.coach.CheckInPeriod
 import com.zeroindex.intake.domain.coach.CoachAction
+import com.zeroindex.intake.domain.coach.CoachConfig
 import com.zeroindex.intake.domain.coach.SuggestionStatus
-import com.zeroindex.intake.domain.coach.WeekSummary
 import com.zeroindex.intake.domain.report.WeekLabel
 import com.zeroindex.intake.domain.report.WeeklyReport
 import com.zeroindex.intake.domain.units.WeightUnit
 import com.zeroindex.intake.ui.components.ChoiceChip
-import com.zeroindex.intake.ui.components.ConfidenceLine
-import com.zeroindex.intake.ui.components.EmptyState
+import com.zeroindex.intake.ui.components.AccentButton
+import com.zeroindex.intake.ui.components.ChipTone
+import com.zeroindex.intake.ui.components.GhostButton
+import com.zeroindex.intake.ui.components.HeroCard
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.components.SoftButton
+import com.zeroindex.intake.ui.components.SoftCard
+import com.zeroindex.intake.ui.components.heroMuted
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.theme.intake
 import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.ui.components.InfoTip
 import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.LoadingState
-import com.zeroindex.intake.ui.components.PillTone
 import com.zeroindex.intake.ui.components.SandNote
+import com.zeroindex.intake.domain.coach.CoachEngine
+import com.zeroindex.intake.domain.report.formatWeightChange
 import com.zeroindex.intake.ui.components.SectionLine
-import com.zeroindex.intake.ui.components.StatusPill
-import com.zeroindex.intake.ui.components.SummaryTile
 import com.zeroindex.intake.ui.motion.MoreDetail
 import com.zeroindex.intake.ui.screens.coach.CoachCheckInViewModel
 import com.zeroindex.intake.ui.screens.report.WeeklyReportViewModel
@@ -68,7 +86,6 @@ import java.io.File
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -89,23 +106,37 @@ fun WeeklyCheckInScreen(
     val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
         uri?.let(report::saveTo)
     }
+    // Q6-4: the suggestions describe the days their check-in looked at, so open on the calendar week that holds most of
+    // them (unless the person already picked a week), and the suggestions below say which days they are.
+    var pickedWeek by rememberSaveable { mutableStateOf(false) }
+    val coveredWeek = state.latest?.record?.day?.let { CheckInPeriod.weekCovering(it) }
+    LaunchedEffect(coveredWeek) {
+        if (!pickedWeek && coveredWeek != null && coveredWeek != reportState.weekStart &&
+            !coveredWeek.isAfter(report.thisWeek) && !coveredWeek.isBefore(report.thisWeek.minusWeeks(5))
+        ) {
+            report.jumpTo(coveredWeek)
+        }
+    }
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(
             top = contentPadding.calculateTopPadding() + 4.dp,
             bottom = contentPadding.calculateBottomPadding() + 24.dp,
-            start = 16.dp,
-            end = 16.dp,
+            start = IntakeSpacing.ScreenGutter,
+            end = IntakeSpacing.ScreenGutter,
         ),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
     ) {
         item(key = "weeks") {
+            val chipScroll = rememberScrollState()
+            // The newest chip is on the right; start there so the selected week is never half off screen.
+            LaunchedEffect(chipScroll.maxValue) { chipScroll.scrollTo(chipScroll.maxValue) }
             Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 4.dp),
+                Modifier.fillMaxWidth().horizontalScroll(chipScroll).padding(vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(5.dp),
             ) {
                 (5 downTo 0).map { report.thisWeek.minusWeeks(it.toLong()) }.forEach { week ->
-                    ChoiceChip(label = WeekLabel.forWeek(week), selected = week == reportState.weekStart, onClick = { report.jumpTo(week) })
+                    ChoiceChip(label = WeekLabel.forWeek(week), selected = week == reportState.weekStart, onClick = { pickedWeek = true; report.jumpTo(week) })
                 }
             }
         }
@@ -116,34 +147,41 @@ fun WeeklyCheckInScreen(
             }
         }
         item(key = "summary") {
-            IntakeCard {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Week of ${WeekLabel.forWeek(reportState.weekStart)}", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                    InfoTip(
-                        text = "Weight uses your smoothed trend, not a single scale reading, so water and salt do not move it. Averages count only days with food logged.",
-                        label = "Your week",
-                    )
-                }
+            HeroCard {
+                Eyebrow("Week of ${WeekLabel.forWeek(reportState.weekStart)}", color = heroMuted())
+                Spacer(Modifier.height(14.dp))
                 val r = reportState.report
                 if (r == null) LoadingState(listOf("Adding up the week")) else Glance(r, reportState.weightUnit)
-                Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
+                Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AccentButton(
                         onClick = { save.launch("intake-week-${reportState.weekStart}.pdf") },
                         enabled = reportState.file != null,
-                        shape = IntakeShape.Button,
-                        modifier = Modifier.weight(1f).height(52.dp),
-                    ) { Text("Export PDF") }
-                    OutlinedButton(
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Icon(IntakeIcons.Download, contentDescription = null, modifier = Modifier.size(IconSize.Small))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Export PDF")
+                    }
+                    val on = MaterialTheme.intake.onHero
+                    Button(
                         onClick = { reportState.file?.let { print(context, it) } },
                         enabled = reportState.file != null,
                         shape = IntakeShape.Button,
-                        modifier = Modifier.weight(1f).height(52.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = on.copy(alpha = 0.12f),
+                            contentColor = on,
+                            disabledContainerColor = on.copy(alpha = 0.06f),
+                            disabledContentColor = on.copy(alpha = 0.5f),
+                        ),
+                        modifier = Modifier.weight(1f).heightIn(min = IntakeSpacing.TouchTarget),
                     ) { Text("Print") }
                 }
-                reportState.message?.let { Text(it, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 6.dp)) }
+                reportState.message?.let {
+                    Text(it, style = MaterialTheme.typography.labelSmall, color = heroMuted(), modifier = Modifier.padding(top = 6.dp))
+                }
             }
         }
-        if (reportState.isCurrentWeek) state.summary?.let { s -> item(key = "coach-summary") { WeekCard(s, state.weightUnit) } }
+        reportState.report?.let { r -> item(key = "coach-summary") { WeekCard(r, state.weightUnit) } }
 
         item(key = "suggestions-head") { SectionLine("Suggestions", note = "You decide. Nothing changes until you tap Apply.") }
         val latest = state.latest
@@ -157,24 +195,56 @@ fun WeeklyCheckInScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(8.dp))
-                    Button(onClick = viewModel::checkInNow, enabled = !state.working, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Check in now") }
+                    Button(
+                        onClick = viewModel::checkInNow,
+                        enabled = !state.working,
+                        shape = IntakeShape.Button,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.TouchTarget),
+                    ) { Text("Check in now") }
                 }
             }
         } else {
             item(key = "latest-head") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Check-in of ${dayLabel(latest.record.day)}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    StatusPill(
-                        if (latest.rows.isEmpty()) "All on track" else "${latest.rows.count { it.status == SuggestionStatus.PENDING }} to review",
-                        tone = if (latest.rows.any { it.status == SuggestionStatus.PENDING }) PillTone.Wait else PillTone.Ok,
+                    Column(Modifier.weight(1f)) {
+                        Text("Check-in of ${dayLabel(latest.record.day)}", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "Based on the ${CoachConfig().windowDays} days ${CheckInPeriod.label(latest.record.day)}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    val noRows = latest.rows.isEmpty()
+                    val onTrack = noRows && latest.record.headline == CoachEngine.HEADLINE_ON_TRACK
+                    IntakeChip(
+                        when {
+                            !noRows -> "${latest.rows.count { it.status == SuggestionStatus.PENDING }} to review"
+                            onTrack -> "All on track"
+                            latest.record.headline == CoachEngine.HEADLINE_NOT_ENOUGH_DATA -> "Not enough data"
+                            else -> "No suggestions"
+                        },
+                        tone = if (!noRows) {
+                            if (latest.rows.any { it.status == SuggestionStatus.PENDING }) ChipTone.Warn else ChipTone.Ok
+                        } else if (onTrack) ChipTone.Ok else ChipTone.Warn,
                     )
                 }
             }
             if (latest.rows.isEmpty()) {
-                item(key = "on-track") { SandNote("Nothing to change this week. Your numbers are where they should be, so the best move is to keep going.") }
+                item(key = "on-track") {
+                    SandNote(
+                        when (latest.record.headline) {
+                            CoachEngine.HEADLINE_ON_TRACK ->
+                                "Nothing to change this week. Your numbers are where they should be, so the best move is to keep going."
+                            CoachEngine.HEADLINE_NOT_ENOUGH_DATA ->
+                                "Not enough logged this week to judge. Log full days to get suggestions."
+                            else ->
+                                "No new suggestions. That does not mean everything is on track: check the protein and intake figures above, and log full days for a clearer read."
+                        },
+                    )
+                }
             }
             items(latest.rows, key = { it.id }) { row ->
-                SuggestionCard(row, enabled = !state.working, onApply = { viewModel.apply(row) }, onDismiss = { viewModel.dismiss(row) })
+                SuggestionCard(row, state.weightUnit, state.volumeUnit, enabled = !state.working, onApply = { viewModel.apply(row) }, onDismiss = { viewModel.dismiss(row) })
             }
             item(key = "now") {
                 TextButton(onClick = viewModel::checkInNow, enabled = !state.working, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Check in now") }
@@ -188,18 +258,18 @@ fun WeeklyCheckInScreen(
                             IntakeCard {
                                 Text(dayLabel(past.record.day), style = MaterialTheme.typography.titleSmall)
                                 if (past.rows.isEmpty()) {
-                                    Text("All on track", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(if (past.record.headline == CoachEngine.HEADLINE_ON_TRACK) "All on track" else "No suggestions", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 past.rows.forEach { row ->
                                     Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                                         Text(row.aiTitle ?: row.title, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                                        StatusPill(
+                                        IntakeChip(
                                             when (row.status) {
                                                 SuggestionStatus.APPLIED -> "Applied"
                                                 SuggestionStatus.DISMISSED -> "Dismissed"
                                                 SuggestionStatus.PENDING -> "Not decided"
                                             },
-                                            tone = if (row.status == SuggestionStatus.APPLIED) PillTone.Ok else PillTone.Wait,
+                                            tone = if (row.status == SuggestionStatus.APPLIED) ChipTone.Ok else ChipTone.Neutral,
                                         )
                                     }
                                 }
@@ -219,29 +289,27 @@ fun WeeklyCheckInScreen(
     }
 }
 
+/** The "Your week" list. Every figure is [WeeklyReport.figures], the same computation the top card and the PDF use. */
 @Composable
-private fun WeekCard(s: WeekSummary, unit: WeightUnit) {
+private fun WeekCard(r: WeeklyReport, unit: WeightUnit) {
+    val f = r.figures
     IntakeCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Your week", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
             InfoTip(
                 text = "Weight uses your smoothed trend, not a single scale reading, so water and salt do not move it. " +
-                    "Averages count only days with food logged.",
+                    "Averages count only days with food logged, today included once something is logged.",
                 label = "Your week",
             )
         }
-        val change = s.trendChangeKg?.let {
-            val v = unit.fromKg(it)
-            (if (v >= 0) "+" else "−") + "%.1f".format(Locale.US, abs(v)) + " ${unit.label}"
-        } ?: "not enough weigh-ins"
-        val pct = s.trendPctPerWeek?.let { " (${if (it >= 0) "+" else "−"}${"%.1f".format(Locale.US, abs(it))}% a week)" }.orEmpty()
-        SummaryLine("Weight trend", change + pct)
-        SummaryLine("Calories (average)", s.avgKcal?.let { "%,d kcal".format(Locale.US, it) } ?: "no days logged")
-        SummaryLine("Protein (average)", s.avgProteinG?.let { "$it g" } ?: "no days logged")
-        SummaryLine("Days logged", "${s.daysLogged} of ${s.daysInWindow}")
-        SummaryLine("Weigh-ins", "${s.weighIns}")
-        SummaryLine("Workouts", "${s.workouts}")
-        SummaryLine("Sleep (average)", s.avgSleepHours?.let { "%.1f h".format(Locale.US, it) } ?: "no data")
+        val change = f.weightChangeKg?.let { formatWeightChange(unit.fromKg(it), unit.label) } ?: "not enough weigh-ins"
+        SummaryLine("Weight trend", change)
+        SummaryLine("Calories (average)", f.avgKcal?.let { "${KcalFormat.format(it)} kcal" } ?: "no days logged")
+        SummaryLine("Protein (average)", f.avgProteinG?.let { "$it g" } ?: "no days logged")
+        SummaryLine("Days logged", "${f.daysLogged} of ${f.daysInWeek}")
+        SummaryLine("Weigh-ins", "${f.weighIns}")
+        SummaryLine("Workouts", "${f.workouts}")
+        SummaryLine("Sleep (average)", f.avgSleepHours?.let { "%.1f h".format(Locale.US, it) } ?: "no data")
     }
 }
 
@@ -256,43 +324,59 @@ private fun SummaryLine(label: String, value: String) {
 @Composable
 private fun SuggestionCard(
     row: CoachSuggestionEntity,
+    weightUnit: WeightUnit,
+    volumeUnit: com.zeroindex.intake.domain.units.VolumeUnit,
     enabled: Boolean,
     onApply: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     var open by rememberSaveable(row.id) { mutableStateOf(false) }
+    // The rules write their numbers in ml and kg; show them in the person's units (QA Q4-5).
+    fun u(text: String) = com.zeroindex.intake.domain.units.UnitText.inUnits(text, weightUnit, volumeUnit)
     val action = runCatching { kotlinx.serialization.json.Json.decodeFromString(CoachAction.serializer(), row.actionJson) }.getOrNull()
     val reworded = row.aiTitle != null || row.aiWhy != null
     IntakeCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Eyebrow(row.kind.label, modifier = Modifier.weight(1f))
             if (row.status != SuggestionStatus.PENDING) {
-                StatusPill(if (row.status == SuggestionStatus.APPLIED) "Applied" else "Dismissed", tone = PillTone.Wait)
+                IntakeChip(
+                    if (row.status == SuggestionStatus.APPLIED) "Applied" else "Dismissed",
+                    tone = if (row.status == SuggestionStatus.APPLIED) ChipTone.Ok else ChipTone.Neutral,
+                )
             }
         }
-        Text(row.aiTitle ?: row.title, style = MaterialTheme.typography.titleSmall)
-        Spacer(Modifier.height(2.dp))
-        Text(row.aiWhy ?: row.why, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(u(row.aiTitle ?: row.title), style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(4.dp))
+        Text(u(row.aiWhy ?: row.why), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
         if (action != null && action !is CoachAction.Acknowledge) {
             Spacer(Modifier.height(4.dp))
             Text("Apply does: ${CoachCheckInViewModel.describe(action)}", style = MaterialTheme.typography.labelMedium)
         }
-        TextButton(onClick = { open = !open }, modifier = Modifier.heightIn(min = 48.dp)) {
+        GhostButton(onClick = { open = !open }) {
             Text(if (open) "Hide the why" else "Why this?")
         }
         if (open) {
-            row.details?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            row.details?.let {
+                SoftCard(contentPadding = PaddingValues(IntakeSpacing.CardPadCompact)) {
+                    Text(u(it), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
             if (reworded) {
-                SandNote("Reworded with AI. The numbers and the action are the rule's own.\nOriginal: ${row.title}. ${row.why}")
+                SandNote("Reworded with AI. The numbers and the action are the rule's own.\nOriginal: ${u(row.title)}. ${u(row.why)}")
             }
         }
         if (row.status == SuggestionStatus.PENDING) {
             Spacer(Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onApply, enabled = enabled, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                Button(
+                    onClick = onApply,
+                    enabled = enabled,
+                    shape = IntakeShape.Button,
+                    modifier = Modifier.weight(1f).heightIn(min = IntakeSpacing.TouchTarget),
+                ) {
                     Text(if (action == null || action is CoachAction.Acknowledge) "Got it" else "Apply")
                 }
-                OutlinedButton(onClick = onDismiss, enabled = enabled, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                SoftButton(onClick = onDismiss, enabled = enabled, modifier = Modifier.weight(1f)) {
                     Text("Dismiss")
                 }
             }
@@ -304,37 +388,53 @@ private fun SuggestionCard(
 private fun Glance(r: WeeklyReport, unit: WeightUnit) {
     fun n(v: Double?) = v?.let { "%,d".format(it.roundToInt()) }
     val weight = r.average { it.weightKg }?.let { "%.1f %s".format(unit.fromKg(it), unit.label) }
-    val change = r.weightChangeKg?.let { "%+.1f %s".format(unit.fromKg(it), unit.label) }
+    val change = r.weightChangeKg?.let { formatWeightChange(unit.fromKg(it), unit.label) }
     val sleep = r.average { it.sleepMinutes }?.let { "${it.toInt() / 60}h ${it.toInt() % 60}m" }
+    val f = r.figures
     val tiles = listOf(
         (weight ?: "—") to ("Avg weight" + (change?.let { " · $it" } ?: "")),
-        (n(r.average { it.kcal })?.let { "$it kcal" } ?: "—") to "Avg intake",
+        (n(r.average { it.kcal })?.let { "$it kcal" } ?: "—") to ("Avg intake" + r.daysLogged.takeIf { it > 0 }?.let { " · $it day${if (it == 1) "" else "s"} logged" }.orEmpty()),
         (n(r.average { it.burned })?.let { "$it kcal" } ?: "—") to "Avg burn",
         (sleep ?: "—") to "Avg sleep",
         (n(r.average { it.restingHr })?.let { "$it bpm" } ?: "—") to "Resting HR",
         (n(r.average { it.steps })) .let { it ?: "—" } to "Avg steps",
+        "${f.daysLogged}/${f.daysInWeek}" to "Days logged",
+        "${f.weighIns}" to "Weigh-ins",
+        "${f.workouts}" to "Workouts",
     )
-    tiles.chunked(2).forEach { pair ->
-        Row(Modifier.padding(top = 7.dp), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-            pair.forEach { (value, caption) -> SummaryTile(value, caption.uppercase(), Modifier.weight(1f)) }
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        tiles.chunked(3).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                row.forEach { (value, caption) ->
+                    Column(Modifier.weight(1f)) {
+                        Text(value, style = MaterialTheme.typography.headlineSmall.merge(TextStyle(fontSize = 20.sp, lineHeight = 24.sp)))
+                        Text(caption, style = MaterialTheme.typography.bodySmall, color = heroMuted())
+                    }
+                }
+            }
         }
     }
-    val target = r.proteinTarget
-    val logged = r.days.filter { it.protein != null }
-    if (target != null && logged.isNotEmpty()) {
-        val hit = logged.count { (it.protein ?: 0.0) >= target }
-        ConfidenceLine(
-            "Protein target hit $hit of ${r.days.size} days · ${(hit * 100.0 / r.days.size).roundToInt()}%",
-            modifier = Modifier.padding(top = 8.dp),
+    r.proteinHit()?.let { Text(it.label, style = MaterialTheme.typography.labelSmall, color = heroMuted(), modifier = Modifier.padding(top = 12.dp)) }
+    if (r.intakeLooksUnderLogged()) {
+        Text(
+            "Logged days average far below your target. That usually means meals were not all logged, so it is not a real low intake.",
+            style = MaterialTheme.typography.labelSmall,
+            color = heroMuted(),
+            modifier = Modifier.padding(top = 6.dp),
         )
     }
     if (r.daysLogged == 0) {
-        EmptyState(body = "Nothing logged this week. The PDF still prints whatever body and training data exists.")
+        Text(
+            "Nothing logged this week. The PDF still prints whatever body and training data exists.",
+            style = MaterialTheme.typography.bodySmall,
+            color = heroMuted(),
+            modifier = Modifier.padding(top = 12.dp),
+        )
     }
 }
 
 private fun dayLabel(epochDay: Long): String =
-    LocalDate.ofEpochDay(epochDay).format(DateTimeFormatter.ofPattern("EEE d MMM", Locale.getDefault()))
+    DateText.mediumWithWeekday(LocalDate.ofEpochDay(epochDay))
 
 /** Hands the finished file to the system print dialog as-is. */
 private fun print(context: Context, file: File) {

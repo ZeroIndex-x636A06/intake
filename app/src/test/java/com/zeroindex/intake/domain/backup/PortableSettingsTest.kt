@@ -158,6 +158,16 @@ class PortableSettingsTest {
         assertThat(PortableSettings.describe(emptySet())).contains("none")
     }
 
+    // Q5b-15: changing Nutrition > Show salt or sodium must name Nutrition, not "reminders and videos".
+    @Test fun aChangedSaltSettingNamesTheNutritionGroup() {
+        assertThat(PortableSettings.describe(setOf("show_sodium"))).isEqualTo("Settings: nutrition settings")
+        assertThat(PortableSettings.describe(setOf("eat_out_minutes", "jump_tests"))).isEqualTo("Settings: nutrition settings, workout timer and plates")
+        assertThat(PortableSettings.describe(setOf("show_sodium"))).doesNotContain("reminders")
+        assertThat(PortableSettings.describe(setOf("workout_reminder_on", "videos_hide_shorts"))).isEqualTo("Settings: reminders and videos")
+        assertThat(PortableSettings.describe(setOf("water_reminder_on"))).isEqualTo("Settings: reminders and videos")
+        assertThat(PortableSettings.describe(setOf("weather_place"))).isEqualTo("Settings: water")
+    }
+
     @Test fun everyPreferenceNameInTheStoresIsDeliberatelyIncludedOrExcluded() {
         val deviceLocal = setOf(
             "backup_destination_json", "sync_server_url", "sync_device_id", "sync_device_name", "sync_pulled_seq",
@@ -167,10 +177,14 @@ class PortableSettingsTest {
             "last_celebration_day",
             // Round 3: when the app was first used (starts the export reminder clock); per device.
             "first_use_at_ms",
+            // Menu import: sources whose "add the nutrition menu" prompt was skipped (ids are local to this phone).
+            "menu_nutrition_prompt_skipped",
             // AI usage meter: where this device's counters were last reset.
             "ai_usage_reset_at",
             // Hydration v2: precise location, forecast cache and retry time.
             "weather_lat", "weather_lon", "weather_cache_date", "weather_cache_lat", "weather_cache_lon",
+            // Videos: the yt-dlp opt-in is per phone, like the downloads it allows (never exported).
+            "videos_direct_ytdlp",
             "weather_cache_temp_max_c", "weather_cache_humidity_pct", "weather_cache_fetched_at", "weather_last_attempt_at",
         )
         val sources = listOf("SettingsRepository.kt", "FoodDataPrefs.kt", "HydrationPrefs.kt")
@@ -200,5 +214,28 @@ class PortableSettingsTest {
         val back = PortableSettings.decode(section)
         assertThat(back.values["profile_json"]).isEqualTo(PortableSettings.Value.Str(profile))
         assertThat(back.ignored).isEmpty()
+    }
+
+    @Test
+    fun `changes lists only values that differ from the phone`() {
+        val current = mapOf<String, Any?>(
+            "show_sodium" to true, "weight_unit" to "KG", "default_rest_sec" to 90,
+            "goal_weight_kg" to 80.0, "available_plates_kg" to setOf("5", "10"),
+        )
+        val incoming = mapOf(
+            "show_sodium" to PortableSettings.Value.Bool(true),
+            "weight_unit" to PortableSettings.Value.Str("LB"),
+            "default_rest_sec" to PortableSettings.Value.LongV(90),
+            "goal_weight_kg" to PortableSettings.Value.DoubleV(80.0),
+            "available_plates_kg" to PortableSettings.Value.StrSet(setOf("10", "5")),
+            "rest_vibrate" to PortableSettings.Value.Bool(false),
+        )
+        assertThat(PortableSettings.changes(current, incoming).keys).containsExactly("weight_unit", "rest_vibrate")
+    }
+
+    @Test
+    fun `an identical backup has zero setting changes`() {
+        val current = mapOf<String, Any?>("show_sodium" to false)
+        assertThat(PortableSettings.changes(current, mapOf("show_sodium" to PortableSettings.Value.Bool(false)))).isEmpty()
     }
 }

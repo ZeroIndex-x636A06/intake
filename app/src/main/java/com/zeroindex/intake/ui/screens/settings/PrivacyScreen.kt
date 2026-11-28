@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.settings
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -13,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -22,7 +24,8 @@ import com.zeroindex.intake.ui.components.PillTone
 import com.zeroindex.intake.ui.components.PrivacyTag
 import com.zeroindex.intake.ui.components.SectionLine
 import com.zeroindex.intake.ui.components.StatusPill
-import com.zeroindex.intake.ui.components.SubHead
+import com.zeroindex.intake.ui.components.SubCopy
+import androidx.compose.runtime.CompositionLocalProvider
 
 /**
  * SPEC §13 and the amendments: every way data can leave this phone, grouped by
@@ -32,7 +35,16 @@ import com.zeroindex.intake.ui.components.SubHead
 fun PrivacyScreen(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
+    settingsViewModel: SettingsViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
 ) {
+    val lengthUnit = settingsViewModel.uiState.collectAsStateWithLifecycle().value.settings.lengthUnit
+    CompositionLocalProvider(LocalLengthUnit provides lengthUnit) { PrivacyBody(contentPadding, modifier) }
+}
+
+private val LocalLengthUnit = androidx.compose.runtime.compositionLocalOf { com.zeroindex.intake.domain.units.LengthUnit.CENTIMETRES }
+
+@Composable
+private fun PrivacyBody(contentPadding: PaddingValues, modifier: Modifier) {
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -41,9 +53,8 @@ fun PrivacyScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        SubHead(
-            title = "What leaves this phone",
-            subcopy = "The app works fully offline and without any key. Nothing is sent unless a " +
+        SubCopy(
+            "The app works fully offline and without any key. Nothing is sent unless a " +
                 "feature you switched on needs it. No account, no analytics, no crash reports, no ads.",
         )
 
@@ -80,7 +91,7 @@ fun PrivacyScreen(
             pill = "On, can be switched off",
             sent = "The words you type, and the app name and version. No key, no account. The offline USDA food search sends nothing at all.",
             where = "search.openfoodfacts.org",
-            whenSent = "While you type in Log food and the phone is online. Switch it off in Food, Food database & credits.",
+            whenSent = "While you type in Log food and the phone is online. Switch it off in Settings > Food database.",
         )
         PathRow(
             title = "Contribute to Open Food Facts",
@@ -123,12 +134,20 @@ fun PrivacyScreen(
             whenSent = "When you press Find recipes.",
         )
         PathRow(
-            title = "Plan B",
+            title = "Nearby restaurants and their menus",
+            tag = "Sends a rounded location to OpenStreetMap's Overpass service",
+            pill = "No key needed",
+            sent = "Your location rounded to about 1 km and the search radius (your 10 or 15 minute walk or drive), in one request. Nothing about you, your allergens or your food. Then each restaurant's own nutrition page or website is fetched like any link you import, with no AI.",
+            where = "geocoding-api.open-meteo.com for a typed zip code, overpass-api.de, then the restaurants' own sites",
+            whenSent = "Only when you tap Search under \"Find healthier options nearby\" (Eating out) or in Swap. One map request per search; location is read only then. If you type a zip code instead of using your location, that zip code goes to Open-Meteo's place search first (no key), and the map request then uses the place's rounded coordinates. If you switch on \"Use AI to find menus I can't\" for that search, the restaurant name and website go to OpenRouter for places where nothing else worked.",
+        )
+        PathRow(
+            title = "Swap: eat out nearby (AI search)",
             tag = "Sends coarse location to OpenRouter",
             pill = "Needs your OpenRouter key",
-            sent = "Your location rounded to about 1 km, or the zip code you typed; what is left of today's calories and protein; the allergens you avoid. OpenRouter searches for nearby places and reads their menus.",
+            sent = "Your location rounded to about 1 km, or the zip code you typed; the search radius from Settings; what is left of today's calories and protein; the allergens you avoid. OpenRouter searches for nearby places and reads their menus.",
             where = "openrouter.ai, which fetches restaurant sites",
-            whenSent = "When you search for a place. Location needs the approximate-location permission and is read only then.",
+            whenSent = "Only when you tap Search under \"Find healthy options nearby\" in Swap. Location needs the approximate-location permission and is read only then.",
         )
         PathRow(
             title = "Menu import",
@@ -205,7 +224,7 @@ fun PrivacyScreen(
             tag = "Local only",
             sent = "A tag holds only a link to a meal template and this app's name. Tapping one logs that meal on the phone. No food data is written to the tag.",
             where = "The tag you tap",
-            whenSent = "When you write a tag from Meal prep tags, or tap one.",
+            whenSent = "When you write a tag from Meal templates, or tap one.",
         )
 
         SectionLine("Files and links you choose")
@@ -238,6 +257,8 @@ private fun PathRow(
     pill: String? = null,
     tone: PillTone = PillTone.Ok,
 ) {
+    val unit = LocalLengthUnit.current
+    fun km(text: String) = com.zeroindex.intake.domain.units.DistanceText.inUnit(text, unit)
     IntakeCard {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
@@ -249,9 +270,9 @@ private fun PathRow(
             if (pill != null) StatusPill(pill, tone = tone)
         }
         PrivacyTag(tag, Modifier.padding(top = 6.dp))
-        Detail("Sent", sent)
+        Detail("Sent", km(sent))
         Detail("To", where)
-        Detail("When", whenSent)
+        Detail("When", km(whenSent))
     }
 }
 

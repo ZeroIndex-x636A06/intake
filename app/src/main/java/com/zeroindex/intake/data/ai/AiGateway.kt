@@ -3,8 +3,10 @@ package com.zeroindex.intake.data.ai
 import com.zeroindex.intake.domain.ai.AiFailureKind
 import com.zeroindex.intake.domain.ai.AiFeature
 import com.zeroindex.intake.domain.ai.AiGuard
+import com.zeroindex.intake.domain.ai.AiTask
 import com.zeroindex.intake.domain.ai.AiTrigger
 import com.zeroindex.intake.domain.ai.GuardRefusal
+import com.zeroindex.intake.domain.ai.ModelInfo
 import com.zeroindex.intake.domain.ai.ReplyDecode
 import com.zeroindex.intake.domain.ai.ReplyRepair
 import com.zeroindex.intake.domain.ai.cost.AiBudget
@@ -130,16 +132,16 @@ class AiGateway @Inject constructor(
             // Unknown model (an override missing from the cached list) is tried strictly, as before.
             strictSchema = env.priceOf(model)?.structuredOutputs ?: true,
         )
-        val first = send(feature, trigger, request)
+        val (first, usedRequest) = sendWithFallback(feature, trigger, request, task)
         val firstDecode = ReplyRepair.decode(json, serializer, first.content)
         if (firstDecode is ReplyDecode.Ok) {
-            settle(feature, trigger, request, first, success = true)
+            settle(feature, trigger, usedRequest, first, success = true)
             return AiOutcome(firstDecode.value, first)
         }
-        settle(feature, trigger, request, first, success = false, failure = AiFailureKind.INVALID_OUTPUT)
+        settle(feature, trigger, usedRequest, first, success = false, failure = AiFailureKind.INVALID_OUTPUT)
 
         val error = (firstDecode as ReplyDecode.Invalid).error
-        val retryRequest = request.copy(
+        val retryRequest = usedRequest.copy(
             parts = parts + AiPart.Text(repairPrompt(first.content, error)),
             // The answer already exists and only needs reshaping: do not pay for a second web search.
             tools = emptyList(),
@@ -164,11 +166,52 @@ class AiGateway @Inject constructor(
         return response
     }
 
+    /**
+     * [send], and when the chosen model has no provider that meets the privacy setting or accepts what the task
+     * sends (the "no endpoints" answer), the next models that do, from [AiEnvironment.fallbackModels]: the
+     * same privacy setting and the same request, never relaxed. At most [MAX_MODEL_ATTEMPTS] models are tried;
+     * each attempt is logged by [send] like any other. Any other failure is reported at once. Returns the
+     * reply and the request that got it, so a repair turn goes to the model that answered.
+     */
+    private suspend fun sendWithFallback(
+        feature: AiFeature,
+        trigger: AiTrigger?,
+        request: AiRequest,
+        task: AiTask,
+    ): Pair<AiResponse, AiRequest> {
+        var current = request
+        val tried = mutableSetOf(request.model)
+        var alternatives: List<String>? = null
+        while (true) {
+            try {
+                return send(feature, trigger, current) to current
+            } catch (e: AiError) {
+                if (e !is AiError.NoEndpointForPrivacy && e !is AiError.NoEndpointForParameters) throw e
+                if (tried.size >= MAX_MODEL_ATTEMPTS) throw e
+                if (alternatives == null) {
+                    alternatives = try {
+                        env.fallbackModels(task, tried.toSet())
+                    } catch (c: CancellationException) {
+                        throw c
+                    } catch (_: Exception) {
+                        emptyList()
+                    }
+                }
+                val options = alternatives.orEmpty()
+                val next = options.firstOrNull { it !in tried } ?: throw e
+                tried += next
+                current = current.copy(model = next, strictSchema = env.priceOf(next)?.structuredOutputs ?: true)
+            }
+        }
+    }
+
     suspend fun testKey(key: String): KeyData = client.keyInfo(key)
 
     /** Guards, sends, and on a failed send logs the attempt. A reply is logged by [settle] once its outcome is known. */
-    private suspend fun send(feature: AiFeature, trigger: AiTrigger?, request: AiRequest): AiResponse {
+    private suspend fun send(feature: AiFeature, trigger: AiTrigger?, wanted: AiRequest): AiResponse {
         val key = authorize(feature, trigger)
+        // Every request sets require_parameters, so one the model's providers do not list is not sent at all.
+        val request = if (!env.priceOf(wanted.model).acceptsTemperature()) wanted.copy(temperature = null) else wanted
         try {
             return client.complete(key, request)
         } catch (e: CancellationException) {
@@ -180,6 +223,8 @@ class AiGateway @Inject constructor(
             throw e
         }
     }
+
+    private fun ModelInfo?.acceptsTemperature() = this?.acceptsTemperature ?: true
 
     private suspend fun logFailed(feature: AiFeature, trigger: AiTrigger?, request: AiRequest, kind: AiFailureKind) {
         withContext(NonCancellable) {
@@ -234,6 +279,9 @@ class AiGateway @Inject constructor(
 
     companion object {
         private const val MAX_ECHO_CHARS = 12_000
+
+        /** The chosen model plus at most two others, when a model has no provider for the privacy setting. */
+        const val MAX_MODEL_ATTEMPTS = 3
 
         /** The repair turn: the model's own reply, then the error, then the instruction. */
         fun repairPrompt(previousReply: String, error: String): String =

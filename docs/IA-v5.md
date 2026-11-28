@@ -1,5 +1,7 @@
 # Intake v5: use screens and settings, kept apart
 
+> **Superseded in part by design v6 (`docs/briefs/DESIGN-V6.md`):** the tab labels are now Today, Food, Train, Insights; the pill is a static five-slot dock with a centre + that opens a Quick log sheet; the Food tab has Diary / Plan / Recipes / Library segments and the "More" list is gone. Routes and back-stack rules below still hold.
+
 Design only. No app code changes. This is the buildable spec. It applies the user's round-2 decisions
 (`docs/FEEDBACK-R2.md`) on top of `docs/IA-v4.md`. Where this file and v4 disagree, **this file wins**; where it
 disagrees with `FEEDBACK-R2.md`, that file wins. The clickable mockup is `design/intake-mockup-v4.html`. Nothing here is
@@ -354,7 +356,7 @@ Each page leads with the three or four settings people change, then **Advanced**
 * **E. Data sources**: *Health Connect* (status, per-type switches, "Last synced: N records" for each type, request
   permissions); *Food database* (Open Food Facts search, other languages, contribute, login); *USDA key*.
 * **F. Videos**: YouTube key (paste, Save, Test, Remove; stored in the key store), Show only workouts by default,
-  Personalise Recommended. One-line note: "Videos need internet and your own key. Intake never downloads a video."
+  Personalise Recommended. One-line note: "Videos need internet and your own key. Intake downloads a video only if you turn on Offline downloads and direct playback (off by default)."
 * **G. Reminders**: Weekly check-in (switch and day chips), Progress photo (off, 2, 3, 4 weeks), Export (switch;
   greyed with a note when sync is on).
 * **H. Sync and export**: *Sync* (server URL, pair, devices, stop syncing here, last sync status) and *Export and

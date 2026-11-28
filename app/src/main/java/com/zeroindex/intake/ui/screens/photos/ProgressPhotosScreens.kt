@@ -2,6 +2,7 @@
 
 package com.zeroindex.intake.ui.screens.photos
 
+import com.zeroindex.intake.domain.time.DateText
 import com.zeroindex.intake.domain.units.format
 import android.Manifest
 import android.content.pm.PackageManager
@@ -34,8 +35,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
@@ -43,10 +42,8 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -56,7 +53,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.ClipOp
@@ -70,6 +67,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -91,6 +94,16 @@ import com.zeroindex.intake.domain.time.Clock
 import com.zeroindex.intake.ui.components.ChoiceChip
 import com.zeroindex.intake.ui.components.IntakeCard
 import com.zeroindex.intake.ui.components.SandNote
+import com.zeroindex.intake.ui.components.Eyebrow
+import com.zeroindex.intake.ui.components.LineButton
+import com.zeroindex.intake.ui.components.Segmented
+import com.zeroindex.intake.ui.components.SoftButton
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
+import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.theme.NumberSmall
+import com.zeroindex.intake.ui.theme.intake
 import com.zeroindex.intake.ui.components.SectionLine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
@@ -171,10 +184,8 @@ fun PhotoImage(file: File?, modifier: Modifier = Modifier, targetPx: Int = 720, 
     }
 }
 
-private val dayFormat = DateTimeFormatter.ofPattern("MMM d")
-private val dayFormatYear = DateTimeFormatter.ofPattern("MMM d, yyyy")
-internal fun dayLabel(epochDay: Long): String = LocalDate.ofEpochDay(epochDay).format(dayFormatYear)
-private fun shortLabel(epochDay: Long): String = LocalDate.ofEpochDay(epochDay).format(dayFormat)
+internal fun dayLabel(epochDay: Long): String = DateText.medium(LocalDate.ofEpochDay(epochDay))
+private fun shortLabel(epochDay: Long): String = DateText.medium(LocalDate.ofEpochDay(epochDay))
 
 /**
  * You > Progress photos: add a photo from the camera or the gallery for one angle and a date, then the timeline grid.
@@ -210,28 +221,33 @@ fun ProgressPhotosScreen(
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(top = contentPadding.calculateTopPadding() + 4.dp, bottom = contentPadding.calculateBottomPadding() + 24.dp, start = 16.dp, end = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        contentPadding = PaddingValues(top = contentPadding.calculateTopPadding() + 4.dp, bottom = contentPadding.calculateBottomPadding() + 24.dp, start = IntakeSpacing.ScreenGutter, end = IntakeSpacing.ScreenGutter),
+        verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
     ) {
         item(key = "add") {
             IntakeCard {
-                Text("Add a photo", style = MaterialTheme.typography.titleSmall)
+                Text("Add a photo", style = MaterialTheme.typography.titleLarge)
                 Text("Every angle is optional.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 8.dp)) {
                     PhotoAngle.entries.forEach { a -> ChoiceChip(a.label, a == angle, { angle = a }) }
-                    ChoiceChip("Date: ${date.format(dayFormatYear)}", false, { pickingDate = true })
+                    ChoiceChip("Date: ${DateText.medium(date)}", false, { pickingDate = true })
                 }
                 Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
+                        shape = IntakeShape.Button,
                         onClick = {
                             if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) takePhoto()
                             else permission.launch(Manifest.permission.CAMERA)
                         },
-                        modifier = Modifier.weight(1f).heightIn(min = 52.dp),
-                    ) { Text("Camera") }
-                    OutlinedButton(
+                        modifier = Modifier.weight(1f).heightIn(min = IntakeSpacing.TouchTarget),
+                    ) {
+                        Icon(IntakeIcons.Camera, contentDescription = null, modifier = Modifier.size(IconSize.Small))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Camera")
+                    }
+                    SoftButton(
                         onClick = { gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                        modifier = Modifier.weight(1f).heightIn(min = 52.dp),
+                        modifier = Modifier.weight(1f),
                     ) { Text("Gallery") }
                 }
                 message?.let {
@@ -241,7 +257,7 @@ fun ProgressPhotosScreen(
             }
         }
         item(key = "compare") {
-            OutlinedButton(onClick = onCompare, enabled = state.days.size >= 2, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+            LineButton(onClick = onCompare, enabled = state.days.size >= 2, modifier = Modifier.fillMaxWidth()) {
                 Text(if (state.days.size >= 2) "Compare two dates" else "Add photos on two dates to compare")
             }
         }
@@ -258,7 +274,7 @@ fun ProgressPhotosScreen(
                 modifier = Modifier.fillMaxWidth().heightIn(max = (rows * 190).dp),
             ) {
                 items(state.days, key = { it.epochDay }) { d ->
-                    Box(Modifier.aspectRatio(0.72f).clickable { viewing = d }) {
+                    Box(Modifier.aspectRatio(0.72f).clip(IntakeShape.Thumb).clickable { viewing = d }) {
                         PhotoImage(d.cover?.let(viewModel::fileOf), Modifier.fillMaxSize(), targetPx = 400)
                         Text(
                             shortLabel(d.epochDay) + if (d.angles.size > 1) " · ${d.angles.size}" else "",
@@ -279,7 +295,7 @@ fun ProgressPhotosScreen(
     }
 
     if (pickingDate) {
-        val pickerState = rememberDatePickerState(initialSelectedDateMillis = date.atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli())
+        val pickerState = com.zeroindex.intake.ui.components.rememberAppDatePickerState(initialSelectedDateMillis = date.atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli())
         DatePickerDialog(
             onDismissRequest = { pickingDate = false },
             confirmButton = {
@@ -329,8 +345,8 @@ fun PhotoCompareScreen(contentPadding: PaddingValues, modifier: Modifier = Modif
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(top = contentPadding.calculateTopPadding() + 4.dp, bottom = contentPadding.calculateBottomPadding() + 24.dp, start = 16.dp, end = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        contentPadding = PaddingValues(top = contentPadding.calculateTopPadding() + 4.dp, bottom = contentPadding.calculateBottomPadding() + 24.dp, start = IntakeSpacing.ScreenGutter, end = IntakeSpacing.ScreenGutter),
+        verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
     ) {
         if (days.size < 2) {
             item(key = "few") { SandNote("Add photos on two different dates to compare them.") }
@@ -343,27 +359,56 @@ fun PhotoCompareScreen(contentPadding: PaddingValues, modifier: Modifier = Modif
         } else {
             val common = PhotoCompare.commonAngles(model.older.day, model.newer.day)
             if (common.size > 1) item(key = "angle") {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) { common.forEach { c -> ChoiceChip(c.label, c == model.angle, { angle = c }) } }
+                Segmented(
+                    options = common.map { it.label },
+                    selectedIndex = common.indexOf(model.angle).coerceAtLeast(0),
+                    onSelect = { angle = common[it] },
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
             item(key = "slider") { CompareSlider(model, viewModel, divider) { divider = it } }
             item(key = "span") {
-                Text("${PhotoCompare.spanLabel(model)} · drag the line", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    "${PhotoCompare.spanLabel(model)} · drag the line",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center,
+                )
             }
             item(key = "numbers") {
-                IntakeCard {
-                    Text("Weight and body on those dates", style = MaterialTheme.typography.titleSmall)
-                    listOf(model.older, model.newer).forEach { side ->
-                        val m = nearest(state.metrics, side.day.epochDay, viewModel.zone())
-                        Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
-                            Text(dayLabel(side.day.epochDay), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                            Text(
-                                if (m == null) "no weigh-in within a week" else
-                                    state.settings.weightUnit.format(m.weightKg) + (m.waistCm?.let { " · waist ${state.settings.lengthUnit.format(it)}" } ?: ""),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
+                Column(verticalArrangement = Arrangement.spacedBy(IntakeSpacing.GridGap2)) {
+                    Text(
+                        "Weight and body on those dates",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(IntakeSpacing.GridGap2)) {
+                        listOf(model.older, model.newer).forEach { side ->
+                            val m = nearest(state.metrics, side.day.epochDay, viewModel.zone())
+                            IntakeCard(Modifier.weight(1f).fillMaxHeight(), contentPadding = PaddingValues(IntakeSpacing.CardPadTile)) {
+                                Eyebrow(dayLabel(side.day.epochDay))
+                                if (m == null) {
+                                    Text("no weigh-in within a week", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                } else {
+                                    Text(state.settings.weightUnit.format(m.weightKg), style = NumberSmall)
+                                    m.waistCm?.let {
+                                        Text("waist ${state.settings.lengthUnit.format(it)}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
+            }
+            item(key = "footer") {
+                Text(
+                    "Photos are stored on this phone only.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center,
+                )
             }
         }
     }
@@ -377,7 +422,7 @@ private fun nearest(metrics: List<BodyMetricEntity>, epochDay: Long, zone: ZoneI
 @Composable
 private fun DateChips(label: String, days: List<PhotoDay>, selected: Long?, onPick: (Long) -> Unit) {
     Column {
-        Text(label, style = MaterialTheme.typography.labelMedium)
+        Eyebrow(label, Modifier.padding(bottom = 6.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             days.forEach { d -> ChoiceChip(shortLabel(d.epochDay), d.epochDay == selected, { onPick(d.epochDay) }) }
         }
@@ -393,7 +438,7 @@ private fun CompareSlider(model: CompareModel, viewModel: ProgressPhotosViewMode
         Modifier
             .fillMaxWidth()
             .aspectRatio(0.75f)
-            .clipToBounds()
+            .clip(IntakeShape.Dialog)
             .onSizeChanged { widthPx = it.width.toFloat() }
             .pointerInput(model) {
                 detectHorizontalDragGestures { change, delta ->
@@ -423,15 +468,17 @@ private fun CompareSlider(model: CompareModel, viewModel: ProgressPhotosViewMode
                 .fillMaxSize()
                 .padding(0.dp),
         ) {
-            Box(Modifier.size(width = 2.dp, height = 10000.dp).background(Color.White))
+            Box(Modifier.size(width = 3.dp, height = 10000.dp).background(Color.White))
             Box(
                 Modifier
                     .align(Alignment.Center)
-                    .offset(x = (-17).dp)
-                    .size(36.dp)
-                    .background(Color.White, CircleShape),
+                    .offset(x = (-23).dp)
+                    .size(48.dp)
+                    .background(MaterialTheme.intake.accent, CircleShape),
                 contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Filled.DragHandle, contentDescription = "Drag to compare", tint = Color.Black) }
+            ) {
+                Icon(IntakeIcons.Compare, contentDescription = "Drag to compare", tint = MaterialTheme.intake.onAccent, modifier = Modifier.size(IconSize.Default))
+            }
         }
     }
 }

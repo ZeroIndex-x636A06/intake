@@ -1,17 +1,34 @@
 package com.zeroindex.intake.ui.screens.workout
 
 import androidx.lifecycle.SavedStateHandle
-import androidx.navigation.toRoute
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.toRoute
+import com.zeroindex.intake.data.db.entity.ExerciseEntity
 import com.zeroindex.intake.data.db.entity.SetLogEntity
 import com.zeroindex.intake.data.db.entity.WorkoutSessionEntity
 import com.zeroindex.intake.data.repository.ExercisePrescription
 import com.zeroindex.intake.data.repository.TrainingRepository
 import com.zeroindex.intake.data.settings.AppSettings
+import com.zeroindex.intake.data.training.WorkoutPauseStore
+import com.zeroindex.intake.domain.training.RepTarget
+import com.zeroindex.intake.domain.training.UpNext
+import com.zeroindex.intake.domain.training.UpNextExercise
+import com.zeroindex.intake.domain.training.UpNextSet
+import com.zeroindex.intake.domain.training.WorkoutPause
 import com.zeroindex.intake.data.settings.SettingsRepository
 import com.zeroindex.intake.domain.training.PlateCalculator
 import com.zeroindex.intake.domain.training.PlateLoad
+import com.zeroindex.intake.domain.training.ExerciseRecordsCalc
+import com.zeroindex.intake.domain.training.PrDetector
+import com.zeroindex.intake.domain.training.PrKind
+import com.zeroindex.intake.domain.training.Prescription
+import com.zeroindex.intake.domain.training.RankedSwap
+import com.zeroindex.intake.domain.training.SessionProgress
+import com.zeroindex.intake.domain.training.SetResult
+import com.zeroindex.intake.domain.training.SwapCandidate
+import com.zeroindex.intake.domain.training.SwapRanking
+import com.zeroindex.intake.domain.training.SwapWeight
 import com.zeroindex.intake.domain.training.WarmupGenerator
 import com.zeroindex.intake.domain.training.WarmupSet
 import com.zeroindex.intake.ui.navigation.Route
@@ -21,29 +38,80 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 data class ActiveWorkoutUiState(
     val sessionId: String = "",
     val session: WorkoutSessionEntity? = null,
+    val title: String = "Workout",
     val settings: AppSettings = AppSettings(),
     val prescriptions: List<ExercisePrescription> = emptyList(),
     val loggedSets: List<SetLogEntity> = emptyList(),
-    val currentIndex: Int = 0,
-    val finished: Boolean = false,
+    /** Working sets of earlier sessions per exercise: what the live PR flag compares with. */
+    val history: Map<String, List<SetResult>> = emptyMap(),
+    /** Set id to the record it set (only sets that are one). */
+    val records: Map<String, PrKind> = emptyMap(),
+    /** "+ Add set" taps per exercise this session. */
+    val extraRows: Map<String, Int> = emptyMap(),
+    /** Rest length per exercise chosen in this session only (0 is no timer); the program is not changed. */
+    val restOverrides: Map<String, Int> = emptyMap(),
+    /** Pause state of this workout's clock, or null when it was never paused. */
+    val pause: WorkoutPause? = null,
+    /** The exercise the person picked from Up next, or null to follow the first one with sets left. */
+    val picked: Int? = null,
+    val loading: Boolean = true,
     /** True when the session has no program day: exercises are picked as you go. */
     val isFreestyle: Boolean = false,
 ) {
     /** At least one working set has been logged. */
     val hasWorkingSets: Boolean get() = loggedSets.any { !it.isWarmup }
 
+    private val slots: List<SessionProgress.Slot>
+        get() = prescriptions.map { p ->
+            SessionProgress.Slot(
+                plannedSets = (p.prescription?.sets ?: 0) + (extraRows[p.exercise.id] ?: 0),
+                loggedWorkingSets = setsFor(p.exercise.id).count { !it.isWarmup },
+            )
+        }
+
+    val totalSets: Int get() = SessionProgress.total(slots)
+    val doneSets: Int get() = SessionProgress.done(slots)
+
+    /** Index of the exercise shown expanded. */
+    val currentIndex: Int
+        get() = (picked ?: SessionProgress.currentIndex(slots)).coerceIn(0, maxOf(0, prescriptions.lastIndex))
+
     val current: ExercisePrescription? get() = prescriptions.getOrNull(currentIndex)
+
+    /** Seconds of rest after a set of [p]: this session's choice, else the program's, else the exercise's own. */
+    fun restSecFor(p: ExercisePrescription): Int =
+        restOverrides[p.exercise.id] ?: p.programExercise?.restSec ?: p.exercise.defaultRestSec
+
+    /** The next set still to do, with the plan's target numbers: what the rest strip shows as Up next. */
+    val upNext: UpNextSet?
+        get() = UpNext.find(
+            prescriptions.map { p ->
+                val pr = p.prescription
+                val amrap = pr != null && RepTarget.isAmrap(pr.repsMin, pr.repsMax)
+                val last = p.lastSession.maxByOrNull { it.weightKg }
+                UpNextExercise(
+                    name = p.exercise.name,
+                    loggedSetIndexes = setsFor(p.exercise.id).filter { !it.isWarmup }.map { it.setIndex }.toSet(),
+                    plannedSets = (pr?.sets ?: 0) + (extraRows[p.exercise.id] ?: 0),
+                    weightKg = pr?.weightKg?.takeIf { it > 0 } ?: last?.weightKg ?: 0.0,
+                    reps = if (amrap) null else pr?.repsMin ?: last?.reps,
+                    bodyweight = p.exercise.isBodyweight,
+                )
+            },
+            currentIndex,
+        )
 
     fun setsFor(exerciseId: String): List<SetLogEntity> =
         loggedSets.filter { it.exerciseId == exerciseId }.sortedBy { it.setIndex }
 
-    /** SPEC §10: which plates per side for the prescribed weight. */
+    /** SPEC §10: which plates per side for a weight. */
     fun plateLoad(weightKg: Double): PlateLoad = PlateCalculator.calculate(
         targetKg = weightKg,
         barWeightKg = settings.barWeightKg,
@@ -60,7 +128,9 @@ data class ActiveWorkoutUiState(
 @HiltViewModel
 class ActiveWorkoutViewModel @Inject constructor(
     private val repository: TrainingRepository,
-    settingsRepository: SettingsRepository,
+    private val settingsRepository: SettingsRepository,
+    private val pauseStore: WorkoutPauseStore,
+    private val messages: com.zeroindex.intake.ui.AppMessages,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -68,26 +138,35 @@ class ActiveWorkoutViewModel @Inject constructor(
         savedStateHandle.toRoute<Route.ActiveWorkout>().sessionId
 
     private val prescriptions = MutableStateFlow<List<ExercisePrescription>>(emptyList())
-    private val currentIndex = MutableStateFlow(0)
-    private val finished = MutableStateFlow(false)
-    private val freestyle = MutableStateFlow(false)
+    private val history = MutableStateFlow<Map<String, List<SetResult>>>(emptyMap())
+    private val extraRows = MutableStateFlow<Map<String, Int>>(emptyMap())
+    private val picked = MutableStateFlow<Int?>(null)
+    private val restOverrides = MutableStateFlow<Map<String, Int>>(emptyMap())
+    private val meta = MutableStateFlow(Triple<WorkoutSessionEntity?, String, Boolean>(null, "Workout", false))
+    private val loading = MutableStateFlow(true)
 
     val uiState: StateFlow<ActiveWorkoutUiState> = combine(
-        repository.observeSets(sessionId),
-        settingsRepository.settings,
+        combine(repository.observeSets(sessionId), settingsRepository.settings) { sets, settings -> sets to settings },
         prescriptions,
-        currentIndex,
-        combine(finished, freestyle) { f, free -> f to free },
-    ) { sets, settings, prescriptionList, index, finishedAndFree ->
-        val (isFinished, isFreestyle) = finishedAndFree
+        combine(history, extraRows, picked) { h, e, p -> Triple(h, e, p) },
+        combine(meta, loading) { m, l -> m to l },
+        combine(restOverrides, pauseStore.state) { r, p -> r to p },
+    ) { (sets, settings), list, (hist, extra, pick), (m, isLoading), (rests, pauseState) ->
         ActiveWorkoutUiState(
             sessionId = sessionId,
+            session = m.first,
+            title = m.second,
             settings = settings,
-            prescriptions = prescriptionList,
+            prescriptions = list,
             loggedSets = sets,
-            currentIndex = index.coerceIn(0, maxOf(0, prescriptionList.lastIndex)),
-            finished = isFinished,
-            isFreestyle = isFreestyle,
+            history = hist,
+            records = records(sets, hist),
+            extraRows = extra,
+            restOverrides = rests,
+            pause = pauseState?.takeIf { it.sessionId == sessionId },
+            picked = pick,
+            loading = isLoading,
+            isFreestyle = m.third,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -96,60 +175,153 @@ class ActiveWorkoutViewModel @Inject constructor(
     )
 
     init {
-        loadPrescriptions()
+        load()
     }
 
-    private fun loadPrescriptions() = viewModelScope.launch {
-        val session = repository.session(sessionId)
-        freestyle.value = session?.programDayId == null
-        prescriptions.value = repository.prescriptionsFor(
-            programDayId = session?.programDayId,
+    /** Which of the logged sets set a record, in the order they were done: earlier sets of the day count as history too. */
+    private fun records(sets: List<SetLogEntity>, hist: Map<String, List<SetResult>>): Map<String, PrKind> {
+        val out = mutableMapOf<String, PrKind>()
+        sets.filter { !it.isWarmup }.groupBy { it.exerciseId }.forEach { (exerciseId, rows) ->
+            val past = hist[exerciseId].orEmpty().toMutableList()
+            val today = mutableListOf<SetResult>()
+            val earlier = hist[exerciseId].orEmpty()
+            rows.sortedBy { it.completedAt }.forEach { s ->
+                var kind = PrDetector.check(s.weightKg, s.reps, past)
+                val result = SetResult(s.weightKg, s.reps)
+                // The fourth record, the best session volume, goes to the set that takes the day past the old best.
+                if (kind == PrKind.NONE &&
+                    ExerciseRecordsCalc.volumeRecord(earlier, today) == null &&
+                    ExerciseRecordsCalc.volumeRecord(earlier, today + result) != null
+                ) {
+                    kind = PrKind.BEST_VOLUME
+                }
+                if (kind != PrKind.NONE) out[s.id] = kind
+                past += result
+                today += result
+            }
+        }
+        return out
+    }
+
+    /** The phone's clock was set back past this workout's start: moves the start to now so the timer counts again (Q8-10). */
+    fun reanchorClock(wallNow: Long = System.currentTimeMillis()) = viewModelScope.launch {
+        val session = repository.reanchorClock(sessionId, wallNow) ?: return@launch
+        meta.value = meta.value.copy(first = session)
+    }
+
+    private fun load() = viewModelScope.launch {
+        val session = repository.reanchorClock(sessionId, System.currentTimeMillis()) ?: repository.session(sessionId)
+        val dayId = session?.programDayId
+        val title = dayId?.let { repository.dayName(it) } ?: "Workout"
+        meta.value = Triple(session, title, dayId == null)
+        val base = repository.prescriptionsFor(
+            programDayId = dayId,
             // The current session's own sets must not feed its prescriptions.
             excludeSessionId = sessionId,
         )
+        // Exercises that were added or swapped in and already have sets (this is a resumed session) stay in the list.
+        val have = base.map { it.exercise.id }.toSet()
+        // A repeated blank workout starts with last time's exercises, with no sets logged yet.
+        val seeded = repository.takeRepeatSeed(sessionId)
+        val extra = (repository.sets(sessionId).sortedBy { it.completedAt }.map { it.exerciseId } + seeded).distinct()
+            .filter { it !in have }
+            .mapNotNull { repository.freestylePrescription(it, sessionId) }
+        val all = base + extra
+        prescriptions.value = all
+        history.value = repository.historyBefore(sessionId, all.map { it.exercise.id })
+        loading.value = false
     }
 
-    fun selectExercise(index: Int) { currentIndex.value = index }
+    fun pick(index: Int) { picked.value = index }
 
     /** Adds an exercise to this workout (any workout, not just freestyle) and jumps to it. */
     fun addExercise(exerciseId: String) = viewModelScope.launch {
         val existing = prescriptions.value.indexOfFirst { it.exercise.id == exerciseId }
         if (existing >= 0) {
-            currentIndex.value = existing
+            picked.value = existing
             return@launch
         }
         val added = repository.freestylePrescription(exerciseId, sessionId) ?: return@launch
         prescriptions.value = prescriptions.value + added
-        currentIndex.value = prescriptions.value.lastIndex
+        history.value = history.value + repository.historyBefore(sessionId, listOf(exerciseId))
+        picked.value = prescriptions.value.lastIndex
     }
 
-    /** "Save as a program day": returns the day name saved, or null if nothing could be saved. */
-    fun saveAsProgramDay(name: String, onDone: (Boolean) -> Unit) = viewModelScope.launch {
-        val day = repository.saveSessionAsProgramDay(sessionId, name)
-        onDone(day != null)
+    /** "+ Add set": one more row for this exercise. */
+    fun addSet(exerciseId: String) {
+        extraRows.value = extraRows.value + (exerciseId to ((extraRows.value[exerciseId] ?: 0) + 1))
+        messages.post(com.zeroindex.intake.ui.AppMessage("Set added to this exercise.", "Undo") { undoAddSet(exerciseId) })
+    }
+
+    /** Undo for [addSet]: takes the extra row out again, unless a set has been logged into it since (nothing logged is ever hidden). */
+    private fun undoAddSet(exerciseId: String) {
+        val state = uiState.value
+        val planned = state.prescriptions.firstOrNull { it.exercise.id == exerciseId }?.prescription?.sets ?: 0
+        val extra = extraRows.value[exerciseId] ?: 0
+        val logged = state.setsFor(exerciseId).count { !it.isWarmup }
+        if (extra > 0 && planned + extra > logged) extraRows.value = extraRows.value + (exerciseId to extra - 1)
+    }
+
+    /** Move an exercise one place earlier or later (a rack might be taken). */
+    fun move(index: Int, delta: Int) {
+        val list = prescriptions.value.toMutableList()
+        val to = index + delta
+        if (index !in list.indices || to !in list.indices) return
+        list.add(to, list.removeAt(index))
+        prescriptions.value = list
+        picked.value = to
+    }
+
+    /** The exercises that could stand in for [exerciseId], best first: same muscles, then what the person owns. */
+    suspend fun swapOptions(exerciseId: String): List<RankedSwap> {
+        val current = prescriptions.value.firstOrNull { it.exercise.id == exerciseId }?.exercise ?: return emptyList()
+        val profile = settingsRepository.settings.first().profile
+        val owned = profile.equipment
+        val inSession = prescriptions.value.map { it.exercise.id }.toSet()
+        return SwapRanking.rank(
+            current = current.toCandidate(),
+            candidates = repository.exercises().map { it.toCandidate() },
+            owned = owned,
+            excludeIds = inSession,
+            ownedItems = profile.effectiveEquipmentItems,
+        )
+    }
+
+    /**
+     * Replaces [exerciseId] with [newId] for this session only. The new exercise keeps the plan's sets and rep range; the
+     * weight is its own last working weight, or a conservative estimate from the weight of the one it replaces.
+     */
+    fun swap(exerciseId: String, newId: String) = viewModelScope.launch {
+        val index = prescriptions.value.indexOfFirst { it.exercise.id == exerciseId }
+        if (index < 0) return@launch
+        val old = prescriptions.value[index]
+        val fresh = repository.freestylePrescription(newId, sessionId) ?: return@launch
+        val step = settingsRepository.settings.first().platesKgList.minOrNull()?.times(2) ?: 2.5
+        val ownLast = fresh.lastSession.maxOfOrNull { it.weightKg }?.takeIf { it > 0 }
+        val oldWeight = old.prescription?.weightKg ?: old.lastSession.maxOfOrNull { it.weightKg }
+        val weight = SwapWeight.carryOver(ownLast, oldWeight, old.exercise.equipment, fresh.exercise.equipment, step)
+        val plan = old.prescription
+        val prescription = Prescription(
+            weightKg = weight ?: 0.0,
+            sets = plan?.sets ?: fresh.prescription?.sets ?: 3,
+            repsMin = plan?.repsMin ?: fresh.prescription?.repsMin ?: 8,
+            repsMax = plan?.repsMax ?: fresh.prescription?.repsMax ?: 12,
+            targetRpe = plan?.targetRpe,
+            reason = when {
+                ownLast != null -> "Swapped in for ${old.exercise.name}. Your last weight on this one."
+                weight != null -> "Swapped in for ${old.exercise.name}. A cautious estimate from that weight: change it as you like."
+                else -> "Swapped in for ${old.exercise.name}. Pick a starting weight."
+            },
+        )
+        val replaced = fresh.copy(programExercise = null, prescription = prescription)
+        prescriptions.value = prescriptions.value.toMutableList().also { it[index] = replaced }
+        history.value = history.value + repository.historyBefore(sessionId, listOf(newId))
+        picked.value = index
     }
 
     /** "Save as workout": keeps this session as a saved single-session workout in My workouts. */
     fun saveAsWorkout(name: String, onDone: (Boolean) -> Unit) = viewModelScope.launch {
         onDone(repository.saveSessionAsWorkout(sessionId, name) != null)
-    }
-
-    fun nextExercise() {
-        currentIndex.value = (currentIndex.value + 1)
-            .coerceAtMost(maxOf(0, prescriptions.value.lastIndex))
-    }
-
-    fun previousExercise() {
-        currentIndex.value = (currentIndex.value - 1).coerceAtLeast(0)
-    }
-
-    /** SPEC §10: reorder mid-session, because a rack might be taken. */
-    fun moveExercise(from: Int, to: Int) {
-        val list = prescriptions.value.toMutableList()
-        if (from !in list.indices || to !in list.indices) return
-        list.add(to, list.removeAt(from))
-        prescriptions.value = list
-        currentIndex.value = to
     }
 
     fun logSet(
@@ -177,9 +349,46 @@ class ActiveWorkoutViewModel @Inject constructor(
 
     fun deleteSet(id: String) = viewModelScope.launch { repository.deleteSet(id) }
 
-    fun finish(onFinished: () -> Unit) = viewModelScope.launch {
-        repository.finishSession(sessionId)
-        finished.value = true
-        onFinished()
+    /** Rates (or clears) the effort of a logged set. [rpe] is the stored value, 10 minus reps in reserve. */
+    fun setEffort(setId: String, rpe: Double?) = viewModelScope.launch { repository.setEffort(setId, rpe) }
+
+    /** Rest length for one exercise for the rest of this session. 0 is no timer. */
+    fun setRest(exerciseId: String, seconds: Int) {
+        restOverrides.value = restOverrides.value + (exerciseId to seconds.coerceAtLeast(0))
     }
+
+    /** Pauses the workout clock, or carries on. The rest timer follows (the screen tells the timer service). */
+    fun setPaused(paused: Boolean) {
+        val now = System.currentTimeMillis()
+        if (paused) pauseStore.pause(sessionId, now) else pauseStore.resume(sessionId, now)
+    }
+
+    /** Finishes the session, then reports its id so the screen can open the summary. */
+    fun finish(onFinished: (sessionId: String) -> Unit) = viewModelScope.launch {
+        val paused = pauseStore.finish(sessionId, System.currentTimeMillis())
+        repository.finishSession(sessionId, pausedMs = paused.pausedMs, reopenGapMs = paused.reopenGapMs, reopenedAt = paused.reopenedAt)
+        onFinished(sessionId)
+    }
+
+    /** "Still training?" > "Finish it": ends the workout at [finishAt] (the last set and its rest), not now. */
+    fun finishAt(finishAt: Long?, onFinished: (sessionId: String) -> Unit) = viewModelScope.launch {
+        val reopen = pauseStore.forSession(sessionId)
+        repository.finishSession(sessionId, finishAt, reopenGapMs = reopen?.reopenGapMs ?: 0L, reopenedAt = reopen?.reopenedAt)
+        onFinished(sessionId)
+    }
+
+    /** "Discard": the session and its sets are hidden (a soft delete). */
+    fun discard(onDone: () -> Unit) = viewModelScope.launch {
+        repository.discardSession(sessionId)
+        pauseStore.clear(sessionId)
+        onDone()
+    }
+
+    private fun ExerciseEntity.toCandidate() = SwapCandidate(
+        id = id,
+        name = name,
+        primaryMuscle = primaryMuscle,
+        secondaryMuscles = secondaryMuscles.split(',').map { it.trim() }.filter { it.isNotEmpty() },
+        equipment = equipment,
+    )
 }

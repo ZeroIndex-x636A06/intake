@@ -20,6 +20,7 @@ data class BodyMetricsUiState(val settings: AppSettings = AppSettings())
 class BodyMetricsViewModel @Inject constructor(
     private val bodyRepository: BodyRepository,
     private val tdeeRepository: TdeeRepository,
+    private val autoTargets: com.zeroindex.intake.data.profile.AutoTargets,
     settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
@@ -57,7 +58,8 @@ class BodyMetricsViewModel @Inject constructor(
             hipCm = displayHip?.let { settings.lengthUnit.toCm(it) },
             notes = notes,
         )
-        tdeeRepository.recalculate()?.let { tdeeRepository.refreshTargetFromTdee(it) }
+        tdeeRepository.recalculate()
+        autoTargets.refresh()
         onSaved()
     }
 }

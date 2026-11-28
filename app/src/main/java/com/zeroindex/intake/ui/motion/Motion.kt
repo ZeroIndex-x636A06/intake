@@ -8,7 +8,6 @@ import android.provider.Settings
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
@@ -49,9 +48,8 @@ object Motion {
     /** Pressed buttons and tappable cards shrink to this scale. */
     const val PressScale = 0.97f
 
-    /** Fade-through: the outgoing screen leaves quickly, the incoming one arrives after it. */
+    /** Shared-axis exit: the outgoing screen leaves quickly, the incoming one arrives after it. */
     const val FadeThroughOut = 90
-    const val FadeThroughIn = 210
 
     // Easings.
     val Standard = CubicBezierEasing(0.2f, 0f, 0f, 1f)
@@ -70,47 +68,6 @@ object Motion {
 
     fun <T> standardTween(reduce: Boolean, durationMillis: Int = DurationMedium): FiniteAnimationSpec<T> =
         if (reduce) snap() else tween(durationMillis, easing = Standard)
-
-    // Fade-through, used when switching between the tabs: a plain cross-fade, no movement and no scale (IA v5 2b).
-    fun fadeThroughIn(reduce: Boolean): EnterTransition =
-        fadeIn(animationSpec = tween(if (reduce) DurationShort else TabFade, easing = Standard))
-
-    fun fadeThroughOut(reduce: Boolean): ExitTransition =
-        fadeOut(animationSpec = tween(if (reduce) DurationShort else TabFade, easing = Standard))
-
-    /** A tab switch cross-fades for 150 ms. */
-    const val TabFade = 150
-
-    /** A push slides in 300 ms; a pop (back) takes 250 ms. The screen underneath travels a quarter of its width. */
-    const val PushMillis = 300
-    const val PopMillis = 250
-    const val UnderFraction = 4
-
-    // Push and pop (IA v5 2b): horizontal slide only. No shrink, no fade of the screen underneath.
-    // With reduce motion on, every case is a 100 ms cross-fade.
-    fun pushEnter(reduce: Boolean): EnterTransition =
-        if (reduce) fadeIn(tween(DurationShort)) else slideInHorizontally(
-            animationSpec = tween(PushMillis, easing = FastOutSlowInEasing),
-            initialOffsetX = { full -> full },
-        )
-
-    fun pushExit(reduce: Boolean): ExitTransition =
-        if (reduce) fadeOut(tween(DurationShort)) else slideOutHorizontally(
-            animationSpec = tween(PushMillis, easing = FastOutSlowInEasing),
-            targetOffsetX = { full -> -full / UnderFraction },
-        )
-
-    fun popEnter(reduce: Boolean): EnterTransition =
-        if (reduce) fadeIn(tween(DurationShort)) else slideInHorizontally(
-            animationSpec = tween(PopMillis, easing = FastOutSlowInEasing),
-            initialOffsetX = { full -> -full / UnderFraction },
-        )
-
-    fun popExit(reduce: Boolean): ExitTransition =
-        if (reduce) fadeOut(tween(DurationShort)) else slideOutHorizontally(
-            animationSpec = tween(PopMillis, easing = FastOutSlowInEasing),
-            targetOffsetX = { full -> full },
-        )
 
     /** The pill leaving or arriving as a screen is pushed or popped: quick, and instant with reduce motion. */
     fun pillEnter(reduce: Boolean): EnterTransition =

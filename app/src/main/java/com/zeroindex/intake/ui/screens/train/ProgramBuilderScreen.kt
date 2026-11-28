@@ -20,23 +20,19 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -50,6 +46,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -60,7 +58,6 @@ import com.zeroindex.intake.domain.units.WeightUnit
 import com.zeroindex.intake.domain.training.WorkoutSchedule
 import com.zeroindex.intake.ui.components.ChoiceChip
 import com.zeroindex.intake.ui.components.ExerciseThumb
-import androidx.compose.material.icons.outlined.Info
 import com.zeroindex.intake.ui.components.Eyebrow
 import com.zeroindex.intake.domain.training.RepTarget
 import com.zeroindex.intake.ui.components.Glossary
@@ -70,7 +67,12 @@ import com.zeroindex.intake.ui.components.SandNote
 import com.zeroindex.intake.ui.components.StatusPill
 import com.zeroindex.intake.ui.components.SubHead
 import com.zeroindex.intake.ui.screens.script.writeText
+import com.zeroindex.intake.ui.components.IntakeSwitch
+import com.zeroindex.intake.ui.components.ListDivider
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
 import kotlinx.coroutines.launch
 
 /**
@@ -82,6 +84,7 @@ fun ProgramBuilderScreen(
     contentPadding: PaddingValues,
     onOpenScriptReference: (page: String, anchor: String?) -> Unit,
     modifier: Modifier = Modifier,
+    onOpenVideo: (videoId: String, startSec: Int) -> Unit = { _, _ -> },
     viewModel: ProgramBuilderViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -103,13 +106,11 @@ fun ProgramBuilderScreen(
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(
+        contentPadding = trainPadding(
             top = contentPadding.calculateTopPadding(),
             bottom = contentPadding.calculateBottomPadding() + 32.dp,
-            start = 16.dp,
-            end = 16.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
     ) {
         val program = state.program
         item(key = "heading") {
@@ -184,6 +185,9 @@ fun ProgramBuilderScreen(
                     onEdit = { editingId = it },
                     onInfo = { infoFor = it },
                     standalone = program.isStandalone,
+                    unit = state.weightUnit,
+                    videoId = program.videoId,
+                    onOpenVideo = onOpenVideo,
                 )
             }
             if (!(state.program?.isStandalone ?: false)) {
@@ -317,6 +321,9 @@ private fun DayCard(
     onEdit: (String) -> Unit,
     onInfo: (String) -> Unit,
     standalone: Boolean,
+    unit: WeightUnit,
+    videoId: String? = null,
+    onOpenVideo: (videoId: String, startSec: Int) -> Unit = { _, _ -> },
 ) {
     var menu by remember { mutableStateOf(false) }
     var weekdayDialog by remember { mutableStateOf(false) }
@@ -336,14 +343,14 @@ private fun DayCard(
             }
             if (!standalone) {
                 IconButton(onClick = { viewModel.moveDay(day.day.id, -1) }, enabled = !isFirst) {
-                    Icon(Icons.Filled.ArrowUpward, contentDescription = "Move ${day.day.name} up")
+                    Icon(IntakeIcons.ChevronUp, contentDescription = "Move ${day.day.name} up", modifier = Modifier.size(IconSize.Default))
                 }
                 IconButton(onClick = { viewModel.moveDay(day.day.id, 1) }, enabled = !isLast) {
-                    Icon(Icons.Filled.ArrowDownward, contentDescription = "Move ${day.day.name} down")
+                    Icon(IntakeIcons.ChevronDown, contentDescription = "Move ${day.day.name} down", modifier = Modifier.size(IconSize.Default))
                 }
             }
             IconButton(onClick = { menu = true }) {
-                Icon(Icons.Filled.MoreVert, contentDescription = "More for ${day.day.name}")
+                Icon(IntakeIcons.More, contentDescription = "More for ${day.day.name}", modifier = Modifier.size(IconSize.Default))
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(text = { Text("Rename") }, onClick = { menu = false; renaming = true })
                     if (!standalone) {
@@ -364,14 +371,16 @@ private fun DayCard(
             )
         }
         day.rows.forEachIndexed { index, item ->
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            ListDivider()
             ExerciseSummaryRow(
                 item = item,
                 isFirst = index == 0,
                 isLast = index == day.rows.lastIndex,
+                unit = unit,
                 onEdit = { onEdit(item.row.id) },
                 onMove = { delta -> viewModel.moveExercise(item.row.id, delta) },
                 onInfo = { item.exercise?.let { onInfo(it.id) } },
+                onPlayVideo = videoId?.let { id -> item.row.videoStartSec?.let { sec -> { onOpenVideo(id, sec) } } },
             )
         }
         Spacer(Modifier.height(8.dp))
@@ -431,48 +440,85 @@ private fun ExerciseSummaryRow(
     item: BuilderRow,
     isFirst: Boolean,
     isLast: Boolean,
+    unit: WeightUnit,
     onEdit: () -> Unit,
     onMove: (Int) -> Unit,
     onInfo: () -> Unit,
+    onPlayVideo: (() -> Unit)? = null,
 ) {
     val pe = item.row
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        item.exercise?.let { ExerciseThumb(it.id, it.photoPath, size = 44.dp) }
-        Column(
-            Modifier.weight(1f).heightIn(min = 56.dp)
-                .padding(vertical = 8.dp),
-        ) {
-            TextButton(onClick = onEdit, contentPadding = PaddingValues(0.dp), modifier = Modifier.heightIn(min = 48.dp)) {
-                Column(Modifier.fillMaxWidth()) {
-                    Text(item.exercise?.name ?: "Removed exercise", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
-                    Text(
-                        text = summaryLine(pe.targetSets, pe.targetRepsMin, pe.targetRepsMax, pe.targetRpe, pe.restSec),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = item.rule?.let { ProgressionLabels.summary(it.type, it.params) } ?: "No progression: weight stays as you set it",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    pe.notes?.takeIf { it.isNotBlank() }?.let { note ->
-                        Text(
-                            text = note,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
+    var menu by remember { mutableStateOf(false) }
+    // The whole row opens the editor. The text has the row's full width: the less-used actions (about, move up, move
+    // down) sit behind one menu, and the long "why this exercise" note is kept to two lines here.
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 72.dp)
+            .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onEdit)
+            .padding(vertical = 10.dp),
+    ) {
+        item.exercise?.let { ExerciseThumb(it.id, it.photoPath, size = 52.dp) }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(item.exercise?.name ?: "Removed exercise", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+            Text(
+                text = summaryLine(pe.targetSets, pe.targetRepsMin, pe.targetRepsMax, pe.targetRpe, pe.restSec),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = item.rule?.let { ProgressionLabels.summary(it.type, it.params, unit) }
+                    ?: "No progression: weight stays as you set it",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            pe.notes?.takeIf { it.isNotBlank() }?.let { note ->
+                Text(
+                    text = com.zeroindex.intake.domain.units.WeightText.inUnit(note, unit),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
+            }
+            // Where this exercise starts in the video the workout was made from; opens the video at that second.
+            if (onPlayVideo != null && pe.videoStartSec != null) {
+                val at = com.zeroindex.intake.domain.videos.YoutubeIds.clock(pe.videoStartSec)
+                androidx.compose.material3.AssistChip(
+                    onClick = onPlayVideo,
+                    label = { Text("▶ $at") },
+                    modifier = Modifier.semantics { contentDescription = "Play the video from $at" },
+                )
             }
         }
-        IconButton(onClick = onInfo, modifier = Modifier.size(44.dp)) {
-            Icon(Icons.Outlined.Info, contentDescription = "About ${item.exercise?.name ?: "this exercise"}: photos, muscles and how to")
-        }
-        IconButton(onClick = { onMove(-1) }, enabled = !isFirst, modifier = Modifier.size(44.dp)) {
-            Icon(Icons.Filled.ArrowUpward, contentDescription = "Move up")
-        }
-        IconButton(onClick = { onMove(1) }, enabled = !isLast, modifier = Modifier.size(44.dp)) {
-            Icon(Icons.Filled.ArrowDownward, contentDescription = "Move down")
+        Box {
+            IconButton(onClick = { menu = true }, modifier = Modifier.size(48.dp)) {
+                Icon(IntakeIcons.More, contentDescription = "More for ${item.exercise?.name ?: "this exercise"}", modifier = Modifier.size(IconSize.Default))
+            }
+            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                DropdownMenuItem(
+                    text = { Text("Edit sets, reps and progression") },
+                    onClick = { menu = false; onEdit() },
+                )
+                DropdownMenuItem(
+                    text = { Text("Photos, muscles and how to") },
+                    leadingIcon = { Icon(IntakeIcons.Info, contentDescription = null, modifier = Modifier.size(IconSize.Default)) },
+                    onClick = { menu = false; onInfo() },
+                )
+                DropdownMenuItem(
+                    text = { Text("Move up") },
+                    leadingIcon = { Icon(IntakeIcons.ChevronUp, contentDescription = null, modifier = Modifier.size(IconSize.Default)) },
+                    enabled = !isFirst,
+                    onClick = { menu = false; onMove(-1) },
+                )
+                DropdownMenuItem(
+                    text = { Text("Move down") },
+                    leadingIcon = { Icon(IntakeIcons.ChevronDown, contentDescription = null, modifier = Modifier.size(IconSize.Default)) },
+                    enabled = !isLast,
+                    onClick = { menu = false; onMove(1) },
+                )
+            }
         }
     }
 }
@@ -511,7 +557,7 @@ private fun ExerciseEditSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(
-            modifier = Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 28.dp),
+            modifier = Modifier.verticalScroll(rememberScrollState()).padding(horizontal = IntakeSpacing.ScreenGutter).padding(bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(item.exercise?.name ?: "Exercise", style = MaterialTheme.typography.headlineSmall)
@@ -524,7 +570,7 @@ private fun ExerciseEditSheet(
             if (RepTarget.isAmrap(repsMin.toIntOrNull() ?: 0, repsMax.toIntOrNull() ?: 0)) {
                 // 1 to 99 is how "as many as you can" is stored.
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(RepTarget.AMRAP_LABEL, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.secondary)
+                    Text(RepTarget.AMRAP_LABEL, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     InfoTip(Glossary.AS_MANY_AS_YOU_CAN, label = RepTarget.AMRAP_LABEL)
                 }
             }
@@ -537,7 +583,7 @@ private fun ExerciseEditSheet(
                 NumberField(rest, { rest = it }, "Rest (seconds)", Modifier.weight(1f))
             }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            ListDivider()
             Eyebrow("How the weight moves")
             ProgressionChoiceRow("Keep the weight as I set it", selected = type == null, explanation = null) { type = null }
             ProgressionLabels.SIMPLE.forEach { t ->
@@ -552,7 +598,7 @@ private fun ExerciseEditSheet(
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Advanced", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                Switch(checked = advanced, onCheckedChange = { advanced = it })
+                IntakeSwitch(checked = advanced, onCheckedChange = { advanced = it })
             }
             if (advanced) {
                 ProgressionLabels.ADVANCED.forEach { t ->
@@ -583,7 +629,7 @@ private fun ExerciseEditSheet(
                 else -> Unit
             }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            ListDivider()
             Eyebrow("Use these settings for other exercises")
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 TrainChip("Just this one", copyScope == CopyScope.None) { copyScope = CopyScope.None }

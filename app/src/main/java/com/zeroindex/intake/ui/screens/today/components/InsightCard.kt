@@ -4,12 +4,10 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -23,7 +21,14 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.zeroindex.intake.data.db.entity.AiInsightEntity
-import com.zeroindex.intake.ui.components.Eyebrow
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import com.zeroindex.intake.ui.components.ChipTone
+import com.zeroindex.intake.ui.components.GhostButton
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.theme.IntakeIcons
+import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.intake
 import com.zeroindex.intake.ui.components.IntakeCard
 
 /**
@@ -34,38 +39,33 @@ import com.zeroindex.intake.ui.components.IntakeCard
 @Composable
 fun InsightCard(insight: AiInsightEntity, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
     var showWhy by rememberSaveable(insight.id) { mutableStateOf(false) }
-    val ink = MaterialTheme.colorScheme.onSecondaryContainer
-    IntakeCard(modifier = modifier, color = MaterialTheme.colorScheme.secondaryContainer) {
+    val ink = MaterialTheme.colorScheme.onSurface
+    // A white card with a 1.5 dp AI-tinted outline (`box-shadow: inset 0 0 0 1.5px var(--ai-bg)`).
+    IntakeCard(modifier = modifier.border(1.5.dp, MaterialTheme.intake.aiBg, IntakeShape.Card)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Eyebrow("Today's insight · optional", color = ink, modifier = Modifier.weight(1f))
-            TextButton(
+            Box(Modifier.weight(1f)) {
+                IntakeChip("Today's insight · optional", tone = ChipTone.Ai, icon = IntakeIcons.Sparkle)
+            }
+            GhostButton(
                 onClick = onDismiss,
                 modifier = Modifier.semantics { contentDescription = "Dismiss today's insight" },
-            ) { Text("Dismiss", fontWeight = FontWeight.Bold) }
+            ) { Text("Dismiss") }
         }
         Text(
             insight.text,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.titleMedium,
             color = ink,
-            modifier = Modifier.padding(vertical = 4.dp),
+            modifier = Modifier.padding(vertical = 8.dp),
         )
-        TextButton(
+        GhostButton(
             onClick = { showWhy = !showWhy },
-            modifier = Modifier
-                .heightIn(min = 44.dp)
-                .semantics { stateDescription = if (showWhy) "Expanded" else "Collapsed" },
+            modifier = Modifier.semantics { stateDescription = if (showWhy) "Expanded" else "Collapsed" },
         ) {
-            Text(
-                if (showWhy) "Why this suggestion?  ⌃" else "Why this suggestion?  ⌄",
-                color = ink,
-                fontWeight = FontWeight.ExtraBold,
-                style = MaterialTheme.typography.labelMedium,
-            )
+            Text(if (showWhy) "Why this suggestion?  ⌃" else "Why this suggestion?  ⌄")
         }
         AnimatedVisibility(showWhy) {
             Column(Modifier.padding(bottom = 4.dp)) {
-                HorizontalDivider(color = ink.copy(alpha = 0.13f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 insight.rationale.lines().filter { it.isNotBlank() }.forEach {
                     Text("· $it", style = MaterialTheme.typography.labelSmall, color = ink, modifier = Modifier.padding(top = 4.dp))
                 }

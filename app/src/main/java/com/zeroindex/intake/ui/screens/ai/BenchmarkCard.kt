@@ -2,6 +2,7 @@
 
 package com.zeroindex.intake.ui.screens.ai
 
+import com.zeroindex.intake.ui.components.ChoiceChip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -14,7 +15,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -89,12 +89,12 @@ internal fun BenchmarkRunCard(
             modifier = Modifier.padding(top = 10.dp),
         ) {
             BenchmarkSuite.tasks.forEach { task ->
-                FilterChip(
+                ChoiceChip(
+                    label = task.label,
                     selected = task in state.tasks,
                     onClick = { onToggleTask(task) },
                     enabled = !running,
-                    label = { Text(task.label) },
-                    modifier = Modifier.heightIn(min = 44.dp),
+                    role = androidx.compose.ui.semantics.Role.Checkbox,
                 )
             }
         }
@@ -140,7 +140,7 @@ internal fun BenchmarkRunCard(
             is BenchmarkPhase.Running -> {
                 LoadingState(progressLines(phase.progress))
                 phase.progress?.note?.let {
-                    Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
+                    Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 OutlinedButton(
                     onClick = onCancel,

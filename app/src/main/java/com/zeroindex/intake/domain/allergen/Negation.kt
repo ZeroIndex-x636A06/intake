@@ -12,9 +12,11 @@ import java.text.Normalizer
 internal object Negation {
 
     /** Lower-case, accents folded, curly quotes straightened. Same length is NOT guaranteed. */
+    private val COMBINING_MARKS = Regex("\\p{Mn}+")
+
     fun normalize(text: String): String =
         Normalizer.normalize(text, Normalizer.Form.NFD)
-            .replace(Regex("\\p{Mn}+"), "")
+            .replace(COMBINING_MARKS, "")
             .replace('’', '\'')
             .replace('‘', '\'')
             .lowercase()

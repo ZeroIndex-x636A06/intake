@@ -6,10 +6,10 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -29,9 +29,6 @@ import androidx.compose.material3.Button
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.foundation.layout.size
@@ -46,7 +43,6 @@ import com.zeroindex.intake.ui.motion.pressScale
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -87,18 +83,25 @@ import com.zeroindex.intake.domain.units.WeightUnit
 import com.zeroindex.intake.ui.components.AccentNote
 import com.zeroindex.intake.ui.components.EmptyState
 import com.zeroindex.intake.ui.components.Eyebrow
-import com.zeroindex.intake.ui.components.Flag
 import com.zeroindex.intake.ui.components.IntakeCard
-import com.zeroindex.intake.ui.components.PillTone
 import com.zeroindex.intake.ui.components.SandNote
 import com.zeroindex.intake.ui.components.SectionLine
-import com.zeroindex.intake.ui.components.StatusPill
 import com.zeroindex.intake.ui.components.SubHead
 import com.zeroindex.intake.ui.components.Tag
 import com.zeroindex.intake.ui.screens.script.ScriptDiagnosticsSheet
 import com.zeroindex.intake.ui.screens.script.ScriptMimeTypes
 import com.zeroindex.intake.ui.screens.script.writeText
+import com.zeroindex.intake.ui.components.ChipTone
+import com.zeroindex.intake.ui.components.IconCircleButton
+import com.zeroindex.intake.ui.components.IconCircleStyle
+import com.zeroindex.intake.ui.components.IntakeChip
+import com.zeroindex.intake.ui.components.LineButton
+import com.zeroindex.intake.ui.theme.IconSize
+import com.zeroindex.intake.ui.theme.IntakeIcons
 import com.zeroindex.intake.ui.theme.IntakeShape
+import com.zeroindex.intake.ui.theme.IntakeSpacing
+import com.zeroindex.intake.ui.theme.NumberSmall
+import com.zeroindex.intake.ui.theme.intake
 import java.io.ByteArrayOutputStream
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
@@ -113,11 +116,12 @@ import kotlinx.coroutines.withContext
 @Composable
 fun PlanScreen(
     contentPadding: PaddingValues,
-    onOpenPlanB: () -> Unit,
+    onOpenSwap: () -> Unit,
     onOpenCook: (String) -> Unit,
     onOpenScriptReference: (page: String, anchor: String?) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MealPlanViewModel = hiltViewModel(),
+    recipeLibrary: RecipeLibraryViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -131,12 +135,17 @@ fun PlanScreen(
     val content by viewModel.content.collectAsStateWithLifecycle()
     val meta by viewModel.meta.collectAsStateWithLifecycle()
     val shopping by viewModel.shopping.collectAsStateWithLifecycle()
+    val shoppingMarks by viewModel.shoppingMarks.collectAsStateWithLifecycle()
     val recipes by viewModel.recipes.collectAsStateWithLifecycle()
+    val recipeVerdicts by recipeLibrary.verdicts.collectAsStateWithLifecycle()
+    val recipeAvoids by recipeLibrary.avoidsAnything.collectAsStateWithLifecycle()
     val unit by viewModel.weightUnit.collectAsStateWithLifecycle()
     val eatOut by viewModel.eatOut.collectAsStateWithLifecycle()
     val hidden by viewModel.hiddenEatOutCount.collectAsStateWithLifecycle()
     val showingAll by viewModel.showingAllEatOut.collectAsStateWithLifecycle()
     val pending by viewModel.pending.collectAsStateWithLifecycle()
+    val allergenPending by viewModel.allergenPending.collectAsStateWithLifecycle()
+    val eatOutPending by viewModel.eatOutPending.collectAsStateWithLifecycle()
     val importState by viewModel.importState.collectAsStateWithLifecycle()
     val notice by viewModel.notice.collectAsStateWithLifecycle()
     val checkTerms by viewModel.checkLabelTerms.collectAsStateWithLifecycle()
@@ -178,16 +187,16 @@ fun PlanScreen(
                 top = contentPadding.calculateTopPadding(),
                 // The sticky buttons below, then the floating navigation pill under them.
                 bottom = 150.dp + contentPadding.calculateBottomPadding(),
-                start = 16.dp,
-                end = 16.dp,
+                start = IntakeSpacing.ScreenGutter,
+                end = IntakeSpacing.ScreenGutter,
             ),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(IntakeSpacing.StackGap),
         ) {
             item(key = "head") {
                 Row(verticalAlignment = Alignment.Bottom) {
                     Column(Modifier.weight(1f)) {
                         SubHead(
-                            activePlan?.name ?: "Your meal plan",
+                            activePlan?.name ?: "Your plan",
                             position?.label() ?: "Make a plan of any length, or import one.",
                         )
                     }
@@ -195,10 +204,11 @@ fun PlanScreen(
                         Text(if (plans.size > 1) "Plans (${plans.size})" else "Plans")
                     }
                     Box {
-                        IconButton(
+                        IconCircleButton(
+                            icon = IntakeIcons.More,
+                            contentDescription = "Plan options",
                             onClick = { planMenu = true },
-                            modifier = Modifier.size(48.dp),
-                        ) { Icon(Icons.Filled.MoreVert, contentDescription = "Plan options") }
+                        )
                         DropdownMenu(expanded = planMenu, onDismissRequest = { planMenu = false }) {
                             DropdownMenuItem(text = { Text("New plan") }, onClick = { planMenu = false; planForm = PlanFormTarget.New })
                             DropdownMenuItem(text = { Text("Import a plan file") }, onClick = { planMenu = false; launchImport() })
@@ -259,9 +269,8 @@ fun PlanScreen(
                                     shape = IntakeShape.Button,
                                     modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                                 ) { Text("Make a plan") }
-                                OutlinedButton(
+                                LineButton(
                                     onClick = launchImport,
-                                    shape = IntakeShape.Button,
                                     modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                                 ) { Text("Import a plan file") }
                             }
@@ -280,14 +289,12 @@ fun PlanScreen(
                                     shape = IntakeShape.Button,
                                     modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                                 ) { Text("Choose a recipe for week $week") }
-                                OutlinedButton(
+                                LineButton(
                                     onClick = { editingWeek = true },
-                                    shape = IntakeShape.Button,
                                     modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                                 ) { Text("Write it yourself") }
-                                OutlinedButton(
+                                LineButton(
                                     onClick = launchImport,
-                                    shape = IntakeShape.Button,
                                     modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                                 ) { Text("Import a plan file") }
                             }
@@ -306,6 +313,7 @@ fun PlanScreen(
                 item(key = "shop") {
                     ShoppingAccordion(
                         sections = shopping,
+                        marks = shoppingMarks,
                         unit = unit,
                         onCheck = viewModel::setChecked,
                         onRemove = viewModel::removeItem,
@@ -332,8 +340,8 @@ fun PlanScreen(
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.background)
                 .padding(bottom = contentPadding.calculateBottomPadding())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(horizontal = IntakeSpacing.ScreenGutter, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(IntakeSpacing.RowGap),
         ) {
             content?.main?.let { main ->
                 // This week's meal: Cook is the one big button, Log is its quieter partner.
@@ -343,25 +351,25 @@ fun PlanScreen(
                         shape = IntakeShape.Button,
                         modifier = Modifier.weight(1f).heightIn(min = 54.dp).pressScale(),
                     ) { Text("Cook this meal") }
-                    OutlinedButton(
+                    LineButton(
                         onClick = viewModel::logMeal,
-                        shape = IntakeShape.Button,
                         modifier = Modifier.weight(1f).heightIn(min = 54.dp),
                     ) { Text("Log this meal") }
                 }
             }
             Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.intake.soft,
+                contentColor = MaterialTheme.colorScheme.onSurface,
                 shape = IntakeShape.Banner,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                     .clickable(role = Role.Button) { parking = true },
             ) {
-                Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                Column(Modifier.padding(horizontal = IntakeSpacing.ListRowPadH, vertical = 10.dp)) {
                     Text("Can't eat what I cooked?", style = MaterialTheme.typography.titleSmall)
                     Text(
-                        "Find a safer option nearby · works offline",
+                        "Find another option nearby · works offline",
                         style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -375,6 +383,8 @@ fun PlanScreen(
             initialProtein = content?.week?.proteinType.orEmpty(),
             onDismiss = { assigning = false },
             onPick = { recipe, protein -> viewModel.assign(week, recipe, protein); assigning = false },
+            verdicts = recipeVerdicts,
+            avoids = recipeAvoids,
         )
     }
     if (showPlans) {
@@ -443,9 +453,19 @@ fun PlanScreen(
             weekLabel = content?.let { "week ${it.week.weekNumber} (${it.week.proteinType.ifBlank { "no protein set" }})" } ?: "any week",
             onToggleAll = viewModel::toggleShowAllEatOut,
             onLog = { row -> parking = false; viewModel.logEatOut(row.option) },
-            onOpenPlanB = { parking = false; onOpenPlanB() },
+            onOpenSwap = { parking = false; onOpenSwap() },
             onDismiss = { parking = false },
         )
+    }
+    eatOutPending?.let { p ->
+        com.zeroindex.intake.ui.allergen.PendingEntryAllergenSheet(
+            pending = p,
+            onDismiss = viewModel::dismissEatOutPending,
+            onLogAnyway = viewModel::confirmEatOutPending,
+        )
+    }
+    allergenPending?.let { p ->
+        PlanAllergenSheet(p, onDismiss = viewModel::dismissAllergenPending, onLogAnyway = viewModel::confirmAllergenPending)
     }
     pending?.let { p ->
         when (p) {
@@ -534,10 +554,9 @@ private fun WeekStrip(viewed: Int, now: Int, length: Int, planned: Set<Int>, onS
             Surface(
                 color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
                 contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                shape = IntakeShape.Chip,
-                border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
+                shape = IntakeShape.Tile,
                 modifier = Modifier
-                    .heightIn(min = 48.dp)
+                    .heightIn(min = IntakeSpacing.TouchTarget)
                     .widthIn(min = 52.dp)
                     .semantics {
                         contentDescription = "Week $n, ${if (has) "planned" else "not planned"}${if (n == now) ", this week" else ""}${if (selected) ", selected" else ""}"
@@ -547,7 +566,7 @@ private fun WeekStrip(viewed: Int, now: Int, length: Int, planned: Set<Int>, onS
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 12.dp)) {
                     Text(
                         "W$n" + (if (n == now) " ●" else "") + (if (has) "" else " ·"),
-                        style = MaterialTheme.typography.labelLarge,
+                        style = NumberSmall,
                     )
                 }
             }
@@ -555,16 +574,15 @@ private fun WeekStrip(viewed: Int, now: Int, length: Int, planned: Set<Int>, onS
         item(key = "add") {
             Surface(
                 color = MaterialTheme.colorScheme.surface,
-                shape = IntakeShape.Chip,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                shape = IntakeShape.Tile,
                 modifier = Modifier
-                    .heightIn(min = 48.dp)
+                    .heightIn(min = IntakeSpacing.TouchTarget)
                     .widthIn(min = 52.dp)
                     .semantics { contentDescription = "Add a week" }
                     .clickable(role = Role.Button, onClick = onAdd),
             ) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 12.dp)) {
-                    Text("+", style = MaterialTheme.typography.labelLarge)
+                    Text("+", style = NumberSmall)
                 }
             }
         }
@@ -579,13 +597,15 @@ private fun DishCard(content: WeekContent, onEditProtein: () -> Unit, onChange: 
         Row(verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f)) {
                 Eyebrow("Week ${content.week.weekNumber}")
-                Text(content.week.mainDishName, style = MaterialTheme.typography.titleLarge)
+                Text(content.week.mainDishName, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 2.dp))
             }
             Box {
-                TextButton(
+                IconCircleButton(
+                    icon = IntakeIcons.More,
+                    contentDescription = "More for this week",
                     onClick = { menu = true },
-                    modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = "More for this week" },
-                ) { Text("•••") }
+                    style = IconCircleStyle.Soft,
+                )
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(text = { Text("Edit protein type") }, onClick = { menu = false; onEditProtein() })
                     DropdownMenuItem(text = { Text("Change recipe") }, onClick = { menu = false; onChange() })
@@ -595,7 +615,7 @@ private fun DishCard(content: WeekContent, onEditProtein: () -> Unit, onChange: 
         }
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Stat(content.week.proteinType.ifBlank { "Not set" }, "Protein", Modifier.weight(1f))
+            Stat(content.week.proteinType.ifBlank { "Not set" }, "Protein type", Modifier.weight(1f))
             Stat(main?.recipe?.servings?.toString() ?: "–", "Servings", Modifier.weight(1f))
             Stat(main?.recipe?.totalTimeMinutes?.takeIf { it > 0 }?.let { "$it min" } ?: "–", "Total", Modifier.weight(1f))
         }
@@ -608,12 +628,16 @@ private fun DishCard(content: WeekContent, onEditProtein: () -> Unit, onChange: 
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 when (main.allergenStatus) {
-                    AllergenStatus.CONTAINS -> StatusPill("Contains an allergen", tone = PillTone.Bad)
-                    AllergenStatus.MAY_CONTAIN -> StatusPill("Check allergens", tone = PillTone.Wait)
+                    AllergenStatus.CONTAINS -> IntakeChip("Contains an allergen", tone = ChipTone.Bad)
+                    AllergenStatus.MAY_CONTAIN -> IntakeChip("Check allergens", tone = ChipTone.Warn)
                     AllergenStatus.CHECK_LABEL -> CheckLabelChip(null)
-                    AllergenStatus.CLEAR -> StatusPill("Passed allergen check")
-                    AllergenStatus.MENTIONED_AVOIDED -> StatusPill(MentionedAvoided.PILL)
-                    AllergenStatus.UNKNOWN -> StatusPill("Allergens not checked", tone = PillTone.Wait)
+                    AllergenStatus.CLEAR -> {
+                        val basis = com.zeroindex.intake.domain.allergen.AllergenEvidence.recipeClearBasis(main.ingredientLineCount, main.readLineCount)
+                        if (basis.isCaution) com.zeroindex.intake.ui.allergen.AllergenChip(com.zeroindex.intake.domain.swap.SwapAllergen.CHECK_LABEL, label = basis.chipText)
+                        else IntakeChip(basis.chipText, tone = ChipTone.Ok, icon = IntakeIcons.Check)
+                    }
+                    AllergenStatus.MENTIONED_AVOIDED -> IntakeChip(MentionedAvoided.PILL)
+                    AllergenStatus.UNKNOWN -> IntakeChip(com.zeroindex.intake.domain.allergen.AllergenEvidence.ClearBasis.NAME_ONLY.chipText)
                 }
                 if (main.macros.isEmpty) Tag("Macros: no data")
                 else Text(
@@ -645,9 +669,9 @@ private fun DishCard(content: WeekContent, onEditProtein: () -> Unit, onChange: 
 
 @Composable
 private fun Stat(value: String, label: String, modifier: Modifier = Modifier) {
-    Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = IntakeShape.Tile, modifier = modifier) {
-        Column(Modifier.padding(vertical = 9.dp, horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(value, style = MaterialTheme.typography.titleSmall, maxLines = 2)
+    Surface(color = MaterialTheme.intake.soft, shape = IntakeShape.InnerCard, modifier = modifier) {
+        Column(Modifier.padding(vertical = 10.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(value, style = NumberSmall, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
@@ -666,7 +690,7 @@ private fun Accordion(
     val inner: @Composable () -> Unit = {
         Column {
             Row(
-                Modifier.fillMaxWidth().heightIn(min = 56.dp)
+                Modifier.fillMaxWidth().heightIn(min = IntakeSpacing.ListRowMinHeight)
                     .clickable(role = Role.Button, onClickLabel = if (open) "Collapse $title" else "Expand $title") { open = !open },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -684,6 +708,7 @@ private fun Accordion(
 @Composable
 private fun ShoppingAccordion(
     sections: com.zeroindex.intake.domain.plan.ShoppingSections,
+    marks: Map<String, com.zeroindex.intake.ui.addfood.RowAllergen>,
     unit: WeightUnit,
     onCheck: (String, Boolean) -> Unit,
     onRemove: (String) -> Unit,
@@ -697,17 +722,16 @@ private fun ShoppingAccordion(
             }
             sections.sections.forEach { (category, items) ->
                 Eyebrow(ShoppingListBuilder.sectionTitle(category), Modifier.padding(top = 8.dp))
-                items.forEach { ShoppingRow(it, unit, onCheck, onRemove) }
+                items.forEach { ShoppingRow(it, unit, marks[it.id], onCheck, onRemove) }
             }
             if (sections.pantry.isNotEmpty()) {
                 Accordion("Pantry staples · ${sections.pantry.size}", nested = true) {
-                    sections.pantry.forEach { ShoppingRow(it, unit, onCheck, onRemove) }
+                    sections.pantry.forEach { ShoppingRow(it, unit, marks[it.id], onCheck, onRemove) }
                 }
             }
             AddItemRow(onAdd)
-            OutlinedButton(
+            LineButton(
                 onClick = onShare,
-                shape = IntakeShape.Button,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
             ) { Text("Share as text") }
         }
@@ -718,6 +742,7 @@ private fun ShoppingAccordion(
 private fun ShoppingRow(
     item: ShoppingListItemEntity,
     unit: WeightUnit,
+    allergen: com.zeroindex.intake.ui.addfood.RowAllergen?,
     onCheck: (String, Boolean) -> Unit,
     onRemove: (String) -> Unit,
 ) {
@@ -759,13 +784,15 @@ private fun ShoppingRow(
             item.note?.let {
                 Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            // A row that matches one of the person's allergens is marked (never hidden): the local engine on the item name.
+            allergen?.let { Box(Modifier.padding(top = 2.dp)) { com.zeroindex.intake.ui.addfood.RowAllergenChip(it) } }
             // Shopping is where the label gets read, so this is the most useful place for the nudge.
             if (!item.isChecked) checkLabelReasonFor(item.name)?.let { CheckLabelChip(it, Modifier.padding(top = 2.dp)) }
         }
         IconButton(
             onClick = { onRemove(item.id) },
             modifier = Modifier.size(48.dp),
-        ) { Icon(Icons.Filled.Close, contentDescription = "Remove ${item.name}") }
+        ) { Icon(IntakeIcons.Close, contentDescription = "Remove ${item.name}", modifier = Modifier.size(IconSize.Default)) }
     }
 }
 
@@ -860,8 +887,79 @@ private fun EveryWeekAccordion(meta: PlanMeta) {
     }
 }
 
+/** The line under a recipe's name: kcal and protein per serving, or the servings count. Shared by the row and the card. */
+private fun recipeSummary(recipe: RecipeEntity, estimatedKcal: Double?): String = listOfNotNull(
+    recipe.kcalPerServing?.let { "${it.roundToInt()} kcal" }
+        ?: estimatedKcal?.let { "~${it.roundToInt()} kcal" },
+    recipe.proteinPerServing?.let { "${it.roundToInt()} g protein" },
+    when {
+        recipe.kcalPerServing != null -> "per serving"
+        estimatedKcal != null -> "per serving, estimated"
+        else -> null
+    },
+).joinToString(" · ").ifBlank { "${recipe.servings} servings" }
+
+/** The allergen chip of a recipe row or card: today's verdict when there is one, else the stored flag. */
 @Composable
-internal fun RecipeRow(recipe: RecipeEntity, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun RecipeVerdictChip(recipe: RecipeEntity, allergen: com.zeroindex.intake.ui.addfood.RowAllergen?) {
+    if (allergen != null) {
+        com.zeroindex.intake.ui.addfood.RowAllergenChip(allergen)
+    } else if (recipe.allergenStatus == AllergenStatus.MAY_CONTAIN) {
+        IntakeChip("Check allergens", tone = ChipTone.Warn)
+    } else if (recipe.allergenStatus == AllergenStatus.CHECK_LABEL) {
+        CheckLabelChip(null)
+    }
+}
+
+/**
+ * `.rc`: a recipe card for the two-column My recipes grid. A 104 dp `soft` photo well with the verdict chip at its top right,
+ * then the name and the per-serving line. The verdict is the same one [RecipeRow] shows, from the same mapper.
+ */
+@Composable
+internal fun RecipeCard(
+    recipe: RecipeEntity,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    allergen: com.zeroindex.intake.ui.addfood.RowAllergen? = null,
+    estimatedKcal: Double? = null,
+) {
+    IntakeCard(
+        modifier = modifier.pressScale().clickable(onClick = onClick),
+        shape = IntakeShape.TileLarge,
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 12.dp),
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = 104.dp)
+                .clip(IntakeShape.Thumb)
+                .background(MaterialTheme.intake.soft),
+        ) {
+            com.zeroindex.intake.ui.images.RecipePhoto(recipe.imageUrl, height = 104.dp)
+            Box(Modifier.align(Alignment.TopEnd).padding(8.dp)) { RecipeVerdictChip(recipe, allergen) }
+        }
+        Column(Modifier.padding(horizontal = 6.dp).padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(recipe.name, style = MaterialTheme.typography.titleMedium)
+            Text(
+                recipeSummary(recipe, estimatedKcal),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (recipe.origin == RecipeOrigin.HUNTER) Tag("From the web") else if (recipe.origin == RecipeOrigin.LINK) Tag("From a link")
+        }
+    }
+}
+
+@Composable
+internal fun RecipeRow(
+    recipe: RecipeEntity,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    /** Today's verdict from the local engine, when the person avoids anything. Replaces the stored flag below. */
+    allergen: com.zeroindex.intake.ui.addfood.RowAllergen? = null,
+    /** Calories per serving estimated from the ingredient lines, when the page gave none. Shown with a "~". */
+    estimatedKcal: Double? = null,
+) {
     IntakeCard(modifier = modifier.pressScale().clickable(onClick = onClick)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (recipe.imageUrl != null) {
@@ -871,25 +969,18 @@ internal fun RecipeRow(recipe: RecipeEntity, onClick: () -> Unit, modifier: Modi
                 Spacer(Modifier.size(10.dp))
             }
             Column(Modifier.weight(1f)) {
-                Text(recipe.name, style = MaterialTheme.typography.titleSmall)
+                Text(recipe.name, style = MaterialTheme.typography.titleMedium)
                 Text(
-                    text = listOfNotNull(
-                        recipe.kcalPerServing?.let { "${it.roundToInt()} kcal" },
-                        recipe.proteinPerServing?.let { "${it.roundToInt()} g protein" },
-                        "per serving".takeIf { recipe.kcalPerServing != null },
-                    ).joinToString(" · ").ifBlank { "${recipe.servings} servings" },
-                    style = MaterialTheme.typography.labelSmall,
+                    text = recipeSummary(recipe, estimatedKcal),
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             if (recipe.origin == RecipeOrigin.HUNTER) Tag("From the web") else if (recipe.origin == RecipeOrigin.LINK) Tag("From a link")
         }
-        if (recipe.allergenStatus == AllergenStatus.MAY_CONTAIN) {
+        if (allergen != null || recipe.allergenStatus == AllergenStatus.MAY_CONTAIN || recipe.allergenStatus == AllergenStatus.CHECK_LABEL) {
             Spacer(Modifier.height(6.dp))
-            Flag("Check allergens")
-        } else if (recipe.allergenStatus == AllergenStatus.CHECK_LABEL) {
-            Spacer(Modifier.height(6.dp))
-            CheckLabelChip(null)
+            RecipeVerdictChip(recipe, allergen)
         }
     }
 }

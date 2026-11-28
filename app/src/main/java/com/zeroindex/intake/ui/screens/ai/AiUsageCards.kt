@@ -1,5 +1,6 @@
 package com.zeroindex.intake.ui.screens.ai
 
+import com.zeroindex.intake.domain.time.DateText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,7 +16,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
+import com.zeroindex.intake.ui.components.IntakeSwitch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -59,7 +60,7 @@ internal fun AiMasterCard(enabled: Boolean, onToggle: (Boolean) -> Unit) {
             },
             showDivider = false,
         ) {
-            Switch(checked = enabled, onCheckedChange = onToggle)
+            IntakeSwitch(checked = enabled, onCheckedChange = onToggle)
         }
     }
 }
@@ -277,7 +278,7 @@ private fun CostRow(row: CostRowUi, onUsesChange: (AiFeature, String) -> Unit) {
             Text(
                 it.text,
                 style = MaterialTheme.typography.labelSmall,
-                color = if (it.benchmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+                color = if (it.benchmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         Text(
@@ -298,7 +299,7 @@ private fun CostRow(row: CostRowUi, onUsesChange: (AiFeature, String) -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 row.offNote?.let {
-                    Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
+                    Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             UsesField(c.feature, row.usesPerDay, onUsesChange)
@@ -339,13 +340,13 @@ internal fun AutomaticAiCard(
             subtitle = "One suggestion a day on Today. Sends a summary of the last two weeks of " +
                 "food, training and body data to the chosen model.",
         ) {
-            Switch(checked = settings.dailyInsightEnabled, onCheckedChange = onInsight, enabled = settings.aiEnabled)
+            IntakeSwitch(checked = settings.dailyInsightEnabled, onCheckedChange = onInsight, enabled = settings.aiEnabled)
         }
         SettingRow(
             title = "Reword my coach check-in",
             subtitle = "Rewrites the weekly check-in's wording. Only the suggestion texts go out; the numbers and actions never change.",
         ) {
-            Switch(checked = settings.coachAiReword, onCheckedChange = onReword, enabled = settings.aiEnabled)
+            IntakeSwitch(checked = settings.coachAiReword, onCheckedChange = onReword, enabled = settings.aiEnabled)
         }
         SettingRow(
             title = "Refresh saved menus weekly",
@@ -353,7 +354,7 @@ internal fun AutomaticAiCard(
                 "only the rest use the model.",
             showDivider = false,
         ) {
-            Switch(checked = settings.menuAutoRefresh, onCheckedChange = onMenuRefresh, enabled = settings.aiEnabled)
+            IntakeSwitch(checked = settings.menuAutoRefresh, onCheckedChange = onMenuRefresh, enabled = settings.aiEnabled)
         }
     }
 }
@@ -368,4 +369,4 @@ private fun trimUses(v: Double): String = when {
 private fun tokens(n: Int): String = if (n >= 1000) String.format(Locale.US, "%.1fk", n / 1000.0).replace(".0k", "k") else n.toString()
 
 private fun dayLabel(millis: Long): String =
-    DateTimeFormatter.ofPattern("MMM d").format(Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()))
+    DateText.medium(millis)

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Quick log</title>
+<link rel="stylesheet" href="intake.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.q{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:14px;border-radius:20px;background:var(--soft);border:0;color:var(--ink);text-align:left;min-height:96px;font:600 13.5px Inter,sans-serif}
+</style>
+</helmet>
+<div class="phone " style="--accent: #D4F25A; width: 390px; height: 844px">
+  <header class="top">
+    <div class="stack" style="gap: 2px"><span class="eyebrow">Today</span><h1 class="title">Mon, Nov 16</h1></div>
+    <span class="avatar" aria-hidden="true">Y</span>
+  </header>
+  <div class="pad"><div class="card inkc" style="height: 220px"></div></div>
+
+  <div class="scrim"></div>
+  <section class="sheet" aria-label="Log something" style="padding-bottom: 116px">
+    <div class="grab"></div>
+    <div class="between" style="margin-bottom: 14px">
+      <h2 class="h2" style="font-size: 22px">Log something</h2>
+      <span class="sub">Lunch · 12:40</span>
+    </div>
+    <div class="grid3">
+      <a class="q" href="LogFood.html" style="background: var(--accent); color: #111514"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v20M4 2v6a3 3 0 0 0 6 0V2M17 22V2c-2 0-3.5 3-3.5 7s1.5 4 3.5 4"/></svg>Food</a>
+      <a class="q" href="Drinks.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12l-1.5 17a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1z"/><path d="M6.5 8h11"/></svg>Drink</a>
+      <a class="q" href="LogFood.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2M8 8v8M11 8v8M14 8v8M17 8v8"/></svg>Scan barcode</a>
+      <a class="q" href="LogFood.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="3"/><circle cx="12" cy="13.5" r="3.5"/><path d="M9 7l1.5-3h3L15 7"/></svg><span>Photo estimate <span class="chip ai" style="min-height: 20px; padding: 0 6px; font-size: 11px">AI</span></span></a>
+      <a class="q" href="LogFood.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c1 4 6 5 6 11a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 2 3 0-3-1-5 1-8z"/></svg>Quick calories</a>
+      <a class="q" href="FoodLibrary.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Meal template</a>
+      <button class="q"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="4"/><path d="M9 10a3 3 0 0 1 6 0M12 10l1.5-2"/></svg>Weight</button>
+      <button class="q"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h18v8H3z"/><path d="M7 8v3M11 8v4M15 8v3M19 8v4"/></svg>Measurements</button>
+      <a class="q" href="PhotoCompare.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>Progress photo</a>
+      <a class="q" href="ActiveWorkout.html" style="background: var(--ink); color: var(--ink-on)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7v10M3 9.5v5M18 7v10M21 9.5v5M6 12h12"/></svg>Start workout</a>
+      <button class="q"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V6M7 11l5-5 5 5M5 3h14"/></svg>Jump test</button>
+      <button class="q"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 0 8M10 6a9 9 0 0 1 0 12M14 4a12 12 0 0 1 0 16"/></svg>NFC tag</button>
+    </div>
+    <div class="stack" style="gap: 8px; margin-top: 16px">
+      <span class="eyebrow">Water · one tap</span>
+      <div class="rowx" style="gap: 8px">
+        <button class="pill" style="background: var(--soft)"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true" style="color: var(--water)"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg>8 fl oz</button>
+        <button class="pill" style="background: var(--soft)">12 fl oz</button>
+        <button class="pill" style="background: var(--soft)">16 fl oz</button>
+        <button class="pill" style="background: var(--soft)">24</button>
+      </div>
+    </div>
+  </section>
+
+  <nav class="dock" aria-label="Main" style="z-index: 9">
+    <a class="tab on" href="Today.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Today</a>
+    <a class="tab" href="FoodDiary.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v20M4 2v6a3 3 0 0 0 6 0V2M17 22V2c-2 0-3.5 3-3.5 7s1.5 4 3.5 4"/></svg>Food</a>
+    <a class="fab" href="Today.html" aria-label="Close"><svg class="i l" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></a>
+    <a class="tab" href="Train.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7v10M3 9.5v5M18 7v10M21 9.5v5M6 12h12"/></svg>Train</a>
+    <a class="tab" href="Insights.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M6 16l4-5 4 3 5-7"/></svg>Insights</a>
+  </nav>
+</div>
+</x-dc>
+</body>
+</html>
